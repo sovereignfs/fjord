@@ -35,7 +35,7 @@ fn run(args: Cli) -> anyhow::Result<ExitCode> {
         Command::Key(key) => cmd::keys::run(key, &args.global),
         Command::Encrypt(encrypt) => cmd::crypt::encrypt(encrypt, &args.global),
         Command::Decrypt(decrypt) => cmd::crypt::decrypt(decrypt, &args.global),
-        Command::Open(_) => todo!("M4: decrypt, $EDITOR, re-encrypt on change, shred"),
+        Command::Open(open) => cmd::open::run(open, &args.global),
         Command::New(_) | Command::Ls(_) | Command::Grep(_) | Command::Status => {
             todo!("M5: everyday commands")
         }

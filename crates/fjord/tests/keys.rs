@@ -558,6 +558,24 @@ fn an_identity_can_arrive_on_stdin() {
     assert_eq!(String::from_utf8_lossy(&output.stdout), "from stdin\n");
 }
 
+/// `--help` promises these paths are relative to the repository root, and
+/// `-C` is useless otherwise. Every test above passes absolute paths, which
+/// is exactly how this went unnoticed until `open` was written.
+#[test]
+fn a_repository_relative_path_works() {
+    let repo = repo();
+    with_key(&repo);
+    std::fs::write(repo.root.join("Private/notes.md"), "text\n").expect("write");
+
+    let encrypted = repo.run(&["encrypt", "Private/notes.md"]);
+    assert_eq!(code(&encrypted), 0, "{}", err(&encrypted));
+    assert!(repo.root.join("Private/notes.md.age").is_file());
+
+    let decrypted = repo.run(&["decrypt", "Private/notes.md.age"]);
+    assert_eq!(code(&decrypted), 0, "{}", err(&decrypted));
+    assert_eq!(out(&decrypted), "text\n");
+}
+
 #[test]
 fn a_file_outside_the_repository_is_refused() {
     let repo = repo();

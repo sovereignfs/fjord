@@ -20,6 +20,8 @@ serde.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 zeroize.workspace = true
+blake3.workspace = true
+signal-hook.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

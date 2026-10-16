@@ -151,18 +151,42 @@ fjord decrypt Private/notes.md.age -o ~/notes.md
 
 ### `fjord open <path>`
 
-Decrypts a document to a private temporary file, opens `$EDITOR`, re-encrypts
-when you are done, and shreds the temporary copy.
+Decrypts a document to a private temporary file **outside the repository**,
+opens your editor, re-encrypts when you are done, and shreds the temporary
+copy.
 
 This is how you use vim, VS Code, Obsidian or anything else on an encrypted
 document without ever leaving plaintext in the repository.
 
-- GUI editors that fork on launch need to block. Fjord appends `--wait` for
-  editors it recognises (`code`, `subl`, `zed`); for others, set
-  `EDITOR="yourapp --wait"`.
-- If the content did not change, nothing is re-encrypted. Merely reading a
-  document does not create a new commit.
-- Interrupting the editor cleans up the temporary file.
+```bash
+fjord open Private/notes.md          # the `.age` is implied
+fjord open Private/notes.md --commit
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--editor <cmd>` | Editor to use. Overrides `$VISUAL` and `$EDITOR`. |
+| `--commit` | Commit the re-encrypted document after a successful edit. |
+
+- **GUI editors that fork on launch need to block.** Fjord appends `--wait`
+  for editors it recognises (`code`, `code-insiders`, `codium`, `subl`,
+  `sublime_text`, `zed`, `mate`); for anything else, include the flag
+  yourself: `EDITOR="yourapp --wait"`.
+- **If the content did not change, nothing is re-encrypted.** Merely reading
+  a document does not create a new commit — which matters more than it
+  sounds, because `age` output is non-deterministic, so a pointless
+  re-encrypt writes a whole new object Git cannot delta-compress.
+- **Interrupting the session cleans up.** `Ctrl-C` or `SIGTERM` shreds the
+  decrypted file and releases the lock before exiting.
+- **One session per document.** A second `open` of the same file is refused
+  rather than letting one set of edits silently overwrite the other. The
+  lock lives under `/.fjord/local/`, which is never committed.
+- If your editor exits with an error but the document changed, the change is
+  still saved: a GUI editor's exit code is not a reliable signal, and
+  discarding your work on the strength of one would be worse.
+
+A session is refused before anything is decrypted if the vault has no
+recipients, since the edit could not be saved.
 
 Shredding is best-effort on SSDs and copy-on-write filesystems; the operating
 system may retain blocks regardless.
@@ -176,6 +200,10 @@ Creates a Fjord Doc with valid frontmatter — a fresh ULID, `created`, and a
 | --- | --- |
 | `--title <text>` | Set the title. Defaults to the file stem. |
 | `--no-edit` | Create the file without opening an editor. |
+
+Paths in `open`, `encrypt`, `decrypt` and `new` may be given relative to the
+working directory or to the repository root, whichever resolves — so `-C` and
+shell completion both work.
 
 ### `fjord ls [path]`
 

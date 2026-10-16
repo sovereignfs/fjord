@@ -7,6 +7,7 @@
 pub mod crypt;
 pub mod init;
 pub mod keys;
+pub mod open;
 pub mod verify;
 
 use crate::cli::{ExitCode, GlobalArgs};
@@ -90,6 +91,36 @@ impl Style {
         } else {
             text.to_string()
         }
+    }
+}
+
+/// Refuse to write to a repository made by a newer Fjord.
+///
+/// Invariant 4 and spec §10.1: a client encountering a `fjord` version
+/// greater than the one it implements MUST NOT write, MAY read, and SHOULD
+/// say so. Returns the exit code to use when writing must be refused.
+pub fn ensure_writable(root: &Path) -> Result<Option<ExitCode>> {
+    let path = root.join(fjord_core::REPOSITORY_MANIFEST);
+    let bytes = match std::fs::read(&path) {
+        Ok(bytes) => bytes,
+        // No manifest at all is not this function's problem to report.
+        Err(_) => return Ok(None),
+    };
+    let manifest = match fjord_core::manifest::Manifest::parse(&bytes) {
+        Ok(manifest) => manifest,
+        Err(_) => return Ok(None),
+    };
+
+    match manifest.version() {
+        Some(version) if version > i64::from(fjord_core::FORMAT_VERSION) => {
+            Ok(Some(usage(format!(
+                "this repository declares Fjord format version {version}, and this build \
+                 implements {}. Reading it is fine; writing to it is not, because a newer \
+                 version may store things this build would silently destroy. Upgrade fjord.",
+                fjord_core::FORMAT_VERSION
+            ))))
+        }
+        _ => Ok(None),
     }
 }
 
@@ -225,26 +256,40 @@ pub fn resolve_destination(path: &Path) -> PathBuf {
 
 /// Turn a path a user typed into a repository-relative one.
 ///
-/// Returns the usage error when the path is outside the repository, rather
-/// than silently operating on something else.
-pub fn repo_relative(root: &Path, input: &Path) -> Result<std::result::Result<String, ExitCode>> {
-    let absolute = match std::fs::canonicalize(input) {
-        Ok(absolute) => absolute,
-        Err(_) => {
-            return Ok(Err(usage(format!("{} does not exist", input.display()))));
-        }
-    };
+/// Two spellings are accepted, in this order:
+///
+/// 1. **As given** — absolute, or relative to the working directory, so
+///    that shell completion and `./notes.md` work from wherever the user
+///    happens to be.
+/// 2. **Relative to the repository root**, which is what `--help` promises
+///    and what `-C` users need: `fjord -C ~/notes open Private/notes.md`
+///    must mean the document in that repository, not one beside the
+///    terminal's working directory.
+///
+/// Returns the *message* for an unusable path rather than printing one:
+/// callers probe several spellings, and a lookup that fails on the way to a
+/// success must not leave an error on stderr. Printing is the caller's job,
+/// through [`usage`].
+pub fn repo_relative(root: &Path, input: &Path) -> Result<std::result::Result<String, String>> {
     let canonical_root = std::fs::canonicalize(root)
         .with_context(|| format!("could not resolve {}", root.display()))?;
 
-    match absolute.strip_prefix(&canonical_root) {
-        Ok(relative) => Ok(Ok(relative.to_string_lossy().replace('\\', "/"))),
-        Err(_) => Ok(Err(usage(format!(
-            "{} is outside the repository at {}",
-            input.display(),
-            canonical_root.display()
-        )))),
+    for candidate in [input.to_path_buf(), canonical_root.join(input)] {
+        let absolute = match std::fs::canonicalize(&candidate) {
+            Ok(absolute) => absolute,
+            Err(_) => continue,
+        };
+        return match absolute.strip_prefix(&canonical_root) {
+            Ok(relative) => Ok(Ok(relative.to_string_lossy().replace('\\', "/"))),
+            Err(_) => Ok(Err(format!(
+                "{} is outside the repository at {}",
+                input.display(),
+                canonical_root.display()
+            ))),
+        };
     }
+
+    Ok(Err(format!("{} does not exist", input.display())))
 }
 
 /// Report a problem with how the command was invoked, and the exit code

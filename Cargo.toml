@@ -42,6 +42,11 @@ anyhow = "1"
 # CLI only
 clap = { version = "4", features = ["derive", "env"] }
 owo-colors = "4"
+# Signal handling for `fjord open`: the decrypted temporary file must be
+# removed when an editing session ends (§11.3), and std has no API for
+# installing a handler. Not in CLAUDE.md's table because the table has no
+# row for this need.
+signal-hook = "0.3"
 
 [profile.release]
 strip = true

@@ -67,6 +67,16 @@ impl Git {
             .context("could not stage files")
     }
 
+    /// `git add -- <path>`, for one file.
+    ///
+    /// `--` so a path that looks like an option, or like a revision, is
+    /// still treated as a path.
+    pub fn add_path(&self, relative: &str) -> Result<()> {
+        self.run(&["add", "--", relative])
+            .map(drop)
+            .with_context(|| format!("could not stage {relative}"))
+    }
+
     /// `git commit -m <message>`.
     pub fn commit(&self, message: &str) -> Result<()> {
         self.run(&["commit", "-m", message])

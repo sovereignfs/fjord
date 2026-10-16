@@ -5,10 +5,10 @@ not define behaviour.** `spec/SPEC.md` is authoritative on the format and
 `CLAUDE.md` on how to build it — where either disagrees with this file, this
 file is stale and should be corrected.
 
-State as of 2026-10-16: **M1, M2 and M3 complete and green.** `verify`,
-`init`, `key new|add|list|remove`, `encrypt` and `decrypt` are implemented
-end to end. 170 tests pass; `clippy -- -D warnings` and `cargo fmt --check`
-are clean.
+State as of 2026-10-16: **M1 through M4 complete and green.** `verify`,
+`init`, `key new|add|list|remove`, `encrypt`, `decrypt` and `open` are
+implemented end to end. 195 tests pass; `clippy -- -D warnings` and
+`cargo fmt --check` are clean.
 
 All three milestones' acceptance criteria hold, including the one that
 matters most: **a file encrypted by `fjord` decrypts with the real `age`
@@ -60,7 +60,7 @@ green.
 | M1 | `fjord verify`, read-only, no crypto | `scalar`, `path`, `manifest`, `doc`, `verify`, `cmd/verify` | `done` |
 | M2 | `fjord init` | `scaffold`, `cmd/init`, `git` | `done` |
 | M3 | Keys, encrypt, decrypt | `crypto`, `vault`, `cmd/keys`, `cmd/crypt` | `done` |
-| M4 | `fjord open` | `cmd/open` | `todo` |
+| M4 | `fjord open` | `cmd/open` | `done` |
 | M5 | `new`, `ls`, `status`, `grep` | `cmd/*` | `todo` |
 | M6 | `fjord sync` | `cmd/sync`, `git` | `todo` |
 | M7 | `fileNaming: "id"` and the tar container | `container` | `todo` |
@@ -197,6 +197,59 @@ Two things about this are worth keeping:
    so a path that does not exist yet is still resolved honestly.
 2. **Only an end-to-end test could find it.** Every unit in the chain was
    correct in isolation.
+
+### M4 notes
+
+All four of the edge cases CLAUDE.md names are handled, and each has a test
+named after it in `crates/fjord/tests/open.rs`. The editors in those tests
+are `#!/bin/sh` scripts, which is what makes the command testable at all: a
+real editor wants a terminal, while a script can stand in for one that
+saves, one that changes nothing, and one that hangs.
+
+- **Forking GUI editors** get `--wait` appended, matched on the program's
+  file stem so a full path still works.
+- **An unchanged document is not re-encrypted.** The test asserts the
+  payload's bytes are identical, which is the only honest check: `age`
+  output is non-deterministic, so any re-encryption at all would change
+  them.
+- **SIGINT/SIGTERM shred the decrypted file and release the lock**, then
+  exit 130. This needed `signal-hook`, since std has no API for installing
+  a handler — a dependency CLAUDE.md's table has no row for, added
+  deliberately. The test drives it with a hanging editor and a real
+  `kill -TERM`.
+- **The lock lives under `/.fjord/local/locks/`**, named by digest so any
+  path becomes one safe file name. §2.2 reserves `/.fjord/` for client
+  machinery and the generated `.gitignore` keeps it out of commits — and a
+  lock inside an encrypted vault would be plaintext in the one place
+  invariant 1 forbids. A test asserts the path, not just the behaviour.
+
+Two further choices worth recording:
+
+- **A session that could not be saved is never started.** The recipients are
+  parsed before anything is decrypted, so a vault with no keys refuses up
+  front rather than after the user has typed for an hour.
+- **A non-zero editor exit does not discard the edit.** A GUI editor's exit
+  code is not a reliable signal, and throwing away someone's work on the
+  strength of one would be worse than persisting it. The exit is reported as
+  a warning.
+
+### Two bugs the demo caught, again
+
+Both were invisible to the test suite, and both were about the seam between
+components rather than any one of them:
+
+1. **Repository-relative paths did not work.** `cli.rs` documents `open`'s
+   path as "relative to the repository root", and `-C` is useless otherwise,
+   but resolution only tried the working directory. Every M3 test passed
+   absolute paths, which is exactly how it went unnoticed. Both spellings
+   are now accepted, working directory first.
+2. **A successful command printed an error.** `usage()` prints as a side
+   effect, and `open` called it speculatively while probing for the payload
+   name — so `fjord open Private/notes.md` emitted "does not exist" and then
+   succeeded. The tests missed it because they assert stderr *contains* the
+   expected text, and noise passes that. Path resolution now returns the
+   message and lets the caller decide to print it; a test asserts stderr is
+   empty on success.
 
 ## Fixtures
 

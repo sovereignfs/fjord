@@ -22,7 +22,7 @@ pub fn encrypt(args: &EncryptArgs, global: &GlobalArgs) -> Result<ExitCode> {
     let root = find_root(global.repo.as_deref())?;
     let relative = match repo_relative(&root, &args.path)? {
         Ok(relative) => relative,
-        Err(code) => return Ok(code),
+        Err(message) => return Ok(usage(message)),
     };
 
     let vault = match encrypted_vault(&root, &relative)? {
@@ -158,7 +158,7 @@ pub fn decrypt(args: &DecryptArgs, global: &GlobalArgs) -> Result<ExitCode> {
     let root = find_root(global.repo.as_deref())?;
     let relative = match repo_relative(&root, &args.path)? {
         Ok(relative) => relative,
-        Err(code) => return Ok(code),
+        Err(message) => return Ok(usage(message)),
     };
 
     let vault = match encrypted_vault(&root, &relative)? {
