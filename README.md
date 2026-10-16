@@ -24,7 +24,11 @@ cargo install fjord-cli
 ```
 
 Linux builds are statically linked against musl, so one binary works on any
-distribution.
+distribution — checked on every push, by inspecting the binary and then
+running it.
+
+Building from source needs Rust 1.88 or newer. That is not a style
+preference: `time`, `ignore` and `age`'s own dependencies require it.
 
 **You do not need `age` installed.** Fjord links the age implementation
 directly. Install the `age` CLI only if you want to decrypt files by hand —

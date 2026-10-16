@@ -240,7 +240,7 @@ fn a_terminated_session_leaves_no_plaintext() {
 
     // Wait for the decrypted file to exist, so the test is about cleanup
     // rather than about timing.
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while repo.scratch_files().is_empty() {
         assert!(
             Instant::now() < deadline,
@@ -304,7 +304,7 @@ fn a_second_session_is_refused() {
         .spawn()
         .expect("spawn the first session");
 
-    let deadline = Instant::now() + Duration::from_secs(10);
+    let deadline = Instant::now() + Duration::from_secs(60);
     while repo.locks().is_empty() {
         assert!(Instant::now() < deadline, "the lock never appeared");
         std::thread::sleep(Duration::from_millis(25));

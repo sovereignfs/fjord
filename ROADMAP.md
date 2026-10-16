@@ -13,7 +13,8 @@ implemented end to end, with `fileNaming: "id"` and the tar container.
 pass; `clippy -- -D warnings` and `cargo fmt --check` are clean.
 
 Three commands the README documents remain — `rekey`, `export` and
-`import` — none of which appears in CLAUDE.md's milestone list.
+`import` — none of which appears in CLAUDE.md's milestone list. CI now runs
+on every push: five jobs, with age cross-validation first and alone.
 
 All three milestones' acceptance criteria hold, including the one that
 matters most: **a file encrypted by `fjord` decrypts with the real `age`
@@ -45,14 +46,34 @@ disagreement late.
 
 | | Item | Status |
 | --- | --- | --- |
-| M0.1 | `rust-toolchain.toml` pinning the MSRV declared in `Cargo.toml` (1.82) | `todo` |
-| M0.2 | CI: `build`, `test`, `clippy -- -D warnings`, `fmt --check` on Linux and macOS | `todo` |
-| M0.3 | CI job installing the Go `age` binary, for the cross-validation tests M3 will fill in | `todo` |
-| M0.4 | Fixture harness: a helper that copies `tests/fixtures/<name>/` to a tempdir and runs `verify` against it, so no test mutates a fixture in place | `todo` |
-| M0.5 | `xtask` (or a test that writes and diffs) generating the README diagnostics table from `diagnostics::Code`, as CLAUDE.md already claims happens | `todo` |
+| M0.1 | Verify the declared MSRV | `done` — see below |
+| M0.2 | CI: `build`, `test`, `clippy -- -D warnings`, `fmt --check` on Linux and macOS | `done` |
+| M0.3 | CI job installing the Go `age` binary for cross-validation | `done` — its own job, run first |
+| M0.4 | Fixture harness | `done` — synthesised fixtures build in a tempdir, and `verify_mutates_nothing` hashes the committed tree before and after |
+| M0.5 | Generate the README diagnostics table from `diagnostics::Code`, as CLAUDE.md claims happens | `todo` |
 
-*Accepts when:* CI is green on an empty test suite, and the generated README
-table is byte-identical to the committed one.
+**M0.1 was done differently than planned, and the plan was wrong.** A
+`rust-toolchain.toml` pinning the MSRV would make everyday development and
+`clippy` run on the oldest supported compiler, whose lints differ from the
+current ones — so the code would be checked against the wrong rules. The
+declared `rust-version` in `Cargo.toml` is instead verified by a CI job
+that reads the version *out of* `Cargo.toml`, so the declaration and the
+check cannot drift apart.
+
+**And the declared MSRV was not achievable.** 1.82 was declared from the
+start and never worked: `time`, `ignore`, `globset` and `sha2` (via `age`)
+all require 1.88. Pinning the lockfile would not have rescued the claim,
+because `cargo install` resolves dependencies afresh — so anyone following
+the README on 1.82 would have hit a parse error about `edition2024`, not a
+Fjord problem they could diagnose. Now declared and tested at 1.88.
+
+The CI workflow also checks the two build claims the README makes and
+nothing had ever tested: the MSRV above, and that the Linux release binary
+is **genuinely statically linked**, by inspecting it and then running
+`init` and `verify` with it. `file` is the authority for that check and
+`ldd` deliberately is not — on a static binary it reports "not a dynamic
+executable" on some systems and "statically linked" on others, so matching
+its output fails in one of the two cases for the wrong reason.
 
 ## Format milestones
 

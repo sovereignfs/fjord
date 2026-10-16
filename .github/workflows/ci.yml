@@ -1,0 +1,224 @@
+# Continuous integration for fjord-cli.
+#
+# Four things are checked, and the order below is the order they matter in:
+#
+# 1. `interop` proves this crate and the reference `age` implementation
+#    agree. CLAUDE.md calls it the most important test in the repository,
+#    and it is what backs the format's promise that `age -d` alone recovers
+#    a file. It runs first and alone so a failure is unmistakable.
+# 2. `test` runs everything on Linux and macOS.
+# 3. `lint` holds `clippy -- -D warnings` and `cargo fmt --check`.
+# 4. `msrv` and `musl` check the two claims the README makes about builds:
+#    the lowest supported toolchain, and a statically linked Linux binary.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # So that a dependency's new release cannot quietly break the build
+  # unnoticed between commits.
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # A dependency fetch is not a thing to retry silently.
+  CARGO_NET_RETRY: 2
+  RUST_BACKTRACE: 1
+
+jobs:
+  # The test that backs the recovery promise, on its own.
+  interop:
+    name: age cross-validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the reference age implementation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends age
+          age --version
+          tar --version | head -1
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: interop-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      # `age_interop` skips itself when the binary is absent, and asserts
+      # its presence when CI is set — so a failed install fails the job
+      # rather than quietly reducing coverage.
+      - run: cargo test --workspace --test age_interop --test id_naming
+
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install age (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends age
+
+      - name: Install age (macOS)
+        if: runner.os == 'macOS'
+        run: brew install age
+
+      # `fjord init` and `fjord sync` make real commits, and git refuses
+      # without an identity. The tests set one per-invocation; this covers
+      # anything that shells out differently.
+      - name: Configure git
+        run: |
+          git config --global user.name "Fjord CI"
+          git config --global user.email "ci@example.invalid"
+          git config --global init.defaultBranch main
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: test-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - run: cargo build --workspace --locked
+      - run: cargo test --workspace --locked
+
+  lint:
+    name: clippy and rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install components
+        run: rustup component add clippy rustfmt
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: lint-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - run: cargo fmt --all --check
+      # On stable rather than on the MSRV: lints change between releases,
+      # and the useful question is whether the code is clean under the
+      # current ones.
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+  msrv:
+    name: minimum supported Rust version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Read from Cargo.toml rather than written here, so the declaration
+      # and the thing that verifies it cannot drift apart.
+      - name: Read the declared MSRV
+        id: msrv
+        run: |
+          version="$(grep -m1 '^rust-version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')"
+          echo "Declared MSRV: $version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install it
+        run: |
+          rustup toolchain install "${{ steps.msrv.outputs.version }}" --profile minimal
+          rustup default "${{ steps.msrv.outputs.version }}"
+          rustc --version
+
+      - name: Install age
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends age
+
+      - name: Configure git
+        run: |
+          git config --global user.name "Fjord CI"
+          git config --global user.email "ci@example.invalid"
+          git config --global init.defaultBranch main
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: msrv-${{ steps.msrv.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
+
+      # Tests, not just a build: an MSRV that compiles but misbehaves is
+      # not a supported version.
+      - run: cargo test --workspace --locked
+
+  musl:
+    name: static musl binary
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add the musl target
+        run: |
+          rustup target add x86_64-unknown-linux-musl
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends musl-tools
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: musl-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - run: cargo build --workspace --locked --release --target x86_64-unknown-linux-musl
+
+      # The README says one Linux binary works on any distribution. That is
+      # only true if it is genuinely static, so the claim is checked rather
+      # than trusted.
+      - name: Check that it is actually static
+        run: |
+          binary=target/x86_64-unknown-linux-musl/release/fjord
+          file "$binary"
+          # `file` is the authority here. `ldd` is not: on a static binary
+          # it says "not a dynamic executable" on some systems and
+          # "statically linked" on others, so matching against its output
+          # fails in one of the two cases for the wrong reason.
+          if ! file "$binary" | grep -qE "static-pie linked|statically linked"; then
+            echo "::error::$binary is not statically linked, but the README says one Linux binary works on any distribution"
+            ldd "$binary" || true
+            exit 1
+          fi
+
+      - name: Smoke-test the binary
+        run: |
+          binary="$PWD/target/x86_64-unknown-linux-musl/release/fjord"
+          git config --global user.name "Fjord CI"
+          git config --global user.email "ci@example.invalid"
+          "$binary" --version
+          "$binary" init /tmp/smoke
+          "$binary" -C /tmp/smoke verify
+          test "$("$binary" -C /tmp/smoke verify --json | grep -c '"conforms": true')" = 1
