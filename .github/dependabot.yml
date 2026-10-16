@@ -1,0 +1,21 @@
+# Bumps arrive as reviewable pull requests. Dependabot *alerts* are a
+# separate, repository-level setting and are already enabled; this file is
+# what produces the PRs.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    # The dependency set was chosen deliberately (CLAUDE.md § Dependencies),
+    # so a flood of individual PRs would be noise. Patch and minor bumps are
+    # grouped; a major bump arrives on its own, because that is a decision.
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

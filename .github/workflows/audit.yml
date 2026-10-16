@@ -1,0 +1,55 @@
+# Dependency policy, enforced by `cargo deny`. See deny.toml.
+#
+# Deliberately not part of ci.yml, and deliberately not on every push. A new
+# advisory lands in a transitive crate on its own schedule, and turning every
+# unrelated push red is how a check gets switched off. So: whenever the
+# dependency tree actually changes, and once a week regardless.
+name: Audit
+
+on:
+  push:
+    paths: ["**/Cargo.toml", "**/Cargo.lock", "deny.toml", ".github/workflows/audit.yml"]
+  pull_request:
+    paths: ["**/Cargo.toml", "**/Cargo.lock", "deny.toml", ".github/workflows/audit.yml"]
+  schedule:
+    - cron: "0 7 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  deny:
+    name: cargo deny
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ~/.cargo/bin/cargo-deny
+          key: deny-${{ runner.os }}-${{ hashFiles('**/Cargo.lock', 'deny.toml') }}
+
+      # Installed rather than run through a third-party action: it is one
+      # fewer thing with a workflow token, and `--locked` means the tool's
+      # own dependency tree is the one its authors tested.
+      - name: Install cargo-deny
+        run: |
+          if ! command -v cargo-deny >/dev/null; then
+            cargo install cargo-deny --locked --version "^0.20"
+          fi
+          cargo deny --version
+
+      # advisories, licences, sources and bans — all four, so a failure
+      # names which policy was broken.
+      - run: cargo deny check

@@ -7,6 +7,17 @@
 //! liability rather than a container. The test that matters most in this
 //! repository is the one proving this module and the `age` binary agree.
 //!
+//! # What this build does not support
+//!
+//! **SSH recipients.** §6.2 permits them and `fjord verify` accepts them,
+//! so a repository using them conforms and this crate says so. But writing
+//! to one means linking `rsa`, which carries RUSTSEC-2023-0071 — a
+//! key-recovery timing side-channel with no fixed version available — and
+//! §6.2 makes SSH recipients optional while X25519 is mandatory. An
+//! optional recipient type is not worth an unfixable weakness in an
+//! encryption tool, so [`parse_recipients`] refuses one by name and says
+//! why.
+//!
 //! # Secret hygiene
 //!
 //! Spec §11.3 says clients SHOULD zeroise key material and decrypted
@@ -100,15 +111,23 @@ pub fn parse_recipients(text: &str) -> Result<Recipients, Error> {
                     })
                 }
             },
-            RecipientKind::Ssh => match line.text.parse::<age::ssh::Recipient>() {
-                Ok(recipient) => parsed.push(Box::new(recipient)),
-                Err(_) => {
-                    return Err(Error::Recipient {
-                        line: line.number,
-                        reason: "not a usable SSH recipient".to_string(),
-                    })
-                }
-            },
+            // §6.2 permits SSH recipients ("MAY"), and `fjord verify`
+            // accepts them: a repository using them conforms, and saying
+            // otherwise would be wrong. This build simply cannot write to
+            // them, because support means linking `rsa`, which carries an
+            // unfixed key-recovery timing side-channel (RUSTSEC-2023-0071).
+            // Refusing loudly is better than either shipping that or
+            // pretending the vault is writable.
+            RecipientKind::Ssh => {
+                return Err(Error::Recipient {
+                    line: line.number,
+                    reason: "SSH recipients are not supported by this build, which links \
+                             no RSA implementation on purpose (RUSTSEC-2023-0071). The \
+                             vault is still conforming; convert it to `age1…` recipients \
+                             with `fjord key add`, then `fjord rekey`"
+                        .to_string(),
+                })
+            }
             RecipientKind::Passphrase => {
                 return Err(Error::Recipient {
                     line: line.number,
@@ -406,6 +425,28 @@ mod tests {
             Err(Error::Recipient { line, reason }) => {
                 assert_eq!(line, 2);
                 assert!(reason.contains("passphrase"), "{reason}");
+            }
+            other => panic!("expected a refusal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn an_ssh_recipient_is_refused_by_name_rather_than_silently() {
+        // The vault is conforming (§6.2 permits SSH recipients) and this
+        // build cannot write to it. Both halves have to be said, or the
+        // user is left thinking their repository is broken.
+        let identity = generate_identity();
+        let file = format!(
+            "{}\nssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA user@host\n",
+            identity.recipient
+        );
+        match parse_recipients(&file) {
+            Err(Error::Recipient { line, reason }) => {
+                assert_eq!(line, 2);
+                assert!(reason.contains("not supported by this build"), "{reason}");
+                assert!(reason.contains("RUSTSEC-2023-0071"), "{reason}");
+                // And it says what to do instead.
+                assert!(reason.contains("rekey"), "{reason}");
             }
             other => panic!("expected a refusal, got {other:?}"),
         }

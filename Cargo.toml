@@ -26,11 +26,18 @@ time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
 
 # Crypto. Pure Rust: keeps static musl builds clean.
 #
-# `armor` and `ssh` are not default features, and both are needed for
-# coherence rather than ambition: `fjord verify` accepts `armor: true`
-# (§4.1) and `ssh-ed25519` recipients (§6.2), so a writer that could not
-# honour either would reject repositories its own verifier calls conforming.
-age = { version = "0.11", features = ["armor", "ssh"] }
+# `armor` is enabled because `fjord verify` accepts `armor: true` (§4.1), so
+# a writer unable to honour it would reject repositories its own verifier
+# calls conforming.
+#
+# `ssh` is deliberately NOT enabled, though the same coherence argument was
+# made for it in M3 and it was enabled then. It drags in `rsa`, which
+# carries RUSTSEC-2023-0071 — the Marvin Attack, a key-recovery timing
+# side-channel with **no fixed version available**. §6.2 makes SSH
+# recipients optional ("MAY"), so the trade is an optional recipient type
+# against a known, unfixable weakness in an encryption tool's dependency
+# tree. `cargo deny` found it; see deny.toml.
+age = { version = "0.11", features = ["armor"] }
 zeroize = "1"
 blake3 = "1"
 

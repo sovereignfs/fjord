@@ -1,0 +1,103 @@
+# Dependency policy, enforced by `cargo deny` in CI.
+#
+# This is an encryption tool, so the dependency tree is part of the threat
+# model: 235 crates reach the binary that handles someone's documents. Four
+# questions are asked of it — are there known advisories, are the licences
+# ones we can ship, does anything come from somewhere unexpected, and is the
+# tree quietly accumulating duplicates.
+#
+# Every `ignore` below is a decision on the record, with a reason. An audit
+# whose findings get waved through is worse than no audit, because it
+# teaches you to ignore it.
+
+[graph]
+all-features = true
+
+# --- Advisories -----------------------------------------------------------
+
+[advisories]
+# Vulnerabilities and unsound crates always fail in this version of
+# cargo-deny; `ignore` below is the only way past one, which is the right
+# shape for the decision. The first run of this check found
+# RUSTSEC-2023-0071 — the Marvin Attack — reachable only through the `age`
+# crate's `ssh` feature, enabled in M3 to match what `fjord verify` accepts.
+# §6.2 makes SSH recipients optional, so the feature was dropped rather than
+# the finding ignored. See the `age` entry in Cargo.toml.
+#
+# `all` rather than `workspace`: an unmaintained crate deep in the tree
+# still ships in the binary, and "it is only transitive" is not a property a
+# user of an encryption tool benefits from.
+unmaintained = "all"
+yanked = "deny"
+
+ignore = [
+  { id = "RUSTSEC-2024-0449", reason = """
+`unsafe-libyaml`, reached through `serde_yaml_ng`, is unmaintained with no
+safe upgrade available.
+
+This one deserves attention rather than acceptance. Fjord parses frontmatter
+that arrives from outside, and §8.1 requires "a safe YAML loader"; §11.5
+calls frontmatter untrusted input explicitly. `unsafe-libyaml` is a C-to-Rust
+transliteration, so the parser handling that input is the least safe part of
+the tree.
+
+CLAUDE.md chose `serde_yaml_ng` because `serde_yaml` was unmaintained — and
+the replacement inherited the problem one level down. The advisory suggests
+`saphyr`/`serde-saphyr`. Migrating means re-proving invariant 3 (unknown
+frontmatter keys and their order survive a round trip), which is a change
+worth making deliberately and not in passing. Tracked in ROADMAP.md.
+""" },
+
+  { id = "RUSTSEC-2026-0173", reason = """
+`proc-macro-error2` is unmaintained. It is a build-time proc-macro
+dependency of `i18n-embed-fl`, which `age` uses for its error messages, so
+no part of it reaches the shipped binary. Nothing to do here but wait for
+`age` to move, and notice if it does not.
+""" },
+]
+
+# --- Licences -------------------------------------------------------------
+
+[licenses]
+# Everything in the tree is permissive today, which is what lets this
+# project ship binaries under Apache-2.0 OR MIT. A copyleft-only dependency
+# arriving would change that, and should fail rather than surprise someone
+# at release time.
+allow = [
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-1-Clause",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "BSL-1.0",
+  "CC0-1.0",
+  "ISC",
+  "MIT",
+  "MIT-0",
+  "Unicode-3.0",
+  "Unlicense",
+  "Zlib",
+]
+confidence-threshold = 0.9
+
+# --- Sources --------------------------------------------------------------
+
+[sources]
+# The check that matters most for a tool like this. A git dependency, or a
+# crate from a registry nobody chose, is how a supply chain gets quietly
+# redirected — and it would be invisible in a diff that only touched
+# Cargo.lock.
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+
+# --- Bans -----------------------------------------------------------------
+
+[bans]
+# Warned, not denied: the duplicates here are the `rand`/`digest`/`sha2`
+# ecosystem mid-migration between 0.9 and 0.10 era versions, which no
+# decision of ours resolves. Worth watching, not worth blocking on.
+multiple-versions = "warn"
+# A `*` version requirement means the next release of that crate lands in
+# this binary unreviewed.
+wildcards = "deny"
