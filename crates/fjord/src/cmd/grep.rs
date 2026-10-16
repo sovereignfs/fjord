@@ -60,24 +60,38 @@ pub fn run(args: &GrepArgs, global: &GlobalArgs) -> Result<ExitCode> {
             .with_context(|| format!("could not read the {} vault", vault.directory))?;
 
         for content in contents {
-            let path = format!("{}/{}", vault.directory, content.logical);
-            if !scope.is_empty() && path != scope && !path.starts_with(&format!("{scope}/")) {
+            let stored_path = format!("{}/{}", vault.directory, content.logical);
+            if !scope.is_empty()
+                && stored_path != scope
+                && !stored_path.starts_with(&format!("{scope}/"))
+            {
                 continue;
             }
 
             let on_disk = vault.path.join(&content.relative);
-            let bytes = match read_document(&on_disk, content.is_payload, identities.as_ref()) {
-                DocumentRead::Text(bytes) => bytes,
+            let (name, bytes) = match read_document(&vault, &on_disk, identities.as_ref()) {
+                DocumentRead::Text { name, bytes } => (name, bytes),
                 DocumentRead::NeedsIdentity => {
-                    skipped.push(path);
+                    skipped.push(stored_path);
                     continue;
                 }
                 // A different problem entirely — a permission, a vanished
                 // file — and worth saying which.
                 DocumentRead::Failed(reason) => {
-                    skipped.push(format!("{path} ({reason})"));
+                    skipped.push(format!("{stored_path} ({reason})"));
                     continue;
                 }
+            };
+
+            // In an `id` vault the stored path is a ULID, which tells a
+            // reader nothing. The container knows the document's real
+            // name, so that is what a search result shows.
+            let path = match &name {
+                Some(name) => match stored_path.rsplit_once('/') {
+                    Some((directory, _)) => format!("{directory}/{name}"),
+                    None => name.clone(),
+                },
+                None => stored_path,
             };
 
             // Binary files have no lines to show. Skipping them silently is

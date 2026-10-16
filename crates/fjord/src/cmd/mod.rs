@@ -13,6 +13,7 @@ pub mod new;
 pub mod open;
 pub mod status;
 pub mod sync;
+pub mod vaults;
 pub mod verify;
 
 use crate::cli::{ExitCode, GlobalArgs};
@@ -102,7 +103,13 @@ impl Style {
 /// What came of trying to read a document.
 #[derive(Debug)]
 pub enum DocumentRead {
-    Text(Zeroizing<Vec<u8>>),
+    Text {
+        /// The document's real name, when a tar container carried one
+        /// (§6.4). In an `id` vault this is the only place the name
+        /// exists, since the leaf on disk is the identifier.
+        name: Option<String>,
+        bytes: Zeroizing<Vec<u8>>,
+    },
     /// An encrypted payload, and no identity of ours opens it. Normal on a
     /// vault shared with other people.
     NeedsIdentity,
@@ -115,8 +122,8 @@ pub enum DocumentRead {
 /// written anywhere: `ls` and `grep` look at documents without leaving a
 /// copy behind.
 pub fn read_document(
+    vault: &fjord_core::vault::Vault,
     path: &Path,
-    is_payload: bool,
     identities: Option<&crypto::Identities>,
 ) -> DocumentRead {
     let bytes = match std::fs::read(path) {
@@ -124,19 +131,21 @@ pub fn read_document(
         Err(err) => return DocumentRead::Failed(err.to_string()),
     };
 
-    if !is_payload {
-        return DocumentRead::Text(Zeroizing::new(bytes));
-    }
-
-    let identities = match identities {
-        Some(identities) => identities,
-        None => return DocumentRead::NeedsIdentity,
-    };
-    match crypto::decrypt(&bytes, identities) {
-        Ok(plaintext) => DocumentRead::Text(plaintext),
-        // Indistinguishable by design from a corrupt payload, and in
-        // practice almost always the former.
-        Err(_) => DocumentRead::NeedsIdentity,
+    match fjord_core::store::load(vault, &bytes, identities) {
+        Ok(loaded) => DocumentRead::Text {
+            name: loaded.name,
+            bytes: loaded.plaintext,
+        },
+        Err(fjord_core::store::Error::NeedsIdentity) => DocumentRead::NeedsIdentity,
+        Err(fjord_core::store::Error::Crypto(_)) => DocumentRead::NeedsIdentity,
+        // A malformed container is E303, and it can only surface here: the
+        // archive is inside the ciphertext, so `fjord verify` never sees
+        // it.
+        Err(err) => DocumentRead::Failed(format!(
+            "{} ({})",
+            err,
+            fjord_core::diagnostics::Code::MalformedContainer.as_str()
+        )),
     }
 }
 

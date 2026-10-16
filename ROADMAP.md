@@ -5,11 +5,15 @@ not define behaviour.** `spec/SPEC.md` is authoritative on the format and
 `CLAUDE.md` on how to build it — where either disagrees with this file, this
 file is stale and should be corrected.
 
-State as of 2026-10-16: **M1 through M6 complete and green.** `verify`,
-`init`, `key`, `encrypt`, `decrypt`, `open`, `new`, `ls`, `grep`, `status`
-and `sync` are implemented end to end — every command the README documents
-except `rekey`, `export` and `import`. 246 tests pass; `clippy -- -D
-warnings` and `cargo fmt --check` are clean.
+State as of 2026-10-16: **M1 through M7 complete and green — every
+milestone in the build brief.** `verify`, `init`, `key`, `vault`,
+`encrypt`, `decrypt`, `open`, `new`, `ls`, `grep`, `status` and `sync` are
+implemented end to end, with `fileNaming: "id"` and the tar container.
+**All 40 diagnostics are implemented**; nothing is deferred. 277 tests
+pass; `clippy -- -D warnings` and `cargo fmt --check` are clean.
+
+Three commands the README documents remain — `rekey`, `export` and
+`import` — none of which appears in CLAUDE.md's milestone list.
 
 All three milestones' acceptance criteria hold, including the one that
 matters most: **a file encrypted by `fjord` decrypts with the real `age`
@@ -64,7 +68,7 @@ green.
 | M4 | `fjord open` | `cmd/open` | `done` |
 | M5 | `new`, `ls`, `status`, `grep` | `cmd/new`, `cmd/list`, `cmd/grep`, `cmd/status` | `done` |
 | M6 | `fjord sync` | `cmd/sync`, `git` | `done` |
-| M7 | `fileNaming: "id"` and the tar container | `container` | `todo` |
+| M7 | `fileNaming: "id"` and the tar container | `container`, `store`, `cmd/vaults` | `done` |
 
 ### M1 breakdown
 
@@ -357,33 +361,97 @@ I did not.
    different answers, which is the same mistake as M5's "0 docs": reporting
    a limit of the inspection as a fact about the thing inspected.
 
+### M7 notes
+
+All three acceptance criteria hold: a vault in id mode round-trips a name
+containing a space, `age -d | tar -x` recovers that name using the real
+`age` and `tar` binaries, and every rejection §6.4 lists has its own test.
+
+- **`container.rs` enforces §6.4 exhaustively**: exactly one entry, a
+  regular file, a name with no path component. The escape tests build a
+  hostile archive by hand, because the `tar` crate refuses to *write* a
+  `..` path — the right default, and useless for testing untrusted input,
+  since an attacker is not constrained by our writer's good manners.
+- **`store.rs` derives container, encryption and naming in one place.** Each
+  command working it out separately is how one ends up writing a file
+  another cannot read. The order is fixed by §6.4 — container first, then
+  encryption — which is exactly what makes `age -d | tar -x` the whole
+  recovery procedure; a test asserts that order rather than trusting it.
+- **A name too long for ustar is refused, not mangled.** A pax or GNU
+  extension would store it by writing extra entries that §6.4's one-entry
+  rule then rejects, so producing an archive a conforming reader must refuse
+  would be worse than declining to write it.
+- **`fjord vault add` landed here**, because an id vault had to be creatable
+  before the mode could be used at all. It rewrites `fjord.json` through the
+  parsed map, so a field a newer client added survives — invariant 3, with a
+  test that plants an unknown object and checks both its presence and its
+  key order.
+- **`ls` and `grep` read through the container**, so they show and search
+  documents by their real names rather than by the ULID on disk.
+
+### What the container taught me
+
+Two test expectations of mine were wrong and the format was right:
+
+1. **A size field larger than the real content is not malformed.** Tar's
+   size field *is* the authority on content length, so a header declaring
+   400 bytes over a 5-byte body describes a valid 400-byte file whose tail
+   is zeros. Rejecting it would reject every document that legitimately ends
+   in a NUL byte.
+2. **An archive missing only its trailing empty blocks is intact.** The
+   entry is complete, and rejecting more than the format requires is its own
+   bug.
+
+But the probe that settled those found a real defect: for an archive cut off
+*inside* the entry body, the reader returns the bytes it found and reports
+no error at all. Without an explicit size check a truncated payload yielded
+a short document and called it success. The three windows — mid-body,
+mid-padding, past-the-entry — now each carry an assertion, since the correct
+behaviour differs in all three and I had guessed two of them wrong.
+
+### A documentation defect found while writing this
+
+This file's **Fixtures section had drifted back to its pre-M1 text**,
+claiming `tests/fixtures/broken/` did not exist and assigning placeholder
+work to M3 that was finished three milestones earlier. Two separate patches
+had reported success against it. Rewritten from what is actually on disk —
+and a reminder that a status document is only worth its last verification.
+
 ## Fixtures
 
-`tests/fixtures/conforming/` exists and appears spec-correct.
-`tests/fixtures/broken/` **does not exist yet — 0 of 39 fixtures.** M1 cannot
-be accepted without them.
+`tests/fixtures/README.md` is the reference. The completeness guard is
+`every_diagnostic_is_covered` in `crates/fjord-core/tests/fixtures.rs`,
+which fails if a code has no coverage and is not recorded as unreachable by
+a filesystem scan.
 
-| Range | Codes | Fixtures |
-| --- | --- | --- |
-| `E1xx` repository | 8 | 0 |
-| `E2xx` vault | 8 | 0 |
-| `E3xx` encryption | 6 | 0 |
-| `E4xx` documents | 5 | 0 |
-| `E5xx` paths | 8 | 0 |
-| `W6xx` warnings | 4 | 0 |
+| Range | Codes | Committed | Synthesised | Predicate-only |
+| --- | --- | --- | --- | --- |
+| `E1xx` repository | 9 | 9 | — | — |
+| `E2xx` vault | 8 | 8 | — | — |
+| `E3xx` encryption | 6 | 5 | — | 1 |
+| `E4xx` documents | 5 | 5 | — | — |
+| `E5xx` paths | 8 | 1 | 6 | 1 |
+| `W6xx` warnings | 4 | 2 | 2 | — |
 
-Four of them need more care than a text file, and should be written last:
+Two codes cannot be reached by reading a repository, and are covered by
+tests on the predicate instead:
 
-- `E301` corrupt payload — needs a real age header with a damaged body.
-- `E303` malformed container — needs hand-built tar archives (zero entries,
-  two entries, a directory entry, an entry name containing `/`), all of which
-  M7 must reject.
+- **`E504`** — no mainstream filesystem stores a path component over 255
+  bytes, so it can only be caught by validating a name *before* writing it,
+  which `fjord new` and `fjord vault add` do.
+- **`E303`** — the tar archive is inside the ciphertext (§6.4), so checking
+  it needs an identity and `fjord verify` never asks for one. Covered
+  exhaustively by `fjord_core::container`, one test per rejection §6.4
+  lists, plus an end-to-end test that reading a malformed container reports
+  it.
 
-And M3 must replace two placeholders that are shaped right but are not real
-cryptography: the `age1…` recipient in every encrypted fixture, and the
-placeholder `.age` payloads in `broken/E302/` and `broken/E304/`. Once a
-payload is actually parsed, those two fixtures will emit `E301` as well as
-the code they are named for.
+Six of the `E5xx` fixtures are synthesised at test time rather than
+committed, because a repository containing them could not be checked out on
+some platform — which is the entire reason those rules exist. The committed
+fixtures carry real key material: a genuine `age1…` public key and genuine
+payloads. The matching identity is deliberately **not** committed, since
+nothing committed needs decrypting and the tests that do generate their own
+keys in a temporary directory.
 
 ## Test suites
 

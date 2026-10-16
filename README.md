@@ -365,6 +365,58 @@ Re-encrypts every file in a vault to the current recipient list. Needed after
 adding a device key if that device must read existing documents. Rewrites the
 whole vault in one commit.
 
+### `fjord vault`
+
+```bash
+fjord vault list
+fjord vault add Archive                                  # plaintext
+fjord vault add Secret --encrypted                       # encrypted
+fjord vault add Secret --encrypted --id-naming           # names concealed too
+```
+
+A vault is a directory at the repository root; its directory name is its
+address. `add` writes the vault's manifest, its recipients file and its
+plaintext guard, and adds it to `fjord.json` — preserving every other field
+in that file, including ones this build does not understand.
+
+`--id-naming` requires `--encrypted`: naming files by id on a plaintext
+vault conceals nothing and makes the vault unbrowsable, which spec §7.2
+requires clients to reject. See [File naming](#file-naming) below.
+
+### File naming
+
+`fileNaming: "plain"` is the default: the file on disk is the document's
+name plus `.age`, so `report.xlsx` becomes `report.xlsx.age`. Browsable,
+and the original name and type survive decryption.
+
+`fileNaming: "id"` names the file by the document's ULID instead:
+`Projects/01JAG7Q2M5X3V8KDQZ9R4T6YHB.age`. Directory names stay readable —
+only leaf names are concealed, and spec §11.2 is worth re-reading before
+you decide that is enough.
+
+Because the name is then nowhere on disk, it lives inside the payload: the
+plaintext is a single-entry tar archive whose entry name is the document's
+real file name. So **`age -d | tar -x` recovers the file under its correct
+name**, for any file type, including binaries that cannot carry
+frontmatter:
+
+```bash
+age -d -i ~/.config/fjord/identity.txt Secret/01JAG7Q….age | tar -xf -
+```
+
+Two consequences worth knowing:
+
+- **Git history gets better.** An id never changes when a title does, so
+  renaming a document rewrites one file in place instead of appearing as a
+  delete plus an add. Git's rename detection cannot see through ciphertext,
+  so in `plain` mode a rename does break the chain.
+- **Other editors become useless for that vault.** Nothing is lost — the
+  recovery command above is the whole procedure — but nothing is browsable
+  either.
+
+`fjord ls --long` and `fjord grep` read through the container, so they show
+and search documents by their real names.
+
 ### `fjord export <vault> <dir>` / `fjord import <dir> <vault>`
 
 Bulk decrypt to a plain directory, and bring a directory of files in as Docs.
@@ -408,7 +460,7 @@ changes — new checks get new codes.
 | --- | --- |
 | `E301` | age payload is corrupt or unreadable. `fjord verify` checks the header, which needs no key; the body is authenticated when the file is read |
 | `E302` | `.age` file inside a plaintext vault |
-| `E303` | tar container is malformed: not exactly one regular file, or the entry name contains a path |
+| `E303` | tar container is malformed: not exactly one regular file, or the entry name contains a path. Reported when a document is read — the archive is inside the ciphertext, so `fjord verify` cannot see it without your key |
 | `E304` | `fileNaming` is `"id"` but the file name is not a valid ULID |
 | `E305` | `container` is `"none"` but `fileNaming` is `"id"` |
 | `E306` | `fileNaming` is `"id"` on a plaintext vault |

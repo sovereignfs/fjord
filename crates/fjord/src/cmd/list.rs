@@ -182,15 +182,32 @@ fn collect(
             }
         }
 
-        let (id, title) = if detailed && content.is_markdown() {
+        // A container hides the document's type as well as its name, so in
+        // `id` mode there is no extension to judge by: the only way to know
+        // whether this is a Doc is to look inside.
+        let worth_reading =
+            detailed && (content.is_markdown() || fjord_core::store::uses_container(vault));
+
+        let (id, title) = if worth_reading {
             match inspect(root, vault, content, identities) {
-                Inspected::Doc(frontmatter) => (
-                    frontmatter.doc_id().map(String::from),
-                    frontmatter.title().map(String::from),
-                ),
-                // Valid, and not worth remarking on: §8.2 makes a Markdown
-                // file without frontmatter a vault file, not a problem.
-                Inspected::NotADoc => (None, None),
+                Inspected::Read { name, frontmatter } => {
+                    let id = frontmatter
+                        .as_ref()
+                        .and_then(|frontmatter| frontmatter.doc_id().map(String::from));
+                    let title = frontmatter
+                        .as_ref()
+                        .and_then(|frontmatter| frontmatter.title().map(String::from));
+                    // The real name is worth more than the title when the
+                    // path on disk is a bare identifier.
+                    let title = match (name, title) {
+                        (Some(name), Some(title)) if title != name => {
+                            Some(format!("{name}  {title}"))
+                        }
+                        (Some(name), _) => Some(name),
+                        (None, title) => title,
+                    };
+                    (id, title)
+                }
                 Inspected::Unreadable => {
                     *unreadable += 1;
                     (None, None)
@@ -247,9 +264,13 @@ fn remainder(scope: &str, path: &str) -> String {
 /// simply had nothing to read.
 #[derive(Debug)]
 enum Inspected {
-    Doc(doc::Frontmatter),
-    /// Read successfully; carries no frontmatter. Valid per §8.2.
-    NotADoc,
+    Read {
+        /// The document's real name, when a container carried one (§6.4).
+        name: Option<String>,
+        /// `None` for a file with no frontmatter, which §8.2 makes a vault
+        /// file rather than a broken Doc.
+        frontmatter: Option<doc::Frontmatter>,
+    },
     /// Could not be decrypted, or could not be read at all.
     Unreadable,
 }
@@ -261,21 +282,27 @@ fn inspect(
     identities: Option<&Identities>,
 ) -> Inspected {
     let on_disk = root.join(&vault.directory).join(&content.relative);
-    let bytes = match read_document(&on_disk, content.is_payload, identities) {
-        DocumentRead::Text(bytes) => bytes,
+    let (name, bytes) = match read_document(vault, &on_disk, identities) {
+        DocumentRead::Text { name, bytes } => (name, bytes),
         DocumentRead::NeedsIdentity | DocumentRead::Failed(_) => return Inspected::Unreadable,
     };
 
     let text = match String::from_utf8(bytes.to_vec()) {
         Ok(text) => text,
         // Not text, so it has no frontmatter — a PDF, not a failure.
-        Err(_) => return Inspected::NotADoc,
+        Err(_) => {
+            return Inspected::Read {
+                name,
+                frontmatter: None,
+            }
+        }
     };
 
-    match doc::parse(&text) {
-        doc::Parse::Present { frontmatter, .. } => Inspected::Doc(frontmatter),
-        _ => Inspected::NotADoc,
-    }
+    let frontmatter = match doc::parse(&text) {
+        doc::Parse::Present { frontmatter, .. } => Some(frontmatter),
+        _ => None,
+    };
+    Inspected::Read { name, frontmatter }
 }
 
 fn render(rows: &[Row], long: bool, unreadable: usize, quiet: bool) {
@@ -311,9 +338,14 @@ fn render(rows: &[Row], long: bool, unreadable: usize, quiet: bool) {
             continue;
         }
 
-        let detail = match (&row.id, &row.title) {
+        // In an `id` vault the path's leaf is the identifier, so showing
+        // it again in its own column tells the reader nothing twice.
+        let leaf = row.path.rsplit('/').next().unwrap_or(&row.path);
+        let id = row.id.as_deref().filter(|id| *id != leaf);
+
+        let detail = match (id, &row.title) {
             (Some(id), Some(title)) => format!("{id}  {title}"),
-            (Some(id), None) => id.clone(),
+            (Some(id), None) => id.to_string(),
             (None, Some(title)) => title.clone(),
             (None, None) => String::new(),
         };

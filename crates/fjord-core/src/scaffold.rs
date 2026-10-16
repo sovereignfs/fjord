@@ -177,6 +177,56 @@ pub fn plan(settings: &Settings) -> Plan {
     }
 }
 
+/// The files a new vault consists of. Spec §2.3, §4.
+///
+/// Paths are relative to the vault's own directory, so the caller decides
+/// where it goes.
+pub fn vault_files(
+    name: &str,
+    id: &str,
+    created_at: &str,
+    encrypted: bool,
+    file_naming: &str,
+) -> Vec<PlannedFile> {
+    let mut files = vec![PlannedFile {
+        path: VAULT_MANIFEST.to_string(),
+        contents: vault_manifest_with(name, id, created_at, encrypted, file_naming),
+    }];
+    if encrypted {
+        files.push(PlannedFile {
+            path: CONVENTIONAL_RECIPIENTS_FILE.to_string(),
+            contents: RECIPIENTS.to_string(),
+        });
+        files.push(PlannedFile {
+            path: ".gitignore".to_string(),
+            contents: VAULT_GITIGNORE.to_string(),
+        });
+    }
+    files
+}
+
+/// Add a vault to `fjord.json`, returning the rewritten manifest.
+///
+/// Every other field survives, in its original order — invariant 3 and
+/// §10.1 — which is the whole reason manifests are held as parsed maps
+/// rather than typed structs. A `generator` this build does not understand,
+/// or a field a newer client added, is still there afterwards.
+pub fn with_vault_entry(
+    manifest: &crate::manifest::Manifest,
+    path: &str,
+    id: &str,
+) -> Result<String, Error> {
+    let mut raw = manifest.raw().clone();
+    let mut vaults = match raw.get(field::VAULTS) {
+        Some(serde_json::Value::Array(existing)) => existing.clone(),
+        _ => Vec::new(),
+    };
+    vaults.push(json!({ field::PATH: path, field::ID: id }));
+    raw.insert(field::VAULTS.to_string(), serde_json::Value::Array(vaults));
+
+    Ok(pretty(&serde_json::Value::Object(raw)))
+}
+
 /// Write a plan to disk, creating `root` and any parent directories.
 ///
 /// Never overwrites: an existing file is [`Error::Exists`], and the caller
@@ -244,14 +294,24 @@ fn repository_manifest(
 }
 
 fn vault_manifest(name: &str, id: &str, created_at: &str, encrypted: bool) -> String {
+    vault_manifest_with(name, id, created_at, encrypted, "plain")
+}
+
+fn vault_manifest_with(
+    name: &str,
+    id: &str,
+    created_at: &str,
+    encrypted: bool,
+    file_naming: &str,
+) -> String {
     let encryption = if encrypted {
         json!({
             field::TOOL: TOOL_AGE,
             field::RECIPIENTS: CONVENTIONAL_RECIPIENTS_FILE,
             field::SUFFIX: SUFFIX_AGE,
-            // "tar" is only required by `fileNaming: "id"` (§6.4), which a
-            // new repository does not use.
-            field::CONTAINER: "none",
+            // §7.2 requires the tar container whenever the name is an id,
+            // because the real name then has nowhere else to live.
+            field::CONTAINER: if file_naming == "id" { "tar" } else { "none" },
             // Binary: ciphertext is unreadable either way, so armor costs
             // size and buys nothing. Spec §4.1 recommends false.
             field::ARMOR: false,
@@ -266,7 +326,7 @@ fn vault_manifest(name: &str, id: &str, created_at: &str, encrypted: bool) -> St
         field::NAME: name,
         field::CREATED_AT: created_at,
         field::ENCRYPTION: encryption,
-        field::FILE_NAMING: "plain",
+        field::FILE_NAMING: file_naming,
     }))
 }
 

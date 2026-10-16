@@ -14,7 +14,7 @@ use crate::cli::{ExitCode, GlobalArgs, NewArgs, OpenArgs};
 use crate::cmd::{ensure_writable, find_root, resolve_destination, usage, Style};
 use anyhow::{Context, Result};
 use fjord_core::vault::{self, Vault};
-use fjord_core::{crypto, doc, path as rules, scalar};
+use fjord_core::{crypto, doc, path as rules, scalar, store};
 use std::path::{Path, PathBuf};
 
 pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
@@ -47,7 +47,10 @@ pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
         }
     };
 
-    let on_disk = match target_path(&vault, &relative) {
+    // §7.2: in an id vault the leaf name *is* the identifier, so the id
+    // has to exist before the path can be known.
+    let id = scalar::new_ulid();
+    let on_disk = match target_path(&vault, &relative, &id) {
         Ok(path) => path,
         Err(message) => return Ok(usage(message)),
     };
@@ -85,7 +88,6 @@ pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
         Some(title) => title.clone(),
         None => default_title(&relative),
     };
-    let id = scalar::new_ulid();
     let contents = doc::new_document(&id, &title, &scalar::now_rfc3339_utc())
         .context("could not build the document's frontmatter")?;
 
@@ -95,18 +97,10 @@ pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
             .with_context(|| format!("could not create {}", parent.display()))?;
     }
 
-    match &recipients {
-        Some(recipients) => {
-            let ciphertext = crypto::encrypt(contents.as_bytes(), recipients, vault.armor())
-                .with_context(|| format!("could not encrypt {on_disk}"))?;
-            write_new(&absolute, &ciphertext)
-                .with_context(|| format!("could not write {on_disk}"))?;
-        }
-        None => {
-            write_new(&absolute, contents.as_bytes())
-                .with_context(|| format!("could not write {on_disk}"))?;
-        }
-    }
+    let leaf = relative.rsplit('/').next().unwrap_or(&relative);
+    let bytes = store::store(&vault, leaf, contents.as_bytes(), recipients.as_ref())
+        .with_context(|| format!("could not encode {on_disk}"))?;
+    write_new(&absolute, &bytes).with_context(|| format!("could not write {on_disk}"))?;
 
     let style = Style::detect();
     if !global.quiet {
@@ -201,21 +195,24 @@ fn with_markdown_extension(relative: &str) -> std::result::Result<String, String
     }
 }
 
-/// Where the document actually lands: the payload name in an encrypted
-/// vault, the document's own name in a plaintext one.
-fn target_path(vault: &Vault, relative: &str) -> std::result::Result<String, String> {
-    if !vault.is_encrypted() {
-        return Ok(relative.to_string());
-    }
-    if vault.file_naming() == "id" {
-        // §7.2 requires the tar container, which is M7.
-        return Err(format!(
-            "the {} vault uses `fileNaming: \"id\"`, which needs the tar container \
-             this build does not implement yet",
-            vault.directory
-        ));
-    }
-    Ok(format!("{relative}{}", vault.suffix()))
+/// Where the document actually lands.
+///
+/// The directory is kept as the user gave it — §7.2 conceals only leaf
+/// names — and the leaf comes from [`store::on_disk_name`]: the document's
+/// own name plus a suffix in `plain` mode, the ULID in `id` mode.
+fn target_path(vault: &Vault, relative: &str, id: &str) -> std::result::Result<String, String> {
+    let (directory, leaf) = match relative.rsplit_once('/') {
+        Some((directory, leaf)) => (Some(directory), leaf),
+        None => (None, relative),
+    };
+
+    let name = store::on_disk_name(vault, leaf, Some(id))
+        .map_err(|err| format!("{relative} cannot be stored in this vault: {err}"))?;
+
+    Ok(match directory {
+        Some(directory) => format!("{directory}/{name}"),
+        None => name,
+    })
 }
 
 /// The first §5 rule any component of `relative` breaks.

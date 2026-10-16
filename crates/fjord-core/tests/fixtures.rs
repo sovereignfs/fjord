@@ -16,10 +16,11 @@
 //!   expressible as ordinary portable files.
 //! - **Synthesised** — built into a temporary directory by a test below,
 //!   for names no repository should carry.
-//! - **Predicate-only** — reachable through [`fjord_core::path`] but not
-//!   through a filesystem walk, because no mainstream filesystem can store
-//!   the offending name.
-//! - **Deferred** — needs crypto or tar, so it arrives with M3 or M7.
+
+//! - **Predicate-only** — reachable through a `fjord_core` API but not
+//!   through a read-only filesystem scan, because no filesystem can store
+//!   the offending name, or because the thing checked is inside a
+//!   ciphertext.
 
 use fjord_core::diagnostics::Code;
 use fjord_core::verify::{self, Options, Report};
@@ -38,14 +39,22 @@ const SYNTHESISED: &[&str] = &[
     "E501", "E502", "E503", "E505", "E506", "E508", "W604", "W605",
 ];
 
-/// No mainstream filesystem stores a path component over 255 bytes, so this
-/// can only be reached by validating a name before writing it — which is
-/// what `fjord new` and `fjord init` do. Covered by the unit test
-/// `length_is_measured_in_bytes` in `fjord_core::path`.
-const PREDICATE_ONLY: &[&str] = &["E504"];
+/// Codes no filesystem scan can reach, covered by unit tests on the
+/// predicate instead.
+///
+/// - `E504`: no mainstream filesystem stores a path component over 255
+///   bytes, so it can only be caught by validating a name *before* writing
+///   it — which is what `fjord new` and `fjord vault add` do. Covered by
+///   `length_is_measured_in_bytes` in `fjord_core::path`.
+/// - `E303`: the tar archive lives *inside* the ciphertext (§6.4), so
+///   checking it needs an identity and `fjord verify` never asks for one.
+///   It surfaces when a document is read, and is covered exhaustively by
+///   `fjord_core::container`'s tests — one per rejection §6.4 lists — plus
+///   an end-to-end test that reading a malformed container reports it.
+const PREDICATE_ONLY: &[&str] = &["E303", "E504"];
 
-/// Needs a tar archive, so it arrives with M7.
-const DEFERRED: &[&str] = &["E303"];
+/// Nothing is deferred any longer: every diagnostic is implemented.
+const DEFERRED: &[&str] = &[];
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures")

@@ -13,8 +13,8 @@
 use crate::cli::{DecryptArgs, EncryptArgs, ExitCode, GlobalArgs};
 use crate::cmd::{find_root, load_identities, repo_relative, resolve_destination, usage, Style};
 use anyhow::{Context, Result};
-use fjord_core::crypto;
 use fjord_core::vault::{self, Vault};
+use fjord_core::{crypto, store};
 use std::io::Write;
 use std::path::Path;
 
@@ -68,7 +68,8 @@ pub fn encrypt(args: &EncryptArgs, global: &GlobalArgs) -> Result<ExitCode> {
     let plaintext = zeroize::Zeroizing::new(
         std::fs::read(&source).with_context(|| format!("could not read {relative}"))?,
     );
-    let ciphertext = crypto::encrypt(&plaintext, &recipients, vault.armor())
+    let leaf = relative.rsplit('/').next().unwrap_or(&relative).to_string();
+    let ciphertext = store::store(&vault, &leaf, &plaintext, Some(&recipients))
         .with_context(|| format!("could not encrypt {relative}"))?;
     std::fs::write(&destination, &ciphertext)
         .with_context(|| format!("could not write {relative}{suffix}"))?;
@@ -87,8 +88,9 @@ pub fn encrypt(args: &EncryptArgs, global: &GlobalArgs) -> Result<ExitCode> {
     }
 
     let verified = match load_identities(global) {
-        Ok(identities) => match crypto::decrypt(&written, &identities) {
+        Ok(identities) => match store::load(&vault, &written, Some(&identities)) {
             Ok(recovered) => {
+                let recovered = recovered.plaintext;
                 // A direct comparison, not a hash: the buffers are both in
                 // hand, so there is nothing a digest would add but a way to
                 // be wrong.
@@ -184,8 +186,9 @@ pub fn decrypt(args: &DecryptArgs, global: &GlobalArgs) -> Result<ExitCode> {
     let identities = load_identities(global)?;
     let ciphertext = std::fs::read(root.join(&relative))
         .with_context(|| format!("could not read {relative}"))?;
-    let plaintext = crypto::decrypt(&ciphertext, &identities)
-        .with_context(|| format!("could not decrypt {relative}"))?;
+    let plaintext = store::load(&vault, &ciphertext, Some(&identities))
+        .with_context(|| format!("could not decrypt {relative}"))?
+        .plaintext;
 
     match &args.out {
         Some(out) => {

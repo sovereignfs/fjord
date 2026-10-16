@@ -27,6 +27,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+pub mod container;
 pub mod crypto;
 pub mod diagnostics;
 pub mod doc;
@@ -34,12 +35,9 @@ pub mod manifest;
 pub mod path;
 pub mod scaffold;
 pub mod scalar;
+pub mod store;
 pub mod vault;
 pub mod verify;
-
-// Still to come; see CLAUDE.md § Milestones.
-//
-// pub mod container;   // tar container for fileNaming "id"     — M7
 
 /// The format version this build implements.
 ///

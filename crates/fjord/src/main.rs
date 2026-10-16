@@ -41,8 +41,9 @@ fn run(args: Cli) -> anyhow::Result<ExitCode> {
         Command::Grep(grep) => cmd::grep::run(grep, &args.global),
         Command::Status => cmd::status::run(&args.global),
         Command::Sync(sync) => cmd::sync::run(sync, &args.global),
-        Command::Rekey(_) | Command::Export(_) | Command::Import(_) | Command::Vault(_) => {
-            todo!("M3/M5: vault and key maintenance")
+        Command::Vault(vault) => cmd::vaults::run(vault, &args.global),
+        Command::Rekey(_) | Command::Export(_) | Command::Import(_) => {
+            todo!("vault and key maintenance: rekey, export, import")
         }
     }
 }
