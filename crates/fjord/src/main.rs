@@ -5,6 +5,7 @@
 
 mod cli;
 mod cmd;
+mod git;
 
 use clap::Parser;
 use cli::{Cli, Command, ExitCode};
@@ -30,7 +31,7 @@ fn run(args: Cli) -> anyhow::Result<ExitCode> {
     // Implement in milestone order; see CLAUDE.md § Milestones.
     match &args.command {
         Command::Verify(verify) => cmd::verify::run(verify, &args.global),
-        Command::Init(_) => todo!("M2: scaffold a conforming repository, git init, first commit"),
+        Command::Init(init) => cmd::init::run(init, &args.global),
         Command::Key(_) => todo!("M3: age identities and recipients"),
         Command::Open(_) => todo!("M4: decrypt, $EDITOR, re-encrypt on change, shred"),
         Command::New(_) | Command::Ls(_) | Command::Grep(_) | Command::Status => {

@@ -4,7 +4,7 @@
 //! renderers share one report: a human summary, and `--json` for CI.
 
 use crate::cli::{ExitCode, GlobalArgs, VerifyArgs};
-use crate::cmd::{find_root, plural, Style};
+use crate::cmd::{find_root, plural, usage, Style};
 use anyhow::Result;
 use fjord_core::diagnostics::{Diagnostic, Severity};
 use fjord_core::verify::{self, Options, Report, VaultSummary};
@@ -16,11 +16,9 @@ pub fn run(args: &VerifyArgs, global: &GlobalArgs) -> Result<ExitCode> {
         // their repository was repaired. `--fix` is a separate code path
         // with an explicit allowlist of safe repairs, and it lands with
         // `fjord init`, which writes the same scaffolding.
-        eprintln!(
-            "error: --fix is not implemented yet; it arrives with M2. \
-             `fjord verify` is read-only."
-        );
-        return Ok(ExitCode::Usage);
+        return Ok(usage(
+            "--fix is not implemented yet; it arrives with M2. `fjord verify` is read-only.",
+        ));
     }
 
     let root = find_root(global.repo.as_deref())?;
@@ -57,38 +55,28 @@ fn exit_code(report: &Report, strict: bool) -> ExitCode {
 const LABEL_WIDTH: usize = 20;
 
 fn render_human(out: &mut impl Write, report: &Report, style: Style) -> Result<()> {
-    let repository_problems = report
-        .diagnostics
-        .iter()
-        .filter(|diagnostic| vault_of(diagnostic, &report.vaults).is_none())
-        .count();
+    let repository = tally(report, None);
 
     writeln!(
         out,
         "  {} {:<width$}{}",
-        mark(repository_problems == 0, style),
+        mark(repository, style),
         fjord_core::REPOSITORY_MANIFEST,
-        style.dim(&repository_headline(report, repository_problems)),
+        style.dim(&repository_headline(report, repository)),
         width = LABEL_WIDTH
     )?;
 
     for (index, vault) in report.vaults.iter().enumerate() {
-        let problems = report
-            .diagnostics
-            .iter()
-            .filter(|diagnostic| vault_of(diagnostic, &report.vaults) == Some(index))
-            .count();
-        let detail = if problems == 0 {
-            style.dim(&vault_headline(vault))
-        } else {
-            style.dim(&plural(problems, "problem", "problems"))
-        };
+        let counts = tally(report, Some(index));
         writeln!(
             out,
             "  {} {:<width$}{}",
-            mark(problems == 0, style),
+            mark(counts, style),
             vault.path,
-            detail,
+            style.dim(&match counts.headline() {
+                Some(headline) => headline,
+                None => vault_headline(vault),
+            }),
             width = LABEL_WIDTH
         )?;
     }
@@ -122,9 +110,52 @@ fn render_human(out: &mut impl Write, report: &Report, style: Style) -> Result<(
     Ok(())
 }
 
-fn repository_headline(report: &Report, problems: usize) -> String {
-    if problems > 0 {
-        return plural(problems, "problem", "problems");
+/// Errors and warnings attributable to one vault, or to the repository
+/// itself when `vault` is `None`.
+#[derive(Debug, Clone, Copy)]
+struct Tally {
+    errors: usize,
+    warnings: usize,
+}
+
+impl Tally {
+    /// What to print instead of the usual summary, when there is something
+    /// to report.
+    ///
+    /// Warnings are named as warnings rather than lumped in as "problems":
+    /// a repository with only warnings conforms and exits 0, so calling
+    /// them problems contradicts the verdict three lines further down.
+    fn headline(self) -> Option<String> {
+        if self.errors > 0 {
+            Some(plural(self.errors + self.warnings, "problem", "problems"))
+        } else if self.warnings > 0 {
+            Some(plural(self.warnings, "warning", "warnings"))
+        } else {
+            None
+        }
+    }
+}
+
+fn tally(report: &Report, vault: Option<usize>) -> Tally {
+    let mut counts = Tally {
+        errors: 0,
+        warnings: 0,
+    };
+    for diagnostic in &report.diagnostics {
+        if vault_of(diagnostic, &report.vaults) != vault {
+            continue;
+        }
+        match diagnostic.severity() {
+            Severity::Error => counts.errors += 1,
+            Severity::Warning => counts.warnings += 1,
+        }
+    }
+    counts
+}
+
+fn repository_headline(report: &Report, counts: Tally) -> String {
+    if let Some(headline) = counts.headline() {
+        return headline;
     }
     match report.version {
         Some(version) => format!("format version {version}"),
@@ -150,11 +181,17 @@ fn vault_headline(vault: &VaultSummary) -> String {
     parts.join(" · ")
 }
 
-fn mark(good: bool, style: Style) -> String {
-    if good {
-        style.good("✓")
-    } else {
+/// `✓` conforming, `⚠` warnings only, `✗` at least one error.
+///
+/// The three-way distinction matters: `✗` beside a line that exits 0 reads
+/// as a failure that did not happen.
+fn mark(counts: Tally, style: Style) -> String {
+    if counts.errors > 0 {
         style.error("✗")
+    } else if counts.warnings > 0 {
+        style.warning("⚠")
+    } else {
+        style.good("✓")
     }
 }
 

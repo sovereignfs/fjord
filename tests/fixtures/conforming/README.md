@@ -207,7 +207,7 @@ All merging happens in the app, never in git.
 
 | Key | Required | Meaning |
 | --- | --- | --- |
-| `id` | yes | ULID or UUIDv7. Assigned once, **never changed**. This is the document's identity: it survives renames and moves, and it is how history is tracked. |
+| `id` | yes | ULID. Assigned once, **never changed**. This is the document's identity: it survives renames and moves, and it is how history is tracked. |
 | `title` | no | Display name. If absent, fall back to the first `#` heading, then the file name. |
 | `created` | no | RFC 3339, UTC. Set once at creation. |
 | `tags` | no | Array of strings. |
@@ -227,8 +227,9 @@ Rules that matter more than the field list:
   answer.
 - **`id` is immutable.** On a duplicate — someone copy-pasted a file — keep
   the id on whichever has the older `created` and assign the other a new one.
-- Time-ordered ids (ULID, UUIDv7) are preferred so documents sort by
-  creation even if a `created` value is lost.
+- ULIDs are time-ordered, so documents sort by creation even if a
+  `created` value is lost. Exactly one identifier form is permitted, so
+  that every client can compare and sort ids without negotiating first.
 
 Non-Markdown files (`.pdf`, `.xlsx`, …) have nowhere to put frontmatter.
 They currently carry no Fjord metadata beyond their path and what Git

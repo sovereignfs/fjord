@@ -4,8 +4,10 @@
 //! finding the repository, deciding whether to use colour, and rendering a
 //! report for a human or for CI.
 
+pub mod init;
 pub mod verify;
 
+use crate::cli::ExitCode;
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
 use std::io::IsTerminal;
@@ -85,6 +87,17 @@ impl Style {
             text.to_string()
         }
     }
+}
+
+/// Report a problem with how the command was invoked, and the exit code
+/// that goes with it.
+///
+/// A usage error is exit 2, distinct from the 3 an IO or git failure gets,
+/// so a script can tell "you asked for something impossible" from "the
+/// machine would not cooperate".
+pub fn usage(message: impl std::fmt::Display) -> ExitCode {
+    eprintln!("error: {message}");
+    ExitCode::Usage
 }
 
 /// `1 doc`, `2 docs`.

@@ -1,0 +1,18 @@
+# age recipients for the Private vault.
+#
+# One public key per line. Every file in this vault is encrypted to ALL of
+# these keys, so any one of them can decrypt it. Add a line per device.
+#
+# Blank lines and lines starting with # are ignored, so this file is also a
+# valid argument to `age -R recipients.txt`.
+#
+# Add your first key with:
+#
+#     age-keygen -o ~/.config/fjord/identity.txt
+#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt
+#
+# Until at least one key is present, nothing can be written to this vault.
+#
+# Removing a key here stops FUTURE files being encrypted to it. It does not
+# revoke anything: every version already in git history stays readable by
+# that key forever. See "Rotating and revoking keys" in the root README.

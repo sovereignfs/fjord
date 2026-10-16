@@ -45,20 +45,42 @@ git push -u origin main
 ### `fjord init [path]`
 
 Creates a conforming repository with a `Public` vault (plaintext) and a
-`Private` vault (encrypted), initialises git, and makes the first commit.
+`Private` vault (encrypted), initialises git on `main`, and makes the first
+commit. It also writes a `README.md` explaining the whole format, so the
+repository is comprehensible to anyone who clones it without Fjord
+installed.
 
-Offers to generate an age identity and register it as a recipient of
-`Private`. **The identity is displayed once.** It is written to
-`~/.config/fjord/identity.txt` (or `$FJORD_CONFIG_DIR`), never into the
-repository.
+**It never writes over existing files.** The target must not exist, be
+empty, or contain nothing but a `.git` directory — so `git init && fjord
+init` works, and `fjord init` over your notes does not.
+
+A fresh `Private` vault has **no recipients**, which spec §6.2 makes valid
+and deliberately unwritable. `fjord verify` reports `W602` until you add a
+key; that is expected, not a fault. The generated `README.md` gives the two
+`age-keygen` commands, and `fjord key add` will do it for you once the
+crypto milestone lands.
 
 | Flag | Effect |
 | --- | --- |
 | `--name <text>` | Repository display name. Defaults to the directory name. |
-| `--no-input` | Never prompt. Requires `--identity` or `--no-encrypt`. |
-| `--identity <path>` | Use an existing identity instead of generating one. |
 | `--no-encrypt` | Create `Private` as a plaintext vault. |
 | `--no-git` | Skip `git init` and the first commit. |
+| `--no-input` | Never prompt; take every default. |
+| `--json` | Machine-readable summary of what was created. |
+
+On a terminal it asks for the repository name and whether to encrypt
+`Private`, writing the prompts to stderr so `--json` on stdout stays
+parseable. Anywhere else — a pipe, a CI job, or with `--no-input` — it takes
+the defaults without asking.
+
+`--identity` is **not accepted here yet.** Registering a recipient is
+`fjord key add`, which arrives with the crypto milestone; until then `init`
+refuses the flag rather than quietly creating a repository you cannot write
+to. Exits `2` if it does.
+
+If git itself fails — most often because `user.name` and `user.email` are
+unset — the repository is still created, and the error says so along with
+how to finish the commit by hand. Exits `3`.
 
 ### `fjord verify`
 
@@ -78,6 +100,9 @@ $ fjord verify
 
   2 errors, 0 warnings
 ```
+
+`✓` conforms, `⚠` warnings only — which still exits `0` — and `✗` at least
+one error.
 
 | Flag | Effect |
 | --- | --- |

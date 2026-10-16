@@ -1,0 +1,22 @@
+# Plaintext guard for an encrypted vault.
+#
+# Ignore everything, then allow back only the things that belong in an
+# encrypted vault. This is what stops a decrypted working copy — say you ran
+# `age -d` to edit a file in another editor and forgot to clean up — from
+# being committed in the clear.
+#
+# Do not remove these lines. If you add a new allowed file type to this
+# vault, add a matching `!` rule rather than deleting the `*`.
+
+*
+
+# Let git descend into subdirectories.
+!*/
+
+# Encrypted payloads.
+!*.age
+
+# Vault machinery (must stay readable to find the keys and the format).
+!fjord.vault.json
+!recipients.txt
+!.gitignore

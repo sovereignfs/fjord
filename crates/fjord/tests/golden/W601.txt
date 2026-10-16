@@ -1,0 +1,8 @@
+  ✓ fjord.json          format version 1
+  ⚠ Private             1 warning
+  ✓ Public              plaintext · 0 docs · 0 files
+
+    Private
+      W601  vault on disk is not listed in fjord.json
+
+  0 errors, 1 warning

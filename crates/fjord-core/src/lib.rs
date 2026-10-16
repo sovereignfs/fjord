@@ -31,6 +31,7 @@ pub mod diagnostics;
 pub mod doc;
 pub mod manifest;
 pub mod path;
+pub mod scaffold;
 pub mod scalar;
 pub mod verify;
 

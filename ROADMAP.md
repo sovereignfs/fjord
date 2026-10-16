@@ -5,14 +5,13 @@ not define behaviour.** `spec/SPEC.md` is authoritative on the format and
 `CLAUDE.md` on how to build it — where either disagrees with this file, this
 file is stale and should be corrected.
 
-State as of 2026-10-16: **M1 complete and green.** `fjord verify` is
-implemented end to end — `scalar`, `path`, `manifest`, `doc` and `verify` in
-the core, `cmd/verify` in the binary. 81 tests pass; `clippy -- -D warnings`
-and `cargo fmt --check` are clean. All four of M1's acceptance criteria hold:
-the conforming fixture exits 0 with no diagnostics, each `broken/` fixture
-emits exactly its code, `--json` is checked against
-`schema/verify.schema.json`, and a blake3 digest of the tree proves nothing
-on disk changes.
+State as of 2026-10-16: **M1 and M2 complete and green.** `fjord verify` and
+`fjord init` are implemented end to end. 118 tests pass; `clippy -- -D
+warnings` and `cargo fmt --check` are clean. Both milestones' acceptance
+criteria hold: the conforming fixture exits 0 with no diagnostics, each
+`broken/` fixture emits exactly its code, `--json` is checked against
+`schema/verify.schema.json`, a blake3 digest proves `verify` changes nothing
+on disk, and `fjord init x && cd x && fjord verify` exits 0.
 
 Verified on rustc 1.99.1 only. The declared MSRV of 1.82 is **untested** —
 M0.1 should pin it and CI should build against it. Version `0.1.0`, nothing
@@ -54,7 +53,7 @@ green.
 | | Milestone | Modules | Status |
 | --- | --- | --- | --- |
 | M1 | `fjord verify`, read-only, no crypto | `scalar`, `path`, `manifest`, `doc`, `verify`, `cmd/verify` | `done` |
-| M2 | `fjord init` | `cmd/init`, `git` | `todo` |
+| M2 | `fjord init` | `scaffold`, `cmd/init`, `git` | `done` |
 | M3 | Keys, encrypt, decrypt | `crypto` | `todo` |
 | M4 | `fjord open` | `cmd/open` | `todo` |
 | M5 | `new`, `ls`, `status`, `grep` | `cmd/*` | `todo` |
@@ -99,6 +98,51 @@ Three decisions worth knowing, all documented at their call sites:
 repairs. It lands in M2 alongside `init`, which writes the same scaffolding;
 until then `verify --fix` is refused as a usage error (exit 2) rather than
 silently ignored.
+
+### M2 notes
+
+`fjord init` writes nine files, including the full `README.md` that explains
+the format — the thing that makes a repository comprehensible to someone who
+clones it without Fjord installed, which the prime directive asks for where
+the spec is silent.
+
+The static files live in `crates/fjord-core/templates/` and are the same
+bytes the conforming fixture carries;
+`the_static_files_are_byte_identical_to_the_fixture` holds the two together,
+so neither can drift into describing a format the other does not produce.
+
+Three decisions:
+
+- **A fresh `Private` has no recipients.** §6.2 makes that valid and
+  explicitly unwritable, and it is the honest state of a repository whose
+  owner has not yet made a key. `verify` reports `W602`, which is a warning,
+  so the acceptance criterion still holds — and `init` says so in its output
+  before the user meets the warning.
+- **`--identity` is refused, exit 2.** Registering a recipient is `key add`,
+  which is M3. Accepting the flag and ignoring it would hand back a
+  repository the user believes they can write to. The flag is global and has
+  an env fallback, so the message names `FJORD_IDENTITY` too.
+- **Scaffolding is checked before it is written.** A missing `git` is
+  reported while the directory is still empty. When git itself fails — an
+  unset `user.email`, most often — the files survive and the error says how
+  to finish, because the alternative is a user who re-runs `init` and is
+  told the directory is not empty.
+
+`scaffold::plan` returns file contents and touches no filesystem;
+`scaffold::write` is the only function there that performs IO and uses
+`create_new`, so it cannot truncate. That split is what lets the web build
+reuse it against a virtual filesystem.
+
+### Two bugs the demo caught
+
+Neither was visible in the tests, because both were about what the output
+*means*:
+
+1. **`verify` marked a warning-only vault `✗`** while reporting "0 errors"
+   and exiting 0. The mark contradicted the verdict three lines below it.
+   Now `✓`/`⚠`/`✗`, with warnings named as warnings, locked by a golden.
+2. **`init`'s git failure did not say the repository had been created**, so
+   the obvious next move — run it again — hit "directory is not empty".
 
 ## Fixtures
 

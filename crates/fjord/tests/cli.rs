@@ -127,6 +127,13 @@ fn golden_plaintext_in_encrypted_vault() {
     assert_golden("E201", &stdout_of(&fjord("broken/E201", &["verify"])));
 }
 
+/// A repository that conforms but has something to say. The mark must be
+/// `⚠`, not `✗`: this exits 0.
+#[test]
+fn golden_warning_only() {
+    assert_golden("W601", &stdout_of(&fjord("broken/W601", &["verify"])));
+}
+
 #[test]
 fn golden_unsupported_version() {
     assert_golden("E103", &stdout_of(&fjord("broken/E103", &["verify"])));
