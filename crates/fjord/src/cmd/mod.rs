@@ -12,6 +12,7 @@ pub mod list;
 pub mod new;
 pub mod open;
 pub mod status;
+pub mod sync;
 pub mod verify;
 
 use crate::cli::{ExitCode, GlobalArgs};

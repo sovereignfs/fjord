@@ -11,8 +11,19 @@
 //! below: nothing else in the codebase knows how git is reached.
 
 use anyhow::{bail, Context, Result};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+
+/// What came of a merge.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MergeOutcome {
+    /// Nothing to pull.
+    UpToDate,
+    /// Merged, or fast-forwarded, with nothing left to resolve.
+    Clean,
+    /// Paths git would not merge, left for Fjord to resolve by decrypting.
+    Conflicted(Vec<String>),
+}
 
 /// The default branch a new repository gets.
 ///
@@ -133,6 +144,176 @@ impl Git {
             (Some(ahead), Some(behind)) => Ok(Some((ahead, behind))),
             _ => Ok(None),
         }
+    }
+
+    /// Fetch from the default remote.
+    pub fn fetch(&self) -> Result<()> {
+        self.run(&["fetch", "--quiet"]).map(drop)
+    }
+
+    /// The tracked upstream ref, or `None` when none is configured.
+    pub fn upstream(&self) -> Option<String> {
+        self.run_line(&["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
+            .ok()
+            .filter(|name| !name.is_empty())
+    }
+
+    /// Configured remotes, in git's order.
+    pub fn remotes(&self) -> Vec<String> {
+        self.run(&["remote"])
+            .map(|output| {
+                output
+                    .lines()
+                    .map(|line| line.trim().to_string())
+                    .filter(|line| !line.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    /// Whether a ref exists, such as `origin/main`.
+    pub fn ref_exists(&self, reference: &str) -> bool {
+        self.run_line(&["rev-parse", "--verify", "--quiet", reference])
+            .map(|value| !value.is_empty())
+            .unwrap_or(false)
+    }
+
+    /// `git push --set-upstream`, which is what a first push needs.
+    pub fn push_set_upstream(&self, remote: &str, branch: &str) -> Result<()> {
+        self.run(&["push", "--set-upstream", remote, branch])
+            .map(drop)
+            .with_context(|| format!("could not push to {remote}"))
+    }
+
+    /// The commit HEAD points at.
+    pub fn head(&self) -> Result<String> {
+        self.run_line(&["rev-parse", "HEAD"])
+    }
+
+    /// How many commits are in `range`, e.g. `old..new`.
+    pub fn count(&self, range: &str) -> usize {
+        self.run_line(&["rev-list", "--count", range])
+            .ok()
+            .and_then(|count| count.parse().ok())
+            .unwrap_or(0)
+    }
+
+    /// Whether anything is uncommitted.
+    pub fn is_dirty(&self) -> Result<bool> {
+        Ok(!self.changed_paths()?.is_empty())
+    }
+
+    /// Merge `reference` into HEAD without committing, so that conflicts
+    /// can be resolved before anything is recorded.
+    ///
+    /// `--no-ff` is deliberately absent: a fast-forward is the common case
+    /// and needs no merge commit.
+    pub fn merge_no_commit(&self, reference: &str) -> Result<MergeOutcome> {
+        // `.gitattributes` sets `*.age -merge`, so git leaves a conflicting
+        // payload for us rather than attempting a textual merge of
+        // ciphertext (§9, §9.1).
+        match self.run(&["merge", "--no-commit", "--no-edit", reference]) {
+            Ok(output) => {
+                if output.contains("Already up to date") {
+                    Ok(MergeOutcome::UpToDate)
+                } else {
+                    Ok(MergeOutcome::Clean)
+                }
+            }
+            // A conflict is a non-zero exit, which is not an error here.
+            Err(_) => {
+                let unmerged = self.unmerged_paths()?;
+                if unmerged.is_empty() {
+                    Err(anyhow::anyhow!(
+                        "the merge failed and left no conflicts to resolve"
+                    ))
+                } else {
+                    Ok(MergeOutcome::Conflicted(unmerged))
+                }
+            }
+        }
+    }
+
+    /// One stage of a conflicted path from the index: 1 is the merge base,
+    /// 2 is ours, 3 is theirs. Spec §9.1.
+    ///
+    /// `None` when that stage does not exist — a file added on both sides
+    /// has no base, and a delete/modify conflict is missing one side.
+    /// Returned as raw bytes, because a stage of an encrypted payload is
+    /// ciphertext.
+    pub fn stage(&self, stage: u8, path: &str) -> Option<Vec<u8>> {
+        self.run_bytes(&["show", &format!(":{stage}:{path}")]).ok()
+    }
+
+    /// `git merge-file`: a real three-way merge, by the same algorithm git
+    /// itself uses.
+    ///
+    /// The result is written into `ours`. Returns whether it merged
+    /// cleanly; conflicts are reported by a positive exit status, which is
+    /// not an error.
+    pub fn merge_file(&self, ours: &Path, base: &Path, theirs: &Path) -> Result<bool> {
+        let output = Command::new("git")
+            .current_dir(&self.root)
+            .args(["merge-file", "-L", "ours", "-L", "base", "-L", "theirs"])
+            .arg(ours)
+            .arg(base)
+            .arg(theirs)
+            .output()
+            .context("could not run `git merge-file`")?;
+
+        match output.status.code() {
+            Some(0) => Ok(true),
+            // A positive code is the number of conflict hunks.
+            Some(code) if code > 0 && code < 128 => Ok(false),
+            _ => {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                bail!("`git merge-file` failed: {}", stderr.trim())
+            }
+        }
+    }
+
+    /// Record the merge in progress.
+    pub fn commit_merge(&self, message: &str) -> Result<()> {
+        self.run(&["commit", "--no-edit", "-m", message])
+            .map(drop)
+            .context("could not commit the merge")
+    }
+
+    /// `git push`.
+    pub fn push(&self) -> Result<()> {
+        self.run(&["push"]).map(drop).context("could not push")
+    }
+
+    /// Accept a deletion that both sides agreed on.
+    pub fn remove_path(&self, relative: &str) -> Result<()> {
+        self.run(&["rm", "--quiet", "--", relative])
+            .map(drop)
+            .with_context(|| format!("could not remove {relative}"))
+    }
+
+    /// Whether a merge is recorded but not yet committed.
+    pub fn merge_in_progress(&self) -> bool {
+        self.run_line(&["rev-parse", "--verify", "--quiet", "MERGE_HEAD"])
+            .map(|head| !head.is_empty())
+            .unwrap_or(false)
+    }
+
+    /// A git command whose output is raw bytes.
+    ///
+    /// Required wherever the output is content rather than text: a stage of
+    /// an encrypted payload is ciphertext, and passing it through
+    /// `from_utf8_lossy` would replace every invalid byte with U+FFFD and
+    /// hand back something that is no longer an age file.
+    fn run_bytes(&self, arguments: &[&str]) -> Result<Vec<u8>> {
+        let output = Command::new("git")
+            .current_dir(&self.root)
+            .args(arguments)
+            .output()
+            .with_context(|| format!("could not run `git {}`", arguments.join(" ")))?;
+        if !output.status.success() {
+            bail!("`git {}` failed", arguments.join(" "));
+        }
+        Ok(output.stdout)
     }
 
     /// A git command whose output is a single value, trimmed.

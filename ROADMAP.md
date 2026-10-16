@@ -5,11 +5,11 @@ not define behaviour.** `spec/SPEC.md` is authoritative on the format and
 `CLAUDE.md` on how to build it — where either disagrees with this file, this
 file is stale and should be corrected.
 
-State as of 2026-10-16: **M1 through M5 complete and green.** `verify`,
-`init`, `key new|add|list|remove`, `encrypt`, `decrypt`, `open`, `new`,
-`ls`, `grep` and `status` are implemented end to end — every command the
-README documents except `sync`, `rekey`, `export` and `import`. 230 tests
-pass; `clippy -- -D warnings` and `cargo fmt --check` are clean.
+State as of 2026-10-16: **M1 through M6 complete and green.** `verify`,
+`init`, `key`, `encrypt`, `decrypt`, `open`, `new`, `ls`, `grep`, `status`
+and `sync` are implemented end to end — every command the README documents
+except `rekey`, `export` and `import`. 246 tests pass; `clippy -- -D
+warnings` and `cargo fmt --check` are clean.
 
 All three milestones' acceptance criteria hold, including the one that
 matters most: **a file encrypted by `fjord` decrypts with the real `age`
@@ -63,7 +63,7 @@ green.
 | M3 | Keys, encrypt, decrypt | `crypto`, `vault`, `cmd/keys`, `cmd/crypt` | `done` |
 | M4 | `fjord open` | `cmd/open` | `done` |
 | M5 | `new`, `ls`, `status`, `grep` | `cmd/new`, `cmd/list`, `cmd/grep`, `cmd/status` | `done` |
-| M6 | `fjord sync` | `cmd/sync`, `git` | `todo` |
+| M6 | `fjord sync` | `cmd/sync`, `git` | `done` |
 | M7 | `fileNaming: "id"` and the tar container | `container` | `todo` |
 
 ### M1 breakdown
@@ -304,6 +304,58 @@ the thing that found the bug was using the tool, not the test suite.**
    never decrypts, so it cannot tell a Doc from any other file in there.
    The count is now simply not claimed — a fact about what was inspected
    should not be printed as a fact about the vault.
+
+### M6 notes
+
+Both acceptance criteria hold, and both are tested against a real bare
+remote with two real clones — there is no honest way to fake a three-way
+merge of ciphertext. Divergent edits to one encrypted Doc merge correctly,
+and an unresolvable merge keeps both versions and exits 1.
+
+The resolution is §9.1's, exactly: for each path Git refuses to merge, take
+stages 1, 2 and 3 from the index, decrypt all three, run `git merge-file`
+on the plaintext, re-encrypt the result. Using `git merge-file` rather than
+a hand-rolled diff3 means the merge algorithm is the one Git itself uses,
+and it is confined to `git.rs` like every other git call.
+
+- **The merge base is decrypted too**, not just the two sides. §9.1 is
+  explicit about it, and without it a three-way merge degrades to a two-way
+  one that conflicts on every line either side touched.
+- **Neither version is ever discarded.** Ours is written back byte for byte
+  — the merge attempt leaves no trace on it — and theirs is written
+  alongside as a new Doc with a fresh `id`. A test asserts the result still
+  passes `verify`, which is what the fresh id is for: copying the id would
+  resolve a conflict by creating an `E401`.
+- **A conflict is not pushed.** Exit 1, and the remote is left alone;
+  everyone else would otherwise inherit a conflict only one person can
+  resolve.
+- **Binary documents are never text-merged.** A PDF has no lines, and
+  `git merge-file` would corrupt it, so both versions are kept instead.
+- **Without an identity, both ciphertexts are kept verbatim.** A
+  collaborator who cannot read a vault must still not lose either side.
+- `git.rs` gained `run_bytes`, because a stage of an encrypted payload is
+  ciphertext and passing it through `from_utf8_lossy` would replace every
+  invalid byte with U+FFFD and hand back something that is no longer an age
+  file.
+
+### Two more bugs from running the tool
+
+Six for six. The suite proves what I thought to assert; the demo finds what
+I did not.
+
+1. **`fjord sync` ignored a remote with no upstream.** `git remote add` sets
+   no `@{u}`, so the first sync after it reported "no remote tracked" —
+   true, unhelpful, and indistinguishable from having no remote at all. It
+   now treats a single remote plus the current branch as the obvious
+   upstream and sets tracking on the first push, which removes
+   `git push -u` from the quick start. Several remotes and no upstream is a
+   usage error that names them.
+2. **`ls --long` called a file undecryptable when it merely had no
+   frontmatter.** §8.2 makes a Markdown file without frontmatter a vault
+   file, not a broken Doc — so a hand-written file made `ls` tell the user
+   their key was wrong. "Nothing to read" and "cannot be read" are now
+   different answers, which is the same mistake as M5's "0 docs": reporting
+   a limit of the inspection as a fact about the thing inspected.
 
 ## Fixtures
 

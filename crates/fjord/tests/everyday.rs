@@ -410,6 +410,49 @@ fn long_listing_shows_the_id_and_title() {
 
 // --- grep ----------------------------------------------------------------
 
+/// §8.2 makes a Markdown file without frontmatter a vault file, not a
+/// broken Doc. Reporting it as unreadable told users their key was wrong.
+#[test]
+fn a_file_without_frontmatter_is_not_called_unreadable() {
+    let repo = repo();
+    // Written by hand, the way a file arriving from another editor is.
+    std::fs::write(
+        repo.root.join("Private/plain.md"),
+        "# Plain\n\nno frontmatter\n",
+    )
+    .expect("write");
+    assert_eq!(code(&repo.run(&["encrypt", "Private/plain.md"])), 0);
+
+    let listed = repo.run(&["ls", "Private", "--long"]);
+    assert_eq!(code(&listed), 0, "{}", err(&listed));
+    assert!(
+        out(&listed).contains("Private/plain.md"),
+        "{}",
+        out(&listed)
+    );
+    assert!(
+        !out(&listed).contains("could not be read"),
+        "a file with no frontmatter was reported as undecryptable: {}",
+        out(&listed)
+    );
+
+    // And it is listed as a file rather than a doc, which is what it is.
+    let json = repo.run(&["ls", "Private", "--json"]);
+    let rows: Value = serde_json::from_str(&out(&json)).expect("json");
+    let row = rows
+        .as_array()
+        .expect("array")
+        .iter()
+        .find(|row| row["path"] == "Private/plain.md")
+        .expect("plain.md");
+    assert_eq!(row["kind"], Value::from("file"));
+    assert_eq!(row["id"], Value::Null);
+
+    // Whereas a genuinely unreadable one still says so.
+    let blind = repo.run_without_identity(&["ls", "Private", "--long"]);
+    assert!(out(&blind).contains("could not be read"), "{}", out(&blind));
+}
+
 #[test]
 fn grep_searches_plaintext_vaults_too() {
     let repo = repo();

@@ -137,6 +137,36 @@ pub fn new_document(id: &str, title: &str, created: &str) -> Result<String, serd
     Ok(format!("{FENCE}\n{yaml}{FENCE}\n\n# {title}\n"))
 }
 
+/// Replace a document's `id`, preserving every other key and its order.
+/// Spec §8.2, §9.1.
+///
+/// §9.1's remedy for an unmergeable conflict is to keep one side in place
+/// and write the other alongside it "as a new Doc with a fresh `id`". The
+/// fresh id is not cosmetic: two files sharing one id is
+/// [`Code::DuplicateId`][c], so copying a document without reassigning it
+/// would resolve a conflict by creating a conformance error.
+///
+/// Returns `None` for a file with no frontmatter to rewrite.
+///
+/// [c]: crate::diagnostics::Code::DuplicateId
+pub fn with_fresh_id(text: &str, id: &str) -> Option<String> {
+    let (frontmatter, body_offset) = match parse(text) {
+        Parse::Present {
+            frontmatter,
+            body_offset,
+        } => (frontmatter, body_offset),
+        _ => return None,
+    };
+
+    // `IndexMap::insert` on an existing key keeps its position, so the
+    // document's key order survives (§8.2) along with every unknown key.
+    let mut raw = frontmatter.raw().clone();
+    raw.insert(key::ID.to_string(), Value::String(id.to_string()));
+
+    let yaml = serde_yaml_ng::to_string(&raw).ok()?;
+    Some(format!("{FENCE}\n{yaml}{FENCE}\n{}", &text[body_offset..]))
+}
+
 /// Advance one line, returning the line without its terminator and the
 /// offset of the next one.
 ///
@@ -373,6 +403,31 @@ mod tests {
             );
             assert!(frontmatter.doc_id().is_some(), "{title:?} lost its id");
         }
+    }
+
+    #[test]
+    fn a_fresh_id_replaces_only_the_id() {
+        let original = "---\nzeta: 1\nid: 01JAGC4K7PT8Y3WQNMZV5XRB7H\ntitle: Groceries\nnested:\n  keep: true\n---\n\n# Groceries\n\nmilk\n";
+        let rewritten = match with_fresh_id(original, "01JAGC4K7PVB6ZNQ3XKMW9TYD5") {
+            Some(rewritten) => rewritten,
+            None => panic!("expected a rewrite"),
+        };
+
+        let frontmatter = frontmatter_of(&rewritten);
+        assert_eq!(frontmatter.doc_id(), Some("01JAGC4K7PVB6ZNQ3XKMW9TYD5"));
+        assert_eq!(frontmatter.title(), Some("Groceries"));
+        // Invariant 3: every other key, in its original position.
+        assert_eq!(
+            frontmatter.raw().keys().collect::<Vec<&String>>(),
+            vec!["zeta", "id", "title", "nested"]
+        );
+        // And the body is untouched.
+        assert!(rewritten.ends_with("# Groceries\n\nmilk\n"));
+    }
+
+    #[test]
+    fn a_file_without_frontmatter_has_no_id_to_replace() {
+        assert!(with_fresh_id("# Just a heading\n", "01JAGC4K7PT8Y3WQNMZV5XRB7H").is_none());
     }
 
     /// Invariant 3, for documents.

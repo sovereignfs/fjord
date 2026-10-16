@@ -35,9 +35,11 @@ which you can, and which is the whole point of the format.
 ```bash
 fjord init my-documents
 cd my-documents
+fjord key new                    # an identity, kept outside the repository
+fjord key add <public-key> --vault Private
 fjord new Private/Inbox/first.md
 git remote add origin git@github.com:you/Fjord.git
-git push -u origin main
+fjord sync                       # commits, pushes, and sets up tracking
 ```
 
 ## Commands
@@ -274,20 +276,61 @@ Pulls, resolves conflicts, pushes.
 
 ```
 $ fjord sync
-  ↓ pulled 3 changes
-  ⚠ Private/Inbox/groceries.md changed on both sides — merged
-  ↑ pushed 4 changes
+  committed Sync local changes
+  ↓ pulled 2 commits
+  ⚠ Private/Inbox/groceries.md.age changed on both sides — merged
+  ↑ pushed 2 commits
 ```
 
-This cannot be `git pull`. Git cannot merge ciphertext, so a conflict in an
-encrypted vault is resolved by decrypting both sides and their merge base,
-merging the plaintext, and re-encrypting. Where a merge cannot complete, both
-versions are kept and the command exits `1`.
+**This cannot be `git pull`.** Git cannot merge ciphertext, and spec §9.1
+says clients must not ask it to: a textual three-way merge of two age
+payloads produces a file that is neither side and decrypts to nothing. So
+`.gitattributes` sets `*.age -merge`, which makes Git stop at a conflicting
+payload instead of mangling it, and Fjord resolves it by **decrypting both
+sides and their merge base, merging the plaintext, and re-encrypting.**
+Plaintext vaults take the same path, so there is one implementation rather
+than two.
+
+Local changes are committed first — that is what "sync" means — and the
+first sync after `git remote add` pushes and sets up branch tracking, so you
+never need `git push -u` by hand.
 
 | Flag | Effect |
 | --- | --- |
-| `--no-push` | Pull and merge only. |
-| `--message <text>` | Commit message for local changes. |
+| `--no-push` | Commit and pull, but do not push. |
+| `--message <text>` | Commit message for local changes. Defaults to "Sync local changes". |
+
+### When a merge cannot complete
+
+**Neither version is ever discarded.** Yours stays exactly where it was, and
+theirs is written alongside it as a new Doc with a fresh `id` — the remedy
+spec §9.1 gives. The fresh id matters: two files sharing one id would
+resolve a conflict by creating an `E401`.
+
+```
+  ✗ conflict Private/Inbox/groceries.md.age
+    both sides changed the same lines
+    your version is unchanged at Private/Inbox/groceries.md.age
+    theirs is kept alongside it at Private/Inbox/groceries.conflict-8YX194D6.md.age
+
+  held back: nothing was pushed. Resolve the documents above, then run
+  `fjord sync` again.
+```
+
+The command exits `1` and **does not push**: everyone else would otherwise
+inherit a conflict only you can resolve. Read both with `fjord decrypt` or
+`fjord open`, fold them together, and delete the one you do not want.
+
+Three cases take this path rather than merging:
+
+- Both sides changed the same lines.
+- The document is not text — a PDF has no lines to merge, and merging it as
+  text would corrupt it.
+- No identity of yours decrypts it, so there is nothing to merge. The two
+  ciphertexts are kept as they are.
+
+A file deleted on one side and changed on the other keeps the changed
+version, since a deletion cannot be preserved as a file.
 
 ### `fjord key`
 

@@ -183,12 +183,15 @@ fn collect(
         }
 
         let (id, title) = if detailed && content.is_markdown() {
-            match frontmatter_of(root, vault, content, identities) {
-                Some(frontmatter) => (
+            match inspect(root, vault, content, identities) {
+                Inspected::Doc(frontmatter) => (
                     frontmatter.doc_id().map(String::from),
                     frontmatter.title().map(String::from),
                 ),
-                None => {
+                // Valid, and not worth remarking on: §8.2 makes a Markdown
+                // file without frontmatter a vault file, not a problem.
+                Inspected::NotADoc => (None, None),
+                Inspected::Unreadable => {
                     *unreadable += 1;
                     (None, None)
                 }
@@ -237,21 +240,41 @@ fn remainder(scope: &str, path: &str) -> String {
         .to_string()
 }
 
-fn frontmatter_of(
+/// What looking inside a file found.
+///
+/// "No frontmatter" and "could not be opened" are different answers, and
+/// collapsing them into one told users their key was wrong when the file
+/// simply had nothing to read.
+#[derive(Debug)]
+enum Inspected {
+    Doc(doc::Frontmatter),
+    /// Read successfully; carries no frontmatter. Valid per §8.2.
+    NotADoc,
+    /// Could not be decrypted, or could not be read at all.
+    Unreadable,
+}
+
+fn inspect(
     root: &Path,
     vault: &Vault,
     content: &Content,
     identities: Option<&Identities>,
-) -> Option<doc::Frontmatter> {
+) -> Inspected {
     let on_disk = root.join(&vault.directory).join(&content.relative);
     let bytes = match read_document(&on_disk, content.is_payload, identities) {
         DocumentRead::Text(bytes) => bytes,
-        DocumentRead::NeedsIdentity | DocumentRead::Failed(_) => return None,
+        DocumentRead::NeedsIdentity | DocumentRead::Failed(_) => return Inspected::Unreadable,
     };
-    let text = String::from_utf8(bytes.to_vec()).ok()?;
+
+    let text = match String::from_utf8(bytes.to_vec()) {
+        Ok(text) => text,
+        // Not text, so it has no frontmatter — a PDF, not a failure.
+        Err(_) => return Inspected::NotADoc,
+    };
+
     match doc::parse(&text) {
-        doc::Parse::Present { frontmatter, .. } => Some(frontmatter),
-        _ => None,
+        doc::Parse::Present { frontmatter, .. } => Inspected::Doc(frontmatter),
+        _ => Inspected::NotADoc,
     }
 }
 

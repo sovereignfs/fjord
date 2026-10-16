@@ -40,7 +40,7 @@ fn run(args: Cli) -> anyhow::Result<ExitCode> {
         Command::Ls(ls) => cmd::list::run(ls, &args.global),
         Command::Grep(grep) => cmd::grep::run(grep, &args.global),
         Command::Status => cmd::status::run(&args.global),
-        Command::Sync(_) => todo!("M6: pull, decrypt-merge-reencrypt, push"),
+        Command::Sync(sync) => cmd::sync::run(sync, &args.global),
         Command::Rekey(_) | Command::Export(_) | Command::Import(_) | Command::Vault(_) => {
             todo!("M3/M5: vault and key maintenance")
         }
