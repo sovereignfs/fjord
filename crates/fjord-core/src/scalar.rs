@@ -48,6 +48,27 @@ pub fn is_rfc3339_utc(s: &str) -> bool {
     }
 }
 
+/// Now, as RFC 3339 in UTC with whole seconds. Spec §3, §4, §8.1.
+///
+/// Subsecond precision is dropped: it is noise in a creation timestamp, and
+/// a whole-second value is what someone reading a manifest expects.
+pub fn now_rfc3339_utc() -> String {
+    use time::format_description::well_known::Rfc3339;
+    use time::OffsetDateTime;
+
+    let now = OffsetDateTime::now_utc();
+    let now = match now.replace_nanosecond(0) {
+        Ok(truncated) => truncated,
+        Err(_) => now,
+    };
+    match now.format(&Rfc3339) {
+        Ok(formatted) => formatted,
+        // Unreachable for a well-formed OffsetDateTime, and not worth a
+        // panic in a crate that forbids them.
+        Err(_) => "1970-01-01T00:00:00Z".to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -100,6 +121,14 @@ mod tests {
         assert!(is_rfc3339_utc("2026-10-16T09:34:00Z"));
         assert!(is_rfc3339_utc("2026-10-16T09:34:00.123Z"));
         assert!(is_rfc3339_utc("2026-10-16T09:34:00+00:00"));
+    }
+
+    #[test]
+    fn the_clock_produces_a_value_we_accept() {
+        let now = now_rfc3339_utc();
+        assert!(is_rfc3339_utc(&now), "{now}");
+        assert!(now.ends_with('Z'), "{now}");
+        assert!(!now.contains('.'), "{now}");
     }
 
     #[test]

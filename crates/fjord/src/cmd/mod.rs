@@ -4,14 +4,18 @@
 //! finding the repository, deciding whether to use colour, and rendering a
 //! report for a human or for CI.
 
+pub mod crypt;
 pub mod init;
+pub mod keys;
 pub mod verify;
 
-use crate::cli::ExitCode;
+use crate::cli::{ExitCode, GlobalArgs};
 use anyhow::{Context, Result};
+use fjord_core::crypto;
 use owo_colors::OwoColorize;
-use std::io::IsTerminal;
+use std::io::{IsTerminal, Read};
 use std::path::{Path, PathBuf};
+use zeroize::Zeroizing;
 
 /// Resolve the repository root.
 ///
@@ -86,6 +90,160 @@ impl Style {
         } else {
             text.to_string()
         }
+    }
+}
+
+/// Where Fjord keeps files that are not part of a repository.
+///
+/// `$FJORD_CONFIG_DIR`, else `$HOME/.config/fjord`. No `dirs` crate: one
+/// environment variable and a documented fallback is less to explain, and
+/// an identity's location is something a user needs to be able to predict.
+pub fn config_dir() -> Result<PathBuf> {
+    if let Some(configured) = std::env::var_os("FJORD_CONFIG_DIR") {
+        return Ok(PathBuf::from(configured));
+    }
+    let home = std::env::var_os("HOME")
+        .or_else(|| std::env::var_os("USERPROFILE"))
+        .context(
+            "neither FJORD_CONFIG_DIR nor HOME is set, so there is nowhere to look for an identity",
+        )?;
+    Ok(PathBuf::from(home).join(".config").join("fjord"))
+}
+
+/// Where `fjord key new` writes an identity, and where every command looks
+/// for one when `--identity` is not given.
+pub fn default_identity_path() -> Result<PathBuf> {
+    Ok(config_dir()?.join("identity.txt"))
+}
+
+/// The Fjord repository containing `path`, if any — including a path that
+/// does not exist yet, so that a destination can be judged before it is
+/// written.
+pub fn enclosing_repository(path: &Path) -> Option<PathBuf> {
+    let absolute = std::path::absolute(path).ok()?;
+    let mut candidate = absolute.parent();
+    while let Some(directory) = candidate {
+        if directory.join(fjord_core::REPOSITORY_MANIFEST).is_file() {
+            return Some(directory.to_path_buf());
+        }
+        candidate = directory.parent();
+    }
+    None
+}
+
+/// Load the identities a command may decrypt with. Spec §11.3.
+///
+/// `--identity -` reads from stdin, so a secret can arrive from a password
+/// manager or a keyring without ever touching the filesystem — and never
+/// through `argv`, which every process on the machine can read.
+pub fn load_identities(global: &GlobalArgs) -> Result<crypto::Identities> {
+    let (label, text) = match global.identity.as_deref() {
+        Some(path) if path == Path::new("-") => {
+            let mut text = Zeroizing::new(String::new());
+            std::io::stdin()
+                .read_to_string(&mut text)
+                .context("could not read an identity from stdin")?;
+            ("stdin".to_string(), text)
+        }
+        Some(path) => (path.display().to_string(), read_identity(path)?),
+        None => {
+            let path = default_identity_path()?;
+            if !path.is_file() {
+                anyhow::bail!(
+                    "no identity found. Generate one with `fjord key new`, or point to \
+                     an existing one with --identity <path> (or $FJORD_IDENTITY). \
+                     Looked in {}",
+                    path.display()
+                );
+            }
+            (path.display().to_string(), read_identity(&path)?)
+        }
+    };
+
+    crypto::parse_identities(&text).with_context(|| format!("{label} is not a usable identity"))
+}
+
+fn read_identity(path: &Path) -> Result<Zeroizing<String>> {
+    let bytes = Zeroizing::new(
+        std::fs::read(path).with_context(|| format!("could not read {}", path.display()))?,
+    );
+
+    // age warns about this and so should we: an identity other users can
+    // read is already compromised.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        if let Ok(metadata) = std::fs::metadata(path) {
+            if metadata.mode() & 0o077 != 0 {
+                eprintln!(
+                    "warning: {} is readable by other users (mode {:o})",
+                    path.display(),
+                    metadata.mode() & 0o777
+                );
+            }
+        }
+    }
+
+    Ok(Zeroizing::new(String::from_utf8_lossy(&bytes).to_string()))
+}
+
+/// Resolve `path` as far as the filesystem allows, including paths that do
+/// not exist yet.
+///
+/// `std::path::absolute` only prepends the working directory: it does not
+/// resolve symbolic links, so on a system where an ancestor is a link —
+/// `/var` on macOS, a symlinked home directory — an absolute path can point
+/// at a repository while comparing unequal to it. A guard built on that
+/// comparison fails *open*, which for invariant 1 is the worst direction to
+/// fail in.
+///
+/// So the deepest existing ancestor is canonicalised and the remaining
+/// components re-appended.
+pub fn resolve_destination(path: &Path) -> PathBuf {
+    let absolute = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+
+    let mut remainder: Vec<std::ffi::OsString> = Vec::new();
+    let mut candidate = absolute.as_path();
+    loop {
+        if let Ok(canonical) = std::fs::canonicalize(candidate) {
+            let mut resolved = canonical;
+            for component in remainder.iter().rev() {
+                resolved.push(component);
+            }
+            return resolved;
+        }
+        match (candidate.file_name(), candidate.parent()) {
+            (Some(name), Some(parent)) => {
+                remainder.push(name.to_os_string());
+                candidate = parent;
+            }
+            // Nothing above exists to canonicalise against.
+            _ => return absolute,
+        }
+    }
+}
+
+/// Turn a path a user typed into a repository-relative one.
+///
+/// Returns the usage error when the path is outside the repository, rather
+/// than silently operating on something else.
+pub fn repo_relative(root: &Path, input: &Path) -> Result<std::result::Result<String, ExitCode>> {
+    let absolute = match std::fs::canonicalize(input) {
+        Ok(absolute) => absolute,
+        Err(_) => {
+            return Ok(Err(usage(format!("{} does not exist", input.display()))));
+        }
+    };
+    let canonical_root = std::fs::canonicalize(root)
+        .with_context(|| format!("could not resolve {}", root.display()))?;
+
+    match absolute.strip_prefix(&canonical_root) {
+        Ok(relative) => Ok(Ok(relative.to_string_lossy().replace('\\', "/"))),
+        Err(_) => Ok(Err(usage(format!(
+            "{} is outside the repository at {}",
+            input.display(),
+            canonical_root.display()
+        )))),
     }
 }
 

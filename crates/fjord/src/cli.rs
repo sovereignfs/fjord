@@ -65,6 +65,12 @@ pub enum Command {
     /// Decrypt a document, open $EDITOR, re-encrypt on change.
     Open(OpenArgs),
 
+    /// Encrypt a file in place, inside an encrypted vault.
+    Encrypt(EncryptArgs),
+
+    /// Decrypt a file to stdout.
+    Decrypt(DecryptArgs),
+
     /// Create a Fjord Doc with valid frontmatter.
     New(NewArgs),
 
@@ -144,6 +150,33 @@ pub struct OpenArgs {
     /// Commit after a successful edit.
     #[arg(long)]
     pub commit: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct EncryptArgs {
+    /// File to encrypt. Must be inside an encrypted vault.
+    pub path: PathBuf,
+
+    /// Keep the plaintext after encrypting.
+    ///
+    /// Leaves the file in the clear inside an encrypted vault, which
+    /// `fjord verify` reports as E201. Only useful while checking what
+    /// happened.
+    #[arg(long)]
+    pub keep: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct DecryptArgs {
+    /// Encrypted file to read.
+    pub path: PathBuf,
+
+    /// Write the plaintext here instead of to stdout.
+    ///
+    /// Refused if it would land inside an encrypted vault: decrypted
+    /// content must never be written into one.
+    #[arg(long, short, value_name = "PATH")]
+    pub out: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]

@@ -32,7 +32,9 @@ fn run(args: Cli) -> anyhow::Result<ExitCode> {
     match &args.command {
         Command::Verify(verify) => cmd::verify::run(verify, &args.global),
         Command::Init(init) => cmd::init::run(init, &args.global),
-        Command::Key(_) => todo!("M3: age identities and recipients"),
+        Command::Key(key) => cmd::keys::run(key, &args.global),
+        Command::Encrypt(encrypt) => cmd::crypt::encrypt(encrypt, &args.global),
+        Command::Decrypt(decrypt) => cmd::crypt::decrypt(decrypt, &args.global),
         Command::Open(_) => todo!("M4: decrypt, $EDITOR, re-encrypt on change, shred"),
         Command::New(_) | Command::Ls(_) | Command::Grep(_) | Command::Status => {
             todo!("M5: everyday commands")

@@ -17,4 +17,4 @@
 # revoke anything: every version already in git history stays readable by
 # that key forever. See "Rotating and revoking keys" in the root README.
 
-age1r23clxd5mzfsh79vn6pg0kaytjeq8w4ur23clxd5mzfsh79vn6pg0kaytj
+age1jhjxsuasj0zaul46hel5x5q47dnu2e5yd8qt65egr5g8lznjsevqpjat6x

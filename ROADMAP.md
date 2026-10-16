@@ -5,13 +5,18 @@ not define behaviour.** `spec/SPEC.md` is authoritative on the format and
 `CLAUDE.md` on how to build it — where either disagrees with this file, this
 file is stale and should be corrected.
 
-State as of 2026-10-16: **M1 and M2 complete and green.** `fjord verify` and
-`fjord init` are implemented end to end. 118 tests pass; `clippy -- -D
-warnings` and `cargo fmt --check` are clean. Both milestones' acceptance
-criteria hold: the conforming fixture exits 0 with no diagnostics, each
-`broken/` fixture emits exactly its code, `--json` is checked against
-`schema/verify.schema.json`, a blake3 digest proves `verify` changes nothing
-on disk, and `fjord init x && cd x && fjord verify` exits 0.
+State as of 2026-10-16: **M1, M2 and M3 complete and green.** `verify`,
+`init`, `key new|add|list|remove`, `encrypt` and `decrypt` are implemented
+end to end. 170 tests pass; `clippy -- -D warnings` and `cargo fmt --check`
+are clean.
+
+All three milestones' acceptance criteria hold, including the one that
+matters most: **a file encrypted by `fjord` decrypts with the real `age`
+binary, and a file written by `age -R` decrypts with `fjord`** — in binary
+and armored form, over all 256 byte values, with keys from either
+implementation. `crates/fjord/tests/age_interop.rs` also runs the recovery
+procedure the generated README documents, verbatim, so that document cannot
+quietly become a lie.
 
 Verified on rustc 1.99.1 only. The declared MSRV of 1.82 is **untested** —
 M0.1 should pin it and CI should build against it. Version `0.1.0`, nothing
@@ -54,7 +59,7 @@ green.
 | --- | --- | --- | --- |
 | M1 | `fjord verify`, read-only, no crypto | `scalar`, `path`, `manifest`, `doc`, `verify`, `cmd/verify` | `done` |
 | M2 | `fjord init` | `scaffold`, `cmd/init`, `git` | `done` |
-| M3 | Keys, encrypt, decrypt | `crypto` | `todo` |
+| M3 | Keys, encrypt, decrypt | `crypto`, `vault`, `cmd/keys`, `cmd/crypt` | `done` |
 | M4 | `fjord open` | `cmd/open` | `todo` |
 | M5 | `new`, `ls`, `status`, `grep` | `cmd/*` | `todo` |
 | M6 | `fjord sync` | `cmd/sync`, `git` | `todo` |
@@ -144,6 +149,55 @@ Neither was visible in the tests, because both were about what the output
 2. **`init`'s git failure did not say the repository had been created**, so
    the obvious next move — run it again — hit "directory is not empty".
 
+### M3 notes
+
+39 of the 40 diagnostics are now implemented; only `E303` (malformed tar
+container) is left, and it belongs to M7.
+
+- **`E301` arrived early.** Parsing an age *header* needs no identity, so
+  `verify` can report a file named `.age` that is not an age file —
+  truncated, corrupted in transfer, or replaced by a merge conflict — while
+  still never asking anyone for a key. Authenticating the body does need a
+  key, so that happens when a file is read. Both halves are documented on
+  the code.
+- **The fixtures now carry real key material.** A genuine `age1…` public key
+  replaces the synthetic placeholder, and `broken/E302` and `broken/E304`
+  hold genuine payloads. The matching identity is deliberately **not**
+  committed: nothing in the committed fixtures needs decrypting, and tests
+  that do need it generate their own keys in a temporary directory.
+- **Two features were added to the `age` dependency**, `armor` and `ssh`,
+  for coherence rather than ambition: `verify` accepts `armor: true` (§4.1)
+  and `ssh-ed25519` recipients (§6.2), so a writer unable to honour either
+  would reject repositories its own verifier calls conforming.
+- **`encrypt` reads the payload back before deleting the plaintext.** With
+  an identity among the recipients that is a full round trip compared byte
+  for byte; otherwise the header is parsed and the weaker check is reported
+  rather than implied.
+- **Secrets stay out of `argv` and out of the terminal.** `--identity -`
+  reads from stdin, a generated identity is written `0600` and never
+  printed — only its public key — and `Debug` for `Identities` prints a
+  count, so a derived formatter cannot leak one into a log.
+
+### The bug that mattered
+
+`fjord decrypt --out Private/leaked.md` **wrote plaintext into the encrypted
+vault**, straight through the guard meant to prevent it. The guard compared
+`std::path::absolute(destination)` against a canonicalised root; since
+`absolute` does not resolve symlinks, and macOS puts temporary directories
+behind `/var` → `/private/var`, a destination inside the vault compared
+unequal to the repository and was read as "outside it entirely".
+
+Two things about this are worth keeping:
+
+1. **It failed open.** For invariant 1 that is the worst available direction,
+   and it is the second time the same mistake — comparing an unresolved path
+   against a canonical one — has produced a security-relevant bug in this
+   codebase. The first was M1's symlink check. There is now one shared
+   `resolve_destination` that canonicalises the deepest existing ancestor,
+   so a path that does not exist yet is still resolved honestly.
+2. **Only an end-to-end test could find it.** Every unit in the chain was
+   correct in isolation.
+
 ## Fixtures
 
 `tests/fixtures/conforming/` exists and appears spec-correct.
@@ -183,7 +237,7 @@ the code they are named for.
 | JSON schema | `--json` output checked against `schema/verify.schema.json`, every fixture | `done`‡ |
 | Property: paths | §5 rules | `done`§ |
 | Property: frontmatter | parse → serialise → parse is a fixed point, unknown keys intact | `done`§ |
-| age cross-validation | `fjord` encrypts → `age -d` decrypts, and `age -R` encrypts → `fjord` decrypts | `todo` — M3 |
+| age cross-validation | `fjord` encrypts → `age -d` decrypts, and `age -R` encrypts → `fjord` decrypts | `done` |
 | Read-only guarantee | `verify` mutates nothing — blake3 over the tree before and after | `done` |
 | Version refusal | A repository declaring `fjord: 2` reports read-only (invariant 4) | `done` |
 

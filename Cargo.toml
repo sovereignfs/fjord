@@ -20,7 +20,12 @@ ulid = "1"
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
 
 # Crypto. Pure Rust: keeps static musl builds clean.
-age = "0.11"
+#
+# `armor` and `ssh` are not default features, and both are needed for
+# coherence rather than ambition: `fjord verify` accepts `armor: true`
+# (§4.1) and `ssh-ed25519` recipients (§6.2), so a writer that could not
+# honour either would reject repositories its own verifier calls conforming.
+age = { version = "0.11", features = ["armor", "ssh"] }
 zeroize = "1"
 blake3 = "1"
 

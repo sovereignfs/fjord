@@ -911,6 +911,16 @@ fn classify_content(
                 if id_naming {
                     check_id_named(vault_rel, suffix, &entry.rel, report);
                 }
+                // Header only: authenticating the body needs an identity,
+                // and `verify` never asks for one. A payload in a
+                // plaintext vault is already reported as E302, so it is not
+                // checked twice here.
+                if !crate::crypto::is_well_formed(&read(&entry.abs)?) {
+                    report.push(
+                        Diagnostic::at(Code::CorruptPayload, &entry.rel)
+                            .with_detail("not an age file: the header could not be parsed"),
+                    );
+                }
             } else {
                 report.push(
                     Diagnostic::at(Code::PlaintextInEncryptedVault, &entry.rel).with_detail(

@@ -1,0 +1,2 @@
+# age recipients for this vault. One public key per line.
+age1jhjxsuasj0zaul46hel5x5q47dnu2e5yd8qt65egr5g8lznjsevqpjat6x

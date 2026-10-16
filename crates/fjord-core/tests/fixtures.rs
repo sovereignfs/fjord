@@ -29,8 +29,8 @@ use std::path::{Path, PathBuf};
 /// Committed fixtures, each emitting exactly the code it is named for.
 const COMMITTED: &[&str] = &[
     "E101", "E102", "E103", "E104", "E105", "E106", "E108", "E109", "E110", "E201", "E202", "E203",
-    "E204", "E206", "E207", "E208", "E209", "E302", "E304", "E305", "E306", "E401", "E402", "E403",
-    "E404", "E405", "E507", "W601", "W602",
+    "E204", "E206", "E207", "E208", "E209", "E301", "E302", "E304", "E305", "E306", "E401", "E402",
+    "E403", "E404", "E405", "E507", "W601", "W602",
 ];
 
 /// Built at test time: a name that must never reach a commit.
@@ -44,8 +44,8 @@ const SYNTHESISED: &[&str] = &[
 /// `length_is_measured_in_bytes` in `fjord_core::path`.
 const PREDICATE_ONLY: &[&str] = &["E504"];
 
-/// Needs to open an age payload (M3) or a tar archive (M7).
-const DEFERRED: &[&str] = &["E301", "E303"];
+/// Needs a tar archive, so it arrives with M7.
+const DEFERRED: &[&str] = &["E303"];
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures")

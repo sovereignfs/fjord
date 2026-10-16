@@ -100,6 +100,11 @@ pub enum Code {
 
     // --- E3xx encryption -------------------------------------------------
     /// An age payload could not be parsed or authenticated. Spec §6.1.
+    ///
+    /// `fjord verify` checks the **header** only, which needs no identity:
+    /// a file named `.age` that is not an age file at all — truncated,
+    /// replaced by a merge conflict, corrupted in transfer. Authenticating
+    /// the body requires a key, so that happens when the file is read.
     CorruptPayload,
     /// An `.age` file is present in a plaintext vault. Spec §6.
     EncryptedFileInPlaintextVault,

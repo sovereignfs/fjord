@@ -56,9 +56,9 @@ init` works, and `fjord init` over your notes does not.
 
 A fresh `Private` vault has **no recipients**, which spec §6.2 makes valid
 and deliberately unwritable. `fjord verify` reports `W602` until you add a
-key; that is expected, not a fault. The generated `README.md` gives the two
-`age-keygen` commands, and `fjord key add` will do it for you once the
-crypto milestone lands.
+key; that is expected, not a fault. Fix it with `fjord key new` followed by
+`fjord key add`, or with the two `age-keygen` commands the generated
+`README.md` gives.
 
 | Flag | Effect |
 | --- | --- |
@@ -73,10 +73,9 @@ On a terminal it asks for the repository name and whether to encrypt
 parseable. Anywhere else — a pipe, a CI job, or with `--no-input` — it takes
 the defaults without asking.
 
-`--identity` is **not accepted here yet.** Registering a recipient is
-`fjord key add`, which arrives with the crypto milestone; until then `init`
-refuses the flag rather than quietly creating a repository you cannot write
-to. Exits `2` if it does.
+`--identity` is **not accepted here.** Registering a recipient is
+`fjord key add`, so `init` refuses the flag rather than quietly creating a
+repository you cannot write to. Exits `2` if you pass it.
 
 If git itself fails — most often because `user.name` and `user.email` are
 unset — the repository is still created, and the error says so along with
@@ -117,6 +116,38 @@ change the exit code unless `--strict` is given.
 The `--json` shape is published API, specified by
 [`schema/verify.schema.json`](schema/verify.schema.json) and checked against
 it on every test run.
+
+### `fjord encrypt <path>`
+
+Encrypts one file in place inside an encrypted vault: `notes.md` becomes
+`notes.md.age`, and the plaintext is removed. This is the repair for a file
+that should never have been in the clear in a vault — the `E201` case.
+
+The payload is read back and checked before the plaintext is deleted. When
+one of your identities is among the vault's recipients, that check is a full
+round trip and the recovered bytes are compared with the original; otherwise
+only the header is parsed, and the command says so.
+
+| Flag | Effect |
+| --- | --- |
+| `--keep` | Leave the plaintext in place. It then sits in the clear inside an encrypted vault, which `fjord verify` reports as `E201`. |
+
+Refused if the vault has no recipients: spec §6.2 requires a client to
+refuse rather than store plaintext.
+
+### `fjord decrypt <path>`
+
+Writes the plaintext to **stdout**, so decrypted content never lands in the
+repository by accident.
+
+| Flag | Effect |
+| --- | --- |
+| `--out <path>` | Write to a file instead. Refused if it would land inside an encrypted vault (spec §6.5). |
+
+```bash
+fjord decrypt Private/notes.md.age            # to stdout
+fjord decrypt Private/notes.md.age -o ~/notes.md
+```
 
 ### `fjord open <path>`
 
@@ -190,11 +221,20 @@ versions are kept and the command exits `1`.
 ### `fjord key`
 
 ```bash
-fjord key new                    # generate an identity
-fjord key add <recipient>        # add a public key to a vault
+fjord key new                            # generate an identity
+fjord key add <recipient> --vault Private
 fjord key list
-fjord key remove <recipient>
+fjord key remove <recipient> --vault Private
 ```
+
+`fjord key new` writes the identity to `~/.config/fjord/identity.txt` (or
+`$FJORD_CONFIG_DIR`), readable only by you, and prints its **public key**.
+The secret is never printed: a terminal is scrollback, a CI log, and
+sometimes a screen share. It is in the file, which you own.
+
+It refuses to write an identity anywhere inside a Fjord repository (spec
+§11.3), and refuses to overwrite an existing one — doing so would make every
+file encrypted to the old key unreadable.
 
 **Adding a recipient does not grant access to existing files.** age encrypts
 each file to the recipients present when it was written, so a newly added key
@@ -252,7 +292,7 @@ changes — new checks get new codes.
 
 | Code | Meaning |
 | --- | --- |
-| `E301` | age payload is corrupt or unreadable |
+| `E301` | age payload is corrupt or unreadable. `fjord verify` checks the header, which needs no key; the body is authenticated when the file is read |
 | `E302` | `.age` file inside a plaintext vault |
 | `E303` | tar container is malformed: not exactly one regular file, or the entry name contains a path |
 | `E304` | `fileNaming` is `"id"` but the file name is not a valid ULID |
@@ -322,7 +362,14 @@ then it is refused as a usage error rather than silently ignored.
 | `NO_COLOR` | Disables colour. |
 
 Identities are passed by path or on stdin, never as a command-line argument —
-`argv` is visible to every process on the machine.
+`argv` is visible to every process on the machine:
+
+```bash
+fjord --identity ~/.config/fjord/identity.txt decrypt Private/notes.md.age
+pass fjord/identity | fjord --identity - decrypt Private/notes.md.age
+```
+
+Fjord warns if an identity file is readable by other users.
 
 ## Exit codes
 

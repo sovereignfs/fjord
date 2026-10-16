@@ -22,8 +22,6 @@ use serde_json::json;
 use std::fs;
 use std::io::Write as _;
 use std::path::Path;
-use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
 use ulid::Ulid;
 
 /// The plaintext vault a new repository starts with.
@@ -101,7 +99,7 @@ pub enum Error {
 ///
 /// Reads the clock and generates identifiers, so two calls differ.
 pub fn plan(settings: &Settings) -> Plan {
-    let created_at = now_rfc3339();
+    let created_at = crate::scalar::now_rfc3339_utc();
     let repository_id = Ulid::new().to_string();
     let public_id = Ulid::new().to_string();
     let private_id = Ulid::new().to_string();
@@ -223,25 +221,6 @@ fn create_dir_all(path: &Path) -> Result<(), Error> {
         path: path.display().to_string(),
         source,
     })
-}
-
-/// Now, as RFC 3339 in UTC with whole seconds. Spec §3, §4.
-///
-/// Subsecond precision is dropped: it is noise in a creation timestamp, and
-/// a whole-second value is what a human reading the manifest expects.
-fn now_rfc3339() -> String {
-    let now = OffsetDateTime::now_utc();
-    let now = match now.replace_nanosecond(0) {
-        Ok(truncated) => truncated,
-        Err(_) => now,
-    };
-    match now.format(&Rfc3339) {
-        Ok(formatted) => formatted,
-        // Unreachable for a well-formed OffsetDateTime, and not worth a
-        // panic in a crate that forbids them. A client would rather have a
-        // manifest it can repair than no repository at all.
-        Err(_) => "1970-01-01T00:00:00Z".to_string(),
-    }
 }
 
 fn repository_manifest(
