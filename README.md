@@ -1,0 +1,322 @@
+# fjord
+
+The reference toolchain for the [Fjord](spec/SPEC.md) repository
+format — a way to keep your documents in a Git repository you control, with
+optional end-to-end encryption using [age](https://age-encryption.org/v1).
+
+`fjord verify` decides whether a repository conforms to the specification.
+Everything else in this tool is convenience; that command is the point.
+
+## Install
+
+```bash
+# macOS / Linux
+curl -fsSL https://fjord.sh/install.sh | sh
+
+# Homebrew
+brew install fjord-sh/tap/fjord
+
+# Windows
+powershell -c "irm https://fjord.sh/install.ps1 | iex"
+
+# From source
+cargo install fjord-cli
+```
+
+Linux builds are statically linked against musl, so one binary works on any
+distribution.
+
+**You do not need `age` installed.** Fjord links the age implementation
+directly. Install the `age` CLI only if you want to decrypt files by hand —
+which you can, and which is the whole point of the format.
+
+## Quick start
+
+```bash
+fjord init my-documents
+cd my-documents
+fjord new Private/Inbox/first.md
+git remote add origin git@github.com:you/Fjord.git
+git push -u origin main
+```
+
+## Commands
+
+### `fjord init [path]`
+
+Creates a conforming repository with a `Public` vault (plaintext) and a
+`Private` vault (encrypted), initialises git, and makes the first commit.
+
+Offers to generate an age identity and register it as a recipient of
+`Private`. **The identity is displayed once.** It is written to
+`~/.config/fjord/identity.txt` (or `$FJORD_CONFIG_DIR`), never into the
+repository.
+
+| Flag | Effect |
+| --- | --- |
+| `--name <text>` | Repository display name. Defaults to the directory name. |
+| `--no-input` | Never prompt. Requires `--identity` or `--no-encrypt`. |
+| `--identity <path>` | Use an existing identity instead of generating one. |
+| `--no-encrypt` | Create `Private` as a plaintext vault. |
+| `--no-git` | Skip `git init` and the first commit. |
+
+### `fjord verify`
+
+Checks the repository against the specification and reports coded
+diagnostics. Mutates nothing.
+
+```
+$ fjord verify
+  ✓ fjord.json          format version 1
+  ✓ Public              plaintext · 12 docs · 3 files
+  ✗ Private             2 problems
+
+    Private/Inbox/notes.md
+      E201  plaintext file in an encrypted vault
+    Private/Projects/01JAG7Q2M5X3V8KDQZ9R4T6YHB.age
+      E305  container is "none" but fileNaming is "id"
+
+  2 errors, 0 warnings
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--json` | Machine-readable output. For CI. |
+| `--fix` | Apply safe repairs only — see [What `--fix` will and will not do](#what---fix-will-and-will-not-do). |
+| `--vault <name>` | Check one vault, by directory or by label. |
+| `--strict` | Treat warnings as errors. |
+
+Exits `0` when conforming, `1` when any error is found. Warnings alone do not
+change the exit code unless `--strict` is given.
+
+The `--json` shape is published API, specified by
+[`schema/verify.schema.json`](schema/verify.schema.json) and checked against
+it on every test run.
+
+### `fjord open <path>`
+
+Decrypts a document to a private temporary file, opens `$EDITOR`, re-encrypts
+when you are done, and shreds the temporary copy.
+
+This is how you use vim, VS Code, Obsidian or anything else on an encrypted
+document without ever leaving plaintext in the repository.
+
+- GUI editors that fork on launch need to block. Fjord appends `--wait` for
+  editors it recognises (`code`, `subl`, `zed`); for others, set
+  `EDITOR="yourapp --wait"`.
+- If the content did not change, nothing is re-encrypted. Merely reading a
+  document does not create a new commit.
+- Interrupting the editor cleans up the temporary file.
+
+Shredding is best-effort on SSDs and copy-on-write filesystems; the operating
+system may retain blocks regardless.
+
+### `fjord new <path>`
+
+Creates a Fjord Doc with valid frontmatter — a fresh ULID, `created`, and a
+`title` — then opens it for editing.
+
+| Flag | Effect |
+| --- | --- |
+| `--title <text>` | Set the title. Defaults to the file stem. |
+| `--no-edit` | Create the file without opening an editor. |
+
+### `fjord ls [path]`
+
+Lists Docs and vault files. In an encrypted vault, titles come from
+decrypted frontmatter, so this needs your identity.
+
+| Flag | Effect |
+| --- | --- |
+| `--json` | Machine-readable output. |
+| `--long` | Show id, size and modification time. |
+
+### `fjord grep <pattern> [path]`
+
+Searches document contents. In an encrypted vault this decrypts every file
+to search it, so expect it to be slower than `grep` on plaintext.
+
+### `fjord status`
+
+Repository health and sync state: vault summary, pending git changes,
+unresolved conflicts, and any diagnostics `fjord verify` would report.
+
+### `fjord sync`
+
+Pulls, resolves conflicts, pushes.
+
+```
+$ fjord sync
+  ↓ pulled 3 changes
+  ⚠ Private/Inbox/groceries.md changed on both sides — merged
+  ↑ pushed 4 changes
+```
+
+This cannot be `git pull`. Git cannot merge ciphertext, so a conflict in an
+encrypted vault is resolved by decrypting both sides and their merge base,
+merging the plaintext, and re-encrypting. Where a merge cannot complete, both
+versions are kept and the command exits `1`.
+
+| Flag | Effect |
+| --- | --- |
+| `--no-push` | Pull and merge only. |
+| `--message <text>` | Commit message for local changes. |
+
+### `fjord key`
+
+```bash
+fjord key new                    # generate an identity
+fjord key add <recipient>        # add a public key to a vault
+fjord key list
+fjord key remove <recipient>
+```
+
+**Adding a recipient does not grant access to existing files.** age encrypts
+each file to the recipients present when it was written, so a newly added key
+cannot read anything older. Either copy one identity to each of your devices,
+or run `fjord rekey` after adding one.
+
+**Removing a recipient revokes nothing.** Every version already in git
+history stays readable by that key, permanently. `fjord key remove` says so
+before it acts.
+
+### `fjord rekey <vault>`
+
+Re-encrypts every file in a vault to the current recipient list. Needed after
+adding a device key if that device must read existing documents. Rewrites the
+whole vault in one commit.
+
+### `fjord export <vault> <dir>` / `fjord import <dir> <vault>`
+
+Bulk decrypt to a plain directory, and bring a directory of files in as Docs.
+`export` is the escape hatch; it is deliberately simple and will keep working.
+
+## Diagnostics
+
+Codes are stable published API. Once released, a code's meaning never
+changes — new checks get new codes.
+
+### Repository — `E1xx`
+
+| Code | Meaning |
+| --- | --- |
+| `E101` | `fjord.json` missing |
+| `E102` | `fjord.json` is not valid JSON |
+| `E103` | Format version newer than this tool supports — read-only |
+| `E104` | Required field missing |
+| `E105` | Field is not a valid ULID |
+| `E106` | Vault listed in the manifest does not exist on disk |
+| `E108` | Vault `id` disagrees with its `fjord.vault.json` |
+| `E109` | `.gitattributes` missing or lacks the `*.age -merge` guard |
+| `E110` | Field value is not valid for its type or domain |
+
+### Vault — `E2xx`
+
+| Code | Meaning |
+| --- | --- |
+| `E201` | Plaintext file inside an encrypted vault |
+| `E202` | `fjord.vault.json` is not valid JSON |
+| `E203` | `encryption.tool` is not supported |
+| `E204` | Recipients file named in the manifest is missing |
+| `E206` | Passphrase recipient present — forbidden by spec §6.2 |
+| `E207` | Nested vault — not permitted in version 1 |
+| `E208` | Encrypted vault is missing its plaintext-guard `.gitignore` |
+| `E209` | Malformed line in the recipients file |
+
+### Encryption — `E3xx`
+
+| Code | Meaning |
+| --- | --- |
+| `E301` | age payload is corrupt or unreadable |
+| `E302` | `.age` file inside a plaintext vault |
+| `E303` | tar container is malformed: not exactly one regular file, or the entry name contains a path |
+| `E304` | `fileNaming` is `"id"` but the file name is not a valid ULID |
+| `E305` | `container` is `"none"` but `fileNaming` is `"id"` |
+| `E306` | `fileNaming` is `"id"` on a plaintext vault |
+
+### Documents — `E4xx`
+
+| Code | Meaning |
+| --- | --- |
+| `E401` | Duplicate `id` — two documents claim the same identity |
+| `E402` | Frontmatter present but not parseable as a YAML mapping |
+| `E403` | `id` present but not a valid ULID |
+| `E404` | Frontmatter does not begin at byte 0, or a BOM precedes it |
+| `E405` | Timestamp is not RFC 3339 in UTC — `createdAt` in either manifest, or a document's `created` |
+
+### Paths — `E5xx`
+
+| Code | Meaning |
+| --- | --- |
+| `E501` | Forbidden character in a file or directory name |
+| `E502` | Name ends with a dot or a space |
+| `E503` | Windows reserved device name |
+| `E504` | Path component exceeds 255 bytes |
+| `E505` | Two entries in one directory differ only by case |
+| `E506` | Name is not Unicode NFC |
+| `E507` | Manifest path is absolute or contains `..` |
+| `E508` | Symlink resolves outside the repository |
+
+`E107`, `E205` and `W603` are reserved: they were drafted and withdrawn
+before release, and will never be assigned.
+
+### Warnings — `W6xx`
+
+| Code | Meaning |
+| --- | --- |
+| `W601` | Vault on disk is not listed in `fjord.json` |
+| `W602` | Encrypted vault has no recipients — valid, but unwritable |
+| `W604` | File exceeds 25 MB — Fjord is for documents, not media |
+| `W605` | Path exceeds 240 bytes — may fail to check out on Windows |
+
+### What `--fix` will and will not do
+
+Will: normalise a name to NFC, write a missing `.gitattributes` guard, add a
+missing plaintext-guard `.gitignore`, and add a vault present on disk to
+`fjord.json` (`W601`).
+
+Will not: rename or move anything to resolve a case collision, delete or
+relocate plaintext found in an encrypted vault, merge duplicate ids, or touch
+document content. Those need a human, because each of them can lose data.
+
+It will also not add an `id` to a file that has none. A Markdown file
+without frontmatter is a vault file, not a broken Doc (spec §8.2), and a
+client "MUST NOT rewrite files merely because it scanned them". Use
+`fjord new` to create a Doc, or edit the file to promote one.
+
+`--fix` arrives with `fjord init`, which writes the same scaffolding. Until
+then it is refused as a usage error rather than silently ignored.
+
+## Environment
+
+| Variable | Effect |
+| --- | --- |
+| `FJORD_IDENTITY` | Path to the age identity file. |
+| `FJORD_CONFIG_DIR` | Overrides `~/.config/fjord`. |
+| `EDITOR`, `VISUAL` | Editor used by `open` and `new`. |
+| `NO_COLOR` | Disables colour. |
+
+Identities are passed by path or on stdin, never as a command-line argument —
+`argv` is visible to every process on the machine.
+
+## Exit codes
+
+| | |
+| --- | --- |
+| `0` | Success, or repository conforms |
+| `1` | Problems found |
+| `2` | Usage error |
+| `3` | IO or git failure |
+
+## Known limitations
+
+- **Comments in frontmatter are not preserved** when Fjord rewrites a file.
+  Unknown *keys* always are. Preserving comments needs an AST-level YAML
+  parser; the specification permits losing them.
+- **`fjord grep` in an encrypted vault decrypts everything** to search it.
+- **Shredding temporary files is best-effort** on SSDs and copy-on-write
+  filesystems.
+
+## Licence
+
+Apache-2.0 or MIT, at your option. The specification itself is CC0.

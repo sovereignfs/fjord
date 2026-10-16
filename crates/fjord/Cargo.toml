@@ -1,0 +1,25 @@
+[package]
+name = "fjord-cli"
+description = "Reference toolchain for the Fjord repository format."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "fjord"
+path = "src/main.rs"
+
+[dependencies]
+fjord-core = { path = "../fjord-core" }
+clap.workspace = true
+owo-colors.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+zeroize.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

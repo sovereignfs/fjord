@@ -1,0 +1,11 @@
+  ✗ fjord.json          1 problem
+  ✓ Public              plaintext · 0 docs · 0 files
+
+    fjord.json
+      E103  format version is newer than this tool supports
+            repository declares version 2; this build implements 1
+
+  1 error, 0 warnings
+
+  read-only: this repository was made by a newer version of Fjord.
+  Reading it is fine; this build must not write to it.

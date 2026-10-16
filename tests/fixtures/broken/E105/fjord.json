@@ -1,0 +1,12 @@
+{
+  "fjord": 1,
+  "id": "not-a-ulid",
+  "name": "Fixture",
+  "createdAt": "2026-10-16T09:34:00Z",
+  "vaults": [
+    {
+      "path": "Public",
+      "id": "01JAGC4K7PR9TBM3YKWX6ZQ2HV"
+    }
+  ]
+}

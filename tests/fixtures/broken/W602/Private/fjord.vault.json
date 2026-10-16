@@ -1,0 +1,14 @@
+{
+  "fjord": 1,
+  "id": "01JAGC4K7PSD5VNZ8QMT3YXB4K",
+  "name": "Private",
+  "createdAt": "2026-10-16T09:34:00Z",
+  "encryption": {
+    "tool": "age",
+    "recipients": "recipients.txt",
+    "suffix": ".age",
+    "container": "none",
+    "armor": false
+  },
+  "fileNaming": "plain"
+}

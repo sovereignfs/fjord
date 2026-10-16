@@ -1,0 +1,26 @@
+---
+id: 01JAGC4K7PT8Y3WQNMZV5XRB7H
+title: Welcome
+created: 2026-10-16T09:34:00Z
+tags: [fjord]
+fjord:
+  schema: 1
+  starred: false
+---
+
+# Welcome
+
+This file is a working example of a Fjord document. It is an ordinary
+Markdown file in an ordinary directory — open it in Obsidian, VS Code, `vim`
+or anything else and edit it however you like.
+
+The block at the top is the frontmatter. Only `id` matters to Fjord: it is
+what lets a document keep its identity and its history when you rename it or
+move it to another folder. Everything else is convenience, and any keys
+Fjord does not recognise are left exactly as they are when it writes the
+file back — so other tools can add their own.
+
+You can delete this file. The vault it sits in, `Public`, is not encrypted,
+which means anyone who can read the repository can read it.
+
+See the README at the root of the repository for the full format.

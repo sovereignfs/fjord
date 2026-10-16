@@ -1,0 +1,9 @@
+  ✓ fjord.json          format version 1
+  ✗ Private             1 problem
+  ✓ Public              plaintext · 0 docs · 0 files
+
+    Private/notes.md
+      E201  plaintext file in an encrypted vault
+            not an encrypted payload; decrypted content must live outside the repository
+
+  1 error, 0 warnings

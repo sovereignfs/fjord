@@ -1,0 +1,39 @@
+# ---------------------------------------------------------------------------
+# Private keys. Never commit an age identity to the repository that it
+# decrypts. These patterns are a safety net, not a substitute for keeping
+# your identity outside the repo (e.g. ~/.config/fjord/identity.txt).
+# ---------------------------------------------------------------------------
+identity.txt
+identity*.txt
+*.identity
+*.agekey
+age-key*.txt
+key.txt
+
+# ---------------------------------------------------------------------------
+# Local Fjord state. The search index and caches are derived data — they can
+# always be rebuilt from the files, and they must not be synced.
+# ---------------------------------------------------------------------------
+.fjord/cache/
+.fjord/index/
+.fjord/local/
+
+# Partial writes.
+*.age.tmp
+*.tmp
+*.part
+
+# ---------------------------------------------------------------------------
+# OS and editor noise.
+# ---------------------------------------------------------------------------
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+*~
+.#*
+\#*#
+.vscode/
+.idea/

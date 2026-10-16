@@ -1,0 +1,5 @@
+  ✓ fjord.json          format version 1
+  ✓ Private             encrypted · 1 recipient · 0 docs · 0 files
+  ✓ Public              plaintext · 1 doc · 0 files
+
+  0 errors, 0 warnings

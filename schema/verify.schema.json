@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fjord.sh/schema/verify.schema.json",
+  "title": "fjord verify --json",
+  "description": "Output of `fjord verify --json`. This shape is published API: fields may be added, but an existing field's name, type and meaning will not change. Diagnostic codes are likewise stable — see README § Diagnostics.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "tool",
+    "formatVersion",
+    "conforms",
+    "readOnly",
+    "counts",
+    "vaults",
+    "diagnostics"
+  ],
+  "properties": {
+    "tool": {
+      "type": "string",
+      "description": "Name and version of the tool that produced this report."
+    },
+    "formatVersion": {
+      "type": ["integer", "null"],
+      "description": "The `fjord` version the repository declares. Null when absent or not an integer, which is itself reported as a diagnostic."
+    },
+    "conforms": {
+      "type": "boolean",
+      "description": "True when no error-severity diagnostic was found. Warnings do not affect it."
+    },
+    "readOnly": {
+      "type": "boolean",
+      "description": "True when the repository declares a format version newer than this build implements. Writing to it is forbidden (spec §10.1)."
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["errors", "warnings"],
+      "properties": {
+        "errors": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "vaults": {
+      "type": "array",
+      "description": "Vaults discovered on the filesystem, which is authoritative (spec §2.1). A vault whose manifest could not be parsed is absent from this list and present in `diagnostics`.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "name",
+          "encrypted",
+          "fileNaming",
+          "recipients",
+          "docs",
+          "files"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Repository-relative directory: the vault's address."
+          },
+          "name": {
+            "type": ["string", "null"],
+            "description": "The vault's label, which need not match its directory."
+          },
+          "encrypted": { "type": "boolean" },
+          "fileNaming": {
+            "type": ["string", "null"],
+            "description": "\"plain\" or \"id\". Any other value is reported as E110 and passed through here as written."
+          },
+          "recipients": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Recipients that parsed as usable keys. Zero on a plaintext vault."
+          },
+          "docs": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Files carrying a valid frontmatter `id` (spec §8)."
+          },
+          "files": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Every other file, vault machinery excluded."
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "severity", "path", "message", "detail"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[EW][0-9]{3}$",
+            "description": "Stable identifier, e.g. \"E201\"."
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning"]
+          },
+          "path": {
+            "type": ["string", "null"],
+            "description": "Repository-relative path, or null for a repository-wide finding."
+          },
+          "message": {
+            "type": "string",
+            "description": "The code's standard one-line message."
+          },
+          "detail": {
+            "type": ["string", "null"],
+            "description": "Extra context for this occurrence: the field at fault, a parser message, a line number."
+          }
+        }
+      }
+    }
+  }
+}

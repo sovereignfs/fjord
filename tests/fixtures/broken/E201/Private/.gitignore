@@ -1,0 +1,10 @@
+# Plaintext guard for an encrypted vault. Spec §6.5.
+*
+!*/
+!*.age
+!fjord.vault.json
+!recipients.txt
+!.gitignore
+
+# Weakened by hand: this is what E201 catches.
+!notes.md

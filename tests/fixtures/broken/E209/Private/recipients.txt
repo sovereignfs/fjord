@@ -1,0 +1,3 @@
+# age recipients for this vault. One public key per line.
+age1r23clxd5mzfsh79vn6pg0kaytjeq8w4ur23clxd5mzfsh79vn6pg0kaytj
+ssh-ed25519

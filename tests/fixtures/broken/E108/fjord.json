@@ -1,0 +1,12 @@
+{
+  "fjord": 1,
+  "id": "01JAGC4K7PQW2XN8RVTY5ZB3MD",
+  "name": "Fixture",
+  "createdAt": "2026-10-16T09:34:00Z",
+  "vaults": [
+    {
+      "path": "Public",
+      "id": "01JAGC4K7PVB6ZNQ3XKMW9TYD5"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+[package]
+name = "fjord-core"
+description = "The Fjord repository format: manifests, documents, paths, age encryption."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+# This crate is compiled into the CLI, the Tauri clients, mobile via FFI, and
+# the web client via WASM. It must therefore never depend on a terminal, a
+# subprocess, or git. See CLAUDE.md § Architecture.
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml_ng.workspace = true
+indexmap.workspace = true
+ulid.workspace = true
+time.workspace = true
+age.workspace = true
+zeroize.workspace = true
+blake3.workspace = true
+ignore.workspace = true
+tar.workspace = true
+unicode-normalization.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

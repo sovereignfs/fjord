@@ -1,0 +1,6 @@
+/target
+**/*.rs.bk
+# Never commit an identity, even in a test fixture.
+identity.txt
+identity*.txt
+*.agekey
