@@ -84,7 +84,67 @@ impl Git {
             .context("could not create the first commit")
     }
 
+    /// The branch HEAD is on, or `None` when it is detached or there are
+    /// no commits yet.
+    pub fn current_branch(&self) -> Result<Option<String>> {
+        let name = self.run_line(&["rev-parse", "--abbrev-ref", "HEAD"])?;
+        if name.is_empty() || name == "HEAD" {
+            return Ok(None);
+        }
+        Ok(Some(name))
+    }
+
+    /// Paths with uncommitted changes, staged or not.
+    pub fn changed_paths(&self) -> Result<Vec<String>> {
+        let output = self.run(&["status", "--porcelain"])?;
+        Ok(output
+            .lines()
+            // Two status columns, then the path. Taken from column 2 and
+            // trimmed rather than from a fixed offset, so ` M`, `M `, `??`
+            // and `R ` all yield the same thing.
+            .filter_map(|line| line.get(2..).map(|path| path.trim_start().to_string()))
+            .filter(|path| !path.is_empty())
+            .collect())
+    }
+
+    /// Paths left conflicted by a merge. Spec §9.1.
+    pub fn unmerged_paths(&self) -> Result<Vec<String>> {
+        let output = self.run(&["diff", "--name-only", "--diff-filter=U"])?;
+        Ok(output
+            .lines()
+            .map(|line| line.trim().to_string())
+            .filter(|line| !line.is_empty())
+            .collect())
+    }
+
+    /// Commits ahead of and behind the tracked branch, or `None` when no
+    /// upstream is configured.
+    pub fn ahead_behind(&self) -> Result<Option<(usize, usize)>> {
+        let counts = match self.run_line(&["rev-list", "--left-right", "--count", "@{u}...HEAD"]) {
+            Ok(counts) => counts,
+            // No upstream, which is the ordinary state of a repository that
+            // has not been pushed yet.
+            Err(_) => return Ok(None),
+        };
+        let mut fields = counts.split_whitespace();
+        let behind = fields.next().and_then(|value| value.parse().ok());
+        let ahead = fields.next().and_then(|value| value.parse().ok());
+        match (ahead, behind) {
+            (Some(ahead), Some(behind)) => Ok(Some((ahead, behind))),
+            _ => Ok(None),
+        }
+    }
+
+    /// A git command whose output is a single value, trimmed.
+    fn run_line(&self, arguments: &[&str]) -> Result<String> {
+        Ok(self.run(arguments)?.trim().to_string())
+    }
+
     /// The only place a git subprocess is spawned.
+    ///
+    /// Returns stdout **untrimmed**. `git status --porcelain` encodes
+    /// meaning in a leading space, so trimming here once silently ate the
+    /// first character of the first changed path.
     fn run(&self, arguments: &[&str]) -> Result<String> {
         let output = Command::new("git")
             .current_dir(&self.root)
@@ -103,6 +163,6 @@ impl Git {
             bail!("`git {}` failed: {message}", arguments.join(" "));
         }
 
-        Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+        Ok(String::from_utf8_lossy(&output.stdout).to_string())
     }
 }

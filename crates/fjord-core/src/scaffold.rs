@@ -22,7 +22,6 @@ use serde_json::json;
 use std::fs;
 use std::io::Write as _;
 use std::path::Path;
-use ulid::Ulid;
 
 /// The plaintext vault a new repository starts with.
 pub const PUBLIC_VAULT: &str = "Public";
@@ -100,10 +99,10 @@ pub enum Error {
 /// Reads the clock and generates identifiers, so two calls differ.
 pub fn plan(settings: &Settings) -> Plan {
     let created_at = crate::scalar::now_rfc3339_utc();
-    let repository_id = Ulid::new().to_string();
-    let public_id = Ulid::new().to_string();
-    let private_id = Ulid::new().to_string();
-    let welcome_id = Ulid::new().to_string();
+    let repository_id = crate::scalar::new_ulid();
+    let public_id = crate::scalar::new_ulid();
+    let private_id = crate::scalar::new_ulid();
+    let welcome_id = crate::scalar::new_ulid();
 
     let mut files = Vec::new();
 

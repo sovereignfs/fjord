@@ -194,7 +194,16 @@ system may retain blocks regardless.
 ### `fjord new <path>`
 
 Creates a Fjord Doc with valid frontmatter — a fresh ULID, `created`, and a
-`title` — then opens it for editing.
+`title` — then opens it for editing. In an encrypted vault the document is
+built in memory and written encrypted: the plaintext never touches the vault,
+not even for the instant between creating a file and encrypting it.
+
+`.md` is added if you leave it off. Another extension is refused, since a
+PDF cannot carry frontmatter — bring those in with `fjord encrypt`.
+
+Names are checked against the path rules of spec §5 *before* anything is
+written, so a document that could not be checked out on Windows or macOS is
+never created in the first place.
 
 | Flag | Effect |
 | --- | --- |
@@ -207,23 +216,57 @@ shell completion both work.
 
 ### `fjord ls [path]`
 
-Lists Docs and vault files. In an encrypted vault, titles come from
-decrypted frontmatter, so this needs your identity.
+Lists Docs and vault files. At the repository root each vault is one line;
+inside a vault, subdirectories collapse into one row unless you pass `-R`.
+Payloads are listed under their document name, so you never have to think
+about `.age`.
+
+A plain listing reads **no** document contents, so it needs no identity: in
+a `fileNaming: "plain"` vault the names are already visible to anyone who
+can read the repository. `--long` and `--json` do read frontmatter, which in
+an encrypted vault means decrypting every Markdown file in scope — without
+an identity they list what they can and say what they could not read.
 
 | Flag | Effect |
 | --- | --- |
 | `--json` | Machine-readable output. |
-| `--long` | Show id, size and modification time. |
+| `--long` | Show size, date, id and title. |
+| `-R`, `--recursive` | Recurse into subdirectories. |
 
 ### `fjord grep <pattern> [path]`
 
 Searches document contents. In an encrypted vault this decrypts every file
-to search it, so expect it to be slower than `grep` on plaintext.
+to search it, so expect it to be slower than `grep` on plaintext. Decrypted
+content is held in memory and never written anywhere.
+
+The pattern is a **literal substring, not a regular expression** — a regex
+engine is not among this project's dependencies, and promising regex syntax
+while implementing substring matching would be worse than saying which it
+is.
+
+| Flag | Effect |
+| --- | --- |
+| `-i`, `--ignore-case` | Case-insensitive. |
+| `--json` | Machine-readable output, with a match count. |
+
+Unlike `grep(1)`, **no matches is not an error**: exit `1` means "problems
+found in the repository" throughout this tool, and a search that found
+nothing is not a problem. Encrypted vaults your identity cannot open are
+skipped with a note on stderr, not silently.
 
 ### `fjord status`
 
 Repository health and sync state: vault summary, pending git changes,
-unresolved conflicts, and any diagnostics `fjord verify` would report.
+commits to push or pull, unresolved conflicts, and whether `fjord verify`
+would report anything.
+
+An encrypted vault's summary gives no document count, deliberately: nothing
+is decrypted to produce it, so a Doc is indistinguishable from any other
+file. `fjord ls --long` reads frontmatter and can tell you.
+
+| Flag | Effect |
+| --- | --- |
+| `--json` | Machine-readable output. |
 
 ### `fjord sync`
 

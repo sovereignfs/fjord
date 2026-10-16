@@ -5,9 +5,13 @@
 //! report for a human or for CI.
 
 pub mod crypt;
+pub mod grep;
 pub mod init;
 pub mod keys;
+pub mod list;
+pub mod new;
 pub mod open;
+pub mod status;
 pub mod verify;
 
 use crate::cli::{ExitCode, GlobalArgs};
@@ -91,6 +95,47 @@ impl Style {
         } else {
             text.to_string()
         }
+    }
+}
+
+/// What came of trying to read a document.
+#[derive(Debug)]
+pub enum DocumentRead {
+    Text(Zeroizing<Vec<u8>>),
+    /// An encrypted payload, and no identity of ours opens it. Normal on a
+    /// vault shared with other people.
+    NeedsIdentity,
+    Failed(String),
+}
+
+/// Read a vault file, decrypting it if it is a payload.
+///
+/// Decrypted content is returned in a [`Zeroizing`] buffer and never
+/// written anywhere: `ls` and `grep` look at documents without leaving a
+/// copy behind.
+pub fn read_document(
+    path: &Path,
+    is_payload: bool,
+    identities: Option<&crypto::Identities>,
+) -> DocumentRead {
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(err) => return DocumentRead::Failed(err.to_string()),
+    };
+
+    if !is_payload {
+        return DocumentRead::Text(Zeroizing::new(bytes));
+    }
+
+    let identities = match identities {
+        Some(identities) => identities,
+        None => return DocumentRead::NeedsIdentity,
+    };
+    match crypto::decrypt(&bytes, identities) {
+        Ok(plaintext) => DocumentRead::Text(plaintext),
+        // Indistinguishable by design from a corrupt payload, and in
+        // practice almost always the former.
+        Err(_) => DocumentRead::NeedsIdentity,
     }
 }
 

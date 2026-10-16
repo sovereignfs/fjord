@@ -36,9 +36,10 @@ fn run(args: Cli) -> anyhow::Result<ExitCode> {
         Command::Encrypt(encrypt) => cmd::crypt::encrypt(encrypt, &args.global),
         Command::Decrypt(decrypt) => cmd::crypt::decrypt(decrypt, &args.global),
         Command::Open(open) => cmd::open::run(open, &args.global),
-        Command::New(_) | Command::Ls(_) | Command::Grep(_) | Command::Status => {
-            todo!("M5: everyday commands")
-        }
+        Command::New(new) => cmd::new::run(new, &args.global),
+        Command::Ls(ls) => cmd::list::run(ls, &args.global),
+        Command::Grep(grep) => cmd::grep::run(grep, &args.global),
+        Command::Status => cmd::status::run(&args.global),
         Command::Sync(_) => todo!("M6: pull, decrypt-merge-reencrypt, push"),
         Command::Rekey(_) | Command::Export(_) | Command::Import(_) | Command::Vault(_) => {
             todo!("M3/M5: vault and key maintenance")

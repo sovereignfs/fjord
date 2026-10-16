@@ -122,6 +122,21 @@ impl Frontmatter {
     }
 }
 
+/// Build a new Doc: frontmatter plus a level-one heading. Spec §8.1.
+///
+/// The mapping is serialised by the YAML writer rather than formatted by
+/// hand, so a title containing a colon, a quote or a leading `-` cannot
+/// produce a file this crate would then refuse to parse.
+pub fn new_document(id: &str, title: &str, created: &str) -> Result<String, serde_yaml_ng::Error> {
+    let mut frontmatter: IndexMap<String, Value> = IndexMap::new();
+    frontmatter.insert(key::ID.to_string(), Value::String(id.to_string()));
+    frontmatter.insert(key::TITLE.to_string(), Value::String(title.to_string()));
+    frontmatter.insert(key::CREATED.to_string(), Value::String(created.to_string()));
+
+    let yaml = serde_yaml_ng::to_string(&frontmatter)?;
+    Ok(format!("{FENCE}\n{yaml}{FENCE}\n\n# {title}\n"))
+}
+
 /// Advance one line, returning the line without its terminator and the
 /// offset of the next one.
 ///
@@ -317,6 +332,47 @@ mod tests {
         assert_eq!(frontmatter.id(), None);
         assert_eq!(frontmatter.doc_id(), None);
         assert!(frontmatter.has(key::ID));
+    }
+
+    #[test]
+    fn a_new_document_is_a_doc() {
+        let created = "2026-10-16T09:34:00Z";
+        let text = match new_document("01JAGC4K7PT8Y3WQNMZV5XRB7H", "Sync design", created) {
+            Ok(text) => text,
+            Err(err) => panic!("{err}"),
+        };
+        let frontmatter = frontmatter_of(&text);
+        assert_eq!(frontmatter.doc_id(), Some("01JAGC4K7PT8Y3WQNMZV5XRB7H"));
+        assert_eq!(frontmatter.title(), Some("Sync design"));
+        assert_eq!(frontmatter.created(), Some(created));
+        assert!(text.contains("# Sync design"));
+        // §8.1: the block begins at byte 0.
+        assert!(text.starts_with("---\n"));
+    }
+
+    #[test]
+    fn a_title_that_would_break_yaml_is_escaped() {
+        // Hand-formatting this would produce a file we would then reject.
+        for title in [
+            "Notes: the sequel",
+            "- leading dash",
+            "\"quoted\"",
+            "#hash",
+            "a\nnewline",
+        ] {
+            let text =
+                match new_document("01JAGC4K7PT8Y3WQNMZV5XRB7H", title, "2026-10-16T09:34:00Z") {
+                    Ok(text) => text,
+                    Err(err) => panic!("{title:?}: {err}"),
+                };
+            let frontmatter = frontmatter_of(&text);
+            assert_eq!(
+                frontmatter.title(),
+                Some(title),
+                "{title:?} did not survive"
+            );
+            assert!(frontmatter.doc_id().is_some(), "{title:?} lost its id");
+        }
     }
 
     /// Invariant 3, for documents.

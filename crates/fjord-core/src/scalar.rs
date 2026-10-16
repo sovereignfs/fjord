@@ -69,6 +69,32 @@ pub fn now_rfc3339_utc() -> String {
     }
 }
 
+/// A fresh ULID. Spec §8.3.
+///
+/// Identifier generation lives here rather than in each caller, so that
+/// "exactly one identifier form is permitted" is enforced by there being
+/// exactly one way to make one.
+pub fn new_ulid() -> String {
+    ulid::Ulid::new().to_string()
+}
+
+/// A filesystem timestamp as RFC 3339 in UTC, or `None` if it predates the
+/// epoch or cannot be represented.
+pub fn rfc3339_utc(at: std::time::SystemTime) -> Option<String> {
+    use time::format_description::well_known::Rfc3339;
+
+    let seconds = at
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_secs()
+        .try_into()
+        .ok()?;
+    time::OffsetDateTime::from_unix_timestamp(seconds)
+        .ok()?
+        .format(&Rfc3339)
+        .ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,6 +155,22 @@ mod tests {
         assert!(is_rfc3339_utc(&now), "{now}");
         assert!(now.ends_with('Z'), "{now}");
         assert!(!now.contains('.'), "{now}");
+    }
+
+    #[test]
+    fn generated_ulids_satisfy_our_own_validator() {
+        for _ in 0..32 {
+            let id = new_ulid();
+            assert!(is_ulid(&id), "{id} is not a ULID by our own rule");
+        }
+        assert_ne!(new_ulid(), new_ulid());
+    }
+
+    #[test]
+    fn a_filesystem_timestamp_formats_as_rfc3339() {
+        let formatted = rfc3339_utc(std::time::UNIX_EPOCH).expect("a timestamp");
+        assert_eq!(formatted, "1970-01-01T00:00:00Z");
+        assert!(is_rfc3339_utc(&formatted));
     }
 
     #[test]

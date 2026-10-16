@@ -5,10 +5,11 @@ not define behaviour.** `spec/SPEC.md` is authoritative on the format and
 `CLAUDE.md` on how to build it — where either disagrees with this file, this
 file is stale and should be corrected.
 
-State as of 2026-10-16: **M1 through M4 complete and green.** `verify`,
-`init`, `key new|add|list|remove`, `encrypt`, `decrypt` and `open` are
-implemented end to end. 195 tests pass; `clippy -- -D warnings` and
-`cargo fmt --check` are clean.
+State as of 2026-10-16: **M1 through M5 complete and green.** `verify`,
+`init`, `key new|add|list|remove`, `encrypt`, `decrypt`, `open`, `new`,
+`ls`, `grep` and `status` are implemented end to end — every command the
+README documents except `sync`, `rekey`, `export` and `import`. 230 tests
+pass; `clippy -- -D warnings` and `cargo fmt --check` are clean.
 
 All three milestones' acceptance criteria hold, including the one that
 matters most: **a file encrypted by `fjord` decrypts with the real `age`
@@ -61,7 +62,7 @@ green.
 | M2 | `fjord init` | `scaffold`, `cmd/init`, `git` | `done` |
 | M3 | Keys, encrypt, decrypt | `crypto`, `vault`, `cmd/keys`, `cmd/crypt` | `done` |
 | M4 | `fjord open` | `cmd/open` | `done` |
-| M5 | `new`, `ls`, `status`, `grep` | `cmd/*` | `todo` |
+| M5 | `new`, `ls`, `status`, `grep` | `cmd/new`, `cmd/list`, `cmd/grep`, `cmd/status` | `done` |
 | M6 | `fjord sync` | `cmd/sync`, `git` | `todo` |
 | M7 | `fileNaming: "id"` and the tar container | `container` | `todo` |
 
@@ -250,6 +251,59 @@ components rather than any one of them:
    expected text, and noise passes that. Path resolution now returns the
    message and lets the caller decide to print it; a test asserts stderr is
    empty on success.
+
+### M5 notes
+
+Both acceptance criteria hold: `fjord new` produces a Doc that `fjord
+verify` passes — in a plaintext vault, an encrypted vault and a nested
+directory — and `grep` finds text that exists only inside ciphertext. That
+second test first asserts ordinary `grep -r` *cannot* find the string,
+which is the part that makes it mean something.
+
+- **`new` writes encrypted vaults encrypted.** The document is built in
+  memory and written as a payload; the plaintext never touches the vault,
+  not even for the instant between creating a file and encrypting it.
+- **§5 is enforced before the write.** `new` is the only path by which
+  Fjord creates a name, so it is the only place the path rules can be
+  applied in advance rather than diagnosed afterwards — and the only way
+  `E504` is reachable at all.
+- **Editing reuses `fjord open`** rather than reimplementing the lock, the
+  temporary file and the signal handling, which would be a second place for
+  any of it to be wrong.
+- **A plain `ls` reads no document contents**, so it needs no identity: in a
+  `plain` vault the names are already visible to anyone who can read the
+  repository (§11.2). `--long` and `--json` decrypt, and say what they could
+  not open.
+- **`grep` matches a literal substring, not a regex.** A regex engine is not
+  among the chosen dependencies, and documenting substring matching
+  honestly beats implying syntax that does not work.
+- **No matches is exit 0**, deliberately unlike `grep(1)`: exit 1 means
+  "problems found in the repository" everywhere else in this tool.
+
+Shared work landed in core rather than in each command:
+`vault::Vault::contents` walks a vault once and strips payload suffixes, so
+`ls` and `grep` agree about what a document is called; `doc::new_document`
+serialises frontmatter through the YAML writer, so a title containing a
+colon cannot produce a file this crate would then refuse to parse; and
+`scalar::new_ulid` means there is exactly one way to make an identifier,
+which is how "exactly one identifier form is permitted" gets enforced.
+
+### Two more bugs from running the tool
+
+The pattern is now unmistakable: **five milestones, and every single time
+the thing that found the bug was using the tool, not the test suite.**
+
+1. **`git status --porcelain` lost a character.** `Git::run` trimmed its
+   output, which strips the leading space from the *first* line only — so
+   ` M Private/recipients.txt` became `M Private/...` and an index-based
+   slice ate the `P`. A general helper's convenience silently corrupting a
+   caller that needed exact bytes. `run` now returns what git said, a
+   separate `run_line` trims for single-value queries, and the parse works
+   from structure rather than a fixed offset.
+2. **An encrypted vault claimed "0 docs".** True but misleading: `verify`
+   never decrypts, so it cannot tell a Doc from any other file in there.
+   The count is now simply not claimed — a fact about what was inspected
+   should not be printed as a fact about the vault.
 
 ## Fixtures
 

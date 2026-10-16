@@ -165,19 +165,18 @@ fn repository_headline(report: &Report, counts: Tally) -> String {
 
 fn vault_headline(vault: &VaultSummary) -> String {
     let mut parts = Vec::new();
-    parts.push(
-        if vault.encrypted {
-            "encrypted"
-        } else {
-            "plaintext"
-        }
-        .to_string(),
-    );
     if vault.encrypted {
+        // No doc count: `verify` never decrypts, so it cannot tell a Doc
+        // from any other file in here. Printing "0 docs" would read as a
+        // fact about the vault rather than about what was inspected.
+        parts.push("encrypted".to_string());
         parts.push(plural(vault.recipients, "recipient", "recipients"));
+        parts.push(plural(vault.files, "file", "files"));
+    } else {
+        parts.push("plaintext".to_string());
+        parts.push(plural(vault.docs, "doc", "docs"));
+        parts.push(plural(vault.files, "file", "files"));
     }
-    parts.push(plural(vault.docs, "doc", "docs"));
-    parts.push(plural(vault.files, "file", "files"));
     parts.join(" · ")
 }
 

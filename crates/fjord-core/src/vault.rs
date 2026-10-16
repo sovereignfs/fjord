@@ -108,12 +108,140 @@ impl Vault {
         }
     }
 
+    /// Files §2.2 reserves: never user documents, never vault content.
+    ///
+    /// Vault-relative, so a recipients file declared in a subdirectory is
+    /// still recognised.
+    pub fn machinery(&self) -> Vec<String> {
+        let mut names = vec![crate::VAULT_MANIFEST.to_string(), ".gitignore".to_string()];
+        if let Some(declared) = self
+            .encryption()
+            .and_then(|encryption| manifest::object_string(encryption, manifest::field::RECIPIENTS))
+        {
+            names.push(declared.to_string());
+        }
+        names
+    }
+
+    /// Every file in the vault, machinery excluded, sorted by path.
+    ///
+    /// Recursive: §2.1 permits nesting directories inside a vault as deeply
+    /// as the user likes, and they are all vault content.
+    pub fn contents(&self) -> Result<Vec<Content>, Error> {
+        let machinery = self.machinery();
+        let suffix = if self.is_encrypted() {
+            Some(self.suffix())
+        } else {
+            None
+        };
+
+        let mut found = Vec::new();
+        collect(&self.path, "", &machinery, suffix.as_deref(), &mut found)?;
+        found.sort_by(|a, b| a.relative.cmp(&b.relative));
+        Ok(found)
+    }
+
     fn encryption(&self) -> Option<&serde_json::Map<String, serde_json::Value>> {
         match self.manifest.encryption() {
             EncryptionField::Object(encryption) => Some(encryption),
             _ => None,
         }
     }
+}
+
+/// One file inside a vault.
+#[derive(Debug, Clone)]
+pub struct Content {
+    /// Vault-relative path as it is on disk, with forward slashes.
+    pub relative: String,
+    /// The document's name: `relative` with the encryption suffix removed,
+    /// so `notes.md.age` reads as `notes.md`. The payload's name is an
+    /// implementation detail a user should not have to think about.
+    pub logical: String,
+    /// Whether this is an encrypted payload rather than a plain file.
+    pub is_payload: bool,
+    pub size: u64,
+    pub modified: Option<std::time::SystemTime>,
+}
+
+impl Content {
+    /// Whether this could carry frontmatter. Spec §8.
+    pub fn is_markdown(&self) -> bool {
+        self.logical.ends_with(".md")
+    }
+}
+
+fn collect(
+    base: &Path,
+    relative: &str,
+    machinery: &[String],
+    suffix: Option<&str>,
+    found: &mut Vec<Content>,
+) -> Result<(), Error> {
+    let directory = if relative.is_empty() {
+        base.to_path_buf()
+    } else {
+        base.join(relative)
+    };
+
+    let entries = fs::read_dir(&directory).map_err(|source| Error::Io {
+        path: directory.display().to_string(),
+        source,
+    })?;
+
+    for entry in entries {
+        let entry = entry.map_err(|source| Error::Io {
+            path: directory.display().to_string(),
+            source,
+        })?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name == ".git" {
+            continue;
+        }
+
+        let child = if relative.is_empty() {
+            name.clone()
+        } else {
+            format!("{relative}/{name}")
+        };
+
+        let metadata = match fs::symlink_metadata(entry.path()) {
+            Ok(metadata) => metadata,
+            Err(source) => {
+                return Err(Error::Io {
+                    path: entry.path().display().to_string(),
+                    source,
+                })
+            }
+        };
+
+        if metadata.is_dir() && !metadata.file_type().is_symlink() {
+            collect(base, &child, machinery, suffix, found)?;
+            continue;
+        }
+
+        if machinery.iter().any(|reserved| reserved == &child) {
+            continue;
+        }
+
+        let is_payload = suffix
+            .map(|suffix| child.ends_with(suffix))
+            .unwrap_or(false);
+        let logical = match suffix.filter(|_| is_payload) {
+            Some(suffix) => child.strip_suffix(suffix).unwrap_or(&child).to_string(),
+            None => child.clone(),
+        };
+
+        found.push(Content {
+            relative: child,
+            logical,
+            is_payload,
+            size: metadata.len(),
+            modified: metadata.modified().ok(),
+        });
+    }
+
+    Ok(())
 }
 
 /// Every vault at the repository root, in directory order.
@@ -296,6 +424,44 @@ mod tests {
             .expect("containing")
             .is_none());
         assert!(containing(&root, "").expect("containing").is_none());
+    }
+
+    #[test]
+    fn lists_vault_content_and_leaves_machinery_out() {
+        let private = find(&fixture("conforming"), "Private")
+            .expect("find")
+            .expect("Private");
+        // The conforming Private vault holds nothing but machinery.
+        assert!(private.contents().expect("contents").is_empty());
+        assert!(private.machinery().contains(&"recipients.txt".to_string()));
+        assert!(private
+            .machinery()
+            .contains(&"fjord.vault.json".to_string()));
+
+        let public = find(&fixture("conforming"), "Public")
+            .expect("find")
+            .expect("Public");
+        let contents = public.contents().expect("contents");
+        assert_eq!(contents.len(), 1);
+        assert_eq!(contents[0].relative, "welcome.md");
+        assert_eq!(contents[0].logical, "welcome.md");
+        assert!(!contents[0].is_payload);
+        assert!(contents[0].is_markdown());
+        assert!(contents[0].size > 0);
+    }
+
+    #[test]
+    fn a_payload_is_listed_under_its_logical_name() {
+        // §6.3: the suffix is appended, so stripping it gives the
+        // document's real name and type.
+        let vault = find(&fixture("broken/E304"), "Private")
+            .expect("find")
+            .expect("Private");
+        let contents = vault.contents().expect("contents");
+        assert_eq!(contents.len(), 1);
+        assert_eq!(contents[0].relative, "notes.age");
+        assert_eq!(contents[0].logical, "notes");
+        assert!(contents[0].is_payload);
     }
 
     #[test]
