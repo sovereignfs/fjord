@@ -12,9 +12,9 @@ implemented end to end, with `fileNaming: "id"` and the tar container.
 **All 40 diagnostics are implemented**; nothing is deferred. 277 tests
 pass; `clippy -- -D warnings` and `cargo fmt --check` are clean.
 
-Three commands the README documents remain — `rekey`, `export` and
-`import` — none of which appears in CLAUDE.md's milestone list. CI now runs
-on every push: five jobs, with age cross-validation first and alone.
+Two commands the README documents remain: `export` and `import`. Neither
+appears in CLAUDE.md's milestone list. CI runs on every push — five jobs,
+with age cross-validation first and alone — and 291 tests pass.
 
 All three milestones' acceptance criteria hold, including the one that
 matters most: **a file encrypted by `fjord` decrypts with the real `age`
@@ -514,6 +514,40 @@ Worth recording, because each was invisible to inspection:
 
 The last two guard invariants that are easy to break accidentally in a later
 refactor and silent when broken.
+
+## Beyond the milestones
+
+`fjord rekey` is implemented, which closes the loop `fjord key add` opens:
+age encrypts to the recipients present at write time (§6.2), so a key added
+later reads nothing older, and `key add` tells people so. The central test
+is the whole point of the command — a second identity cannot read a
+document written before it was a recipient, and can after a rekey, while
+the original key still can.
+
+Two decisions worth recording:
+
+- **It refuses to lock you out.** One document is re-encrypted to the new
+  list and read back *before anything is written*; a result Fjord cannot
+  read is a refusal, not a warning. Re-encrypting a vault to a list holding
+  none of your identities would make every document in it permanently
+  unreadable, and §11.4 leaves no way back — there is no undo to offer
+  afterwards. `age -R` remains available for deliberately handing a vault
+  to someone else.
+- **It says it revokes nothing.** §11.4 makes that a MUST wherever a user
+  might infer revocation, and "re-encrypted to the current recipient list"
+  is exactly such a place. Tested, like `key remove`'s wording.
+
+Files in the clear inside the vault are left alone: encrypting them would
+change their names on disk, which is `fjord encrypt`'s job, not this one's.
+
+| | Item | Status |
+| --- | --- | --- |
+| | `fjord rekey` | `done` |
+| | `fjord export` — bulk decrypt to a plain directory | `todo` |
+| | `fjord import` — bring a directory in as Docs | `todo` |
+| | M0.5: generate the README diagnostics table from `diagnostics::Code` | `todo` |
+| | `cargo audit` or `cargo deny` in CI | `todo` — worth having for a crypto tool; needs a third-party action |
+| | Frontmatter comment preservation | out of scope for v1; needs an AST-level YAML parser |
 
 ## Release
 

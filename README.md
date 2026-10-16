@@ -365,9 +365,39 @@ before it acts.
 
 ### `fjord rekey <vault>`
 
-Re-encrypts every file in a vault to the current recipient list. Needed after
-adding a device key if that device must read existing documents. Rewrites the
-whole vault in one commit.
+Re-encrypts every file in a vault to the current recipient list. Needed
+after adding a device key if that device must read existing documents,
+because age encrypts each file to the recipients present when it was
+written. Rewrites the whole vault in one commit.
+
+```bash
+fjord key add <public-key> --vault Private
+fjord rekey Private
+```
+
+| Flag | Effect |
+| --- | --- |
+| `--yes` | Skip the confirmation prompt. |
+
+It asks before rewriting a vault. Without a terminal to ask on — a pipe, a
+CI job, or `--no-input` — it refuses rather than hangs, and tells you to
+pass `--yes`.
+
+**It will not lock you out.** Re-encrypting to a recipient list that holds
+none of your identities would make every document in the vault permanently
+unreadable, and spec §11.4 leaves no way back from that. So one document is
+re-encrypted and read back before anything is written, and a result Fjord
+cannot read is refused. If handing a vault to someone else really is the
+intent, use `age -R` directly.
+
+**It revokes nothing.** Every version already committed stays decryptable
+by every key it was written to, permanently, because Git keeps history.
+Rekeying changes what happens from here. See
+[Rotating and revoking keys](#fjord-key) above.
+
+Files sitting in the clear inside the vault are left alone — encrypting
+them would change their names on disk, which is `fjord encrypt`'s job. The
+command says how many it skipped.
 
 ### `fjord vault`
 

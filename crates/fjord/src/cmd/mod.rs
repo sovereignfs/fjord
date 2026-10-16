@@ -11,6 +11,7 @@ pub mod keys;
 pub mod list;
 pub mod new;
 pub mod open;
+pub mod rekey;
 pub mod status;
 pub mod sync;
 pub mod vaults;
