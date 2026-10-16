@@ -28,6 +28,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Runner images are pinned rather than `latest`. GitHub is migrating
+# `ubuntu-latest` to Ubuntu 26 from 2026-10-19, and an OS change that
+# arrives on its own schedule is exactly what a CI setup should not have:
+# `age` comes from apt here, and whether that package exists and under what
+# name is the environment's business, not ours. Bump this deliberately, and
+# let the weekly scheduled run catch what the bump breaks.
 env:
   CARGO_TERM_COLOR: always
   # A dependency fetch is not a thing to retry silently.
@@ -38,9 +44,9 @@ jobs:
   # The test that backs the recovery promise, on its own.
   interop:
     name: age cross-validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install the reference age implementation
         run: |
@@ -49,7 +55,7 @@ jobs:
           age --version
           tar --version | head -1
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index
@@ -69,9 +75,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-24.04, macos-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install age (Linux)
         if: runner.os == 'Linux'
@@ -92,7 +98,7 @@ jobs:
           git config --global user.email "ci@example.invalid"
           git config --global init.defaultBranch main
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index
@@ -106,14 +112,14 @@ jobs:
 
   lint:
     name: clippy and rustfmt
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install components
         run: rustup component add clippy rustfmt
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index
@@ -130,9 +136,9 @@ jobs:
 
   msrv:
     name: minimum supported Rust version
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Read from Cargo.toml rather than written here, so the declaration
       # and the thing that verifies it cannot drift apart.
@@ -160,7 +166,7 @@ jobs:
           git config --global user.email "ci@example.invalid"
           git config --global init.defaultBranch main
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index
@@ -175,9 +181,9 @@ jobs:
 
   musl:
     name: static musl binary
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Add the musl target
         run: |
@@ -185,7 +191,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends musl-tools
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index
