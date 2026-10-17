@@ -1,0 +1,37 @@
+[workspace]
+members = ["cargo:."]
+
+# Release builds, by `dist` (formerly cargo-dist). CLAUDE.md § Commands
+# fixes two things about them: dist is the tool, and Linux targets musl for
+# static linking.
+#
+# Artifacts and installers are published to GitHub Releases and fetched from
+# there. There is no fjord.sh and no other host to depend on: the release is
+# the distribution.
+[dist]
+cargo-dist-version = "0.33.0"
+ci = "github"
+
+# Both installers are generated into the release itself, so the command a
+# user runs points at a GitHub Release asset and nothing else.
+installers = ["shell", "powershell"]
+
+# Linux is **musl**, not gnu. The README promises one Linux binary works on
+# any distribution, and a glibc build does not: it inherits the build
+# machine's glibc version as a floor. CI already proves the musl binary is
+# statically linked and then runs it.
+targets = [
+  "aarch64-apple-darwin",
+  "x86_64-apple-darwin",
+  "aarch64-unknown-linux-musl",
+  "x86_64-unknown-linux-musl",
+  "x86_64-pc-windows-msvc",
+]
+
+# A release is cut by pushing a tag, and nothing else publishes.
+publish-prereleases = false
+
+# No Homebrew formula yet. `dist` can publish one, but only into a tap
+# repository that exists — and advertising a tap that does not is the same
+# mistake as advertising fjord.sh. Add `publish-jobs = ["homebrew"]` and
+# `tap = "sovereignfs/homebrew-tap"` once that repository is there.
