@@ -30,6 +30,7 @@ Or take the archive for your platform straight from the
 [releases page](https://github.com/sovereignfs/fjord-cli/releases/latest)
 and put `fjord` on your `PATH`. Every archive is published with a
 `.sha256` checksum beside it, and `sha256.sum` covers the whole release.
+Every archive also carries the licence and the README.
 
 Builds are produced for macOS (Apple silicon and Intel), Linux (x86-64 and
 arm64) and Windows (x86-64).
@@ -637,4 +638,21 @@ Fjord warns if an identity file is readable by other users.
 
 ## Licence
 
-Apache-2.0 or MIT, at your option. The specification itself is CC0.
+[MPL-2.0](LICENSE) — the Mozilla Public License, version 2.0.
+
+It is file-level copyleft, which means two things in practice:
+
+- **Changes to Fjord come back.** If you modify one of these source files
+  and distribute the result — as source or as a binary, free or paid — that
+  file's source must be published under the MPL too.
+- **What you build around it stays yours.** Fjord can be embedded in a
+  larger work, including a proprietary or paid application, without that
+  work becoming MPL. Only Fjord's own files are covered.
+
+That bargain applies to everyone equally, including the authors: there is
+no contributor licence agreement and no commercial exception, so nobody
+holds rights here that you do not.
+
+**The specification itself remains [CC0](spec/SPEC.md)** — public domain,
+deliberately. The format is meant to outlive this implementation, and
+anyone should be able to write another one without asking.

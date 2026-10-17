@@ -610,6 +610,42 @@ frontmatter, because import promotes it. It is byte-identical for a file
 that was already a Doc, which is the case where losslessness actually
 means something — now two separate tests saying so.
 
+## Licence
+
+**MPL-2.0**, chosen deliberately over the alternatives and over the
+`Apache-2.0 OR MIT` originally declared. The goal was: keep it free, make
+changes come back, let anyone profit who contributes back, and allow paid
+client applications. File-level copyleft is the only one of the obvious
+options that does all four.
+
+- **AGPL-3.0 was considered and rejected.** Its network clause exists to
+  cover a server, and CLAUDE.md lists "a daemon, a server, or a sync
+  service" under *Out of scope — do not build*, so the clause that
+  distinguishes it would do nothing here. It would also block the iOS
+  client `fjord-core` is explicitly built for — GPL-family terms and the
+  App Store have a long-standing practical conflict — and it would make a
+  copyleft reference implementation of a CC0 format, which pushes
+  independent implementers to rewrite rather than reuse.
+- **LGPL** has the same App Store friction, and its relinking requirements
+  were written for dynamic linking and map badly onto Rust's static
+  linking.
+- **MPL** draws its line around its own files rather than around whatever
+  links to them, which is what lets a paid proprietary client embed
+  `fjord-core` while modifications to `fjord-core` itself stay open. The
+  same terms apply to everyone: no contributor licence agreement, no
+  commercial exception, no rights the authors hold and contributors do not.
+
+The specification stays **CC0**. It is meant to outlive this
+implementation, and anyone should be able to write another one without
+asking.
+
+Two mechanical details worth knowing. The Exhibit A notice is at the top of
+every Rust source file, because MPL identifies covered software per file
+and a `LICENSE` alone would leave that ambiguous. And
+`crates/fjord-core/templates/` is deliberately **excluded**: those files are
+copied verbatim into a user's repository by `fjord init`, so a header there
+would stamp this licence onto documents that belong to the user.
+
 ## Release
 
 Configured in `dist-workspace.toml` and `.github/workflows/release.yml`,
@@ -636,12 +672,10 @@ Five platforms: macOS on Apple silicon and Intel, Linux on x86-64 and arm64,
 Windows on x86-64. Each archive carries the binary, both licences and the
 README, with a `.sha256` beside it and a `sha256.sum` over the release.
 
-**The crate had no licence files**, though it has always declared
-`Apache-2.0 OR MIT`. Shipping binaries and a source tarball with no licence
-text is a real gap rather than a formality, so `LICENSE-APACHE` and
-`LICENSE-MIT` are now present and included in every archive. The MIT
-copyright line reads "the Fjord contributors"; set a legal name there if one
-is wanted.
+**The crate had no licence file**, though it had always declared one.
+Shipping binaries and a source tarball with no licence text is a real gap
+rather than a formality, so `LICENSE` is now present and included in every
+archive.
 
 No Homebrew formula yet. `dist` can publish one, but only into a tap
 repository that exists — and advertising a tap that does not is the same

@@ -11,7 +11,7 @@ edition = "2021"
 # require 1.88, and since `cargo install` resolves dependencies afresh,
 # pinning the lockfile would not have made the older claim true for anyone.
 rust-version = "1.88"
-license = "Apache-2.0 OR MIT"
+license = "MPL-2.0"
 repository = "https://github.com/sovereignfs/fjord-cli"
 
 # Pinned here so the two crates never disagree on a version.

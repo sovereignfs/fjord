@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! `fjord sync`. Spec §9.1.
 //!
 //! M6's acceptance criteria are two sentences, and the first two tests are

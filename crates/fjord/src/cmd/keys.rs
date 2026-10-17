@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! `fjord key` — identities and recipients. Spec §6.2, §11.3, §11.4.
 //!
 //! Three things this command is careful about, all of them from §11:

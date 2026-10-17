@@ -1,3 +1,7 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 //! `fjord rekey` — re-encrypt a vault to its current recipients. Spec §6.2.
 //!
 //! age encrypts each file to the recipients present when it was written, so

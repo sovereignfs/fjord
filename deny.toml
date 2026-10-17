@@ -59,10 +59,11 @@ no part of it reaches the shipped binary. Nothing to do here but wait for
 # --- Licences -------------------------------------------------------------
 
 [licenses]
-# Everything in the tree is permissive today, which is what lets this
-# project ship binaries under Apache-2.0 OR MIT. A copyleft-only dependency
-# arriving would change that, and should fail rather than surprise someone
-# at release time.
+# Fjord itself is MPL-2.0: file-level copyleft, so changes to its own files
+# come back while a larger work built on it need not. Its dependencies are
+# all permissive, which is what makes that possible — a copyleft-only
+# dependency arriving would change what Fjord can be distributed as, and
+# should fail rather than surprise someone at release time.
 allow = [
   "Apache-2.0",
   "Apache-2.0 WITH LLVM-exception",
@@ -74,6 +75,8 @@ allow = [
   "ISC",
   "MIT",
   "MIT-0",
+  # Fjord's own crates.
+  "MPL-2.0",
   "Unicode-3.0",
   "Unlicense",
   "Zlib",
