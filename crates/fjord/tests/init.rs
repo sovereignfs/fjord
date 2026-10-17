@@ -572,12 +572,16 @@ fn later_commands_leave_the_generator_alone() {
     assert_eq!(code_of(&fjord(&["init", &target.to_string_lossy()])), 0);
 
     // Pretend a different tool created it, then let this one write to it.
+    // Set through the parsed JSON rather than by replacing text: an earlier
+    // version of this test replaced the literal "fjord-desktop 0.1.0", which
+    // quietly assumed the version it was running as and broke on the first
+    // version bump.
     let path = target.join("fjord.json");
-    let text = std::fs::read_to_string(&path).expect("read");
+    let mut manifest = manifest_of(&target);
+    manifest["generator"] = Value::from("fjord-desktop 9.9.9");
     std::fs::write(
         &path,
-        text.replace("\"generator\": \"fjord ", "\"generator\": \"fjord-desktop ")
-            .replace("fjord-desktop 0.1.0", "fjord-desktop 9.9.9"),
+        serde_json::to_string_pretty(&manifest).expect("serialise"),
     )
     .expect("write");
 

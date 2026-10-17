@@ -5,28 +5,31 @@ not define behaviour.** `spec/SPEC.md` is authoritative on the format and
 `CLAUDE.md` on how to build it — where either disagrees with this file, this
 file is stale and should be corrected.
 
-State as of 2026-10-16: **M1 through M7 complete and green — every
-milestone in the build brief.** `verify`, `init`, `key`, `vault`,
-`encrypt`, `decrypt`, `open`, `new`, `ls`, `grep`, `status` and `sync` are
-implemented end to end, with `fileNaming: "id"` and the tar container.
-**All 40 diagnostics are implemented**; nothing is deferred. 277 tests
-pass; `clippy -- -D warnings` and `cargo fmt --check` are clean.
+State as of 2026-10-17: **every milestone in the build brief is complete,
+and 0.1.0 is released.** `verify`, `init`, `key`, `vault`, `encrypt`,
+`decrypt`, `open`, `new`, `ls`, `grep`, `status`, `sync`, `rekey`, `export`
+and `import` are implemented end to end — every command the README
+documents — with `fileNaming: "id"` and the tar container. **All 40
+diagnostics are implemented**; nothing is deferred.
 
-**Every command the README documents is implemented.** CI runs on every
-push — five jobs, with age cross-validation first and alone — plus a
-separate Audit workflow for `cargo deny`. 313 tests pass.
+CI runs on every push: age cross-validation first and alone, the suite on
+Linux and macOS, a Windows build, clippy and rustfmt, the declared MSRV
+(1.88), and a static musl binary that is inspected and then run. A separate
+Audit workflow runs `cargo deny`. The test count is deliberately not quoted
+here: it was stale within a day every time it was.
 
-All three milestones' acceptance criteria hold, including the one that
-matters most: **a file encrypted by `fjord` decrypts with the real `age`
-binary, and a file written by `age -R` decrypts with `fjord`** — in binary
-and armored form, over all 256 byte values, with keys from either
-implementation. `crates/fjord/tests/age_interop.rs` also runs the recovery
-procedure the generated README documents, verbatim, so that document cannot
-quietly become a lie.
+The acceptance criterion that matters most holds: **a file encrypted by
+`fjord` decrypts with the real `age` binary, and a file written by `age -R`
+decrypts with `fjord`** — in binary and armored form, over all 256 byte
+values, with keys from either implementation.
+`crates/fjord/tests/age_interop.rs` also runs the recovery procedure the
+generated README documents, verbatim, so that document cannot quietly
+become a lie.
 
-Verified on rustc 1.99.1 only. The declared MSRV of 1.82 is **untested** —
-M0.1 should pin it and CI should build against it. Version `0.1.0`, nothing
-released.
+**Releases.** `v0.1.0` is published, built from `bc39da0`. It predates two
+breaking format changes — lowercase identifiers (spec §8.3) and the
+`generator` field's value — so repositories it creates do not conform to the
+current spec, and `fjord verify` says why. The next release carries them.
 
 ## Status
 
@@ -548,7 +551,7 @@ change their names on disk, which is `fjord encrypt`'s job, not this one's.
 | | Replace `unsafe-libyaml` as the frontmatter parser | `todo` — see below |
 | | M0.5: generate the README diagnostics table from `diagnostics::Code` | `todo` |
 | | Release machinery: `dist`, installers, archives | `done` — see below |
-| | Cut the first release (`git tag v0.1.0 && git push --tags`) | `todo` — the pipeline has never run |
+| | Cut the first release | `done` — `v0.1.0`, after two failed attempts; see below |
 | | Homebrew tap, crates.io publish | `todo` — neither is advertised until it exists |
 | | Frontmatter comment preservation | out of scope for v1; needs an AST-level YAML parser |
 
@@ -711,8 +714,9 @@ Found while checking the above. The `fjord-core` dependency in
 **fails the build** (`failed to select a version for the requirement
 fjord-core = "^0.1.0"`). It fails loudly rather than silently, which is the
 safe way to be wrong, but it is a trap for whoever cuts the next release.
-`cargo set-version --workspace` from cargo-edit should update both; neither
-that nor a release script is set up yet.
+`cargo set-version --workspace` from cargo-edit should update both, though
+that was not tried. The full procedure, including the tag, is in the release
+checklist above.
 
 ## Licence
 
@@ -785,9 +789,40 @@ No Homebrew formula yet. `dist` can publish one, but only into a tap
 repository that exists — and advertising a tap that does not is the same
 mistake as advertising `fjord.sh`.
 
-**The release pipeline has never run.** Pushing a tag is the only thing
-that fires it, so it is untested in exactly the way CI was before it was
-first run.
+**The pipeline has now run, and it failed twice before it worked.** Both
+failures were gaps in what was checked before tagging, not in the pipeline.
+
+1. **Windows did not compile.** `signal_hook::iterator` is Unix-only, and no
+   CI job ever built for Windows while the README advertised it. Fixed by
+   moving to `ctrlc`, and CI gained a Windows job so the release pipeline is
+   no longer the first thing to try.
+2. **The tag did not match the crate version.** `v0.1.1` was tagged while
+   the crates still said `0.1.0`, and `dist` found nothing to release at
+   that tag, failing in the `plan` job before any build began:
+   `This workspace doesn't have anything for dist to Release! … --tag=v0.1.0
+   will Announce: fjord-cli`. Nothing was published.
+
+### Release checklist
+
+The second failure has a mechanical answer, and it is a checklist because
+the order matters.
+
+1. Bump the version in **both** places: `workspace.package.version` in the
+   root `Cargo.toml`, and the `fjord-core` dependency's `version` in
+   `crates/fjord/Cargo.toml`. Changing only one fails the build.
+2. `cargo build`, so `Cargo.lock` follows.
+3. **`dist plan --tag=vX.Y.Z`** must print `announcing vX.Y.Z` and list the
+   installers. This is the same check the pipeline's `plan` job runs, so it
+   fails here, locally, in the way that failed in CI.
+4. Commit, push, and wait for CI to be green **on that commit**.
+5. Only then tag that commit and push the tag.
+
+Not every `0.1.0` in the tree is the crate version. The README's "Changed
+since 0.1.0" and the ROADMAP's history are about what 0.1.0 *did*, and the
+fixtures' example `generator` values are examples; none of them should move.
+
+No release script exists. One would remove steps 1–3 as things to remember,
+and is worth writing before the third release.
 
 ## Documentation defects
 
