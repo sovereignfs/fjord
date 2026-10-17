@@ -116,7 +116,7 @@ $ fjord verify
 
     Private/Inbox/notes.md
       E201  plaintext file in an encrypted vault
-    Private/Projects/01JAG7Q2M5X3V8KDQZ9R4T6YHB.age
+    Private/Projects/01jag7q2m5x3v8kdqz9r4t6yhb.age
       E305  container is "none" but fileNaming is "id"
 
   2 errors, 0 warnings
@@ -440,7 +440,7 @@ name plus `.age`, so `report.xlsx` becomes `report.xlsx.age`. Browsable,
 and the original name and type survive decryption.
 
 `fileNaming: "id"` names the file by the document's ULID instead:
-`Projects/01JAG7Q2M5X3V8KDQZ9R4T6YHB.age`. Directory names stay readable —
+`Projects/01jag7q2m5x3v8kdqz9r4t6yhb.age`. Directory names stay readable —
 only leaf names are concealed, and spec §11.2 is worth re-reading before
 you decide that is enough.
 
@@ -626,6 +626,29 @@ Fjord warns if an identity file is readable by other users.
 | `1` | Problems found |
 | `2` | Usage error |
 | `3` | IO or git failure |
+
+## Changed since 0.1.0
+
+**Identifiers are now lowercase** (spec §8.3). 0.1.0 wrote them uppercase,
+so a repository it created does not conform to the current format, and
+`fjord verify` says so — with a message that names the old spelling, so it
+is not mistaken for a typo:
+
+```
+E105  field is not a valid ULID
+      id is uppercase, but ids are lowercase (spec §8.3). Repositories made
+      by Fjord 0.1.0 use the old spelling
+```
+
+Nothing is accepted in both forms. §8.3 permits exactly one, so that every
+client can compare and sort identifiers without negotiating, and tolerating
+the old spelling would quietly bring that negotiation back. The format is
+still a draft and breaking changes are expected until it is declared stable.
+
+If a 0.1.0 repository holds nothing you need, run `fjord init` again. If it
+does, **do not hand-edit it**: identifiers also appear as file names in
+`id`-named vaults and inside encrypted documents, where a text replacement
+cannot reach.
 
 ## Known limitations
 

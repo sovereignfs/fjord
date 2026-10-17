@@ -218,16 +218,16 @@ fn walk(root: &Path, dir: &Path, out: &mut Vec<(String, Vec<u8>)>) {
 
 const REPOSITORY_MANIFEST: &str = r#"{
   "fjord": 1,
-  "id": "01JAGC4K7PQW2XN8RVTY5ZB3MD",
+  "id": "01jagc4k7pqw2xn8rvty5zb3md",
   "name": "Fixture",
   "createdAt": "2026-10-16T09:34:00Z",
-  "vaults": [{ "path": "Public", "id": "01JAGC4K7PR9TBM3YKWX6ZQ2HV" }]
+  "vaults": [{ "path": "Public", "id": "01jagc4k7pr9tbm3ykwx6zq2hv" }]
 }
 "#;
 
 const VAULT_MANIFEST: &str = r#"{
   "fjord": 1,
-  "id": "01JAGC4K7PR9TBM3YKWX6ZQ2HV",
+  "id": "01jagc4k7pr9tbm3ykwx6zq2hv",
   "name": "Public",
   "createdAt": "2026-10-16T09:34:00Z",
   "encryption": null,
@@ -410,4 +410,125 @@ fn one_vault_can_be_checked_alone() {
         "Private's plaintext should not be reported when only Public is checked: {:#?}",
         report.diagnostics
     );
+}
+
+// --- The old spelling -----------------------------------------------------
+//
+// Spec §8.3 required uppercase identifiers until 2026-10-17, and Fjord 0.1.0
+// wrote them. Such a repository does not conform to the current revision, and
+// the likeliest reason a valid-looking id is refused is that it is the old
+// spelling. So the refusal has to say so — while accepting nothing that was
+// not accepted before, because §8.3 permits exactly one form.
+
+fn detail_of(root: &Path, code: &str) -> String {
+    let report = run(root);
+    match report
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.code.as_str() == code)
+    {
+        Some(diagnostic) => diagnostic.detail.clone().unwrap_or_default(),
+        None => panic!("{code} was not emitted: {:#?}", report.diagnostics),
+    }
+}
+
+#[test]
+fn an_uppercase_document_id_is_refused_and_the_refusal_says_why() {
+    let temp = scaffold();
+    fs::write(
+        temp.path().join("Public/old.md"),
+        "---\nid: 01JAGC4K7PT8Y3WQNMZV5XRB7H\ntitle: Old\n---\n\n# Old\n",
+    )
+    .expect("write");
+
+    // Still refused: nothing more lenient than before.
+    assert_eq!(codes(temp.path()), vec!["E403"]);
+    assert!(!run(temp.path()).conforms());
+
+    let detail = detail_of(temp.path(), "E403");
+    assert!(detail.contains("uppercase"), "{detail}");
+    assert!(detail.contains("lowercase"), "{detail}");
+    assert!(detail.contains("0.1.0"), "{detail}");
+}
+
+#[test]
+fn an_uppercase_repository_id_is_refused_and_explained() {
+    let temp = scaffold();
+    let manifest = fs::read_to_string(temp.path().join("fjord.json")).expect("read");
+    fs::write(
+        temp.path().join("fjord.json"),
+        manifest.replace(
+            "\"id\": \"01jagc4k7pqw2xn8rvty5zb3md\"",
+            "\"id\": \"01JAGC4K7PQW2XN8RVTY5ZB3MD\"",
+        ),
+    )
+    .expect("write");
+
+    assert_eq!(codes(temp.path()), vec!["E105"]);
+    assert!(detail_of(temp.path(), "E105").contains("uppercase"));
+}
+
+#[test]
+fn an_uppercase_vault_entry_id_is_refused_and_explained() {
+    let temp = scaffold();
+    let manifest = fs::read_to_string(temp.path().join("fjord.json")).expect("read");
+    fs::write(
+        temp.path().join("fjord.json"),
+        manifest.replace(
+            "\"id\": \"01jagc4k7pr9tbm3ykwx6zq2hv\"",
+            "\"id\": \"01JAGC4K7PR9TBM3YKWX6ZQ2HV\"",
+        ),
+    )
+    .expect("write");
+
+    assert_eq!(codes(temp.path()), vec!["E105"]);
+    let detail = detail_of(temp.path(), "E105");
+    assert!(detail.contains("vaults[0].id"), "{detail}");
+    assert!(detail.contains("uppercase"), "{detail}");
+}
+
+#[test]
+fn an_uppercase_id_file_name_is_refused_and_explained() {
+    // The `id` naming mode of §7.2, where the leaf on disk is the id.
+    let temp = tempfile::tempdir().expect("temporary directory");
+    copy_directory(&fixtures().join("broken").join("E304"), temp.path());
+    fs::rename(
+        temp.path().join("Private/notes.age"),
+        temp.path().join("Private/01JAGC4K7PQW2XN8RVTY5ZB3MD.age"),
+    )
+    .expect("rename");
+
+    assert_eq!(codes(temp.path()), vec!["E304"]);
+    assert!(detail_of(temp.path(), "E304").contains("uppercase"));
+}
+
+#[test]
+fn a_genuine_typo_is_not_blamed_on_case() {
+    // The hint must not fire for a different problem: sending someone to
+    // lowercase an id that has an excluded letter in it would waste their
+    // time. `i` is not in Crockford base32.
+    let temp = scaffold();
+    fs::write(
+        temp.path().join("Public/typo.md"),
+        "---\nid: 01jagc4k7pqw2xn8rvty5zb3mi\ntitle: Typo\n---\n\n# Typo\n",
+    )
+    .expect("write");
+
+    assert_eq!(codes(temp.path()), vec!["E403"]);
+    let detail = detail_of(temp.path(), "E403");
+    assert!(!detail.contains("uppercase"), "{detail}");
+    assert!(detail.contains("01jagc4k7pqw2xn8rvty5zb3mi"), "{detail}");
+}
+
+fn copy_directory(from: &Path, to: &Path) {
+    for entry in fs::read_dir(from).expect("read fixture directory") {
+        let entry = entry.expect("fixture entry");
+        let target = to.join(entry.file_name());
+        if entry.path().is_dir() {
+            fs::create_dir_all(&target).expect("create");
+            copy_directory(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), &target).expect("copy");
+        }
+    }
 }

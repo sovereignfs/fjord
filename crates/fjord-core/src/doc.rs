@@ -323,7 +323,7 @@ fn parse_mapping(yaml: &str, body_offset: usize) -> Parse {
 mod tests {
     use super::*;
 
-    const DOC: &str = "---\nid: 01JAGC4K7PT8Y3WQNMZV5XRB7H\ntitle: Welcome\ncreated: 2026-10-16T09:34:00Z\ntags: [fjord]\nfjord:\n  schema: 1\n---\n\n# Welcome\n";
+    const DOC: &str = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\ntitle: Welcome\ncreated: 2026-10-16T09:34:00Z\ntags: [fjord]\nfjord:\n  schema: 1\n---\n\n# Welcome\n";
 
     fn frontmatter_of(text: &str) -> Frontmatter {
         match parse(text) {
@@ -335,8 +335,8 @@ mod tests {
     #[test]
     fn reads_a_conforming_doc() {
         let frontmatter = frontmatter_of(DOC);
-        assert_eq!(frontmatter.id(), Some("01JAGC4K7PT8Y3WQNMZV5XRB7H"));
-        assert_eq!(frontmatter.doc_id(), Some("01JAGC4K7PT8Y3WQNMZV5XRB7H"));
+        assert_eq!(frontmatter.id(), Some("01jagc4k7pt8y3wqnmzv5xrb7h"));
+        assert_eq!(frontmatter.doc_id(), Some("01jagc4k7pt8y3wqnmzv5xrb7h"));
         assert_eq!(frontmatter.title(), Some("Welcome"));
         assert_eq!(frontmatter.created(), Some("2026-10-16T09:34:00Z"));
     }
@@ -402,8 +402,8 @@ mod tests {
 
     #[test]
     fn crlf_files_parse_identically() {
-        let frontmatter = frontmatter_of("---\r\nid: 01JAGC4K7PT8Y3WQNMZV5XRB7H\r\n---\r\n");
-        assert_eq!(frontmatter.doc_id(), Some("01JAGC4K7PT8Y3WQNMZV5XRB7H"));
+        let frontmatter = frontmatter_of("---\r\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\r\n---\r\n");
+        assert_eq!(frontmatter.doc_id(), Some("01jagc4k7pt8y3wqnmzv5xrb7h"));
     }
 
     #[test]
@@ -426,12 +426,12 @@ mod tests {
     #[test]
     fn a_new_document_is_a_doc() {
         let created = "2026-10-16T09:34:00Z";
-        let text = match new_document("01JAGC4K7PT8Y3WQNMZV5XRB7H", "Sync design", created) {
+        let text = match new_document("01jagc4k7pt8y3wqnmzv5xrb7h", "Sync design", created) {
             Ok(text) => text,
             Err(err) => panic!("{err}"),
         };
         let frontmatter = frontmatter_of(&text);
-        assert_eq!(frontmatter.doc_id(), Some("01JAGC4K7PT8Y3WQNMZV5XRB7H"));
+        assert_eq!(frontmatter.doc_id(), Some("01jagc4k7pt8y3wqnmzv5xrb7h"));
         assert_eq!(frontmatter.title(), Some("Sync design"));
         assert_eq!(frontmatter.created(), Some(created));
         assert!(text.contains("# Sync design"));
@@ -450,7 +450,7 @@ mod tests {
             "a\nnewline",
         ] {
             let text =
-                match new_document("01JAGC4K7PT8Y3WQNMZV5XRB7H", title, "2026-10-16T09:34:00Z") {
+                match new_document("01jagc4k7pt8y3wqnmzv5xrb7h", title, "2026-10-16T09:34:00Z") {
                     Ok(text) => text,
                     Err(err) => panic!("{title:?}: {err}"),
                 };
@@ -466,14 +466,14 @@ mod tests {
 
     #[test]
     fn a_fresh_id_replaces_only_the_id() {
-        let original = "---\nzeta: 1\nid: 01JAGC4K7PT8Y3WQNMZV5XRB7H\ntitle: Groceries\nnested:\n  keep: true\n---\n\n# Groceries\n\nmilk\n";
-        let rewritten = match with_fresh_id(original, "01JAGC4K7PVB6ZNQ3XKMW9TYD5") {
+        let original = "---\nzeta: 1\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\ntitle: Groceries\nnested:\n  keep: true\n---\n\n# Groceries\n\nmilk\n";
+        let rewritten = match with_fresh_id(original, "01jagc4k7pvb6znq3xkmw9tyd5") {
             Some(rewritten) => rewritten,
             None => panic!("expected a rewrite"),
         };
 
         let frontmatter = frontmatter_of(&rewritten);
-        assert_eq!(frontmatter.doc_id(), Some("01JAGC4K7PVB6ZNQ3XKMW9TYD5"));
+        assert_eq!(frontmatter.doc_id(), Some("01jagc4k7pvb6znq3xkmw9tyd5"));
         assert_eq!(frontmatter.title(), Some("Groceries"));
         // Invariant 3: every other key, in its original position.
         assert_eq!(
@@ -486,7 +486,7 @@ mod tests {
 
     #[test]
     fn a_file_without_frontmatter_has_no_id_to_replace() {
-        assert!(with_fresh_id("# Just a heading\n", "01JAGC4K7PT8Y3WQNMZV5XRB7H").is_none());
+        assert!(with_fresh_id("# Just a heading\n", "01jagc4k7pt8y3wqnmzv5xrb7h").is_none());
     }
 
     #[test]
@@ -494,14 +494,14 @@ mod tests {
         let original = "# Groceries\n\nmilk\n";
         let promoted = promote(
             original,
-            "01JAGC4K7PT8Y3WQNMZV5XRB7H",
+            "01jagc4k7pt8y3wqnmzv5xrb7h",
             "2026-10-16T09:34:00Z",
             "Groceries",
         )
         .expect("promote");
 
         let frontmatter = frontmatter_of(&promoted);
-        assert_eq!(frontmatter.doc_id(), Some("01JAGC4K7PT8Y3WQNMZV5XRB7H"));
+        assert_eq!(frontmatter.doc_id(), Some("01jagc4k7pt8y3wqnmzv5xrb7h"));
         assert_eq!(frontmatter.title(), Some("Groceries"));
         assert_eq!(frontmatter.created(), Some("2026-10-16T09:34:00Z"));
         // The body survives in full.
@@ -516,14 +516,14 @@ mod tests {
         let original = "---\nobsidianPlugin: true\ntitle: Their Title\ncreated: 2020-01-01T00:00:00Z\ntags: [a]\n---\n\nbody\n";
         let promoted = promote(
             original,
-            "01JAGC4K7PT8Y3WQNMZV5XRB7H",
+            "01jagc4k7pt8y3wqnmzv5xrb7h",
             "2026-10-16T09:34:00Z",
             "Ours",
         )
         .expect("promote");
 
         let frontmatter = frontmatter_of(&promoted);
-        assert_eq!(frontmatter.doc_id(), Some("01JAGC4K7PT8Y3WQNMZV5XRB7H"));
+        assert_eq!(frontmatter.doc_id(), Some("01jagc4k7pt8y3wqnmzv5xrb7h"));
         assert_eq!(frontmatter.title(), Some("Their Title"));
         assert_eq!(frontmatter.created(), Some("2020-01-01T00:00:00Z"));
         assert!(frontmatter.has("obsidianPlugin"));
@@ -535,7 +535,7 @@ mod tests {
         // Rewriting it would discard whatever the author meant by it.
         assert!(promote(
             "---\nid: [unclosed\n---\n",
-            "01JAGC4K7PT8Y3WQNMZV5XRB7H",
+            "01jagc4k7pt8y3wqnmzv5xrb7h",
             "x",
             "y"
         )
@@ -561,7 +561,7 @@ mod tests {
     /// Invariant 3, for documents.
     #[test]
     fn unknown_keys_and_order_survive_a_round_trip() {
-        let original = "---\nzeta: 1\nid: 01JAGC4K7PT8Y3WQNMZV5XRB7H\nobsidianPlugin:\n  nested: true\nalpha: [a, b]\n---\nbody\n";
+        let original = "---\nzeta: 1\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\nobsidianPlugin:\n  nested: true\nalpha: [a, b]\n---\nbody\n";
         let first = frontmatter_of(original);
         let keys: Vec<&String> = first.raw().keys().collect();
         assert_eq!(keys, vec!["zeta", "id", "obsidianPlugin", "alpha"]);

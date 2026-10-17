@@ -610,6 +610,53 @@ frontmatter, because import promotes it. It is byte-identical for a file
 that was already a Doc, which is the case where losslessness actually
 means something — now two separate tests saying so.
 
+## Format change: lowercase identifiers
+
+Spec §8.3 now requires identifiers to be **lowercase**. It required
+uppercase until 2026-10-17, and Fjord 0.1.0 wrote uppercase, so repositories
+it created no longer conform. This was a deliberate breaking change to a
+draft format, made while the cost was lowest: the spec's own header says
+"breaking changes possible until declared stable", and the only released
+version is hours old.
+
+The ULID specification names uppercase canonical but defines decoding as
+case-insensitive, so Fjord's identifier is a **profile** of ULID — the same
+128 bits and sort order, one spelling. `scalar::new_ulid` is where the
+`ulid` crate's uppercase becomes Fjord's lowercase, and it is the only place
+an identifier is minted.
+
+Decisions worth recording:
+
+- **Exactly one form, still.** The tempting alternative was to accept both
+  and write lowercase. That would have made every duplicate-id check,
+  file-name comparison and merge normalise case first — the negotiation
+  §8.3's "exactly one identifier form" exists to prevent. §8.3 now also says
+  outright that a client MUST reject an uppercase id rather than fold it.
+- **The refusal explains itself.** `scalar::is_ulid_ignoring_case` exists
+  *only* to make a rejection helpful: the likeliest reason a valid-looking id
+  is refused is that it is the old spelling, and "not a valid ULID" would
+  send someone hunting for a typo that is not there. It never accepts
+  anything, and a test asserts a genuine typo does **not** get the hint.
+- **No migration tool.** Identifiers appear as file names in `id` vaults and
+  inside encrypted documents, and §8.2 makes `id` immutable, so a
+  trustworthy migration is a real feature rather than a sed script. It was
+  not built because nothing real depends on 0.1.0. If something does, that
+  is the next piece of work — and `verify --fix` is the wrong home for it,
+  since `--fix` never touches document content.
+- **Format version stays 1.** The spec is a draft and says so.
+
+Two test mistakes worth noting, both caught before commit: lowercasing the
+overflow cases (`8zzz…`) was necessary because left uppercase they would
+have been rejected for their case rather than for overflowing, and the five
+excluded-letter cases (`i`, `l`, `o`, `u`, `-`) were skipped by the first
+search-and-replace because those letters are outside the alphabet it
+matched. Both would have kept passing while testing nothing.
+
+**The vendored spec is changed here, and upstream must be too.** CLAUDE.md
+says `spec/SPEC.md` is vendored from `fjord-spec` and "never edit it here";
+the upstream is not in this tree, so the same §8.3 edit has to be made
+there or the next sync will silently revert it.
+
 ## Licence
 
 **MPL-2.0**, chosen deliberately over the alternatives and over the

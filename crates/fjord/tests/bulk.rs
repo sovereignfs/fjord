@@ -335,7 +335,7 @@ fn an_existing_doc_keeps_its_identity_and_its_keys() {
     let source = repo.outside("incoming");
     std::fs::create_dir_all(&source).expect("create");
     let original =
-        "---\nid: 01JAGC4K7PT8Y3WQNMZV5XRB7H\ntitle: Theirs\nobsidianPlugin: true\n---\n\nbody\n";
+        "---\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\ntitle: Theirs\nobsidianPlugin: true\n---\n\nbody\n";
     std::fs::write(source.join("theirs.md"), original).expect("write");
 
     assert_eq!(

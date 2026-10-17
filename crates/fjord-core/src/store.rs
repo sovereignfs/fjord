@@ -143,7 +143,7 @@ mod tests {
 
     fn vault(encryption: &str, file_naming: &str) -> Vault {
         let json = format!(
-            r#"{{"fjord":1,"id":"01JAGC4K7PR9TBM3YKWX6ZQ2HV","name":"V","createdAt":"2026-10-16T09:34:00Z","encryption":{encryption},"fileNaming":"{file_naming}"}}"#
+            r#"{{"fjord":1,"id":"01jagc4k7pr9tbm3ykwx6zq2hv","name":"V","createdAt":"2026-10-16T09:34:00Z","encryption":{encryption},"fileNaming":"{file_naming}"}}"#
         );
         Vault {
             directory: "V".to_string(),
@@ -192,7 +192,7 @@ mod tests {
         assert!(uses_container(&vault));
         assert!(names_by_id(&vault));
 
-        let id = "01JAGC4K7PT8Y3WQNMZV5XRB7H";
+        let id = "01jagc4k7pt8y3wqnmzv5xrb7h";
         let stored = store(&vault, "my sync design.md", b"body", Some(&recipients)).expect("store");
         assert_eq!(
             on_disk_name(&vault, "my sync design.md", Some(id)).expect("name"),

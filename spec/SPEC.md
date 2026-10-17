@@ -2,7 +2,7 @@
 
 **Version:** 1 (draft)
 **Status:** Draft. Not yet stable; breaking changes possible until declared stable.
-**Date:** 2026-10-16
+**Date:** 2026-10-17
 
 ---
 
@@ -115,13 +115,13 @@ Plaintext, at the repository root, UTF-8, no BOM.
 ```json
 {
   "fjord": 1,
-  "id": "01JAGC4K7PQW2XN8RVTY5ZB3MD",
+  "id": "01jagc4k7pqw2xn8rvty5zb3md",
   "name": "Fjord",
   "createdAt": "2026-10-16T09:34:00Z",
   "generator": "fjord-init 0.1.0",
   "vaults": [
-    { "path": "Public",  "id": "01JAGC4K7PR9TBM3YKWX6ZQ2HV" },
-    { "path": "Private", "id": "01JAGC4K7PSD5VNZ8QMT3YXB4K" }
+    { "path": "Public",  "id": "01jagc4k7pr9tbm3ykwx6zq2hv" },
+    { "path": "Private", "id": "01jagc4k7psd5vnz8qmt3yxb4k" }
   ]
 }
 ```
@@ -146,7 +146,7 @@ Public keys are not secrets; a vault's `name` is not protected.
 ```json
 {
   "fjord": 1,
-  "id": "01JAGC4K7PSD5VNZ8QMT3YXB4K",
+  "id": "01jagc4k7psd5vnz8qmt3yxb4k",
   "name": "Private",
   "createdAt": "2026-10-16T09:34:00Z",
   "encryption": {
@@ -289,7 +289,7 @@ are visible to anyone who can read the repository.
 ### 7.2 `"id"`
 
 The file name is the document's `id` plus the suffix:
-`Projects/Fjord/01JAG7Q2M5X3V8KDQZ9R4T6YHB.age`. Directory names remain
+`Projects/Fjord/01jag7q2m5x3v8kdqz9r4t6yhb.age`. Directory names remain
 plaintext; only leaf names are concealed.
 
 When `fileNaming` is `"id"`:
@@ -314,7 +314,7 @@ identically, but carrying no Fjord metadata and expected to carry none.
 
 ```markdown
 ---
-id: 01JAG7Q2M5X3V8KDQZ9R4T6YHB
+id: 01jag7q2m5x3v8kdqz9r4t6yhb
 title: Sync design
 created: 2026-10-16T09:12:04Z
 tags: [fjord, architecture]
@@ -367,13 +367,25 @@ first level-one heading, then to the file name.
 
 ### 8.3 Identifiers
 
-An `id` MUST be a [ULID](https://github.com/ulid/spec): 26 characters of
-Crockford base32, uppercase. ULIDs sort lexicographically by creation time,
-contain no characters that require escaping in a path, and are valid file
-names — which §7.2 depends on.
+An `id` MUST be a [ULID](https://github.com/ulid/spec) written in
+**lowercase**: 26 characters of Crockford base32 — `0`–`9` and `a`–`z`
+without `i`, `l`, `o` and `u` — whose first character is `0`–`7`. ULIDs sort
+lexicographically by creation time, contain no characters that require
+escaping in a path, and are valid file names — which §7.2 depends on.
+
+The ULID specification names uppercase as its canonical form but defines
+decoding as case-insensitive, so this is a profile of ULID rather than a
+different identifier: the same 128 bits and the same sort order, with one
+spelling.
 
 Exactly one identifier form is permitted, so that every client can compare,
-sort and validate identifiers without negotiation.
+sort and validate identifiers without negotiation. An identifier in
+uppercase or mixed case is therefore not valid, and a client MUST reject one
+rather than fold it to lowercase.
+
+Drafts of this specification before 2026-10-17 required uppercase, and
+repositories created by Fjord 0.1.0 carry identifiers in that form. Those
+repositories do not conform to this revision.
 
 ---
 

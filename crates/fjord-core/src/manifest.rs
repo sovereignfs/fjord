@@ -334,11 +334,11 @@ mod tests {
 
     const REPOSITORY: &str = r#"{
       "fjord": 1,
-      "id": "01JAGC4K7PQW2XN8RVTY5ZB3MD",
+      "id": "01jagc4k7pqw2xn8rvty5zb3md",
       "name": "Fjord",
       "createdAt": "2026-10-16T09:34:00Z",
       "unknownToThisVersion": { "b": 2, "a": 1 },
-      "vaults": [{ "path": "Public", "id": "01JAGC4K7PR9TBM3YKWX6ZQ2HV" }]
+      "vaults": [{ "path": "Public", "id": "01jagc4k7pr9tbm3ykwx6zq2hv" }]
     }"#;
 
     #[test]
@@ -350,7 +350,7 @@ mod tests {
         assert_eq!(manifest.version(), Some(1));
         assert_eq!(
             manifest.string(field::ID),
-            Some("01JAGC4K7PQW2XN8RVTY5ZB3MD")
+            Some("01jagc4k7pqw2xn8rvty5zb3md")
         );
         assert_eq!(manifest.string(field::NAME), Some("Fjord"));
         assert!(manifest.has(field::CREATED_AT));

@@ -1,16 +1,16 @@
 {
   "fjord": 1,
-  "id": "01JAGC4K7PQW2XN8RVTY5ZB3MD",
+  "id": "01jagc4k7pqw2xn8rvty5zb3md",
   "name": "Fixture",
   "createdAt": "2026-10-16T09:34:00Z",
   "vaults": [
     {
       "path": "Public",
-      "id": "01JAGC4K7PR9TBM3YKWX6ZQ2HV"
+      "id": "01jagc4k7pr9tbm3ykwx6zq2hv"
     },
     {
       "path": "../Escape",
-      "id": "01JAGC4K7PWC8RTQ2YMXV4ZNK7"
+      "id": "01jagc4k7pwc8rtq2ymxv4znk7"
     }
   ]
 }

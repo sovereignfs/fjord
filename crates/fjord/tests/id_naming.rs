@@ -132,6 +132,12 @@ fn a_name_with_a_space_round_trips_in_id_mode() {
         .to_string();
     let stem = leaf.strip_suffix(".age").expect("a .age payload");
     assert_eq!(stem.len(), 26, "the leaf should be a ULID, got {leaf:?}");
+    // §8.3 and §7.2: the id is the file name, and it is lowercase.
+    assert_eq!(
+        stem,
+        stem.to_ascii_lowercase(),
+        "an id-named file must be lowercase: {leaf:?}"
+    );
     assert!(!leaf.contains(' '), "the name leaked onto disk: {leaf}");
     assert!(!leaf.contains("sync"), "the name leaked onto disk: {leaf}");
 

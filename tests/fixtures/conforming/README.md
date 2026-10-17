@@ -99,13 +99,13 @@ The repository manifest. Plaintext, at the root.
 ```json
 {
   "fjord": 1,
-  "id": "01JAGC4K7PQW2XN8RVTY5ZB3MD",
+  "id": "01jagc4k7pqw2xn8rvty5zb3md",
   "name": "Fjord",
   "createdAt": "2026-10-16T09:34:00Z",
   "generator": "fjord-init 0.1.0",
   "vaults": [
-    { "path": "Public",  "id": "01JAGC4K7PR9TBM3YKWX6ZQ2HV" },
-    { "path": "Private", "id": "01JAGC4K7PSD5VNZ8QMT3YXB4K" }
+    { "path": "Public",  "id": "01jagc4k7pr9tbm3ykwx6zq2hv" },
+    { "path": "Private", "id": "01jagc4k7psd5vnz8qmt3yxb4k" }
   ]
 }
 ```
@@ -134,7 +134,7 @@ Unencrypted vault:
 ```json
 {
   "fjord": 1,
-  "id": "01JAGC4K7PR9TBM3YKWX6ZQ2HV",
+  "id": "01jagc4k7pr9tbm3ykwx6zq2hv",
   "name": "Public",
   "createdAt": "2026-10-16T09:34:00Z",
   "encryption": null,
@@ -147,7 +147,7 @@ Encrypted vault:
 ```json
 {
   "fjord": 1,
-  "id": "01JAGC4K7PSD5VNZ8QMT3YXB4K",
+  "id": "01jagc4k7psd5vnz8qmt3yxb4k",
   "name": "Private",
   "createdAt": "2026-10-16T09:34:00Z",
   "encryption": {
@@ -191,7 +191,7 @@ Every Markdown document carries a YAML frontmatter block.
 
 ```markdown
 ---
-id: 01JAG7Q2M5X3V8KDQZ9R4T6YHB
+id: 01jag7q2m5x3v8kdqz9r4t6yhb
 title: Sync design
 created: 2026-10-16T09:12:04Z
 tags: [fjord, architecture]

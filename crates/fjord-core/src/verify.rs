@@ -227,11 +227,33 @@ fn check_repository_manifest(manifest: &Manifest, report: &mut Report) {
     }
 }
 
+/// Say what is wrong with an identifier, when the cause is the old
+/// spelling.
+///
+/// Spec §8.3 required uppercase until it was changed to lowercase, and
+/// Fjord 0.1.0 wrote uppercase, so the likeliest reason a valid-looking
+/// identifier is rejected is that it is the old one. "Not a valid ULID"
+/// would send someone looking for a typo that is not there.
+///
+/// This only ever explains. Nothing is accepted that was not before: §8.3
+/// permits exactly one form, and a checker that tolerated both would bring
+/// back the negotiation that rule exists to avoid.
+fn explain_id(label: &str, value: &str) -> String {
+    if scalar::is_ulid_ignoring_case(value) {
+        format!(
+            "{label} is uppercase, but ids are lowercase (spec §8.3). Repositories made by \
+             Fjord 0.1.0 use the old spelling"
+        )
+    } else {
+        label.to_string()
+    }
+}
+
 fn check_ulid_field(manifest: &Manifest, key: &str, at: &str, report: &mut Report) {
     match manifest.string(key) {
         Some(value) if scalar::is_ulid(value) => {}
-        Some(_) => {
-            report.push(Diagnostic::at(Code::InvalidUlid, at).with_detail(key));
+        Some(value) => {
+            report.push(Diagnostic::at(Code::InvalidUlid, at).with_detail(explain_id(key, value)));
         }
         None if manifest.has(key) => {
             report.push(
@@ -559,7 +581,7 @@ fn reconcile_manifest(
             ),
             Some(id) if !scalar::is_ulid(id) => report.push(
                 Diagnostic::at(Code::InvalidUlid, REPOSITORY_MANIFEST)
-                    .with_detail(format!("vaults[{index}].id")),
+                    .with_detail(explain_id(&format!("vaults[{index}].id"), id)),
             ),
             Some(id) => {
                 // Compare against the vault's own id, which is
@@ -984,7 +1006,7 @@ fn check_id_named(vault_rel: &str, suffix: &str, rel: &str, report: &mut Report)
         None => leaf,
     };
     if !scalar::is_ulid(stem) {
-        report.push(Diagnostic::at(Code::FileNameNotUlid, rel).with_detail(stem.to_string()));
+        report.push(Diagnostic::at(Code::FileNameNotUlid, rel).with_detail(explain_id(stem, stem)));
     }
 }
 
@@ -1049,7 +1071,7 @@ fn check_markdown(entry: &Entry, report: &mut Report) -> Result<Option<String>, 
                 // Present but wrong: a Doc that has lost its identity, not
                 // a vault file.
                 let detail = match frontmatter.id() {
-                    Some(id) => format!("id: {id}"),
+                    Some(id) => explain_id(&format!("id: {id}"), id),
                     None => "id is not a string".to_string(),
                 };
                 report

@@ -439,3 +439,77 @@ fn no_input_never_prompts() {
     assert_eq!(code_of(&output), 0);
     assert!(!stderr_of(&output).contains("Repository name"));
 }
+
+// --- Identifiers ------------------------------------------------------------
+
+/// Every maximal run of 26 ASCII alphanumerics starting with `0`–`7`, which
+/// is what an identifier looks like in any text file.
+fn identifier_like_tokens(text: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut current = String::new();
+    for character in text.chars().chain(std::iter::once(' ')) {
+        if character.is_ascii_alphanumeric() {
+            current.push(character);
+            continue;
+        }
+        let first = current.chars().next();
+        if current.len() == 26 && matches!(first, Some('0'..='7')) {
+            found.push(current.clone());
+        }
+        current.clear();
+    }
+    found
+}
+
+/// Spec §8.3 requires lowercase, and §7.2 makes the id a file name in `id`
+/// vaults. Every path that mints an identifier — `init`, `vault add` and
+/// `new` — has to agree, so this drives all three and then looks at every
+/// file written, rather than trusting each call site.
+#[test]
+fn every_identifier_fjord_writes_is_lowercase() {
+    let temp = temp();
+    let target = temp.path().join("x");
+    assert_eq!(code_of(&fjord(&["init", &target.to_string_lossy()])), 0);
+
+    for arguments in [
+        vec!["-C", &*target.to_string_lossy(), "vault", "add", "Extra"],
+        vec![
+            "-C",
+            &*target.to_string_lossy(),
+            "new",
+            "Public/a.md",
+            "--no-edit",
+        ],
+    ] {
+        let output = fjord(&arguments);
+        assert_eq!(code_of(&output), 0, "{}", stderr_of(&output));
+    }
+
+    let mut all = Vec::new();
+    for relative in files_in(&target) {
+        let Ok(text) = std::fs::read_to_string(target.join(&relative)) else {
+            continue;
+        };
+        for token in identifier_like_tokens(&text) {
+            all.push((relative.clone(), token));
+        }
+    }
+
+    // fjord.json (1 + 3 vaults), three vault manifests, and two documents:
+    // far more than a handful, so this cannot pass by finding nothing.
+    assert!(
+        all.len() >= 8,
+        "expected to find identifiers, found {all:?}"
+    );
+    for (file, token) in &all {
+        assert_eq!(
+            token,
+            &token.to_ascii_lowercase(),
+            "{file} contains an identifier that is not lowercase: {token}"
+        );
+    }
+
+    // And the repository the CLI just wrote conforms by its own checker.
+    let verify = fjord(&["-C", &target.to_string_lossy(), "verify"]);
+    assert_eq!(code_of(&verify), 0, "{}", stdout_of(&verify));
+}
