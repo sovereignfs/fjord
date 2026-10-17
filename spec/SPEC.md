@@ -132,7 +132,7 @@ Plaintext, at the repository root, UTF-8, no BOM.
 | `id` | ULID | yes | Identifies the repository. Immutable. |
 | `name` | string | yes | Display label. |
 | `createdAt` | RFC 3339 | yes | MUST be UTC, with `Z`. |
-| `generator` | string | no | Tool and version that created the repository. Clients SHOULD NOT record it unless asked: it names the tool and its exact version to anyone who can read the repository (§11.2). |
+| `generator` | string | no | Tool and version that created the repository. |
 | `vaults` | array | yes | Objects with `path` (relative, no `..`, no leading `/`) and `id` matching that vault's own `id`. |
 
 ---

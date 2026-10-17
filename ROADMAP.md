@@ -657,35 +657,62 @@ says `spec/SPEC.md` is vendored from `fjord-spec` and "never edit it here";
 the upstream is not in this tree, so the same §8.3 edit has to be made
 there or the next sync will silently revert it.
 
-## `generator` is opt-in
+## `generator`
 
 `fjord.json`'s `generator` field — "Tool and version that created the
-repository", optional in spec §3 — is no longer written by default.
-`fjord init --record-generator` writes it, and the value is now `fjord
-<version>` rather than `fjord-init <version>`.
+repository", optional in spec §3 — is written by `fjord init` as
+`"fjord <version>"`, where the version is the one the binary was built as:
+the same `CARGO_PKG_VERSION` that `fjord --version` prints. A test compares
+the recorded value with `--version` itself rather than with a literal, so it
+cannot keep passing after a version bump leaves a hard-coded string behind;
+and the claim was checked directly by bumping the version, running `init`,
+and seeing the two move together (`0.7.3` in both).
 
-Nothing in Fjord ever read it, and it had three weaknesses worth acting on:
+**This was briefly opt-in, and the decision was reversed.** It had been made
+opt-in on the grounds that the field names the tool and its exact version to
+anyone who can read the repository, including the git host. That concern is
+real and stands — which is why §11.2 now lists the field among what stays
+visible — but the decision to write it by default is the owner's, and it was
+made with the trade-off in view. The `--record-generator` flag is gone, and
+the §3 "SHOULD NOT record it unless asked" sentence went with it.
 
-- **It is a fingerprint.** It names the tool and its exact version to
-  anyone who can read the repository, including the git host, and §11.2's
-  list of what an encrypted repository leaves visible did not mention it.
-  For a tool that is explicit about what it leaks, that was an omission, so
-  §11.2 now lists it and §3 says clients SHOULD NOT record it unless asked.
-- **It goes stale.** It is written once by `init`; `vault add`, `sync` and
-  `rekey` never touch it, so a repository created by 0.1.0 and written to by
-  a later release still claims 0.1.0. It names the creator, not the last
-  tool to touch the repository, which is rarely the thing you want to know.
-- **The name was wrong.** `fjord-init` is a subcommand, not the binary, and
-  nothing else ever used it; it was copied from the spec's example.
+What was kept from the detour, because it was right independently:
 
-Opt-in rather than removal keeps the one legitimate use — diagnosing which
-version made a repository, which would have helped with the lowercase
-identifier change — for anyone who wants it. A test asserts that `vault add`
-does not start writing the field into a repository that chose not to have
-it, since it rewrites `fjord.json` through the parsed map.
+- **The value is `fjord <version>`, not `fjord-init <version>`.**
+  `fjord-init` is a subcommand and not the binary; nothing else ever used
+  it, and it was only there because the spec's example said so.
+- **§11.2 lists the field.** Disclosure of what is visible should be
+  complete whether or not the default is to write it.
+- **`Settings::generator` is a plain `String`, not an `Option`.** Every
+  client that creates a repository has to name itself — the desktop and
+  mobile apps will pass their own — and the core cannot know what it is
+  embedded in. A test checks that whatever the caller supplies is what is
+  recorded, in the order the spec's example shows.
+- **Later commands leave it alone.** `vault add` rewrites `fjord.json`
+  through the parsed map, so it preserves the field (invariant 3); a test
+  plants a different tool's value and checks it survives.
 
-**The vendored spec is changed here and upstream needs the same edit**: the
-§3 table row and example value, and the new §11.2 bullet.
+It is still **written once and never updated**, so it names the creator and
+not the last tool to touch the repository. That is worth knowing and was
+left as it is, since updating it would make every write to `fjord.json` also
+a claim about who made the repository.
+
+**The spec's table still says `generator` is optional** (`Required: no`).
+Written by default is not the same as required: making it required would
+make `fjord verify` reject every repository without it, including any
+created by another client, and would need a new diagnostic. Say so if that
+is what is wanted.
+
+### Bumping the version takes two edits
+
+Found while checking the above. The `fjord-core` dependency in
+`crates/fjord/Cargo.toml` carries its own `version = "0.1.0"`, which
+`cargo publish` requires, so changing only `workspace.package.version`
+**fails the build** (`failed to select a version for the requirement
+fjord-core = "^0.1.0"`). It fails loudly rather than silently, which is the
+safe way to be wrong, but it is a trap for whoever cuts the next release.
+`cargo set-version --workspace` from cargo-edit should update both; neither
+that nor a release script is set up yet.
 
 ## Licence
 

@@ -52,13 +52,14 @@ pub struct Settings {
     /// Whether `Private` is encrypted. When false it is an ordinary
     /// plaintext vault, and no recipients file or guard is written.
     pub encrypt_private: bool,
-    /// Tool and version to record in `generator`, or `None` to write no such
-    /// field. Spec §3.
+    /// Tool and version, recorded in `generator`: `"fjord 0.1.0"`. Spec §3.
     ///
-    /// `None` is the default and the considered choice: the field names the
-    /// tool and its exact version to anyone who can read the repository,
-    /// including the git host (§11.2). A caller records it only when asked.
-    pub generator: Option<String>,
+    /// Required here even though the spec makes the field optional, so that
+    /// every client that creates a repository has to name itself — the
+    /// desktop and mobile apps will pass their own. It is the caller's to
+    /// supply because only the caller knows what it is: this crate cannot
+    /// tell a CLI from an app, and its own version is not theirs.
+    pub generator: String,
 }
 
 /// One file to create, with its contents.
@@ -292,21 +293,14 @@ fn repository_manifest(
         .map(|(path, id)| json!({ field::PATH: path, field::ID: id }))
         .collect();
 
-    // Built as a map so `generator` can be absent: `json!` cannot omit a
-    // key conditionally, and `null` would be a value, not an absence.
-    // Order is the spec's, which is also what a person reading the file
-    // expects.
-    let mut manifest = serde_json::Map::new();
-    manifest.insert(field::FJORD.to_string(), json!(FORMAT_VERSION));
-    manifest.insert(field::ID.to_string(), json!(id));
-    manifest.insert(field::NAME.to_string(), json!(settings.name));
-    manifest.insert(field::CREATED_AT.to_string(), json!(created_at));
-    if let Some(generator) = &settings.generator {
-        manifest.insert(field::GENERATOR.to_string(), json!(generator));
-    }
-    manifest.insert(field::VAULTS.to_string(), serde_json::Value::Array(vaults));
-
-    pretty(&serde_json::Value::Object(manifest))
+    pretty(&json!({
+        field::FJORD: FORMAT_VERSION,
+        field::ID: id,
+        field::NAME: settings.name,
+        field::CREATED_AT: created_at,
+        field::GENERATOR: settings.generator,
+        field::VAULTS: vaults,
+    }))
 }
 
 fn vault_manifest(name: &str, id: &str, created_at: &str, encrypted: bool) -> String {
@@ -365,7 +359,7 @@ mod tests {
         Settings {
             name: "Notes".to_string(),
             encrypt_private: encrypt,
-            generator: None,
+            generator: "fjord test".to_string(),
         }
     }
 
@@ -402,30 +396,22 @@ mod tests {
     }
 
     #[test]
-    fn generator_is_not_written_unless_asked_for() {
-        // It names the tool and exact version to anyone who can read the
-        // repository, which §11.2's list of what stays visible does not
-        // otherwise include — so it is opt-in, not a default.
-        let manifest = repository_manifest_text(&plan(&settings(true)));
-        assert!(!manifest.contains("generator"), "{manifest}");
+    fn the_generator_is_whatever_the_caller_says_it_is() {
+        // This crate cannot tell a CLI from an app, so the caller names
+        // itself; the desktop client will pass something else entirely.
+        let mut named = settings(true);
+        named.generator = "fjord-desktop 2.4.1".to_string();
+        let manifest = repository_manifest_text(&plan(&named));
 
         let parsed = Manifest::parse(manifest.as_bytes()).expect("parse");
-        assert!(!parsed.has(field::GENERATOR));
-        // Absent, not null: a null would be a value.
-        assert!(!manifest.contains("null"), "{manifest}");
+        assert_eq!(parsed.string(field::GENERATOR), Some("fjord-desktop 2.4.1"));
     }
 
     #[test]
-    fn generator_is_recorded_when_asked_for_and_in_the_specs_order() {
-        let mut asked = settings(true);
-        asked.generator = Some("fjord 9.9.9".to_string());
-        let manifest = repository_manifest_text(&plan(&asked));
-
-        let parsed = Manifest::parse(manifest.as_bytes()).expect("parse");
-        assert_eq!(parsed.string(field::GENERATOR), Some("fjord 9.9.9"));
-
-        // Where a reader of the spec's example expects it: after createdAt
-        // and before the vaults.
+    fn the_generator_sits_where_the_specs_example_puts_it() {
+        // After createdAt and before the vaults, which is also where a
+        // person reading the file expects to find it.
+        let manifest = repository_manifest_text(&plan(&settings(true)));
         let created = manifest.find("createdAt").expect("createdAt");
         let generator = manifest.find("generator").expect("generator");
         let vaults = manifest.find("\"vaults\"").expect("vaults");

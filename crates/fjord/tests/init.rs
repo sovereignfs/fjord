@@ -527,59 +527,66 @@ fn manifest_of(root: &Path) -> Value {
     }
 }
 
-/// The field names the tool and its exact version to anyone who can read the
-/// repository, including the git host, and spec §11.2 does not otherwise
-/// list that as visible. So a default `init` must not write it.
+/// `generator` must name the version that actually ran — so it is compared
+/// with what the binary says about itself, not with a literal that would
+/// keep passing after a version bump left it behind.
 #[test]
-fn init_does_not_record_the_generator_by_default() {
+fn init_records_the_generator_as_the_binary_reports_itself() {
+    let version = fjord(&["--version"]);
+    assert_eq!(code_of(&version), 0);
+    let reported = stdout_of(&version).trim().to_string();
+    // `fjord <version>`: the binary's name, not `fjord-init`, which is a
+    // subcommand and was only ever in the spec's example.
+    assert!(reported.starts_with("fjord "), "{reported}");
+
     let temp = temp();
     let target = temp.path().join("x");
     assert_eq!(code_of(&fjord(&["init", &target.to_string_lossy()])), 0);
 
     let manifest = manifest_of(&target);
-    assert!(
-        manifest.get("generator").is_none(),
-        "generator was written without being asked: {manifest}"
-    );
-    // Nor does the version leak some other way.
-    let text = std::fs::read_to_string(target.join("fjord.json")).expect("read");
-    assert!(!text.contains("0.1.0"), "{text}");
-
-    // Optional means optional: the repository still conforms.
     assert_eq!(
-        code_of(&fjord(&["-C", &target.to_string_lossy(), "verify"])),
-        0
+        manifest["generator"],
+        Value::from(reported.as_str()),
+        "generator disagrees with `fjord --version`"
     );
-}
-
-#[test]
-fn record_generator_writes_the_binary_name_and_version() {
-    let temp = temp();
-    let target = temp.path().join("x");
-    let init = fjord(&["init", &target.to_string_lossy(), "--record-generator"]);
-    assert_eq!(code_of(&init), 0, "{}", stderr_of(&init));
-
-    // `fjord`, which is what the binary is called — not `fjord-init`, which
-    // is a subcommand and was only ever in the spec's example.
+    // And with the version this build was compiled as.
     assert_eq!(
-        manifest_of(&target)["generator"],
+        manifest["generator"],
         Value::from(concat!("fjord ", env!("CARGO_PKG_VERSION")))
     );
+
     assert_eq!(
         code_of(&fjord(&["-C", &target.to_string_lossy(), "verify"])),
         0
     );
 }
 
+/// `vault add` rewrites fjord.json through the parsed map. What `init`
+/// recorded is not that command's to change (invariant 3), and in
+/// particular a later, newer build must not quietly claim to have made a
+/// repository it only added a vault to.
 #[test]
-fn other_commands_never_add_the_field_to_an_existing_manifest() {
-    // `vault add` rewrites fjord.json through the parsed map. It must not
-    // start recording a generator on a repository that chose not to.
+fn later_commands_leave_the_generator_alone() {
     let temp = temp();
     let target = temp.path().join("x");
     assert_eq!(code_of(&fjord(&["init", &target.to_string_lossy()])), 0);
+
+    // Pretend a different tool created it, then let this one write to it.
+    let path = target.join("fjord.json");
+    let text = std::fs::read_to_string(&path).expect("read");
+    std::fs::write(
+        &path,
+        text.replace("\"generator\": \"fjord ", "\"generator\": \"fjord-desktop ")
+            .replace("fjord-desktop 0.1.0", "fjord-desktop 9.9.9"),
+    )
+    .expect("write");
+
     let added = fjord(&["-C", &target.to_string_lossy(), "vault", "add", "Extra"]);
     assert_eq!(code_of(&added), 0, "{}", stderr_of(&added));
 
-    assert!(manifest_of(&target).get("generator").is_none());
+    assert_eq!(
+        manifest_of(&target)["generator"],
+        Value::from("fjord-desktop 9.9.9"),
+        "vault add rewrote the generator"
+    );
 }

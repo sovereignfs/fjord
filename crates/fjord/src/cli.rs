@@ -124,15 +124,6 @@ pub struct InitArgs {
     /// Skip `git init` and the first commit.
     #[arg(long)]
     pub no_git: bool,
-
-    /// Record the tool and version in fjord.json's `generator` field.
-    ///
-    /// Off by default: the field tells anyone who can read the repository,
-    /// including the git host, exactly which version you run. It is also
-    /// written once and never updated, so it names the creator and not the
-    /// last tool to touch the repository.
-    #[arg(long)]
-    pub record_generator: bool,
 }
 
 #[derive(Debug, Args)]

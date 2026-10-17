@@ -87,17 +87,16 @@ key; that is expected, not a fault. Fix it with `fjord key new` followed by
 | `--name <text>` | Repository display name. Defaults to the directory name. |
 | `--no-encrypt` | Create `Private` as a plaintext vault. |
 | `--no-git` | Skip `git init` and the first commit. |
-| `--record-generator` | Write `"generator": "fjord <version>"` into `fjord.json`. See below. |
 | `--no-input` | Never prompt; take every default. |
 | `--json` | Machine-readable summary of what was created. |
 
-**`generator` is not written by default.** The spec defines it as an
-optional field naming the tool and version that created the repository, and
-it is useful for working out which version made one. But it is visible to
-anyone who can read the repository, including the git host, so it tells them
-exactly which version you run — and it is written once and never updated, so
-it names the creator, not the last tool to touch the repository. Ask for it
-with `--record-generator` if you want the breadcrumb.
+`fjord.json` records `"generator": "fjord <version>"` — the version of the
+binary that ran, the same string `fjord --version` prints. It is useful for
+working out which version made a repository. Two things to know about it:
+it is written once, by `init`, and never updated, so it names the creator
+and not the last tool to touch the repository; and, like the rest of
+`fjord.json`, it is visible to anyone who can read the repository, including
+the git host, so it tells them which version you run (spec §11.2).
 
 On a terminal it asks for the repository name and whether to encrypt
 `Private`, writing the prompts to stderr so `--json` on stdout stays
