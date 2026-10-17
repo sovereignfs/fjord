@@ -12,9 +12,9 @@ implemented end to end, with `fileNaming: "id"` and the tar container.
 **All 40 diagnostics are implemented**; nothing is deferred. 277 tests
 pass; `clippy -- -D warnings` and `cargo fmt --check` are clean.
 
-Two commands the README documents remain: `export` and `import`. Neither
-appears in CLAUDE.md's milestone list. CI runs on every push — five jobs,
-with age cross-validation first and alone — and 291 tests pass.
+**Every command the README documents is implemented.** CI runs on every
+push — five jobs, with age cross-validation first and alone — plus a
+separate Audit workflow for `cargo deny`. 313 tests pass.
 
 All three milestones' acceptance criteria hold, including the one that
 matters most: **a file encrypted by `fjord` decrypts with the real `age`
@@ -543,11 +543,70 @@ change their names on disk, which is `fjord encrypt`'s job, not this one's.
 | | Item | Status |
 | --- | --- | --- |
 | | `fjord rekey` | `done` |
-| | `fjord export` — bulk decrypt to a plain directory | `todo` |
-| | `fjord import` — bring a directory in as Docs | `todo` |
+| | `fjord export` / `fjord import` | `done` |
+| | `cargo deny` in CI, with a dependency policy | `done` |
+| | Replace `unsafe-libyaml` as the frontmatter parser | `todo` — see below |
 | | M0.5: generate the README diagnostics table from `diagnostics::Code` | `todo` |
-| | `cargo audit` or `cargo deny` in CI | `todo` — worth having for a crypto tool; needs a third-party action |
+| | Release machinery: `cargo-dist`, the `fjord.sh` installers, the Homebrew tap | `todo` — all three are advertised in the README |
 | | Frontmatter comment preservation | out of scope for v1; needs an AST-level YAML parser |
+
+### `cargo deny`, and the vulnerability it found
+
+The dependency policy lives in `deny.toml` and is enforced by its own
+workflow, which runs when the dependency tree changes and once a week
+regardless — not on every push, because a new advisory lands in a
+transitive crate on its own schedule and turning unrelated pushes red is
+how a check gets switched off. Four policies: advisories, licences, sources
+and bans. The sources check matters most here: a git dependency, or a crate
+from a registry nobody chose, would be invisible in a diff that only
+touched `Cargo.lock`.
+
+**The first run found a vulnerability introduced three milestones earlier.**
+RUSTSEC-2023-0071, the Marvin Attack — a key-recovery timing side-channel
+in `rsa` with no fixed version available. It reached the tree through
+exactly one path: the `age` crate's `ssh` feature, enabled in M3 on the
+argument that `fjord verify` accepts `ssh-ed25519` recipients, so a writer
+unable to honour them would reject repositories its own verifier calls
+conforming. That argument was sound in isolation, and it never weighed what
+the feature dragged in. §6.2 makes SSH recipients optional while X25519 is
+mandatory, so the feature was dropped rather than the finding ignored.
+`crypto::parse_recipients` now refuses an SSH recipient by name, confirms
+the vault is still conforming, cites the advisory and says what to do
+instead.
+
+Two unmaintained advisories are ignored with reasons on the record. One
+deserves a decision rather than acceptance: **`unsafe-libyaml`**, reached
+through `serde_yaml_ng`, with no safe upgrade. §8.1 requires a safe YAML
+loader and §11.5 names frontmatter as untrusted input, and this is the
+least safe part of the tree. CLAUDE.md chose `serde_yaml_ng` because
+`serde_yaml` was unmaintained — and the replacement inherited the problem
+one level down. Migrating to `saphyr`/`serde-saphyr` means re-proving
+invariant 3, so it is a deliberate change and not a passing one.
+
+### `export` and `import`
+
+- **`export` writes outside the repository only.** Anything in a vault gets
+  committed and anything in an encrypted vault must never be plaintext
+  (§6.5), so a destination inside the repository is refused — tested for a
+  plaintext vault, an encrypted vault and the repository root alike. In an
+  `id` vault it is where the container earns its keep: files come out under
+  their real names, not as ULIDs.
+- **`import` promotes Markdown to Docs**, which §8.2 permits on an explicit
+  instruction ("MAY assign an `id` ... when the user edits it") while
+  forbidding it on a scan. A file that already has an `id` comes in
+  untouched, keys and order intact. `doc::promote` fills in `title` and
+  `created` only when absent: a file arriving from another tool brings its
+  own, and they are better than anything Fjord could invent.
+- **Both are all-or-nothing about names.** Every path is checked against §5
+  and against what already exists before a byte is written, because a bulk
+  operation that stops halfway leaves a state no error message can
+  describe.
+
+One test expectation of mine was wrong again, and the behaviour was right:
+export-then-import is *not* byte-identical for a file that had no
+frontmatter, because import promotes it. It is byte-identical for a file
+that was already a Doc, which is the case where losslessness actually
+means something — now two separate tests saying so.
 
 ## Release
 

@@ -4,6 +4,7 @@
 //! finding the repository, deciding whether to use colour, and rendering a
 //! report for a human or for CI.
 
+pub mod bulk;
 pub mod crypt;
 pub mod grep;
 pub mod init;

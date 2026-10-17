@@ -453,8 +453,39 @@ and search documents by their real names.
 
 ### `fjord export <vault> <dir>` / `fjord import <dir> <vault>`
 
-Bulk decrypt to a plain directory, and bring a directory of files in as Docs.
-`export` is the escape hatch; it is deliberately simple and will keep working.
+Bulk decrypt to a plain directory, and bring a directory of files in as
+Docs. `export` is the escape hatch; it is deliberately simple and will keep
+working.
+
+```bash
+fjord export Private ~/restored        # decrypt the whole vault
+fjord import ~/incoming Private        # bring a directory in
+```
+
+**`export` writes outside the repository only.** Anything in a vault gets
+committed, and anything in an encrypted vault must never be plaintext
+(§6.5), so a destination inside the repository is refused. It will not write
+over an existing directory's contents either. In a `fileNaming: "id"` vault
+this is where the container earns its keep: files come out under their real
+names rather than as ULIDs.
+
+**`import` promotes Markdown to Docs.** A `.md` file without frontmatter
+gains an `id`, a `created` timestamp and a `title` — taken from its first
+`#` heading, else its file name. §8.2 permits that on an explicit
+instruction while forbidding it on a mere scan, which is why importing does
+it and `verify` never does. A file that already has an `id` comes in
+untouched, keys and all. Everything that is not Markdown is stored as a
+vault file, which is what §8 says it is.
+
+Both are all-or-nothing about names: every path is checked against the rules
+of §5, and against what already exists, *before* anything is written. A bulk
+operation that stops halfway leaves a mess no error message can describe.
+
+Symbolic links in the source directory are skipped rather than followed.
+
+| Flag | Effect |
+| --- | --- |
+| `--json` | Machine-readable output, listing what was transferred. |
 
 ## Diagnostics
 

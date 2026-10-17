@@ -43,8 +43,7 @@ fn run(args: Cli) -> anyhow::Result<ExitCode> {
         Command::Sync(sync) => cmd::sync::run(sync, &args.global),
         Command::Vault(vault) => cmd::vaults::run(vault, &args.global),
         Command::Rekey(rekey) => cmd::rekey::run(rekey, &args.global),
-        Command::Export(_) | Command::Import(_) => {
-            todo!("bulk decrypt and import")
-        }
+        Command::Export(export) => cmd::bulk::export(export, &args.global),
+        Command::Import(import) => cmd::bulk::import(import, &args.global),
     }
 }

@@ -167,6 +167,61 @@ pub fn with_fresh_id(text: &str, id: &str) -> Option<String> {
     Some(format!("{FENCE}\n{yaml}{FENCE}\n{}", &text[body_offset..]))
 }
 
+/// Give a file the frontmatter of a Doc, keeping whatever it already has.
+/// Spec §8.1, §8.2.
+///
+/// §8.2 says a client "MAY assign an `id` and promote it to a Doc when the
+/// user edits it, and MUST NOT rewrite files merely because it scanned
+/// them". Importing is the former: an explicit instruction to bring files
+/// in, not a scan.
+///
+/// Existing keys are preserved, including unknown ones and their order
+/// (invariant 3), and `title` and `created` are only filled in when absent
+/// — a file arriving from another tool may well have its own, and they are
+/// better than anything this function could invent.
+pub fn promote(text: &str, id: &str, created: &str, title: &str) -> Option<String> {
+    let (mut raw, body) = match parse(text) {
+        Parse::Present {
+            frontmatter,
+            body_offset,
+        } => (frontmatter.raw().clone(), text[body_offset..].to_string()),
+        // No frontmatter to keep: the whole file is the body.
+        Parse::Absent => (IndexMap::new(), format!("\n{text}")),
+        // A block that is there but broken is not ours to rewrite: doing so
+        // would discard whatever the author meant by it.
+        _ => return None,
+    };
+
+    // `insert` on an existing key keeps its position, so a file that
+    // already had an `id` in the middle of its frontmatter keeps the shape
+    // it had.
+    raw.insert(key::ID.to_string(), Value::String(id.to_string()));
+    raw.entry(key::TITLE.to_string())
+        .or_insert_with(|| Value::String(title.to_string()));
+    raw.entry(key::CREATED.to_string())
+        .or_insert_with(|| Value::String(created.to_string()));
+
+    let yaml = serde_yaml_ng::to_string(&raw).ok()?;
+    Some(format!("{FENCE}\n{yaml}{FENCE}\n{body}"))
+}
+
+/// The title a document implies: its first level-one heading, else the file
+/// name without its extension. Spec §8.2.
+pub fn implied_title(text: &str, file_name: &str) -> String {
+    for line in text.lines() {
+        if let Some(heading) = line.strip_prefix("# ") {
+            let heading = heading.trim();
+            if !heading.is_empty() {
+                return heading.to_string();
+            }
+        }
+    }
+    file_name
+        .strip_suffix(".md")
+        .unwrap_or(file_name)
+        .to_string()
+}
+
 /// Advance one line, returning the line without its terminator and the
 /// offset of the next one.
 ///
@@ -428,6 +483,75 @@ mod tests {
     #[test]
     fn a_file_without_frontmatter_has_no_id_to_replace() {
         assert!(with_fresh_id("# Just a heading\n", "01JAGC4K7PT8Y3WQNMZV5XRB7H").is_none());
+    }
+
+    #[test]
+    fn a_file_with_no_frontmatter_is_promoted() {
+        let original = "# Groceries\n\nmilk\n";
+        let promoted = promote(
+            original,
+            "01JAGC4K7PT8Y3WQNMZV5XRB7H",
+            "2026-10-16T09:34:00Z",
+            "Groceries",
+        )
+        .expect("promote");
+
+        let frontmatter = frontmatter_of(&promoted);
+        assert_eq!(frontmatter.doc_id(), Some("01JAGC4K7PT8Y3WQNMZV5XRB7H"));
+        assert_eq!(frontmatter.title(), Some("Groceries"));
+        assert_eq!(frontmatter.created(), Some("2026-10-16T09:34:00Z"));
+        // The body survives in full.
+        assert!(promoted.ends_with("# Groceries\n\nmilk\n"));
+    }
+
+    #[test]
+    fn promotion_keeps_what_the_file_already_said() {
+        // A file from another tool brings its own metadata, which is better
+        // than anything we could invent — and invariant 3 says the keys we
+        // do not understand survive too.
+        let original = "---\nobsidianPlugin: true\ntitle: Their Title\ncreated: 2020-01-01T00:00:00Z\ntags: [a]\n---\n\nbody\n";
+        let promoted = promote(
+            original,
+            "01JAGC4K7PT8Y3WQNMZV5XRB7H",
+            "2026-10-16T09:34:00Z",
+            "Ours",
+        )
+        .expect("promote");
+
+        let frontmatter = frontmatter_of(&promoted);
+        assert_eq!(frontmatter.doc_id(), Some("01JAGC4K7PT8Y3WQNMZV5XRB7H"));
+        assert_eq!(frontmatter.title(), Some("Their Title"));
+        assert_eq!(frontmatter.created(), Some("2020-01-01T00:00:00Z"));
+        assert!(frontmatter.has("obsidianPlugin"));
+        assert!(frontmatter.has(key::TAGS));
+    }
+
+    #[test]
+    fn a_broken_frontmatter_block_is_not_rewritten() {
+        // Rewriting it would discard whatever the author meant by it.
+        assert!(promote(
+            "---\nid: [unclosed\n---\n",
+            "01JAGC4K7PT8Y3WQNMZV5XRB7H",
+            "x",
+            "y"
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn the_implied_title_prefers_the_heading() {
+        assert_eq!(
+            implied_title("# Sync design\n\nbody\n", "notes.md"),
+            "Sync design"
+        );
+        // Then the file name, §8.2's second fallback.
+        assert_eq!(
+            implied_title("no heading here\n", "sync-design.md"),
+            "sync-design"
+        );
+        assert_eq!(implied_title("", "report.pdf"), "report.pdf");
+        // A heading with nothing after the hash is not a title.
+        assert_eq!(implied_title("#\n\nbody\n", "notes.md"), "notes");
     }
 
     /// Invariant 3, for documents.
