@@ -152,7 +152,10 @@ pub fn parse_recipients(text: &str) -> Result<Recipients, Error> {
 
 /// Identities that may decrypt a payload.
 pub struct Identities {
-    parsed: Vec<Box<dyn age::Identity>>,
+    // `Send + Sync` since age 0.12, which is what `IdentityFile` now hands
+    // back. No loss: an identity that can cross a thread boundary is
+    // strictly more useful, and the clients will want it.
+    parsed: Vec<Box<dyn age::Identity + Send + Sync>>,
 }
 
 impl std::fmt::Debug for Identities {

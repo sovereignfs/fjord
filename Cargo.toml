@@ -21,7 +21,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 serde_yaml_ng = "0.10"
 indexmap = { version = "2", features = ["serde"] }
-ulid = "1"
+ulid = "3"
 time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
 
 # Crypto. Pure Rust: keeps static musl builds clean.
@@ -37,7 +37,7 @@ time = { version = "0.3", features = ["formatting", "parsing", "macros"] }
 # recipients optional ("MAY"), so the trade is an optional recipient type
 # against a known, unfixable weakness in an encryption tool's dependency
 # tree. `cargo deny` found it; see deny.toml.
-age = { version = "0.11", features = ["armor"] }
+age = { version = "0.12", features = ["armor"] }
 zeroize = "1"
 blake3 = "1"
 

@@ -75,7 +75,8 @@ pub fn now_rfc3339_utc() -> String {
 /// "exactly one identifier form is permitted" is enforced by there being
 /// exactly one way to make one.
 pub fn new_ulid() -> String {
-    ulid::Ulid::new().to_string()
+    // `generate` in ulid 3; it was `new` before 3.0.
+    ulid::Ulid::generate().to_string()
 }
 
 /// A filesystem timestamp as RFC 3339 in UTC, or `None` if it predates the
