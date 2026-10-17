@@ -110,6 +110,36 @@ jobs:
       - run: cargo build --workspace --locked
       - run: cargo test --workspace --locked
 
+  # The release builds for Windows and the README advertises it, but no job
+  # here ever compiled for it — so `signal_hook::iterator`, which is
+  # Unix-only, reached the release pipeline before anything noticed. This
+  # job is cheaper than finding that out from a failed release.
+  #
+  # It compiles rather than tests: the suite drives editors through
+  # `#!/bin/sh` scripts and sends signals with `kill`, so running it on
+  # Windows is a separate piece of work. Clippy covers the test code, which
+  # is where a platform-gated API is most easily missed.
+  windows:
+    name: Windows builds
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install components
+        run: rustup component add clippy
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: windows-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - run: cargo build --workspace --locked
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
   lint:
     name: clippy and rustfmt
     runs-on: ubuntu-24.04

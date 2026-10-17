@@ -16,7 +16,12 @@
 //! saves, one that changes nothing, and one that hangs.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Output};
+// Used only by the `#[cfg(unix)]` tests below, which drive a hanging
+// editor and then signal it.
+#[cfg(unix)]
+use std::process::Stdio;
+#[cfg(unix)]
 use std::time::{Duration, Instant};
 
 struct Repo {

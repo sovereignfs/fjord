@@ -438,43 +438,41 @@ impl SignalGuard {
     }
 }
 
-/// Shred `scratch` and release `lock` if SIGINT or SIGTERM arrives.
+/// Shred `scratch` and release `lock` if the session is interrupted.
 ///
 /// Spec §11.3: a client MUST remove temporary decrypted files when an
 /// external editing session ends. An interrupted session is still an ended
 /// one, and Ctrl-C during an edit is the most ordinary way for that to
-/// happen.
+/// happen — on every platform, which is why this is `ctrlc` and not
+/// `signal-hook`, whose iterator API is Unix-only. With `termination` it
+/// covers SIGINT, SIGTERM and SIGHUP on Unix, and Ctrl+C, Ctrl+Break and
+/// console-close on Windows.
 fn install_signal_handler(scratch: PathBuf, lock: PathBuf) -> SignalGuard {
-    use signal_hook::consts::{SIGINT, SIGTERM};
     use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
 
     let armed = Arc::new(AtomicBool::new(true));
     let watching = Arc::clone(&armed);
 
-    match signal_hook::iterator::Signals::new([SIGINT, SIGTERM]) {
-        Ok(mut signals) => {
-            std::thread::spawn(move || {
-                for _ in signals.forever() {
-                    if !watching.load(Ordering::SeqCst) {
-                        // The main path owns cleanup now.
-                        continue;
-                    }
-                    shred(&scratch);
-                    let _ = std::fs::remove_file(&lock);
-                    // 130 is the conventional code for a SIGINT death, and
-                    // the shell shows it as such.
-                    std::process::exit(130);
-                }
-            });
+    // Set once per process, which is all a CLI invocation needs.
+    match ctrlc::set_handler(move || {
+        if watching.load(Ordering::SeqCst) {
+            shred(&scratch);
+            let _ = std::fs::remove_file(&lock);
         }
+        // 130 is the conventional code for a SIGINT death, and the shell
+        // shows it as such. Exiting either way: once the handler is
+        // installed, nothing else is going to stop the process.
+        std::process::exit(130);
+    }) {
+        Ok(()) => {}
         Err(err) => {
-            // Not fatal: the session can still proceed, but the user should
-            // know that an interruption will leave plaintext behind.
+            // Not fatal: the session can still proceed, but the user
+            // should know that an interruption will leave plaintext
+            // behind.
             eprintln!(
                 "warning: could not install a signal handler ({err}); interrupting this \
-                 session may leave the decrypted file at {}",
-                scratch.display()
+                 session may leave the decrypted file behind"
             );
         }
     }

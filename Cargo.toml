@@ -58,7 +58,12 @@ owo-colors = "4"
 # removed when an editing session ends (§11.3), and std has no API for
 # installing a handler. Not in CLAUDE.md's table because the table has no
 # row for this need.
-signal-hook = "0.4"
+#
+# `ctrlc` rather than `signal-hook`, which was used first: signal-hook's
+# iterator API is Unix-only, so the Windows build did not compile at all —
+# and §11.3's requirement is not a Unix requirement. `termination` extends
+# it from Ctrl+C to SIGTERM and SIGHUP, and to console-close on Windows.
+ctrlc = { version = "3", features = ["termination"] }
 
 [profile.release]
 strip = true
