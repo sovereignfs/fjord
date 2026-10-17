@@ -657,6 +657,36 @@ says `spec/SPEC.md` is vendored from `fjord-spec` and "never edit it here";
 the upstream is not in this tree, so the same §8.3 edit has to be made
 there or the next sync will silently revert it.
 
+## `generator` is opt-in
+
+`fjord.json`'s `generator` field — "Tool and version that created the
+repository", optional in spec §3 — is no longer written by default.
+`fjord init --record-generator` writes it, and the value is now `fjord
+<version>` rather than `fjord-init <version>`.
+
+Nothing in Fjord ever read it, and it had three weaknesses worth acting on:
+
+- **It is a fingerprint.** It names the tool and its exact version to
+  anyone who can read the repository, including the git host, and §11.2's
+  list of what an encrypted repository leaves visible did not mention it.
+  For a tool that is explicit about what it leaks, that was an omission, so
+  §11.2 now lists it and §3 says clients SHOULD NOT record it unless asked.
+- **It goes stale.** It is written once by `init`; `vault add`, `sync` and
+  `rekey` never touch it, so a repository created by 0.1.0 and written to by
+  a later release still claims 0.1.0. It names the creator, not the last
+  tool to touch the repository, which is rarely the thing you want to know.
+- **The name was wrong.** `fjord-init` is a subcommand, not the binary, and
+  nothing else ever used it; it was copied from the spec's example.
+
+Opt-in rather than removal keeps the one legitimate use — diagnosing which
+version made a repository, which would have helped with the lowercase
+identifier change — for anyone who wants it. A test asserts that `vault add`
+does not start writing the field into a repository that chose not to have
+it, since it rewrites `fjord.json` through the parsed map.
+
+**The vendored spec is changed here and upstream needs the same edit**: the
+§3 table row and example value, and the new §11.2 bullet.
+
 ## Licence
 
 **MPL-2.0**, chosen deliberately over the alternatives and over the

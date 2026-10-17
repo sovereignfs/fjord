@@ -73,7 +73,10 @@ pub fn run(args: &InitArgs, global: &GlobalArgs) -> Result<ExitCode> {
     let settings = Settings {
         name: name.clone(),
         encrypt_private: encrypt,
-        generator: concat!("fjord-init ", env!("CARGO_PKG_VERSION")).to_string(),
+        // `fjord`, not `fjord-init`: the binary's name, not a subcommand's.
+        generator: args
+            .record_generator
+            .then(|| concat!("fjord ", env!("CARGO_PKG_VERSION")).to_string()),
     };
 
     let plan = scaffold::plan(&settings);

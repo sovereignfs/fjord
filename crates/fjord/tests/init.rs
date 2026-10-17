@@ -513,3 +513,73 @@ fn every_identifier_fjord_writes_is_lowercase() {
     let verify = fjord(&["-C", &target.to_string_lossy(), "verify"]);
     assert_eq!(code_of(&verify), 0, "{}", stdout_of(&verify));
 }
+
+// --- The generator field ----------------------------------------------------
+
+fn manifest_of(root: &Path) -> Value {
+    let text = match std::fs::read_to_string(root.join("fjord.json")) {
+        Ok(text) => text,
+        Err(err) => panic!("read fjord.json: {err}"),
+    };
+    match serde_json::from_str(&text) {
+        Ok(value) => value,
+        Err(err) => panic!("fjord.json is not JSON: {err}"),
+    }
+}
+
+/// The field names the tool and its exact version to anyone who can read the
+/// repository, including the git host, and spec §11.2 does not otherwise
+/// list that as visible. So a default `init` must not write it.
+#[test]
+fn init_does_not_record_the_generator_by_default() {
+    let temp = temp();
+    let target = temp.path().join("x");
+    assert_eq!(code_of(&fjord(&["init", &target.to_string_lossy()])), 0);
+
+    let manifest = manifest_of(&target);
+    assert!(
+        manifest.get("generator").is_none(),
+        "generator was written without being asked: {manifest}"
+    );
+    // Nor does the version leak some other way.
+    let text = std::fs::read_to_string(target.join("fjord.json")).expect("read");
+    assert!(!text.contains("0.1.0"), "{text}");
+
+    // Optional means optional: the repository still conforms.
+    assert_eq!(
+        code_of(&fjord(&["-C", &target.to_string_lossy(), "verify"])),
+        0
+    );
+}
+
+#[test]
+fn record_generator_writes_the_binary_name_and_version() {
+    let temp = temp();
+    let target = temp.path().join("x");
+    let init = fjord(&["init", &target.to_string_lossy(), "--record-generator"]);
+    assert_eq!(code_of(&init), 0, "{}", stderr_of(&init));
+
+    // `fjord`, which is what the binary is called — not `fjord-init`, which
+    // is a subcommand and was only ever in the spec's example.
+    assert_eq!(
+        manifest_of(&target)["generator"],
+        Value::from(concat!("fjord ", env!("CARGO_PKG_VERSION")))
+    );
+    assert_eq!(
+        code_of(&fjord(&["-C", &target.to_string_lossy(), "verify"])),
+        0
+    );
+}
+
+#[test]
+fn other_commands_never_add_the_field_to_an_existing_manifest() {
+    // `vault add` rewrites fjord.json through the parsed map. It must not
+    // start recording a generator on a repository that chose not to.
+    let temp = temp();
+    let target = temp.path().join("x");
+    assert_eq!(code_of(&fjord(&["init", &target.to_string_lossy()])), 0);
+    let added = fjord(&["-C", &target.to_string_lossy(), "vault", "add", "Extra"]);
+    assert_eq!(code_of(&added), 0, "{}", stderr_of(&added));
+
+    assert!(manifest_of(&target).get("generator").is_none());
+}

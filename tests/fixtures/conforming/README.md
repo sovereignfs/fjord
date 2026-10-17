@@ -102,7 +102,6 @@ The repository manifest. Plaintext, at the root.
   "id": "01jagc4k7pqw2xn8rvty5zb3md",
   "name": "Fjord",
   "createdAt": "2026-10-16T09:34:00Z",
-  "generator": "fjord-init 0.1.0",
   "vaults": [
     { "path": "Public",  "id": "01jagc4k7pr9tbm3ykwx6zq2hv" },
     { "path": "Private", "id": "01jagc4k7psd5vnz8qmt3yxb4k" }
@@ -116,7 +115,7 @@ The repository manifest. Plaintext, at the root.
 | `id` | yes | ULID for the repository. Stable for its lifetime. |
 | `name` | yes | Display name. Free text. |
 | `createdAt` | yes | RFC 3339 timestamp, UTC. |
-| `generator` | no | Tool and version that created the repository. |
+| `generator` | no | Tool and version that created the repository. Not written unless asked for: it tells anyone who can read the repository which version you run. |
 | `vaults` | yes | Array of `{ path, id }`. `path` is relative to the root. |
 
 Unknown fields must be preserved when rewriting this file.
@@ -378,6 +377,8 @@ Visible to anyone who can read the repository, encrypted or not:
   that one specific document was edited forty times is observable.
 - **The recipient public keys**, and therefore how many devices you use.
 - **The commit author name and email**, if you set them.
+- **The `generator` field** of `fjord.json`, if it is there: it names the
+  tool and its exact version. `fjord init` does not write it unless you ask.
 
 If that is more than you want to leak, the available moves are
 `fileNaming: "id"`, keeping sensitive material in a vault whose directory

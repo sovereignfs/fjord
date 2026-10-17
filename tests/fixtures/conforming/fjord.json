@@ -3,7 +3,7 @@
   "id": "01jagc4k7pqw2xn8rvty5zb3md",
   "name": "Fjord",
   "createdAt": "2026-10-16T09:34:00Z",
-  "generator": "fjord-init 0.1.0",
+  "generator": "fjord 0.1.0",
   "vaults": [
     {
       "path": "Public",

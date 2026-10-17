@@ -118,7 +118,7 @@ Plaintext, at the repository root, UTF-8, no BOM.
   "id": "01jagc4k7pqw2xn8rvty5zb3md",
   "name": "Fjord",
   "createdAt": "2026-10-16T09:34:00Z",
-  "generator": "fjord-init 0.1.0",
+  "generator": "fjord 0.1.0",
   "vaults": [
     { "path": "Public",  "id": "01jagc4k7pr9tbm3ykwx6zq2hv" },
     { "path": "Private", "id": "01jagc4k7psd5vnz8qmt3yxb4k" }
@@ -132,7 +132,7 @@ Plaintext, at the repository root, UTF-8, no BOM.
 | `id` | ULID | yes | Identifies the repository. Immutable. |
 | `name` | string | yes | Display label. |
 | `createdAt` | RFC 3339 | yes | MUST be UTC, with `Z`. |
-| `generator` | string | no | Tool and version that created the repository. |
+| `generator` | string | no | Tool and version that created the repository. Clients SHOULD NOT record it unless asked: it names the tool and its exact version to anyone who can read the repository (§11.2). |
 | `vaults` | array | yes | Objects with `path` (relative, no `..`, no leading `/`) and `id` matching that vault's own `id`. |
 
 ---
@@ -467,6 +467,8 @@ To anyone who can read the repository, including the Git host:
   editing history of one specific document is observable.
 - The **recipient public keys**, and therefore the number of devices.
 - The **commit author** name and email.
+- The **`generator`** field of `fjord.json`, if one was recorded, which names
+  the tool and its exact version.
 
 Implementations MUST NOT describe an encrypted vault in terms that imply
 metadata protection it does not provide.
