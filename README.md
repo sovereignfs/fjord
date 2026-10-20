@@ -681,6 +681,8 @@ Fjord warns if an identity file is readable by other users.
 
 ## Changed since 0.1.0
 
+The full history of every release is in [CHANGELOG.md](CHANGELOG.md).
+
 **Identifiers are now lowercase** (spec §8.3). 0.1.0 wrote them uppercase,
 so a repository it created does not conform to the current format, and
 `fjord verify` says so — with a message that names the old spelling, so it

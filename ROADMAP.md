@@ -878,20 +878,53 @@ failures were gaps in what was checked before tagging, not in the pipeline.
    `This workspace doesn't have anything for dist to Release! … --tag=v0.1.0
    will Announce: fjord-cli`. Nothing was published.
 
+### The changelog is the release notes
+
+`CHANGELOG.md` follows Keep a Changelog, and each version's section is the
+body of its GitHub release: `dist` reads the file at the tagged commit,
+extracts the section whose heading matches the version, and puts it above the
+install and download tables. It was checked by running `dist plan` and
+reading `announcement_changelog` rather than assumed, and what it was found
+to do is worth knowing:
+
+- **It extracts exactly one section** and stops at the next heading, so
+  older releases' notes do not leak into newer ones.
+- **It fails silently without one.** With no section for the version, `dist
+  plan` exits 0, reports no changelog, and produces the generic notes. That
+  is why the checklist has an explicit check and not just a reminder.
+- **It titles the release from the heading**, so a release cut now is called
+  `0.1.2 - 2026-10-20` where `v0.1.0`, `v0.1.1` and `v0.1.2` were called by
+  their tags. That is cosmetic and was left alone; the published releases'
+  titles were not rewritten.
+
+The 0.1.0 and 0.1.1 sections were written afterwards from the git history, so
+they are summaries and not contemporary notes. `[Unreleased]` is kept empty
+at the top for the next entries.
+
 ### Release checklist
 
 The second failure has a mechanical answer, and it is a checklist because
 the order matters.
 
-1. Bump the version in **both** places: `workspace.package.version` in the
+1. **Write the release's section in `CHANGELOG.md`**, under a heading of the
+   form `## [X.Y.Z] - YYYY-MM-DD`. That section is the GitHub release notes:
+   `dist` reads the file at the tagged commit, so it has to be committed
+   *before* the tag. Say plainly what changes for a user, and call out
+   anything that can make a previously-passing repository fail.
+2. Bump the version in **both** places: `workspace.package.version` in the
    root `Cargo.toml`, and the `fjord-core` dependency's `version` in
    `crates/fjord/Cargo.toml`. Changing only one fails the build.
-2. `cargo build`, so `Cargo.lock` follows.
-3. **`dist plan --tag=vX.Y.Z`** must print `announcing vX.Y.Z` and list the
+3. `cargo build`, so `Cargo.lock` follows.
+4. **`dist plan --tag=vX.Y.Z`** must print `announcing vX.Y.Z` and list the
    installers. This is the same check the pipeline's `plan` job runs, so it
    fails here, locally, in the way that failed in CI.
-4. Commit, push, and wait for CI to be green **on that commit**.
-5. Only then tag that commit and push the tag.
+5. **Check the notes were found:**
+   `dist plan --tag=vX.Y.Z --output-format=json | jq -e .announcement_changelog >/dev/null`
+   must exit 0. This step exists because `dist` fails *silently* without a
+   section: exit 0, no error, and generic install-instructions-only notes.
+   Nothing else would notice a release going out with no notes.
+6. Commit, push, and wait for CI to be green **on that commit**.
+7. Only then tag that commit and push the tag.
 
 Not every `0.1.0` in the tree is the crate version. The README's "Changed
 since 0.1.0" and the ROADMAP's history are about what 0.1.0 *did*, and the
@@ -909,7 +942,7 @@ so it touched nothing on the machine. The binary it installed reported
 
 No release script exists, and the third release has now been cut without
 one. It went smoothly because it was done carefully by hand, which is the
-argument for a script and not against: steps 1–3 are still things to
+argument for a script and not against: steps 2–5 are still things to
 remember. Worth writing before the next release.
 
 ## Documentation defects
