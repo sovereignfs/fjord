@@ -12,6 +12,23 @@ tagging it.
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-20
+
+### Changed
+
+- **Release archives now include `CHANGELOG.md`**, beside the README and the
+  licence, so the history travels with the binary. The README links to it.
+
+### Notes
+
+- **There are no code changes in this release.** The `fjord` binary, the
+  repository format and every command behave exactly as they did in 0.1.2,
+  and repositories are unaffected; the only difference in the binary is the
+  version it reports, and so the `generator` that `fjord init` records. This
+  release exists to ship the changelog in the archives, and it is the first
+  cut with `scripts/release.sh`, which now handles the version bump, the
+  checks and the tag.
+
 ## [0.1.2] - 2026-10-20
 
 An encrypted vault can now be created ready to use, in one command. There is
@@ -115,7 +132,8 @@ First release.
   conforming.
 - Building from source needs Rust 1.88 or newer.
 
-[Unreleased]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/sovereignfs/fjord-cli/releases/tag/v0.1.0
