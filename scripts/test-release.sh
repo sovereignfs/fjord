@@ -319,7 +319,9 @@ fi
 # the v0.1.2 release, so they cannot publish anything.
 
 printf '\nwaiting on GitHub: against the real v0.1.2 runs\n'
-RELEASED_SHA=$(cd "$ROOT" && git rev-parse -q --verify "refs/tags/v0.1.2^{commit}" 2>/dev/null || true)
+# `git -C` rather than `cd ... && git ... || true`: that shape is `A && B || C`,
+# which is not if/else, and the older shellcheck on the CI runners flags it.
+RELEASED_SHA=$(git -C "$ROOT" rev-parse -q --verify "refs/tags/v0.1.2^{commit}" 2>/dev/null || true)
 if gh auth status >/dev/null 2>&1 && [ -n "$RELEASED_SHA" ]; then
   # In a subshell: sourcing installs the script's EXIT trap and `set -e`.
   gh_call() {
