@@ -288,6 +288,14 @@ pub enum VaultCommand {
         /// Name files by ULID instead of by title. Requires --encrypted.
         #[arg(long)]
         id_naming: bool,
+
+        /// An age public key to register as a recipient, so the vault is
+        /// writable immediately. Repeat for several. Requires --encrypted.
+        ///
+        /// A *public* key (`age1…`), never an identity: a secret key given
+        /// here would be in your shell history.
+        #[arg(long, value_name = "KEY")]
+        recipient: Vec<String>,
     },
 
     /// List vaults.

@@ -190,22 +190,39 @@ pub fn plan(settings: &Settings) -> Plan {
 /// The files a new vault consists of. Spec §2.3, §4.
 ///
 /// Paths are relative to the vault's own directory, so the caller decides
-/// where it goes.
+/// where it goes. `recipients` are written into the recipients file of an
+/// encrypted vault, which makes it writable straight away: §6.2 makes a
+/// vault with none valid and unwritable, and `fjord verify` warns about it.
+/// They are **not validated here** — the caller has already done that, with
+/// [`crate::crypto::check_recipient`], before anything reaches the disk —
+/// and they are ignored for a plaintext vault, which has no such file.
 pub fn vault_files(
     name: &str,
     id: &str,
     created_at: &str,
     encrypted: bool,
     file_naming: &str,
+    recipients: &[String],
 ) -> Vec<PlannedFile> {
     let mut files = vec![PlannedFile {
         path: VAULT_MANIFEST.to_string(),
         contents: vault_manifest_with(name, id, created_at, encrypted, file_naming),
     }];
     if encrypted {
+        let mut contents = RECIPIENTS.to_string();
+        if !recipients.is_empty() {
+            // The same shape as the conforming fixture: the instructions,
+            // a blank line, then one key per line.
+            contents = contents.trim_end().to_string();
+            contents.push_str("\n\n");
+            for recipient in recipients {
+                contents.push_str(recipient.trim());
+                contents.push('\n');
+            }
+        }
         files.push(PlannedFile {
             path: CONVENTIONAL_RECIPIENTS_FILE.to_string(),
-            contents: RECIPIENTS.to_string(),
+            contents,
         });
         files.push(PlannedFile {
             path: ".gitignore".to_string(),

@@ -7,7 +7,7 @@
 use crate::cli::{ExitCode, GlobalArgs, VaultCommand};
 use crate::cmd::{ensure_writable, find_root, plural, usage, Style};
 use anyhow::{Context, Result};
-use fjord_core::{manifest::Manifest, path as rules, scaffold, scalar, store, vault};
+use fjord_core::{crypto, manifest::Manifest, path as rules, scaffold, scalar, store, vault};
 
 pub fn run(command: &VaultCommand, global: &GlobalArgs) -> Result<ExitCode> {
     match command {
@@ -15,15 +15,50 @@ pub fn run(command: &VaultCommand, global: &GlobalArgs) -> Result<ExitCode> {
             name,
             encrypted,
             id_naming,
-        } => add(name, *encrypted, *id_naming, global),
+            recipient,
+        } => add(name, *encrypted, *id_naming, recipient, global),
         VaultCommand::List => list(global),
     }
 }
 
-fn add(name: &str, encrypted: bool, id_naming: bool, global: &GlobalArgs) -> Result<ExitCode> {
+fn add(
+    name: &str,
+    encrypted: bool,
+    id_naming: bool,
+    recipients: &[String],
+    global: &GlobalArgs,
+) -> Result<ExitCode> {
     let root = find_root(global.repo.as_deref())?;
     if let Some(code) = ensure_writable(&root)? {
         return Ok(code);
+    }
+
+    // A plaintext vault has no recipients file, so accepting a key would
+    // quietly do nothing — and the user would believe it was protected.
+    if !recipients.is_empty() && !encrypted {
+        return Ok(usage(
+            "--recipient needs --encrypted: a plaintext vault has no recipients, so the \
+             key would be dropped and the vault left readable by everyone",
+        ));
+    }
+
+    // Every key is checked before anything is written. A vault created with
+    // some of its keys is the worst result: it looks usable, and the keys
+    // that are missing are the ones that fail later, on someone else's
+    // machine.
+    let mut accepted: Vec<String> = Vec::new();
+    for recipient in recipients {
+        if let Err(reason) = crypto::check_recipient(recipient) {
+            return Ok(usage(format!(
+                "{}: {reason}. Nothing was created",
+                crypto::display_safe(recipient)
+            )));
+        }
+        // The same key twice is harmless to age and pointless to store.
+        let recipient = recipient.trim().to_string();
+        if !accepted.contains(&recipient) {
+            accepted.push(recipient);
+        }
     }
 
     // §7.2: identifier names on a plaintext vault conceal nothing and
@@ -60,7 +95,7 @@ fn add(name: &str, encrypted: bool, id_naming: bool, global: &GlobalArgs) -> Res
     let id = scalar::new_ulid();
     let created_at = scalar::now_rfc3339_utc();
     let file_naming = if id_naming { "id" } else { "plain" };
-    let files = scaffold::vault_files(name, &id, &created_at, encrypted, file_naming);
+    let files = scaffold::vault_files(name, &id, &created_at, encrypted, file_naming, &accepted);
 
     // The manifest is rewritten first: a vault on disk that `fjord.json`
     // does not list is only a warning (W601), while a manifest listing a
@@ -80,6 +115,29 @@ fn add(name: &str, encrypted: bool, id_naming: bool, global: &GlobalArgs) -> Res
     }
     std::fs::write(&manifest_path, rewritten).context("could not write fjord.json")?;
 
+    if global.json {
+        // The same facts `vault list --json` reports, plus what was just
+        // made: the id, the recipients actually registered, and the files.
+        let document = serde_json::json!({
+            "path": name,
+            "name": name,
+            "id": id,
+            "encrypted": encrypted,
+            "fileNaming": file_naming,
+            "container": if id_naming { "tar" } else { "none" },
+            "recipients": accepted,
+            "files": files
+                .iter()
+                .map(|file| format!("{name}/{}", file.path))
+                .collect::<Vec<String>>(),
+        });
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&document).unwrap_or_else(|_| "{}".to_string())
+        );
+        return Ok(ExitCode::Ok);
+    }
+
     if !global.quiet {
         let style = Style::detect();
         let shape = match (encrypted, id_naming) {
@@ -87,13 +145,25 @@ fn add(name: &str, encrypted: bool, id_naming: bool, global: &GlobalArgs) -> Res
             (true, false) => "encrypted".to_string(),
             (true, true) => "encrypted, named by id".to_string(),
         };
-        println!("  {} {name}  {}", style.good("created"), style.dim(&shape));
+        let keys = if encrypted && !accepted.is_empty() {
+            format!(" · {}", plural(accepted.len(), "recipient", "recipients"))
+        } else {
+            String::new()
+        };
+        println!(
+            "  {} {name}  {}",
+            style.good("created"),
+            style.dim(&format!("{shape}{keys}"))
+        );
         println!("  {} {id}", style.dim("id"));
-        if encrypted {
+        // Only when there is something to say: a vault created with its
+        // keys is ready, and a hint to add one would be wrong.
+        if encrypted && accepted.is_empty() {
             println!();
             println!("  It has no recipients yet, so nothing can be written to it:");
             println!();
             println!("      fjord key add <public-key> --vault {name}");
+            println!("  or create it with its keys: --recipient <public-key>");
         }
     }
 

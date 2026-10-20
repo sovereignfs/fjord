@@ -660,6 +660,60 @@ says `spec/SPEC.md` is vendored from `fjord-spec` and "never edit it here";
 the upstream is not in this tree, so the same §8.3 edit has to be made
 there or the next sync will silently revert it.
 
+## `vault add`: one step, `--json`, and a validation bug it found
+
+`fjord vault add` gained `--recipient <key>` (repeatable) and honours the
+global `--json`. An encrypted vault can now be created ready to use: before
+this it was born unwritable, `verify` warned `W602`, and the user had to run
+`fjord key add` separately.
+
+Decisions worth recording:
+
+- **Validate everything, then write.** Every key is checked before a
+  directory exists, so a bad one refuses the whole command and leaves nothing
+  behind. A vault created with *some* of its keys is the worst outcome: it
+  looks usable, and the missing ones fail later on someone else's machine.
+  A test asserts a refused command leaves `fjord.json` byte-identical.
+- **`--recipient` on a plaintext vault is refused**, not ignored: it would be
+  dropped and the user would believe the vault protected.
+- **`--json` writes the JSON and nothing else.** A refusal under `--json`
+  leaves stdout empty and puts the error on stderr, so a script never parses
+  prose.
+- **A secret key is never echoed.** Someone will paste an identity where a
+  public key was wanted. `crypto::display_safe` redacts it, the message says
+  to treat it as exposed, and a test asserts the value appears nowhere in
+  stdout or stderr. `key add` had the same hole — it printed its argument
+  back — and is fixed too.
+
+**The bug it found: recipients were validated by shape only.**
+`classify_recipient` checked prefix, length and alphabet, so a key with one
+mistyped character — which keeps all three and fails the bech32 checksum —
+was classified as usable. The consequences compounded: `key add` accepted
+it, `verify` counted it as a recipient and reported **0 errors, 0 warnings**
+(suppressing `W602`, too), and the next `fjord new` failed with `invalid
+Bech32 encoding`. It is fixed once, in the classifier, so `key add`, `verify`
+(now `E209`) and `vault add` all agree. `key add` also used to accept SSH
+recipients that this build then could not encrypt to; it now refuses them
+with the same reason `vault add` gives.
+
+Not built, deliberately: a `--self` flag that derives the public key from your
+identity. It would be convenient, but it makes the command read a secret to
+save pasting a public key, and `fjord key list` already prints the key.
+
+### `cargo deny` found a new advisory, and a stale ignore
+
+`basic-toml` (RUSTSEC-2026-0374) is newly flagged unmaintained. It is
+ignored, with the reason on record, because it is reached only through
+proc-macro crates and so never linked — established from `cargo metadata`'s
+target kinds. A binary symbol search was also run, and its result is
+recorded as corroboration only: its positive control was mixed (`age_core`,
+definitely linked, leaves no symbols), which is exactly why the structural
+argument is the one relied on.
+
+The check also showed the `RUSTSEC-2026-0173` ignore had gone **stale** when
+age 0.12 moved to `proc-macro-error3`. It was removed: a stale ignore would
+silently waive the advisory if that crate ever returned.
+
 ## `generator`
 
 `fjord.json`'s `generator` field — "Tool and version that created the

@@ -306,7 +306,14 @@ pub fn classify_recipient(line: &str) -> Option<RecipientKind> {
     if let Some(data) = trimmed.strip_prefix("age1") {
         let well_formed =
             trimmed.len() == X25519_LENGTH && data.bytes().all(|byte| BECH32.contains(&byte));
-        if well_formed {
+        // Shape alone is not enough, and for a long time it was all this
+        // checked. A bech32 string carries a checksum, so one mistyped
+        // character leaves a key with exactly the right length and
+        // alphabet that no one can encrypt to — which `key add` then
+        // accepted, `verify` counted as a usable recipient and reported
+        // clean, and `new` later failed on with "invalid Bech32 encoding".
+        // Parsing it is the only honest test.
+        if well_formed && trimmed.parse::<age::x25519::Recipient>().is_ok() {
             return Some(RecipientKind::X25519);
         }
     }
@@ -441,9 +448,24 @@ mod tests {
 
     #[test]
     fn classifies_an_x25519_recipient() {
-        let key = format!("age1{}", "q".repeat(X25519_LENGTH - 4));
+        let key = crate::crypto::generate_identity().recipient;
         assert_eq!(key.len(), X25519_LENGTH);
         assert_eq!(classify_recipient(&key), Some(RecipientKind::X25519));
+    }
+
+    #[test]
+    fn a_key_with_the_right_shape_but_a_bad_checksum_is_malformed() {
+        // Right prefix, right length, right alphabet — and not a key. This
+        // is what one mistyped character in a real key looks like, and it
+        // used to be classified as usable.
+        let key = format!("age1{}", "q".repeat(X25519_LENGTH - 4));
+        assert_eq!(key.len(), X25519_LENGTH);
+        assert_eq!(classify_recipient(&key), Some(RecipientKind::Malformed));
+
+        let mut typo = crate::crypto::generate_identity().recipient;
+        let last = typo.pop().expect("a character");
+        typo.push(if last == 'q' { 'p' } else { 'q' });
+        assert_eq!(classify_recipient(&typo), Some(RecipientKind::Malformed));
     }
 
     #[test]

@@ -60,6 +60,72 @@ pub enum Error {
     Io(#[from] std::io::Error),
 }
 
+/// Why an SSH recipient is refused. One text, because it is said in three
+/// places and they must agree.
+const SSH_UNSUPPORTED: &str = "SSH recipients are not supported by this build, which links \
+    no RSA implementation on purpose (RUSTSEC-2023-0071). A vault using them is still \
+    conforming; use `age1…` recipients instead, and `fjord rekey` an existing vault to them";
+
+/// Whether `text` is a secret key, which must never be echoed.
+fn is_secret_key(text: &str) -> bool {
+    text.trim()
+        .to_ascii_uppercase()
+        .starts_with("AGE-SECRET-KEY-")
+}
+
+/// `text` as it is safe to show in a message.
+///
+/// A secret key pasted where a public one was expected is a real mistake,
+/// and an error message that repeats its argument would print it — into a
+/// terminal's scrollback and into whatever log captured the command.
+pub fn display_safe(text: &str) -> String {
+    if is_secret_key(text) {
+        "(a secret key, not shown)".to_string()
+    } else {
+        text.trim().to_string()
+    }
+}
+
+/// Whether `text` can be the recipient of a vault, and if not, why. Spec
+/// §6.2.
+///
+/// For a caller holding a single recipient — `key add`, `vault add
+/// --recipient` — as opposed to a whole file, which [`parse_recipients`]
+/// reads. The reasons are written to follow the value in a message:
+/// `"<key>: <reason>"`.
+pub fn check_recipient(text: &str) -> Result<(), String> {
+    use manifest::{classify_recipient, RecipientKind};
+
+    if is_secret_key(text) {
+        return Err(
+            "that is a secret key, and this takes a public one. A secret key must never be \
+             passed as an argument — it is now in your shell history, so treat it as exposed. \
+             The public key is the `age1…` line: `fjord key list`, or `age-keygen -y <file>`"
+                .to_string(),
+        );
+    }
+
+    match classify_recipient(text) {
+        Some(RecipientKind::X25519) => Ok(()),
+        Some(RecipientKind::Ssh) => Err(SSH_UNSUPPORTED.to_string()),
+        Some(RecipientKind::Passphrase) => Err(
+            "a passphrase recipient is not permitted in a vault (spec §6.2): age refuses to \
+             combine one with any other recipient, and a passphrase-encrypted vault is a \
+             different threat model"
+                .to_string(),
+        ),
+        Some(RecipientKind::Malformed) if text.trim().starts_with("age1") => Err(
+            "looks like an age public key but does not check out — a character is probably \
+             mistyped or missing"
+                .to_string(),
+        ),
+        Some(RecipientKind::Malformed) => {
+            Err("not an age recipient; expected an `age1…` public key".to_string())
+        }
+        None => Err("not a recipient: it is empty or a comment".to_string()),
+    }
+}
+
 /// Recipients a payload will be encrypted to.
 ///
 /// Every file is encrypted to **all** of them, so any one identity can read
@@ -125,11 +191,7 @@ pub fn parse_recipients(text: &str) -> Result<Recipients, Error> {
             RecipientKind::Ssh => {
                 return Err(Error::Recipient {
                     line: line.number,
-                    reason: "SSH recipients are not supported by this build, which links \
-                             no RSA implementation on purpose (RUSTSEC-2023-0071). The \
-                             vault is still conforming; convert it to `age1…` recipients \
-                             with `fjord key add`, then `fjord rekey`"
-                        .to_string(),
+                    reason: SSH_UNSUPPORTED.to_string(),
                 })
             }
             RecipientKind::Passphrase => {
@@ -457,6 +519,52 @@ mod tests {
             }
             other => panic!("expected a refusal, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn one_recipient_can_be_checked_on_its_own() {
+        let key = generate_identity().recipient;
+        assert!(check_recipient(&key).is_ok());
+        assert!(check_recipient(&format!("  {key}  ")).is_ok());
+
+        // Each way of being wrong says something different.
+        let typo = format!("age1{}", "q".repeat(58));
+        let reason = check_recipient(&typo).expect_err("a bad checksum");
+        assert!(reason.contains("mistyped"), "{reason}");
+
+        let reason = check_recipient("not a key").expect_err("rubbish");
+        assert!(reason.contains("age1"), "{reason}");
+
+        let reason = check_recipient("passphrase").expect_err("passphrase");
+        assert!(reason.contains("§6.2"), "{reason}");
+
+        let reason = check_recipient("ssh-ed25519 AAAAC3Nza user@host").expect_err("ssh");
+        assert!(reason.contains("RUSTSEC-2023-0071"), "{reason}");
+
+        assert!(check_recipient("").is_err());
+        assert!(check_recipient("# a comment").is_err());
+    }
+
+    #[test]
+    fn a_secret_key_is_refused_and_never_echoed() {
+        // Someone will paste an identity where a public key was wanted. The
+        // refusal has to tell them it is exposed, and `display_safe` is what
+        // keeps a caller from printing it back.
+        let secret = generate_identity().secret.as_str().to_string();
+        let reason = check_recipient(&secret).expect_err("a secret key");
+        assert!(reason.contains("secret key"), "{reason}");
+        assert!(reason.contains("exposed"), "{reason}");
+        assert!(!reason.contains(&secret), "the reason repeated the key");
+
+        assert_eq!(display_safe(&secret), "(a secret key, not shown)");
+        assert!(!display_safe(&secret).contains("AGE-SECRET-KEY"));
+        // Case does not hide it.
+        assert_eq!(
+            display_safe(&secret.to_ascii_lowercase()),
+            "(a secret key, not shown)"
+        );
+        // And an ordinary value is shown as it is.
+        assert_eq!(display_safe("  age1abc  "), "age1abc");
     }
 
     #[test]

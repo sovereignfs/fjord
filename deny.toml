@@ -48,11 +48,26 @@ frontmatter keys and their order survive a round trip), which is a change
 worth making deliberately and not in passing. Tracked in ROADMAP.md.
 """ },
 
-  { id = "RUSTSEC-2026-0173", reason = """
-`proc-macro-error2` is unmaintained. It is a build-time proc-macro
-dependency of `i18n-embed-fl`, which `age` uses for its error messages, so
-no part of it reaches the shipped binary. Nothing to do here but wait for
-`age` to move, and notice if it does not.
+  { id = "RUSTSEC-2026-0374", reason = """
+`basic-toml` is unmaintained, with no safe upgrade. It is reached only through
+`i18n-config`, which `age` uses (via `i18n-embed`) for its error messages.
+
+Build-time only, and this was checked rather than assumed. The sole
+dependents of `i18n-config` are `i18n-embed-fl` and `i18n-embed-impl`, and
+both are proc-macro crates: Cargo compiles those for the host and loads them
+into rustc, and they are never linked into the binary. `cargo metadata`
+reports their target kind as `proc-macro`. (Symbol searches of the binary
+also find nothing, but that corroborates rather than proves: `age_core`, which
+is definitely linked, leaves no symbols of its own either.)
+
+It parses `i18n.toml` at *compile* time, from `age`'s own source, so it never
+sees input from outside. Nothing to do but wait for `age` to move, and notice
+if the shape of that dependency changes.
+
+This replaces an earlier ignore for RUSTSEC-2026-0173 (`proc-macro-error2`),
+which went stale when age 0.12 moved to `proc-macro-error3`. A stale ignore
+would silently waive the advisory if that crate ever returned, so it was
+removed rather than left.
 """ },
 ]
 

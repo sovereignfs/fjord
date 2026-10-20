@@ -129,22 +129,15 @@ fn add(recipient: &str, vault_name: &str, global: &GlobalArgs) -> Result<ExitCod
     };
 
     // Validated before it is written: a recipients file that `fjord verify`
-    // would reject is not an improvement on one with a key missing.
-    match manifest::classify_recipient(recipient) {
-        Some(RecipientKind::X25519) | Some(RecipientKind::Ssh) => {}
-        Some(RecipientKind::Passphrase) => {
-            return Ok(usage(
-                "a passphrase recipient is not permitted in a vault (spec §6.2): age \
-                 refuses to combine one with any other recipient, and a \
-                 passphrase-encrypted vault is a different threat model",
-            ))
-        }
-        Some(RecipientKind::Malformed) | None => {
-            return Ok(usage(format!(
-                "{recipient} is not an age recipient. Expected an `age1…` public key, \
-                 or an `ssh-ed25519`/`ssh-rsa` line"
-            )))
-        }
+    // would reject is not an improvement on one with a key missing — and one
+    // that `verify` *accepts* but nothing can encrypt to is worse. The value
+    // is shown through `display_safe`, because someone will paste an
+    // identity here and an error that repeats its argument would print it.
+    if let Err(reason) = crypto::check_recipient(recipient) {
+        return Ok(usage(format!(
+            "{}: {reason}",
+            crypto::display_safe(recipient)
+        )));
     }
 
     let path = match vault.recipients_file() {

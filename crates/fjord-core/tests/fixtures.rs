@@ -532,3 +532,34 @@ fn copy_directory(from: &Path, to: &Path) {
         }
     }
 }
+
+// --- A recipient that looks right and is not -------------------------------
+
+/// `verify` used to check a recipient's shape only: prefix, length and
+/// alphabet. One mistyped character leaves all three intact and breaks the
+/// checksum, so a vault nothing could encrypt to was reported with 0 errors
+/// and 0 warnings — and counted as having a usable recipient, which also
+/// suppressed W602.
+#[test]
+fn a_recipient_whose_checksum_fails_is_reported_not_counted() {
+    let temp = tempfile::tempdir().expect("temporary directory");
+    copy_directory(&fixtures().join("conforming"), temp.path());
+
+    let path = temp.path().join("Private/recipients.txt");
+    let mut text = fs::read_to_string(&path).expect("read");
+    // Right prefix, right length, right alphabet — and not a key.
+    text.push_str(&format!("age1{}\n", "q".repeat(58)));
+    fs::write(&path, text).expect("write");
+
+    assert_eq!(codes(temp.path()), vec!["E209"]);
+    let report = run(temp.path());
+    let private = report
+        .vaults
+        .iter()
+        .find(|vault| vault.path == "Private")
+        .expect("Private");
+    assert_eq!(
+        private.recipients, 1,
+        "the bad key was counted as a usable recipient"
+    );
+}

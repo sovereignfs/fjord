@@ -378,6 +378,11 @@ It refuses to write an identity anywhere inside a Fjord repository (spec
 §11.3), and refuses to overwrite an existing one — doing so would make every
 file encrypted to the old key unreadable.
 
+A key is checked as it is added: right shape is not enough, because a bech32
+key carries a checksum and one mistyped character breaks it. A key that does
+not check out, a secret key, an SSH recipient and a passphrase recipient are
+each refused with their own reason.
+
 **Adding a recipient does not grant access to existing files.** age encrypts
 each file to the recipients present when it was written, so a newly added key
 cannot read anything older. Either copy one identity to each of your devices,
@@ -428,14 +433,41 @@ command says how many it skipped.
 ```bash
 fjord vault list
 fjord vault add Archive                                  # plaintext
-fjord vault add Secret --encrypted                       # encrypted
-fjord vault add Secret --encrypted --id-naming           # names concealed too
+fjord vault add Secret --encrypted --recipient <key>     # encrypted, ready to use
+fjord vault add Secret --encrypted --id-naming --recipient <key>
+fjord vault add Secret --encrypted                       # encrypted, no keys yet
 ```
 
 A vault is a directory at the repository root; its directory name is its
 address. `add` writes the vault's manifest, its recipients file and its
 plaintext guard, and adds it to `fjord.json` — preserving every other field
 in that file, including ones this build does not understand.
+
+| Flag | Effect |
+| --- | --- |
+| `--encrypted` | Encrypt the vault with age. |
+| `--id-naming` | Name files by ULID. Requires `--encrypted`. |
+| `--recipient <key>` | Register an age **public** key, so the vault is writable immediately. Repeat for several. Requires `--encrypted`. |
+| `--json` | Machine-readable output: the vault's id, its settings, the recipients registered, and the files written. |
+
+**Without `--recipient`, an encrypted vault is created unwritable.** Spec
+§6.2 makes a vault with no recipients valid but unwritable, and `fjord
+verify` warns about it (`W602`) until you run `fjord key add`. Giving
+`--recipient` at creation skips that step: the first document can be written
+straight away, and the new vault has nothing to warn about.
+
+**Every key is checked before anything is written.** One mistyped character
+leaves a key with the right length and alphabet and a failed checksum, and a
+vault holding one — or holding some of its keys — looks usable and fails on
+first write, often on someone else's machine. So a bad key refuses the whole
+command and nothing is created. The same check applies to `fjord key add`.
+
+A secret key given by mistake is refused and **never printed back**. It is
+already in your shell history, and the message says to treat it as exposed.
+
+SSH recipients are refused with the reason: this build links no RSA
+implementation, on purpose, because of an unfixed key-recovery weakness in
+it (RUSTSEC-2023-0071).
 
 `--id-naming` requires `--encrypted`: naming files by id on a plaintext
 vault conceals nothing and makes the vault unbrowsable, which spec §7.2
