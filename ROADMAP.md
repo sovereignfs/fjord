@@ -26,10 +26,13 @@ values, with keys from either implementation.
 generated README documents, verbatim, so that document cannot quietly
 become a lie.
 
-**Releases.** `v0.1.0` is published, built from `bc39da0`. It predates two
-breaking format changes — lowercase identifiers (spec §8.3) and the
-`generator` field's value — so repositories it creates do not conform to the
-current spec, and `fjord verify` says why. The next release carries them.
+**Releases.** `v0.1.2` is the current release; `v0.1.1` and `v0.1.0` are
+also published. `v0.1.0` predates two breaking format changes — lowercase
+identifiers (spec §8.3) and the `generator` field's value — so repositories
+it creates do not conform to the current spec, and `fjord verify` says why.
+`v0.1.1` carries those changes; `v0.1.2` adds `vault add --recipient`,
+`--json` and `--commit`, the recipient-checksum fix, and the fix for `open
+--commit` and `rekey` committing unrelated staged work.
 
 ## Status
 
@@ -894,8 +897,20 @@ Not every `0.1.0` in the tree is the crate version. The README's "Changed
 since 0.1.0" and the ROADMAP's history are about what 0.1.0 *did*, and the
 fixtures' example `generator` values are examples; none of them should move.
 
-No release script exists. One would remove steps 1–3 as things to remember,
-and is worth writing before the third release.
+The checklist was followed for `v0.1.2` and worked first time: `dist plan`
+passed locally, CI and Audit were green on the bump commit before it was
+tagged, and the pipeline ran clean through all five platform builds and the
+`host` and `announce` stages. The published release was then checked rather
+than assumed: all fifteen assets present, the README's `/latest/` installer
+URL returning 200, a checksum compared against the published `.sha256`, and
+the real installer script run in its unmanaged mode into a scratch directory
+so it touched nothing on the machine. The binary it installed reported
+`fjord 0.1.2` and wrote `"generator": "fjord 0.1.2"`.
+
+No release script exists, and the third release has now been cut without
+one. It went smoothly because it was done carefully by hand, which is the
+argument for a script and not against: steps 1–3 are still things to
+remember. Worth writing before the next release.
 
 ## Documentation defects
 
