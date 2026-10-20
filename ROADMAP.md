@@ -26,13 +26,16 @@ values, with keys from either implementation.
 generated README documents, verbatim, so that document cannot quietly
 become a lie.
 
-**Releases.** `v0.1.2` is the current release; `v0.1.1` and `v0.1.0` are
-also published. `v0.1.0` predates two breaking format changes — lowercase
-identifiers (spec §8.3) and the `generator` field's value — so repositories
-it creates do not conform to the current spec, and `fjord verify` says why.
-`v0.1.1` carries those changes; `v0.1.2` adds `vault add --recipient`,
-`--json` and `--commit`, the recipient-checksum fix, and the fix for `open
---commit` and `rekey` committing unrelated staged work.
+**Releases.** `v0.1.3` is the current release; `v0.1.2`, `v0.1.1` and
+`v0.1.0` are also published. `v0.1.0` predates two breaking format changes —
+lowercase identifiers (spec §8.3) and the `generator` field's value — so
+repositories it creates do not conform to the current spec, and `fjord
+verify` says why. `v0.1.1` carries those changes; `v0.1.2` adds `vault add
+--recipient`, `--json` and `--commit`, the recipient-checksum fix, and the fix
+for `open --commit` and `rekey` committing unrelated staged work. `v0.1.3` has
+no code changes: it ships `CHANGELOG.md` in the archives, and it is the first
+release cut with `scripts/release.sh` end to end, including `publish` and
+`verify` against a real push, tag and workflow.
 
 ## Status
 
