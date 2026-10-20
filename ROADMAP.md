@@ -934,7 +934,7 @@ The checklist was followed for `v0.1.2` and worked first time: `dist plan`
 passed locally, CI and Audit were green on the bump commit before it was
 tagged, and the pipeline ran clean through all five platform builds and the
 `host` and `announce` stages. The published release was then checked rather
-than assumed: all fifteen assets present, the README's `/latest/` installer
+than assumed: all sixteen assets present, the README's `/latest/` installer
 URL returning 200, a checksum compared against the published `.sha256`, and
 the real installer script run in its unmanaged mode into a scratch directory
 so it touched nothing on the machine. The binary it installed reported
