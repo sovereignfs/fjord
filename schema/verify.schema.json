@@ -7,6 +7,7 @@
   "additionalProperties": false,
   "required": [
     "tool",
+    "conformance",
     "formatVersion",
     "conforms",
     "readOnly",
@@ -18,6 +19,12 @@
     "tool": {
       "type": "string",
       "description": "Name and version of the tool that produced this report."
+    },
+    "conformance": {
+      "type": "array",
+      "description": "The conformance levels (spec §10) this build declares: L0 plaintext reader, L1 plaintext writer, L2 encrypted reader, L3 encrypted writer. A client MUST NOT perform an operation above them. A repository from a newer format version is read-only whatever is declared here; see `readOnly`.",
+      "items": { "type": "string", "enum": ["L0", "L1", "L2", "L3"] },
+      "uniqueItems": true
     },
     "formatVersion": {
       "type": ["integer", "null"],
@@ -84,6 +91,19 @@
             "minimum": 0,
             "description": "Every other file, vault machinery excluded."
           }
+        }
+      }
+    },
+    "repairs": {
+      "type": "array",
+      "description": "Present only when `--fix` was given: what it changed in fjord.json (spec §2.1). Empty when nothing needed repairing. Absent means no repair was attempted.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["action", "path"],
+        "properties": {
+          "action": { "type": "string", "enum": ["added", "removed"] },
+          "path": { "type": "string", "description": "The vault's directory." }
         }
       }
     },

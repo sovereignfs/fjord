@@ -8,24 +8,29 @@
 //! renderers share one report: a human summary, and `--json` for CI.
 
 use crate::cli::{ExitCode, GlobalArgs, VerifyArgs};
-use crate::cmd::{find_root, plural, usage, Style};
-use anyhow::Result;
+use crate::cmd::{ensure_writable, find_root, plural, Style};
+use anyhow::{Context, Result};
 use fjord_core::diagnostics::{Diagnostic, Severity};
+use fjord_core::manifest::Manifest;
+use fjord_core::repair::{self, Repair};
 use fjord_core::verify::{self, Options, Report, VaultSummary};
 use std::io::Write;
 
 pub fn run(args: &VerifyArgs, global: &GlobalArgs) -> Result<ExitCode> {
-    if args.fix {
-        // Refused rather than ignored: a user who passes `--fix` believes
-        // their repository was repaired. `--fix` is a separate code path
-        // with an explicit allowlist of safe repairs, and it lands with
-        // `fjord init`, which writes the same scaffolding.
-        return Ok(usage(
-            "--fix is not implemented yet; it arrives with M2. `fjord verify` is read-only.",
-        ));
-    }
-
     let root = find_root(global.repo.as_deref())?;
+
+    // `--fix` is its own path, run before the read-only one and with an
+    // allowlist of exactly what `fjord_core::repair` does. Everything below
+    // it is `verify` as it always was, and reports the state after.
+    let repairs = if args.fix {
+        if let Some(code) = ensure_writable(&root)? {
+            return Ok(code);
+        }
+        Some(apply_repairs(&root)?)
+    } else {
+        None
+    };
+
     let options = Options {
         vault: args.vault.clone(),
     };
@@ -34,14 +39,86 @@ pub fn run(args: &VerifyArgs, global: &GlobalArgs) -> Result<ExitCode> {
 
     let mut out = std::io::stdout().lock();
     if global.json {
-        writeln!(out, "{}", render_json(&report))?;
+        writeln!(out, "{}", render_json(&report, repairs.as_deref()))?;
     } else if !global.quiet {
-        render_human(&mut out, &report, Style::detect())?;
+        let style = Style::detect();
+        if let Some(repairs) = &repairs {
+            render_repairs(&mut out, repairs, style)?;
+        }
+        render_human(&mut out, &report, style)?;
     } else {
         render_quiet(&mut out, &report)?;
     }
 
     Ok(exit_code(&report, args.strict))
+}
+
+/// Repair `fjord.json` where it disagrees with the disk, and write it.
+///
+/// Written through a temporary file in the same directory, so an
+/// interrupted write cannot leave a truncated manifest. Nothing is
+/// committed: what changed is in the output, and `git diff` shows it.
+fn apply_repairs(root: &std::path::Path) -> Result<Vec<Repair>> {
+    let path = root.join(fjord_core::REPOSITORY_MANIFEST);
+    let manifest = match std::fs::read(&path)
+        .ok()
+        .and_then(|bytes| Manifest::parse(&bytes).ok())
+    {
+        Some(manifest) => manifest,
+        // An unreadable manifest is a finding for the report below, not
+        // something to guess a repair for.
+        None => return Ok(Vec::new()),
+    };
+
+    let everything = verify::verify(root, &Options::default())?;
+    let Some(plan) = repair::plan_manifest(root, &manifest, &everything) else {
+        return Ok(Vec::new());
+    };
+
+    let mut temporary = tempfile::Builder::new()
+        .prefix(".fjord-fix-")
+        .suffix(".tmp")
+        .tempfile_in(root)
+        .context("could not stage fjord.json")?;
+    temporary
+        .write_all(plan.text.as_bytes())
+        .context("could not write fjord.json")?;
+    temporary
+        .as_file()
+        .sync_all()
+        .context("could not flush fjord.json")?;
+    temporary
+        .persist(&path)
+        .context("could not replace fjord.json")?;
+
+    Ok(plan.repairs)
+}
+
+fn render_repairs(out: &mut impl Write, repairs: &[Repair], style: Style) -> Result<()> {
+    if repairs.is_empty() {
+        writeln!(out, "  {}", style.dim("nothing to repair"))?;
+    } else {
+        for repair in repairs {
+            let (verb, preposition) = match repair {
+                Repair::Added { .. } => ("added", "to"),
+                Repair::Removed { .. } => ("removed", "from"),
+            };
+            writeln!(
+                out,
+                "  {} {} {preposition} {}",
+                style.good(verb),
+                repair.path(),
+                fjord_core::REPOSITORY_MANIFEST
+            )?;
+        }
+        writeln!(
+            out,
+            "  {}",
+            style.dim("not committed; `git diff fjord.json` shows the change")
+        )?;
+    }
+    writeln!(out)?;
+    Ok(())
 }
 
 fn exit_code(report: &Report, strict: bool) -> ExitCode {
@@ -255,7 +332,7 @@ fn vault_of(diagnostic: &Diagnostic, vaults: &[VaultSummary]) -> Option<usize> {
 /// Machine-readable output. The shape is published API: see
 /// `schema/verify.schema.json`, which `crates/fjord/tests/cli.rs` checks
 /// this against.
-fn render_json(report: &Report) -> String {
+fn render_json(report: &Report, repairs: Option<&[Repair]>) -> String {
     let diagnostics: Vec<serde_json::Value> = report
         .diagnostics
         .iter()
@@ -286,8 +363,12 @@ fn render_json(report: &Report) -> String {
         })
         .collect();
 
-    let document = serde_json::json!({
+    let mut document = serde_json::json!({
         "tool": concat!("fjord ", env!("CARGO_PKG_VERSION")),
+        "conformance": fjord_core::conformance::DECLARED
+            .iter()
+            .map(|level| level.as_str())
+            .collect::<Vec<_>>(),
         "formatVersion": report.version,
         "conforms": report.conforms(),
         "readOnly": report.read_only,
@@ -298,6 +379,20 @@ fn render_json(report: &Report) -> String {
         "vaults": vaults,
         "diagnostics": diagnostics,
     });
+
+    // Present only when `--fix` was asked for, so its absence means no
+    // repair was attempted rather than none was needed.
+    if let (Some(repairs), Some(map)) = (repairs, document.as_object_mut()) {
+        map.insert(
+            "repairs".to_string(),
+            repairs
+                .iter()
+                .map(|repair| {
+                    serde_json::json!({ "action": repair.action(), "path": repair.path() })
+                })
+                .collect(),
+        );
+    }
 
     serde_json::to_string_pretty(&document).unwrap_or_else(|_| "{}".to_string())
 }

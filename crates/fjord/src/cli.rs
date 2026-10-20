@@ -132,8 +132,9 @@ pub struct VerifyArgs {
     #[arg(long, value_name = "NAME")]
     pub vault: Option<String>,
 
-    /// Apply safe repairs. Never touches document content, never moves a
-    /// file, never resolves a case collision or a duplicate id.
+    /// Repair fjord.json where it disagrees with the disk: list a vault that
+    /// is there, drop one that is not. Never touches document content, never
+    /// moves a file, never resolves a case collision or a duplicate id.
     #[arg(long)]
     pub fix: bool,
 

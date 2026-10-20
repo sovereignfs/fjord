@@ -8,9 +8,10 @@ file is stale and should be corrected.
 State as of 2026-10-17: **every milestone in the build brief is complete,
 and 0.1.0 is released.** `verify`, `init`, `key`, `vault`, `encrypt`,
 `decrypt`, `open`, `new`, `ls`, `grep`, `status`, `sync`, `rekey`, `export`
-and `import` are implemented end to end — every command the README
-documents — with `fileNaming: "id"` and the tar container. **All 40
-diagnostics are implemented**; nothing is deferred.
+and `import` are implemented end to end, with `fileNaming: "id"` and the tar
+container. **All 40 diagnostics are implemented.** (This paragraph once said
+"every command the README documents" was implemented. `verify --fix` was
+not, until the conformance work; see below.)
 
 CI runs on every push: age cross-validation first and alone, the suite on
 Linux and macOS, a Windows build, clippy and rustfmt, the declared MSRV
@@ -134,10 +135,9 @@ Three decisions worth knowing, all documented at their call sites:
   `ignore` crate out of M1. It earns its place in M5, where `ls` and `grep`
   walk user content.
 
-`--fix` is gated on `Code::is_auto_fixable`, which allows exactly four
-repairs. It lands in M2 alongside `init`, which writes the same scaffolding;
-until then `verify --fix` is refused as a usage error (exit 2) rather than
-silently ignored.
+`--fix` is gated on `Code::is_auto_fixable`. It was planned to land in M2
+alongside `init`, and did not: it stayed refused as a usage error (exit 2)
+until the conformance work, below, which needed it.
 
 ### M2 notes
 
@@ -1002,10 +1002,51 @@ Two things worth knowing about how it was checked:
   the test said it would: only `CHANGELOG.md` was left modified, with the
   notes intact.
 
-Not tested, and said plainly: `publish` against a real push. It cannot be
-without releasing. What *is* covered is each of its parts — the preflight,
-the dry run, the workflow-waiting functions against real runs, and `verify` —
-and the first real use of it is the next release.
+`publish` could not be tested against a real push without releasing, so its
+parts were tested separately: the preflight, the dry run, the
+workflow-waiting functions against real runs, and `verify`. Its first real
+use was 0.1.3, which went through unattended — push, CI and Audit, tag,
+Release workflow, then the verification — with nothing to correct.
+
+## Conformance levels, and the `--fix` that was never built
+
+Spec §10 says a client declares levels and MUST NOT act above them. The
+declaration is data in `fjord-core` (`conformance::DECLARED`) so the desktop,
+mobile and web clients read the same fact, and the CLI publishes it in
+`verify --json`. The schema grew a required `conformance` field; fields may
+be added to it, per its own description.
+
+**Writing the declaration found a hole.** L1 includes "repair `fjord.json`
+when it disagrees with disk", and nothing did: `verify --fix` had been
+documented in the README from the start, planned for M2, and refused as a
+usage error ever since. The roadmap's own state paragraph said every command
+the README documents was implemented. It was not — and a declaration of
+L1 or L3 without it would have been a false claim. Declaring only what was
+true (L0 and L2) would have left a client that writes while declaring it
+cannot, so the repair was built instead.
+
+- **It does two things** (`fjord_core::repair`): list a vault that is on
+  disk, drop an entry for one that is not. Those are the only places the
+  manifest and the disk disagree, and §2.1 says the disk wins.
+- **`Code::is_auto_fixable` is the allowlist** invariant 7 asks for, and now
+  lists exactly those two. It had said four — the two git guards, NFC
+  normalisation and the manifest repair — a plan nobody had built, in a
+  function nothing called. A test pins the list to what the module does.
+- **The README had promised more** than that: NFC normalisation and writing
+  the `.gitignore` / `.gitattributes` guards. They are not built and the
+  README now says so rather than promising them. NFC would also contradict
+  the flag's own help text, which said `--fix` never moves a file.
+- **It refuses on a newer-format repository**, like every other write
+  (invariant 4), and leaves a vault with an unusable or duplicate `id` for a
+  human, since adding it would swap a warning for an error.
+- **L3 has one limit,** recorded in the README and in the module docs: §6.2
+  requires encrypting to *all* recipients and allows SSH recipients, and this
+  build cannot write to those. It refuses by name instead of encrypting to a
+  subset, which is what keeps L3 true; on such a vault it is an L2 client.
+
+Still not built, and no longer promised: the guard files and NFC repairs. If
+they come, each needs its own diagnostic-to-repair test and a decision about
+NFC, which renames a file.
 
 ## Documentation defects
 
@@ -1023,11 +1064,10 @@ would otherwise be implemented as written.
       Fixed: it points at the vendored `spec/SPEC.md`. Where the upstream
       lives is still unrecorded, and `CLAUDE.md` requires keeping the copy in
       sync with it. The
-- [ ] **Spec §10 conformance levels have no home in the code.** A client
-      MUST declare its levels and MUST NOT act above them. The CLI
-      declares nothing today and reaches L3 at M3; decide where that
-      declaration lives — `fjord verify --json` is the obvious place — before
-      M1 ships a client that reads repositories without naming its level.
+- [x] ~~**Spec §10 conformance levels have no home in the code.**~~ Fixed:
+      `fjord_core::conformance::DECLARED`, published as `conformance` in
+      `fjord verify --json`. See "Conformance levels, and the `--fix` that
+      was never built" below.
 - [x] ~~**README's `fjord init` flag table omits `--name`.**~~ Fixed.
 - [x] ~~**`ExitCode` carries `#[allow(dead_code)]`.**~~ Removed, as its own
       comment instructed: all four variants are now constructed.

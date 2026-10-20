@@ -359,7 +359,7 @@ fn vault_manifest_with(
 
 /// Two-space indented JSON with a trailing newline: a manifest is a file a
 /// person reads and edits, not a wire format.
-fn pretty(value: &serde_json::Value) -> String {
+pub(crate) fn pretty(value: &serde_json::Value) -> String {
     match serde_json::to_string_pretty(value) {
         Ok(text) => format!("{text}\n"),
         Err(_) => String::new(),

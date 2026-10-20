@@ -136,7 +136,7 @@ one error.
 | Flag | Effect |
 | --- | --- |
 | `--json` | Machine-readable output. For CI. |
-| `--fix` | Apply safe repairs only — see [What `--fix` will and will not do](#what---fix-will-and-will-not-do). |
+| `--fix` | Repair `fjord.json` where it disagrees with the disk — see [What `--fix` does](#what---fix-does). |
 | `--vault <name>` | Check one vault, by directory or by label. |
 | `--strict` | Treat warnings as errors. |
 
@@ -633,23 +633,51 @@ before release, and will never be assigned.
 | `W604` | File exceeds 25 MB — Fjord is for documents, not media |
 | `W605` | Path exceeds 240 bytes — may fail to check out on Windows |
 
-### What `--fix` will and will not do
+### What `--fix` does
 
-Will: normalise a name to NFC, write a missing `.gitattributes` guard, add a
-missing plaintext-guard `.gitignore`, and add a vault present on disk to
-`fjord.json` (`W601`).
+It repairs `fjord.json` where it disagrees with the disk, because the
+filesystem is authoritative and the manifest is only a convenience (spec
+§2.1). That is the whole of it:
 
-Will not: rename or move anything to resolve a case collision, delete or
-relocate plaintext found in an encrypted vault, merge duplicate ids, or touch
-document content. Those need a human, because each of them can lose data.
+- a vault on disk that `fjord.json` does not list (`W601`) is **added**, with
+  the `id` its own `fjord.vault.json` declares;
+- a listed vault whose directory is gone (`E106`) has its entry **removed**.
 
-It will also not add an `id` to a file that has none. A Markdown file
-without frontmatter is a vault file, not a broken Doc (spec §8.2), and a
-client "MUST NOT rewrite files merely because it scanned them". Use
-`fjord new` to create a Doc, or edit the file to promote one.
+Unknown keys, their order, and the other entries are carried through
+untouched. It leaves alone a vault whose own `id` is missing, malformed or
+already listed under another path, because adding it would trade a warning
+for an error. It changes nothing else and commits nothing: `git diff
+fjord.json` shows what it did, and a second run reports `nothing to repair`.
+It refuses to write to a repository made by a newer version of Fjord.
 
-`--fix` arrives with `fjord init`, which writes the same scaffolding. Until
-then it is refused as a usage error rather than silently ignored.
+It does **not** rename or move anything to resolve a case collision, delete
+or relocate plaintext found in an encrypted vault, merge duplicate ids,
+write a missing `.gitattributes` or `.gitignore` guard (`E109`, `E208`), or
+normalise a name to NFC. Those are reported and left for a human, because
+each can lose data or has not been built; none of them is a disagreement
+between the manifest and the disk. It never touches document content.
+
+It will also not add an `id` to a file that has none. A Markdown file without
+frontmatter is a vault file, not a broken Doc (spec §8.2), and a client "MUST
+NOT rewrite files merely because it scanned them". Use `fjord new` to create
+a Doc, or edit the file to promote one.
+
+`fjord verify --fix --json` adds a `repairs` array saying what changed.
+
+### Conformance
+
+Spec §10 asks a client to declare which levels it implements. This build
+declares **L0 through L3**: it reads and writes plaintext vaults, and reads
+and writes encrypted ones. The declaration is published in
+`fjord verify --json` as `conformance`, and a repository made by a newer
+version of Fjord is read-only whatever it says.
+
+One limit on L3: spec §6.2 lets a vault list SSH recipients and requires
+every file to be encrypted to *all* recipients. This build links no RSA
+implementation (RUSTSEC-2023-0071), so it **refuses** to write to such a
+vault by name rather than encrypt to only the recipients it can handle. It
+still reads that vault if you hold a key it supports. On such a vault it is an
+L2 client.
 
 ## Environment
 

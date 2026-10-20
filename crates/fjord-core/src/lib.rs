@@ -31,12 +31,14 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+pub mod conformance;
 pub mod container;
 pub mod crypto;
 pub mod diagnostics;
 pub mod doc;
 pub mod manifest;
 pub mod path;
+pub mod repair;
 pub mod scaffold;
 pub mod scalar;
 pub mod store;

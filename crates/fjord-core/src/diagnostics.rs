@@ -294,16 +294,13 @@ impl Code {
     /// Whether `fjord verify --fix` may repair this without human review.
     ///
     /// Deliberately conservative: anything that could lose data, move a
-    /// document, or touch content is excluded. See README
-    /// § What `--fix` will and will not do.
+    /// document, or touch content is excluded. These two are the places
+    /// where `fjord.json` and the disk disagree, and §2.1 says the disk wins.
+    /// [`crate::repair`] acts on exactly these and checks this list first, so
+    /// it is the allowlist invariant 7 asks for; see README § What `--fix`
+    /// does.
     pub fn is_auto_fixable(self) -> bool {
-        matches!(
-            self,
-            Code::MergeGuardMissing
-                | Code::PlaintextGuardMissing
-                | Code::NotNfcNormalised
-                | Code::VaultNotInManifest
-        )
+        matches!(self, Code::VaultNotInManifest | Code::VaultNotOnDisk)
     }
 
     /// Every code, for exhaustiveness tests and README generation.

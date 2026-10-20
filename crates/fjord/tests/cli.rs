@@ -68,16 +68,6 @@ fn a_warning_alone_exits_zero_unless_strict() {
 }
 
 #[test]
-fn fix_is_refused_as_a_usage_error() {
-    // Not silently ignored: a user who passes --fix believes their
-    // repository was repaired.
-    let output = fjord("conforming", &["verify", "--fix"]);
-    assert_eq!(code_of(&output), 2);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("--fix"), "stderr was: {stderr}");
-}
-
-#[test]
 fn quiet_prints_only_errors() {
     let output = fjord("broken/E201", &["verify", "--quiet"]);
     let stdout = stdout_of(&output);

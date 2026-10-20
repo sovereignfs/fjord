@@ -12,6 +12,24 @@ tagging it.
 
 ## [Unreleased]
 
+### Added
+
+- **`fjord verify --fix` now exists.** The README has documented it since the
+  start, and until now it was refused as a usage error. It repairs
+  `fjord.json` where it disagrees with the disk, as spec §2.1 asks: a vault
+  on disk that the manifest does not list (`W601`) is added with its own `id`,
+  and an entry for a vault that is gone (`E106`) is removed. Unknown keys and
+  other entries are preserved; nothing is committed; a repository from a
+  newer format version is refused. `--json` gains a `repairs` array when
+  `--fix` is given. It repairs nothing else, and the README says what it
+  leaves alone.
+- **`fjord verify --json` declares the conformance levels** (spec §10) in a new
+  `conformance` field: `["L0", "L1", "L2", "L3"]`. The declaration is
+  `fjord_core::conformance::DECLARED`. L1 requires repairing `fjord.json`,
+  which is what `--fix` is for; L3 carries one limit, documented in the
+  README: a vault that lists an SSH recipient is refused for writing, since
+  this build links no RSA implementation.
+
 ## [0.1.3] - 2026-10-20
 
 ### Changed
