@@ -159,6 +159,10 @@ jobs:
           key: lint-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
       - run: cargo fmt --all --check
+      # The release scripts are code that is only ever run on release day, so
+      # nothing would notice a syntax error or a bashism until then. shellcheck
+      # ships on the Ubuntu runner images.
+      - run: shellcheck -x scripts/*.sh
       # On stable rather than on the MSRV: lints change between releases,
       # and the useful question is whether the code is clean under the
       # current ones.

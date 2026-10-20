@@ -790,9 +790,8 @@ Found while checking the above. The `fjord-core` dependency in
 **fails the build** (`failed to select a version for the requirement
 fjord-core = "^0.1.0"`). It fails loudly rather than silently, which is the
 safe way to be wrong, but it is a trap for whoever cuts the next release.
-`cargo set-version --workspace` from cargo-edit should update both, though
-that was not tried. The full procedure, including the tag, is in the release
-checklist above.
+`scripts/release.sh` now makes both edits together, and refuses to start if
+they already disagree.
 
 ## Licence
 
@@ -891,7 +890,7 @@ to do is worth knowing:
   older releases' notes do not leak into newer ones.
 - **It fails silently without one.** With no section for the version, `dist
   plan` exits 0, reports no changelog, and produces the generic notes. That
-  is why the checklist has an explicit check and not just a reminder.
+  is why `scripts/release.sh` has an explicit check and not just a reminder.
 - **It titles the release from the heading**, so a release cut now is called
   `0.1.2 - 2026-10-20` where `v0.1.0`, `v0.1.1` and `v0.1.2` were called by
   their tags. That is cosmetic and was left alone; the published releases'
@@ -901,49 +900,94 @@ The 0.1.0 and 0.1.1 sections were written afterwards from the git history, so
 they are summaries and not contemporary notes. `[Unreleased]` is kept empty
 at the top for the next entries.
 
-### Release checklist
+### Releasing: `scripts/release.sh`
 
-The second failure has a mechanical answer, and it is a checklist because
-the order matters.
+A release is cut with a script, because every step of doing it by hand was a
+step somebody had once got wrong. It has four commands:
 
-1. **Write the release's section in `CHANGELOG.md`**, under a heading of the
-   form `## [X.Y.Z] - YYYY-MM-DD`. That section is the GitHub release notes:
-   `dist` reads the file at the tagged commit, so it has to be committed
-   *before* the tag. Say plainly what changes for a user, and call out
-   anything that can make a previously-passing repository fail.
-2. Bump the version in **both** places: `workspace.package.version` in the
-   root `Cargo.toml`, and the `fjord-core` dependency's `version` in
-   `crates/fjord/Cargo.toml`. Changing only one fails the build.
-3. `cargo build`, so `Cargo.lock` follows.
-4. **`dist plan --tag=vX.Y.Z`** must print `announcing vX.Y.Z` and list the
-   installers. This is the same check the pipeline's `plan` job runs, so it
-   fails here, locally, in the way that failed in CI.
-5. **Check the notes were found:**
-   `dist plan --tag=vX.Y.Z --output-format=json | jq -e .announcement_changelog >/dev/null`
-   must exit 0. This step exists because `dist` fails *silently* without a
-   section: exit 0, no error, and generic install-instructions-only notes.
-   Nothing else would notice a release going out with no notes.
-6. Commit, push, and wait for CI to be green **on that commit**.
-7. Only then tag that commit and push the tag.
+```
+scripts/release.sh check   X.Y.Z                 read-only preflight
+scripts/release.sh prepare X.Y.Z [--skip-gates]  bump, plan, gate, commit locally
+scripts/release.sh publish X.Y.Z [--dry-run]     push, wait for CI, tag, verify
+scripts/release.sh verify  X.Y.Z                 check a published release
+```
+
+The usual run is `prepare`, read what it committed with `git show --stat
+HEAD`, then `publish`. They are separate on purpose: `prepare` never pushes,
+so there is a human review point between "a commit exists" and "the world can
+see it".
+
+Write the release's notes under `## [Unreleased]` in `CHANGELOG.md` as you
+go. `prepare` turns them into `## [X.Y.Z] - <today>`, leaves `[Unreleased]`
+empty above it, and updates the compare links at the foot of the file, so
+nobody hand-types a heading or a link. Say plainly what changes for a user,
+and call out anything that can make a previously-passing repository fail.
+
+**What each check is there for.** None of them is redundant, and each one
+exists because a release went wrong without it:
+
+| Check | The incident behind it |
+| --- | --- |
+| Both version declarations are bumped, and agree | The `fjord-core` dependency carries its own `version` for `cargo publish`, so bumping only the workspace version fails the build. |
+| `dist plan --tag=vX.Y.Z` announces `vX.Y.Z` | **v0.1.1 failed here.** The tag was pushed while the crates still said `0.1.0`; `dist` found nothing to release and failed in the `plan` job, before any build. The script runs the same check locally. |
+| `dist` found the release notes | `dist` fails **silently** without a changelog section: exit 0, no error, generic notes. Nothing else would notice a release going out with none. |
+| Tree clean apart from `CHANGELOG.md`; `main` equals `origin/main` | So that what is released is what is on GitHub, and nothing unrelated rides along in the release commit. |
+| The `[X.Y.Z]` heading is dated today | A stale date means the notes were written for a different release. |
+| fmt, clippy, tests and `cargo deny` pass locally | Caught before the push, not after it. CI still runs them; this is about not publishing a commit already known to be red. |
+| CI is green **on that exact commit** before the tag | The tag is what fires the release, and a release built from a red commit is the failure that is hardest to take back. |
+| The tag is created last, on the verified commit | **v0.1.0 failed at Windows** with the tag already pushed, and had to be deleted and re-cut. The order makes that rare. |
+| `verify`: assets match the release's own manifest, the notes are the changelog's, the checksum matches, and the real installer runs | A green pipeline is not a working release. v0.1.1's page had generic notes and nothing failed; `verify` fails on it. |
+
+`prepare` **rolls itself back** if any step fails — a failing gate, a
+failing `dist plan` — restoring exactly the four files it edits. That
+includes a `CHANGELOG.md` with uncommitted notes in it, which is why it
+restores from a backup and not with `git checkout`, which would have
+destroyed them.
+
+`verify` works out what to expect from the release's own `dist-manifest.json`
+plus the manifest itself, which it does not list, so there is no asset count
+to keep in sync. It also explains an earlier miscount: the manifest lists 15
+artifacts and the release has 16 assets.
+
+It runs the real installer in its unmanaged mode with `HOME` pointed at a
+temporary directory, so it installs where it is told and edits no shell
+profile. It can be run against any published version, and is how the
+published releases were checked: it passes on v0.1.2 and **fails on v0.1.1**,
+whose notes are generic.
 
 Not every `0.1.0` in the tree is the crate version. The README's "Changed
 since 0.1.0" and the ROADMAP's history are about what 0.1.0 *did*, and the
-fixtures' example `generator` values are examples; none of them should move.
+fixtures' example `generator` values are examples; the script only touches
+the two version declarations, and none of the others should move.
 
-The checklist was followed for `v0.1.2` and worked first time: `dist plan`
-passed locally, CI and Audit were green on the bump commit before it was
-tagged, and the pipeline ran clean through all five platform builds and the
-`host` and `announce` stages. The published release was then checked rather
-than assumed: all sixteen assets present, the README's `/latest/` installer
-URL returning 200, a checksum compared against the published `.sha256`, and
-the real installer script run in its unmanaged mode into a scratch directory
-so it touched nothing on the machine. The binary it installed reported
-`fjord 0.1.2` and wrote `"generator": "fjord 0.1.2"`.
+### The script has its own tests: `scripts/test-release.sh`
 
-No release script exists, and the third release has now been cut without
-one. It went smoothly because it was done carefully by hand, which is the
-argument for a script and not against: steps 2–5 are still things to
-remember. Worth writing before the next release.
+A release script is code that breaks silently and is only ever run on the day
+you can least afford it, so it is tested like the rest of the repository:
+against real git repositories, through its failure modes as well as its
+success. Each test builds a throwaway bare origin and a clone from this
+checkout, so nothing touches this repository, its remote or GitHub's state.
+It covers every preflight refusal, the shape of what `prepare` commits, the
+rollback, the `publish` preflight and its dry run, and the functions that
+wait on GitHub, which are run against the real completed v0.1.2 runs. `--full`
+also runs `prepare` with the real gates.
+
+Two things worth knowing about how it was checked:
+
+- **The tests found three defects in the script's messages**, none in its
+  logic. Preparing twice told the user to "push or pull first", which is the
+  wrong advice when the right move is `publish`. A failing gate printed the
+  tool's own output with nothing naming *which* gate. And a tag that existed
+  on origin was reported as existing "locally", because the preflight had
+  just fetched it: the effect, not the cause.
+- **It was mutation-tested.** With the rollback disabled four tests fail, and
+  with the compare-link update disabled two do, which is how a suite shows it
+  is guarding something.
+
+Not tested, and said plainly: `publish` against a real push. It cannot be
+without releasing. What *is* covered is each of its parts — the preflight,
+the dry run, the workflow-waiting functions against real runs, and `verify` —
+and the first real use of it is the next release.
 
 ## Documentation defects
 
