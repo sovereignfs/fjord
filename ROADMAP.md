@@ -984,6 +984,21 @@ Two things worth knowing about how it was checked:
   with the compare-link update disabled two do, which is how a suite shows it
   is guarding something.
 
+- **Its first real use found a bug in the harness, not in the script.**
+  The first `prepare` for 0.1.3 failed its tests gate looking for fixtures
+  under `/tmp`. The harness had shared this repository's `target/` directory
+  with its throwaway clones, to save build time, and that is a trap: Cargo
+  hashes workspace crates by their path *relative* to the workspace root and
+  judges freshness by file modification times, so a test binary built in a
+  scratch clone was reused from the real checkout with `CARGO_MANIFEST_DIR`
+  compiled in pointing at a directory that no longer existed. Nothing
+  shipped wrong — CI builds from scratch — but it made local test runs fail
+  confusingly. The harness now uses its own target directory, costs a few
+  more minutes per run, and a check confirmed it leaves the real one alone.
+  The rollback, meanwhile, got its first real trigger and did exactly what
+  the test said it would: only `CHANGELOG.md` was left modified, with the
+  notes intact.
+
 Not tested, and said plainly: `publish` against a real push. It cannot be
 without releasing. What *is* covered is each of its parts — the preflight,
 the dry run, the workflow-waiting functions against real runs, and `verify` —

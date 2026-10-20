@@ -30,9 +30,15 @@ set -u
 ROOT=$(git rev-parse --show-toplevel)
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
-# Share compiled dependencies: the clones are copies of this repository, so
-# building them from scratch would take minutes for no benefit.
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target}"
+# Its OWN target directory, never this repository's. This used to share
+# $ROOT/target to save build time, and that is a trap: Cargo hashes workspace
+# crates by their path relative to the workspace root and judges freshness by
+# file modification times, so a build from a scratch clone can be reused from
+# the real checkout, with CARGO_MANIFEST_DIR compiled in pointing into a
+# directory that no longer exists. It did exactly that: `prepare` failed its
+# tests gate looking for fixtures under /tmp, because of an earlier run of
+# this script. It costs a few minutes per run; being wrong costs more.
+export CARGO_TARGET_DIR="$T/target"
 
 FULL=no
 [ "${1:-}" = "--full" ] && FULL=yes
