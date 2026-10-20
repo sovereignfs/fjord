@@ -296,6 +296,13 @@ pub enum VaultCommand {
         /// here would be in your shell history.
         #[arg(long, value_name = "KEY")]
         recipient: Vec<String>,
+
+        /// Commit the new vault, and only the new vault.
+        ///
+        /// Commits the vault's files and its entry in fjord.json, and leaves
+        /// anything else you have staged or changed exactly as it was.
+        #[arg(long)]
+        commit: bool,
     },
 
     /// List vaults.

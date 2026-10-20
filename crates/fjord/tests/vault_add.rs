@@ -525,3 +525,257 @@ fn key_add_refuses_ssh_because_the_vault_could_not_then_be_written() {
         err(&refused)
     );
 }
+
+// --- --commit -----------------------------------------------------------------
+
+fn git(repo: &Repo, arguments: &[&str]) -> String {
+    let output = Command::new("git")
+        .current_dir(&repo.root)
+        .args(arguments)
+        .env("GIT_AUTHOR_NAME", "Fjord Test")
+        .env("GIT_AUTHOR_EMAIL", "test@example.invalid")
+        .env("GIT_COMMITTER_NAME", "Fjord Test")
+        .env("GIT_COMMITTER_EMAIL", "test@example.invalid")
+        .output()
+        .expect("run git");
+    assert!(
+        output.status.success(),
+        "git {arguments:?} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+fn commit_count(repo: &Repo) -> usize {
+    git(repo, &["rev-list", "--count", "HEAD"])
+        .parse()
+        .expect("a number")
+}
+
+/// What a commit touched, sorted.
+fn files_in_head(repo: &Repo) -> Vec<String> {
+    let mut files: Vec<String> = git(repo, &["show", "--name-only", "--format=", "HEAD"])
+        .lines()
+        .map(String::from)
+        .collect();
+    files.sort();
+    files
+}
+
+#[test]
+fn commit_records_exactly_the_vault_and_its_manifest_entry() {
+    let repo = repo();
+    let me = identity(&repo, "me");
+    let before = commit_count(&repo);
+
+    let created = repo.run(&[
+        "vault",
+        "add",
+        "Secret",
+        "--encrypted",
+        "--recipient",
+        &me.public,
+        "--commit",
+    ]);
+    assert_eq!(code(&created), 0, "{}", err(&created));
+    assert!(out(&created).contains("committed"), "{}", out(&created));
+    assert!(
+        out(&created).contains("Add vault Secret"),
+        "{}",
+        out(&created)
+    );
+
+    assert_eq!(
+        commit_count(&repo),
+        before + 1,
+        "expected exactly one new commit"
+    );
+    assert_eq!(
+        git(&repo, &["log", "-1", "--format=%s"]),
+        "Add vault Secret"
+    );
+
+    // Every file of the vault, including the three the vault's own guard
+    // `.gitignore` has to let through — and fjord.json, which lists it.
+    assert_eq!(
+        files_in_head(&repo),
+        vec![
+            "Secret/.gitignore".to_string(),
+            "Secret/fjord.vault.json".to_string(),
+            "Secret/recipients.txt".to_string(),
+            "fjord.json".to_string(),
+        ]
+    );
+
+    // Nothing is left over: the working tree is clean.
+    assert_eq!(git(&repo, &["status", "--porcelain"]), "");
+}
+
+#[test]
+fn a_plaintext_vault_can_be_committed_too() {
+    let repo = repo();
+    let created = repo.run(&["vault", "add", "Archive", "--commit"]);
+    assert_eq!(code(&created), 0, "{}", err(&created));
+    assert_eq!(
+        files_in_head(&repo),
+        vec![
+            "Archive/fjord.vault.json".to_string(),
+            "fjord.json".to_string()
+        ]
+    );
+    assert_eq!(git(&repo, &["status", "--porcelain"]), "");
+}
+
+/// `git commit` with no pathspec takes the whole index. Someone who had
+/// already staged something else would find it inside a commit that says it
+/// adds a vault. The command must take its own files and nothing more.
+#[test]
+fn work_you_had_already_staged_is_not_swept_into_the_commit() {
+    let repo = repo();
+
+    // Three kinds of unrelated work: staged, changed-but-unstaged, untracked.
+    std::fs::write(repo.root.join("Public/staged.md"), "staged\n").expect("write");
+    git(&repo, &["add", "Public/staged.md"]);
+    std::fs::write(repo.root.join("Public/welcome.md"), "edited, not staged\n").expect("write");
+    std::fs::write(repo.root.join("Public/untracked.md"), "untracked\n").expect("write");
+
+    let created = repo.run(&["vault", "add", "Archive", "--commit"]);
+    assert_eq!(code(&created), 0, "{}", err(&created));
+
+    // The commit holds the vault and nothing from `Public/`.
+    let committed = files_in_head(&repo);
+    assert!(
+        committed.iter().all(|file| !file.starts_with("Public/")),
+        "unrelated work was committed: {committed:?}"
+    );
+
+    // And all three are exactly as they were.
+    assert_eq!(
+        git(&repo, &["diff", "--cached", "--name-only"]),
+        "Public/staged.md"
+    );
+    let status = git(&repo, &["status", "--porcelain"]);
+    assert!(status.contains("A  Public/staged.md"), "{status}");
+    assert!(status.contains(" M Public/welcome.md"), "{status}");
+    assert!(status.contains("?? Public/untracked.md"), "{status}");
+}
+
+#[test]
+fn without_commit_nothing_is_committed() {
+    // The default is unchanged: like `new`, `encrypt` and `key add`, this
+    // leaves the decision about a commit to you.
+    let repo = repo();
+    let before = commit_count(&repo);
+
+    let created = repo.run(&["vault", "add", "Archive"]);
+    assert_eq!(code(&created), 0, "{}", err(&created));
+    assert!(!out(&created).contains("committed"), "{}", out(&created));
+    assert_eq!(commit_count(&repo), before);
+
+    let status = git(&repo, &["status", "--porcelain"]);
+    assert!(status.contains("Archive/"), "{status}");
+}
+
+#[test]
+fn commit_outside_a_git_repository_is_refused_before_anything_is_created() {
+    // A vault made and then not committed, when a commit was asked for, is a
+    // half-done job — so the request is refused up front.
+    let temp = tempfile::tempdir().expect("temp");
+    let root = temp.path().join("repo");
+    let init = Command::new(env!("CARGO_BIN_EXE_fjord"))
+        .args(["init", &root.to_string_lossy(), "--no-git"])
+        .env("NO_COLOR", "1")
+        .output()
+        .expect("init");
+    assert_eq!(init.status.code(), Some(0), "{}", err(&init));
+    let manifest = std::fs::read_to_string(root.join("fjord.json")).expect("read");
+
+    let refused = Command::new(env!("CARGO_BIN_EXE_fjord"))
+        .arg("-C")
+        .arg(&root)
+        .args(["vault", "add", "Archive", "--commit"])
+        .env("NO_COLOR", "1")
+        .output()
+        .expect("run");
+    assert_eq!(code(&refused), 2);
+    assert!(
+        err(&refused).contains("git repository"),
+        "{}",
+        err(&refused)
+    );
+    assert!(!root.join("Archive").exists());
+    assert_eq!(
+        std::fs::read_to_string(root.join("fjord.json")).expect("read"),
+        manifest
+    );
+}
+
+/// The vault exists by the time the commit is attempted, and the obvious
+/// next move is to run the same command again and be told it already
+/// exists. So the error has to say what happened and what to do.
+#[test]
+fn a_commit_that_fails_says_the_vault_was_created() {
+    let repo = repo();
+    let home = repo.temp.path().join("empty-home");
+    std::fs::create_dir_all(&home).expect("create");
+
+    // No identity anywhere, and git forbidden from guessing one from the
+    // hostname — which it otherwise does on some machines, so without this
+    // the test would depend on where it runs.
+    let failed = Command::new(env!("CARGO_BIN_EXE_fjord"))
+        .arg("-C")
+        .arg(&repo.root)
+        .args(["vault", "add", "Archive", "--commit"])
+        .env("NO_COLOR", "1")
+        .env("HOME", &home)
+        .env("GIT_CONFIG_GLOBAL", "/dev/null")
+        .env("GIT_CONFIG_SYSTEM", "/dev/null")
+        .env("GIT_CONFIG_COUNT", "1")
+        .env("GIT_CONFIG_KEY_0", "user.useConfigOnly")
+        .env("GIT_CONFIG_VALUE_0", "true")
+        .env_remove("GIT_AUTHOR_NAME")
+        .env_remove("GIT_AUTHOR_EMAIL")
+        .env_remove("GIT_COMMITTER_NAME")
+        .env_remove("GIT_COMMITTER_EMAIL")
+        .output()
+        .expect("run");
+
+    assert_ne!(code(&failed), 0, "{}", out(&failed));
+    let message = err(&failed);
+    assert!(
+        message.contains("was created, but could not be committed"),
+        "{message}"
+    );
+    assert!(message.contains("git add Archive fjord.json"), "{message}");
+    // The vault is really there, so the message is true.
+    assert!(repo.root.join("Archive/fjord.vault.json").is_file());
+    assert_eq!(code(&repo.run(&["verify"])), 0);
+}
+
+#[test]
+fn json_says_whether_a_commit_was_made() {
+    let repo = repo();
+    let plain = repo.run(&["vault", "add", "One", "--json"]);
+    assert_eq!(json(&plain)["committed"], false);
+
+    let committed = repo.run(&["vault", "add", "Two", "--commit", "--json"]);
+    assert_eq!(code(&committed), 0, "{}", err(&committed));
+    let report = json(&committed);
+    assert_eq!(report["committed"], true);
+    // Still only JSON on stdout, with no "committed" line in front of it.
+    assert!(
+        out(&committed).trim_start().starts_with('{'),
+        "{}",
+        out(&committed)
+    );
+}
+
+#[test]
+fn quiet_commit_prints_nothing_but_still_commits() {
+    let repo = repo();
+    let before = commit_count(&repo);
+    let created = repo.run(&["vault", "add", "Archive", "--commit", "--quiet"]);
+    assert_eq!(code(&created), 0, "{}", err(&created));
+    assert_eq!(out(&created), "");
+    assert_eq!(commit_count(&repo), before + 1);
+}

@@ -295,7 +295,9 @@ fn open_plaintext(
 fn commit(root: &Path, relative: &str) -> Result<()> {
     let repository = Git::new(root);
     repository.add_path(relative)?;
-    repository.commit(&format!("Edit {relative}"))?;
+    // Only this document. A bare `git commit` takes the whole index, so
+    // anything already staged would land in a commit saying "Edit <file>".
+    repository.commit_paths(&format!("Edit {relative}"), &[relative])?;
     Ok(())
 }
 

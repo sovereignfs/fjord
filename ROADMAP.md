@@ -696,6 +696,25 @@ Bech32 encoding`. It is fixed once, in the classifier, so `key add`, `verify`
 recipients that this build then could not encrypt to; it now refuses them
 with the same reason `vault add` gives.
 
+`--commit` completes the set: a vault can now be created, keyed and recorded
+in one command. It is opt-in, matching `open --commit` and leaving the
+decision to the user the way `new`, `encrypt` and `key add` do.
+
+**The bug it found: targeted commits swept in whatever was staged.** `open
+--commit` and `rekey` both staged their own paths and then ran a bare `git
+commit`, which commits the **whole index**. Anything already staged landed in
+a commit whose message said something else — verified directly: an unrelated
+file staged beforehand appeared in "Edit Public/welcome.md". It has been there
+since M4. `Git::commit_paths` commits with a pathspec, so only the named paths
+go in and the rest of the index is left as found; `vault add`, `open` and
+`rekey` all use it, each with a test that stages unrelated work first. The
+`vault add` test was also checked the hard way: with the pathspec removed it
+fails, committing the unrelated file. `init` and `sync` still commit
+everything, deliberately — that is what they are for.
+
+Known and left: the commit includes `fjord.json` as it stands, so an unrelated
+edit you had already made to that file would be committed with it.
+
 Not built, deliberately: a `--self` flag that derives the public key from your
 identity. It would be convenient, but it makes the command read a secret to
 save pasting a public key, and `fjord key list` already prints the key.

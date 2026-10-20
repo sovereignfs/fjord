@@ -6,6 +6,7 @@
 
 use crate::cli::{ExitCode, GlobalArgs, VaultCommand};
 use crate::cmd::{ensure_writable, find_root, plural, usage, Style};
+use crate::git::Git;
 use anyhow::{Context, Result};
 use fjord_core::{crypto, manifest::Manifest, path as rules, scaffold, scalar, store, vault};
 
@@ -16,7 +17,8 @@ pub fn run(command: &VaultCommand, global: &GlobalArgs) -> Result<ExitCode> {
             encrypted,
             id_naming,
             recipient,
-        } => add(name, *encrypted, *id_naming, recipient, global),
+            commit,
+        } => add(name, *encrypted, *id_naming, recipient, *commit, global),
         VaultCommand::List => list(global),
     }
 }
@@ -26,11 +28,24 @@ fn add(
     encrypted: bool,
     id_naming: bool,
     recipients: &[String],
+    commit: bool,
     global: &GlobalArgs,
 ) -> Result<ExitCode> {
     let root = find_root(global.repo.as_deref())?;
     if let Some(code) = ensure_writable(&root)? {
         return Ok(code);
+    }
+
+    // Checked up front, like everything else, so that a request that cannot
+    // be honoured creates nothing: a vault made and then not committed, when
+    // a commit was asked for, is a half-done job.
+    let repository = Git::new(&root);
+    if commit && !repository.is_repository() {
+        return Ok(usage(format!(
+            "--commit needs a git repository, and {} is not one. `fjord init` creates \
+             one, or leave --commit off",
+            root.display()
+        )));
     }
 
     // A plaintext vault has no recipients file, so accepting a key would
@@ -115,6 +130,26 @@ fn add(
     }
     std::fs::write(&manifest_path, rewritten).context("could not write fjord.json")?;
 
+    // Only the vault and the manifest entry that lists it. See
+    // `Git::commit_paths`: a bare commit would take everything staged.
+    let message = format!("Add vault {name}");
+    if commit {
+        repository
+            .add_paths(&[name, fjord_core::REPOSITORY_MANIFEST])
+            .and_then(|()| {
+                repository.commit_paths(&message, &[name, fjord_core::REPOSITORY_MANIFEST])
+            })
+            // The vault exists by now, and the user needs to know that: the
+            // obvious next move is to run this again, and be told it exists.
+            .with_context(|| {
+                format!(
+                    "the {name} vault was created, but could not be committed. Fix the \
+                     problem below, then commit it yourself with `git add {name} \
+                     fjord.json && git commit`"
+                )
+            })?;
+    }
+
     if global.json {
         // The same facts `vault list --json` reports, plus what was just
         // made: the id, the recipients actually registered, and the files.
@@ -126,6 +161,7 @@ fn add(
             "fileNaming": file_naming,
             "container": if id_naming { "tar" } else { "none" },
             "recipients": accepted,
+            "committed": commit,
             "files": files
                 .iter()
                 .map(|file| format!("{name}/{}", file.path))
@@ -156,6 +192,9 @@ fn add(
             style.dim(&format!("{shape}{keys}"))
         );
         println!("  {} {id}", style.dim("id"));
+        if commit {
+            println!("  {} {message}", style.dim("committed"));
+        }
         // Only when there is something to say: a vault created with its
         // keys is ready, and a hint to add one would be wrong.
         if encrypted && accepted.is_empty() {

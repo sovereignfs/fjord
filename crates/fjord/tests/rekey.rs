@@ -286,6 +286,46 @@ fn every_document_is_rewritten_in_one_commit() {
     );
 }
 
+/// Same hazard as `open --commit`: rekey staged its vault and then ran a
+/// bare `git commit`, taking whatever else was staged with it.
+#[test]
+fn the_rekey_commit_leaves_unrelated_staged_work_alone() {
+    let repo = repo();
+    assert_eq!(code(&repo.owner(&["new", "Private/a.md", "--no-edit"])), 0);
+
+    std::fs::write(repo.root.join("Public/other.md"), "staged earlier\n").expect("write");
+    assert!(Command::new("git")
+        .current_dir(&repo.root)
+        .args(["add", "Public/other.md"])
+        .status()
+        .expect("git add")
+        .success());
+
+    assert_eq!(code(&repo.owner(&["rekey", "Private", "--yes"])), 0);
+
+    let committed = Command::new("git")
+        .current_dir(&repo.root)
+        .args(["show", "--name-only", "--format=", "HEAD"])
+        .output()
+        .expect("git show");
+    let files = String::from_utf8_lossy(&committed.stdout).to_string();
+    assert!(files.contains("Private/a.md.age"), "{files}");
+    assert!(
+        !files.contains("Public/other.md"),
+        "unrelated work was committed: {files}"
+    );
+
+    let staged = Command::new("git")
+        .current_dir(&repo.root)
+        .args(["diff", "--cached", "--name-only"])
+        .output()
+        .expect("git diff");
+    assert_eq!(
+        String::from_utf8_lossy(&staged.stdout).trim(),
+        "Public/other.md"
+    );
+}
+
 #[test]
 fn an_id_vault_keeps_its_names_and_its_filenames() {
     // §7.2: the leaf is the identifier, and the real name lives in the

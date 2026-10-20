@@ -448,13 +448,25 @@ in that file, including ones this build does not understand.
 | `--encrypted` | Encrypt the vault with age. |
 | `--id-naming` | Name files by ULID. Requires `--encrypted`. |
 | `--recipient <key>` | Register an age **public** key, so the vault is writable immediately. Repeat for several. Requires `--encrypted`. |
-| `--json` | Machine-readable output: the vault's id, its settings, the recipients registered, and the files written. |
+| `--commit` | Commit the new vault, and only the new vault. |
+| `--json` | Machine-readable output: the vault's id, its settings, the recipients registered, whether it was committed, and the files written. |
 
 **Without `--recipient`, an encrypted vault is created unwritable.** Spec
 §6.2 makes a vault with no recipients valid but unwritable, and `fjord
 verify` warns about it (`W602`) until you run `fjord key add`. Giving
 `--recipient` at creation skips that step: the first document can be written
 straight away, and the new vault has nothing to warn about.
+
+**`--commit` records the vault in one commit** — `Add vault <name>` — holding
+the vault's files and its entry in `fjord.json`, and **nothing else**.
+Anything you had already staged, edited or left untracked stays exactly as it
+was: a plain `git commit` takes the whole index, so a commit that says it adds
+a vault would otherwise carry whatever else was staged. Without `--commit`
+nothing is committed, like `new`, `encrypt` and `key add`; `fjord sync` will
+pick it up. It needs a git repository and refuses up front, creating nothing,
+if there is none. If the vault is created but git then refuses the commit — an
+unset `user.email`, most often — the error says the vault exists and how to
+commit it by hand.
 
 **Every key is checked before anything is written.** One mistyped character
 leaves a key with the right length and alphabet and a failed checksum, and a

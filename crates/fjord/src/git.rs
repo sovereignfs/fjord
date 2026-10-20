@@ -92,6 +92,30 @@ impl Git {
             .with_context(|| format!("could not stage {relative}"))
     }
 
+    /// `git add -- <paths>`.
+    pub fn add_paths(&self, paths: &[&str]) -> Result<()> {
+        let mut arguments = vec!["add", "--"];
+        arguments.extend(paths);
+        self.run(&arguments)
+            .map(drop)
+            .with_context(|| format!("could not stage {}", paths.join(", ")))
+    }
+
+    /// Commit **only** `paths`, whatever else is staged.
+    ///
+    /// `git commit` with no pathspec commits the whole index, so anything the
+    /// user had already staged — an unrelated edit, a half-finished change —
+    /// would be swept into a commit whose message says it adds a vault. With
+    /// a pathspec git commits just those paths and leaves the rest of the
+    /// index exactly as it found it.
+    pub fn commit_paths(&self, message: &str, paths: &[&str]) -> Result<()> {
+        let mut arguments = vec!["commit", "-m", message, "--"];
+        arguments.extend(paths);
+        self.run(&arguments)
+            .map(drop)
+            .context("could not create the commit")
+    }
+
     /// `git commit -m <message>`.
     pub fn commit(&self, message: &str) -> Result<()> {
         self.run(&["commit", "-m", message])

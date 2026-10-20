@@ -433,6 +433,53 @@ fn the_scratch_file_keeps_the_extension_the_editor_needs() {
     );
 }
 
+/// `open --commit` used to stage its file and then run a bare `git commit`,
+/// which takes the whole index: anything already staged landed in a commit
+/// saying "Edit <file>". Found while writing the same guard for `vault add`.
+#[test]
+fn commit_leaves_unrelated_staged_work_alone() {
+    let repo = repo_with_document("original\n");
+    std::fs::write(repo.root.join("Public/other.md"), "staged earlier\n").expect("write");
+    assert!(Command::new("git")
+        .current_dir(&repo.root)
+        .args(["add", "Public/other.md"])
+        .status()
+        .expect("git add")
+        .success());
+
+    let editor = editor_script(&repo, "append", "printf 'edited\\n' >> \"$1\"");
+    let output = repo.run(&[
+        "open",
+        "Private/notes.md",
+        "--editor",
+        &editor.to_string_lossy(),
+        "--commit",
+    ]);
+    assert_eq!(code(&output), 0, "{}", err(&output));
+
+    let committed = Command::new("git")
+        .current_dir(&repo.root)
+        .args(["show", "--name-only", "--format=", "HEAD"])
+        .output()
+        .expect("git show");
+    assert_eq!(
+        String::from_utf8_lossy(&committed.stdout).trim(),
+        "Private/notes.md.age",
+        "the commit held more than the edited document"
+    );
+
+    // Still staged, untouched.
+    let staged = Command::new("git")
+        .current_dir(&repo.root)
+        .args(["diff", "--cached", "--name-only"])
+        .output()
+        .expect("git diff");
+    assert_eq!(
+        String::from_utf8_lossy(&staged.stdout).trim(),
+        "Public/other.md"
+    );
+}
+
 #[test]
 fn commit_records_the_edit() {
     let repo = repo_with_document("original\n");

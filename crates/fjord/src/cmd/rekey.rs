@@ -132,11 +132,15 @@ pub fn run(args: &RekeyArgs, global: &GlobalArgs) -> Result<ExitCode> {
     let repository = Git::new(&root);
     let committed = if repository.is_repository() {
         repository.add_path(&vault.directory)?;
-        repository.commit(&format!(
-            "Rekey {} to {}",
-            vault.directory,
-            plural(recipients.len(), "recipient", "recipients")
-        ))?;
+        // Only this vault: see `Git::commit_paths`.
+        repository.commit_paths(
+            &format!(
+                "Rekey {} to {}",
+                vault.directory,
+                plural(recipients.len(), "recipient", "recipients")
+            ),
+            &[&vault.directory],
+        )?;
         true
     } else {
         false
