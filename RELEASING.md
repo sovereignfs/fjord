@@ -84,9 +84,11 @@ would, and the run would fail.
    the tag prefix, the changelog path, the files a version lives in, how to
    bump them, what must pass first, and how to check the published result.
 3. Give it a tag prefix of its own, `<component>-vX.Y.Z`, and set `C_LATEST=no`.
-4. Give it its own CI workflow with `paths` filters. A path-filtered workflow
-   that is skipped never reports, so do not make it a *required* check in
-   branch protection.
+4. Give it its own CI workflow that runs only for changes that can affect it.
+   Prefer the `changes` job that `ci.yml` uses (it always reports, and skipped
+   jobs count as passed, so the checks can be required). A workflow that is
+   skipped altogether by `paths` filters never reports, so do not make that kind
+   a *required* check in branch protection.
 5. Add tests for what is particular to it to `scripts/test-release.sh`.
 6. Add its ecosystem to `.github/dependabot.yml`.
 

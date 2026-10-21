@@ -61,7 +61,10 @@ with short-lived branches, and `CONTRIBUTING.md` is the same rules for people.
   only after it has been seen to fail against the code it guards.
 - **CI** runs on pull requests, and also on pushes to `main` (see below). It is
   skipped while a PR is a draft or carries the `skip-ci` label; marking the PR
-  ready runs it.
+  ready runs it. A first job works out what the change touches
+  (`scripts/ci-changes.sh`, with tests), so a change to documentation alone runs
+  nothing more. A new kind of file that the build or tests read must be added to
+  that script, or CI will skip the change that breaks it.
 - **Releases are their own PR.** Version bumps do not ride in feature PRs: changes
   accumulate under `[Unreleased]`, and `scripts/release.sh` makes a
   `chore/release-<component>-X.Y.Z` branch with one `Release <package> X.Y.Z`
@@ -96,8 +99,9 @@ depends on `fjord-core`; it does not belong here.
 1. Its own directory, its own `README.md`, its own `CHANGELOG.md`.
 2. It passes `tests/fixtures/`. The fixtures are the format's conformance suite,
    not the CLI's.
-3. Its own CI workflow with `paths` filters, so it does not run the Rust matrix
-   and the Rust matrix does not run for it.
+3. Its own CI workflow that runs only for changes that can affect it (`paths`
+   filters, or a `changes` job like `ci.yml`'s), so it does not run the Rust
+   matrix and the Rust matrix does not run for it.
 4. A release entry in `scripts/release/<component>.sh` and a tag prefix
    `<component>-vX.Y.Z`. See `RELEASING.md`. A component's release is never
    marked *Latest*; the CLI's is, because the install URLs depend on it.
