@@ -8,6 +8,10 @@ name: Audit
 
 on:
   push:
+    # Branches only. Without this, a push of any *tag* also ran the audit, and
+    # with several components each tagging their own releases that is one
+    # needless run per release.
+    branches: [main]
     paths: ["**/Cargo.toml", "**/Cargo.lock", "deny.toml", ".github/workflows/audit.yml"]
   pull_request:
     paths: ["**/Cargo.toml", "**/Cargo.lock", "deny.toml", ".github/workflows/audit.yml"]
