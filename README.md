@@ -17,7 +17,7 @@ code that implements it is one commit.
 | --- | --- | --- | --- |
 | [`spec/`](spec/SPEC.md) | The repository format. Canonical; CC0. | Draft | — |
 | [`crates/fjord-core`](crates/fjord-core) | The format as a library: manifests, paths, Docs, encryption, `verify`. Built to run anywhere (desktop, mobile, WASM). | Released with the CLI | — |
-| [`crates/fjord`](crates/fjord) | **`fjord`**, the command-line tool. | Released | [Install](crates/fjord/README.md#install) |
+| [`crates/fjord-cli`](crates/fjord-cli) | **`fjord`**, the command-line tool. | Released | [Install](crates/fjord-cli/README.md#install) |
 | `clients/web`, `clients/desktop`, `clients/mobile` | End-user apps. | Planned | — |
 | `plugins/vscode`, `plugins/obsidian` | Editor integrations. | Planned | — |
 
@@ -38,8 +38,8 @@ fjord init notes && cd notes
 fjord verify
 ```
 
-Everything it does is in the [CLI's README](crates/fjord/README.md), and what
-changed between versions is in its [CHANGELOG](crates/fjord/CHANGELOG.md).
+Everything it does is in the [CLI's README](crates/fjord-cli/README.md), and what
+changed between versions is in its [CHANGELOG](crates/fjord-cli/CHANGELOG.md).
 
 ## Building
 

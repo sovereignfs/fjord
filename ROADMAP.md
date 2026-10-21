@@ -23,7 +23,7 @@ The acceptance criterion that matters most holds: **a file encrypted by
 `fjord` decrypts with the real `age` binary, and a file written by `age -R`
 decrypts with `fjord`** — in binary and armored form, over all 256 byte
 values, with keys from either implementation.
-`crates/fjord/tests/age_interop.rs` also runs the recovery procedure the
+`crates/fjord-cli/tests/age_interop.rs` also runs the recovery procedure the
 generated README documents, verbatim, so that document cannot quietly
 become a lie.
 
@@ -242,7 +242,7 @@ Two things about this are worth keeping:
 ### M4 notes
 
 All four of the edge cases CLAUDE.md names are handled, and each has a test
-named after it in `crates/fjord/tests/open.rs`. The editors in those tests
+named after it in `crates/fjord-cli/tests/open.rs`. The editors in those tests
 are `#!/bin/sh` scripts, which is what makes the command testable at all: a
 real editor wants a terminal, while a script can stand in for one that
 saves, one that changes nothing, and one that hangs.
@@ -795,7 +795,7 @@ is what is wanted.
 ### Bumping the version takes two edits
 
 Found while checking the above. The `fjord-core` dependency in
-`crates/fjord/Cargo.toml` carries its own `version = "0.1.0"`, which
+`crates/fjord-cli/Cargo.toml` carries its own `version = "0.1.0"`, which
 `cargo publish` requires, so changing only `workspace.package.version`
 **fails the build** (`failed to select a version for the requirement
 fjord-core = "^0.1.0"`). It fails loudly rather than silently, which is the
@@ -1140,7 +1140,7 @@ Things found while planning it, none of which was obvious:
   repository root and a tag equal to the manifest version. It will need a
   small release-only repository. Recorded in `RELEASING.md`; not built.
 - **`dist` needed nothing special for the moved README and CHANGELOG.** Moving
-  them under `crates/fjord/` was a guess about archive contents, so it was
+  them under `crates/fjord-cli/` was a guess about archive contents, so it was
   tested first: `dist plan` and a real local build both bundle README,
   LICENSE and CHANGELOG, and find the release notes.
 - **The release tests were testing `HEAD`.** They clone the repository, so

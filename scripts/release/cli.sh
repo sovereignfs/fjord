@@ -17,8 +17,8 @@ C_PACKAGE=fjord-cli
 C_TAG_PREFIX=fjord-cli-v
 # Releases up to 0.2.0 were tagged before there was more than one component.
 C_LEGACY_TAG_PREFIX=v
-C_CHANGELOG=crates/fjord/CHANGELOG.md
-C_TOUCHED="crates/fjord/CHANGELOG.md Cargo.toml Cargo.lock crates/fjord/Cargo.toml"
+C_CHANGELOG=crates/fjord-cli/CHANGELOG.md
+C_TOUCHED="crates/fjord-cli/CHANGELOG.md Cargo.toml Cargo.lock crates/fjord-cli/Cargo.toml"
 C_RELEASE_WORKFLOW=fjord-cli-release.yml
 # The README and the installers say `releases/latest`, and mean this.
 C_LATEST=yes
@@ -31,7 +31,7 @@ c_current_version() {
 }
 
 c_core_dependency_version() {
-  sed -nE 's/^fjord-core = .*version = "([^"]+)".*/\1/p' crates/fjord/Cargo.toml
+  sed -nE 's/^fjord-core = .*version = "([^"]+)".*/\1/p' crates/fjord-cli/Cargo.toml
 }
 
 c_check_versions() {
@@ -40,7 +40,7 @@ c_check_versions() {
   core=$(c_core_dependency_version)
   [ -n "$cur" ] || die "could not read the workspace version from Cargo.toml"
   [ "$cur" = "$core" ] ||
-    die "Cargo.toml says $cur but the fjord-core dependency in crates/fjord/Cargo.toml says $core; fix that first"
+    die "Cargo.toml says $cur but the fjord-core dependency in crates/fjord-cli/Cargo.toml says $core; fix that first"
   ok "both version declarations agree on $cur"
 }
 
@@ -51,11 +51,11 @@ c_bump() {
   sed "s/^version = \"$cur\"\$/version = \"$v\"/" Cargo.toml >"$WORK/cargo.new"
   cat "$WORK/cargo.new" >Cargo.toml
 
-  [ "$(grep -c "path = \"../fjord-core\", version = \"$cur\"" crates/fjord/Cargo.toml)" = 1 ] ||
-    die "expected exactly one fjord-core dependency at version $cur in crates/fjord/Cargo.toml"
+  [ "$(grep -c "path = \"../fjord-core\", version = \"$cur\"" crates/fjord-cli/Cargo.toml)" = 1 ] ||
+    die "expected exactly one fjord-core dependency at version $cur in crates/fjord-cli/Cargo.toml"
   sed "s|path = \"../fjord-core\", version = \"$cur\"|path = \"../fjord-core\", version = \"$v\"|" \
-    crates/fjord/Cargo.toml >"$WORK/fjord.new"
-  cat "$WORK/fjord.new" >crates/fjord/Cargo.toml
+    crates/fjord-cli/Cargo.toml >"$WORK/fjord.new"
+  cat "$WORK/fjord.new" >crates/fjord-cli/Cargo.toml
   ok "both declarations now say $v"
 
   cargo build --workspace --quiet

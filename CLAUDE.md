@@ -33,7 +33,7 @@ that needs it, and every client reads the same file.
 | `spec/` | The format. Canonical. | CC0 (`spec/LICENSE`) | with whatever needs it |
 | `schema/`, `tests/fixtures/` | The `verify --json` schema, and the conformance fixtures **every** client must pass | MPL-2.0 | — |
 | `crates/fjord-core/` | The format as a library | MPL-2.0 | with the CLI |
-| `crates/fjord/` | The CLI: package `fjord-cli`, binary `fjord` | MPL-2.0 | `fjord-cli-vX.Y.Z` |
+| `crates/fjord-cli/` | The CLI: package `fjord-cli`, binary `fjord` | MPL-2.0 | `fjord-cli-vX.Y.Z` |
 | `clients/web`, `clients/desktop`, `clients/mobile` | Not created yet | — | their own tags |
 | `plugins/vscode`, `plugins/obsidian` | Not created yet | — | their own tags |
 
@@ -90,7 +90,7 @@ fjord/
 ├── Cargo.toml                 workspace (fjord-core and the CLI)
 ├── crates/
 │   ├── fjord-core/            the format. no IO beyond std::fs.
-│   └── fjord/                 the binary. clap, terminal, git.
+│   └── fjord-cli/             the binary. clap, terminal, git.
 ├── spec/SPEC.md               the format. canonical, edited here
 ├── schema/  tests/fixtures/   shared by every component
 └── clients/  plugins/         when they exist; see Repository layout
@@ -110,7 +110,7 @@ desktop app, iOS/Android via FFI, and the web client via WASM. Therefore, in
 parsing, prompting, colour, the editor round trip, and git.
 
 **Git is invoked by shelling out to `git`** in v1, confined to
-`crates/fjord/src/git.rs` behind a narrow interface. The user already has
+`crates/fjord-cli/src/git.rs` behind a narrow interface. The user already has
 git. This sidesteps the `git2`-vs-`gix` decision and saves substantial time.
 When the clients need git without a binary, implement that trait with `gix`
 in a separate crate — do not scatter `Command::new("git")` through the

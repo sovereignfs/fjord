@@ -345,7 +345,7 @@ fn vault_of(diagnostic: &Diagnostic, vaults: &[VaultSummary]) -> Option<usize> {
 // --- JSON ----------------------------------------------------------------
 
 /// Machine-readable output. The shape is published API: see
-/// `schema/verify.schema.json`, which `crates/fjord/tests/cli.rs` checks
+/// `schema/verify.schema.json`, which `crates/fjord-cli/tests/cli.rs` checks
 /// this against.
 fn render_json(report: &Report, repairs: Option<&[Repair]>) -> String {
     let diagnostics: Vec<serde_json::Value> = report

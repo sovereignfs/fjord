@@ -49,7 +49,7 @@ FAILED=0
 TODAY=$(date +%Y-%m-%d)
 
 # Where the CLI component keeps its notes.
-CL=crates/fjord/CHANGELOG.md
+CL=crates/fjord-cli/CHANGELOG.md
 # Read by commands that check_in eval's, which shellcheck cannot follow.
 # shellcheck disable=SC2034
 REPO=https://github.com/sovereignfs/fjord
@@ -214,7 +214,7 @@ refuses "a tag that already exists on origin" "already exists on origin"
 
 # The two version declarations disagree.
 fresh skew
-(cd "$T/skew" && sed -i.bak 's|path = "../fjord-core", version = "[^"]*"|path = "../fjord-core", version = "9.9.9"|' crates/fjord/Cargo.toml && rm crates/fjord/Cargo.toml.bak)
+(cd "$T/skew" && sed -i.bak 's|path = "../fjord-core", version = "[^"]*"|path = "../fjord-core", version = "9.9.9"|' crates/fjord-cli/Cargo.toml && rm crates/fjord-cli/Cargo.toml.bak)
 commit_push skew "scratch: skew the versions"
 notes skew
 rel skew check "$NEXT"
@@ -262,11 +262,11 @@ check_in ok "the previous version's link is still there" \
 check_in ok "the workspace version is bumped" \
   'grep -qx "version = \"$NEXT\"" Cargo.toml'
 check_in ok "the fjord-core dependency version is bumped" \
-  'grep -q "fjord-core = .*version = \"$NEXT\"" crates/fjord/Cargo.toml'
+  'grep -q "fjord-core = .*version = \"$NEXT\"" crates/fjord-cli/Cargo.toml'
 check_in ok "Cargo.lock followed" \
   'grep -A1 "^name = \"fjord-cli\"" Cargo.lock | grep -q "version = \"$NEXT\""'
 check_in ok "only the four expected files changed" \
-  '[ -z "$(git diff --name-only HEAD~1 | grep -vE "^(crates/fjord/CHANGELOG\\.md|Cargo\\.toml|Cargo\\.lock|crates/fjord/Cargo\\.toml)$")" ]'
+  '[ -z "$(git diff --name-only HEAD~1 | grep -vE "^(crates/fjord-cli/CHANGELOG\\.md|Cargo\\.toml|Cargo\\.lock|crates/fjord-cli/Cargo\\.toml)$")" ]'
 check_in ok "nothing was pushed" \
   '[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]'
 check_in ok "dist can find the notes in the result" \
@@ -300,7 +300,7 @@ refuses "a failing gate fails the run" "rustfmt"
 check_in roll "no commit was made" '[ "$(git rev-parse HEAD)" = "'"$BEFORE_HEAD"'" ]'
 check_in roll "Cargo.toml is back at $CUR" 'grep -qx "version = \"$CUR\"" Cargo.toml'
 check_in roll "the fjord-core dependency is back at $CUR" \
-  'grep -q "fjord-core = .*version = \"$CUR\"" crates/fjord/Cargo.toml'
+  'grep -q "fjord-core = .*version = \"$CUR\"" crates/fjord-cli/Cargo.toml'
 check_in roll "the uncommitted notes survived the rollback" \
   'grep -qF "A note for the release under test." $CL'
 check_in roll "...and are still under [Unreleased], not promoted" \

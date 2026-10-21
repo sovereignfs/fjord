@@ -22,7 +22,7 @@ own tests, `scripts/test-release.sh`, run against throwaway repositories.
 
 | Component | Tag | Notes live in | Released by | Marked *Latest* |
 | --- | --- | --- | --- | --- |
-| `cli` (`fjord-cli`, with `fjord-core`) | `fjord-cli-vX.Y.Z` | `crates/fjord/CHANGELOG.md` | `dist`, from `.github/workflows/fjord-cli-release.yml` | **yes** |
+| `cli` (`fjord-cli`, with `fjord-core`) | `fjord-cli-vX.Y.Z` | `crates/fjord-cli/CHANGELOG.md` | `dist`, from `.github/workflows/fjord-cli-release.yml` | **yes** |
 
 Releases up to 0.2.0 were tagged `vX.Y.Z`, before there was more than one
 component. They are finished and stay as they are; the script finds them when

@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/fjord-core", "crates/fjord"]
+members = ["crates/fjord-core", "crates/fjord-cli"]
 resolver = "2"
 
 [workspace.package]
