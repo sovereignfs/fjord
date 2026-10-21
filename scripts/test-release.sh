@@ -345,13 +345,17 @@ printf '\nwaiting on GitHub: against the real v0.1.2 runs\n'
 # `git -C` rather than `cd ... && git ... || true`: that shape is `A && B || C`,
 # which is not if/else, and the older shellcheck on the CI runners flags it.
 RELEASED_SHA=$(git -C "$ROOT" rev-parse -q --verify "refs/tags/v0.1.2^{commit}" 2>/dev/null || true)
-# That release was cut by the workflow that is now `release.yml`, deleted when
-# the tag namespace arrived; GitHub keeps the workflow and its runs. Found by
-# path, because its name, "Release", is also the new workflow's.
+# That release was cut by the workflow that was `release.yml`, deleted when the
+# tag namespace arrived. GitHub stops listing a deleted workflow but keeps its
+# runs, reachable by the workflow's numeric id, which a run of it still knows.
 OLD_WORKFLOW=""
 if gh auth status >/dev/null 2>&1; then
-  OLD_WORKFLOW=$(gh api "repos/${REPO#https://github.com/}/actions/workflows" \
-    --jq '.workflows[] | select(.path == ".github/workflows/release.yml") | .id' 2>/dev/null | head -1 || true)
+  OLD_RUN=$(gh run list --repo "${REPO#https://github.com/}" --limit 200 --json databaseId,headBranch,workflowName \
+    --jq '.[] | select(.headBranch == "v0.1.2" and .workflowName == "Release") | .databaseId' 2>/dev/null | head -1 || true)
+  if [ -n "$OLD_RUN" ]; then
+    OLD_WORKFLOW=$(gh run view "$OLD_RUN" --repo "${REPO#https://github.com/}" --json workflowDatabaseId \
+      --jq .workflowDatabaseId 2>/dev/null || true)
+  fi
 fi
 if gh auth status >/dev/null 2>&1 && [ -n "$RELEASED_SHA" ]; then
   # In a subshell: sourcing installs the script's EXIT trap and `set -e`.
@@ -367,7 +371,7 @@ if gh auth status >/dev/null 2>&1 && [ -n "$RELEASED_SHA" ]; then
     gh_call "wait_for_release_run v0.1.2 $OLD_WORKFLOW"
     accepts "the real v0.1.2 release run is found and green"
   else
-    printf '  skip  the old release.yml workflow is not known to GitHub\n'
+    printf '  skip  could not find the v0.1.2 release run on GitHub\n'
   fi
 
   FAKE=0000000000000000000000000000000000000001
@@ -448,6 +452,57 @@ if command -v gh >/dev/null 2>&1; then
   accepts "an older release of the CLI is allowed not to be Latest"
 else
   printf '  skip  gh is not installed, so the Latest tests were not run\n'
+fi
+
+# A release is called by its component and version, with no date. Run against
+# a stand-in for gh that records what it is asked to do.
+if command -v gh >/dev/null 2>&1; then
+  RECORD="$T/gh-calls"
+  : >"$RECORD"
+  title_call() {
+    OUT=$(cd "$ROOT" && RECORD="$RECORD" bash -c '
+      source scripts/lib/release.sh
+      source scripts/release/cli.sh
+      gh() { printf "%s\n" "$*" >>"$RECORD"; }
+      '"$1" 2>&1)
+    RC=$?
+  }
+  title_call 'retitle_release fjord-cli-v9.9.9 9.9.9'
+  accepts "a published release is retitled"
+  if grep -qxF "release edit fjord-cli-v9.9.9 --title fjord-cli 9.9.9" "$RECORD"; then
+    pass "...to the component and version, with no date"
+  else
+    fail "...to the component and version, with no date" "$(cat "$RECORD")"
+  fi
+
+  # verify reads the title back: a dated one is reported, not fatal.
+  name_call() {
+    OUT=$(cd "$ROOT" && bash -c '
+      source scripts/lib/release.sh
+      source scripts/release/cli.sh
+      gh() {
+        case "$1 $2" in
+          "release view") echo "{\"name\":\"'"$1"'\",\"isDraft\":false,\"isPrerelease\":false,\"body\":\"\",\"assets\":[]}" ;;
+          "release list") echo true ;;
+        esac
+      }
+      verify_release_page fjord-cli-v9.9.9 9.9.9' 2>&1)
+    RC=$?
+  }
+  name_call "fjord-cli 9.9.9"
+  accepts "a release titled as it should be"
+  if printf '%s' "$OUT" | grep -qF "titled 'fjord-cli 9.9.9'"; then
+    pass "...and says so"
+  else
+    fail "...and says so" "$OUT"
+  fi
+  name_call "9.9.9 - 2026-10-21"
+  accepts "a release whose title still has the date is not fatal"
+  if printf '%s' "$OUT" | grep -qF "gh release edit fjord-cli-v9.9.9 --title 'fjord-cli 9.9.9'"; then
+    pass "...but the warning says how to fix it"
+  else
+    fail "...but the warning says how to fix it" "$OUT"
+  fi
 fi
 
 # --- The full gates, once ---------------------------------------------------------------

@@ -120,7 +120,7 @@ c_verify() {
 
   step "Verify the published release $tag"
 
-  verify_release_page "$tag"
+  verify_release_page "$tag" "$v"
 
   # The expected assets come from the release's own manifest, plus the
   # manifest itself, which it does not list: no number to keep in sync.

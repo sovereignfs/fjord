@@ -254,6 +254,15 @@ require_tag_free() {
   ok "tag $tag is free"
 }
 
+# What a published release is called on GitHub: the component and the version,
+# with no date. dist takes the title from the changelog heading, which is
+# "0.3.0 - 2026-10-21" because that is how a changelog is written, and its
+# configuration has no setting for it; so `publish` sets the title once the
+# release exists.
+release_title() {
+  echo "$C_PACKAGE $1"
+}
+
 # The subject of the commit `prepare` makes, and `publish` insists on.
 release_subject() {
   echo "Release $C_PACKAGE $1"
@@ -442,21 +451,40 @@ wait_for_release_run() {
   ok "the $workflow workflow succeeded"
 }
 
+retitle_release() {
+  local tag=$1 v=$2 title
+  title=$(release_title "$v")
+  gh release edit "$tag" --title "$title" >/dev/null ||
+    die "could not set the title of $tag to '$title'. Set it yourself: gh release edit $tag --title '$title'"
+  ok "titled the release '$title'"
+}
+
 # What every published release must be, whatever it contains: visible to
 # `releases/latest` if it is meant to be, and invisible to it if not. In a
 # repository that releases several things, "Latest" is one slot shared by all
 # of them, and the CLI's install URLs depend on it being the CLI's.
 verify_release_page() {
-  local tag=$1 is_latest
+  local tag=$1 v=${2:-} is_latest title
   need gh
   need jq
   [ -n "$WORK" ] || WORK=$(mktemp -d)
 
-  gh release view "$tag" --json isDraft,isPrerelease,body,assets >"$WORK/release.json" ||
+  gh release view "$tag" --json name,isDraft,isPrerelease,body,assets >"$WORK/release.json" ||
     die "there is no release $tag"
   jq -e '.isDraft == false and .isPrerelease == false' "$WORK/release.json" >/dev/null ||
     die "$tag is a draft or a prerelease, which 'releases/latest' skips"
   ok "published, not a draft or prerelease"
+
+  # A warning, not a failure: a release made before titles were set has the
+  # date in it, and that is cosmetic and fixed with one command.
+  if [ -n "$v" ]; then
+    title=$(jq -r .name "$WORK/release.json")
+    if [ "$title" = "$(release_title "$v")" ]; then
+      ok "titled '$title'"
+    else
+      warn "$tag is titled '$title', not '$(release_title "$v")'. Fix it: gh release edit $tag --title '$(release_title "$v")'"
+    fi
+  fi
 
   is_latest=$(gh release list --json tagName,isLatest --jq ".[] | select(.tagName == \"$tag\") | .isLatest")
   if [ "$C_LATEST" = yes ]; then
@@ -538,6 +566,7 @@ cmd_publish() {
 
   step "Release workflow"
   wait_for_release_run "$tag" "$C_RELEASE_WORKFLOW"
+  retitle_release "$tag" "$v"
 
   c_verify "$v"
 }

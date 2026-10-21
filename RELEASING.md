@@ -33,6 +33,15 @@ Write the notes under `## [Unreleased]` in the component's changelog as you go.
 reads that section at the tagged commit and falls back to generic notes
 *silently* without one.
 
+## Release titles
+
+A release is titled `<component> <version>`, for example `fjord-cli 0.3.0`, with
+no date; the date is in the changelog, where it belongs. dist builds the title
+from the changelog heading (`0.3.0 - 2026-10-21`) and has no setting for it, so
+`publish` retitles the release once the workflow has created it, and `verify`
+warns if a title still has the date. That call is the one part of `publish` the
+tests cannot exercise without publishing; the function it calls is tested.
+
 ## "Latest" is one slot, and it belongs to the CLI
 
 GitHub marks one release in a repository as *Latest*. The README and the
