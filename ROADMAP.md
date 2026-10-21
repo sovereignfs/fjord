@@ -1048,6 +1048,59 @@ Still not built, and no longer promised: the guard files and NFC repairs. If
 they come, each needs its own diagnostic-to-repair test and a decision about
 NFC, which renames a file.
 
+## A checkout, and the commit guard it needed
+
+The request: decrypt a vault, work in it, encrypt it, sync — and have `sync`
+refuse while the vault is decrypted. Both halves turned out to rest on holes,
+found by running the real binary rather than reading the code.
+
+**The guard came first, because it was already broken.** With a stray
+decrypted file in an encrypted vault, `fjord sync` said "already up to date"
+and exited 0: the vault's `.gitignore` made git skip the file, so the edit was
+in no commit and nothing said so. With that `.gitignore` deleted, `sync`
+committed and pushed the plaintext. `rekey` and `vault add --commit` stage a
+whole vault and shared the hole. `cmd/guard.rs` now asks `verify` (E201, E208)
+before any of them stages anything. §6.5's guard file is a safety net, not a
+lock; this is the lock.
+
+**Whole-vault decrypt already half-existed, in the wrong place.** `fjord
+export` decrypts a vault, but only outside the repository, and `import` adds
+files as new documents with fresh ids, so the two are not a round trip. The
+workflow wanted the decrypted files *in place*, which breaks spec §6.5 ("MUST
+NOT write an unencrypted document into an encrypted vault") and the first
+invariant in CLAUDE.md. That was the owner's call, and it was made: §6.5 now
+has an exception, a new §6.6 (a *checkout*), and invariant 1 names it. The
+vendored `spec/SPEC.md` was edited here at the owner's instruction;
+`fjord-spec` upstream needs the same change.
+
+What fences the exception in (`cmd/checkout.rs`):
+
+- Only `fjord decrypt <vault>` starts one; the guard `.gitignore` must be
+  intact; nothing may already be in the clear.
+- A record under `.fjord/local/checkouts/` is written **before** the first
+  plaintext file, and carries `complete: false` until every file exists.
+  *That flag is there because of a bug found while reviewing the design:* an
+  interrupted decrypt leaves a record naming files that were never written,
+  and check-in would have read their absence as deletions and offered to
+  delete their payloads.
+- Payloads are not touched until check-in, and check-in plans everything,
+  verifies every new payload by decrypting it, and only then writes. A payload
+  that changed since the checkout (a pull) is never overwritten.
+- Deletions are listed and need confirmation.
+
+Each safety property has a test, and each was checked by breaking the code it
+guards and watching exactly that test fail.
+
+Found on the way, and fixed: `fjord import` into an `id`-named vault named
+the payload with a fresh id even when the Markdown already carried its own,
+which §7.2 requires to be the same. `verify` cannot see it (it never
+decrypts), and the existing test only checked that the name was 26 characters
+long, so it passed. The new tests compare the name with the id inside, and
+each fails against the old behaviour. Vaults imported into by earlier
+versions may carry mismatched names, and nothing detects that. Also left: a checkout holds the whole vault in memory
+while decrypting, and the record's digests of plaintext are a low-risk local
+leak (the record is git-ignored and removed with the checkout).
+
 ## Documentation defects
 
 Found while auditing the scaffolding. Each is a small, isolated fix, and each
