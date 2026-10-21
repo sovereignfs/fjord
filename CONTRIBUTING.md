@@ -77,13 +77,23 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>
 ## Continuous integration
 
 CI runs on pull requests targeting `main` and on pushes to `main`
-(`.github/workflows/ci.yml`), but only when a change can affect the Rust crates:
-`crates/`, `spec/`, `schema/`, `tests/`, `scripts/`, the workspace manifests and
-the workflow itself. It checks that the crate and the reference `age`
-implementation agree, runs the suite on Linux and macOS, builds on Windows,
-holds clippy and rustfmt, and checks the minimum Rust version and a static musl
-binary. A separate Audit workflow runs `cargo deny` when the dependency tree
-changes.
+(`.github/workflows/ci.yml`). It always starts, but its first job looks at what
+the change touches (`scripts/ci-changes.sh`) and the others run only if it can be
+affected:
+
+| You changed | What runs |
+| --- | --- |
+| Documentation only: READMEs, CHANGELOGs, `spec/`, the roadmap, `.github` templates | Nothing beyond that first job, a few seconds |
+| `scripts/` only | shellcheck, and the classifier's tests |
+| `crates/` (except a crate's own `README.md` and `CHANGELOG.md`), `schema/`, `tests/`, `Cargo.toml`, `Cargo.lock`, or the workflow itself | The full Rust jobs |
+
+The full Rust jobs check that the crate and the reference `age` implementation
+agree, run the suite on Linux and macOS, build on Windows, hold clippy and
+rustfmt, and check the minimum Rust version and a static musl binary. Markdown
+that the build or tests read still counts as code: the `init` templates under
+`crates/fjord-core/templates/` and the conformance fixtures under `tests/fixtures/`.
+A separate Audit workflow runs `cargo deny` when the dependency tree changes, and
+the generated release workflow checks its own plan on every PR.
 
 On a pull request, CI is **skipped while the PR is a draft** and while it carries
 the **`skip-ci`** label. Marking the PR ready runs it.

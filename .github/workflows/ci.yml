@@ -1,10 +1,12 @@
 # Continuous integration for the Rust crates: fjord-core and the CLI.
 #
 # This repository holds more than that (see CLAUDE.md § Repository layout), and
-# each component has its own workflow. This one only wakes for changes that can
-# affect the crates, so a client-only change does not run the Rust matrix. The
-# cost of a path filter is that a skipped check never reports, so a branch
-# protection rule must not *require* a check from a filtered workflow.
+# each component has its own workflow. The workflow always starts, but a cheap
+# `changes` job first works out what the change touches
+# (scripts/ci-changes.sh), and every other job runs only if it can be affected:
+# a change to documentation alone runs nothing else. Because the workflow always
+# reports, skipped jobs count as passed, so a branch protection rule can require
+# these checks.
 #
 # Four things are checked, and the order below is the order they matter in:
 #
@@ -21,44 +23,21 @@ name: CI
 on:
   push:
     branches: [main]
-    # Listed twice, not anchored: a workflow that GitHub cannot parse simply
-    # never runs, and a path filter is the wrong place to find that out.
-    paths:
-      - "crates/**"
-      - "spec/**"
-      - "schema/**"
-      - "tests/**"
-      - "scripts/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "deny.toml"
-      - "dist-workspace.toml"
-      - ".github/workflows/ci.yml"
   pull_request:
     branches: [main]
     # `ready_for_review` is how a draft starts running CI, and `labeled` and
     # `unlabeled` are how `skip-ci` takes effect straight away.
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
-    paths:
-      - "crates/**"
-      - "spec/**"
-      - "schema/**"
-      - "tests/**"
-      - "scripts/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "deny.toml"
-      - "dist-workspace.toml"
-      - ".github/workflows/ci.yml"
   # So that a dependency's new release cannot quietly break the build
   # unnoticed between commits.
   schedule:
     - cron: "0 6 * * 1"
 
-# A pull request that is a draft, or carries the `skip-ci` label, runs none of
-# the jobs below: every job has the same `if`. A push to main and the weekly
-# schedule always run them. `[skip ci]` in the head commit message also works,
-# natively, for pushes.
+# A pull request that is a draft, or carries the `skip-ci` label, runs nothing:
+# the `changes` job has the guard, and every other job needs it. A push to main
+# and the weekly schedule always run, and the schedule runs every job, because
+# it exists to catch what a dependency broke. `[skip ci]` in the head commit
+# message also works, natively, for pushes.
 
 permissions:
   contents: read
@@ -80,13 +59,50 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # The test that backs the recovery promise, on its own.
-  interop:
-    name: age cross-validation
+  # Works out what this change touches. It carries the draft / skip-ci guard, so
+  # on a draft it is skipped and everything that needs it is skipped with it.
+  changes:
+    name: what changed
+    runs-on: ubuntu-24.04
     if: >-
       github.event_name != 'pull_request' ||
       (github.event.pull_request.draft == false &&
       !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
+    outputs:
+      rust: ${{ steps.classify.outputs.rust }}
+      scripts: ${{ steps.classify.outputs.scripts }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: classify
+        name: Classify the changed paths
+        run: |
+          set -euo pipefail
+          base=""
+          case "${{ github.event_name }}" in
+            pull_request) base="${{ github.event.pull_request.base.sha }}" ;;
+            push) base="${{ github.event.before }}" ;;
+          esac
+          # No base to compare with (a schedule, a new branch, a force-push that
+          # lost the old tip): run everything rather than guess.
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] ||
+             ! git cat-file -e "$base^{commit}" 2>/dev/null ||
+             [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "No base to compare against, so running everything."
+            printf 'rust=true\nscripts=true\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Changed since ${base:0:7}:"
+          git diff --name-only "$base" HEAD | sed 's/^/  /'
+          git diff --name-only "$base" HEAD | scripts/ci-changes.sh | tee -a "$GITHUB_OUTPUT"
+
+  # The test that backs the recovery promise, on its own.
+  interop:
+    name: age cross-validation
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -114,10 +130,8 @@ jobs:
 
   test:
     name: test (${{ matrix.os }})
-    if: >-
-      github.event_name != 'pull_request' ||
-      (github.event.pull_request.draft == false &&
-      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -168,10 +182,8 @@ jobs:
   # is where a platform-gated API is most easily missed.
   windows:
     name: Windows builds
-    if: >-
-      github.event_name != 'pull_request' ||
-      (github.event.pull_request.draft == false &&
-      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v7
@@ -193,18 +205,19 @@ jobs:
 
   lint:
     name: clippy and rustfmt
-    if: >-
-      github.event_name != 'pull_request' ||
-      (github.event.pull_request.draft == false &&
-      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
+    needs: changes
+    # clippy and rustfmt need the Rust; shellcheck needs the scripts.
+    if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.scripts == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
       - name: Install components
+        if: needs.changes.outputs.rust == 'true'
         run: rustup component add clippy rustfmt
 
       - uses: actions/cache@v6
+        if: needs.changes.outputs.rust == 'true'
         with:
           path: |
             ~/.cargo/registry/index
@@ -213,22 +226,26 @@ jobs:
             target
           key: lint-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - run: cargo fmt --all --check
+      - if: needs.changes.outputs.rust == 'true'
+        run: cargo fmt --all --check
       # The release scripts are code that is only ever run on release day, so
       # nothing would notice a syntax error or a bashism until then. shellcheck
-      # ships on the Ubuntu runner images.
-      - run: shellcheck -x scripts/*.sh scripts/lib/*.sh scripts/release/*.sh
+      # ships on the Ubuntu runner images. The classifier that decides what CI
+      # runs has tests of its own, which are quick and need nothing installed.
+      - if: needs.changes.outputs.scripts == 'true'
+        run: shellcheck -x scripts/*.sh scripts/lib/*.sh scripts/release/*.sh
+      - if: needs.changes.outputs.scripts == 'true'
+        run: scripts/test-ci-changes.sh
       # On stable rather than on the MSRV: lints change between releases,
       # and the useful question is whether the code is clean under the
       # current ones.
-      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - if: needs.changes.outputs.rust == 'true'
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
   msrv:
     name: minimum supported Rust version
-    if: >-
-      github.event_name != 'pull_request' ||
-      (github.event.pull_request.draft == false &&
-      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -274,10 +291,8 @@ jobs:
 
   musl:
     name: static musl binary
-    if: >-
-      github.event_name != 'pull_request' ||
-      (github.event.pull_request.draft == false &&
-      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
