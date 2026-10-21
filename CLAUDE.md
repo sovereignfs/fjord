@@ -26,6 +26,56 @@ The spec is `spec/SPEC.md`, in this repository, and it is edited here: there is
 no other copy. A change to the format lands in the same commit as the code
 that needs it, and every client reads the same file.
 
+## Working conventions
+
+How work gets into `main`. It is the flow `sovereignfs/sovereign` uses, trunk-based
+with short-lived branches, and `CONTRIBUTING.md` is the same rules for people.
+
+- **One task, one branch, one PR.** Branch from an up-to-date `main`
+  (`git switch main && git pull`), named by the kind of change: `feat/<slug>`,
+  `fix/<slug>`, `docs/<slug>`, `chore/<slug>`. Keep a PR to one logical change.
+  Do not start a second task on a branch whose PR is not merged.
+- **Nothing goes to `main` directly.** Not a typo, not a docs fix, not a
+  release. The one standing exception is the owner's bypass, which is theirs to
+  use and not something to reach for.
+- **Commits explain why, not just what.** Subject under 72 characters, body
+  wrapped at 100. Every commit an agent makes ends with
+  `Co-Authored-By: Claude Code <noreply@anthropic.com>` — model-agnostic, never
+  a specific model name. One logical change per commit; do not mix a rename
+  with a behaviour change.
+- **PRs are opened as drafts** (`gh pr create --draft --base main`) and marked
+  ready only when told to. The body says what changed and why, cites the spec
+  section when the format is involved, and ends with
+  `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+- **Merge with rebase and merge**, never squash and never a merge commit, so each
+  reviewed commit lands on `main` verbatim. Fix commit messages *before*
+  merging; never rewrite `main`. **Never merge a PR automatically**: wait to be
+  told, or ask.
+- **Docs are part of the change.** A change to the format updates `spec/SPEC.md`,
+  the fixtures under `tests/fixtures/` and the code in the same PR. A change to
+  behaviour adds a line under `## [Unreleased]` in the component's CHANGELOG.
+  A README or ROADMAP statement that the change makes false is fixed in it.
+- **Verify before claiming done.** Run `cargo fmt --check`,
+  `cargo clippy --workspace --all-targets -- -D warnings` and
+  `cargo test --workspace`, and show the output. A regression test is trusted
+  only after it has been seen to fail against the code it guards.
+- **CI** runs on pull requests, and also on pushes to `main` (see below). It is
+  skipped while a PR is a draft or carries the `skip-ci` label; marking the PR
+  ready runs it.
+- **Releases are their own PR.** Version bumps do not ride in feature PRs: changes
+  accumulate under `[Unreleased]`, and `scripts/release.sh` makes a
+  `chore/release-<component>-X.Y.Z` branch with one `Release <package> X.Y.Z`
+  commit, opens it as a draft PR, and tags the merged commit. See `RELEASING.md`.
+
+Where this differs from `sovereign`, on purpose:
+
+1. **CI also runs on push to `main`.** The release step tags a commit and needs CI
+   green on *that exact commit*; rebase-and-merge creates new SHAs, so a PR's run
+   does not vouch for the commit that lands.
+2. **Version bumps are a release PR's job**, not every PR's. `fjord-core` and the CLI
+   share one workspace version and the changelog is the release notes.
+3. **There is no CLA.** Contributions are licensed under the MPL-2.0 on the way in.
+
 ## Repository layout
 
 | Path | What | Licence | Released as |
