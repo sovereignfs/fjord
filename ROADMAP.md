@@ -6,7 +6,7 @@ not define behaviour.** `spec/SPEC.md` is authoritative on the format and
 file is stale and should be corrected.
 
 State as of 2026-10-21: **every milestone in the build brief is complete,
-and 0.2.0 is released.** `verify`, `init`, `key`, `vault`, `encrypt`,
+and 0.3.0 is released.** `verify`, `init`, `key`, `vault`, `encrypt`,
 `decrypt`, `open`, `new`, `ls`, `grep`, `status`, `sync`, `rekey`, `export`
 and `import` are implemented end to end, with `fileNaming: "id"` and the tar
 container. **All 40 diagnostics are implemented.** (This paragraph once said
@@ -27,8 +27,8 @@ values, with keys from either implementation.
 generated README documents, verbatim, so that document cannot quietly
 become a lie.
 
-**Releases.** `v0.2.0` is the current release; `v0.1.3`, `v0.1.2`, `v0.1.1`
-and `v0.1.0` are also published. `v0.1.0` predates two breaking format
+**Releases.** `fjord-cli-v0.3.0` is the current release; `v0.2.0`, `v0.1.3`,
+`v0.1.2`, `v0.1.1` and `v0.1.0` are also published. `v0.1.0` predates two breaking format
 changes — lowercase identifiers (spec §8.3) and the `generator` field's
 value — so repositories it creates do not conform to the current spec, and
 `fjord verify` says why. `v0.1.1` carries those changes; `v0.1.2` adds
@@ -40,9 +40,15 @@ minor release: `verify --fix` and the declared conformance levels, the commit
 guard (`sync`, `rekey` and `vault add --commit` refuse while an encrypted
 vault holds plaintext), whole-vault `decrypt` and `encrypt` (a checkout, with
 the spec amended to allow it: §6.5 and a new §6.6), and the `import` naming
-fix for `id` vaults. This repository then became the `fjord` monorepo (see
-"One repository, several components" below), and the next CLI release is the
-first tagged `fjord-cli-vX.Y.Z`.
+fix for `id` vaults. `fjord-cli-v0.3.0` changes nothing the tool does: it is the
+first release from the `fjord` monorepo (see "One repository, several
+components" below), the first tagged `fjord-cli-vX.Y.Z`, and the first titled
+`fjord-cli 0.3.0` without a date. It was also the first run of the renamed
+release workflow, and the proof that it works: the tag started the release
+workflow, `release.sh cli verify` passed end to end, and it is the only
+release marked Latest. (The tag also started Audit, because `audit.yml`'s push
+trigger had no branch filter, so every component's tag would have run it.
+Harmless, but a needless run per release; it is now limited to `main`.)
 
 ## Status
 
@@ -1154,8 +1160,12 @@ component is a file that sets some variables and defines a handful of
 functions. There is one. The others are written when the components are, and
 `RELEASING.md` says what each must provide.
 
-**Not yet proved:** the renamed release workflow has not run on a real tag.
-The first `fjord-cli-vX.Y.Z` release is its test.
+**Proved by 0.3.0:** the renamed release workflow ran on a real tag and
+published all sixteen assets, and `verify` confirmed the title, that it is
+Latest, the checksum, the installer and the generator. What `publish` does
+after the workflow finishes (retitling the release) cannot be tested without
+publishing, and 0.3.0 is where it was seen to work. Earlier releases keep
+their old titles, some with dates.
 
 ## Documentation defects
 
