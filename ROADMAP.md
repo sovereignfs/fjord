@@ -925,15 +925,19 @@ step somebody had once got wrong. It takes a component (`cli`, today; see
 
 ```
 scripts/release.sh cli check   X.Y.Z                 read-only preflight
-scripts/release.sh cli prepare X.Y.Z [--skip-gates]  bump, plan, gate, commit locally
-scripts/release.sh cli publish X.Y.Z [--dry-run]     push, wait for CI, tag, verify
+scripts/release.sh cli prepare X.Y.Z [--skip-gates]  branch, bump, plan, gate, commit
+scripts/release.sh cli propose X.Y.Z [--dry-run]     push the branch, open a draft PR
+scripts/release.sh cli tag     X.Y.Z [--dry-run]     after the PR merges: tag, watch, verify
 scripts/release.sh cli verify  X.Y.Z                 check a published release
 ```
 
-The usual run is `prepare`, read what it committed with `git show --stat
-HEAD`, then `publish`. They are separate on purpose: `prepare` never pushes,
-so there is a human review point between "a commit exists" and "the world can
-see it".
+*(Until 0.3.0 the middle two were one command, `publish`, which pushed `main`
+and tagged it. `main` now takes changes only through pull requests, so a
+release is a branch and a PR like any other change; see "A development flow"
+below.)* The usual run is `prepare`, read what it committed with `git show
+--stat HEAD`, `propose`, a review and a merge, then `tag`. They are separate on
+purpose: `prepare` never pushes, so there is a human review point between "a
+commit exists" and "the world can see it".
 
 Write the release's notes under `## [Unreleased]` in `CHANGELOG.md` as you
 go. `prepare` turns them into `## [X.Y.Z] - <today>`, leaves `[Unreleased]`
@@ -1168,6 +1172,33 @@ after the workflow finishes (retitling the release) cannot be tested without
 publishing, and 0.3.0 is where it was seen to work. `v0.1.3` and `v0.2.0`
 were retitled afterwards to match; `v0.1.0` to `v0.1.2` keep their tag names,
 which never had a date.
+
+## A development flow
+
+Work reaches `main` the way it does in `sovereignfs/sovereign`, which is
+trunk-based and not the classic git-flow the name suggests: one short-lived
+branch per task (`feat/ fix/ docs/ chore/`) cut from an up-to-date `main`, a
+draft PR, rebase-and-merge only, nothing merged automatically, commit messages
+fixed before the merge. The rules are in `CLAUDE.md` § Working conventions (for
+agents) and `CONTRIBUTING.md` (for people), the PR template carries the
+checklist, CI skips drafts and the `skip-ci` label, and a ruleset on `main`
+enforces the parts GitHub can.
+
+Three differences from sovereign are on purpose, and each has a reason that
+came from this repository rather than from taste:
+
+- **CI also runs on push to `main`.** A release tags a commit and must know CI is
+  green on *that* commit, and rebase-and-merge gives merged commits new SHAs,
+  so a PR's run cannot vouch for them.
+- **Version bumps belong to a release PR,** not to every PR. `fjord-core` and the
+  CLI share one workspace version and the changelog is the release notes, so
+  changes accumulate under `[Unreleased]`.
+- **No CLA.** Contributions are licensed under the licence of the part they change.
+
+The release script followed: it can no longer push `main`, so `publish` became
+`propose` (push a branch, open a draft PR) and `tag` (after the merge). That is
+the larger change, and the part that cannot be proved until a real release goes
+through it.
 
 ## Documentation defects
 

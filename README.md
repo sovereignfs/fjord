@@ -55,6 +55,12 @@ invariants nothing may break, the architecture, and what a new component owes
 the rest. [`ROADMAP.md`](ROADMAP.md) records what is done, what is not, and why.
 [`RELEASING.md`](RELEASING.md) explains how each component is released.
 
+## Contributing
+
+Work goes through pull requests: a short-lived branch from `main`, a draft PR,
+rebase and merge. [`CONTRIBUTING.md`](CONTRIBUTING.md) has the rules and
+[`CLAUDE.md`](CLAUDE.md) the version for agents.
+
 ## Licence
 
 The reference implementation is licensed under the
