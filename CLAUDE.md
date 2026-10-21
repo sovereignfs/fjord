@@ -1,7 +1,16 @@
-# Build brief: fjord-cli
+# Build brief: the Fjord monorepo
 
 This file is instructions for whoever implements this repository, human or
 model. Read it before writing code.
+
+This is a monorepo: the format's specification, its reference implementation
+(`fjord-core` and the CLI) and, as they are built, every first-party client and
+editor integration live here, so that a change to the format and the code that
+implements it is one commit. [Repository layout](#repository-layout) says what
+lives where, and [Adding a component](#adding-a-component) what a new one owes
+the rest. Everything from "Non-negotiable invariants" down is the brief for
+`fjord-core` and the CLI; a component with conventions of its own gets its own
+`CLAUDE.md` in its directory.
 
 ## Prime directive
 
@@ -13,8 +22,39 @@ The CLI is the *reference implementation* of a published format. Its job is
 to be correct and boring, not clever. A behaviour that makes the tool nicer
 at the format's expense is a bug.
 
-A copy of the spec lives at `spec/SPEC.md` (vendored from `fjord-spec`). Keep
-it in sync; never edit it here.
+The spec is `spec/SPEC.md`, in this repository, and it is edited here: there is
+no other copy. A change to the format lands in the same commit as the code
+that needs it, and every client reads the same file.
+
+## Repository layout
+
+| Path | What | Licence | Released as |
+| --- | --- | --- | --- |
+| `spec/` | The format. Canonical. | CC0 (`spec/LICENSE`) | with whatever needs it |
+| `schema/`, `tests/fixtures/` | The `verify --json` schema, and the conformance fixtures **every** client must pass | MPL-2.0 | — |
+| `crates/fjord-core/` | The format as a library | MPL-2.0 | with the CLI |
+| `crates/fjord/` | The CLI: package `fjord-cli`, binary `fjord` | MPL-2.0 | `fjord-cli-vX.Y.Z` |
+| `clients/web`, `clients/desktop`, `clients/mobile` | Not created yet | — | their own tags |
+| `plugins/vscode`, `plugins/obsidian` | Not created yet | — | their own tags |
+
+Directories are created when the component starts, not before.
+A client that is not to be open source lives in its own private repository and
+depends on `fjord-core`; it does not belong here.
+
+## Adding a component
+
+1. Its own directory, its own `README.md`, its own `CHANGELOG.md`.
+2. It passes `tests/fixtures/`. The fixtures are the format's conformance suite,
+   not the CLI's.
+3. Its own CI workflow with `paths` filters, so it does not run the Rust matrix
+   and the Rust matrix does not run for it.
+4. A release entry in `scripts/release/<component>.sh` and a tag prefix
+   `<component>-vX.Y.Z`. See `RELEASING.md`. A component's release is never
+   marked *Latest*; the CLI's is, because the install URLs depend on it.
+5. A GUI application gets its own lockfile and is not a member of the CLI's
+   Cargo workspace, so `cargo deny`, the MSRV and the CLI's lockfile stay small.
+6. It never reimplements the format. `fjord-core` stays portable for exactly
+   this: Tauri, FFI and WASM (see Architecture below).
 
 ## Non-negotiable invariants
 
@@ -46,12 +86,14 @@ Breaking any of these is a release blocker, not a refactor.
 ## Architecture
 
 ```
-fjord-cli/
-├── Cargo.toml                 workspace
+fjord/
+├── Cargo.toml                 workspace (fjord-core and the CLI)
 ├── crates/
 │   ├── fjord-core/            the format. no IO beyond std::fs.
 │   └── fjord/                 the binary. clap, terminal, git.
-└── spec/SPEC.md               vendored, read-only
+├── spec/SPEC.md               the format. canonical, edited here
+├── schema/  tests/fixtures/   shared by every component
+└── clients/  plugins/         when they exist; see Repository layout
 ```
 
 **`fjord-core` must stay portable.** It will later be compiled into the Tauri

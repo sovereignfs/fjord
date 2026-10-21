@@ -1,0 +1,15 @@
+The Fjord Repository Format specification (SPEC.md, in this directory) is
+dedicated to the public domain under the Creative Commons CC0 1.0 Universal
+Public Domain Dedication.
+
+To the extent possible under law, the authors have waived all copyright and
+related or neighbouring rights to this specification. You can copy, modify,
+distribute and implement it, even for commercial purposes, without asking
+permission.
+
+The full legal text of the dedication is at
+https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+The rest of this repository, including the reference implementation, is
+licensed under the Mozilla Public License 2.0; see the LICENSE file at the
+repository root.
