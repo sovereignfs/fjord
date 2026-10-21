@@ -14,6 +14,19 @@ tagging it.
 
 ### Added
 
+- **`fjord decrypt <vault>` and `fjord encrypt <vault>`: work on a whole
+  vault.** Decrypting a vault writes every document beside its payload
+  (`notes.md.age` → `notes.md`), so any editor or note application can work
+  on it in place; `fjord encrypt <vault>` checks it back in, re-encrypting
+  only what changed, adding what is new, and removing the encrypted copies of
+  what you deleted after asking (`--yes`, `--dry-run`, `--discard`). Until
+  then `fjord sync`, `rekey` and `vault add --commit` refuse. See "Working on
+  a whole vault" in the README. **This is spec §6.6, a new section.** It is
+  the one exception to "never write plaintext into an encrypted vault", and
+  the vendored spec and CLAUDE.md's first invariant are amended to say so;
+  `fjord-spec` upstream needs the same change.
+- `fjord status` and `fjord verify` say when a vault is checked out, and
+  `status --json` gains `checkedOut`.
 - **`fjord verify --fix` now exists.** The README has documented it since the
   start, and until now it was refused as a usage error. It repairs
   `fjord.json` where it disagrees with the disk, as spec §2.1 asks: a vault

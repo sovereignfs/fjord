@@ -29,6 +29,17 @@ pub fn encrypt(args: &EncryptArgs, global: &GlobalArgs) -> Result<ExitCode> {
         Err(message) => return Ok(usage(message)),
     };
 
+    // A vault's own directory means a checkout (spec §6.6), not one file.
+    if let Some(vault) = crate::cmd::checkout::vault_named(&root, &relative)? {
+        return crate::cmd::checkout::encrypt(&root, &vault, args, global);
+    }
+    if args.dry_run || args.yes || args.discard {
+        return Ok(usage(
+            "--dry-run, --yes and --discard apply to a vault, checked in with \
+             `fjord encrypt <vault>`",
+        ));
+    }
+
     let vault = match encrypted_vault(&root, &relative)? {
         Ok(vault) => vault,
         Err(code) => return Ok(code),
@@ -166,6 +177,17 @@ pub fn decrypt(args: &DecryptArgs, global: &GlobalArgs) -> Result<ExitCode> {
         Ok(relative) => relative,
         Err(message) => return Ok(usage(message)),
     };
+
+    // A vault's own directory means a checkout (spec §6.6), not one file.
+    if let Some(vault) = crate::cmd::checkout::vault_named(&root, &relative)? {
+        if args.out.is_some() {
+            return Ok(usage(
+                "--out applies to a single file. A vault is decrypted in place, beside its \
+                 payloads (spec §6.6)",
+            ));
+        }
+        return crate::cmd::checkout::decrypt(&root, &vault, args, global);
+    }
 
     let vault = match encrypted_vault(&root, &relative)? {
         Ok(vault) => vault,

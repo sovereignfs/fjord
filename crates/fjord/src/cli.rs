@@ -72,7 +72,7 @@ pub enum Command {
     /// Encrypt a file in place, inside an encrypted vault.
     Encrypt(EncryptArgs),
 
-    /// Decrypt a file to stdout.
+    /// Decrypt a file to stdout, or a whole vault in place.
     Decrypt(DecryptArgs),
 
     /// Create a Fjord Doc with valid frontmatter.
@@ -159,21 +159,38 @@ pub struct OpenArgs {
 
 #[derive(Debug, Args)]
 pub struct EncryptArgs {
-    /// File to encrypt. Must be inside an encrypted vault.
+    /// File to encrypt, or a vault to check back in after `fjord decrypt
+    /// <vault>`. A file must be inside an encrypted vault.
     pub path: PathBuf,
 
     /// Keep the plaintext after encrypting.
     ///
     /// Leaves the file in the clear inside an encrypted vault, which
     /// `fjord verify` reports as E201. Only useful while checking what
-    /// happened.
+    /// happened. Not available for a vault.
     #[arg(long)]
     pub keep: bool,
+
+    /// Vault only: say what would be re-encrypted, added and removed, and
+    /// change nothing.
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Vault only: do not ask before removing the payloads of documents that
+    /// were deleted while the vault was decrypted.
+    #[arg(long, short = 'y')]
+    pub yes: bool,
+
+    /// Vault only: throw the decrypted copies away without saving them, and
+    /// end the checkout.
+    #[arg(long)]
+    pub discard: bool,
 }
 
 #[derive(Debug, Args)]
 pub struct DecryptArgs {
-    /// Encrypted file to read.
+    /// Encrypted file to read, or a vault to decrypt in place (a checkout,
+    /// spec §6.6). Ended by `fjord encrypt <vault>`.
     pub path: PathBuf,
 
     /// Write the plaintext here instead of to stdout.

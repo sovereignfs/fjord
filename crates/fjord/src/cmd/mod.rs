@@ -9,6 +9,7 @@
 //! report for a human or for CI.
 
 pub mod bulk;
+pub mod checkout;
 pub mod crypt;
 pub mod grep;
 pub mod guard;
@@ -27,7 +28,7 @@ use crate::cli::{ExitCode, GlobalArgs};
 use anyhow::{Context, Result};
 use fjord_core::crypto;
 use owo_colors::OwoColorize;
-use std::io::{IsTerminal, Read};
+use std::io::{IsTerminal, Read, Write};
 use std::path::{Path, PathBuf};
 use zeroize::Zeroizing;
 
@@ -372,4 +373,43 @@ pub fn plural(count: usize, singular: &str, plural: &str) -> String {
     } else {
         format!("{count} {plural}")
     }
+}
+
+/// Replace a file without ever leaving it half-written.
+pub fn write_atomically(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let directory = path.parent().unwrap_or(Path::new("."));
+    let mut temporary = tempfile::Builder::new()
+        .prefix(".fjord-write-")
+        .tempfile_in(directory)?;
+    temporary.write_all(bytes)?;
+    temporary.flush()?;
+    temporary.as_file().sync_all()?;
+    temporary.persist(path)?;
+    Ok(())
+}
+
+/// Overwrite a decrypted file before removing it.
+///
+/// Best-effort, and deliberately described that way: on an SSD or a
+/// copy-on-write filesystem the original blocks may survive regardless, and
+/// claiming otherwise would be a lie a user might rely on.
+pub fn shred(path: &Path) {
+    if let Ok(metadata) = std::fs::metadata(path) {
+        let length = metadata.len();
+        if length > 0 {
+            if let Ok(mut file) = std::fs::OpenOptions::new().write(true).open(path) {
+                let zeros = [0u8; 8192];
+                let mut remaining = length;
+                while remaining > 0 {
+                    let chunk = remaining.min(zeros.len() as u64) as usize;
+                    if file.write_all(&zeros[..chunk]).is_err() {
+                        break;
+                    }
+                    remaining -= chunk as u64;
+                }
+                let _ = file.sync_all();
+            }
+        }
+    }
+    let _ = std::fs::remove_file(path);
 }

@@ -46,6 +46,21 @@ pub fn run(args: &VerifyArgs, global: &GlobalArgs) -> Result<ExitCode> {
             render_repairs(&mut out, repairs, style)?;
         }
         render_human(&mut out, &report, style)?;
+        // The files in the clear that `verify` reports are expected while a
+        // vault is checked out; say so, once, rather than leave them looking
+        // like a mistake.
+        for record in crate::cmd::checkout::all(&root)? {
+            writeln!(out)?;
+            writeln!(
+                out,
+                "  {}",
+                style.dim(&format!(
+                    "{0} is checked out, so its decrypted files are expected. \
+                     `fjord encrypt {0}` checks it back in.",
+                    record.vault
+                ))
+            )?;
+        }
     } else {
         render_quiet(&mut out, &report)?;
     }

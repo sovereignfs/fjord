@@ -34,7 +34,10 @@
 //!    discarding the first one's edits.
 
 use crate::cli::{ExitCode, GlobalArgs, OpenArgs};
-use crate::cmd::{ensure_writable, find_root, load_identities, repo_relative, usage, Style};
+use crate::cmd::{
+    ensure_writable, find_root, load_identities, repo_relative, shred, usage, write_atomically,
+    Style,
+};
 use crate::git::Git;
 use anyhow::{Context, Result};
 use fjord_core::crypto;
@@ -116,6 +119,18 @@ fn open_encrypted(
     global: &GlobalArgs,
 ) -> Result<ExitCode> {
     let suffix = vault.suffix();
+
+    // Two copies of one document, one of them edited in place, is how edits
+    // get lost.
+    if crate::cmd::checkout::find(root, &vault.directory)?.is_some() {
+        return Ok(usage(format!(
+            "the {0} vault is checked out, so its documents are already decrypted in place. \
+             Edit {1} there, then run `fjord encrypt {0}`",
+            vault.directory,
+            relative.strip_suffix(&suffix).unwrap_or(relative)
+        )));
+    }
+
     if !relative.ends_with(&suffix) {
         return Ok(usage(format!(
             "{relative} is in the clear inside an encrypted vault. Encrypt it first \
@@ -301,51 +316,12 @@ fn commit(root: &Path, relative: &str) -> Result<()> {
     Ok(())
 }
 
-/// Replace a file without ever leaving it half-written.
-fn write_atomically(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let directory = path.parent().unwrap_or(Path::new("."));
-    let mut temporary = tempfile::Builder::new()
-        .prefix(".fjord-write-")
-        .tempfile_in(directory)?;
-    temporary.write_all(bytes)?;
-    temporary.flush()?;
-    temporary.as_file().sync_all()?;
-    temporary.persist(path)?;
-    Ok(())
-}
-
 /// The suffix a scratch file should carry, so an editor recognises the
 /// document's type: `notes.md.age` becomes `…-notes.md`.
 fn scratch_suffix(relative: &str, suffix: &str) -> String {
     let name = relative.rsplit('/').next().unwrap_or(relative);
     let stem = name.strip_suffix(suffix).unwrap_or(name);
     format!("-{stem}")
-}
-
-/// Overwrite a decrypted file before removing it.
-///
-/// Best-effort, and deliberately described that way: on an SSD or a
-/// copy-on-write filesystem the original blocks may survive regardless, and
-/// claiming otherwise would be a lie a user might rely on.
-fn shred(path: &Path) {
-    if let Ok(metadata) = std::fs::metadata(path) {
-        let length = metadata.len();
-        if length > 0 {
-            if let Ok(mut file) = std::fs::OpenOptions::new().write(true).open(path) {
-                let zeros = [0u8; 8192];
-                let mut remaining = length;
-                while remaining > 0 {
-                    let chunk = remaining.min(zeros.len() as u64) as usize;
-                    if file.write_all(&zeros[..chunk]).is_err() {
-                        break;
-                    }
-                    remaining -= chunk as u64;
-                }
-                let _ = file.sync_all();
-            }
-        }
-    }
-    let _ = std::fs::remove_file(path);
 }
 
 // --- Editors -------------------------------------------------------------

@@ -149,7 +149,8 @@ it on every test run.
 
 ### `fjord encrypt <path>`
 
-Encrypts one file in place inside an encrypted vault: `notes.md` becomes
+Given a **vault**, this checks a [checkout](#working-on-a-whole-vault) back
+in. Given a file, it encrypts one file in place inside an encrypted vault: `notes.md` becomes
 `notes.md.age`, and the plaintext is removed. This is the repair for a file
 that should never have been in the clear in a vault — the `E201` case.
 
@@ -167,8 +168,8 @@ refuse rather than store plaintext.
 
 ### `fjord decrypt <path>`
 
-Writes the plaintext to **stdout**, so decrypted content never lands in the
-repository by accident.
+Writes the plaintext of one file to **stdout**, so decrypted content never
+lands in the repository by accident.
 
 | Flag | Effect |
 | --- | --- |
@@ -178,6 +179,76 @@ repository by accident.
 fjord decrypt Private/notes.md.age            # to stdout
 fjord decrypt Private/notes.md.age -o ~/notes.md
 ```
+
+Give it a **vault** instead of a file and it starts a checkout — see
+[Working on a whole vault](#working-on-a-whole-vault).
+
+### Working on a whole vault
+
+Editing an encrypted vault one document at a time is slow, and editors and
+note applications expect the files to be where they belong. So you can check
+a vault out:
+
+```bash
+fjord decrypt Private       # every document is decrypted beside its .age file
+# … edit, add and delete files with any tool …
+fjord encrypt Private       # check it back in
+fjord sync
+```
+
+`notes.md.age` becomes `notes.md` in the same directory. The `.age` files
+stay exactly as they were until check-in, and the vault's `.gitignore` keeps
+the decrypted copies out of every `git add`, so even a plain `git commit`
+cannot pick them up.
+
+**This is the one place Fjord writes plaintext into an encrypted vault**
+(spec §6.6), so it is fenced in:
+
+- It only happens when you run `fjord decrypt <vault>`. Nothing else starts
+  one.
+- It refuses if the vault's guard `.gitignore` is missing (`E208`), if the
+  vault already holds a file in the clear, or if it is already checked out.
+- Every document is decrypted before any file is written, and a record of
+  the checkout is written *before* the first one, under `.fjord/local/`
+  (which git ignores).
+- **While a vault is checked out, `fjord sync`, `rekey` and
+  `vault add --commit` refuse** and say how to finish. `fjord status` and
+  `fjord verify` show it too; `verify` still reports the files in the clear
+  as `E201`, because they are.
+- Decrypted files are created owner-only. Anything with access to the
+  directory can read them until you check the vault back in.
+- `fjord open` refuses a document in a checked-out vault: two copies of one
+  document is how edits get lost.
+
+`fjord encrypt <vault>` then:
+
+- re-encrypts **only** the documents you changed (an untouched payload is
+  left byte for byte as it was, so git sees no churn);
+- encrypts new files, and removes the encrypted copies of files you deleted
+  — **after listing them and asking** (`--yes` to skip the question; with
+  `--no-input` it is a usage error without it). Git history still has them;
+- removes editor and system files (`.DS_Store`, `*~`, `*.swp`, …) rather
+  than encrypting them;
+- checks that every payload it wrote decrypts to the document it was made
+  from, and only then removes the plaintext and ends the checkout;
+- **changes nothing at all** unless all of that can succeed, and refuses if a
+  payload changed on disk since you decrypted (a pull, say) rather than
+  overwrite it.
+
+In an `id`-named vault a document keeps its payload name, which is its id, so
+renaming a file in your editor is an edit of the same payload. A new Markdown
+file that already carries an `id` is stored under it.
+
+| Flag | Effect |
+| --- | --- |
+| `--dry-run` | Say what would be re-encrypted, added and removed, and change nothing. |
+| `--yes` | Do not ask before removing the payloads of deleted documents. |
+| `--discard` | Throw the decrypted copies away without saving them, and end the checkout. Asks first. |
+
+If `fjord decrypt <vault>` is interrupted, the record says so, and check-in
+refuses (the files that were never written would otherwise look deleted). Run
+`fjord encrypt <vault> --discard`, then decrypt again; your payloads were
+never touched.
 
 ### `fjord open <path>`
 
@@ -371,6 +442,7 @@ So the commands that stage and commit on their own authority — `fjord sync`,
 `fjord rekey` and `fjord vault add --commit` — check first, and refuse with
 exit `1`, naming the files, when an encrypted vault:
 
+- is [checked out](#working-on-a-whole-vault) with `fjord decrypt <vault>`,
 - holds a file in the clear (`E201`), or
 - has no plaintext-guard `.gitignore` (`E208`).
 

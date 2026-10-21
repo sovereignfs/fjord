@@ -67,13 +67,14 @@ pub fn inspect(root: &Path, vault: &str) -> Result<Findings> {
     Ok(findings)
 }
 
-/// Refuse when an encrypted vault holds anything in the clear, or lacks the
-/// `.gitignore` that keeps it out of a commit.
+/// Refuse when an encrypted vault is checked out, holds anything in the
+/// clear, or lacks the `.gitignore` that keeps it out of a commit.
 ///
 /// Returns `Some(code)` after printing why, and `None` when it is safe to
 /// go on. Read-only: nothing is moved, encrypted or deleted, because which
 /// of those the user wants is theirs to say.
 pub fn ensure_nothing_in_the_clear(root: &Path) -> Result<Option<ExitCode>> {
+    let checked_out = crate::cmd::checkout::all(root)?;
     let mut unguarded = Vec::new();
     let mut in_the_clear = Vec::new();
 
@@ -85,14 +86,34 @@ pub fn ensure_nothing_in_the_clear(root: &Path) -> Result<Option<ExitCode>> {
         if findings.unguarded {
             unguarded.push(vault.directory.clone());
         }
-        in_the_clear.extend(findings.in_the_clear);
+        // A checked-out vault is *expected* to hold files in the clear, and
+        // is reported once, as what it is, rather than file by file.
+        if !checked_out
+            .iter()
+            .any(|record| record.vault == vault.directory)
+        {
+            in_the_clear.extend(findings.in_the_clear);
+        }
     }
 
-    if unguarded.is_empty() && in_the_clear.is_empty() {
+    if checked_out.is_empty() && unguarded.is_empty() && in_the_clear.is_empty() {
         return Ok(None);
     }
 
     eprintln!("error: refusing to commit, because an encrypted vault is not safe to commit.");
+    for record in &checked_out {
+        eprintln!();
+        eprintln!(
+            "  The {} vault is checked out: {} decrypted in place (spec §6.6).",
+            record.vault,
+            count(record.entries.len(), "document is", "documents are")
+        );
+        eprintln!(
+            "  Check it back in with `fjord encrypt {0}`, or throw the decrypted copies away \
+             with `fjord encrypt {0} --discard`. Nothing was committed.",
+            record.vault
+        );
+    }
     if !in_the_clear.is_empty() {
         eprintln!();
         eprintln!(

@@ -32,8 +32,12 @@ pub fn run(global: &GlobalArgs) -> Result<ExitCode> {
         None
     };
 
+    // Read errors are not hidden: an unreadable record is exactly the kind of
+    // thing a status command exists to mention.
+    let checked_out = crate::cmd::checkout::all(&root)?;
+
     if global.json {
-        println!("{}", render_json(&report, git.as_ref()));
+        println!("{}", render_json(&report, git.as_ref(), &checked_out));
         return Ok(ExitCode::Ok);
     }
 
@@ -57,6 +61,15 @@ pub fn run(global: &GlobalArgs) -> Result<ExitCode> {
             )
         };
         println!("  {:<12}{}", vault.path, style.dim(&summary));
+    }
+    for record in &checked_out {
+        println!(
+            "  {} {} is checked out: {} decrypted in place. `fjord encrypt {}` checks it back in.",
+            style.warning("!"),
+            record.vault,
+            plural(record.entries.len(), "document", "documents"),
+            record.vault
+        );
     }
 
     println!();
@@ -153,7 +166,11 @@ struct GitState {
     ahead_behind: Option<(usize, usize)>,
 }
 
-fn render_json(report: &verify::Report, git: Option<&GitState>) -> String {
+fn render_json(
+    report: &verify::Report,
+    git: Option<&GitState>,
+    checked_out: &[crate::cmd::checkout::Record],
+) -> String {
     let vaults: Vec<serde_json::Value> = report
         .vaults
         .iter()
@@ -184,6 +201,7 @@ fn render_json(report: &verify::Report, git: Option<&GitState>) -> String {
         "readOnly": report.read_only,
         "counts": { "errors": report.errors(), "warnings": report.warnings() },
         "vaults": vaults,
+        "checkedOut": checked_out.iter().map(|record| record.vault.clone()).collect::<Vec<_>>(),
         "git": git,
     });
     serde_json::to_string_pretty(&document).unwrap_or_else(|_| "{}".to_string())

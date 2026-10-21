@@ -319,6 +319,20 @@ impl Git {
             .with_context(|| format!("could not remove {relative}"))
     }
 
+    /// Whether git would ignore `relative`, as `git check-ignore` decides.
+    ///
+    /// A path that is not ignored, or a failure to ask, both read as
+    /// `false`: the caller is deciding whether something is safe to leave
+    /// where it is, and "I could not tell" is not a yes.
+    pub fn is_ignored(&self, relative: &str) -> bool {
+        Command::new("git")
+            .current_dir(&self.root)
+            .args(["check-ignore", "--quiet", "--", relative])
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+    }
+
     /// Whether a merge is recorded but not yet committed.
     pub fn merge_in_progress(&self) -> bool {
         self.run_line(&["rev-parse", "--verify", "--quiet", "MERGE_HEAD"])
