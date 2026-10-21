@@ -909,8 +909,9 @@ to do is worth knowing:
   is why `scripts/release.sh` has an explicit check and not just a reminder.
 - **It titles the release from the heading**, so a release cut now is called
   `0.1.2 - 2026-10-20` where `v0.1.0`, `v0.1.1` and `v0.1.2` were called by
-  their tags. That is cosmetic and was left alone; the published releases'
-  titles were not rewritten.
+  their tags. That was cosmetic and was left alone at the time. *(Since
+  changed: a release is now titled `<component> <version>` with no date, see
+  `RELEASING.md`, and `v0.1.3` and `v0.2.0` were retitled to match.)*
 
 The 0.1.0 and 0.1.1 sections were written afterwards from the git history, so
 they are summaries and not contemporary notes. `[Unreleased]` is kept empty
@@ -1164,8 +1165,9 @@ functions. There is one. The others are written when the components are, and
 published all sixteen assets, and `verify` confirmed the title, that it is
 Latest, the checksum, the installer and the generator. What `publish` does
 after the workflow finishes (retitling the release) cannot be tested without
-publishing, and 0.3.0 is where it was seen to work. Earlier releases keep
-their old titles, some with dates.
+publishing, and 0.3.0 is where it was seen to work. `v0.1.3` and `v0.2.0`
+were retitled afterwards to match; `v0.1.0` to `v0.1.2` keep their tag names,
+which never had a date.
 
 ## Documentation defects
 
