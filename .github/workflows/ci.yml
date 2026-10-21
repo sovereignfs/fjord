@@ -1,4 +1,10 @@
-# Continuous integration for fjord-cli.
+# Continuous integration for the Rust crates: fjord-core and the CLI.
+#
+# This repository holds more than that (see CLAUDE.md § Repository layout), and
+# each component has its own workflow. This one only wakes for changes that can
+# affect the crates, so a client-only change does not run the Rust matrix. The
+# cost of a path filter is that a skipped check never reports, so a branch
+# protection rule must not *require* a check from a filtered workflow.
 #
 # Four things are checked, and the order below is the order they matter in:
 #
@@ -15,7 +21,31 @@ name: CI
 on:
   push:
     branches: [main]
+    # Listed twice, not anchored: a workflow that GitHub cannot parse simply
+    # never runs, and a path filter is the wrong place to find that out.
+    paths:
+      - "crates/**"
+      - "spec/**"
+      - "schema/**"
+      - "tests/**"
+      - "scripts/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "deny.toml"
+      - "dist-workspace.toml"
+      - ".github/workflows/ci.yml"
   pull_request:
+    paths:
+      - "crates/**"
+      - "spec/**"
+      - "schema/**"
+      - "tests/**"
+      - "scripts/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "deny.toml"
+      - "dist-workspace.toml"
+      - ".github/workflows/ci.yml"
   # So that a dependency's new release cannot quietly break the build
   # unnoticed between commits.
   schedule:
@@ -162,7 +192,7 @@ jobs:
       # The release scripts are code that is only ever run on release day, so
       # nothing would notice a syntax error or a bashism until then. shellcheck
       # ships on the Ubuntu runner images.
-      - run: shellcheck -x scripts/*.sh
+      - run: shellcheck -x scripts/*.sh scripts/lib/*.sh scripts/release/*.sh
       # On stable rather than on the MSRV: lints change between releases,
       # and the useful question is whether the code is clean under the
       # current ones.

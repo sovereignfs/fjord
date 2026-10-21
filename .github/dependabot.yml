@@ -2,6 +2,9 @@
 # separate, repository-level setting and are already enabled; this file is
 # what produces the PRs.
 version: 2
+# One entry per ecosystem, and one per component that has its own. A new
+# component adds its own here (RELEASING.md § Adding a component); the Rust
+# crates share the one below, and a GUI app with its own lockfile needs its own.
 updates:
   - package-ecosystem: cargo
     directory: /
