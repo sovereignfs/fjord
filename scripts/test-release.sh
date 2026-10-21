@@ -335,6 +335,7 @@ cat >"$T/bin/gh" <<'SHIM'
 echo "$*" >>"$GH_RECORD"
 case "$1 $2" in
   "auth status") exit 0 ;;
+  "secret list") printf 'HOMEBREW_TAP_TOKEN\tUpdated 2026-10-21\n' ;;
   "pr list") exit 0 ;;
   "pr create") echo "https://github.com/example/example/pull/1" ;;
 esac
@@ -423,6 +424,61 @@ if [ "$RC" -eq 2 ]; then
 else
   fail "...and exits 2" "exit $RC"
 fi
+
+# --- Homebrew: the token must exist before a release, and the tap after --------------------
+
+printf '\nhomebrew: the secret before the tag, the formula after\n'
+
+# Run a command from this checkout with gh replaced by $1 (a function body) and
+# the CLI component loaded. The stand-in must `return`, not `exit`: in a function,
+# exit ends the whole shell.
+hb_call() {
+  local stub=$1 command=$2
+  OUT=$(cd "$ROOT" && bash -c '
+    source scripts/lib/release.sh
+    source scripts/release/cli.sh
+    gh() { '"$stub"'; }
+    '"$command" 2>&1)
+  RC=$?
+}
+
+hb_call 'case "$1 $2" in "repo view") return 0 ;; "secret list") printf "HOMEBREW_TAP_TOKEN\tx\n" ;; esac' c_check_publish
+accepts "the tap exists and the token is set"
+
+hb_call 'case "$1 $2" in "repo view") return 0 ;; "secret list") printf "SOMETHING_ELSE\tx\n" ;; esac' c_check_publish
+refuses "the token is not set" "HOMEBREW_TAP_TOKEN is not set"
+
+hb_call 'case "$1 $2" in "repo view") return 1 ;; esac' c_check_publish
+refuses "the tap does not exist" "does not exist"
+
+# The formula, as the tap would hold it after a release.
+formula() {
+  printf 'class Fjord < Formula\n  version "%s"\n' "$1"
+  for _ in 1 2 3 4; do printf '  url "https://example/x.tar.xz"\n  sha256 "%s"\n' "$2"; done
+}
+MANIFEST="$T/dist-manifest.json"
+printf '{"artifacts":{"fjord.rb":{},"fjord-cli-installer.sh":{}}}' >"$MANIFEST"
+printf '{"artifacts":{"fjord-cli-installer.sh":{}}}' >"$T/old-manifest.json"
+b64() { base64 | tr -d '\n'; }
+GOOD=$(formula 9.9.9 deadbeef | b64)
+WRONGVER=$(formula 1.0.0 deadbeef | b64)
+NOSHA=$(printf 'class Fjord < Formula\n  version "9.9.9"\n' | b64)
+
+hb_call 'printf "%s" "'"$GOOD"'"' "c_verify_formula 9.9.9 $MANIFEST"
+accepts "a formula at the right version with a checksum per platform"
+if printf '%s' "$OUT" | grep -qF "brew install sovereignfs/tap/fjord"; then
+  pass "...and says how to install it"
+else
+  fail "...and says how to install it" "$OUT"
+fi
+hb_call 'printf "%s" "'"$WRONGVER"'"' "c_verify_formula 9.9.9 $MANIFEST"
+refuses "a formula left at an older version" "not version 9.9.9"
+hb_call 'printf "%s" "'"$NOSHA"'"' "c_verify_formula 9.9.9 $MANIFEST"
+refuses "a formula with no checksums, which would install unverified" "would install unverified"
+hb_call 'return 1' "c_verify_formula 9.9.9 $MANIFEST"
+refuses "a release that carries a formula the tap does not have" "has no Formula/fjord.rb"
+hb_call 'return 1' "c_verify_formula 9.9.9 $T/old-manifest.json"
+accepts "an older release, from before the tap, is not checked"
 
 # --- Waiting on GitHub, against real completed runs ------------------------------------------
 #

@@ -14,7 +14,7 @@ ci = "github"
 
 # Both installers are generated into the release itself, so the command a
 # user runs points at a GitHub Release asset and nothing else.
-installers = ["shell", "powershell"]
+installers = ["shell", "powershell", "homebrew"]
 
 # Linux is **musl**, not gnu. The README promises one Linux binary works on
 # any distribution, and a glibc build does not: it inherits the build
@@ -39,7 +39,11 @@ publish-prereleases = false
 # this, and are finished: nothing about them runs again.
 tag-namespace = "fjord-cli"
 
-# No Homebrew formula yet. `dist` can publish one, but only into a tap
-# repository that exists — and advertising a tap that does not is the same
-# mistake as advertising fjord.sh. Add `publish-jobs = ["homebrew"]` and
-# `tap = "sovereignfs/homebrew-tap"` once that repository is there.
+# Homebrew, through a tap: `brew install sovereignfs/tap/fjord`. dist writes a
+# formula that installs the prebuilt archives already on the release, and a job
+# pushes it to the tap repository on each release. That job authenticates with
+# the repository secret HOMEBREW_TAP_TOKEN (RELEASING.md says how to make it);
+# without the secret the release still publishes and the tap goes stale, so the
+# release script checks for it before it tags.
+tap = "sovereignfs/homebrew-tap"
+publish-jobs = ["homebrew"]

@@ -77,6 +77,65 @@ c_check_plan() {
   ok "dist found the release notes"
 }
 
+# The Homebrew tap this release publishes to, if it does: "owner/repo", from
+# dist's config. Empty when the release publishes no formula.
+c_tap() {
+  if grep -qE '^publish-jobs *=.*"homebrew"' dist-workspace.toml; then
+    sed -nE 's/^tap *= *"([^"]+)".*/\1/p' dist-workspace.toml
+  fi
+}
+
+# The formula's name: dist's `formula` override, else the package name.
+c_formula() {
+  local name
+  name=$(sed -nE 's/^formula *= *"([^"]+)".*/\1/p' crates/fjord-cli/Cargo.toml | head -1)
+  echo "${name:-fjord-cli}"
+}
+
+# What the steps that talk to GitHub must have in place before anything is
+# published. A release that publishes a Homebrew formula pushes it with the
+# repository secret HOMEBREW_TAP_TOKEN; without it the release is published and
+# the tap is not, which is a failure that is found only afterwards, so look first.
+c_check_publish() {
+  local tap
+  tap=$(c_tap)
+  [ -n "$tap" ] || return 0
+  gh repo view "$tap" >/dev/null 2>&1 ||
+    die "the Homebrew tap $tap does not exist (RELEASING.md § Homebrew)"
+  ok "the Homebrew tap $tap exists"
+  gh secret list --repo "$GH_REPO" 2>/dev/null | awk '{ print $1 }' | grep -qx HOMEBREW_TAP_TOKEN ||
+    die "this release publishes a Homebrew formula, but the repository secret HOMEBREW_TAP_TOKEN is not set. Without it the release would publish and the tap would not. Set it: gh secret set HOMEBREW_TAP_TOKEN --repo $GH_REPO (RELEASING.md § Homebrew)"
+  ok "HOMEBREW_TAP_TOKEN is set"
+}
+
+# Check what the tap now holds. Only required when the release itself carries
+# the formula (it is a release asset when dist publishes one), so verifying an
+# older release, from before the tap, is not a failure.
+c_verify_formula() {
+  local v=$1 manifest=$2 tap formula raw body shas
+  tap=$(c_tap)
+  formula=$(c_formula)
+  if ! jq -e --arg f "$formula.rb" '.artifacts | has($f)' "$manifest" >/dev/null 2>&1; then
+    say "this release carries no Homebrew formula, so the tap was not checked"
+    return 0
+  fi
+  # Not piped into base64: a pipeline's status is its last command's, and a
+  # missing file would go unnoticed here and be misreported below.
+  raw=$(gh api "repos/$tap/contents/Formula/$formula.rb" --jq .content 2>/dev/null) ||
+    die "the release carries $formula.rb but $tap has no Formula/$formula.rb. The publish job did not run or failed: gh run list --workflow $C_RELEASE_WORKFLOW"
+  body=$(base64 -d <<<"$raw")
+  grep -q "^  version \"$v\"" <<<"$body" ||
+    die "$tap has a Formula/$formula.rb that is not version $v. The publish job did not update it"
+  ok "$tap has Formula/$formula.rb at $v"
+  # One checksum per platform archive. A formula without them installs
+  # unverified, which `dist` does when it did not know the checksums.
+  shas=$(grep -c '^ *sha256 "' <<<"$body" || true)
+  [ "$shas" -ge 4 ] ||
+    die "Formula/$formula.rb has $shas sha256 lines, not one per platform (4). It would install unverified"
+  ok "the formula carries a sha256 for each of its $shas archives"
+  say "install it with: brew install ${tap/homebrew-/}/$formula"
+}
+
 c_gates() {
   gate rustfmt cargo fmt --check
   gate clippy cargo clippy --workspace --all-targets --locked -- -D warnings
@@ -139,6 +198,8 @@ c_verify() {
   jq -r .body "$WORK/release.json" | grep -q '^## Release Notes' ||
     die "the release page has generic notes: dist found no section for $v in $C_CHANGELOG"
   ok "the release page carries the changelog notes"
+
+  c_verify_formula "$v" "$json"
 
   target=$(c_host_target)
   if [ -z "$target" ]; then

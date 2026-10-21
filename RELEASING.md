@@ -92,6 +92,42 @@ would, and the run would fail.
 5. Add tests for what is particular to it to `scripts/test-release.sh`.
 6. Add its ecosystem to `.github/dependabot.yml`.
 
+## Homebrew
+
+`brew install sovereignfs/tap/fjord`. Each CLI release publishes a formula to the
+tap `sovereignfs/homebrew-tap`: `dist` writes `fjord.rb` (it installs the
+prebuilt archives already on the release, so nothing is built from source, on
+macOS and Linux) and a job in the release workflow pushes it to the tap. The
+formula is named `fjord`, after the command, by `formula` in
+`crates/fjord-cli/Cargo.toml`; the package is `fjord-cli`.
+
+**It needs a token, which only the owner can make.** The job authenticates with
+the repository secret `HOMEBREW_TAP_TOKEN`, a personal access token with write
+access to the tap. A fine-grained token limited to the tap repository with
+*Contents: read and write* is the narrow choice; the classic `repo` scope is what
+`dist`'s documentation names and is the fallback if the narrow one is refused.
+Set it, without it passing through anyone else:
+
+```bash
+gh secret set HOMEBREW_TAP_TOKEN --repo sovereignfs/fjord
+```
+
+**What goes wrong without it is quiet.** The release is created first and the
+formula pushed after, so a missing or wrong token leaves a published release and
+a stale tap. So `tag` looks for the secret and the tap *before* it tags, and
+`verify` reads `Formula/fjord.rb` back from the tap afterwards, checks its version
+and that it has a `sha256` for each of the four archives (a formula without them
+installs unverified). If the publish job fails after the release exists, fix the
+token and re-run that job from the Actions page; do not re-tag.
+
+Homebrew keeps one version per formula, so each release replaces the last, and
+publishing an older version after a newer one would put the older one back.
+The commits in the tap are authored by `axo bot`, which `dist` hard-codes.
+
+Not Homebrew core: that needs the project to be notable and builds from a source
+tarball, and Homebrew's maintainers would own the formula. A tap is where this
+starts.
+
 ## The release workflow is generated; do not edit it
 
 `.github/workflows/fjord-cli-release.yml` is written by `dist generate`, and its
