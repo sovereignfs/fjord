@@ -387,6 +387,169 @@ fn an_import_into_an_id_vault_names_files_by_id() {
     assert_eq!(code(&repo.run(&["verify"])), 0);
 }
 
+/// A repository with a writable `id`-named encrypted vault called `Secret`.
+fn id_vault_repo() -> Repo {
+    let repo = repo();
+    assert_eq!(
+        code(&repo.run(&["vault", "add", "Secret", "--encrypted", "--id-naming"])),
+        0
+    );
+    let listed = repo.run(&["key", "list", "--vault", "Private", "--json"]);
+    let rows: Value = serde_json::from_str(&out(&listed)).expect("json");
+    let recipient = rows[0]["recipients"][0]
+        .as_str()
+        .expect("recipient")
+        .to_string();
+    assert_eq!(
+        code(&repo.run(&["key", "add", &recipient, "--vault", "Secret"])),
+        0
+    );
+    repo
+}
+
+fn doc_with_id(id: &str, title: &str) -> String {
+    format!("---\nid: {id}\ntitle: {title}\ncreated: 2026-01-01T00:00:00Z\n---\nbody\n")
+}
+
+/// The payload names directly under a vault, ULIDs without the suffix.
+fn payload_ids(repo: &Repo, vault: &str) -> Vec<String> {
+    files_in(&repo.root.join(vault))
+        .into_iter()
+        .filter_map(|name| name.strip_suffix(".age").map(String::from))
+        .collect()
+}
+
+#[test]
+fn a_doc_imported_into_an_id_vault_is_named_by_its_own_id() {
+    // §7.2: the on-disk name MUST equal the document's `id`. Import used to
+    // give the payload a fresh id while keeping the Doc's own inside it, and
+    // `verify` cannot see the difference because it never decrypts.
+    let repo = id_vault_repo();
+    let own = "01jb8x4k7m2n3p5q6r9s0t1v2w";
+    let source = repo.outside("incoming");
+    std::fs::create_dir_all(&source).expect("create");
+    std::fs::write(source.join("doc.md"), doc_with_id(own, "has an id")).expect("write");
+
+    let imported = repo.run(&["import", &source.to_string_lossy(), "Secret"]);
+    assert_eq!(code(&imported), 0, "{}{}", out(&imported), err(&imported));
+
+    assert_eq!(payload_ids(&repo, "Secret"), [own]);
+    // And it is the same document: the id inside is the one outside.
+    let shown = repo.run(&["decrypt", &format!("Secret/{own}.age")]);
+    assert!(
+        out(&shown).contains(&format!("id: {own}")),
+        "{}",
+        out(&shown)
+    );
+}
+
+#[test]
+fn a_promoted_file_is_named_by_the_id_it_was_given() {
+    let repo = id_vault_repo();
+    let source = repo.outside("incoming");
+    std::fs::create_dir_all(&source).expect("create");
+    std::fs::write(source.join("plain.md"), "# Plain\n").expect("write");
+    std::fs::write(source.join("data.csv"), "a,b\n").expect("write");
+
+    assert_eq!(
+        code(&repo.run(&["import", &source.to_string_lossy(), "Secret"])),
+        0
+    );
+
+    let ids = payload_ids(&repo, "Secret");
+    assert_eq!(ids.len(), 2, "{ids:?}");
+    let mut found = 0;
+    for id in &ids {
+        let shown = out(&repo.run(&["decrypt", &format!("Secret/{id}.age")]));
+        // A Markdown file's name is its frontmatter id; a file with no
+        // frontmatter has nothing to disagree with.
+        if shown.contains("# Plain") {
+            assert!(shown.contains(&format!("id: {id}")), "{shown}");
+            found += 1;
+        }
+    }
+    assert_eq!(found, 1);
+}
+
+#[test]
+fn export_then_import_keeps_an_id_vaults_names() {
+    // The case this matters most: moving a vault's documents through
+    // `export` and `import` must not rename every payload.
+    let repo = id_vault_repo();
+    let own = "01jb8x4k7m2n3p5q6r9s0t1v2w";
+    let source = repo.outside("incoming");
+    std::fs::create_dir_all(&source).expect("create");
+    std::fs::write(source.join("doc.md"), doc_with_id(own, "round trip")).expect("write");
+    assert_eq!(
+        code(&repo.run(&["import", &source.to_string_lossy(), "Secret"])),
+        0
+    );
+
+    let exported = repo.outside("exported");
+    assert_eq!(
+        code(&repo.run(&["export", "Secret", &exported.to_string_lossy()])),
+        0
+    );
+    assert_eq!(
+        code(&repo.run(&["vault", "add", "Copy", "--encrypted", "--id-naming"])),
+        0
+    );
+    let listed = repo.run(&["key", "list", "--vault", "Private", "--json"]);
+    let rows: Value = serde_json::from_str(&out(&listed)).expect("json");
+    let recipient = rows[0]["recipients"][0].as_str().expect("key").to_string();
+    assert_eq!(
+        code(&repo.run(&["key", "add", &recipient, "--vault", "Copy"])),
+        0
+    );
+    assert_eq!(
+        code(&repo.run(&["import", &exported.to_string_lossy(), "Copy"])),
+        0
+    );
+
+    assert_eq!(payload_ids(&repo, "Copy"), [own]);
+}
+
+#[test]
+fn two_files_with_one_id_import_nothing() {
+    let repo = id_vault_repo();
+    let own = "01jb8x4k7m2n3p5q6r9s0t1v2w";
+    let source = repo.outside("incoming");
+    std::fs::create_dir_all(&source).expect("create");
+    std::fs::write(source.join("a.md"), doc_with_id(own, "a")).expect("write");
+    std::fs::write(source.join("b.md"), doc_with_id(own, "b")).expect("write");
+
+    let imported = repo.run(&["import", &source.to_string_lossy(), "Secret"]);
+    assert_eq!(code(&imported), 2, "{}{}", out(&imported), err(&imported));
+    assert!(
+        err(&imported).contains("another file"),
+        "{}",
+        err(&imported)
+    );
+    assert!(payload_ids(&repo, "Secret").is_empty(), "nothing written");
+}
+
+#[test]
+fn a_doc_whose_id_is_already_stored_is_not_written_over() {
+    let repo = id_vault_repo();
+    let own = "01jb8x4k7m2n3p5q6r9s0t1v2w";
+    let source = repo.outside("incoming");
+    std::fs::create_dir_all(&source).expect("create");
+    std::fs::write(source.join("doc.md"), doc_with_id(own, "first")).expect("write");
+    assert_eq!(
+        code(&repo.run(&["import", &source.to_string_lossy(), "Secret"])),
+        0
+    );
+    let before = std::fs::read(repo.root.join(format!("Secret/{own}.age"))).expect("read");
+
+    let again = repo.run(&["import", &source.to_string_lossy(), "Secret"]);
+    assert_eq!(code(&again), 2, "{}{}", out(&again), err(&again));
+    assert!(err(&again).contains("already exists"), "{}", err(&again));
+    assert_eq!(
+        std::fs::read(repo.root.join(format!("Secret/{own}.age"))).expect("read"),
+        before
+    );
+}
+
 // --- Refusals -------------------------------------------------------------
 
 /// Invariant 1: a bulk decrypt is the one place this could do real damage.

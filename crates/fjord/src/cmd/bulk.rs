@@ -248,13 +248,14 @@ pub fn import(args: &ImportArgs, global: &GlobalArgs) -> Result<ExitCode> {
         let bytes = std::fs::read(source.join(relative))
             .with_context(|| format!("could not read {relative}"))?;
         let leaf = relative.rsplit('/').next().unwrap_or(relative);
-        let id = scalar::new_ulid();
-
-        let (contents, was_promoted) = prepare(&bytes, leaf, &id, &created_at);
+        let (contents, was_promoted, id) = prepare(&bytes, leaf, &scalar::new_ulid(), &created_at);
         if was_promoted {
             promoted += 1;
         }
 
+        // `id` is the Doc's own: its frontmatter id if it already had one, a
+        // fresh one if it was just given frontmatter, and in an `id` vault
+        // it is also the file's name, which §7.2 requires to be the same.
         let on_disk = match on_disk_path(&vault, relative, &id) {
             Ok(path) => path,
             Err(message) => return Ok(usage(message)),
@@ -262,6 +263,15 @@ pub fn import(args: &ImportArgs, global: &GlobalArgs) -> Result<ExitCode> {
         if root.join(&on_disk).exists() {
             return Ok(usage(format!(
                 "{on_disk} already exists, so nothing was imported"
+            )));
+        }
+        // Two files carrying one id would be stored under one name. In a
+        // plaintext vault the names are the files' own and cannot collide.
+        if planned.iter().any(|(path, _)| path == &on_disk) {
+            return Ok(usage(format!(
+                "{relative} has an id that another file in this import already has, so \
+                 both would be stored as {on_disk} (spec §8.3 makes ids unique). Nothing \
+                 was imported"
             )));
         }
 
@@ -322,32 +332,34 @@ pub fn import(args: &ImportArgs, global: &GlobalArgs) -> Result<ExitCode> {
 }
 
 /// Give a Markdown file the frontmatter of a Doc, and leave everything else
-/// as it is. Returns whether it was promoted.
-fn prepare(bytes: &[u8], leaf: &str, id: &str, created_at: &str) -> (Vec<u8>, bool) {
+/// as it is. Returns the bytes to store, whether the file was promoted, and
+/// the id the document goes by: its own, when it already had one, otherwise
+/// `id`.
+fn prepare(bytes: &[u8], leaf: &str, id: &str, created_at: &str) -> (Vec<u8>, bool, String) {
     if !leaf.ends_with(".md") {
         // §8: anything that is not Markdown is a vault file, stored and
         // encrypted identically and carrying no Fjord metadata.
-        return (bytes.to_vec(), false);
+        return (bytes.to_vec(), false, id.to_string());
     }
     let text = match std::str::from_utf8(bytes) {
         Ok(text) => text,
         // Not text, so there is nowhere to put frontmatter.
-        Err(_) => return (bytes.to_vec(), false),
+        Err(_) => return (bytes.to_vec(), false, id.to_string()),
     };
 
     // Already a Doc: leave its identity alone. §8.2 makes `id` immutable.
     if let doc::Parse::Present { frontmatter, .. } = doc::parse(text) {
-        if frontmatter.doc_id().is_some() {
-            return (bytes.to_vec(), false);
+        if let Some(existing) = frontmatter.doc_id() {
+            return (bytes.to_vec(), false, existing.to_string());
         }
     }
 
     let title = doc::implied_title(text, leaf);
     match doc::promote(text, id, created_at, &title) {
-        Some(promoted) => (promoted.into_bytes(), true),
+        Some(promoted) => (promoted.into_bytes(), true, id.to_string()),
         // A frontmatter block that is present but broken is not ours to
         // rewrite; it comes in as it is and `fjord verify` will say so.
-        None => (bytes.to_vec(), false),
+        None => (bytes.to_vec(), false, id.to_string()),
     }
 }
 

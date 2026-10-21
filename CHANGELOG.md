@@ -30,6 +30,21 @@ tagging it.
   README: a vault that lists an SSH recipient is refused for writing, since
   this build links no RSA implementation.
 
+### Fixed
+
+- **`fjord import` into an `id`-named vault now names each payload after the
+  document's own id.** Spec §7.2 requires the on-disk name to equal the
+  document's `id`. Import gave every payload a fresh id and kept the
+  Markdown's own inside it, so the two disagreed whenever a file already had
+  frontmatter, which is exactly what `export` followed by `import` produces.
+  `fjord verify` could not see it, because it never decrypts. A file that is
+  given frontmatter on import is named by the id it was given, and two files
+  in one import carrying the same id now refuse the whole import instead of
+  sharing a name. **A vault imported into by an earlier version may hold
+  payloads whose names differ from their documents' ids**; nothing detects
+  that today, and the way to correct one is to export the vault and import it
+  into a new one.
+
 ## [0.1.3] - 2026-10-20
 
 ### Changed
