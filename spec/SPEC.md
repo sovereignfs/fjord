@@ -2,7 +2,7 @@
 
 **Version:** 1 (draft)
 **Status:** Draft. Not yet stable; breaking changes possible until declared stable.
-**Date:** 2026-10-17
+**Date:** 2026-10-21
 
 ---
 
@@ -259,7 +259,8 @@ entry, or an entry name containing `/` or `..`.
 ### 6.5 Plaintext must never enter an encrypted vault
 
 Clients MUST NOT write an unencrypted document into an encrypted vault, and
-MUST NOT commit one. Encrypted vaults MUST carry a `.gitignore` that ignores
+MUST NOT commit one, except through a checkout (§6.6). Encrypted vaults MUST
+carry a `.gitignore` that ignores
 everything and re-permits only encrypted payloads and vault machinery:
 
 ```gitignore
@@ -273,6 +274,57 @@ everything and re-permits only encrypted payloads and vault machinery:
 
 This makes the common accident — decrypting a file to edit it elsewhere and
 forgetting to clean up — fail safe.
+
+That guard is a safety net, not a lock. It makes a commit *skip* a stray
+plaintext file, so the edit is silently not saved, and it does nothing at all
+if the `.gitignore` has been deleted. A client that commits on its own
+authority (a sync, a bulk rewrite) MUST therefore check for a file in the
+clear, and for a missing guard, before it stages anything, and MUST refuse
+rather than proceed.
+
+### 6.6 Checkouts
+
+Editing an encrypted vault one document at a time is slow, and tools such as
+editors and note applications expect the files to sit where they belong. A
+client MAY therefore offer a **checkout**: at the user's explicit request,
+decrypted copies of a vault's documents are written inside the vault
+directory, beside their payloads. Checkouts are optional, and no conformance
+level (§10) requires one.
+
+A client that offers a checkout:
+
+1. MUST begin one only on an explicit request that names the vault. Reading,
+   searching, syncing and committing never create one.
+2. MUST refuse unless the vault's guard `.gitignore` (§6.5) is present and
+   correct, and MUST refuse if the vault already holds a file in the clear or
+   is already checked out.
+3. MUST decrypt every document before writing any, so that a failure leaves
+   nothing behind.
+4. MUST record the checkout durably, in client-local state that is outside
+   version control and outside every vault, *before* writing the first
+   plaintext file. A client that finds a file in the clear in an encrypted
+   vault with no such record has found a violation of §6.5 and MUST report
+   it as one.
+5. MUST leave the encrypted payloads in place and unmodified while the
+   checkout lasts.
+6. MUST NOT commit, push, sync or otherwise publish while any checkout in the
+   repository exists, including when it is acting on its own authority, and
+   MUST say why and how to end the checkout.
+7. MUST end a checkout only by re-encrypting: every changed or new document
+   to all current recipients (§6.2), and unchanged payloads left byte for
+   byte as they were. It MUST NOT delete a payload because its plaintext is
+   gone without the user's confirmation, and MUST NOT overwrite a payload
+   that has changed since the checkout began — in that case it refuses and
+   changes nothing, since neither version may be destroyed (§9.1).
+8. MUST confirm that each payload it writes decrypts to the document it was
+   made from before removing any plaintext, and then MUST remove the
+   plaintext and the record (§11.3). If any step fails, the plaintext and the
+   record remain, and the prohibition on publishing continues to apply.
+9. SHOULD tell the user that the contents are readable by anything with
+   access to the directory for as long as the checkout lasts.
+
+Other clients see a checked-out vault as a vault with files in the clear
+(§6.5), and report it as such. That is accurate.
 
 ---
 
@@ -435,7 +487,7 @@ above its declared level.
 | **L0** | Plaintext reader | Parse `fjord.json` and `fjord.vault.json`; discover vaults from the filesystem; parse frontmatter; identify Docs and vault files. MUST NOT write. |
 | **L1** | Plaintext writer | L0, plus: assign ULIDs to new Docs; preserve unknown frontmatter keys (§8.2); obey path rules (§5); repair `fjord.json` when it disagrees with disk. |
 | **L2** | Encrypted reader | L0, plus: decrypt age payloads; handle both container modes (§6.4); resolve `fileNaming: "id"` names. |
-| **L3** | Encrypted writer | L1 + L2, plus: encrypt to all recipients (§6.2); never write plaintext into an encrypted vault (§6.5); refuse to write to a vault with no recipients; merge conflicts by decrypting (§9.1). |
+| **L3** | Encrypted writer | L1 + L2, plus: encrypt to all recipients (§6.2); never write plaintext into an encrypted vault (§6.5) outside a checkout (§6.6); refuse to write to a vault with no recipients; merge conflicts by decrypting (§9.1). |
 
 ### 10.1 Version handling
 

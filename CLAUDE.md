@@ -20,9 +20,14 @@ it in sync; never edit it here.
 
 Breaking any of these is a release blocker, not a refactor.
 
-1. **Never write plaintext into an encrypted vault.** Not temporarily, not as
-   a dotfile, not "just to stage it". Decrypted content lives in a tempdir
-   outside the repository or in memory.
+1. **Never write plaintext into an encrypted vault, except through a
+   checkout.** Not temporarily, not as a dotfile, not "just to stage it".
+   Decrypted content lives in a tempdir outside the repository or in memory.
+   The single exception is spec §6.6: `fjord decrypt <vault>` at the user's
+   explicit request, recorded under `.fjord/local/`, with every command that
+   commits refusing until `fjord encrypt <vault>` ends it. Nothing else may
+   write a decrypted file into a vault, and `fjord decrypt <file> --out` into
+   one stays refused.
 2. **Never put a secret in `argv` or an environment variable the tool
    prints.** Identities arrive as a file path or on stdin. `ps` output and
    shell history are public.
