@@ -12,6 +12,22 @@ tagging it.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-21
+
+You can now decrypt a whole encrypted vault in place, work on it with any
+editor, and check it back in; and `fjord sync` no longer publishes, or
+silently drops, plaintext left in an encrypted vault. There is no format
+change from 0.1.3: repositories made by it are unaffected. **The
+specification is amended** (§6.5, and a new §6.6): a checkout is the one
+sanctioned exception to "no plaintext in an encrypted vault", and other
+clients will see a checked-out vault as files in the clear.
+
+Two commands are stricter, deliberately. `fjord sync`, `rekey` and
+`vault add --commit` now **refuse** while an encrypted vault holds a file in
+the clear, is checked out, or has lost its guard `.gitignore`; `sync` used
+to answer "already up to date". A script that relied on `rekey` carrying on
+past a stray file will now see exit `1`.
+
 ### Added
 
 - **`fjord decrypt <vault>` and `fjord encrypt <vault>`: work on a whole
@@ -195,7 +211,8 @@ First release.
   conforming.
 - Building from source needs Rust 1.88 or newer.
 
-[Unreleased]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/sovereignfs/fjord-cli/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.0...v0.1.1

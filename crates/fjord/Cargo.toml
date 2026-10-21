@@ -15,7 +15,7 @@ path = "src/main.rs"
 # The version is required as well as the path: `cargo publish` refuses a
 # path dependency without one, and the README advertises
 # `cargo install fjord-cli`.
-fjord-core = { path = "../fjord-core", version = "0.1.3" }
+fjord-core = { path = "../fjord-core", version = "0.2.0" }
 clap.workspace = true
 owo-colors.workspace = true
 anyhow.workspace = true
