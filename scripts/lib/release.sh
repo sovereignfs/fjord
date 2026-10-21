@@ -1,0 +1,543 @@
+# shellcheck shell=bash
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#
+# What every component's release has in common. Sourced by scripts/release.sh
+# (and by its tests); not run directly.
+#
+# A component is a file in scripts/release/ that sets the C_* variables and
+# defines the c_* functions below. This library does the parts that do not
+# depend on what is being released: the output, the rollback, the changelog,
+# the preflight, the waiting on GitHub. Why each check exists is in
+# RELEASING.md and ROADMAP.md; every one of them is there because a release
+# went wrong without it.
+#
+# What a component provides
+# -------------------------
+#   C_PACKAGE            what the release is called in commit and tag messages
+#   C_TAG_PREFIX         a release of version X is tagged "${C_TAG_PREFIX}X"
+#   C_LEGACY_TAG_PREFIX  the prefix older releases were tagged with, if any;
+#                        only used to find the previous release's tag
+#   C_CHANGELOG          path of the component's CHANGELOG.md
+#   C_TOUCHED            the files `prepare` edits (the changelog is one)
+#   C_RELEASE_WORKFLOW   the workflow file that the tag starts
+#   C_LATEST             "yes" if its releases are marked Latest on GitHub
+#                        (the CLI's are: the install URLs say "latest"),
+#                        "no" if they must never be
+#   C_REQUIRED_WORKFLOWS workflows that must be green on the release commit
+#   C_OPTIONAL_WORKFLOWS ...and ones that are only waited for if they ran
+#
+#   c_current_version    print the component's current version
+#   c_check_versions     die unless every place a version is written agrees
+#   c_bump FROM TO       write the new version everywhere, and refresh locks
+#   c_check_plan V       die unless the release machinery accepts this tag
+#   c_gates              run the checks that must pass before committing
+#   c_verify V           check the published release
+
+# Always the repository root, whatever the caller's directory.
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+REPO_URL=$(grep -m1 '^repository' Cargo.toml | sed -E 's/.*"([^"]+)".*/\1/')
+# `gh` cannot work out the repository from an SSH host alias, so say it.
+GH_REPO=${REPO_URL#https://github.com/}
+export GH_REPO
+
+WORK=""
+PREPARING=""
+
+# How long to wait for a workflow run to *appear* for a commit. Runs start
+# within seconds, so two minutes means something is wrong; it is a variable so
+# the tests can exercise that path without waiting two minutes.
+RUN_START_TIMEOUT=${RELEASE_RUN_START_TIMEOUT:-120}
+
+# --- Output -------------------------------------------------------------------
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+warn() { printf 'warning: %s\n' "$*" >&2; }
+step() { printf '\n==> %s\n' "$*"; }
+ok() { printf '  ok  %s\n' "$*"; }
+say() { printf '      %s\n' "$*"; }
+
+# --- Cleanup and rollback -------------------------------------------------------
+
+# The files `prepare` edits are backed up before the first edit, so that a
+# failure puts back exactly what was there — including a changelog with
+# uncommitted notes in it, which a `git checkout` would destroy.
+backup_files() {
+  local f
+  for f in $C_TOUCHED; do
+    mkdir -p "$WORK/backup/$(dirname "$f")"
+    cp -p "$f" "$WORK/backup/$f"
+  done
+}
+
+restore_files() {
+  local f
+  for f in $C_TOUCHED; do
+    cp -p "$WORK/backup/$f" "$f"
+  done
+}
+
+cleanup() {
+  local status=$?
+  if [ -n "$PREPARING" ] && [ "$status" -ne 0 ] && [ -d "$WORK/backup" ]; then
+    printf '\nprepare failed; putting back the files it edited.\n' >&2
+    restore_files
+  fi
+  if [ -n "$WORK" ]; then
+    rm -rf "$WORK"
+  fi
+  exit "$status"
+}
+trap cleanup EXIT
+
+# --- Small helpers ----------------------------------------------------------------
+
+need() {
+  command -v "$1" >/dev/null 2>&1 || die "$1 is required and was not found"
+}
+
+valid_version() {
+  [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+}
+
+# Whether $1 is a strictly greater version than $2.
+version_gt() {
+  local a1 a2 a3 b1 b2 b3
+  IFS=. read -r a1 a2 a3 <<<"$1"
+  IFS=. read -r b1 b2 b3 <<<"$2"
+  if [ "$a1" -ne "$b1" ]; then
+    [ "$a1" -gt "$b1" ]
+    return
+  fi
+  if [ "$a2" -ne "$b2" ]; then
+    [ "$a2" -gt "$b2" ]
+    return
+  fi
+  [ "$a3" -gt "$b3" ]
+}
+
+# The tag a release of $1 gets.
+tag_of() {
+  echo "${C_TAG_PREFIX}$1"
+}
+
+# The tag the previous release of this component carries. Earlier releases
+# were tagged before there was more than one component, so fall back to the
+# old prefix; and if neither exists, the new scheme's name, which at least
+# says what it should have been.
+previous_tag() {
+  local prev=$1
+  if git rev-parse -q --verify "refs/tags/${C_TAG_PREFIX}$prev" >/dev/null; then
+    echo "${C_TAG_PREFIX}$prev"
+  elif [ -n "${C_LEGACY_TAG_PREFIX:-}" ] &&
+    git rev-parse -q --verify "refs/tags/${C_LEGACY_TAG_PREFIX}$prev" >/dev/null; then
+    echo "${C_LEGACY_TAG_PREFIX}$prev"
+  else
+    echo "${C_TAG_PREFIX}$prev"
+  fi
+}
+
+# Files git reports as changed that should not have been. With an argument,
+# that one file is the only change allowed (before `prepare` edits anything,
+# only the changelog may carry the release's notes); without, any of
+# $C_TOUCHED is (after `prepare` has bumped the version).
+unexpected_changes() {
+  local only=${1:-} f
+  git status --porcelain | awk '{ print $2 }' | while IFS= read -r f; do
+    if [ -n "$only" ]; then
+      [ "$f" = "$only" ] || echo "$f"
+    else
+      case " $C_TOUCHED " in
+        *" $f "*) ;;
+        *) echo "$f" ;;
+      esac
+    fi
+  done
+}
+
+# --- The changelog ------------------------------------------------------------------
+
+# The body of one section: from its heading to the next heading or to the
+# link references at the foot of the file.
+section_body() {
+  awk -v h="## [$1]" '
+    index($0, h) == 1 { f = 1; next }
+    /^## \[/ { f = 0 }
+    /^\[[^]]+\]: / { f = 0 }
+    f' "$C_CHANGELOG"
+}
+
+has_content() {
+  grep -q '[^[:space:]]'
+}
+
+# What the changelog holds for $1: `section` (a filled-in section), `empty`
+# (a heading with nothing under it), `unreleased` (notes waiting to be
+# released) or `missing`.
+changelog_state() {
+  local vre=${1//./\\.}
+  if grep -q "^## \[$vre\]" "$C_CHANGELOG"; then
+    if section_body "$1" | has_content; then
+      echo section
+    else
+      echo empty
+    fi
+  elif section_body Unreleased | has_content; then
+    echo unreleased
+  else
+    echo missing
+  fi
+}
+
+# Turn `## [Unreleased]` notes into `## [$1] - <today>`, leaving Unreleased
+# empty above it. This is the standard Keep a Changelog step, done here
+# because a hand-typed heading or compare link is exactly the sort of thing
+# that goes subtly wrong.
+promote_unreleased() {
+  local heading="## [$1] - $2"
+  awk -v h="$heading" '
+    !done && index($0, "## [Unreleased]") == 1 { print; print ""; print h; done = 1; next }
+    { print }' "$C_CHANGELOG" >"$WORK/changelog.new"
+  cat "$WORK/changelog.new" >"$C_CHANGELOG"
+}
+
+# Point [Unreleased] at the new version, and add the new version's compare
+# link, from the previous release's tag to this one's. Skipped, with a
+# warning, if the file has no [Unreleased] link.
+update_footer_links() {
+  local version=$1 previous=$2 vre=${1//./\\.} has_link=no new_tag prev_tag
+  new_tag=$(tag_of "$version")
+  prev_tag=$(previous_tag "$previous")
+  if grep -q '^\[Unreleased\]: ' "$C_CHANGELOG"; then
+    if grep -q "^\[$vre\]: " "$C_CHANGELOG"; then
+      has_link=yes
+    fi
+    awk -v url="$REPO_URL" -v v="$version" -v new="$new_tag" -v prev="$prev_tag" -v has="$has_link" '
+      index($0, "[Unreleased]: ") == 1 {
+        print "[Unreleased]: " url "/compare/" new "...HEAD"
+        if (has == "no") print "[" v "]: " url "/compare/" prev "..." new
+        next
+      }
+      { print }' "$C_CHANGELOG" >"$WORK/changelog.new"
+    cat "$WORK/changelog.new" >"$C_CHANGELOG"
+  else
+    warn "$C_CHANGELOG has no [Unreleased] link at the foot; compare links not updated"
+  fi
+}
+
+# --- Preflight ------------------------------------------------------------------------
+
+require_main_in_sync() {
+  local branch
+  branch=$(git rev-parse --abbrev-ref HEAD)
+  [ "$branch" = main ] || die "releases are cut from main, and this is $branch"
+  git fetch origin --tags --quiet || die "could not fetch from origin"
+}
+
+require_tag_free() {
+  local tag
+  tag=$(tag_of "$1")
+  # Origin first. The preflight has just fetched tags, so a tag that exists on
+  # origin is also local by now, and saying "locally" would name the effect
+  # and not the cause.
+  if [ -n "$(git ls-remote --tags origin "refs/tags/$tag")" ]; then
+    die "tag $tag already exists on origin"
+  fi
+  if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+    die "tag $tag already exists locally (not on origin)"
+  fi
+  ok "tag $tag is free"
+}
+
+# The subject of the commit `prepare` makes, and `publish` insists on.
+release_subject() {
+  echo "Release $C_PACKAGE $1"
+}
+
+# Everything `prepare` needs to be true, without changing anything.
+preflight_prepare() {
+  local v=$1 cur unexpected state today heading_date
+  step "Preflight for $C_PACKAGE $v"
+
+  valid_version "$v" || die "'$v' is not a version of the form X.Y.Z"
+  need git
+  need cargo
+  need dist
+  need jq
+
+  require_main_in_sync
+  ok "on main, fetched origin"
+
+  # Said before the sync check, which would otherwise tell someone who has
+  # already prepared to "push or pull first": the wrong advice.
+  if [ "$(git log -1 --format=%s)" = "$(release_subject "$v")" ]; then
+    die "already prepared: HEAD is the '$(release_subject "$v")' commit. To release it: scripts/release.sh $C_NAME publish $v. To start over: git reset --hard origin/main"
+  fi
+
+  [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] ||
+    die "main is not the same as origin/main; push or pull first, so that what is released is what is on GitHub"
+  ok "main matches origin/main"
+
+  # The changelog may carry the release's notes, uncommitted. Nothing else.
+  unexpected=$(unexpected_changes "$C_CHANGELOG")
+  [ -z "$unexpected" ] ||
+    die "the working tree has changes other than $C_CHANGELOG: $(echo "$unexpected" | tr '\n' ' ')"
+  ok "working tree clean (apart from $C_CHANGELOG)"
+
+  c_check_versions
+  cur=$(c_current_version)
+  version_gt "$v" "$cur" || die "$v is not greater than the current version $cur"
+  ok "$v is greater than $cur"
+
+  require_tag_free "$v"
+
+  state=$(changelog_state "$v")
+  today=$(date +%Y-%m-%d)
+  case "$state" in
+    section)
+      heading_date=$(sed -nE "s/^## \[${v//./\\.}\] - ([0-9]{4}-[0-9]{2}-[0-9]{2}).*/\1/p" "$C_CHANGELOG" | head -1)
+      [ -n "$heading_date" ] ||
+        die "the [$v] heading in $C_CHANGELOG has no date; write it as '## [$v] - $today'"
+      [ "$heading_date" = "$today" ] ||
+        die "the [$v] heading is dated $heading_date but today is $today; correct it"
+      ok "$C_CHANGELOG has a [$v] section dated today"
+      ;;
+    unreleased)
+      ok "$C_CHANGELOG has notes under [Unreleased], to become [$v] - $today"
+      ;;
+    empty)
+      die "the [$v] section of $C_CHANGELOG is empty"
+      ;;
+    *)
+      die "$C_CHANGELOG has no notes for $v. Write them under '## [Unreleased]'; the release would ship with generic notes without them"
+      ;;
+  esac
+}
+
+# Run one gate. A bare `set -e` exit would show the tool's own output and
+# nothing saying which gate it was, which is no help at the end of a long run.
+gate() {
+  local name=$1
+  shift
+  if "$@"; then
+    ok "$name"
+  else
+    die "the $name gate failed (its output is above); nothing was committed"
+  fi
+}
+
+# --- Commands ---------------------------------------------------------------------------
+
+cmd_check() {
+  preflight_prepare "$1"
+  printf '\nready: scripts/release.sh %s prepare %s will do the rest.\n' "$C_NAME" "$1"
+}
+
+cmd_prepare() {
+  local v=$1 skip_gates=$2 cur today state f body
+  preflight_prepare "$v"
+
+  cur=$(c_current_version)
+  today=$(date +%Y-%m-%d)
+  WORK=$(mktemp -d)
+  backup_files
+  PREPARING=yes
+
+  step "Notes"
+  state=$(changelog_state "$v")
+  if [ "$state" = unreleased ]; then
+    promote_unreleased "$v" "$today"
+    ok "promoted [Unreleased] to [$v] - $today"
+  fi
+  update_footer_links "$v" "$cur"
+  ok "compare links updated"
+
+  step "Bump $cur -> $v"
+  c_bump "$cur" "$v"
+
+  # Nothing may have changed except the files this command is for.
+  f=$(unexpected_changes)
+  [ -z "$f" ] || die "unexpected changes after the bump: $(echo "$f" | tr '\n' ' ')"
+  ok "only the expected files changed"
+
+  step "Release machinery"
+  c_check_plan "$v"
+
+  if [ "$skip_gates" = yes ]; then
+    warn "gates skipped: CI will still run them, but only after the push"
+  else
+    step "Gates"
+    c_gates
+  fi
+
+  step "Commit"
+  body=$(section_body "$v" | sed '/./,$!d')
+  printf '%s\n\n%s\n' "$(release_subject "$v")" "$body" >"$WORK/message"
+  # shellcheck disable=SC2086  # the file list is deliberately word-split
+  git add $C_TOUCHED
+  git commit -q -F "$WORK/message"
+  PREPARING=""
+  ok "committed $(git rev-parse --short HEAD): $(release_subject "$v")"
+
+  printf '\nPrepared, and nothing has been pushed. Read what it made:\n\n'
+  printf '    git show --stat HEAD\n\n'
+  printf 'then, to release it:\n\n'
+  printf '    scripts/release.sh %s publish %s\n' "$C_NAME" "$v"
+}
+
+wait_for_workflow() {
+  local workflow=$1 sha=$2 required=$3 id="" waited=0 conclusion
+  while [ -z "$id" ]; do
+    id=$(gh run list --workflow "$workflow" --branch main --limit 20 \
+      --json databaseId,headSha \
+      --jq ".[] | select(.headSha == \"$sha\") | .databaseId" | head -1 || true)
+    if [ -z "$id" ]; then
+      if [ "$waited" -ge "$RUN_START_TIMEOUT" ]; then
+        if [ "$required" = yes ]; then
+          die "no $workflow run appeared for ${sha:0:7} after ${RUN_START_TIMEOUT}s"
+        fi
+        warn "no $workflow run for ${sha:0:7}; its path filters may have skipped it. Continuing"
+        return 0
+      fi
+      sleep 5
+      waited=$((waited + 5))
+    fi
+  done
+  say "$workflow run $id"
+  gh run watch "$id" --exit-status --interval 15 >/dev/null 2>&1 || true
+  conclusion=$(gh run view "$id" --json conclusion --jq .conclusion)
+  [ "$conclusion" = success ] ||
+    die "$workflow finished as '$conclusion' on ${sha:0:7}, so the tag was not created. See: gh run view $id --log-failed"
+  ok "$workflow is green on ${sha:0:7}"
+}
+
+# Wait for the run that a pushed tag starts. $1 is the tag, $2 the workflow.
+# A tag-triggered run records the tag as its branch.
+wait_for_release_run() {
+  local tag=$1 workflow=$2 id="" waited=0 conclusion
+  while [ -z "$id" ]; do
+    id=$(gh run list --workflow "$workflow" --limit 10 --json databaseId,headBranch \
+      --jq ".[] | select(.headBranch == \"$tag\") | .databaseId" | head -1 || true)
+    if [ -z "$id" ]; then
+      [ "$waited" -lt 90 ] || die "the $workflow workflow did not start for $tag"
+      sleep 5
+      waited=$((waited + 5))
+    fi
+  done
+  say "$workflow run $id"
+  gh run watch "$id" --exit-status --interval 20 >/dev/null 2>&1 || true
+  conclusion=$(gh run view "$id" --json conclusion --jq .conclusion)
+  if [ "$conclusion" != success ]; then
+    printf '\nThe release run finished as %s. Nothing may have been published; check with:\n' "$conclusion" >&2
+    printf '    gh run view %s --log-failed\n    gh release list\n' "$id" >&2
+    printf 'The tag %s is on origin. If nothing was published, fix the cause, then move it:\n' "$tag" >&2
+    printf '    git push --delete origin %s && git tag -f %s <fixed-commit> && git push origin %s\n' "$tag" "$tag" "$tag" >&2
+    exit 1
+  fi
+  ok "the $workflow workflow succeeded"
+}
+
+# What every published release must be, whatever it contains: visible to
+# `releases/latest` if it is meant to be, and invisible to it if not. In a
+# repository that releases several things, "Latest" is one slot shared by all
+# of them, and the CLI's install URLs depend on it being the CLI's.
+verify_release_page() {
+  local tag=$1 is_latest
+  need gh
+  need jq
+  [ -n "$WORK" ] || WORK=$(mktemp -d)
+
+  gh release view "$tag" --json isDraft,isPrerelease,body,assets >"$WORK/release.json" ||
+    die "there is no release $tag"
+  jq -e '.isDraft == false and .isPrerelease == false' "$WORK/release.json" >/dev/null ||
+    die "$tag is a draft or a prerelease, which 'releases/latest' skips"
+  ok "published, not a draft or prerelease"
+
+  is_latest=$(gh release list --json tagName,isLatest --jq ".[] | select(.tagName == \"$tag\") | .isLatest")
+  if [ "$C_LATEST" = yes ]; then
+    if [ "$is_latest" = true ]; then
+      ok "marked Latest"
+    else
+      warn "$tag is not marked Latest; fine for an older version, wrong for the newest"
+    fi
+  else
+    [ "$is_latest" != true ] ||
+      die "$tag is marked Latest, but $C_PACKAGE releases must not be: the install URLs say 'latest' and mean the CLI. Fix it: gh release edit $tag --latest=false"
+    ok "not marked Latest, as it must not be"
+  fi
+}
+
+cmd_publish() {
+  local v=$1 dry_run=$2 cur subject sha tag
+  tag=$(tag_of "$v")
+  step "Preflight for publishing $C_PACKAGE $v"
+  valid_version "$v" || die "'$v' is not a version of the form X.Y.Z"
+  need git
+  need cargo
+  need dist
+  need jq
+  need gh
+  gh auth status >/dev/null 2>&1 || die "gh is not logged in"
+  require_main_in_sync
+
+  cur=$(c_current_version)
+  [ "$cur" = "$v" ] ||
+    die "the $C_PACKAGE version is $cur, not $v; run 'prepare $v' first"
+  c_check_versions
+  subject=$(git log -1 --format=%s)
+  [ "$subject" = "$(release_subject "$v")" ] ||
+    die "HEAD is '$subject', not '$(release_subject "$v")'; run 'prepare $v' first and publish straight after"
+  ok "HEAD is the $(release_subject "$v") commit"
+  [ -z "$(git status --porcelain)" ] || die "the working tree is not clean"
+  ok "working tree clean"
+  require_tag_free "$v"
+  git merge-base --is-ancestor origin/main HEAD ||
+    die "origin/main has commits that HEAD does not; pull and re-run prepare"
+  c_check_plan "$v"
+
+  sha=$(git rev-parse HEAD)
+
+  if [ "$dry_run" = yes ]; then
+    printf '\nDry run, so nothing was changed. It would now:\n\n'
+    printf '    1. push main (%s) to origin, if it is not there already\n' "${sha:0:7}"
+    printf '    2. wait for %s to be green on %s\n' "$C_REQUIRED_WORKFLOWS $C_OPTIONAL_WORKFLOWS" "${sha:0:7}"
+    printf '    3. create and push the tag %s on that commit\n' "$tag"
+    printf '    4. watch the %s workflow to the end\n' "$C_RELEASE_WORKFLOW"
+    printf '    5. verify the published release\n'
+    return 0
+  fi
+
+  step "Push"
+  if [ "$sha" = "$(git rev-parse origin/main)" ]; then
+    ok "main is already on origin"
+  else
+    git push origin main
+    ok "pushed main"
+  fi
+
+  step "Wait for CI on ${sha:0:7}"
+  local w
+  for w in $C_REQUIRED_WORKFLOWS; do
+    wait_for_workflow "$w" "$sha" yes
+  done
+  # An optional workflow only runs when its path filters match; if they skip
+  # it, carry on with a warning.
+  for w in $C_OPTIONAL_WORKFLOWS; do
+    wait_for_workflow "$w" "$sha" no
+  done
+
+  step "Tag"
+  git tag -a "$tag" -m "$C_PACKAGE $v" "$sha"
+  git push origin "$tag"
+  ok "pushed $tag, which starts the release"
+
+  step "Release workflow"
+  wait_for_release_run "$tag" "$C_RELEASE_WORKFLOW"
+
+  c_verify "$v"
+}

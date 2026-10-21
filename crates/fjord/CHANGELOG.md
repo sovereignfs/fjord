@@ -12,6 +12,21 @@ tagging it.
 
 ## [Unreleased]
 
+### Changed
+
+- **The repository is now `sovereignfs/fjord`,** a monorepo for the
+  specification, `fjord-core`, the CLI and the clients and plugins to come.
+  The old `sovereignfs/fjord-cli` URLs redirect, so existing install commands
+  and installers keep working. The package is still `fjord-cli` and the
+  binary still `fjord`.
+- **Releases of the CLI are tagged `fjord-cli-vX.Y.Z`** from now on, so that
+  other components can have tags of their own. Releases up to 0.2.0 keep
+  their `vX.Y.Z` tags. Only a CLI release is ever marked *Latest*, which is
+  what keeps `releases/latest/download/fjord-cli-installer.sh` pointing at
+  the CLI.
+- **The specification is no longer described as vendored.** `spec/SPEC.md` is
+  the canonical copy.
+
 ## [0.2.0] - 2026-10-21
 
 You can now decrypt a whole encrypted vault in place, work on it with any

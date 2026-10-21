@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #
-# Tests for scripts/release.sh.
+# Tests for scripts/release.sh and what it sources (scripts/lib, scripts/release).
 #
 #   scripts/test-release.sh           fast: everything except the full gates
 #   scripts/test-release.sh --full    also runs `prepare` with the real gates
@@ -14,7 +14,8 @@
 # modes as well as its success.
 #
 # Each test builds a throwaway repository from this checkout — a bare
-# "origin" and a clone of it, with the script under test copied in — so
+# "origin" and a clone of it, with this working tree laid over it (so what is
+# tested is what is on disk, committed or not) — so
 # nothing here touches this repository, its remote, or GitHub. The one thing
 # it does reach for is `gh auth status`, in the `publish` preflight tests,
 # which are skipped if gh is not logged in.
@@ -46,6 +47,12 @@ FULL=no
 PASSED=0
 FAILED=0
 TODAY=$(date +%Y-%m-%d)
+
+# Where the CLI component keeps its notes.
+CL=crates/fjord/CHANGELOG.md
+# Read by commands that check_in eval's, which shellcheck cannot follow.
+# shellcheck disable=SC2034
+REPO=https://github.com/sovereignfs/fjord
 
 # The version under test: far from anything real, so it can never collide
 # with a tag that exists.
@@ -84,10 +91,18 @@ fresh() {
     cd "$T/$name" || exit 1
     git config user.name "Release Test"
     git config user.email "release-test@example.invalid"
-    mkdir -p scripts
-    cp "$ROOT/scripts/release.sh" scripts/release.sh
-    git add scripts/release.sh
-    git commit -q -m "scratch: the release script under test"
+    # The working tree, not HEAD: replace every tracked file with what this
+    # checkout has, so the script is tested as it stands.
+    git rm -rq --quiet .
+    (cd "$ROOT" && git ls-files -co --exclude-standard -z | xargs -0 tar cf -) | tar xf -
+    # Whatever notes are waiting under [Unreleased] in the real changelog are
+    # not these tests' business: they start from an empty one, and add their own.
+    awk '/^## \[Unreleased\]/ { print; print ""; skip = 1; next }
+         /^## \[/ { skip = 0 }
+         !skip { print }' "$CL" >"$CL.new"
+    mv "$CL.new" "$CL"
+    git add -A
+    git commit -q -m "scratch: this working tree under test"
     git push -q origin main
   )
 }
@@ -98,7 +113,7 @@ RC=0
 rel() {
   local name=$1
   shift
-  OUT=$(cd "$T/$name" && /bin/bash scripts/release.sh "$@" 2>&1)
+  OUT=$(cd "$T/$name" && /bin/bash scripts/release.sh cli "$@" 2>&1)
   RC=$?
 }
 
@@ -107,8 +122,8 @@ notes() {
   (
     cd "$T/$1" || exit 1
     awk '{ print } /^## \[Unreleased\]/ && !d { print ""; print "### Added"; print ""; print "- A note for the release under test."; d = 1 }' \
-      CHANGELOG.md >CHANGELOG.new
-    mv CHANGELOG.new CHANGELOG.md
+      "$CL" >"$CL.new"
+    mv "$CL.new" "$CL"
   )
 }
 
@@ -157,26 +172,26 @@ rel pre check 0.0.1
 refuses "a version lower than the current one" "is not greater than"
 
 rel pre check "$NEXT"
-refuses "no notes anywhere in CHANGELOG.md" "no notes for $NEXT"
+refuses "no notes anywhere in the changelog" "no notes for $NEXT"
 
 # An empty section heading is not notes.
-(cd "$T/pre" && awk -v h="## [$NEXT] - $TODAY" '{ print } /^## \[Unreleased\]/ && !d { print ""; print h; d = 1 }' CHANGELOG.md >c.new && mv c.new CHANGELOG.md)
+(cd "$T/pre" && awk -v h="## [$NEXT] - $TODAY" '{ print } /^## \[Unreleased\]/ && !d { print ""; print h; d = 1 }' $CL >c.new && mv c.new $CL)
 rel pre check "$NEXT"
 refuses "a section heading with nothing under it" "is empty"
-(cd "$T/pre" && git checkout -q CHANGELOG.md)
+(cd "$T/pre" && git checkout -q $CL)
 
 # A section with the wrong date: it would be dated for a different day.
-(cd "$T/pre" && awk -v h="## [$NEXT] - 2000-01-01" '{ print } /^## \[Unreleased\]/ && !d { print ""; print h; print ""; print "- notes"; d = 1 }' CHANGELOG.md >c.new && mv c.new CHANGELOG.md)
+(cd "$T/pre" && awk -v h="## [$NEXT] - 2000-01-01" '{ print } /^## \[Unreleased\]/ && !d { print ""; print h; print ""; print "- notes"; d = 1 }' $CL >c.new && mv c.new $CL)
 rel pre check "$NEXT"
 refuses "a section dated for another day" "dated 2000-01-01"
-(cd "$T/pre" && git checkout -q CHANGELOG.md)
+(cd "$T/pre" && git checkout -q $CL)
 
-# Dirty tree: something other than CHANGELOG.md.
+# Dirty tree: something other than the changelog.
 notes pre
-(cd "$T/pre" && echo "stray" >>README.md)
+(cd "$T/pre" && echo "stray" >>Cargo.lock)
 rel pre check "$NEXT"
-refuses "changes other than CHANGELOG.md" "changes other than CHANGELOG.md"
-(cd "$T/pre" && git checkout -q README.md)
+refuses "changes other than the changelog" "changes other than $CL"
+(cd "$T/pre" && git checkout -q Cargo.lock)
 
 # Not on main.
 (cd "$T/pre" && git checkout -q -b elsewhere)
@@ -191,11 +206,11 @@ refuses "main ahead of origin/main" "main is not the same as origin/main"
 (cd "$T/pre" && git reset -q --hard origin/main)
 
 # A tag that already exists on origin.
-(cd "$T/pre" && git tag "v$NEXT" && git push -q origin "v$NEXT" && git tag -d "v$NEXT" >/dev/null)
+(cd "$T/pre" && git tag "fjord-cli-v$NEXT" && git push -q origin "fjord-cli-v$NEXT" && git tag -d "fjord-cli-v$NEXT" >/dev/null)
 notes pre
 rel pre check "$NEXT"
 refuses "a tag that already exists on origin" "already exists on origin"
-(cd "$T/pre" && git push -q --delete origin "v$NEXT")
+(cd "$T/pre" && git push -q --delete origin "fjord-cli-v$NEXT")
 
 # The two version declarations disagree.
 fresh skew
@@ -224,24 +239,26 @@ printf '\nprepare: what it makes\n'
 rel ok prepare "$NEXT" --skip-gates
 accepts "prepare, with the gates skipped"
 
-check_in ok "one commit, subject 'Release $NEXT'" \
-  '[ "$(git log -1 --format=%s)" = "Release $NEXT" ]'
+check_in ok "one commit, subject 'Release fjord-cli $NEXT'" \
+  '[ "$(git log -1 --format=%s)" = "Release fjord-cli $NEXT" ]'
 check_in ok "the working tree is clean afterwards" \
   '[ -z "$(git status --porcelain)" ]'
 check_in ok "the commit message carries the release notes" \
   'git log -1 --format=%b | grep -qF "A note for the release under test."'
 check_in ok "[Unreleased] is left empty above the new section" \
-  'awk "/^## \\[Unreleased\\]/{f=1;next} /^## \\[/{exit} f&&NF{bad=1} END{exit bad}" CHANGELOG.md'
+  'awk "/^## \\[Unreleased\\]/{f=1;next} /^## \\[/{exit} f&&NF{bad=1} END{exit bad}" $CL'
 check_in ok "the new section is headed '## [$NEXT] - $TODAY'" \
-  'grep -qxF "## [$NEXT] - $TODAY" CHANGELOG.md'
+  'grep -qxF "## [$NEXT] - $TODAY" $CL'
 check_in ok "the notes moved under the new heading" \
-  'awk -v h="## [$NEXT]" '"'"'index($0,h)==1{f=1;next} /^## \[/{f=0} f'"'"' CHANGELOG.md | grep -qF "A note for the release"'
+  'awk -v h="## [$NEXT]" '"'"'index($0,h)==1{f=1;next} /^## \[/{f=0} f'"'"' $CL | grep -qF "A note for the release"'
 check_in ok "[Unreleased] compares from the new version" \
-  'grep -qF "[Unreleased]: https://github.com/sovereignfs/fjord-cli/compare/v$NEXT...HEAD" CHANGELOG.md'
-check_in ok "a compare link was added for the new version" \
-  'grep -qF "[$NEXT]: https://github.com/sovereignfs/fjord-cli/compare/v$CUR...v$NEXT" CHANGELOG.md'
+  'grep -qF "[Unreleased]: $REPO/compare/fjord-cli-v$NEXT...HEAD" $CL'
+# The previous release predates the per-component tags, so the comparison
+# starts from its old-style tag and ends at the new one.
+check_in ok "a compare link was added for the new version, from the old-style tag" \
+  'grep -qF "[$NEXT]: $REPO/compare/v$CUR...fjord-cli-v$NEXT" $CL'
 check_in ok "the previous version's link is still there" \
-  'grep -qF "[$CUR]: " CHANGELOG.md'
+  'grep -qF "[$CUR]: " $CL'
 check_in ok "the workspace version is bumped" \
   'grep -qx "version = \"$NEXT\"" Cargo.toml'
 check_in ok "the fjord-core dependency version is bumped" \
@@ -249,16 +266,16 @@ check_in ok "the fjord-core dependency version is bumped" \
 check_in ok "Cargo.lock followed" \
   'grep -A1 "^name = \"fjord-cli\"" Cargo.lock | grep -q "version = \"$NEXT\""'
 check_in ok "only the four expected files changed" \
-  '[ -z "$(git diff --name-only HEAD~1 | grep -vE "^(CHANGELOG\\.md|Cargo\\.toml|Cargo\\.lock|crates/fjord/Cargo\\.toml)$")" ]'
+  '[ -z "$(git diff --name-only HEAD~1 | grep -vE "^(crates/fjord/CHANGELOG\\.md|Cargo\\.toml|Cargo\\.lock|crates/fjord/Cargo\\.toml)$")" ]'
 check_in ok "nothing was pushed" \
   '[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]'
 check_in ok "dist can find the notes in the result" \
-  'dist plan --tag=v$NEXT --output-format=json 2>/dev/null | jq -e .announcement_changelog'
+  'dist plan --tag=fjord-cli-v$NEXT --output-format=json 2>/dev/null | jq -e .announcement_changelog'
 
 # Running prepare again must refuse: the version is no longer greater.
 rel ok prepare "$NEXT" --skip-gates
 refuses "preparing the same version twice" "already prepared"
-if printf '%s' "$OUT" | grep -qF "scripts/release.sh publish $NEXT"; then
+if printf '%s' "$OUT" | grep -qF "scripts/release.sh cli publish $NEXT"; then
   pass "...and says to publish it"
 else
   fail "...and says to publish it" "$OUT"
@@ -285,11 +302,11 @@ check_in roll "Cargo.toml is back at $CUR" 'grep -qx "version = \"$CUR\"" Cargo.
 check_in roll "the fjord-core dependency is back at $CUR" \
   'grep -q "fjord-core = .*version = \"$CUR\"" crates/fjord/Cargo.toml'
 check_in roll "the uncommitted notes survived the rollback" \
-  'grep -qF "A note for the release under test." CHANGELOG.md'
+  'grep -qF "A note for the release under test." $CL'
 check_in roll "...and are still under [Unreleased], not promoted" \
-  '! grep -q "^## \\[$NEXT\\]" CHANGELOG.md'
-check_in roll "the only modified file is CHANGELOG.md" \
-  '[ "$(git status --porcelain | awk "{print \$2}")" = "CHANGELOG.md" ]'
+  '! grep -q "^## \\[$NEXT\\]" $CL'
+check_in roll "the only modified file is the changelog" \
+  '[ "$(git status --porcelain | awk "{print \$2}")" = "$CL" ]'
 
 # --- publish: the preflight, which can be tested without publishing --------------------
 
@@ -304,7 +321,7 @@ if gh auth status >/dev/null 2>&1; then
   fi
   check_in ok "...and really did not push" \
     '[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]'
-  check_in ok "...or tag" '[ -z "$(git tag -l "v$NEXT")" ]'
+  check_in ok "...or tag" '[ -z "$(git tag -l "fjord-cli-v$NEXT")" ]'
 
   # Not prepared: HEAD is not the release commit.
   fresh unprep
@@ -328,18 +345,30 @@ printf '\nwaiting on GitHub: against the real v0.1.2 runs\n'
 # `git -C` rather than `cd ... && git ... || true`: that shape is `A && B || C`,
 # which is not if/else, and the older shellcheck on the CI runners flags it.
 RELEASED_SHA=$(git -C "$ROOT" rev-parse -q --verify "refs/tags/v0.1.2^{commit}" 2>/dev/null || true)
+# That release was cut by the workflow that is now `release.yml`, deleted when
+# the tag namespace arrived; GitHub keeps the workflow and its runs. Found by
+# path, because its name, "Release", is also the new workflow's.
+OLD_WORKFLOW=""
+if gh auth status >/dev/null 2>&1; then
+  OLD_WORKFLOW=$(gh api "repos/${REPO#https://github.com/}/actions/workflows" \
+    --jq '.workflows[] | select(.path == ".github/workflows/release.yml") | .id' 2>/dev/null | head -1 || true)
+fi
 if gh auth status >/dev/null 2>&1 && [ -n "$RELEASED_SHA" ]; then
   # In a subshell: sourcing installs the script's EXIT trap and `set -e`.
   gh_call() {
-    OUT=$(cd "$ROOT" && RELEASE_RUN_START_TIMEOUT=6 bash -c "source scripts/release.sh; $*" 2>&1)
+    OUT=$(cd "$ROOT" && RELEASE_RUN_START_TIMEOUT=6 bash -c "source scripts/lib/release.sh; source scripts/release/cli.sh; $*" 2>&1)
     RC=$?
   }
   gh_call "wait_for_workflow CI $RELEASED_SHA yes"
   accepts "CI on the real v0.1.2 commit is found and green"
   gh_call "wait_for_workflow Audit $RELEASED_SHA no"
   accepts "Audit on the real v0.1.2 commit is found and green"
-  gh_call "wait_for_release_run 0.1.2"
-  accepts "the real v0.1.2 Release run is found and green"
+  if [ -n "$OLD_WORKFLOW" ]; then
+    gh_call "wait_for_release_run v0.1.2 $OLD_WORKFLOW"
+    accepts "the real v0.1.2 release run is found and green"
+  else
+    printf '  skip  the old release.yml workflow is not known to GitHub\n'
+  fi
 
   FAKE=0000000000000000000000000000000000000001
   gh_call "wait_for_workflow CI $FAKE yes"
@@ -353,6 +382,72 @@ if gh auth status >/dev/null 2>&1 && [ -n "$RELEASED_SHA" ]; then
   fi
 else
   printf '  skip  needs gh logged in and the v0.1.2 tag in this checkout\n'
+fi
+
+# --- Several components share one repository --------------------------------------------
+
+printf '\ncomponents: one repository, several things released from it\n'
+
+# A tag belonging to another component must not be mistaken for this one's.
+fresh other
+(cd "$T/other" && git tag "vscode-v$NEXT" && git push -q origin "vscode-v$NEXT")
+notes other
+rel other check "$NEXT"
+accepts "another component's tag at the same version does not block this one"
+
+# When the previous release already has a new-style tag, the compare link
+# starts from it instead of the old-style one.
+fresh newtags
+(cd "$T/newtags" && git tag "fjord-cli-v$CUR" && git push -q origin "fjord-cli-v$CUR")
+notes newtags
+rel newtags prepare "$NEXT" --skip-gates
+accepts "prepare, when the previous release has a new-style tag"
+check_in newtags "the compare link starts from the new-style tag" \
+  'grep -qF "[$NEXT]: $REPO/compare/fjord-cli-v$CUR...fjord-cli-v$NEXT" $CL'
+
+# The dispatcher refuses what it cannot run, and cannot be pointed elsewhere.
+dispatch() {
+  OUT=$(cd "$T/ok" && /bin/bash scripts/release.sh "$@" 2>&1)
+  RC=$?
+}
+dispatch nope check 1.0.0
+refuses "a component that does not exist" "there is no component 'nope'"
+dispatch ../lib/release check 1.0.0
+refuses "a component name that is a path" "is not a component name"
+dispatch cli
+if [ "$RC" -eq 2 ] && printf '%s' "$OUT" | grep -qF "Usage:"; then
+  pass "missing arguments print the usage and exit 2"
+else
+  fail "missing arguments print the usage and exit 2" "exit $RC" "$OUT"
+fi
+
+# "Latest" is one slot shared by every component, and the CLI's install URLs
+# depend on it being the CLI's. Run against a stand-in for gh.
+if command -v gh >/dev/null 2>&1; then
+  latest_call() {
+    OUT=$(cd "$ROOT" && bash -c '
+      source scripts/lib/release.sh
+      source scripts/release/cli.sh
+      C_LATEST='"$1"'
+      gh() {
+        case "$1 $2" in
+          "release view") echo "{\"isDraft\":false,\"isPrerelease\":false,\"body\":\"\",\"assets\":[]}" ;;
+          "release list") echo '"$2"' ;;
+        esac
+      }
+      verify_release_page fjord-cli-v9.9.9' 2>&1)
+    RC=$?
+  }
+  latest_call yes true
+  accepts "a component that should be Latest, and is"
+  latest_call no false
+  accepts "a component that should not be Latest, and is not"
+  latest_call no true
+  refuses "a component that must not be Latest, but is" "must not be"
+  latest_call yes false
+  accepts "an older release of the CLI is allowed not to be Latest"
+else
+  printf '  skip  gh is not installed, so the Latest tests were not run\n'
 fi
 
 # --- The full gates, once ---------------------------------------------------------------

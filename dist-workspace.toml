@@ -31,6 +31,14 @@ targets = [
 # A release is cut by pushing a tag, and nothing else publishes.
 publish-prereleases = false
 
+# This repository releases more than the CLI, so the CLI's workflow must only
+# wake for the CLI's tags. Without a namespace it triggers on *any* tag that
+# looks like a version, and a `vscode-v0.1.0` tag would start it and fail.
+# With one, the tag is `fjord-cli-vX.Y.Z` and the workflow file is
+# `fjord-cli-release.yml`. Releases up to 0.2.0 were tagged `vX.Y.Z`, before
+# this, and are finished: nothing about them runs again.
+tag-namespace = "fjord-cli"
+
 # No Homebrew formula yet. `dist` can publish one, but only into a tap
 # repository that exists — and advertising a tap that does not is the same
 # mistake as advertising fjord.sh. Add `publish-jobs = ["homebrew"]` and

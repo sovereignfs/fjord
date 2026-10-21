@@ -12,7 +12,7 @@ edition = "2021"
 # pinning the lockfile would not have made the older claim true for anyone.
 rust-version = "1.88"
 license = "MPL-2.0"
-repository = "https://github.com/sovereignfs/fjord-cli"
+repository = "https://github.com/sovereignfs/fjord"
 
 # Pinned here so the two crates never disagree on a version.
 [workspace.dependencies]
