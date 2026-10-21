@@ -12,6 +12,13 @@ tagging it.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-21
+
+**There is no change to what `fjord` does or to the repository format.** This
+is the first release from the new monorepo: what changes is where the tool
+lives and how it is published, and the installers, archives and commands you
+already use keep working.
+
 ### Changed
 
 - **The repository is now `sovereignfs/fjord`,** a monorepo for the
@@ -24,6 +31,9 @@ tagging it.
   their `vX.Y.Z` tags. Only a CLI release is ever marked *Latest*, which is
   what keeps `releases/latest/download/fjord-cli-installer.sh` pointing at
   the CLI.
+- **Releases are titled `fjord-cli 0.3.0`,** the component and the version,
+  without the date (the date is in this file). Earlier releases keep the
+  titles they have.
 - **The specification is no longer described as vendored.** `spec/SPEC.md` is
   the canonical copy.
 
@@ -226,7 +236,8 @@ First release.
   conforming.
 - Building from source needs Rust 1.88 or newer.
 
-[Unreleased]: https://github.com/sovereignfs/fjord-cli/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/sovereignfs/fjord/compare/fjord-cli-v0.3.0...HEAD
+[0.3.0]: https://github.com/sovereignfs/fjord/compare/v0.2.0...fjord-cli-v0.3.0
 [0.2.0]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.1...v0.1.2
