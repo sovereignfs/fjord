@@ -570,7 +570,8 @@ change their names on disk, which is `fjord encrypt`'s job, not this one's.
 | | M0.5: generate the README diagnostics table from `diagnostics::Code` | `todo` |
 | | Release machinery: `dist`, installers, archives | `done` — see below |
 | | Cut the first release | `done` — `v0.1.0`, after two failed attempts; see below |
-| | Homebrew tap, crates.io publish | `todo` — neither is advertised until it exists |
+| | Homebrew tap | `in progress` — configured and verified by the release script; proved by the first release that publishes it, then advertised |
+| | crates.io publish | `todo` — not advertised until it exists |
 | | Frontmatter comment preservation | out of scope for v1; needs an AST-level YAML parser |
 
 ### `cargo deny`, and the vulnerability it found
@@ -878,7 +879,7 @@ archive.
 
 No Homebrew formula yet. `dist` can publish one, but only into a tap
 repository that exists — and advertising a tap that does not is the same
-mistake as advertising `fjord.sh`.
+mistake as advertising `fjord.sh`. *(Since configured: see "Homebrew" below.)*
 
 **The pipeline has now run, and it failed twice before it worked.** Both
 failures were gaps in what was checked before tagging, not in the pipeline.
@@ -1199,6 +1200,37 @@ The release script followed: it can no longer push `main`, so `publish` became
 `propose` (push a branch, open a draft PR) and `tag` (after the merge). That is
 the larger change, and the part that cannot be proved until a real release goes
 through it.
+
+## Homebrew
+
+`brew install sovereignfs/tap/fjord`, through a tap, `sovereignfs/homebrew-tap`.
+`dist` writes the formula and a job pushes it on each release; the formula
+installs the prebuilt archives, so nothing is built from source. The README
+keeps saying "no Homebrew yet" until a release has actually published one and
+it has been installed from a user's seat; advertising it earlier would repeat
+the `fjord.sh` mistake.
+
+Things that were not obvious, found by reading the generated output rather than
+trusting the configuration:
+
+- **The failure is quiet and late.** The release is created first and the
+  formula pushed after, with a token only the owner can make. A missing token
+  leaves a published release and a stale tap. So the release script now checks
+  for the secret and the tap before it tags, and reads the formula back from
+  the tap afterwards.
+- **A formula without checksums installs unverified,** and `dist` emits a
+  `sha256` only when it knows the archive's. A local render had none, because only
+  one platform's archive existed locally; in CI it should have all four. That
+  cannot be seen without a release, so `verify` asserts four `sha256` lines on the
+  published formula, and a test fails if the check is removed.
+- **Two mistakes in the new tests, both caught by them:** a `gh` stand-in that
+  used `exit` in a function (ending the whole shell before the second check
+  ran), and `gh api … | base64 -d || die`, where a pipeline's status is its last
+  command's, so a 404 from the tap would have been misreported.
+- The commits in the tap are authored by `axo bot`, which `dist` hard-codes.
+
+**Not proved until it runs:** the publish job, the token, and the formula's
+checksums. The next CLI release is the test.
 
 ## Documentation defects
 

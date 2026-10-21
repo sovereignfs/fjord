@@ -6,10 +6,16 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+homepage.workspace = true
 
 [[bin]]
 name = "fjord"
 path = "src/main.rs"
+
+# The package is `fjord-cli` and the command is `fjord`; the Homebrew formula is
+# named for the command, so `brew install sovereignfs/tap/fjord` works.
+[package.metadata.dist]
+formula = "fjord"
 
 [dependencies]
 # The version is required as well as the path: `cargo publish` refuses a

@@ -48,6 +48,8 @@
 #   c_check_plan V       die unless the release machinery accepts this tag
 #   c_gates              run the checks that must pass before committing
 #   c_verify V           check the published release
+#   c_check_publish      (optional) die unless what publishing needs is in place;
+#                        run before a pull request is proposed or a tag is pushed
 
 # Always the repository root, whatever the caller's directory.
 cd "$(git rev-parse --show-toplevel)" || exit 1
@@ -558,6 +560,7 @@ cmd_propose() {
   valid_version "$v" || die "'$v' is not a version of the form X.Y.Z"
   need_github
   git fetch origin --tags --quiet || die "could not fetch from origin"
+  if declare -F c_check_publish >/dev/null; then c_check_publish; fi
 
   current=$(git rev-parse --abbrev-ref HEAD)
   [ "$current" = "$branch" ] ||
@@ -625,6 +628,7 @@ cmd_tag() {
   step "Preflight for tagging $C_PACKAGE $v"
   valid_version "$v" || die "'$v' is not a version of the form X.Y.Z"
   need_github
+  if declare -F c_check_publish >/dev/null; then c_check_publish; fi
   require_main_in_sync
   ok "on main, fetched origin"
 
