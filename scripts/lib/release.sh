@@ -13,6 +13,20 @@
 # RELEASING.md and ROADMAP.md; every one of them is there because a release
 # went wrong without it.
 #
+# How a release goes
+# ------------------
+# `main` takes changes only through a pull request (CLAUDE.md § Working
+# conventions), and a release is a change like any other:
+#
+#   prepare  on a branch cut from main, bump, gate, and make one commit
+#   propose  push that branch and open a draft pull request, then stop
+#   ...      a person reviews the PR and merges it with "rebase and merge"
+#   tag      on main, once merged: wait for CI on that exact commit, tag it,
+#            watch the release workflow, retitle the release, verify it
+#
+# `tag` is separate from the merge because the merge rewrites the commit's
+# SHA, and it is the merged commit that CI has to vouch for and that gets tagged.
+#
 # What a component provides
 # -------------------------
 #   C_PACKAGE            what the release is called in commit and tag messages
@@ -45,6 +59,8 @@ export GH_REPO
 
 WORK=""
 PREPARING=""
+# The branch `prepare` created, so that a failure can put things back.
+PREPARE_BRANCH=""
 
 # How long to wait for a workflow run to *appear* for a commit. Runs start
 # within seconds, so two minutes means something is wrong; it is a variable so
@@ -87,6 +103,12 @@ cleanup() {
   if [ -n "$PREPARING" ] && [ "$status" -ne 0 ] && [ -d "$WORK/backup" ]; then
     printf '\nprepare failed; putting back the files it edited.\n' >&2
     restore_files
+    # Back to main, and the branch it made removed: a failed prepare leaves
+    # the repository as it found it, branches included.
+    if [ -n "$PREPARE_BRANCH" ]; then
+      git switch -q main 2>/dev/null || true
+      git branch -D "$PREPARE_BRANCH" >/dev/null 2>&1 || true
+    fi
   fi
   if [ -n "$WORK" ]; then
     rm -rf "$WORK"
@@ -263,7 +285,12 @@ release_title() {
   echo "$C_PACKAGE $1"
 }
 
-# The subject of the commit `prepare` makes, and `publish` insists on.
+# The branch a release is prepared on, and proposed from.
+release_branch() {
+  echo "chore/release-$C_NAME-$1"
+}
+
+# The subject of the commit `prepare` makes, and `propose` and `tag` insist on.
 release_subject() {
   echo "Release $C_PACKAGE $1"
 }
@@ -279,13 +306,17 @@ preflight_prepare() {
   need dist
   need jq
 
+  # Said before the checks that follow, which would otherwise tell someone who
+  # has already prepared to "switch to main": the wrong advice.
+  if [ "$(git rev-parse --abbrev-ref HEAD)" = "$(release_branch "$v")" ]; then
+    die "already prepared: you are on $(release_branch "$v"). Next: scripts/release.sh $C_NAME propose $v. To start over: git switch main && git branch -D $(release_branch "$v")"
+  fi
+
   require_main_in_sync
   ok "on main, fetched origin"
 
-  # Said before the sync check, which would otherwise tell someone who has
-  # already prepared to "push or pull first": the wrong advice.
   if [ "$(git log -1 --format=%s)" = "$(release_subject "$v")" ]; then
-    die "already prepared: HEAD is the '$(release_subject "$v")' commit. To release it: scripts/release.sh $C_NAME publish $v. To start over: git reset --hard origin/main"
+    die "main already has the '$(release_subject "$v")' commit: it has been merged. Next: scripts/release.sh $C_NAME tag $v"
   fi
 
   [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] ||
@@ -357,6 +388,13 @@ cmd_prepare() {
   backup_files
   PREPARING=yes
 
+  # The release is a change like any other, so it gets a branch and later a
+  # pull request. Uncommitted notes in the changelog come with the switch.
+  step "Branch"
+  git switch -q -c "$(release_branch "$v")"
+  PREPARE_BRANCH=$(release_branch "$v")
+  ok "on $(release_branch "$v"), cut from main"
+
   step "Notes"
   state=$(changelog_state "$v")
   if [ "$state" = unreleased ]; then
@@ -391,12 +429,13 @@ cmd_prepare() {
   git add $C_TOUCHED
   git commit -q -F "$WORK/message"
   PREPARING=""
+  PREPARE_BRANCH=""
   ok "committed $(git rev-parse --short HEAD): $(release_subject "$v")"
 
-  printf '\nPrepared, and nothing has been pushed. Read what it made:\n\n'
+  printf '\nPrepared on %s, and nothing has been pushed. Read what it made:\n\n' "$(release_branch "$v")"
   printf '    git show --stat HEAD\n\n'
-  printf 'then, to release it:\n\n'
-  printf '    scripts/release.sh %s publish %s\n' "$C_NAME" "$v"
+  printf 'then open the pull request:\n\n'
+  printf '    scripts/release.sh %s propose %s\n' "$C_NAME" "$v"
 }
 
 wait_for_workflow() {
@@ -500,18 +539,30 @@ verify_release_page() {
   fi
 }
 
-cmd_publish() {
-  local v=$1 dry_run=$2 cur subject sha tag
-  tag=$(tag_of "$v")
-  step "Preflight for publishing $C_PACKAGE $v"
-  valid_version "$v" || die "'$v' is not a version of the form X.Y.Z"
+# The tools and the login the steps that talk to GitHub need.
+need_github() {
   need git
   need cargo
   need dist
   need jq
   need gh
   gh auth status >/dev/null 2>&1 || die "gh is not logged in"
-  require_main_in_sync
+}
+
+# Push the release branch and open a draft pull request for it. Stops there:
+# review and merge are a person's.
+cmd_propose() {
+  local v=$1 dry_run=$2 cur subject branch current url
+  branch=$(release_branch "$v")
+  step "Preflight for proposing $C_PACKAGE $v"
+  valid_version "$v" || die "'$v' is not a version of the form X.Y.Z"
+  need_github
+  git fetch origin --tags --quiet || die "could not fetch from origin"
+
+  current=$(git rev-parse --abbrev-ref HEAD)
+  [ "$current" = "$branch" ] ||
+    die "you are on $current, not $branch. Run 'prepare $v' first, from main"
+  ok "on $branch"
 
   cur=$(c_current_version)
   [ "$cur" = "$v" ] ||
@@ -519,37 +570,93 @@ cmd_publish() {
   c_check_versions
   subject=$(git log -1 --format=%s)
   [ "$subject" = "$(release_subject "$v")" ] ||
-    die "HEAD is '$subject', not '$(release_subject "$v")'; run 'prepare $v' first and publish straight after"
+    die "HEAD is '$subject', not '$(release_subject "$v")'. The release branch is for the release commit alone"
   ok "HEAD is the $(release_subject "$v") commit"
   [ -z "$(git status --porcelain)" ] || die "the working tree is not clean"
   ok "working tree clean"
   require_tag_free "$v"
   git merge-base --is-ancestor origin/main HEAD ||
-    die "origin/main has commits that HEAD does not; pull and re-run prepare"
+    die "origin/main has commits that $branch does not. Rebase onto it ('git rebase origin/main'), re-run the gates, and propose again"
+  ok "$branch is up to date with origin/main"
+  c_check_plan "$v"
+
+  if [ "$dry_run" = yes ]; then
+    printf '\nDry run, so nothing was changed. It would now:\n\n'
+    printf '    1. push %s to origin\n' "$branch"
+    printf '    2. open a draft pull request into main titled "%s"\n' "$(release_subject "$v")"
+    printf '\nThen a person marks it ready, lets CI run, and merges it with rebase and merge.\n'
+    return 0
+  fi
+
+  step "Push"
+  git push --quiet -u origin "$branch"
+  ok "pushed $branch"
+
+  step "Pull request"
+  url=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')
+  if [ -n "$url" ]; then
+    ok "a pull request is already open: $url"
+  else
+    [ -n "$WORK" ] || WORK=$(mktemp -d)
+    {
+      section_body "$v" | sed '/./,$!d'
+      printf '\n---\n\n'
+      printf 'Merge with **rebase and merge**. Then, on main:\n\n'
+      printf '    git switch main && git pull\n'
+      printf '    scripts/release.sh %s tag %s\n' "$C_NAME" "$v"
+    } >"$WORK/pr-body"
+    url=$(gh pr create --draft --base main --head "$branch" \
+      --title "$(release_subject "$v")" --body-file "$WORK/pr-body")
+    ok "opened a draft pull request: $url"
+  fi
+
+  printf '\nNothing is released yet. Review %s, mark it ready (which runs CI), and merge it\n' "$url"
+  printf 'with rebase and merge. Then, on main:\n\n'
+  printf '    git switch main && git pull\n'
+  printf '    scripts/release.sh %s tag %s\n' "$C_NAME" "$v"
+}
+
+# After the release PR has merged: tag the merged commit, which starts the
+# release, and see it through.
+cmd_tag() {
+  local v=$1 dry_run=$2 cur subject sha tag branch w
+  tag=$(tag_of "$v")
+  branch=$(release_branch "$v")
+  step "Preflight for tagging $C_PACKAGE $v"
+  valid_version "$v" || die "'$v' is not a version of the form X.Y.Z"
+  need_github
+  require_main_in_sync
+  ok "on main, fetched origin"
+
+  [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" ] ||
+    die "main is not the same as origin/main; git pull first, so the tag goes on the commit that was merged"
+  ok "main matches origin/main"
+
+  subject=$(git log -1 --format=%s)
+  [ "$subject" = "$(release_subject "$v")" ] ||
+    die "the latest commit on main is '$subject', not '$(release_subject "$v")'. Has the release PR been merged, and is it still the latest commit? Tag it by hand if something landed after it"
+  ok "HEAD is the $(release_subject "$v") commit"
+
+  cur=$(c_current_version)
+  [ "$cur" = "$v" ] || die "the $C_PACKAGE version is $cur, not $v"
+  c_check_versions
+  [ -z "$(git status --porcelain)" ] || die "the working tree is not clean"
+  ok "working tree clean"
+  require_tag_free "$v"
   c_check_plan "$v"
 
   sha=$(git rev-parse HEAD)
 
   if [ "$dry_run" = yes ]; then
     printf '\nDry run, so nothing was changed. It would now:\n\n'
-    printf '    1. push main (%s) to origin, if it is not there already\n' "${sha:0:7}"
-    printf '    2. wait for %s to be green on %s\n' "$C_REQUIRED_WORKFLOWS $C_OPTIONAL_WORKFLOWS" "${sha:0:7}"
-    printf '    3. create and push the tag %s on that commit\n' "$tag"
-    printf '    4. watch the %s workflow to the end\n' "$C_RELEASE_WORKFLOW"
-    printf '    5. verify the published release\n'
+    printf '    1. wait for %s to be green on %s\n' "$C_REQUIRED_WORKFLOWS $C_OPTIONAL_WORKFLOWS" "${sha:0:7}"
+    printf '    2. create and push the tag %s on that commit\n' "$tag"
+    printf '    3. watch the %s workflow to the end\n' "$C_RELEASE_WORKFLOW"
+    printf '    4. title the release, and verify it\n'
     return 0
   fi
 
-  step "Push"
-  if [ "$sha" = "$(git rev-parse origin/main)" ]; then
-    ok "main is already on origin"
-  else
-    git push origin main
-    ok "pushed main"
-  fi
-
   step "Wait for CI on ${sha:0:7}"
-  local w
   for w in $C_REQUIRED_WORKFLOWS; do
     wait_for_workflow "$w" "$sha" yes
   done
@@ -569,4 +676,18 @@ cmd_publish() {
   retitle_release "$tag" "$v"
 
   c_verify "$v"
+
+  if git rev-parse -q --verify "refs/heads/$branch" >/dev/null; then
+    printf '\nThe release branch is no longer needed: git branch -D %s\n' "$branch"
+  fi
+}
+
+# `publish` was one step that pushed main and tagged it, which a main that
+# takes changes only through pull requests cannot do. It is now two.
+cmd_publish() {
+  printf 'publish no longer exists: main takes changes only through pull requests.\n' >&2
+  printf 'It is now two steps, with a review between them:\n\n' >&2
+  printf '    scripts/release.sh %s propose %s     push the release branch, open a draft PR\n' "$C_NAME" "$1" >&2
+  printf '    scripts/release.sh %s tag %s         after it is merged: tag, watch, verify\n' "$C_NAME" "$1" >&2
+  exit 2
 }
