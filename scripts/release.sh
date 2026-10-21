@@ -7,18 +7,20 @@
 #
 #   scripts/release.sh COMPONENT check   X.Y.Z               read-only preflight
 #   scripts/release.sh COMPONENT prepare X.Y.Z [--skip-gates]
-#                                                            bump, plan, gate, commit locally
-#   scripts/release.sh COMPONENT publish X.Y.Z [--dry-run]   push, wait for CI, tag, verify
+#                                                            branch, bump, plan, gate, commit
+#   scripts/release.sh COMPONENT propose X.Y.Z [--dry-run]   push the branch, open a draft PR
+#   scripts/release.sh COMPONENT tag     X.Y.Z [--dry-run]   after the PR merges: tag, watch, verify
 #   scripts/release.sh COMPONENT verify  X.Y.Z               check a published release
 #
 # COMPONENT is a file in scripts/release/. Today that is `cli`; a client or a
 # plugin adds its own beside it (RELEASING.md says what one must provide).
 #
-# The usual run is `prepare`, read what it committed, then `publish`.
-# `prepare` never pushes and rolls its own edits back if anything fails, so
-# a failed gate leaves the tree as it found it. `publish` is the step the
-# world can see: it pushes the commit, waits for CI to be green on that exact
-# commit, and only then creates the tag, which is what fires the release.
+# `main` takes changes only through pull requests, so a release is one too:
+# `prepare`, read what it committed, `propose` (which opens a draft PR and
+# stops), a person reviews and merges it, then `tag`. `prepare` never pushes
+# and puts everything back, branch included, if anything fails. `tag` is the
+# step the world can see: it waits for CI to be green on the merged commit, and
+# only then creates the tag, which is what fires the release.
 #
 # Notes for a release come from the component's CHANGELOG.md. Write them under
 # `## [Unreleased]` as you go; `prepare` turns that into the version's
@@ -42,13 +44,14 @@ usage() {
   cat >&2 <<'USAGE'
 Usage:
   scripts/release.sh COMPONENT check   X.Y.Z                  read-only preflight
-  scripts/release.sh COMPONENT prepare X.Y.Z [--skip-gates]   bump, plan, gate, commit locally
-  scripts/release.sh COMPONENT publish X.Y.Z [--dry-run]      push, wait for CI, tag, verify
+  scripts/release.sh COMPONENT prepare X.Y.Z [--skip-gates]   branch, bump, plan, gate, commit
+  scripts/release.sh COMPONENT propose X.Y.Z [--dry-run]      push the branch, open a draft PR
+  scripts/release.sh COMPONENT tag     X.Y.Z [--dry-run]      after the PR merges: tag, watch, verify
   scripts/release.sh COMPONENT verify  X.Y.Z                  check a published release
 
 Components: cli
 
-The usual run is prepare, read what it committed, then publish. The header
+The usual run is prepare, propose, a review and a merge, then tag. The header
 of this file says what each one does and why.
 USAGE
   exit 2
@@ -85,7 +88,9 @@ main() {
   case $command in
     check) cmd_check "$version" ;;
     prepare) cmd_prepare "$version" "$skip_gates" ;;
-    publish) cmd_publish "$version" "$dry_run" ;;
+    propose) cmd_propose "$version" "$dry_run" ;;
+    tag) cmd_tag "$version" "$dry_run" ;;
+    publish) cmd_publish "$version" ;;
     verify)
       valid_version "$version" || die "'$version' is not a version of the form X.Y.Z"
       c_verify "$version"

@@ -91,6 +91,9 @@ fresh() {
     cd "$T/$name" || exit 1
     git config user.name "Release Test"
     git config user.email "release-test@example.invalid"
+    # Always on main, whatever branch this checkout is on: the script under test
+    # cuts releases from main.
+    git checkout -q -B main
     # The working tree, not HEAD: replace every tracked file with what this
     # checkout has, so the script is tested as it stands.
     git rm -rq --quiet .
@@ -103,7 +106,7 @@ fresh() {
     mv "$CL.new" "$CL"
     git add -A
     git commit -q -m "scratch: this working tree under test"
-    git push -q origin main
+    git push -q -u origin main
   )
 }
 
@@ -239,6 +242,13 @@ printf '\nprepare: what it makes\n'
 rel ok prepare "$NEXT" --skip-gates
 accepts "prepare, with the gates skipped"
 
+# A release is a change like any other: it gets a branch, and main is not touched.
+check_in ok "prepare left us on the release branch" \
+  '[ "$(git branch --show-current)" = "chore/release-cli-$NEXT" ]'
+check_in ok "main still matches origin/main" \
+  '[ "$(git rev-parse main)" = "$(git rev-parse origin/main)" ]'
+check_in ok "the release branch is one commit ahead of main" \
+  '[ "$(git rev-list --count main..HEAD)" = 1 ]'
 check_in ok "one commit, subject 'Release fjord-cli $NEXT'" \
   '[ "$(git log -1 --format=%s)" = "Release fjord-cli $NEXT" ]'
 check_in ok "the working tree is clean afterwards" \
@@ -253,10 +263,10 @@ check_in ok "the notes moved under the new heading" \
   'awk -v h="## [$NEXT]" '"'"'index($0,h)==1{f=1;next} /^## \[/{f=0} f'"'"' $CL | grep -qF "A note for the release"'
 check_in ok "[Unreleased] compares from the new version" \
   'grep -qF "[Unreleased]: $REPO/compare/fjord-cli-v$NEXT...HEAD" $CL'
-# The previous release predates the per-component tags, so the comparison
-# starts from its old-style tag and ends at the new one.
-check_in ok "a compare link was added for the new version, from the old-style tag" \
-  'grep -qF "[$NEXT]: $REPO/compare/v$CUR...fjord-cli-v$NEXT" $CL'
+# The previous release carries a per-component tag, so the comparison starts
+# from it. (The fallback to an old-style tag is tested under "components".)
+check_in ok "a compare link was added for the new version, from the previous tag" \
+  'grep -qF "[$NEXT]: $REPO/compare/fjord-cli-v$CUR...fjord-cli-v$NEXT" $CL'
 check_in ok "the previous version's link is still there" \
   'grep -qF "[$CUR]: " $CL'
 check_in ok "the workspace version is bumped" \
@@ -275,10 +285,10 @@ check_in ok "dist can find the notes in the result" \
 # Running prepare again must refuse: the version is no longer greater.
 rel ok prepare "$NEXT" --skip-gates
 refuses "preparing the same version twice" "already prepared"
-if printf '%s' "$OUT" | grep -qF "scripts/release.sh cli publish $NEXT"; then
-  pass "...and says to publish it"
+if printf '%s' "$OUT" | grep -qF "scripts/release.sh cli propose $NEXT"; then
+  pass "...and says to propose it"
 else
-  fail "...and says to publish it" "$OUT"
+  fail "...and says to propose it" "$OUT"
 fi
 
 # --- prepare, when it fails: nothing is left behind -----------------------------------
@@ -298,6 +308,9 @@ BEFORE_HEAD=$(cd "$T/roll" && git rev-parse HEAD)
 rel roll prepare "$NEXT"
 refuses "a failing gate fails the run" "rustfmt"
 check_in roll "no commit was made" '[ "$(git rev-parse HEAD)" = "'"$BEFORE_HEAD"'" ]'
+check_in roll "we are back on main" '[ "$(git branch --show-current)" = main ]'
+check_in roll "the release branch is gone" \
+  '! git rev-parse -q --verify "refs/heads/chore/release-cli-$NEXT"'
 check_in roll "Cargo.toml is back at $CUR" 'grep -qx "version = \"$CUR\"" Cargo.toml'
 check_in roll "the fjord-core dependency is back at $CUR" \
   'grep -q "fjord-core = .*version = \"$CUR\"" crates/fjord-cli/Cargo.toml'
@@ -308,32 +321,107 @@ check_in roll "...and are still under [Unreleased], not promoted" \
 check_in roll "the only modified file is the changelog" \
   '[ "$(git status --porcelain | awk "{print \$2}")" = "$CL" ]'
 
-# --- publish: the preflight, which can be tested without publishing --------------------
+# --- propose and tag, against a stand-in for gh ------------------------------------------
+#
+# Opening a pull request and tagging a release are the two steps the world can
+# see. Their preflights are tested here, and propose is run for real against a
+# local bare origin; only gh is replaced, by a script that answers "logged in"
+# and records what it was asked to do.
 
-printf '\npublish: preflight (never reaches GitHub beyond gh auth)\n'
-if gh auth status >/dev/null 2>&1; then
-  rel ok publish "$NEXT" --dry-run
-  accepts "a dry run on a prepared release"
-  if printf '%s' "$OUT" | grep -qF "Dry run, so nothing was changed"; then
-    pass "...and says it changed nothing"
-  else
-    fail "...and says it changed nothing" "$OUT"
-  fi
-  check_in ok "...and really did not push" \
-    '[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]'
-  check_in ok "...or tag" '[ -z "$(git tag -l "fjord-cli-v$NEXT")" ]'
+printf '\npropose and tag: the preflights, and propose itself\n'
+mkdir -p "$T/bin"
+cat >"$T/bin/gh" <<'SHIM'
+#!/bin/sh
+echo "$*" >>"$GH_RECORD"
+case "$1 $2" in
+  "auth status") exit 0 ;;
+  "pr list") exit 0 ;;
+  "pr create") echo "https://github.com/example/example/pull/1" ;;
+esac
+SHIM
+chmod +x "$T/bin/gh"
+GH_RECORD="$T/gh-record"
+: >"$GH_RECORD"
 
-  # Not prepared: HEAD is not the release commit.
-  fresh unprep
-  rel unprep publish "$NEXT" --dry-run
-  refuses "publishing something that was never prepared" "run 'prepare $NEXT' first"
+# Like rel, with the stand-in first on PATH.
+relg() {
+  local name=$1
+  shift
+  OUT=$(cd "$T/$name" && PATH="$T/bin:$PATH" GH_RECORD="$GH_RECORD" /bin/bash scripts/release.sh cli "$@" 2>&1)
+  RC=$?
+}
 
-  # Prepared, then something else committed on top: HEAD is no longer it.
-  (cd "$T/ok" && echo y >extra.txt && git add extra.txt && git commit -q -m "something else")
-  rel ok publish "$NEXT" --dry-run
-  refuses "a commit on top of the release commit" "HEAD is 'something else'"
+relg ok propose "$NEXT" --dry-run
+accepts "a dry run of propose on a prepared release"
+if printf '%s' "$OUT" | grep -qF "Dry run, so nothing was changed"; then
+  pass "...and says it changed nothing"
 else
-  printf '  skip  gh is not logged in, so the publish preflight tests were not run\n'
+  fail "...and says it changed nothing" "$OUT"
+fi
+check_in ok "...and really did not push the branch" \
+  '! git ls-remote --exit-code --heads origin "chore/release-cli-$NEXT"'
+
+# Not prepared: we are on main, not on a release branch.
+fresh unprep
+relg unprep propose "$NEXT" --dry-run
+refuses "proposing something that was never prepared" "Run 'prepare $NEXT' first"
+
+# Prepared, then something else committed on top of the release commit.
+(cd "$T/ok" && echo y >extra.txt && git add extra.txt && git commit -q -m "something else")
+relg ok propose "$NEXT" --dry-run
+refuses "a commit on top of the release commit" "HEAD is 'something else'"
+(cd "$T/ok" && git reset -q --hard HEAD~1)
+
+# Proposing for real: the branch is pushed, a DRAFT PR into main is opened, and
+# main is not touched.
+relg ok propose "$NEXT"
+accepts "propose, with gh stood in for"
+check_in ok "the release branch is on origin" \
+  'git ls-remote --exit-code --heads origin "chore/release-cli-$NEXT"'
+check_in ok "main on origin did not move" \
+  '[ "$(git ls-remote origin refs/heads/main | cut -f1)" = "$(git rev-parse main)" ]'
+if grep -qF "pr create --draft --base main --head chore/release-cli-$NEXT --title Release fjord-cli $NEXT" "$GH_RECORD"; then
+  pass "the pull request is a draft into main, titled for the release"
+else
+  fail "the pull request is a draft into main, titled for the release" "$(cat "$GH_RECORD")"
+fi
+if printf '%s' "$OUT" | grep -qF "scripts/release.sh cli tag $NEXT"; then
+  pass "...and it says to run tag after the merge"
+else
+  fail "...and it says to run tag after the merge" "$OUT"
+fi
+
+# tag, before the PR is merged: we are on the release branch, then on a main
+# that does not have the release commit.
+relg ok tag "$NEXT" --dry-run
+refuses "tagging from the release branch" "releases are cut from main"
+relg unprep tag "$NEXT" --dry-run
+refuses "tagging before the release commit is on main" "not 'Release fjord-cli $NEXT'"
+
+# Simulate the merge, which is a fast-forward of main to the release commit.
+(cd "$T/ok" && git switch -q main && git merge -q --ff-only "chore/release-cli-$NEXT" && git push -q origin main)
+relg ok tag "$NEXT" --dry-run
+accepts "a dry run of tag once the release commit is on main"
+if printf '%s' "$OUT" | grep -qF "Dry run, so nothing was changed"; then
+  pass "...and says it changed nothing"
+else
+  fail "...and says it changed nothing" "$OUT"
+fi
+check_in ok "...and created no tag" '[ -z "$(git tag -l "fjord-cli-v$NEXT")" ]'
+
+# A tag that already exists on origin.
+(cd "$T/ok" && git tag "fjord-cli-v$NEXT" && git push -q origin "fjord-cli-v$NEXT" && git tag -d "fjord-cli-v$NEXT" >/dev/null)
+relg ok tag "$NEXT" --dry-run
+refuses "tagging a version whose tag already exists" "already exists on origin"
+(cd "$T/ok" && git push -q --delete origin "fjord-cli-v$NEXT")
+
+# The old one-step command says what replaced it, and does nothing.
+relg ok publish "$NEXT"
+refuses "publish, which no longer exists" "publish no longer exists"
+if [ "$RC" -eq 2 ]; then
+  pass "...and exits 2"
+else
+  fail "...and exits 2" "exit $RC"
 fi
 
 # --- Waiting on GitHub, against real completed runs ------------------------------------------
@@ -399,15 +487,17 @@ notes other
 rel other check "$NEXT"
 accepts "another component's tag at the same version does not block this one"
 
-# When the previous release already has a new-style tag, the compare link
-# starts from it instead of the old-style one.
-fresh newtags
-(cd "$T/newtags" && git tag "fjord-cli-v$CUR" && git push -q origin "fjord-cli-v$CUR")
-notes newtags
-rel newtags prepare "$NEXT" --skip-gates
-accepts "prepare, when the previous release has a new-style tag"
-check_in newtags "the compare link starts from the new-style tag" \
-  'grep -qF "[$NEXT]: $REPO/compare/fjord-cli-v$CUR...fjord-cli-v$NEXT" $CL'
+# Releases up to 0.2.0 were tagged before there was more than one component.
+# When the previous release has only an old-style tag, the compare link starts
+# from it instead.
+fresh legacy
+# On origin as well as here: prepare fetches tags, and would bring it back.
+(cd "$T/legacy" && git tag -d "fjord-cli-v$CUR" >/dev/null && git push -q origin ":refs/tags/fjord-cli-v$CUR" && git tag "v$CUR")
+notes legacy
+rel legacy prepare "$NEXT" --skip-gates
+accepts "prepare, when the previous release has only an old-style tag"
+check_in legacy "the compare link starts from the old-style tag" \
+  'grep -qF "[$NEXT]: $REPO/compare/v$CUR...fjord-cli-v$NEXT" $CL'
 
 # The dispatcher refuses what it cannot run, and cannot be pointed elsewhere.
 dispatch() {
