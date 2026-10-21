@@ -30,7 +30,10 @@ format, not to the CLI, and every client is expected to pass it.
 ## The command-line tool
 
 ```bash
-# macOS / Linux
+# macOS / Linux, with Homebrew
+brew install sovereignfs/tap/fjord
+
+# macOS / Linux, without it
 curl --proto '=https' --tlsv1.2 -LsSf \
   https://github.com/sovereignfs/fjord/releases/latest/download/fjord-cli-installer.sh | sh
 
