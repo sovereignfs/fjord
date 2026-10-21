@@ -90,6 +90,19 @@ would, and the run would fail.
 5. Add tests for what is particular to it to `scripts/test-release.sh`.
 6. Add its ecosystem to `.github/dependabot.yml`.
 
+## The release workflow is generated; do not edit it
+
+`.github/workflows/fjord-cli-release.yml` is written by `dist generate`, and its
+`plan` job fails if the file differs from what `dist` would write (it says "run
+'dist init' to update the file"). So it is never edited by hand, and Dependabot
+is told to leave it alone (`exclude-paths` in `.github/dependabot.yml`): a bump
+of `actions/checkout` there once turned a PR red, and would have failed a real
+release the same way.
+
+The actions in it are bumped by upgrading `dist`. As of `dist` 0.33 and its
+`main` branch, it generates `actions/checkout@v6`, so v6 stays until `dist`
+moves. The two workflows written by hand, `ci.yml` and `audit.yml`, are on v7.
+
 ## Two components with release rules of their own
 
 **Obsidian.** The community plugin directory needs `manifest.json`, `README.md`
