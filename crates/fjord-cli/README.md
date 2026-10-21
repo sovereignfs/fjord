@@ -18,7 +18,10 @@ repository also releases other things, so the CLI's releases are tagged
 what keeps the `latest` links below pointing at the CLI.
 
 ```bash
-# macOS / Linux
+# macOS / Linux, with Homebrew
+brew install sovereignfs/tap/fjord
+
+# macOS / Linux, without it
 curl --proto '=https' --tlsv1.2 -LsSf \
   https://github.com/sovereignfs/fjord/releases/latest/download/fjord-cli-installer.sh | sh
 
@@ -38,6 +41,13 @@ Every archive also carries the licence and the README.
 Builds are produced for macOS (Apple silicon and Intel), Linux (x86-64 and
 arm64) and Windows (x86-64).
 
+The Homebrew formula lives in the tap
+[`sovereignfs/homebrew-tap`](https://github.com/sovereignfs/homebrew-tap) and is
+written by the release workflow, so it is always the latest release. It installs
+the same prebuilt archive as the shell installer, with its checksum, and builds
+nothing from source. Homebrew holds one version of a formula; for an older one,
+use the release archives above.
+
 Linux builds are statically linked against musl, so one binary works on any
 distribution — checked on every push, by inspecting the binary and then
 running it.
@@ -45,9 +55,9 @@ running it.
 Building from source needs Rust 1.88 or newer. That is not a style
 preference: `time`, `ignore` and `age`'s own dependencies require it.
 
-There is no Homebrew tap and no crates.io release yet, so neither
-`brew install` nor a bare `cargo install fjord-cli` will work. Both are
-worth having and neither is worth advertising before it exists.
+There is no crates.io release yet, so a bare `cargo install fjord-cli` will not
+work; use the `--git` form above. It is worth having, and not worth advertising
+before it exists.
 
 **You do not need `age` installed.** Fjord links the age implementation
 directly. Install the `age` CLI only if you want to decrypt files by hand —

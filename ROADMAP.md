@@ -570,7 +570,7 @@ change their names on disk, which is `fjord encrypt`'s job, not this one's.
 | | M0.5: generate the README diagnostics table from `diagnostics::Code` | `todo` |
 | | Release machinery: `dist`, installers, archives | `done` — see below |
 | | Cut the first release | `done` — `v0.1.0`, after two failed attempts; see below |
-| | Homebrew tap | `in progress` — configured and verified by the release script; proved by the first release that publishes it, then advertised |
+| | Homebrew tap | `done` — `brew install sovereignfs/tap/fjord`, published by `fjord-cli-v0.3.1`; see "Homebrew" below |
 | | crates.io publish | `todo` — not advertised until it exists |
 | | Frontmatter comment preservation | out of scope for v1; needs an AST-level YAML parser |
 
@@ -1206,9 +1206,9 @@ through it.
 `brew install sovereignfs/tap/fjord`, through a tap, `sovereignfs/homebrew-tap`.
 `dist` writes the formula and a job pushes it on each release; the formula
 installs the prebuilt archives, so nothing is built from source. The README
-keeps saying "no Homebrew yet" until a release has actually published one and
-it has been installed from a user's seat; advertising it earlier would repeat
-the `fjord.sh` mistake.
+said "no Homebrew yet" until a release had actually published one and it had
+been installed from a user's seat, because advertising it earlier would repeat
+the `fjord.sh` mistake. `fjord-cli-v0.3.1` did, and it was.
 
 Things that were not obvious, found by reading the generated output rather than
 trusting the configuration:
@@ -1229,8 +1229,25 @@ trusting the configuration:
   command's, so a 404 from the tap would have been misreported.
 - The commits in the tap are authored by `axo bot`, which `dist` hard-codes.
 
-**Not proved until it runs:** the publish job, the token, and the formula's
-checksums. The next CLI release is the test.
+**Proved by 0.3.1,** the first release to publish it: the `publish-homebrew-formula`
+job ran and the token had the permissions it needed; the formula on the tap is
+at 0.3.1 with a `sha256` for each of the four archives, each equal to the
+checksum published beside its archive (so the local render without them was only
+a local artefact); and `tag` verified all of that. Then from a user's seat:
+`brew install sovereignfs/tap/fjord` installed an arm64 binary reporting `fjord
+0.3.1`, whose `init` recorded `"generator": "fjord 0.3.1"` and whose `verify`
+passed. The tag also started only the release workflow, so Audit's branch filter
+holds. It also made the first real use of the PR-based release flow
+(`prepare`, `propose`, merge, `tag`), which needed no correction.
+
+`brew audit --strict` reports three things, none functional, and all of them
+`dist`'s: the formula repeats `version` when the URL already implies it, it has no
+`test do` block, and the description ends in a full stop. Only the last is
+ours to change (the description is `Cargo.toml`'s), and it is not worth a
+release by itself. Homebrew core would reject all three; a tap does not. One
+practical thing for a user who already has a `fjord` earlier on their `PATH`, such
+as one from `cargo install`: Homebrew installs beside it and prints a warning that
+the other shadows it.
 
 ## Documentation defects
 
