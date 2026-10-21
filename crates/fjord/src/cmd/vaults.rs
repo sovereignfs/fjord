@@ -48,6 +48,15 @@ fn add(
         )));
     }
 
+    // `--commit` stages the new vault directory and `fjord.json`, but a
+    // commit made while another vault holds plaintext is not one to make
+    // blind. Spec §6.5.
+    if commit {
+        if let Some(code) = crate::cmd::guard::ensure_nothing_in_the_clear(&root)? {
+            return Ok(code);
+        }
+    }
+
     // A plaintext vault has no recipients file, so accepting a key would
     // quietly do nothing — and the user would believe it was protected.
     if !recipients.is_empty() && !encrypted {

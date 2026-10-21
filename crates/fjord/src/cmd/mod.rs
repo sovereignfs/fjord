@@ -11,6 +11,7 @@
 pub mod bulk;
 pub mod crypt;
 pub mod grep;
+pub mod guard;
 pub mod init;
 pub mod keys;
 pub mod list;

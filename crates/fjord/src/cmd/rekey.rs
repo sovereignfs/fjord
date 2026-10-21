@@ -74,6 +74,11 @@ pub fn run(args: &RekeyArgs, global: &GlobalArgs) -> Result<ExitCode> {
         )));
     }
 
+    // `rekey` stages the whole vault directory, so it asks first. Spec §6.5.
+    if let Some(code) = crate::cmd::guard::ensure_nothing_in_the_clear(&root)? {
+        return Ok(code);
+    }
+
     let identities = load_identities(global)?;
 
     let payloads: Vec<Content> = vault
@@ -82,14 +87,6 @@ pub fn run(args: &RekeyArgs, global: &GlobalArgs) -> Result<ExitCode> {
         .into_iter()
         .filter(|content| content.is_payload)
         .collect();
-
-    // A file in the clear is `fjord encrypt`'s business, not this
-    // command's: encrypting it here would change its name on disk, which
-    // is not what "re-encrypt the vault" means.
-    let in_the_clear = vault
-        .contents()
-        .map(|contents| contents.iter().filter(|c| !c.is_payload).count())
-        .unwrap_or(0);
 
     let style = Style::detect();
     if payloads.is_empty() {
@@ -156,17 +153,6 @@ pub fn run(args: &RekeyArgs, global: &GlobalArgs) -> Result<ExitCode> {
         );
         if committed {
             println!("  {}", style.dim("committed as one commit"));
-        }
-        if in_the_clear > 0 {
-            println!();
-            println!(
-                "  {} {} in this vault {} not encrypted and {} left alone. \
-                 `fjord verify` reports them as E201.",
-                style.warning("note:"),
-                plural(in_the_clear, "file", "files"),
-                if in_the_clear == 1 { "is" } else { "are" },
-                if in_the_clear == 1 { "was" } else { "were" }
-            );
         }
         println!();
         // §11.4 is a MUST wherever a user might infer revocation, and

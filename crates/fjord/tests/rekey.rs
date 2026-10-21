@@ -371,16 +371,18 @@ fn an_id_vault_keeps_its_names_and_its_filenames() {
 }
 
 #[test]
-fn a_file_in_the_clear_is_left_for_encrypt_to_deal_with() {
+fn a_file_in_the_clear_stops_a_rekey_and_is_left_untouched() {
+    // Rekeying stages the whole vault, and a file in the clear is exactly
+    // what must not be committed: the commit guard (spec §6.5) refuses.
     // Encrypting it here would change its name on disk, which is not what
-    // "re-encrypt the vault" means.
+    // "re-encrypt the vault" means, so it is left for `fjord encrypt`.
     let repo = repo();
     assert_eq!(code(&repo.owner(&["new", "Private/a.md", "--no-edit"])), 0);
     std::fs::write(repo.root.join("Private/stray.md"), "in the clear\n").expect("write");
 
     let rekeyed = repo.owner(&["rekey", "Private", "--yes"]);
-    assert_eq!(code(&rekeyed), 0, "{}{}", out(&rekeyed), err(&rekeyed));
-    assert!(out(&rekeyed).contains("E201"), "{}", out(&rekeyed));
+    assert_eq!(code(&rekeyed), 1, "{}{}", out(&rekeyed), err(&rekeyed));
+    assert!(err(&rekeyed).contains("E201"), "{}", err(&rekeyed));
     assert_eq!(
         std::fs::read_to_string(repo.root.join("Private/stray.md")).expect("read"),
         "in the clear\n",

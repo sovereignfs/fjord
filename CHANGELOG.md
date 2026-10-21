@@ -44,6 +44,23 @@ tagging it.
   payloads whose names differ from their documents' ids**; nothing detects
   that today, and the way to correct one is to export the vault and import it
   into a new one.
+- **`fjord sync` no longer commits, or silently skips, plaintext in an
+  encrypted vault.** Spec §6.5 says a client MUST NOT commit an unencrypted
+  document into an encrypted vault, and relies on the vault's `.gitignore`.
+  That guard is a safety net, not a lock: with it intact, a stray decrypted
+  file was skipped by `sync` without a word (your edit was in no commit, and
+  the output said "already up to date"), and with it deleted `sync` committed
+  and pushed the file. `sync` now checks first, and refuses with exit `1`,
+  naming the files, when an encrypted vault holds a file in the clear
+  (`E201`) or has lost its guard `.gitignore` (`E208`). `fjord rekey` and
+  `fjord vault add --commit`, which stage a whole vault, make the same check.
+  This has been the behaviour since `sync` was added.
+
+### Changed
+
+- **`fjord rekey` now refuses, rather than skips, a file in the clear.** It
+  used to carry on and note how many files it left alone; it now stops, for
+  the reason above, and leaves the file untouched.
 
 ## [0.1.3] - 2026-10-20
 

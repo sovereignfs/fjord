@@ -360,6 +360,29 @@ Three cases take this path rather than merging:
 A file deleted on one side and changed on the other keeps the changed
 version, since a deletion cannot be preserved as a file.
 
+### The commit guard
+
+A vault's `.gitignore` (spec §6.5) keeps a stray decrypted file out of a
+commit, but quietly: the file is *skipped*, so your edit is in no commit and
+`fjord sync` used to answer "already up to date". Worse, if that `.gitignore`
+has been deleted, the file was committed and pushed.
+
+So the commands that stage and commit on their own authority — `fjord sync`,
+`fjord rekey` and `fjord vault add --commit` — check first, and refuse with
+exit `1`, naming the files, when an encrypted vault:
+
+- holds a file in the clear (`E201`), or
+- has no plaintext-guard `.gitignore` (`E208`).
+
+Nothing is staged, committed, pushed, encrypted or deleted. Fix it with
+`fjord encrypt <path>` (or `fjord open <path>` to edit a document without
+decrypting it into the repository), or move the file out of the repository,
+and run the command again. `fjord verify` reports the same two codes.
+
+This covers Fjord's own commands only. A plain `git commit` is not
+intercepted; the vault's `.gitignore` is what protects that, which is why a
+missing one is treated as an error.
+
 ### `fjord key`
 
 ```bash
@@ -424,9 +447,10 @@ by every key it was written to, permanently, because Git keeps history.
 Rekeying changes what happens from here. See
 [Rotating and revoking keys](#fjord-key) above.
 
-Files sitting in the clear inside the vault are left alone — encrypting
-them would change their names on disk, which is `fjord encrypt`'s job. The
-command says how many it skipped.
+It refuses while any encrypted vault holds a file in the clear (`E201`) or
+lacks its plaintext-guard `.gitignore` (`E208`), because it stages the whole
+vault. Nothing is encrypted or moved for you: `fjord encrypt <path>` is the
+repair. See [The commit guard](#the-commit-guard).
 
 ### `fjord vault`
 

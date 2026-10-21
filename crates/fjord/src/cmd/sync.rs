@@ -52,6 +52,13 @@ pub fn run(args: &SyncArgs, global: &GlobalArgs) -> Result<ExitCode> {
         );
     }
 
+    // Before anything is staged: `sync` commits the whole working tree, and
+    // a vault with plaintext in it, or without the guard that keeps plaintext
+    // out of a commit, is not something to commit blind. Spec §6.5.
+    if let Some(code) = crate::cmd::guard::ensure_nothing_in_the_clear(&root)? {
+        return Ok(code);
+    }
+
     let style = Style::detect();
     let mut committed_locally = false;
 
