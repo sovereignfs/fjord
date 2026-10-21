@@ -12,6 +12,19 @@ tagging it.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-21
+
+**The tool behaves as before,** apart from the Unicode update below. What is new
+is a way to install it: Homebrew.
+
+### Added
+
+- **Homebrew:** `brew install sovereignfs/tap/fjord`. Each release now publishes a
+  formula to the tap `sovereignfs/homebrew-tap`, which installs the prebuilt
+  binary for macOS (Apple silicon and Intel) and Linux (x86-64 and arm64); nothing
+  is built from source. The shell and PowerShell installers and the archives work
+  as they did.
+
 ### Changed
 
 - **Name normalisation follows Unicode 18.** The NFC check on file and directory
@@ -244,7 +257,8 @@ First release.
   conforming.
 - Building from source needs Rust 1.88 or newer.
 
-[Unreleased]: https://github.com/sovereignfs/fjord/compare/fjord-cli-v0.3.0...HEAD
+[Unreleased]: https://github.com/sovereignfs/fjord/compare/fjord-cli-v0.3.1...HEAD
+[0.3.1]: https://github.com/sovereignfs/fjord/compare/fjord-cli-v0.3.0...fjord-cli-v0.3.1
 [0.3.0]: https://github.com/sovereignfs/fjord/compare/v0.2.0...fjord-cli-v0.3.0
 [0.2.0]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.3...v0.2.0
 [0.1.3]: https://github.com/sovereignfs/fjord-cli/compare/v0.1.2...v0.1.3
