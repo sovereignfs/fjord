@@ -12,6 +12,14 @@ tagging it.
 
 ## [Unreleased]
 
+### Changed
+
+- **Name normalisation follows Unicode 18.** The NFC check on file and directory
+  names (spec §5.1) uses `unicode-normalization` 0.1.26, which moves from Unicode
+  17 to Unicode 18. Unicode keeps already-assigned characters normalising the same
+  way, so no existing name changes. Only a name using a character first assigned
+  in Unicode 18 can be judged differently from one checked by a client still on 17.
+
 ## [0.3.0] - 2026-10-21
 
 **There is no change to what `fjord` does or to the repository format.** This
