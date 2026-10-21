@@ -35,6 +35,10 @@ on:
       - "dist-workspace.toml"
       - ".github/workflows/ci.yml"
   pull_request:
+    branches: [main]
+    # `ready_for_review` is how a draft starts running CI, and `labeled` and
+    # `unlabeled` are how `skip-ci` takes effect straight away.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
     paths:
       - "crates/**"
       - "spec/**"
@@ -50,6 +54,11 @@ on:
   # unnoticed between commits.
   schedule:
     - cron: "0 6 * * 1"
+
+# A pull request that is a draft, or carries the `skip-ci` label, runs none of
+# the jobs below: every job has the same `if`. A push to main and the weekly
+# schedule always run them. `[skip ci]` in the head commit message also works,
+# natively, for pushes.
 
 permissions:
   contents: read
@@ -74,6 +83,10 @@ jobs:
   # The test that backs the recovery promise, on its own.
   interop:
     name: age cross-validation
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -101,6 +114,10 @@ jobs:
 
   test:
     name: test (${{ matrix.os }})
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -151,6 +168,10 @@ jobs:
   # is where a platform-gated API is most easily missed.
   windows:
     name: Windows builds
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@v7
@@ -172,6 +193,10 @@ jobs:
 
   lint:
     name: clippy and rustfmt
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -200,6 +225,10 @@ jobs:
 
   msrv:
     name: minimum supported Rust version
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -245,6 +274,10 @@ jobs:
 
   musl:
     name: static musl binary
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
