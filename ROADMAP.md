@@ -5,8 +5,8 @@ not define behaviour.** `spec/SPEC.md` is authoritative on the format and
 `CLAUDE.md` on how to build it — where either disagrees with this file, this
 file is stale and should be corrected.
 
-State as of 2026-10-17: **every milestone in the build brief is complete,
-and 0.1.0 is released.** `verify`, `init`, `key`, `vault`, `encrypt`,
+State as of 2026-10-21: **every milestone in the build brief is complete,
+and 0.2.0 is released.** `verify`, `init`, `key`, `vault`, `encrypt`,
 `decrypt`, `open`, `new`, `ls`, `grep`, `status`, `sync`, `rekey`, `export`
 and `import` are implemented end to end, with `fileNaming: "id"` and the tar
 container. **All 40 diagnostics are implemented.** (This paragraph once said
@@ -27,16 +27,22 @@ values, with keys from either implementation.
 generated README documents, verbatim, so that document cannot quietly
 become a lie.
 
-**Releases.** `v0.1.3` is the current release; `v0.1.2`, `v0.1.1` and
-`v0.1.0` are also published. `v0.1.0` predates two breaking format changes —
-lowercase identifiers (spec §8.3) and the `generator` field's value — so
-repositories it creates do not conform to the current spec, and `fjord
-verify` says why. `v0.1.1` carries those changes; `v0.1.2` adds `vault add
---recipient`, `--json` and `--commit`, the recipient-checksum fix, and the fix
-for `open --commit` and `rekey` committing unrelated staged work. `v0.1.3` has
-no code changes: it ships `CHANGELOG.md` in the archives, and it is the first
-release cut with `scripts/release.sh` end to end, including `publish` and
-`verify` against a real push, tag and workflow.
+**Releases.** `v0.2.0` is the current release; `v0.1.3`, `v0.1.2`, `v0.1.1`
+and `v0.1.0` are also published. `v0.1.0` predates two breaking format
+changes — lowercase identifiers (spec §8.3) and the `generator` field's
+value — so repositories it creates do not conform to the current spec, and
+`fjord verify` says why. `v0.1.1` carries those changes; `v0.1.2` adds
+`vault add --recipient`, `--json` and `--commit`, the recipient-checksum fix,
+and the fix for `open --commit` and `rekey` committing unrelated staged work.
+`v0.1.3` has no code changes: it ships `CHANGELOG.md` in the archives, and it
+is the first release cut with `scripts/release.sh`. `v0.2.0` is the first
+minor release: `verify --fix` and the declared conformance levels, the commit
+guard (`sync`, `rekey` and `vault add --commit` refuse while an encrypted
+vault holds plaintext), whole-vault `decrypt` and `encrypt` (a checkout, with
+the spec amended to allow it: §6.5 and a new §6.6), and the `import` naming
+fix for `id` vaults. This repository then became the `fjord` monorepo (see
+"One repository, several components" below), and the next CLI release is the
+first tagged `fjord-cli-vX.Y.Z`.
 
 ## Status
 
@@ -664,7 +670,8 @@ matched. Both would have kept passing while testing nothing.
 **The vendored spec is changed here, and upstream must be too.** CLAUDE.md
 says `spec/SPEC.md` is vendored from `fjord-spec` and "never edit it here";
 the upstream is not in this tree, so the same §8.3 edit has to be made
-there or the next sync will silently revert it.
+there or the next sync will silently revert it. *(Resolved later: no
+`fjord-spec` repository exists, and `spec/SPEC.md` is now canonical here.)*
 
 ## `vault add`: one step, `--json`, and a validation bug it found
 
@@ -906,13 +913,14 @@ at the top for the next entries.
 ### Releasing: `scripts/release.sh`
 
 A release is cut with a script, because every step of doing it by hand was a
-step somebody had once got wrong. It has four commands:
+step somebody had once got wrong. It takes a component (`cli`, today; see
+`RELEASING.md`) and has four commands:
 
 ```
-scripts/release.sh check   X.Y.Z                 read-only preflight
-scripts/release.sh prepare X.Y.Z [--skip-gates]  bump, plan, gate, commit locally
-scripts/release.sh publish X.Y.Z [--dry-run]     push, wait for CI, tag, verify
-scripts/release.sh verify  X.Y.Z                 check a published release
+scripts/release.sh cli check   X.Y.Z                 read-only preflight
+scripts/release.sh cli prepare X.Y.Z [--skip-gates]  bump, plan, gate, commit locally
+scripts/release.sh cli publish X.Y.Z [--dry-run]     push, wait for CI, tag, verify
+scripts/release.sh cli verify  X.Y.Z                 check a published release
 ```
 
 The usual run is `prepare`, read what it committed with `git show --stat
@@ -1071,7 +1079,8 @@ NOT write an unencrypted document into an encrypted vault") and the first
 invariant in CLAUDE.md. That was the owner's call, and it was made: §6.5 now
 has an exception, a new §6.6 (a *checkout*), and invariant 1 names it. The
 vendored `spec/SPEC.md` was edited here at the owner's instruction;
-`fjord-spec` upstream needs the same change.
+`fjord-spec` upstream needs the same change. *(Resolved later: there is no
+upstream; the spec is canonical here.)*
 
 What fences the exception in (`cmd/checkout.rs`):
 
@@ -1100,6 +1109,53 @@ each fails against the old behaviour. Vaults imported into by earlier
 versions may carry mismatched names, and nothing detects that. Also left: a checkout holds the whole vault in memory
 while decrypting, and the record's digests of plaintext are a low-risk local
 leak (the record is git-ignored and removed with the checkout).
+
+## One repository, several components
+
+The repository was `sovereignfs/fjord-cli`, one tool. It is now
+`sovereignfs/fjord`: the specification, `fjord-core`, the CLI and, when they
+exist, a web client, a desktop client, a mobile client and Obsidian and VS
+Code plugins. The reason is the one the checkout feature showed: a change to
+the format, the code that implements it and the test that holds it in place is
+one commit, and with the spec in another repository it is three.
+
+Things found while planning it, none of which was obvious:
+
+- **`fjord-spec` never existed.** CLAUDE.md said the spec was vendored from it
+  and must not be edited here, and this file twice recorded that "upstream
+  needs the same edit". There is no such repository in the organisation. The
+  spec is canonical here, and the rule was dropped.
+- **The release workflow would fire on any version-looking tag.** Its trigger
+  was `**[0-9]+.[0-9]+.[0-9]+*`. With a second component, a `vscode-v0.1.0`
+  tag would have started the CLI's release and failed it. `dist` has a
+  `tag-namespace` setting for exactly this; with it the trigger is
+  `fjord-cli**…` and the workflow file is `fjord-cli-release.yml`. The
+  generated file differs from the old one in that single line.
+- **"Latest" is one slot for the whole repository,** and the README and the
+  installers say `releases/latest`. A client's release would have become the
+  Latest and broken the install command. Only the CLI's releases are Latest;
+  `release.sh verify` enforces it both ways, and has a test for each.
+- **The Obsidian plugin cannot be released from a subdirectory.** The
+  community directory needs `manifest.json`, `README.md` and `LICENSE` at the
+  repository root and a tag equal to the manifest version. It will need a
+  small release-only repository. Recorded in `RELEASING.md`; not built.
+- **`dist` needed nothing special for the moved README and CHANGELOG.** Moving
+  them under `crates/fjord/` was a guess about archive contents, so it was
+  tested first: `dist plan` and a real local build both bundle README,
+  LICENSE and CHANGELOG, and find the release notes.
+- **The release tests were testing `HEAD`.** They clone the repository, so
+  uncommitted work was invisible to them. They now lay the working tree over
+  the clone, which is what lets a change to the script be tested before it is
+  committed.
+
+The release script was split to match: `scripts/lib/release.sh` holds what
+every component shares, and `scripts/release/cli.sh` what is the CLI's. A
+component is a file that sets some variables and defines a handful of
+functions. There is one. The others are written when the components are, and
+`RELEASING.md` says what each must provide.
+
+**Not yet proved:** the renamed release workflow has not run on a real tag.
+The first `fjord-cli-vX.Y.Z` release is its test.
 
 ## Documentation defects
 
