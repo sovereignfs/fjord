@@ -69,6 +69,12 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
   auth page is `force-dynamic`: with no settings at build time local sign-in is "off", and
   Next would prerender a 404 and keep it. No message says whether an address has an account.
   A change to what better-auth stores is a change to both dialects' `schema/*/auth.ts`.
+- **A git host is reached only through `Provider`** (`src/providers/`), and the app is tested
+  against `MemoryProvider`, not against GitHub. A new host is a new implementation that passes
+  `providerContract`. A commit is never forced and never retried; `head_moved` is the app's cue to
+  read again and decide. A credential never appears in an error, a log or a URL. Re-record
+  `src/providers/github/fixtures/` with `node scripts/record-github-fixtures.mjs` (no credential
+  needed) when GitHub's shapes may have changed, and read the diff before committing.
 - **Untrusted Markdown is sanitised** and pages send a strict
   Content-Security-Policy (`DESIGN.md` §15). Nothing third-party loads.
 - **TypeScript is strict**, with `noUncheckedIndexedAccess`. No `any` without a
@@ -94,10 +100,11 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | `src/mail/` | Sending email: the SMTP mailer, a mailer for tests, the templates |
 | `e2e/` | Browser tests, and `playwright.config.ts` for the three instances they run against |
 | `proxy.ts` | Shows a signed-in person `/home` at `/`; only looks for a cookie |
+| `src/providers/` | The git host interface (`types.ts`), GitHub's implementation (`github/`), an in-memory one (`memory.ts`), and the contract and the git-backed fake they are tested with (`testing/`) |
 | `src/db/` | The database layer: configuration, the two clients, the schemas (`schema/{sqlite,postgres}`), portable queries, migrations at start-up |
 | `migrations/` | The generated SQL, `sqlite/` and `postgres/` for the app's store and `auth/` for better-auth's, committed and reviewed |
 | `instrumentation.ts` | Runs once at server start: brings the database up, so a server that cannot reach or migrate it does not start |
-| `scripts/` | Small Node scripts: `db-generate`, `db-dev`, `boot-check` |
+| `scripts/` | Small Node scripts: `db-generate`, `db-dev`, `boot-check`, `record-github-fixtures` |
 | `DESIGN.md`, `ROADMAP.md` | The design and the plan |
 
 `packages/fjord-editor` is shared with other clients and is created when slice 1b
