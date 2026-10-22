@@ -87,7 +87,7 @@ Where this differs from `sovereign`, on purpose:
 | `schema/`, `tests/fixtures/` | The `verify --json` schema, and the conformance fixtures **every** client must pass | MPL-2.0 | — |
 | `crates/fjord-core/` | The format as a library | MPL-2.0 | with the CLI |
 | `crates/fjord-cli/` | The CLI: package `fjord-cli`, binary `fjord` | MPL-2.0 | `fjord-cli-vX.Y.Z` |
-| `clients/web` | The hosted web client. **Design only so far:** [`DESIGN.md`](clients/web/DESIGN.md), [`ROADMAP.md`](clients/web/ROADMAP.md) | AGPL-3.0-or-later (it bundles `@sovereignfs/ui`) | `web-vX.Y.Z` |
+| `clients/web` | The hosted web client (Next.js, pnpm). **A placeholder app so far:** [`DESIGN.md`](clients/web/DESIGN.md), [`ROADMAP.md`](clients/web/ROADMAP.md), and its own [`CLAUDE.md`](clients/web/CLAUDE.md) | AGPL-3.0-or-later (it bundles `@sovereignfs/ui`) | `web-vX.Y.Z` |
 | `packages/fjord-editor` | The document and note editors, shared by the clients. Not created yet | Open (`clients/web/DESIGN.md` §19) | with its users |
 | `clients/mobile` | The iOS and Android client (Expo). **Design only so far:** [`DESIGN.md`](clients/mobile/DESIGN.md), [`ROADMAP.md`](clients/mobile/ROADMAP.md) | MPL-2.0 | `mobile-vX.Y.Z` |
 | `clients/engine` | The Rust engine for the native clients (`fjord-client`, `fjord-ffi`) and the `fjord-mcp` binary, its own Cargo workspace. Not created yet | MPL-2.0 | with its users |

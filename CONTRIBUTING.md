@@ -66,7 +66,8 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>
   when it is. CI does not run on drafts.
 - Before asking for review, make sure these pass locally:
   `cargo fmt --check`, `cargo clippy --workspace --all-targets -- -D warnings`
-  and `cargo test --workspace`.
+  and `cargo test --workspace`. For a change to Fjord Web, `pnpm typecheck`,
+  `pnpm test` and `pnpm build` in `clients/web` instead.
 - If you change the format, change the spec, the fixtures and the code in the
   same PR (see below).
 - If you change behaviour, add a line under `## [Unreleased]` in the component's
@@ -76,8 +77,9 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>
 
 ## Continuous integration
 
-CI runs on pull requests targeting `main` and on pushes to `main`
-(`.github/workflows/ci.yml`). It always starts, but its first job looks at what
+CI runs on pull requests targeting `main` and on pushes to `main`: the Rust
+crates in `.github/workflows/ci.yml`, and Fjord Web in its own
+`.github/workflows/web-ci.yml`. Each always starts, but its first job looks at what
 the change touches (`scripts/ci-changes.sh`) and the others run only if it can be
 affected:
 
@@ -86,6 +88,7 @@ affected:
 | Documentation only: READMEs, CHANGELOGs, `spec/`, the roadmap, `.github` templates | Nothing beyond that first job, a few seconds |
 | `scripts/` only | shellcheck, and the classifier's tests |
 | `crates/` (except a crate's own `README.md` and `CHANGELOG.md`), `schema/`, `tests/`, `Cargo.toml`, `Cargo.lock`, or the workflow itself | The full Rust jobs |
+| `clients/web/` (except its own `README.md`, `CHANGELOG.md`, `CLAUDE.md`, `DESIGN.md`, `ROADMAP.md` and `LICENSE`), or its workflow | Fjord Web's jobs: type-check and build, and the tests against sqld, a SQLite file and PostgreSQL |
 
 The full Rust jobs check that the crate and the reference `age` implementation
 agree, run the suite on Linux and macOS, build on Windows, hold clippy and
@@ -115,7 +118,8 @@ it merges. Contributors do not need to do anything for one.
 ## Licence of contributions
 
 The reference implementation is licensed under the
-[Mozilla Public License 2.0](LICENSE) and the specification is dedicated to the
-public domain under CC0 ([`spec/LICENSE`](spec/LICENSE)). By contributing you
-agree that your contribution is licensed under the same terms as the part of the
-repository it changes.
+[Mozilla Public License 2.0](LICENSE), the specification is dedicated to the
+public domain under CC0 ([`spec/LICENSE`](spec/LICENSE)), and Fjord Web is
+licensed under the AGPL-3.0-or-later ([`clients/web/LICENSE`](clients/web/LICENSE)).
+By contributing you agree that your contribution is licensed under the same terms
+as the part of the repository it changes.

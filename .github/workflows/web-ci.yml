@@ -1,0 +1,243 @@
+# Continuous integration for Fjord Web (clients/web).
+#
+# The Rust crates have their own workflow (ci.yml), and each component has one of
+# its own (CLAUDE.md § Adding a component): this one runs only for a change that
+# can affect Fjord Web, and ci.yml does not run for it. Like ci.yml it always
+# starts, and a cheap `changes` job first works out what the change touches
+# (scripts/ci-changes.sh); every other job needs it, so a change to Fjord Web's
+# documents alone runs nothing more. The workflow always reports, so skipped jobs
+# count as passed and a branch protection rule can require these checks.
+#
+# Two things are checked:
+#
+# 1. `check` type-checks and builds the app.
+# 2. `tests` runs the test suite three times, once per database the app supports
+#    (clients/web/DESIGN.md §14): an sqld service, a plain SQLite file and
+#    PostgreSQL. There is no data layer yet (ROADMAP 1a.0), so for now each leg
+#    proves the database comes up and runs the same placeholder tests; the legs
+#    exist now so that the first data-layer test is already run against all three,
+#    and a test that passes on one and not another is caught where it is written.
+#
+# Each leg hands the tests the same variables the app reads, named as in the
+# design: DB_DIALECT, SQLITE_URL, SQLD_ADMIN_URL and POSTGRES_DB_URL.
+name: Web CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    # `ready_for_review` is how a draft starts running CI, and `labeled` and
+    # `unlabeled` are how `skip-ci` takes effect straight away.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  # So that a dependency's new release cannot quietly break the build unnoticed
+  # between commits.
+  schedule:
+    - cron: "0 6 * * 1"
+
+# A pull request that is a draft, or carries the `skip-ci` label, runs nothing:
+# the `changes` job has the guard, and every other job needs it. A push to main
+# and the weekly schedule always run, and the schedule runs every job, because it
+# exists to catch what a dependency broke.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # The database images are pinned, not `latest`: a database that changes under a
+  # test run is not something a CI setup should have. Bump them deliberately.
+  # sqld is the version Sovereign's own stack runs; PostgreSQL matches its
+  # docker-compose.postgres.yml.
+  SQLD_IMAGE: ghcr.io/tursodatabase/libsql-server:v0.24.32
+  POSTGRES_IMAGE: postgres:16-alpine
+
+jobs:
+  # Works out what this change touches. It carries the draft / skip-ci guard, so
+  # on a draft it is skipped and everything that needs it is skipped with it.
+  changes:
+    name: what changed
+    runs-on: ubuntu-24.04
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
+    outputs:
+      web: ${{ steps.classify.outputs.web }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # The same step as ci.yml's: the classifier is shared, and each workflow
+      # reads the output it cares about.
+      - id: classify
+        name: Classify the changed paths
+        run: |
+          set -euo pipefail
+          base=""
+          case "${{ github.event_name }}" in
+            pull_request) base="${{ github.event.pull_request.base.sha }}" ;;
+            push) base="${{ github.event.before }}" ;;
+          esac
+          # No base to compare with (a schedule, a new branch, a force-push that
+          # lost the old tip): run everything rather than guess.
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] ||
+             ! git cat-file -e "$base^{commit}" 2>/dev/null ||
+             [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "No base to compare against, so running everything."
+            printf 'web=true\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Changed since ${base:0:7}:"
+          git diff --name-only "$base" HEAD | sed 's/^/  /'
+          git diff --name-only "$base" HEAD | scripts/ci-changes.sh | tee -a "$GITHUB_OUTPUT"
+
+  check:
+    name: type-check and build
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: clients/web
+    steps:
+      - uses: actions/checkout@v7
+
+      # The pnpm version is the one in package.json's `packageManager`, so the
+      # declaration and the thing that runs cannot drift apart.
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: clients/web/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: clients/web/pnpm-lock.yaml
+
+      # `--frozen-lockfile` fails if package.json and the lockfile disagree, which
+      # is the point: the lockfile is what was reviewed.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+
+  tests:
+    name: tests (${{ matrix.database }})
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      # One database failing says something about it; the others still run, so
+      # the failure can be told apart from a bug that is not about databases.
+      fail-fast: false
+      matrix:
+        database: [sqld, file, postgres]
+    defaults:
+      run:
+        working-directory: clients/web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: clients/web/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: clients/web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      # sqld is run with `docker run` and not as a service container, because a
+      # service container cannot be given arguments and sqld needs
+      # `--enable-namespaces` (one namespace per logical database, the analogue of
+      # PostgreSQL's schemas: `fjord` for the app, `fjord_auth` for better-auth).
+      # The invocation is Sovereign's own (scripts/ensure-sqld.ts).
+      #
+      # The URLs say `localhost`, not `127.0.0.1`: with namespaces on, sqld takes
+      # the default namespace from the first label of the Host header, so an IP
+      # address names the namespace "127" and every request 404s.
+      - name: Start sqld
+        if: matrix.database == 'sqld'
+        run: |
+          docker run -d --name sqld \
+            -p 8080:8080 -p 8081:8081 \
+            -e SQLD_NODE=primary \
+            -e SQLD_ADMIN_LISTEN_ADDR=0.0.0.0:8081 \
+            "$SQLD_IMAGE" /bin/sqld --enable-namespaces
+          for attempt in $(seq 1 30); do
+            if [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health)" = 200 ]; then
+              echo "sqld is healthy after $attempt attempt(s)"
+              break
+            fi
+            if [ "$attempt" = 30 ]; then
+              echo "::error::sqld did not become healthy"
+              docker logs sqld
+              exit 1
+            fi
+            sleep 1
+          done
+          for namespace in fjord fjord_auth; do
+            curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' \
+              "http://localhost:8081/v1/namespaces/$namespace/create"
+            echo
+          done
+          {
+            echo "DB_DIALECT=sqlite"
+            echo "SQLITE_URL=http://localhost:8080"
+            echo "SQLD_ADMIN_URL=http://localhost:8081"
+          } >> "$GITHUB_ENV"
+
+      # The file form needs no service: a database file on a local disk, with the
+      # auth database beside it, as the design says (§14).
+      - name: Prepare a SQLite file
+        if: matrix.database == 'file'
+        run: |
+          mkdir -p "$RUNNER_TEMP/fjord-data"
+          {
+            echo "DB_DIALECT=sqlite"
+            echo "SQLITE_URL=file:$RUNNER_TEMP/fjord-data/fjord.db"
+          } >> "$GITHUB_ENV"
+
+      # These credentials belong to a container that lives for this job only.
+      - name: Start PostgreSQL
+        if: matrix.database == 'postgres'
+        run: |
+          docker run -d --name postgres \
+            -p 5432:5432 \
+            -e POSTGRES_USER=fjord \
+            -e POSTGRES_PASSWORD=fjord \
+            -e POSTGRES_DB=fjord \
+            "$POSTGRES_IMAGE"
+          for attempt in $(seq 1 30); do
+            if docker exec postgres pg_isready -U fjord -d fjord >/dev/null 2>&1; then
+              echo "PostgreSQL is ready after $attempt attempt(s)"
+              break
+            fi
+            if [ "$attempt" = 30 ]; then
+              echo "::error::PostgreSQL did not become ready"
+              docker logs postgres
+              exit 1
+            fi
+            sleep 1
+          done
+          {
+            echo "DB_DIALECT=postgres"
+            echo "POSTGRES_DB_URL=postgres://fjord:fjord@localhost:5432/fjord"
+          } >> "$GITHUB_ENV"
+
+      - name: Which database this leg runs against
+        run: |
+          echo "DB_DIALECT=$DB_DIALECT"
+          echo "SQLITE_URL=${SQLITE_URL:-}"
+          echo "POSTGRES_DB_URL set: $([ -n "${POSTGRES_DB_URL:-}" ] && echo yes || echo no)"
+
+      - run: pnpm test

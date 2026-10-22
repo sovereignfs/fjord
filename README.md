@@ -18,7 +18,7 @@ code that implements it is one commit.
 | [`spec/`](spec/SPEC.md) | The repository format. Canonical; CC0. | Draft | — |
 | [`crates/fjord-core`](crates/fjord-core) | The format as a library: manifests, paths, Docs, encryption, `verify`. Built to run anywhere (desktop, mobile, WASM). | Released with the CLI | — |
 | [`crates/fjord-cli`](crates/fjord-cli) | **`fjord`**, the command-line tool. | Released | [Install](crates/fjord-cli/README.md#install) |
-| [`clients/web`](clients/web) | The hosted web client: browse, edit, share and comment on documents. | Design ([plan](clients/web/ROADMAP.md)) | — |
+| [`clients/web`](clients/web) | The hosted web client: browse, edit, share and comment on documents. | Building: a placeholder app ([plan](clients/web/ROADMAP.md)) | — |
 | [`clients/mobile`](clients/mobile) | The iOS and Android client: browse, edit and capture quick notes, offline. | Design ([plan](clients/mobile/ROADMAP.md)) | — |
 | [`clients/mcp`](clients/mcp) | **`fjord-mcp`**: Claude (and later ChatGPT) saves and manages documents in your repository. | Design ([plan](clients/mcp/ROADMAP.md)) | — |
 | `clients/desktop` | The desktop app. | Planned | — |
@@ -71,4 +71,6 @@ rebase and merge. [`CONTRIBUTING.md`](CONTRIBUTING.md) has the rules and
 
 The reference implementation is licensed under the
 [Mozilla Public License 2.0](LICENSE). The specification is dedicated to the
-public domain under [CC0](spec/LICENSE), so that anyone can implement it.
+public domain under [CC0](spec/LICENSE), so that anyone can implement it. Fjord Web
+([`clients/web`](clients/web)) is licensed under the
+[AGPL-3.0-or-later](clients/web/LICENSE), because it bundles `@sovereignfs/ui`.
