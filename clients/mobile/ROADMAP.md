@@ -37,7 +37,9 @@ needed here too; its WASM build is not.
 | MP6 | **Component scaffolding**: `clients/mobile` (Expo app, development build, `README.md`, `CHANGELOG.md`, `LICENSE`), its CI workflow with a `changes` job, `scripts/release/mobile.sh`, root layout tables updated. | CI runs only for mobile and engine changes; a placeholder build installs on both platforms; the release component dry-runs. | `todo` |
 
 MP4 comes first: it decides whether the stack in §5 holds before anything is built
-on it. 1a needs MP3–MP6 and P3; 1b needs MP1 and P1; 1c needs MP2.
+on it. MP1, MP2, MP3, MP5 and 1a.1 are shared with `fjord-mcp`
+([`../mcp/ROADMAP.md`](../mcp/ROADMAP.md)), which may build them first. 1a needs
+MP3–MP6 and P3; 1b needs MP1 and P1; 1c needs MP2.
 
 ## Phase 1 — plaintext browse, edit, capture and organise
 

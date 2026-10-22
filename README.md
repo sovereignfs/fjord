@@ -20,6 +20,7 @@ code that implements it is one commit.
 | [`crates/fjord-cli`](crates/fjord-cli) | **`fjord`**, the command-line tool. | Released | [Install](crates/fjord-cli/README.md#install) |
 | [`clients/web`](clients/web) | The hosted web client: browse, edit, share and comment on documents. | Design ([plan](clients/web/ROADMAP.md)) | — |
 | [`clients/mobile`](clients/mobile) | The iOS and Android client: browse, edit and capture quick notes, offline. | Design ([plan](clients/mobile/ROADMAP.md)) | — |
+| [`clients/mcp`](clients/mcp) | **`fjord-mcp`**: Claude (and later ChatGPT) saves and manages documents in your repository. | Design ([plan](clients/mcp/ROADMAP.md)) | — |
 | `clients/desktop` | The desktop app. | Planned | — |
 | `plugins/vscode`, `plugins/obsidian` | Editor integrations. | Planned | — |
 
