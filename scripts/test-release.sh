@@ -651,6 +651,147 @@ if command -v gh >/dev/null 2>&1; then
   fi
 fi
 
+# --- Fjord Web --------------------------------------------------------------------------------
+
+printf '\nthe web component\n'
+WL=clients/web/CHANGELOG.md
+# A scratch repository for the web component: its notes start empty, and the
+# version is the one given, so what is tested does not depend on how far the real
+# package has got. Its first release is from 0.0.0.
+freshw() {
+  local name=$1 version=$2
+  fresh "$name"
+  (
+    cd "$T/$name" || exit 1
+    awk '/^## \[Unreleased\]/ { print; print ""; skip = 1; next }
+         /^## \[/ { skip = 0 }
+         /^\[[^]]+\]: / { skip = 0 }
+         !skip { print }' "$WL" >"$WL.new"
+    mv "$WL.new" "$WL"
+    sed "s/^  \"version\": \".*\",\$/  \"version\": \"$version\",/" clients/web/package.json >package.new
+    mv package.new clients/web/package.json
+    git add -A
+    git commit -q -m "scratch: web at $version"
+    git push -q origin main
+  )
+}
+notesw() {
+  (
+    cd "$T/$1" || exit 1
+    awk '{ print } /^## \[Unreleased\]/ && !d { print ""; print "### Added"; print ""; print "- A note for the web release under test."; d = 1 }' \
+      "$WL" >"$WL.new"
+    mv "$WL.new" "$WL"
+  )
+}
+# Like relg, for the web component.
+relw() {
+  local name=$1
+  shift
+  OUT=$(cd "$T/$name" && PATH="$T/bin:$PATH" GH_RECORD="$GH_RECORD" /bin/bash scripts/release.sh web "$@" 2>&1)
+  RC=$?
+}
+
+# Each component demands the tools its own commands run, and no others: releasing
+# Fjord Web must not need a Rust toolchain, nor the CLI a Node one.
+tools_of() {
+  OUT=$(cd "$ROOT" && bash -c '
+    source scripts/lib/release.sh
+    source scripts/release/'"$1"'.sh
+    need() { echo "$1"; }
+    need_component_tools' 2>&1 | tr '\n' ' ')
+}
+tools_of web
+if [ "$OUT" = "node pnpm " ]; then
+  pass "the web component needs node and pnpm, and no Rust tools"
+else
+  fail "the web component needs node and pnpm, and no Rust tools" "$OUT"
+fi
+tools_of cli
+if [ "$OUT" = "cargo dist " ]; then
+  pass "the CLI component needs cargo and dist, and no Node tools"
+else
+  fail "the CLI component needs cargo and dist, and no Node tools" "$OUT"
+fi
+
+freshw web 0.0.0
+rel_web_next=0.1.0
+relw web check "$rel_web_next"
+refuses "web: no notes in its changelog" "no notes for $rel_web_next"
+
+notesw web
+relw web check "$rel_web_next"
+accepts "web: notes under [Unreleased]"
+relw web check 0.0.0
+refuses "web: the current version again" "is not greater than"
+
+relw web prepare "$rel_web_next" --skip-gates
+accepts "web: prepare, with the gates skipped"
+check_in web "web: on the release branch chore/release-web-$rel_web_next" \
+  '[ "$(git branch --show-current)" = "chore/release-web-0.1.0" ]'
+check_in web "web: one commit, subject 'Release fjord-web $rel_web_next'" \
+  '[ "$(git log -1 --format=%s)" = "Release fjord-web 0.1.0" ] && [ "$(git rev-list --count main..HEAD)" = 1 ]'
+check_in web "web: package.json says the new version" \
+  '[ "$(jq -r .version clients/web/package.json)" = 0.1.0 ]'
+check_in web "web: only the changelog and package.json changed" \
+  '[ "$(git diff --name-only HEAD~1 | sort | tr "\n" " ")" = "clients/web/CHANGELOG.md clients/web/package.json " ]'
+check_in web "web: the working tree is clean afterwards" '[ -z "$(git status --porcelain)" ]'
+check_in web "web: the notes moved under the new heading" \
+  'grep -qxF "## [0.1.0] - $TODAY" $WL && awk -v h="## [0.1.0]" '"'"'index($0,h)==1{f=1;next} /^## \[/{f=0} f'"'"' $WL | grep -qF "A note for the web release"'
+check_in web "web: [Unreleased] compares from the new version" \
+  'grep -qF "[Unreleased]: $REPO/compare/web-v0.1.0...HEAD" $WL'
+# Nothing was released before, so there is nothing to compare with: the first
+# version links to its release, and not to a compare URL that would be a 404.
+check_in web "web: a first release links to its release page, not a comparison" \
+  'grep -qF "[0.1.0]: $REPO/releases/tag/web-v0.1.0" $WL && ! grep -qF "web-v0.0.0" $WL'
+
+relw web propose "$rel_web_next" --dry-run
+accepts "web: a dry run of propose"
+check_in web "web: ...which did not push the branch" \
+  '! git ls-remote --exit-code --heads origin "chore/release-web-0.1.0"'
+
+# Simulate the merge, then tag: which waits on web-ci.yml and not on the Rust CI.
+(cd "$T/web" && git switch -q main && git merge -q --ff-only "chore/release-web-$rel_web_next" && git push -q origin main)
+relw web tag "$rel_web_next" --dry-run
+accepts "web: a dry run of tag once the release commit is on main"
+for expected in "web-ci.yml" "web-v0.1.0" "web-release.yml"; do
+  if printf '%s' "$OUT" | grep -qF "$expected"; then
+    pass "web: ...which names $expected"
+  else
+    fail "web: ...which names $expected" "$OUT"
+  fi
+done
+check_in web "web: ...and created no tag" '[ -z "$(git tag -l "web-v0.1.0")" ]'
+
+# A later release compares from the previous one's tag.
+freshw web2 0.1.0
+notesw web2
+relw web2 prepare 0.1.1 --skip-gates
+accepts "web: prepare of a second release"
+check_in web2 "web: the compare link starts from the previous web tag" \
+  'grep -qF "[0.1.1]: $REPO/compare/web-v0.1.0...web-v0.1.1" $WL'
+
+# What a tag would start has to exist, or tagging would start nothing.
+freshw web3 0.0.0
+(cd "$T/web3" && git rm -q .github/workflows/web-release.yml && git commit -q -m "scratch: no release workflow" && git push -q origin main)
+notesw web3
+relw web3 prepare "$rel_web_next" --skip-gates
+refuses "web: no release workflow to start" "would start nothing"
+check_in web3 "web: ...and prepare put everything back" \
+  '[ "$(git branch --show-current)" = main ] && [ -z "$(git status --short | grep -v CHANGELOG)" ]'
+
+freshw web4 0.0.0
+(cd "$T/web4" && sed -i.bak 's/web-v/web-x/g' .github/workflows/web-release.yml && rm .github/workflows/web-release.yml.bak && git add -A && git commit -q -m "scratch: wrong tag filter" && git push -q origin main)
+notesw web4
+relw web4 prepare "$rel_web_next" --skip-gates
+refuses "web: a release workflow that does not trigger on web-v tags" "does not trigger on web-v tags"
+
+# An unusable version declaration is refused before anything is changed.
+freshw web5 0.0.0
+(cd "$T/web5" && sed 's/^  "version": ".*",$/  "version": "next",/' clients/web/package.json >p.new && mv p.new clients/web/package.json && git add -A && git commit -q -m "scratch: bad version" && git push -q origin main)
+notesw web5
+relw web5 check "$rel_web_next"
+refuses "web: a version in package.json that is not X.Y.Z" "not of the form X.Y.Z"
+
 # --- The full gates, once ---------------------------------------------------------------
 
 if [ "$FULL" = yes ]; then
@@ -659,6 +800,11 @@ if [ "$FULL" = yes ]; then
   notes full
   rel full prepare "$NEXT"
   accepts "prepare, with fmt, clippy, tests and deny all running"
+
+  freshw webfull 0.0.0
+  notesw webfull
+  relw webfull prepare "$rel_web_next"
+  accepts "web: prepare, with install, typecheck, tests and build all running"
 fi
 
 printf '\n%s passed, %s failed\n' "$PASSED" "$FAILED"

@@ -12,8 +12,8 @@
 #   scripts/release.sh COMPONENT tag     X.Y.Z [--dry-run]   after the PR merges: tag, watch, verify
 #   scripts/release.sh COMPONENT verify  X.Y.Z               check a published release
 #
-# COMPONENT is a file in scripts/release/. Today that is `cli`; a client or a
-# plugin adds its own beside it (RELEASING.md says what one must provide).
+# COMPONENT is a file in scripts/release/: `cli` and `web` today. A client or a
+# plugin adds its own beside them (RELEASING.md says what one must provide).
 #
 # `main` takes changes only through pull requests, so a release is one too:
 # `prepare`, read what it committed, `propose` (which opens a draft PR and
@@ -49,7 +49,7 @@ Usage:
   scripts/release.sh COMPONENT tag     X.Y.Z [--dry-run]      after the PR merges: tag, watch, verify
   scripts/release.sh COMPONENT verify  X.Y.Z                  check a published release
 
-Components: cli
+Components: cli, web
 
 The usual run is prepare, propose, a review and a merge, then tag. The header
 of this file says what each one does and why.

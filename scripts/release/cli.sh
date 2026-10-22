@@ -21,6 +21,7 @@ C_CHANGELOG=crates/fjord-cli/CHANGELOG.md
 C_TOUCHED="crates/fjord-cli/CHANGELOG.md Cargo.toml Cargo.lock crates/fjord-cli/Cargo.toml"
 C_RELEASE_WORKFLOW=fjord-cli-release.yml
 # The README and the installers say `releases/latest`, and mean this.
+C_NEEDS="cargo dist"
 C_LATEST=yes
 C_REQUIRED_WORKFLOWS="CI"
 C_OPTIONAL_WORKFLOWS="Audit"
