@@ -30,3 +30,14 @@ updates:
     # written by hand (ci.yml, audit.yml) are still updated.
     exclude-paths:
       - ".github/workflows/fjord-cli-release.yml"
+
+  # Fjord Web is its own pnpm project with its own lockfile (clients/web). As for
+  # the crates, minor and patch bumps are grouped and a major arrives alone.
+  - package-ecosystem: npm
+    directory: /clients/web
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5

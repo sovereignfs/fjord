@@ -1,0 +1,11 @@
+node_modules
+.next
+next-env.d.ts
+*.tsbuildinfo
+coverage
+# Local configuration and databases: never commit these (DESIGN.md §14, §15).
+.env
+.env.*
+!.env.example
+*.db
+*.db-*

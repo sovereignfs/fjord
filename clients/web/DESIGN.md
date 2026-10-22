@@ -473,6 +473,11 @@ path is the default one.
 
 - With sqld, the app and auth databases are the namespaces `fjord` and `fjord_auth`,
   created through `SQLD_ADMIN_URL`. With a file, auth is `fjord_auth.db` beside it.
+- **`SQLITE_URL` must name a host, not an IP address.** With namespaces on, sqld takes
+  the default namespace from the first label of the `Host` header, so
+  `http://127.0.0.1:8080` selects a namespace called `127` and every request 404s.
+  Use `localhost` or a service name (Sovereign found this the hard way; CI uses
+  `localhost`).
 - **The file form has limits, stated plainly:** every process that writes must run on
   the same host (one container, or containers sharing a *local* volume); there are no
   replicas on other hosts; and the file must never sit on a network filesystem, which
