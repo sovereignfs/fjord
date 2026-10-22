@@ -38,6 +38,11 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # @sovereignfs/ui is pre-1.0, so a minor bump can break a page; it gets its own PR,
+      # which is read as the design change it is, and is not grouped with the rest.
+      design-system:
+        patterns: ["@sovereignfs/ui"]
       minor-and-patch:
         update-types: ["minor", "patch"]
+        exclude-patterns: ["@sovereignfs/ui"]
     open-pull-requests-limit: 5
