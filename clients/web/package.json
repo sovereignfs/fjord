@@ -14,17 +14,25 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "next typegen && tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "db:generate": "node scripts/db-generate.mjs",
+    "boot-check": "node scripts/boot-check.mjs",
+    "db:dev": "node scripts/dev-db.mjs"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "drizzle-orm": "^0.45.4",
     "next": "^16.3.6",
+    "pg": "^8.23.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
+    "drizzle-kit": "^0.31.11",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
   }
