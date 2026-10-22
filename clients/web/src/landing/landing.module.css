@@ -1,0 +1,363 @@
+/* The landing page. Colours, spacing, type and radii are the design system's tokens
+   (@sovereignfs/ui): nothing here is a literal colour, so it follows the theme. */
+
+.container {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: var(--sv-space-5);
+}
+
+.narrow {
+  max-width: 48rem;
+}
+
+.skip {
+  position: absolute;
+  left: var(--sv-space-3);
+  top: -4rem;
+  z-index: 10;
+  padding: var(--sv-space-2) var(--sv-space-4);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-accent);
+  color: var(--sv-color-text-on-accent);
+  font-size: var(--sv-font-size-sm);
+  text-decoration: none;
+}
+
+.skip:focus {
+  top: var(--sv-space-3);
+}
+
+/* Header */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: color-mix(in srgb, var(--sv-color-surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: var(--sv-border-width-hairline) solid var(--sv-color-border);
+}
+
+.headerInner {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-6);
+  min-height: 3.5rem;
+}
+
+.brand {
+  font-size: var(--sv-font-size-xl);
+  font-weight: var(--sv-font-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--sv-color-text-primary);
+  text-decoration: none;
+}
+
+.nav {
+  display: none;
+  gap: var(--sv-space-5);
+  margin-inline-end: auto;
+}
+
+.nav a {
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+  text-decoration: none;
+}
+
+.nav a:hover {
+  color: var(--sv-color-text-primary);
+}
+
+.actions {
+  display: flex;
+  gap: var(--sv-space-2);
+  margin-inline-start: auto;
+}
+
+@media (min-width: 48rem) {
+  .nav {
+    display: flex;
+  }
+
+  .actions {
+    margin-inline-start: 0;
+  }
+}
+
+/* Sections */
+.notice {
+  padding-block: var(--sv-space-5) 0;
+}
+
+.section {
+  padding-block: var(--sv-space-16);
+}
+
+.sunken {
+  background: var(--sv-color-surface-sunken);
+  border-block: var(--sv-border-width-hairline) solid var(--sv-color-border);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--sv-space-3);
+  font-size: var(--sv-font-size-3xl);
+  font-weight: var(--sv-font-weight-bold);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.sectionLead {
+  max-width: 40rem;
+  margin: 0 0 var(--sv-space-8);
+  font-size: var(--sv-font-size-lg);
+  color: var(--sv-color-text-muted);
+  line-height: 1.5;
+}
+
+/* Hero */
+.hero {
+  display: grid;
+  gap: var(--sv-space-10);
+  align-items: center;
+  padding-block: var(--sv-space-12) var(--sv-space-16);
+}
+
+@media (min-width: 56rem) {
+  .hero {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: var(--sv-space-12);
+  }
+}
+
+.title {
+  margin: 0 0 var(--sv-space-5);
+  font-size: clamp(2.25rem, 6vw, 3.5rem);
+  font-weight: var(--sv-font-weight-bold);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.titleEnd {
+  color: var(--sv-color-text-muted);
+}
+
+.lead {
+  max-width: 34rem;
+  margin: 0 0 var(--sv-space-8);
+  font-size: var(--sv-font-size-lg);
+  line-height: 1.55;
+  color: var(--sv-color-text-muted);
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-3);
+  margin-top: var(--sv-space-8);
+}
+
+.hero .cta {
+  margin-top: 0;
+}
+
+/* The example file */
+.example {
+  margin: 0;
+  min-width: 0;
+  border: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  border-radius: var(--sv-radius-xl);
+  background: var(--sv-color-surface-raised);
+  box-shadow: var(--sv-shadow-card);
+  overflow: hidden;
+}
+
+.exampleCaption {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+  padding: var(--sv-space-3) var(--sv-space-4);
+  border-bottom: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  background: var(--sv-color-surface-sunken);
+  font-family: var(--sv-font-family-mono);
+  font-size: var(--sv-font-size-xs);
+  color: var(--sv-color-text-muted);
+}
+
+.code {
+  margin: 0;
+  padding: var(--sv-space-4);
+  overflow-x: auto;
+  font-family: var(--sv-font-family-mono);
+  font-size: var(--sv-font-size-xs);
+  line-height: 1.7;
+  color: var(--sv-color-text-primary);
+  tab-size: 2;
+}
+
+.exampleNote {
+  margin: 0;
+  padding: var(--sv-space-3) var(--sv-space-4);
+  border-top: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  font-size: var(--sv-font-size-caption);
+  color: var(--sv-color-text-muted);
+}
+
+/* Cards and grids */
+.grid3,
+.grid {
+  display: grid;
+  gap: var(--sv-space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grid3 {
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.grid {
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: var(--sv-space-8) var(--sv-space-6);
+  margin-top: var(--sv-space-8);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sv-space-3);
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.cardTitle,
+.featureTitle {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+  font-weight: var(--sv-font-weight-semibold);
+  line-height: 1.3;
+}
+
+.cardBody {
+  margin: 0;
+  font-size: var(--sv-font-size-md);
+  line-height: 1.55;
+  color: var(--sv-color-text-muted);
+}
+
+.feature {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sv-space-2);
+}
+
+.featureIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-bottom: var(--sv-space-2);
+  border-radius: var(--sv-radius-lg);
+  background: var(--sv-color-accent-subtle);
+  color: var(--sv-color-accent);
+}
+
+/* Steps */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--sv-space-8) var(--sv-space-6);
+  margin: var(--sv-space-8) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sv-space-2);
+}
+
+.stepNumber {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-bottom: var(--sv-space-2);
+  border-radius: var(--sv-radius-full);
+  background: var(--sv-color-accent);
+  color: var(--sv-color-text-on-accent);
+  font-weight: var(--sv-font-weight-bold);
+}
+
+/* FAQ */
+.faq {
+  margin-top: var(--sv-space-6);
+  border-top: var(--sv-border-width-hairline) solid var(--sv-color-border);
+}
+
+.question {
+  border-bottom: var(--sv-border-width-hairline) solid var(--sv-color-border);
+}
+
+.question summary {
+  padding: var(--sv-space-4) 0;
+  font-size: var(--sv-font-size-md);
+  font-weight: var(--sv-font-weight-semibold);
+  cursor: pointer;
+  list-style-position: outside;
+}
+
+.question summary:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--sv-radius-sm);
+}
+
+.question p {
+  margin: 0 0 var(--sv-space-4);
+  line-height: 1.6;
+  color: var(--sv-color-text-muted);
+}
+
+/* Footer */
+.footer {
+  padding-block: var(--sv-space-8);
+  border-top: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-muted);
+}
+
+.footerInner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sv-space-4);
+}
+
+.footerInner p {
+  margin: 0;
+}
+
+.footerInner nav {
+  display: flex;
+  gap: var(--sv-space-5);
+}
+
+.footer a {
+  display: inline-block;
+  padding-block: var(--sv-space-2); /* a target of at least 24px (WCAG 2.2, 2.5.8) */
+  color: var(--sv-color-text-muted);
+}
+
+.footer a:hover {
+  color: var(--sv-color-text-primary);
+}
