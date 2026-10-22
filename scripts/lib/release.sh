@@ -443,7 +443,9 @@ cmd_prepare() {
 wait_for_workflow() {
   local workflow=$1 sha=$2 required=$3 id="" waited=0 conclusion
   while [ -z "$id" ]; do
-    id=$(gh run list --workflow "$workflow" --branch main --limit 20 \
+    # Ask for the commit itself rather than the latest runs on main: CI runs on
+    # every push, so a fixed window would eventually scroll past an old commit.
+    id=$(gh run list --workflow "$workflow" --branch main --commit "$sha" --limit 20 \
       --json databaseId,headSha \
       --jq ".[] | select(.headSha == \"$sha\") | .databaseId" | head -1 || true)
     if [ -z "$id" ]; then
