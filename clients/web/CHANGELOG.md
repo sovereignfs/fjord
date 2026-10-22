@@ -13,6 +13,11 @@ section.
 
 ### Added
 
+- **The landing page** (`/`, ROADMAP 1a.1): what Fjord is, why, what it does, how it
+  works and a FAQ, with sign-in and sign-up links. It is static HTML in the design
+  system's tokens (`@sovereignfs/ui`, pinned), follows the visitor's light or dark
+  setting, works without JavaScript and on a phone, and says plainly that Fjord Web is
+  still being built. The sign-in and sign-up pages are the next task.
 - **The database layer** (`DESIGN.md` §14): SQLite by default, as an sqld service or a
   plain file, or PostgreSQL by choice, selected by `DB_DIALECT`. The server makes its
   own namespaces, schemas and tables when it starts and refuses to start if it
