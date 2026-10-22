@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { site } from "./site";
+import { routes, site } from "./site";
 
 describe("site", () => {
-  it("names the product and says it is not usable yet", () => {
+  it("names the product and describes it", () => {
     expect(site.name).toBe("Fjord");
-    expect(site.status).toMatch(/nothing here is usable/i);
+    expect(site.title.startsWith(`${site.name}: `)).toBe(true);
+    expect(site.description).toMatch(/plain Markdown/);
+  });
+
+  it("links to the source and the specification on GitHub", () => {
+    expect(site.repository).toMatch(/^https:\/\/github\.com\/sovereignfs\/fjord$/);
+    expect(site.specification).toBe(`${site.repository}/blob/main/spec/SPEC.md`);
+  });
+
+  it("sends visitors to two different pages", () => {
+    expect(routes.signIn).not.toBe(routes.signUp);
+    expect(routes.signIn).toMatch(/^\//);
   });
 });

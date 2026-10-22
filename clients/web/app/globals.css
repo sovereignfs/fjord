@@ -1,0 +1,44 @@
+/* Page-level defaults. The tokens (--sv-*) come from @sovereignfs/ui, imported in the
+   layout; the pages and components style themselves with them. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  color-scheme: light;
+  scroll-behavior: smooth;
+  scroll-padding-top: 4.5rem; /* the sticky header */
+  -webkit-text-size-adjust: 100%;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--sv-color-surface);
+  color: var(--sv-color-text-primary);
+  font-family: var(--sv-font-family);
+  font-size: var(--sv-font-size-md);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+}
+
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
