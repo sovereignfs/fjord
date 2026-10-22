@@ -28,7 +28,7 @@ pnpm test
 pnpm build
 ```
 
-CI runs those for a change to this directory, and nothing else runs for it
+CI runs those, and the browser tests, for a change to this directory, and nothing else runs for it
 (`.github/workflows/web-ci.yml`).
 
 ### The database
@@ -59,6 +59,40 @@ The file form keeps the auth database beside the app's, as `fjord_auth.db`. The 
 use a throwaway file when nothing says otherwise; CI runs them on sqld, a file and
 PostgreSQL. They read `FJORD_TEST_*` variables, not the ones above, because they drop
 whole databases (`src/db/test-support.ts`).
+
+### Signing in
+
+Local sign-in (email and password, passkeys, two-factor) is **off unless `FJORD_AUTH_LOCAL` is
+set**; then `/sign-in`, `/sign-up` and `/api/auth` answer 404. The server refuses to start on a
+setting that is wrong, and says which. Try it:
+
+```bash
+export FJORD_AUTH_LOCAL=1 FJORD_URL=http://localhost:3000
+export FJORD_AUTH_SECRET="$(openssl rand -base64 48)"   # 32 characters or more
+SQLITE_URL=file:./data/fjord.db pnpm dev
+```
+
+| Variable | Meaning | Default |
+| --- | --- | --- |
+| `FJORD_AUTH_LOCAL` | `1` or `true` turns local sign-in on | off |
+| `FJORD_URL` | the address people use; https except on localhost. Passkeys and email links are made from it | required |
+| `FJORD_AUTH_SECRET` or `_FILE` | signs sessions and tokens, 32 characters or more | required |
+| `FJORD_AUTH_SIGNUP` | `closed`: the first account only. `open`: anyone | `closed` |
+| `FJORD_AUTH_PASSWORD_MIN_LENGTH` | | 10 |
+| `FJORD_NAME` | what an authenticator app and a passkey call the instance | Fjord |
+| `FJORD_PASSKEY_RP_ID` | the passkey relying party, to share passkeys across subdomains | the host of `FJORD_URL` |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` or `_FILE`, `SMTP_FROM` | email, optional. With it, addresses are verified and a password can be reset by email; without it, neither | none |
+| `FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION` | `false` to skip verification even with SMTP | on with SMTP |
+
+Run it **behind a reverse proxy that sets `X-Forwarded-For`**: the sign-in rate limit is per
+address, and a client that reaches the app directly can name its own (`DESIGN.md` §15).
+
+Browser tests run the built app in Chromium, with a virtual authenticator for passkeys:
+
+```bash
+pnpm exec playwright install chromium   # once, about 100 MB
+pnpm build && pnpm e2e
+```
 
 **Changing the schema** means changing it twice, because the two dialects use
 different builders: `src/db/schema/sqlite/` and `src/db/schema/postgres/`. A parity

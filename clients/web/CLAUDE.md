@@ -21,6 +21,7 @@ pnpm dev
 pnpm db:generate <name>          # migrations for both dialects, from the schemas
 pnpm db:dev sqld | postgres      # a local database in Docker (not needed: a file: URL works)
 pnpm build && pnpm boot-check    # a fresh instance boots on the database in the environment
+pnpm build && pnpm e2e           # browser tests (Playwright; `pnpm exec playwright install chromium` once)
 ```
 
 Node 24 and the pnpm version in `package.json`. A change to a dependency commits
@@ -60,6 +61,14 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
   theming keep working. The package's README is out of date: take icon names and
   props from its types (`IconName`; `Icon` needs `aria-hidden` or `aria-label`). It
   has `@dnd-kit/*` peers that it imports unconditionally, so they are installed too.
+- **Sign-in is tested for what it promises, over real requests.** A test of an auth flow goes
+  through `auth.handler` (cookies, `Origin`) against the real databases, not a mock of
+  better-auth (`src/auth/test-support.ts`), and anything a browser alone can show goes in
+  `e2e/`. A security behaviour (the origin check, the lockout, ending sessions on a reset, the
+  first-account rule) has a test that was seen to fail with the behaviour switched off. Every
+  auth page is `force-dynamic`: with no settings at build time local sign-in is "off", and
+  Next would prerender a 404 and keep it. No message says whether an address has an account.
+  A change to what better-auth stores is a change to both dialects' `schema/*/auth.ts`.
 - **Untrusted Markdown is sanitised** and pages send a strict
   Content-Security-Policy (`DESIGN.md` §15). Nothing third-party loads.
 - **TypeScript is strict**, with `noUncheckedIndexedAccess`. No `any` without a
@@ -81,8 +90,12 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | `src/ui/` | The design system's client boundary, and components of ours that match it (`LinkButton`) |
 | `src/landing/` | The landing page at `/`: its content as typed data, the component and its styles |
 | `src/theme/` | The script that sets `data-theme` from the visitor's colour scheme, before first paint |
+| `src/auth/` | Local sign-in: its settings, the better-auth instance, the client, the screens (`screens/`), the test harness |
+| `src/mail/` | Sending email: the SMTP mailer, a mailer for tests, the templates |
+| `e2e/` | Browser tests, and `playwright.config.ts` for the three instances they run against |
+| `proxy.ts` | Shows a signed-in person `/home` at `/`; only looks for a cookie |
 | `src/db/` | The database layer: configuration, the two clients, the schemas (`schema/{sqlite,postgres}`), portable queries, migrations at start-up |
-| `migrations/` | The generated SQL, `sqlite/` and `postgres/`, committed and reviewed |
+| `migrations/` | The generated SQL, `sqlite/` and `postgres/` for the app's store and `auth/` for better-auth's, committed and reviewed |
 | `instrumentation.ts` | Runs once at server start: brings the database up, so a server that cannot reach or migrate it does not start |
 | `scripts/` | Small Node scripts: `db-generate`, `db-dev`, `boot-check` |
 | `DESIGN.md`, `ROADMAP.md` | The design and the plan |

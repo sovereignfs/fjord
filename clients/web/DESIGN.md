@@ -142,6 +142,37 @@ instance can run either or both:
   directly rather than calling into Sovereign's code. The sign-in, sign-up and
   enrolment screens are copied from Sovereign first, and extracted into a shared
   package once both apps use them and they have stopped changing.
+### Local sign-in, as built (ROADMAP 1a.2)
+
+- **better-auth 1.7**, through its Drizzle adapter, in the auth store (`fjord_auth`, §14), with
+  its own migrations (`migrations/auth/`) and a record of what ran apart from the app's. 1.7
+  rather than the 1.6 line Sovereign runs: it is current, it has no account-identity migration
+  to face later, and its rewritten OIDC client is what 1a.3 needs. The tables are better-auth's
+  (`user`, `session`, `account`, `verification`, `two_factor`, `passkey`, `rate_limit`), with its
+  dates as real `Date`s and not our epoch milliseconds.
+- **Off unless `FJORD_AUTH_LOCAL` is set**, and then off entirely: `/sign-in`, `/sign-up` and
+  everything under `/api/auth` answer 404, as if they did not exist, and the server refuses to
+  start on a setting that is wrong (a short secret, a non-https `FJORD_URL`, an SMTP host with
+  no sender). Needs `FJORD_URL` (the address people use, from which the passkey origin and the
+  links in email are made) and `FJORD_AUTH_SECRET` (32 characters or more; `_FILE` supported).
+- **Who may sign up** is `FJORD_AUTH_SIGNUP`: `closed` (the default), where the first account is
+  made and then sign-up is refused, by the server and not only hidden by the page; or `open`.
+  Secure by default: a self-hoster who forgets is not an open registration.
+- **Email is optional.** With `SMTP_*` set, an address must be verified before first sign-in
+  (following the link signs the person in), and a forgotten password is reset by a mailed,
+  single-use link that also ends every session. Without it, sign-up is immediate and there is no
+  reset by email: no screen offers one and the endpoint is disabled. Sovereign's mailer is not
+  published, so Fjord has its own small one (nodemailer), behind an interface a test can read.
+- **Two-factor** is an authenticator app (QR code and a key to type) with ten single-use backup
+  codes, turned on only once a code has been shown to work; each change asks for the password
+  again. **Passkeys** can be added, named and removed, and sign a person in without a password.
+  Both are from better-auth's plugins.
+- **At `/`**, a signed-in person sees `/home` (a placeholder until repositories, ROADMAP 1a.9) by
+  a rewrite in `proxy.ts`, so the address does not change and the landing page stays static for
+  everyone else. The proxy only looks for a session cookie; the page checks the session.
+- **Not yet:** deleting an account, listing and ending individual sessions, trusted devices,
+  changing the email address.
+
 - **A Sovereign account is identity, not authorization.** As Sovereign's own docs
   say of its OIDC clients, Fjord Web decides what an account may do.
 - **When both methods are on**, an account is matched to a Sovereign login by `sub`,
@@ -451,6 +482,10 @@ Roughly, beyond better-auth's own:
 
 A document is identified by connection and `id` (or path, for a note without one).
 
+The auth store holds better-auth's tables (§6): `user`, `session`, `account`, `verification`,
+`two_factor`, `passkey` and `rate_limit`. Both stores are migrated at start-up whatever the
+sign-in settings, so the tables of a method that is switched off are simply unused.
+
 ### Database
 
 The database is not where documents live; the repository is. It holds accounts,
@@ -573,8 +608,24 @@ it is what the tests use when nothing else is set.
 - **Rendering untrusted Markdown:** shared documents, comments and display names
   come from other people, so rendered Markdown is sanitised (no raw HTML execution),
   pages send a strict Content-Security-Policy, and nothing third-party is loaded.
-- **Auth:** better-auth's session handling, CSRF protection and rate limits;
-  passkeys and TOTP for local accounts.
+- **Auth:** better-auth's session handling, CSRF protection and rate limits; passkeys and
+  TOTP for local accounts. What is relied on, and tested:
+  - **Passwords** are hashed, never stored or returned; a wrong password and an unknown
+    address get the same answer; the minimum length is enforced by the server.
+  - **A request from another site is refused**: a state-changing request carrying a session
+    cookie must have this instance's `Origin` (missing is refused too). better-auth skips this
+    check when `NODE_ENV` is `test`, so it is set explicitly, or a test would pass on behaviour
+    production does not have.
+  - **Limits are counted in the database**, so they hold across every process: three sign-in
+    attempts in ten seconds per address. They key on the `X-Forwarded-For` header, so Fjord
+    Web **must run behind a reverse proxy that sets it** (1a.12's deployment does); reachable
+    directly, a client can name its own address and defeat the per-address limit. The limits
+    that do not depend on an address still hold: two-factor locks an account after ten wrong
+    codes across sign-ins for fifteen minutes, and a wrong code spends a guess from five.
+  - **A password reset ends every session**, and so does a password change.
+  - **Cookies** are `HttpOnly`, `SameSite=Lax`, prefixed `fjord`, and `Secure` on https.
+  - **`FJORD_URL` is the origin people use.** The passkey relying party and the origin check
+    are made from it, so a proxy that serves another name needs `FJORD_URL` set to it.
 - **Abuse:** limits on comments, links and anonymous edits; owners can revoke and
   close.
 - **Deletion:** deleting an account removes its connections, shares, comments and
@@ -664,4 +715,8 @@ standalone output would otherwise prune it.
 | 2026-10-22 | SQLite by default, in production too; PostgreSQL by the operator's choice; `DB_DIALECT` defaults to `sqlite` | PostgreSQL only; requiring the dialect to be set, as Sovereign does |
 | 2026-10-22 | SQLite as an sqld service by default, or a `file:` URL for a single-container install, through one libSQL client | sqld only, as Sovereign; a plain file only |
 | 2026-10-22 | Every data-layer test runs on sqld, a file and PostgreSQL in CI, with a schema parity test | Dialect suites that run only when their database URL is set |
+| 2026-10-22 | Local sign-in on better-auth 1.7 through its Drizzle adapter, in the auth store with migrations of its own | The 1.6 line Sovereign runs (an account-identity migration before 1a.3); better-auth's own Kysely adapter (the design chose Drizzle) |
+| 2026-10-22 | Sign-up is `closed` by default (the first account, then refused) and `open` by choice | Open by default; invites (they need email) |
+| 2026-10-22 | Email is optional: with SMTP, verified addresses and reset by email; without it, neither | SMTP required; no email at all |
+| 2026-10-22 | The browser tests run the built app in Chromium with Playwright, and a virtual authenticator stands in for a passkey device | Server-level tests only, leaving passkeys to a manual check |
 | 2026-10-22 | The landing page is static, server-rendered HTML in `@sovereignfs/ui`'s tokens, with the design system reached through one `"use client"` module, a theme script that follows the system, and a native `<details>` FAQ | A client-rendered page; a bespoke palette; importing the package from Server Components (it fails: the bundle calls `createContext` at module scope) |

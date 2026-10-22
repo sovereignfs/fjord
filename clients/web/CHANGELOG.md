@@ -13,6 +13,14 @@ section.
 
 ### Added
 
+- **Local sign-in** (ROADMAP 1a.2): email and password, passkeys, and two-factor with an
+  authenticator app and ten backup codes, on better-auth 1.7. Off unless `FJORD_AUTH_LOCAL`
+  is set, and then off entirely (404). Sign-up is the first account only unless
+  `FJORD_AUTH_SIGNUP=open`. Email is optional: with `SMTP_*`, addresses are verified and a
+  password can be reset by a mailed link that ends every session. Screens for sign-in,
+  sign-up, the two-factor step, reset, and an account security page; a signed-in person sees
+  `/home` at `/`. Run it behind a proxy that sets `X-Forwarded-For`.
+- Browser tests (Playwright, Chromium, a virtual authenticator for passkeys), and a CI job.
 - **The landing page** (`/`, ROADMAP 1a.1): what Fjord is, why, what it does, how it
   works and a FAQ, with sign-in and sign-up links. It is static HTML in the design
   system's tokens (`@sovereignfs/ui`, pinned), follows the visitor's light or dark
