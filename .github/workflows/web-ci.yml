@@ -10,16 +10,19 @@
 #
 # Two things are checked:
 #
-# 1. `check` type-checks and builds the app.
-# 2. `tests` runs the test suite three times, once per database the app supports
-#    (clients/web/DESIGN.md §14): an sqld service, a plain SQLite file and
-#    PostgreSQL. There is no data layer yet (ROADMAP 1a.0), so for now each leg
-#    proves the database comes up and runs the same placeholder tests; the legs
-#    exist now so that the first data-layer test is already run against all three,
-#    and a test that passes on one and not another is caught where it is written.
+# 1. `check` type-checks and builds the app, and checks that the committed migrations
+#    are the ones the schemas generate.
+# 2. `tests` runs once per database the app supports (clients/web/DESIGN.md §14): an
+#    sqld service, a plain SQLite file and PostgreSQL. Each leg starts its database,
+#    boots a built instance against it from nothing (the server makes its own
+#    namespaces, schemas and tables), and then runs the whole suite, so a test that
+#    passes on one database and not another is caught where it is written.
 #
-# Each leg hands the tests the same variables the app reads, named as in the
-# design: DB_DIALECT, SQLITE_URL, SQLD_ADMIN_URL and POSTGRES_DB_URL.
+# A leg sets the variables an operator would set (DB_DIALECT, SQLITE_URL,
+# SQLD_ADMIN_URL, POSTGRES_DB_URL) and the boot uses them as they are. The tests are
+# given the same values under FJORD_TEST_* names instead, because they drop whole
+# schemas and namespaces and must never be pointed at a real database by the
+# variables a developer might have exported (src/db/test-support.ts).
 name: Web CI
 
 on:
@@ -50,9 +53,12 @@ concurrency:
 env:
   # The database images are pinned, not `latest`: a database that changes under a
   # test run is not something a CI setup should have. Bump them deliberately.
-  # sqld is the version Sovereign's own stack runs; PostgreSQL matches its
-  # docker-compose.postgres.yml.
-  SQLD_IMAGE: ghcr.io/tursodatabase/libsql-server:v0.24.32
+  # PostgreSQL matches Sovereign's docker-compose.postgres.yml. sqld must be 0.24.33 or
+  # later: earlier releases (the newest GitHub *release* is 0.24.32, which is why this is
+  # easy to get wrong) ignore the `x-namespace` header, so every namespace is the one
+  # default database and the app's tables and better-auth's would share it. The image
+  # tag exists without a release; a test (src/db/provision.test.ts) checks isolation.
+  SQLD_IMAGE: ghcr.io/tursodatabase/libsql-server:v0.24.33
   POSTGRES_IMAGE: postgres:16-alpine
 
 jobs:
@@ -126,6 +132,17 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm build
 
+      # A schema changed without its migration, or a migration was edited by hand,
+      # if generating from the committed schemas writes anything (DESIGN.md §14).
+      - name: The committed migrations match the schemas
+        run: |
+          node scripts/db-generate.mjs ci_check
+          if [ -n "$(git status --porcelain -- migrations)" ]; then
+            echo "::error::the schemas generate migrations that are not committed (run pnpm db:generate <name>)"
+            git status --short -- migrations
+            exit 1
+          fi
+
   tests:
     name: tests (${{ matrix.database }})
     needs: changes
@@ -160,11 +177,8 @@ jobs:
       # service container cannot be given arguments and sqld needs
       # `--enable-namespaces` (one namespace per logical database, the analogue of
       # PostgreSQL's schemas: `fjord` for the app, `fjord_auth` for better-auth).
-      # The invocation is Sovereign's own (scripts/ensure-sqld.ts).
-      #
-      # The URLs say `localhost`, not `127.0.0.1`: with namespaces on, sqld takes
-      # the default namespace from the first label of the Host header, so an IP
-      # address names the namespace "127" and every request 404s.
+      # The invocation is Sovereign's own (scripts/ensure-sqld.ts). The namespaces
+      # are not made here: the server makes them when it starts, which is the point.
       - name: Start sqld
         if: matrix.database == 'sqld'
         run: |
@@ -184,11 +198,6 @@ jobs:
               exit 1
             fi
             sleep 1
-          done
-          for namespace in fjord fjord_auth; do
-            curl -fsS -X POST -H 'Content-Type: application/json' -d '{}' \
-              "http://localhost:8081/v1/namespaces/$namespace/create"
-            echo
           done
           {
             echo "DB_DIALECT=sqlite"
@@ -234,10 +243,22 @@ jobs:
             echo "POSTGRES_DB_URL=postgres://fjord:fjord@localhost:5432/fjord"
           } >> "$GITHUB_ENV"
 
-      - name: Which database this leg runs against
+      # The same settings, under the names the tests read. See the header.
+      - name: Point the tests at this leg's database
         run: |
+          for name in DB_DIALECT SQLITE_URL SQLD_ADMIN_URL POSTGRES_DB_URL; do
+            value="${!name:-}"
+            if [ -n "$value" ]; then echo "FJORD_TEST_$name=$value" >> "$GITHUB_ENV"; fi
+          done
           echo "DB_DIALECT=$DB_DIALECT"
           echo "SQLITE_URL=${SQLITE_URL:-}"
           echo "POSTGRES_DB_URL set: $([ -n "${POSTGRES_DB_URL:-}" ] && echo yes || echo no)"
+
+      # A fresh instance, from the documented variables alone: the built server is
+      # started against the empty database, makes what it needs, and answers its
+      # health check on the right dialect (ROADMAP 1a.0).
+      - run: pnpm build
+      - name: A fresh instance boots
+        run: pnpm boot-check
 
       - run: pnpm test
