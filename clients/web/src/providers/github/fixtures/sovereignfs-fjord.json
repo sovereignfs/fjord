@@ -1,0 +1,4205 @@
+{
+ "recordedAt": "2026-10-22T20:18:51.969Z",
+ "commit": "96baa7cfcaac4366d51a19496e432f7e0663b86a",
+ "record": [
+  {
+   "method": "GET",
+   "path": "/repos/sovereignfs/fjord",
+   "accept": "application/vnd.github+json",
+   "status": 200,
+   "headers": {
+    "etag": "W/\"3534742e8713d5e5f6f91c839de42757d3d104712b52382858a1b1b5d625edea\"",
+    "content-type": "application/json; charset=utf-8"
+   },
+   "body": {
+    "id": 1422406295,
+    "node_id": "R_kgDOVMgylw",
+    "name": "fjord",
+    "full_name": "sovereignfs/fjord",
+    "private": false,
+    "owner": {
+     "login": "sovereignfs",
+     "id": 293599246,
+     "node_id": "O_kgDOEX_4Dg",
+     "avatar_url": "https://avatars.githubusercontent.com/u/293599246?v=4",
+     "gravatar_id": "",
+     "url": "https://api.github.com/users/sovereignfs",
+     "html_url": "https://github.com/sovereignfs",
+     "followers_url": "https://api.github.com/users/sovereignfs/followers",
+     "following_url": "https://api.github.com/users/sovereignfs/following{/other_user}",
+     "gists_url": "https://api.github.com/users/sovereignfs/gists{/gist_id}",
+     "starred_url": "https://api.github.com/users/sovereignfs/starred{/owner}{/repo}",
+     "subscriptions_url": "https://api.github.com/users/sovereignfs/subscriptions",
+     "organizations_url": "https://api.github.com/users/sovereignfs/orgs",
+     "repos_url": "https://api.github.com/users/sovereignfs/repos",
+     "events_url": "https://api.github.com/users/sovereignfs/events{/privacy}",
+     "received_events_url": "https://api.github.com/users/sovereignfs/received_events",
+     "type": "Organization",
+     "user_view_type": "public",
+     "site_admin": false
+    },
+    "html_url": "https://github.com/sovereignfs/fjord",
+    "description": "Your own simple cloud on Git: documents and notes as plain Markdown in a repository you control, with optional age encryption. The Fjord format spec, its Rust reference implementation and CLI, and the clients built on it.",
+    "fork": false,
+    "url": "https://api.github.com/repos/sovereignfs/fjord",
+    "forks_url": "https://api.github.com/repos/sovereignfs/fjord/forks",
+    "keys_url": "https://api.github.com/repos/sovereignfs/fjord/keys{/key_id}",
+    "collaborators_url": "https://api.github.com/repos/sovereignfs/fjord/collaborators{/collaborator}",
+    "teams_url": "https://api.github.com/repos/sovereignfs/fjord/teams",
+    "hooks_url": "https://api.github.com/repos/sovereignfs/fjord/hooks",
+    "issue_events_url": "https://api.github.com/repos/sovereignfs/fjord/issues/events{/number}",
+    "events_url": "https://api.github.com/repos/sovereignfs/fjord/events",
+    "assignees_url": "https://api.github.com/repos/sovereignfs/fjord/assignees{/user}",
+    "branches_url": "https://api.github.com/repos/sovereignfs/fjord/branches{/branch}",
+    "tags_url": "https://api.github.com/repos/sovereignfs/fjord/tags",
+    "blobs_url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs{/sha}",
+    "git_tags_url": "https://api.github.com/repos/sovereignfs/fjord/git/tags{/sha}",
+    "git_refs_url": "https://api.github.com/repos/sovereignfs/fjord/git/refs{/sha}",
+    "trees_url": "https://api.github.com/repos/sovereignfs/fjord/git/trees{/sha}",
+    "statuses_url": "https://api.github.com/repos/sovereignfs/fjord/statuses/{sha}",
+    "languages_url": "https://api.github.com/repos/sovereignfs/fjord/languages",
+    "stargazers_url": "https://api.github.com/repos/sovereignfs/fjord/stargazers",
+    "contributors_url": "https://api.github.com/repos/sovereignfs/fjord/contributors",
+    "subscribers_url": "https://api.github.com/repos/sovereignfs/fjord/subscribers",
+    "subscription_url": "https://api.github.com/repos/sovereignfs/fjord/subscription",
+    "commits_url": "https://api.github.com/repos/sovereignfs/fjord/commits{/sha}",
+    "git_commits_url": "https://api.github.com/repos/sovereignfs/fjord/git/commits{/sha}",
+    "comments_url": "https://api.github.com/repos/sovereignfs/fjord/comments{/number}",
+    "issue_comment_url": "https://api.github.com/repos/sovereignfs/fjord/issues/comments{/number}",
+    "contents_url": "https://api.github.com/repos/sovereignfs/fjord/contents/{+path}",
+    "compare_url": "https://api.github.com/repos/sovereignfs/fjord/compare/{base}...{head}",
+    "merges_url": "https://api.github.com/repos/sovereignfs/fjord/merges",
+    "archive_url": "https://api.github.com/repos/sovereignfs/fjord/{archive_format}{/ref}",
+    "downloads_url": "https://api.github.com/repos/sovereignfs/fjord/downloads",
+    "issues_url": "https://api.github.com/repos/sovereignfs/fjord/issues{/number}",
+    "pulls_url": "https://api.github.com/repos/sovereignfs/fjord/pulls{/number}",
+    "milestones_url": "https://api.github.com/repos/sovereignfs/fjord/milestones{/number}",
+    "notifications_url": "https://api.github.com/repos/sovereignfs/fjord/notifications{?since,all,participating}",
+    "labels_url": "https://api.github.com/repos/sovereignfs/fjord/labels{/name}",
+    "releases_url": "https://api.github.com/repos/sovereignfs/fjord/releases{/id}",
+    "deployments_url": "https://api.github.com/repos/sovereignfs/fjord/deployments",
+    "created_at": "2026-10-16T16:30:28Z",
+    "updated_at": "2026-10-22T20:06:23Z",
+    "pushed_at": "2026-10-22T20:09:03Z",
+    "git_url": "git://github.com/sovereignfs/fjord.git",
+    "ssh_url": "git@github.com:sovereignfs/fjord.git",
+    "clone_url": "https://github.com/sovereignfs/fjord.git",
+    "svn_url": "https://github.com/sovereignfs/fjord",
+    "homepage": "",
+    "size": 999,
+    "stargazers_count": 0,
+    "watchers_count": 0,
+    "language": "Rust",
+    "has_issues": true,
+    "has_projects": true,
+    "has_downloads": false,
+    "has_wiki": true,
+    "has_pages": false,
+    "has_discussions": false,
+    "forks_count": 0,
+    "mirror_url": null,
+    "archived": false,
+    "disabled": false,
+    "open_issues_count": 3,
+    "license": {
+     "key": "mpl-2.0",
+     "name": "Mozilla Public License 2.0",
+     "spdx_id": "MPL-2.0",
+     "url": "https://api.github.com/licenses/mpl-2.0",
+     "node_id": "MDc6TGljZW5zZTE0"
+    },
+    "allow_forking": true,
+    "is_template": false,
+    "web_commit_signoff_required": false,
+    "has_pull_requests": true,
+    "pull_request_creation_policy": "all",
+    "topics": [
+     "age",
+     "age-encryption",
+     "cli",
+     "encrypted-notes",
+     "encryption",
+     "file-format",
+     "fjord",
+     "git",
+     "local-first",
+     "markdown",
+     "mcp",
+     "monorepo",
+     "note-taking",
+     "notes",
+     "rust",
+     "self-hosted",
+     "specification"
+    ],
+    "visibility": "public",
+    "forks": 0,
+    "open_issues": 3,
+    "watchers": 0,
+    "default_branch": "main",
+    "temp_clone_token": null,
+    "custom_properties": {},
+    "organization": {
+     "login": "sovereignfs",
+     "id": 293599246,
+     "node_id": "O_kgDOEX_4Dg",
+     "avatar_url": "https://avatars.githubusercontent.com/u/293599246?v=4",
+     "gravatar_id": "",
+     "url": "https://api.github.com/users/sovereignfs",
+     "html_url": "https://github.com/sovereignfs",
+     "followers_url": "https://api.github.com/users/sovereignfs/followers",
+     "following_url": "https://api.github.com/users/sovereignfs/following{/other_user}",
+     "gists_url": "https://api.github.com/users/sovereignfs/gists{/gist_id}",
+     "starred_url": "https://api.github.com/users/sovereignfs/starred{/owner}{/repo}",
+     "subscriptions_url": "https://api.github.com/users/sovereignfs/subscriptions",
+     "organizations_url": "https://api.github.com/users/sovereignfs/orgs",
+     "repos_url": "https://api.github.com/users/sovereignfs/repos",
+     "events_url": "https://api.github.com/users/sovereignfs/events{/privacy}",
+     "received_events_url": "https://api.github.com/users/sovereignfs/received_events",
+     "type": "Organization",
+     "user_view_type": "public",
+     "site_admin": false
+    },
+    "network_count": 0,
+    "subscribers_count": 0
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/repos/sovereignfs/fjord/git/ref/heads/main",
+   "accept": "application/vnd.github+json",
+   "status": 200,
+   "headers": {
+    "etag": "W/\"ea672e9d72db6e79250855df6e75d1addb242a49d239edcdc820e9173e64a765\"",
+    "content-type": "application/json; charset=utf-8"
+   },
+   "body": {
+    "ref": "refs/heads/main",
+    "node_id": "REF_kwDOVMgyl69yZWZzL2hlYWRzL21haW4",
+    "url": "https://api.github.com/repos/sovereignfs/fjord/git/refs/heads/main",
+    "object": {
+     "sha": "96baa7cfcaac4366d51a19496e432f7e0663b86a",
+     "type": "commit",
+     "url": "https://api.github.com/repos/sovereignfs/fjord/git/commits/96baa7cfcaac4366d51a19496e432f7e0663b86a"
+    }
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/repos/sovereignfs/fjord/git/trees/96baa7cfcaac4366d51a19496e432f7e0663b86a?recursive=1",
+   "accept": "application/vnd.github+json",
+   "status": 200,
+   "headers": {
+    "etag": "W/\"1d0fe1aef6a70afa03091765943eaab270fd10f73a10cf88d69f11e3a532e10c\"",
+    "content-type": "application/json; charset=utf-8"
+   },
+   "body": {
+    "sha": "96baa7cfcaac4366d51a19496e432f7e0663b86a",
+    "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/96baa7cfcaac4366d51a19496e432f7e0663b86a",
+    "tree": [
+     {
+      "path": ".github",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d2d8635e71e8c4fcc35348cfb78e9f4ad3db6a8e",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/d2d8635e71e8c4fcc35348cfb78e9f4ad3db6a8e"
+     },
+     {
+      "path": ".github/PULL_REQUEST_TEMPLATE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c6003fafe41c43c8d7446092cef4f0e3d2b0980b",
+      "size": 1067,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c6003fafe41c43c8d7446092cef4f0e3d2b0980b"
+     },
+     {
+      "path": ".github/dependabot.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cb33ecdd205522ecee7e64139ce1aa9992a5b513",
+      "size": 2106,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/cb33ecdd205522ecee7e64139ce1aa9992a5b513"
+     },
+     {
+      "path": ".github/workflows",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e5d91c2028d5980bf9805425ea509e81e2560111",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/e5d91c2028d5980bf9805425ea509e81e2560111"
+     },
+     {
+      "path": ".github/workflows/audit.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d02194a93b7305935270103f1b6352f6520d32da",
+      "size": 1927,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d02194a93b7305935270103f1b6352f6520d32da"
+     },
+     {
+      "path": ".github/workflows/ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "05a42deffa7aee86cac80f657c784d221c3caf63",
+      "size": 13002,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/05a42deffa7aee86cac80f657c784d221c3caf63"
+     },
+     {
+      "path": ".github/workflows/fjord-cli-release.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fea53e812faa9d2f25a7fa98d2aeaf1d12ac6454",
+      "size": 14503,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/fea53e812faa9d2f25a7fa98d2aeaf1d12ac6454"
+     },
+     {
+      "path": ".github/workflows/web-ci.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d41b4908176d051aeabfe15185fddf604756644c",
+      "size": 12263,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d41b4908176d051aeabfe15185fddf604756644c"
+     },
+     {
+      "path": ".github/workflows/web-release.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3cd7ebf374d35e7825a7f4546d274dcdfb3ab388",
+      "size": 2927,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/3cd7ebf374d35e7825a7f4546d274dcdfb3ab388"
+     },
+     {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3a529bb419234110b8f1a5c0128c92e6cd83078a",
+      "size": 107,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/3a529bb419234110b8f1a5c0128c92e6cd83078a"
+     },
+     {
+      "path": "CLAUDE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea13aa1711c7c98779989a9deee4849571daa568",
+      "size": 16852,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ea13aa1711c7c98779989a9deee4849571daa568"
+     },
+     {
+      "path": "CONTRIBUTING.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25affd3fccc45e40ff2c0074aec795aa83987413",
+      "size": 5592,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25affd3fccc45e40ff2c0074aec795aa83987413"
+     },
+     {
+      "path": "Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c0e28d5496709daec83ba2368704e11ea74e986e",
+      "size": 54591,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c0e28d5496709daec83ba2368704e11ea74e986e"
+     },
+     {
+      "path": "Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "300c1f45f94975c541b0a6656bad04b00c254e25",
+      "size": 2768,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/300c1f45f94975c541b0a6656bad04b00c254e25"
+     },
+     {
+      "path": "LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d0a1fa1482eea82e19510e7920cbe3a03e41f691",
+      "size": 16726,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d0a1fa1482eea82e19510e7920cbe3a03e41f691"
+     },
+     {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cd80e81bc556d91f8a270d0a7c3c3f422cdb1c1d",
+      "size": 3619,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/cd80e81bc556d91f8a270d0a7c3c3f422cdb1c1d"
+     },
+     {
+      "path": "RELEASING.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "90c6fa5fbda8856ece65a53f7ae2b897c2b48bbf",
+      "size": 9383,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/90c6fa5fbda8856ece65a53f7ae2b897c2b48bbf"
+     },
+     {
+      "path": "ROADMAP.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "85464bb1c1ba139e39b4d984a3f2a935d88f62b9",
+      "size": 73557,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/85464bb1c1ba139e39b4d984a3f2a935d88f62b9"
+     },
+     {
+      "path": "clients",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c2ba90547026ef403c982322aee24c4164809c0d",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/c2ba90547026ef403c982322aee24c4164809c0d"
+     },
+     {
+      "path": "clients/mcp",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "19cd86af08da6f077884003078d3b1707e77d0cf",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/19cd86af08da6f077884003078d3b1707e77d0cf"
+     },
+     {
+      "path": "clients/mcp/DESIGN.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83b28fce8695b225abf5bda47920af117e5c350a",
+      "size": 19401,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83b28fce8695b225abf5bda47920af117e5c350a"
+     },
+     {
+      "path": "clients/mcp/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "176c872bc5423f17415743532967fcb7c2eb77d6",
+      "size": 728,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/176c872bc5423f17415743532967fcb7c2eb77d6"
+     },
+     {
+      "path": "clients/mcp/ROADMAP.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c1fb8d6f09851a0bddb4588d272acc44f7c49455",
+      "size": 7868,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c1fb8d6f09851a0bddb4588d272acc44f7c49455"
+     },
+     {
+      "path": "clients/mobile",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "eb8473d0cca44d8ebcdddaac69f898c8389fec73",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/eb8473d0cca44d8ebcdddaac69f898c8389fec73"
+     },
+     {
+      "path": "clients/mobile/DESIGN.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7ae48f3006436fc66f74ee555d8fe27d115a258e",
+      "size": 29974,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7ae48f3006436fc66f74ee555d8fe27d115a258e"
+     },
+     {
+      "path": "clients/mobile/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6f699d543237e6956321c5cd206e4e8056622ad5",
+      "size": 625,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/6f699d543237e6956321c5cd206e4e8056622ad5"
+     },
+     {
+      "path": "clients/mobile/ROADMAP.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e54b7e03b11019d09ade8b7795d966608a772236",
+      "size": 11285,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/e54b7e03b11019d09ade8b7795d966608a772236"
+     },
+     {
+      "path": "clients/web",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d78efa2caf8e4afccc4a45bfa38c717e3124ebd2",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/d78efa2caf8e4afccc4a45bfa38c717e3124ebd2"
+     },
+     {
+      "path": "clients/web/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07e65f1d3c3ea3922e785998cbf0f3b4bed8577b",
+      "size": 213,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07e65f1d3c3ea3922e785998cbf0f3b4bed8577b"
+     },
+     {
+      "path": "clients/web/CHANGELOG.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "be488edc1d0af66b4cf1ece861cb1822c42f2e02",
+      "size": 2347,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/be488edc1d0af66b4cf1ece861cb1822c42f2e02"
+     },
+     {
+      "path": "clients/web/CLAUDE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7f12d6fa634e2a2bd0f06e2b3196342948dba891",
+      "size": 6964,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7f12d6fa634e2a2bd0f06e2b3196342948dba891"
+     },
+     {
+      "path": "clients/web/DESIGN.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9c67004659e4c43475e785d5e9056d2d725034f7",
+      "size": 46077,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/9c67004659e4c43475e785d5e9056d2d725034f7"
+     },
+     {
+      "path": "clients/web/LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "be3f7b28e564e7dd05eaf59d64adba1a4065ac0e",
+      "size": 34523,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/be3f7b28e564e7dd05eaf59d64adba1a4065ac0e"
+     },
+     {
+      "path": "clients/web/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8df97de7045ebb9053d5dad3057d6a0187c2c9ab",
+      "size": 5204,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/8df97de7045ebb9053d5dad3057d6a0187c2c9ab"
+     },
+     {
+      "path": "clients/web/ROADMAP.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "866571489630db3b7672c7dc7733f595419bdc08",
+      "size": 12621,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/866571489630db3b7672c7dc7733f595419bdc08"
+     },
+     {
+      "path": "clients/web/app",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c148695e712e24bd1fc30110597fa94cda4419df",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/c148695e712e24bd1fc30110597fa94cda4419df"
+     },
+     {
+      "path": "clients/web/app/account",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f5d5f781574f8001cc6d47b4f64a0b23f2bda23c",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/f5d5f781574f8001cc6d47b4f64a0b23f2bda23c"
+     },
+     {
+      "path": "clients/web/app/account/security",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a41b02a29d8e424bc8ca8251fd55093c4477d326",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/a41b02a29d8e424bc8ca8251fd55093c4477d326"
+     },
+     {
+      "path": "clients/web/app/account/security/page.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "99c21e270a4a58fc4328a5c27d979a841dab7c2d",
+      "size": 1311,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/99c21e270a4a58fc4328a5c27d979a841dab7c2d"
+     },
+     {
+      "path": "clients/web/app/api",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5c68a673ca8ce8459d328da89869fb355017073d",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/5c68a673ca8ce8459d328da89869fb355017073d"
+     },
+     {
+      "path": "clients/web/app/api/auth",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8de017e749821391ddb54039a463367bc358371e",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/8de017e749821391ddb54039a463367bc358371e"
+     },
+     {
+      "path": "clients/web/app/api/auth/[...all]",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2b47394f2d226527b3b4d5ffc4be54903a148310",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/2b47394f2d226527b3b4d5ffc4be54903a148310"
+     },
+     {
+      "path": "clients/web/app/api/auth/[...all]/route.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07f4798a8800aacb109b830f43a0719c821a0ca3",
+      "size": 700,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07f4798a8800aacb109b830f43a0719c821a0ca3"
+     },
+     {
+      "path": "clients/web/app/api/health",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6775ec137d058103089e0e94c26058f8f4c25541",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/6775ec137d058103089e0e94c26058f8f4c25541"
+     },
+     {
+      "path": "clients/web/app/api/health/route.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8f539ed797f898b93d05a3115e687a2af94f98e2",
+      "size": 1026,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/8f539ed797f898b93d05a3115e687a2af94f98e2"
+     },
+     {
+      "path": "clients/web/app/forgot-password",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "097fc5a585ca56d19594bd3cb84c5e95d90eac5f",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/097fc5a585ca56d19594bd3cb84c5e95d90eac5f"
+     },
+     {
+      "path": "clients/web/app/forgot-password/page.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6df1ef44f1f627335a6d8da4dbe466f9cdbf1c60",
+      "size": 833,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/6df1ef44f1f627335a6d8da4dbe466f9cdbf1c60"
+     },
+     {
+      "path": "clients/web/app/globals.css",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "64f124c46f953e857532d85bdd9458010e4f75bc",
+      "size": 867,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/64f124c46f953e857532d85bdd9458010e4f75bc"
+     },
+     {
+      "path": "clients/web/app/home",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ff102af2f3b311b1458d6a3642e891df2be45be3",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/ff102af2f3b311b1458d6a3642e891df2be45be3"
+     },
+     {
+      "path": "clients/web/app/home/page.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cb0439423978351424d2a6f9dce7aab489ba19da",
+      "size": 1318,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/cb0439423978351424d2a6f9dce7aab489ba19da"
+     },
+     {
+      "path": "clients/web/app/icon.svg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e2da6b7fc706b11c2ef6ef42afcbea32ea7210b7",
+      "size": 222,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/e2da6b7fc706b11c2ef6ef42afcbea32ea7210b7"
+     },
+     {
+      "path": "clients/web/app/layout.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f78329b76fc9deae3375808a0dc51cac626c35b8",
+      "size": 961,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/f78329b76fc9deae3375808a0dc51cac626c35b8"
+     },
+     {
+      "path": "clients/web/app/not-found.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "78efe72f87c44535bdc8d557426f4e14fc72cc1d",
+      "size": 281,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/78efe72f87c44535bdc8d557426f4e14fc72cc1d"
+     },
+     {
+      "path": "clients/web/app/page.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c413764e783698215e4c35aeaadd07ba7da3d1dd",
+      "size": 108,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c413764e783698215e4c35aeaadd07ba7da3d1dd"
+     },
+     {
+      "path": "clients/web/app/reset-password",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5a8745dcd3cbf79ff40cedbc94e89984432d78b7",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/5a8745dcd3cbf79ff40cedbc94e89984432d78b7"
+     },
+     {
+      "path": "clients/web/app/reset-password/page.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ee3f2d709eaa1eead2ff981129283fdc52b6d0ed",
+      "size": 1147,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ee3f2d709eaa1eead2ff981129283fdc52b6d0ed"
+     },
+     {
+      "path": "clients/web/app/sign-in",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7965a0d4a9943be90593024c3f8a694f771a9b99",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/7965a0d4a9943be90593024c3f8a694f771a9b99"
+     },
+     {
+      "path": "clients/web/app/sign-in/page.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a89b6f1f1d4072c48e6acb3a7e4610729ed9a33c",
+      "size": 1122,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a89b6f1f1d4072c48e6acb3a7e4610729ed9a33c"
+     },
+     {
+      "path": "clients/web/app/sign-in/two-factor",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "487672da0274faa0443708c7c469033aeb39f136",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/487672da0274faa0443708c7c469033aeb39f136"
+     },
+     {
+      "path": "clients/web/app/sign-in/two-factor/page.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6da09e96a5f76f557611fc5233d7ff1d2151e31a",
+      "size": 707,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/6da09e96a5f76f557611fc5233d7ff1d2151e31a"
+     },
+     {
+      "path": "clients/web/app/sign-up",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "636f6a7690dd5ef70b8344234ead12efe0d4699d",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/636f6a7690dd5ef70b8344234ead12efe0d4699d"
+     },
+     {
+      "path": "clients/web/app/sign-up/page.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ab32d74e8f6875ccc18521ed89b47432d35d8c2a",
+      "size": 1150,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ab32d74e8f6875ccc18521ed89b47432d35d8c2a"
+     },
+     {
+      "path": "clients/web/drizzle.auth.postgres.config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "471e76c7960fad2053638afffacfe1d3cec71b6d",
+      "size": 187,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/471e76c7960fad2053638afffacfe1d3cec71b6d"
+     },
+     {
+      "path": "clients/web/drizzle.auth.sqlite.config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bfa27305b3f551f036a761b7cd5169d8f6c8fbec",
+      "size": 356,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/bfa27305b3f551f036a761b7cd5169d8f6c8fbec"
+     },
+     {
+      "path": "clients/web/drizzle.postgres.config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "187ab1a37251a14a734c140536c1d300d510adac",
+      "size": 181,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/187ab1a37251a14a734c140536c1d300d510adac"
+     },
+     {
+      "path": "clients/web/drizzle.sqlite.config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f51fbd514f1b7f7fdf62281b87a26897b1b83ba4",
+      "size": 339,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/f51fbd514f1b7f7fdf62281b87a26897b1b83ba4"
+     },
+     {
+      "path": "clients/web/e2e",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6544e8c7f145cc793d0cd037038b00779b1d60bb",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/6544e8c7f145cc793d0cd037038b00779b1d60bb"
+     },
+     {
+      "path": "clients/web/e2e/account.open.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "111b1d024a6932197d8b015e6dbace792d9b1a08",
+      "size": 6641,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/111b1d024a6932197d8b015e6dbace792d9b1a08"
+     },
+     {
+      "path": "clients/web/e2e/helpers.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0cf495d573d5dfc9a625c017b28a279179ad8693",
+      "size": 2766,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/0cf495d573d5dfc9a625c017b28a279179ad8693"
+     },
+     {
+      "path": "clients/web/e2e/off.off.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5d775efa0b5c6c5c5e24cc7aeb40f3babb182c57",
+      "size": 1285,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/5d775efa0b5c6c5c5e24cc7aeb40f3babb182c57"
+     },
+     {
+      "path": "clients/web/e2e/passkeys.open.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2aa587a19503d12e286674b2af10d741c43b614b",
+      "size": 2800,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/2aa587a19503d12e286674b2af10d741c43b614b"
+     },
+     {
+      "path": "clients/web/e2e/signup.closed.spec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1790b77ef4eb5d9c504600c789cfb6e9a0e5a794",
+      "size": 945,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/1790b77ef4eb5d9c504600c789cfb6e9a0e5a794"
+     },
+     {
+      "path": "clients/web/instrumentation.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7d268f334db1602c309ced270409cd1c806e7d57",
+      "size": 947,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7d268f334db1602c309ced270409cd1c806e7d57"
+     },
+     {
+      "path": "clients/web/migrations",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "89d6edb6ba9cf20d3c4ee2a21f43c1f1f13d04ca",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/89d6edb6ba9cf20d3c4ee2a21f43c1f1f13d04ca"
+     },
+     {
+      "path": "clients/web/migrations/auth",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c0c39706a46dedff417779d13f75d1cca6b0131d",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/c0c39706a46dedff417779d13f75d1cca6b0131d"
+     },
+     {
+      "path": "clients/web/migrations/auth/postgres",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b0c26bbfbce4070cad2d20500e6bf80ad0e312c1",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/b0c26bbfbce4070cad2d20500e6bf80ad0e312c1"
+     },
+     {
+      "path": "clients/web/migrations/auth/postgres/0000_auth_tables.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "853fc0010a78d25911cddc249425bffeed02b87d",
+      "size": 4140,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/853fc0010a78d25911cddc249425bffeed02b87d"
+     },
+     {
+      "path": "clients/web/migrations/auth/postgres/meta",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "200be17b7d877185e62a001cbbcb29140d222ee2",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/200be17b7d877185e62a001cbbcb29140d222ee2"
+     },
+     {
+      "path": "clients/web/migrations/auth/postgres/meta/0000_snapshot.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "152f3e2cbeb2041adf7ee742187a9947d0836fa4",
+      "size": 16327,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/152f3e2cbeb2041adf7ee742187a9947d0836fa4"
+     },
+     {
+      "path": "clients/web/migrations/auth/postgres/meta/_journal.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f25b6e9d0172b27079999f7468b6aa44d2414131",
+      "size": 205,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/f25b6e9d0172b27079999f7468b6aa44d2414131"
+     },
+     {
+      "path": "clients/web/migrations/auth/sqlite",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4872dcff15f67c7bdf86488ba38e1c830ec4405f",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/4872dcff15f67c7bdf86488ba38e1c830ec4405f"
+     },
+     {
+      "path": "clients/web/migrations/auth/sqlite/0000_auth_tables.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "95866b060f9dc56d917f0247394638caa7224598",
+      "size": 3235,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/95866b060f9dc56d917f0247394638caa7224598"
+     },
+     {
+      "path": "clients/web/migrations/auth/sqlite/meta",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "72f34670f7a1491225e621dfdf17daaf564a1d83",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/72f34670f7a1491225e621dfdf17daaf564a1d83"
+     },
+     {
+      "path": "clients/web/migrations/auth/sqlite/meta/0000_snapshot.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3c4d1c68709e0ea58dba019a0248523fd810140c",
+      "size": 15578,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/3c4d1c68709e0ea58dba019a0248523fd810140c"
+     },
+     {
+      "path": "clients/web/migrations/auth/sqlite/meta/_journal.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "35432f66922d9a1cf765e65dc53a8710ed46cd95",
+      "size": 201,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/35432f66922d9a1cf765e65dc53a8710ed46cd95"
+     },
+     {
+      "path": "clients/web/migrations/postgres",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c084ef7097371445d2f2996b0539a6624930946d",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/c084ef7097371445d2f2996b0539a6624930946d"
+     },
+     {
+      "path": "clients/web/migrations/postgres/0000_event.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e36bc013c9d3fffd6c2384d1018115470f0a7ad4",
+      "size": 438,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/e36bc013c9d3fffd6c2384d1018115470f0a7ad4"
+     },
+     {
+      "path": "clients/web/migrations/postgres/meta",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2db713355dc1e5e218e5ff37c7534d2f7e0559df",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/2db713355dc1e5e218e5ff37c7534d2f7e0559df"
+     },
+     {
+      "path": "clients/web/migrations/postgres/meta/0000_snapshot.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3d470ec302830c3e90fed0067a042d4fa3ad3244",
+      "size": 1952,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/3d470ec302830c3e90fed0067a042d4fa3ad3244"
+     },
+     {
+      "path": "clients/web/migrations/postgres/meta/_journal.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "23a77b3341e0864d08c24913807dfcb3b40a78c8",
+      "size": 199,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/23a77b3341e0864d08c24913807dfcb3b40a78c8"
+     },
+     {
+      "path": "clients/web/migrations/sqlite",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "33495233205967bda27807b3818089f558895262",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/33495233205967bda27807b3818089f558895262"
+     },
+     {
+      "path": "clients/web/migrations/sqlite/0000_event.sql",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5877b4f990b27bbe6daf44c9dd5e9c0213cb0b9a",
+      "size": 243,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/5877b4f990b27bbe6daf44c9dd5e9c0213cb0b9a"
+     },
+     {
+      "path": "clients/web/migrations/sqlite/meta",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1774934cf41a6e744794a95f834f99db358190fe",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/1774934cf41a6e744794a95f834f99db358190fe"
+     },
+     {
+      "path": "clients/web/migrations/sqlite/meta/0000_snapshot.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f6406734fe1c81db9cf54d9b5708a8ac73628d13",
+      "size": 1403,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/f6406734fe1c81db9cf54d9b5708a8ac73628d13"
+     },
+     {
+      "path": "clients/web/migrations/sqlite/meta/_journal.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c87daae9497da67a8e1ea5c37b3aeb27bc73a5f0",
+      "size": 195,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c87daae9497da67a8e1ea5c37b3aeb27bc73a5f0"
+     },
+     {
+      "path": "clients/web/next.config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a2b24275110b2889369419bfbf33d578af660470",
+      "size": 522,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a2b24275110b2889369419bfbf33d578af660470"
+     },
+     {
+      "path": "clients/web/package.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "12a48c11705d44d7166b5cb100cfa01c6bbd5eb1",
+      "size": 1390,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/12a48c11705d44d7166b5cb100cfa01c6bbd5eb1"
+     },
+     {
+      "path": "clients/web/playwright.config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3679b524b8f9e926a6a33958f8f92fc2e5baf3ef",
+      "size": 2641,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/3679b524b8f9e926a6a33958f8f92fc2e5baf3ef"
+     },
+     {
+      "path": "clients/web/pnpm-lock.yaml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "12f2217de61c971af0edc47620e73788c168fc69",
+      "size": 108183,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/12f2217de61c971af0edc47620e73788c168fc69"
+     },
+     {
+      "path": "clients/web/pnpm-workspace.yaml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "636faa0bfef161f87739fa5e96e18b77be428956",
+      "size": 497,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/636faa0bfef161f87739fa5e96e18b77be428956"
+     },
+     {
+      "path": "clients/web/proxy.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b5bf044805bd7c2e01cc5b8e28be885c23d93102",
+      "size": 923,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/b5bf044805bd7c2e01cc5b8e28be885c23d93102"
+     },
+     {
+      "path": "clients/web/scripts",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6162039faed41f57ebdd5ac27320a2c52d07c7c7",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/6162039faed41f57ebdd5ac27320a2c52d07c7c7"
+     },
+     {
+      "path": "clients/web/scripts/boot-check.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6217075bc4b5c9afa20d6373d2cb0d170f08ca91",
+      "size": 2385,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/6217075bc4b5c9afa20d6373d2cb0d170f08ca91"
+     },
+     {
+      "path": "clients/web/scripts/db-generate.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3aaba91f5a544a63acab19e99446ad1c78fd8df7",
+      "size": 1206,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/3aaba91f5a544a63acab19e99446ad1c78fd8df7"
+     },
+     {
+      "path": "clients/web/scripts/dev-db.mjs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d0e423be1363bbe640d1a68f4be39d53cf869a3e",
+      "size": 4092,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d0e423be1363bbe640d1a68f4be39d53cf869a3e"
+     },
+     {
+      "path": "clients/web/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8d719d31fd3bb5ffe7ec85c457c2addc9be035cd",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/8d719d31fd3bb5ffe7ec85c457c2addc9be035cd"
+     },
+     {
+      "path": "clients/web/src/auth",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5157855a6ebb24ff1c76c1439758e1238d5437db",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/5157855a6ebb24ff1c76c1439758e1238d5437db"
+     },
+     {
+      "path": "clients/web/src/auth/auth.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cbc0ee2e4ec3243862622b973c4e44e234197c80",
+      "size": 24998,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/cbc0ee2e4ec3243862622b973c4e44e234197c80"
+     },
+     {
+      "path": "clients/web/src/auth/auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "53c9c9e2d60e51873febd7b5613648ea49ae61ab",
+      "size": 4650,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/53c9c9e2d60e51873febd7b5613648ea49ae61ab"
+     },
+     {
+      "path": "clients/web/src/auth/client.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "338800e83fcdb34c3eaa459a621ede9af0a9b60b",
+      "size": 671,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/338800e83fcdb34c3eaa459a621ede9af0a9b60b"
+     },
+     {
+      "path": "clients/web/src/auth/config.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "edfe54bf857bd8e2f6a86a0d5ad398f8543822bd",
+      "size": 6816,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/edfe54bf857bd8e2f6a86a0d5ad398f8543822bd"
+     },
+     {
+      "path": "clients/web/src/auth/config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b554d11d3fa1e3b0d96bbad27e447d8a9dd11aa3",
+      "size": 7599,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/b554d11d3fa1e3b0d96bbad27e447d8a9dd11aa3"
+     },
+     {
+      "path": "clients/web/src/auth/messages.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cfbd429846778ca20265dbfdbfe3d7c86b543194",
+      "size": 1699,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/cfbd429846778ca20265dbfdbfe3d7c86b543194"
+     },
+     {
+      "path": "clients/web/src/auth/messages.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25879cb5145727f8880a9a1f96c0abb97e1616f4",
+      "size": 2247,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25879cb5145727f8880a9a1f96c0abb97e1616f4"
+     },
+     {
+      "path": "clients/web/src/auth/screens",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "96f6c290f37ff1bd0e629e1e868faf7c9f319f5b",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/96f6c290f37ff1bd0e629e1e868faf7c9f319f5b"
+     },
+     {
+      "path": "clients/web/src/auth/screens/AccountHeader.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3fc27327c3f4f1d68c402a25482c59ef29a254c7",
+      "size": 633,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/3fc27327c3f4f1d68c402a25482c59ef29a254c7"
+     },
+     {
+      "path": "clients/web/src/auth/screens/AuthShell.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f9cefcd5de0ed80c45a5f98347414fbe2ef7f09f",
+      "size": 759,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/f9cefcd5de0ed80c45a5f98347414fbe2ef7f09f"
+     },
+     {
+      "path": "clients/web/src/auth/screens/ResetForms.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7fb87e224730ad973ad8d22ffb092545c9be6cac",
+      "size": 3085,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7fb87e224730ad973ad8d22ffb092545c9be6cac"
+     },
+     {
+      "path": "clients/web/src/auth/screens/SignInForm.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "15ee2a03238b67a16d324d5ddd2e0454d2c2c0af",
+      "size": 3312,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/15ee2a03238b67a16d324d5ddd2e0454d2c2c0af"
+     },
+     {
+      "path": "clients/web/src/auth/screens/SignOutButton.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0711ff77c5713bdba4ca28d28b7ef6f7799a5062",
+      "size": 448,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/0711ff77c5713bdba4ca28d28b7ef6f7799a5062"
+     },
+     {
+      "path": "clients/web/src/auth/screens/SignUpForm.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "49710c670265197b1b3e5360231fb27b950af544",
+      "size": 2602,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/49710c670265197b1b3e5360231fb27b950af544"
+     },
+     {
+      "path": "clients/web/src/auth/screens/TwoFactorForm.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a38423c2e4099c0f639b4933c6d4591d7ba8299b",
+      "size": 2455,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a38423c2e4099c0f639b4933c6d4591d7ba8299b"
+     },
+     {
+      "path": "clients/web/src/auth/screens/screens.module.css",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "17db58d6c1a5cf04552058acf9fc15b2679d3bbb",
+      "size": 4124,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/17db58d6c1a5cf04552058acf9fc15b2679d3bbb"
+     },
+     {
+      "path": "clients/web/src/auth/screens/security",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "272c2204c80e325730aeea69264043ffb8b0925d",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/272c2204c80e325730aeea69264043ffb8b0925d"
+     },
+     {
+      "path": "clients/web/src/auth/screens/security/PasskeysSection.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "30ae7f3db6e45760a9b0c7b2476dacd3cae3349a",
+      "size": 3383,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/30ae7f3db6e45760a9b0c7b2476dacd3cae3349a"
+     },
+     {
+      "path": "clients/web/src/auth/screens/security/PasswordSection.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "38a0068293df7af5bbdd1b9b9c4fcb2a7623afbc",
+      "size": 2477,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/38a0068293df7af5bbdd1b9b9c4fcb2a7623afbc"
+     },
+     {
+      "path": "clients/web/src/auth/screens/security/TwoFactorSection.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aa037c9f014ac57b2e00a1b562428fcba945e327",
+      "size": 7450,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/aa037c9f014ac57b2e00a1b562428fcba945e327"
+     },
+     {
+      "path": "clients/web/src/auth/server.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5ebf1a3fc97545ee057c4bd926d1b0ee6a43ee66",
+      "size": 2827,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/5ebf1a3fc97545ee057c4bd926d1b0ee6a43ee66"
+     },
+     {
+      "path": "clients/web/src/auth/test-support.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c61c173eec8b1e1cba4b756e730b4124fa3b3bc3",
+      "size": 632,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c61c173eec8b1e1cba4b756e730b4124fa3b3bc3"
+     },
+     {
+      "path": "clients/web/src/auth/test-support.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1dce17a3d2b3fa57445da8c4212b49f97d428740",
+      "size": 4535,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/1dce17a3d2b3fa57445da8c4212b49f97d428740"
+     },
+     {
+      "path": "clients/web/src/auth/totp.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8a18fc36512e6680325e8452006aaa729528c07e",
+      "size": 1492,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/8a18fc36512e6680325e8452006aaa729528c07e"
+     },
+     {
+      "path": "clients/web/src/auth/users.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e7349c290d9ddc36b680b3873721560f8c2d99cd",
+      "size": 609,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/e7349c290d9ddc36b680b3873721560f8c2d99cd"
+     },
+     {
+      "path": "clients/web/src/db",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e66a8178570d0d853eed054ee25a34f3b93819a4",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/e66a8178570d0d853eed054ee25a34f3b93819a4"
+     },
+     {
+      "path": "clients/web/src/db/boot.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e3b5d29c8ff92973f817a14d2db7ec6358b088af",
+      "size": 3346,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/e3b5d29c8ff92973f817a14d2db7ec6358b088af"
+     },
+     {
+      "path": "clients/web/src/db/boot.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "579863f91a859647b6631d2c6c41f723e9b6999f",
+      "size": 2388,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/579863f91a859647b6631d2c6c41f723e9b6999f"
+     },
+     {
+      "path": "clients/web/src/db/client.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "64e92fb2a0c0e392ec99aae03cd189b9070d2912",
+      "size": 5084,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/64e92fb2a0c0e392ec99aae03cd189b9070d2912"
+     },
+     {
+      "path": "clients/web/src/db/config.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e6b6227d6506c6e690022640a4955fc79547ceb",
+      "size": 4314,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7e6b6227d6506c6e690022640a4955fc79547ceb"
+     },
+     {
+      "path": "clients/web/src/db/config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2dc0f2fa5efeff1323522a76056850e21a9349a0",
+      "size": 5854,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/2dc0f2fa5efeff1323522a76056850e21a9349a0"
+     },
+     {
+      "path": "clients/web/src/db/events.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "52049a1d21ca1751ddf3c9a5ce9c0f018f3a93bf",
+      "size": 4001,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/52049a1d21ca1751ddf3c9a5ce9c0f018f3a93bf"
+     },
+     {
+      "path": "clients/web/src/db/events.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d23119caa137258e47787ae7a7c0b06d7bd2eed8",
+      "size": 2911,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d23119caa137258e47787ae7a7c0b06d7bd2eed8"
+     },
+     {
+      "path": "clients/web/src/db/exec.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cf7d899a79c93f07b9eaa1703b466040ac0bc0f8",
+      "size": 3735,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/cf7d899a79c93f07b9eaa1703b466040ac0bc0f8"
+     },
+     {
+      "path": "clients/web/src/db/exec.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "00eec99532e0d649f0daaf9ed1e99475fd813391",
+      "size": 1909,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/00eec99532e0d649f0daaf9ed1e99475fd813391"
+     },
+     {
+      "path": "clients/web/src/db/images.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4cda573e6fa26c1e7f3b9875b43fbd20d5756bd1",
+      "size": 975,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/4cda573e6fa26c1e7f3b9875b43fbd20d5756bd1"
+     },
+     {
+      "path": "clients/web/src/db/migrate.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "93b9ba668d3d9acbb2ced8239f053fb0ecd8e3da",
+      "size": 5050,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/93b9ba668d3d9acbb2ced8239f053fb0ecd8e3da"
+     },
+     {
+      "path": "clients/web/src/db/migrate.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fe9bfc8b26ae6558ffed2e733b4628bf045d6d98",
+      "size": 3314,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/fe9bfc8b26ae6558ffed2e733b4628bf045d6d98"
+     },
+     {
+      "path": "clients/web/src/db/provision.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a910e866f22ef7ceaacc88f756e15a66e4da5a12",
+      "size": 3374,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a910e866f22ef7ceaacc88f756e15a66e4da5a12"
+     },
+     {
+      "path": "clients/web/src/db/provision.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "251743683f81b0bdb8f5b30fad1b8c064a826a34",
+      "size": 2032,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/251743683f81b0bdb8f5b30fad1b8c064a826a34"
+     },
+     {
+      "path": "clients/web/src/db/retry.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bb7512537e8f7b9ab0f43a8abd50c452de56c600",
+      "size": 713,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/bb7512537e8f7b9ab0f43a8abd50c452de56c600"
+     },
+     {
+      "path": "clients/web/src/db/retry.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d754bf466d49af882629d9526630ecd8cc008268",
+      "size": 801,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d754bf466d49af882629d9526630ecd8cc008268"
+     },
+     {
+      "path": "clients/web/src/db/schema-parity.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ab968bb706f3d5c7baecf4306d286c0c6ded1491",
+      "size": 5521,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ab968bb706f3d5c7baecf4306d286c0c6ded1491"
+     },
+     {
+      "path": "clients/web/src/db/schema",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1d9dd63a24e799bb71b733e7749782ea8372bfc7",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/1d9dd63a24e799bb71b733e7749782ea8372bfc7"
+     },
+     {
+      "path": "clients/web/src/db/schema/postgres",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0777131065cc44d16c5a3724eaaefd70fe7ccb4a",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/0777131065cc44d16c5a3724eaaefd70fe7ccb4a"
+     },
+     {
+      "path": "clients/web/src/db/schema/postgres/app.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bc369e086d3aed581ba42c828a310dce0ebace28",
+      "size": 605,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/bc369e086d3aed581ba42c828a310dce0ebace28"
+     },
+     {
+      "path": "clients/web/src/db/schema/postgres/auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b436335d2f3fde1923897a064bf2541a131a3fb8",
+      "size": 4126,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/b436335d2f3fde1923897a064bf2541a131a3fb8"
+     },
+     {
+      "path": "clients/web/src/db/schema/postgres/columns.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c7445e57af0355c53c9b11585d78d560b6cb1000",
+      "size": 494,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c7445e57af0355c53c9b11585d78d560b6cb1000"
+     },
+     {
+      "path": "clients/web/src/db/schema/postgres/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ac5307def9e064736c64dd6cfc509967ed6e249f",
+      "size": 23,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ac5307def9e064736c64dd6cfc509967ed6e249f"
+     },
+     {
+      "path": "clients/web/src/db/schema/sqlite",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "3fb0744037442d262552da43d81556b156033e16",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/3fb0744037442d262552da43d81556b156033e16"
+     },
+     {
+      "path": "clients/web/src/db/schema/sqlite/app.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9b26966782f759ddfd57365491fb975c8c1b9dcf",
+      "size": 733,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/9b26966782f759ddfd57365491fb975c8c1b9dcf"
+     },
+     {
+      "path": "clients/web/src/db/schema/sqlite/auth.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2074f0f9c8f159214848465a18e9548f8d8367be",
+      "size": 4574,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/2074f0f9c8f159214848465a18e9548f8d8367be"
+     },
+     {
+      "path": "clients/web/src/db/schema/sqlite/columns.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "426f8a2f5f896bbb32531589a0637822ea522b2d",
+      "size": 707,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/426f8a2f5f896bbb32531589a0637822ea522b2d"
+     },
+     {
+      "path": "clients/web/src/db/schema/sqlite/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ac5307def9e064736c64dd6cfc509967ed6e249f",
+      "size": 23,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ac5307def9e064736c64dd6cfc509967ed6e249f"
+     },
+     {
+      "path": "clients/web/src/db/sqld.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a6d740305c81e559f3a86ecd5bb6f70a606bfa74",
+      "size": 1712,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a6d740305c81e559f3a86ecd5bb6f70a606bfa74"
+     },
+     {
+      "path": "clients/web/src/db/test-support.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0f9f853eb51c32a166e456e68d827f285a76e95e",
+      "size": 4452,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/0f9f853eb51c32a166e456e68d827f285a76e95e"
+     },
+     {
+      "path": "clients/web/src/landing",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "56d1dc8fa86506064703e94248de06b9c595e2f4",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/56d1dc8fa86506064703e94248de06b9c595e2f4"
+     },
+     {
+      "path": "clients/web/src/landing/Landing.test.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0e3d4c52e97862e3a8af7be932901a2ef7fb7d62",
+      "size": 3200,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/0e3d4c52e97862e3a8af7be932901a2ef7fb7d62"
+     },
+     {
+      "path": "clients/web/src/landing/Landing.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "eaa4efb0db284b15b344cc6bc2b222d6401a157a",
+      "size": 7553,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/eaa4efb0db284b15b344cc6bc2b222d6401a157a"
+     },
+     {
+      "path": "clients/web/src/landing/content.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "82344d491e3274384a63781ae718536033ad5310",
+      "size": 1603,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/82344d491e3274384a63781ae718536033ad5310"
+     },
+     {
+      "path": "clients/web/src/landing/content.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0adcd6632c62b1a912aec82ecd96778ed75670d5",
+      "size": 5037,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/0adcd6632c62b1a912aec82ecd96778ed75670d5"
+     },
+     {
+      "path": "clients/web/src/landing/landing.module.css",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "00d02c96df0edb3dde605f83bc1713ed9bb784fc",
+      "size": 7333,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/00d02c96df0edb3dde605f83bc1713ed9bb784fc"
+     },
+     {
+      "path": "clients/web/src/mail",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f701abbb6bd7831b719eda2952e529d01e36969a",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/f701abbb6bd7831b719eda2952e529d01e36969a"
+     },
+     {
+      "path": "clients/web/src/mail/mailer.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a9beb92abd87dce5b2c5162ab3adb8d002b88269",
+      "size": 1626,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a9beb92abd87dce5b2c5162ab3adb8d002b88269"
+     },
+     {
+      "path": "clients/web/src/mail/templates.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c12de96e94e991165272b26957dd9a7eb722d7bb",
+      "size": 2113,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c12de96e94e991165272b26957dd9a7eb722d7bb"
+     },
+     {
+      "path": "clients/web/src/mail/templates.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4592f7d123d5ab33730a411f62051cbc3a906d61",
+      "size": 1983,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/4592f7d123d5ab33730a411f62051cbc3a906d61"
+     },
+     {
+      "path": "clients/web/src/site.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e379d6e7b32711e24de8d28d78333d9cb16a46a8",
+      "size": 725,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/e379d6e7b32711e24de8d28d78333d9cb16a46a8"
+     },
+     {
+      "path": "clients/web/src/site.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea9dee7c77ded33fcabc2c48ea88b755feaf9e88",
+      "size": 829,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ea9dee7c77ded33fcabc2c48ea88b755feaf9e88"
+     },
+     {
+      "path": "clients/web/src/theme",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a4e7c748861b341c49bcf7011da5c4473a0de8eb",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/a4e7c748861b341c49bcf7011da5c4473a0de8eb"
+     },
+     {
+      "path": "clients/web/src/theme/script.test.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a587de6d6c3322e52f33ace9f40f66b1ccfe4188",
+      "size": 1498,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a587de6d6c3322e52f33ace9f40f66b1ccfe4188"
+     },
+     {
+      "path": "clients/web/src/theme/script.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f7e207efe947ecec4d4afcd5b1947c549c9c449c",
+      "size": 1022,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/f7e207efe947ecec4d4afcd5b1947c549c9c449c"
+     },
+     {
+      "path": "clients/web/src/ui",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7fc978ef54fadb36edc9d7cb320185cf043e059c",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/7fc978ef54fadb36edc9d7cb320185cf043e059c"
+     },
+     {
+      "path": "clients/web/src/ui/LinkButton.module.css",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ebb26f1db5fae5d52870b73c4186ed90690cd7f6",
+      "size": 1310,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ebb26f1db5fae5d52870b73c4186ed90690cd7f6"
+     },
+     {
+      "path": "clients/web/src/ui/LinkButton.tsx",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "72680d62059fce6874b63c1aa0e6d895a07fb9ea",
+      "size": 920,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/72680d62059fce6874b63c1aa0e6d895a07fb9ea"
+     },
+     {
+      "path": "clients/web/src/ui/index.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aa706393db61153964d24901ee5b223c4cacd679",
+      "size": 657,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/aa706393db61153964d24901ee5b223c4cacd679"
+     },
+     {
+      "path": "clients/web/tsconfig.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "71ed3baec73140c46d9f49e488dc52d374ebcd28",
+      "size": 596,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/71ed3baec73140c46d9f49e488dc52d374ebcd28"
+     },
+     {
+      "path": "clients/web/vitest.config.ts",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "95d53b3359809f7d3f49392f92a9d98799fe0b3d",
+      "size": 668,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/95d53b3359809f7d3f49392f92a9d98799fe0b3d"
+     },
+     {
+      "path": "crates",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0068a4d03866a6812f3b02ba7151894a6991da0f",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/0068a4d03866a6812f3b02ba7151894a6991da0f"
+     },
+     {
+      "path": "crates/fjord-cli",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "82e0a6925a989dfa9807c0e176cc4043b3b1d251",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/82e0a6925a989dfa9807c0e176cc4043b3b1d251"
+     },
+     {
+      "path": "crates/fjord-cli/CHANGELOG.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "45bf4018591da8c662afd9d6ceb69f704026d277",
+      "size": 13842,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/45bf4018591da8c662afd9d6ceb69f704026d277"
+     },
+     {
+      "path": "crates/fjord-cli/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b2618a762de5e1aac6906c65004d7e76912ab5a0",
+      "size": 1001,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/b2618a762de5e1aac6906c65004d7e76912ab5a0"
+     },
+     {
+      "path": "crates/fjord-cli/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "43c06939dba427d484658dd85c87d4ce09557594",
+      "size": 37990,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/43c06939dba427d484658dd85c87d4ce09557594"
+     },
+     {
+      "path": "crates/fjord-cli/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "efd8b71eec88506da5794d19b9ead35f1d6285bf",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/efd8b71eec88506da5794d19b9ead35f1d6285bf"
+     },
+     {
+      "path": "crates/fjord-cli/src/cli.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7aa3c7bbe113c2a2a5df0c91249b706df25c20c7",
+      "size": 10600,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7aa3c7bbe113c2a2a5df0c91249b706df25c20c7"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "547c71a038d89befe35ddb4f8b76758c236a533d",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/547c71a038d89befe35ddb4f8b76758c236a533d"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/bulk.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "19c03ddf08f01fadf43836f9205cc5ce93699755",
+      "size": 17316,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/19c03ddf08f01fadf43836f9205cc5ce93699755"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/checkout.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "595027fb07babfa63c778600f1ecc4c2b8db1394",
+      "size": 36623,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/595027fb07babfa63c778600f1ecc4c2b8db1394"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/crypt.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "19682f248d4d42f84b4d10a148bdc5561061e1b0",
+      "size": 10811,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/19682f248d4d42f84b4d10a148bdc5561061e1b0"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/grep.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "010296156953adb4cfbd9e65fe0238566b7af955",
+      "size": 6267,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/010296156953adb4cfbd9e65fe0238566b7af955"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/guard.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "959459e5675e8f035233b29bb53bdbc85f5499c8",
+      "size": 5929,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/959459e5675e8f035233b29bb53bdbc85f5499c8"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/init.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0f0f0cf44296c4be8fd138401ebbc5ec857c6a65",
+      "size": 15225,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/0f0f0cf44296c4be8fd138401ebbc5ec857c6a65"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/keys.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "52d39e555486196f91e52715557aaf7e289e2fc0",
+      "size": 12705,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/52d39e555486196f91e52715557aaf7e289e2fc0"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/list.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d70401819396d41cd657fdcfa16c9aa6cfed6aa7",
+      "size": 13339,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d70401819396d41cd657fdcfa16c9aa6cfed6aa7"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/mod.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9cf4d030ea542992ef0d0c7d4af4a7a71776f38e",
+      "size": 14759,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/9cf4d030ea542992ef0d0c7d4af4a7a71776f38e"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/new.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "74c21b35b37d9ae04f4a7506368fbcbda3d49d04",
+      "size": 11006,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/74c21b35b37d9ae04f4a7506368fbcbda3d49d04"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/open.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ad9a4a13b3c6d0cd9aa0cdbd2902856e060e5a30",
+      "size": 22330,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ad9a4a13b3c6d0cd9aa0cdbd2902856e060e5a30"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/rekey.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "19b7cc4be4d91bc34d9d94167472ea27d3932bea",
+      "size": 12005,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/19b7cc4be4d91bc34d9d94167472ea27d3932bea"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/status.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5f0cb4e84c4d0ec074a1bfce6be3151fc768fc9a",
+      "size": 7190,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/5f0cb4e84c4d0ec074a1bfce6be3151fc768fc9a"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/sync.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bd1352475c3c76c455af72b11ee30c64b39dc8eb",
+      "size": 20457,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/bd1352475c3c76c455af72b11ee30c64b39dc8eb"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/vaults.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2cfc87d24eac11090cfab5f369bf4523e5c8b604",
+      "size": 10241,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/2cfc87d24eac11090cfab5f369bf4523e5c8b604"
+     },
+     {
+      "path": "crates/fjord-cli/src/cmd/verify.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8aaa5f619520a5e27069017ae282bd0d88fac99d",
+      "size": 13475,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/8aaa5f619520a5e27069017ae282bd0d88fac99d"
+     },
+     {
+      "path": "crates/fjord-cli/src/git.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7f954ee35923bf53b8b93257709a2277d990ec2f",
+      "size": 14824,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7f954ee35923bf53b8b93257709a2277d990ec2f"
+     },
+     {
+      "path": "crates/fjord-cli/src/main.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0caac442ddc499d8305ba6ce8743b839d41d3874",
+      "size": 2190,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/0caac442ddc499d8305ba6ce8743b839d41d3874"
+     },
+     {
+      "path": "crates/fjord-cli/tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "130642e073b7b7ef912d2e0e48e1c40fa591a65c",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/130642e073b7b7ef912d2e0e48e1c40fa591a65c"
+     },
+     {
+      "path": "crates/fjord-cli/tests/age_interop.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7654507b3573b781b379983d525d73e7d3e18c94",
+      "size": 14297,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7654507b3573b781b379983d525d73e7d3e18c94"
+     },
+     {
+      "path": "crates/fjord-cli/tests/bulk.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cd71c75ecf701fc1004fd100bebce5a1bfa3c6aa",
+      "size": 25541,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/cd71c75ecf701fc1004fd100bebce5a1bfa3c6aa"
+     },
+     {
+      "path": "crates/fjord-cli/tests/checkout.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8205db149d210a2bd6f6ff5f90f665abb56fa7fc",
+      "size": 27525,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/8205db149d210a2bd6f6ff5f90f665abb56fa7fc"
+     },
+     {
+      "path": "crates/fjord-cli/tests/cli.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6db4355a2460d2a7d3a7ee2919c946346d9e3dad",
+      "size": 10796,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/6db4355a2460d2a7d3a7ee2919c946346d9e3dad"
+     },
+     {
+      "path": "crates/fjord-cli/tests/everyday.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4d3c34e415fe209ba9f36a7ace70206adcbc4ce4",
+      "size": 21683,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/4d3c34e415fe209ba9f36a7ace70206adcbc4ce4"
+     },
+     {
+      "path": "crates/fjord-cli/tests/fix.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "46a3f887b235811011926d936b20fe7c6951b0df",
+      "size": 6380,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/46a3f887b235811011926d936b20fe7c6951b0df"
+     },
+     {
+      "path": "crates/fjord-cli/tests/golden",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "33207ac5e7c550557c8a17ff930f805a9af792d7",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/33207ac5e7c550557c8a17ff930f805a9af792d7"
+     },
+     {
+      "path": "crates/fjord-cli/tests/golden/E103.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2561a4d7ecbc6427929fa155d55188a25eb28d20",
+      "size": 382,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/2561a4d7ecbc6427929fa155d55188a25eb28d20"
+     },
+     {
+      "path": "crates/fjord-cli/tests/golden/E201.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "89108f307003019ce66b5d030091c5ab6278f78b",
+      "size": 319,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/89108f307003019ce66b5d030091c5ab6278f78b"
+     },
+     {
+      "path": "crates/fjord-cli/tests/golden/W601.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7ed4312a88de456843b60393612e5c0ef7d96bdc",
+      "size": 226,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7ed4312a88de456843b60393612e5c0ef7d96bdc"
+     },
+     {
+      "path": "crates/fjord-cli/tests/golden/conforming.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d78343c206014dedd96c3d87dc4851226e66d3bf",
+      "size": 185,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d78343c206014dedd96c3d87dc4851226e66d3bf"
+     },
+     {
+      "path": "crates/fjord-cli/tests/guard.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c2902c10a0629891999b3b9e1dfefefc33f34c60",
+      "size": 9397,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c2902c10a0629891999b3b9e1dfefefc33f34c60"
+     },
+     {
+      "path": "crates/fjord-cli/tests/id_naming.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d3e40a3912a7ca208ebb696a6085f5f0ef839ae9",
+      "size": 14593,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d3e40a3912a7ca208ebb696a6085f5f0ef839ae9"
+     },
+     {
+      "path": "crates/fjord-cli/tests/init.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "da3c820c081c1065576533c110b454ae2dd9dbac",
+      "size": 20068,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/da3c820c081c1065576533c110b454ae2dd9dbac"
+     },
+     {
+      "path": "crates/fjord-cli/tests/keys.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ee6d1bb617b022d8183e5230fbc349c2889e0ad3",
+      "size": 20535,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ee6d1bb617b022d8183e5230fbc349c2889e0ad3"
+     },
+     {
+      "path": "crates/fjord-cli/tests/open.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "82048b9641b316c9ff6d94a16505c5c1ae7cf76a",
+      "size": 20151,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/82048b9641b316c9ff6d94a16505c5c1ae7cf76a"
+     },
+     {
+      "path": "crates/fjord-cli/tests/rekey.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e03217da999704d745acac99edbb9937d3f07f49",
+      "size": 17219,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/e03217da999704d745acac99edbb9937d3f07f49"
+     },
+     {
+      "path": "crates/fjord-cli/tests/sync.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "572d5081b01ead3ec586aa3b2c6e51a1048a97fc",
+      "size": 21516,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/572d5081b01ead3ec586aa3b2c6e51a1048a97fc"
+     },
+     {
+      "path": "crates/fjord-cli/tests/vault_add.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9764e94ba1a16632ed7604f6bd818ea2b4740e9b",
+      "size": 25795,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/9764e94ba1a16632ed7604f6bd818ea2b4740e9b"
+     },
+     {
+      "path": "crates/fjord-core",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "32b54e0eb09f66df6c9c8b2b68a884616beb7726",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/32b54e0eb09f66df6c9c8b2b68a884616beb7726"
+     },
+     {
+      "path": "crates/fjord-core/Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d82379cafaccc748e474d8f00e4e5c2cb5b19fb4",
+      "size": 854,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d82379cafaccc748e474d8f00e4e5c2cb5b19fb4"
+     },
+     {
+      "path": "crates/fjord-core/src",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "55d915c01ece49c459100bc6e68715271e7dcc03",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/55d915c01ece49c459100bc6e68715271e7dcc03"
+     },
+     {
+      "path": "crates/fjord-core/src/conformance.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7ff28352e6df4f06bb931a1b6efdd14db56963e4",
+      "size": 3478,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7ff28352e6df4f06bb931a1b6efdd14db56963e4"
+     },
+     {
+      "path": "crates/fjord-core/src/container.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aa70a70f9f8e2e251b713900c275cda42308ed8c",
+      "size": 17345,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/aa70a70f9f8e2e251b713900c275cda42308ed8c"
+     },
+     {
+      "path": "crates/fjord-core/src/crypto.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "89ba3604ffc766bf653d7e4861f2d6c8b572efb1",
+      "size": 23925,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/89ba3604ffc766bf653d7e4861f2d6c8b572efb1"
+     },
+     {
+      "path": "crates/fjord-core/src/diagnostics.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "638632d3d0bca6ecb5040eb35a58a91ba1e682f6",
+      "size": 17937,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/638632d3d0bca6ecb5040eb35a58a91ba1e682f6"
+     },
+     {
+      "path": "crates/fjord-core/src/doc.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9256b988cdfe6e54a6e60bf73c128f85144642df",
+      "size": 21381,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/9256b988cdfe6e54a6e60bf73c128f85144642df"
+     },
+     {
+      "path": "crates/fjord-core/src/lib.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "84b2038222c2164d3259b126a96bf5387d619252",
+      "size": 2979,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/84b2038222c2164d3259b126a96bf5387d619252"
+     },
+     {
+      "path": "crates/fjord-core/src/manifest.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6c953cbb9d12623d797b7e08eed424cbd0fbac48",
+      "size": 18646,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/6c953cbb9d12623d797b7e08eed424cbd0fbac48"
+     },
+     {
+      "path": "crates/fjord-core/src/path.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ab4d1fcd2e3433a2190974839862e639749357b5",
+      "size": 9042,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ab4d1fcd2e3433a2190974839862e639749357b5"
+     },
+     {
+      "path": "crates/fjord-core/src/repair.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "23862cb19672d621538bde42c7a4e216c599ef44",
+      "size": 10049,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/23862cb19672d621538bde42c7a4e216c599ef44"
+     },
+     {
+      "path": "crates/fjord-core/src/scaffold.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "933e54a71402856d2b037337840ea63e2c1ff236",
+      "size": 20557,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/933e54a71402856d2b037337840ea63e2c1ff236"
+     },
+     {
+      "path": "crates/fjord-core/src/scalar.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "98dbce70cc4af283f05887f0f6895f5c32b952c5",
+      "size": 8337,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/98dbce70cc4af283f05887f0f6895f5c32b952c5"
+     },
+     {
+      "path": "crates/fjord-core/src/store.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9b40906688480a6f2cbd199d16a115d3fdc4f1c4",
+      "size": 9629,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/9b40906688480a6f2cbd199d16a115d3fdc4f1c4"
+     },
+     {
+      "path": "crates/fjord-core/src/vault.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d17d98380ddd18570c347e9f537f87cab03b7324",
+      "size": 16531,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d17d98380ddd18570c347e9f537f87cab03b7324"
+     },
+     {
+      "path": "crates/fjord-core/src/verify.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f579ad06e8da3d9d3b2b237ec2c9d340f5ec91d8",
+      "size": 38936,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/f579ad06e8da3d9d3b2b237ec2c9d340f5ec91d8"
+     },
+     {
+      "path": "crates/fjord-core/templates",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e95da28278e21f7f985eaaac2a415cca07fed553",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/e95da28278e21f7f985eaaac2a415cca07fed553"
+     },
+     {
+      "path": "crates/fjord-core/templates/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ef0f3aa01af69daeda1b04dc7e2baca7a22e8e1c",
+      "size": 15190,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ef0f3aa01af69daeda1b04dc7e2baca7a22e8e1c"
+     },
+     {
+      "path": "crates/fjord-core/templates/gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d071800d33910661a6eff7b05b26d0a41f3750af",
+      "size": 912,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d071800d33910661a6eff7b05b26d0a41f3750af"
+     },
+     {
+      "path": "crates/fjord-core/templates/gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "659327c872c269eb5df75b5d737c641a95742eda",
+      "size": 1093,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/659327c872c269eb5df75b5d737c641a95742eda"
+     },
+     {
+      "path": "crates/fjord-core/templates/recipients.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c94efa0a3c457858e6abb350b945e3c54b8ddd29",
+      "size": 769,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c94efa0a3c457858e6abb350b945e3c54b8ddd29"
+     },
+     {
+      "path": "crates/fjord-core/templates/vault.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4d05d7bb56033966568e6793adb5d687de9d6ccd",
+      "size": 635,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/4d05d7bb56033966568e6793adb5d687de9d6ccd"
+     },
+     {
+      "path": "crates/fjord-core/templates/welcome.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "721ea0dc311e0fe74d582c3b631a4cf76ebf81e1",
+      "size": 863,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/721ea0dc311e0fe74d582c3b631a4cf76ebf81e1"
+     },
+     {
+      "path": "crates/fjord-core/tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "59fa1f180e41268544d7089436be12a92e9ad228",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/59fa1f180e41268544d7089436be12a92e9ad228"
+     },
+     {
+      "path": "crates/fjord-core/tests/fixtures.rs",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "39ba2d36d55e75111fc9eb7d1559b917b2d5f30f",
+      "size": 19773,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/39ba2d36d55e75111fc9eb7d1559b917b2d5f30f"
+     },
+     {
+      "path": "deny.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bceb6a8f52b9586e5fbb068708c0e41b1c118ad4",
+      "size": 5040,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/bceb6a8f52b9586e5fbb068708c0e41b1c118ad4"
+     },
+     {
+      "path": "dist-workspace.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4ac439c88e48005ba20622c958a45379c429fe04",
+      "size": 2092,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/4ac439c88e48005ba20622c958a45379c429fe04"
+     },
+     {
+      "path": "schema",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d134f73885d342e2f3c6f55bfc23c2a3b3e77dc4",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/d134f73885d342e2f3c6f55bfc23c2a3b3e77dc4"
+     },
+     {
+      "path": "schema/verify.schema.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "edba8fa34e14df157ff2b31f634a461d370b06ca",
+      "size": 5196,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/edba8fa34e14df157ff2b31f634a461d370b06ca"
+     },
+     {
+      "path": "scripts",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2d1df2106821e9eded3d7392b16a12a2d25bb0d8",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/2d1df2106821e9eded3d7392b16a12a2d25bb0d8"
+     },
+     {
+      "path": "scripts/ci-changes.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "c3a4f587b23bb725417f1d9b84336a750deef52d",
+      "size": 2687,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c3a4f587b23bb725417f1d9b84336a750deef52d"
+     },
+     {
+      "path": "scripts/lib",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b38ec9b806e606cb9df729f74dde331110111f02",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/b38ec9b806e606cb9df729f74dde331110111f02"
+     },
+     {
+      "path": "scripts/lib/release.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "16ff6eee1d77fd5bd6d3b7daa58f1828db13fa4a",
+      "size": 26868,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/16ff6eee1d77fd5bd6d3b7daa58f1828db13fa4a"
+     },
+     {
+      "path": "scripts/release.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "723c50c3fb34f753dca31704f068c60a8bda6e6a",
+      "size": 4078,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/723c50c3fb34f753dca31704f068c60a8bda6e6a"
+     },
+     {
+      "path": "scripts/release",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4fb1d122c00f717a4edc04c113266ef36d1e7f0a",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/4fb1d122c00f717a4edc04c113266ef36d1e7f0a"
+     },
+     {
+      "path": "scripts/release/cli.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "76190ddab4274a6382fc7b072591b67a6253cacf",
+      "size": 10091,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/76190ddab4274a6382fc7b072591b67a6253cacf"
+     },
+     {
+      "path": "scripts/release/web.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d7f48255c5d5c18ddf7c6d9a235d7250bb0fd36b",
+      "size": 3825,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d7f48255c5d5c18ddf7c6d9a235d7250bb0fd36b"
+     },
+     {
+      "path": "scripts/test-ci-changes.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "8fe8cfa6efaa4e883fd0a669b6b6814d6b50b466",
+      "size": 4998,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/8fe8cfa6efaa4e883fd0a669b6b6814d6b50b466"
+     },
+     {
+      "path": "scripts/test-release.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "5e77b1f9c4a82053a43e92d0344f6f30571f029f",
+      "size": 33841,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/5e77b1f9c4a82053a43e92d0344f6f30571f029f"
+     },
+     {
+      "path": "spec",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e9fea31f9fca94db204dfc490c38683ace8af275",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/e9fea31f9fca94db204dfc490c38683ace8af275"
+     },
+     {
+      "path": "spec/LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d51c6360e27d8dbc00cc0a78fbb24beddeca6fb2",
+      "size": 685,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d51c6360e27d8dbc00cc0a78fbb24beddeca6fb2"
+     },
+     {
+      "path": "spec/SPEC.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f7c8d81138c3f2dd1478710909c61c801046f049",
+      "size": 22173,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/f7c8d81138c3f2dd1478710909c61c801046f049"
+     },
+     {
+      "path": "tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "cd28dc6ae2caf8eaab947ac8936897b194cb26ca",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/cd28dc6ae2caf8eaab947ac8936897b194cb26ca"
+     },
+     {
+      "path": "tests/fixtures",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "fdcba506e3403b14c68983ca31704b6e107f55cb",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/fdcba506e3403b14c68983ca31704b6e107f55cb"
+     },
+     {
+      "path": "tests/fixtures/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3582373af7e71030f68114e64fb905ffb4cb821d",
+      "size": 3061,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/3582373af7e71030f68114e64fb905ffb4cb821d"
+     },
+     {
+      "path": "tests/fixtures/broken",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2af1ec995d628729eb04c9a685510987014c8b67",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/2af1ec995d628729eb04c9a685510987014c8b67"
+     },
+     {
+      "path": "tests/fixtures/broken/E101",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a0bbef1144acddc72f836a5ef92eb36e82e74e89",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/a0bbef1144acddc72f836a5ef92eb36e82e74e89"
+     },
+     {
+      "path": "tests/fixtures/broken/E101/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E101/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E101/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E102",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ab4bc5b49565824de5c833cefbdd1cadc6ff22db",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/ab4bc5b49565824de5c833cefbdd1cadc6ff22db"
+     },
+     {
+      "path": "tests/fixtures/broken/E102/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E102/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E102/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E102/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9c22d6687fff003e58db2791de31fc78cf5ba56d",
+      "size": 19,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/9c22d6687fff003e58db2791de31fc78cf5ba56d"
+     },
+     {
+      "path": "tests/fixtures/broken/E103",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "50ecb827282fb488e962766a638894728ecb5db3",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/50ecb827282fb488e962766a638894728ecb5db3"
+     },
+     {
+      "path": "tests/fixtures/broken/E103/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E103/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E103/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E103/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4396bef0e72179f4a987080b75bd93ae45a4ae6f",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/4396bef0e72179f4a987080b75bd93ae45a4ae6f"
+     },
+     {
+      "path": "tests/fixtures/broken/E104",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "aab4bdcee74957adc3a1b9a573968be3b7e5cb0e",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/aab4bdcee74957adc3a1b9a573968be3b7e5cb0e"
+     },
+     {
+      "path": "tests/fixtures/broken/E104/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E104/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E104/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E104/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "298393d6e033ed6fc0a95f222e48a63591af4538",
+      "size": 190,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/298393d6e033ed6fc0a95f222e48a63591af4538"
+     },
+     {
+      "path": "tests/fixtures/broken/E105",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8d2236bc469321ad223674e7b0d3cbea45b33448",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/8d2236bc469321ad223674e7b0d3cbea45b33448"
+     },
+     {
+      "path": "tests/fixtures/broken/E105/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E105/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E105/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E105/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "532a7cf49a2a3a2890b1481167c59b4a19903fd7",
+      "size": 195,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/532a7cf49a2a3a2890b1481167c59b4a19903fd7"
+     },
+     {
+      "path": "tests/fixtures/broken/E106",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d12d84943f44172a7ec284b504b77c83ba65fd95",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/d12d84943f44172a7ec284b504b77c83ba65fd95"
+     },
+     {
+      "path": "tests/fixtures/broken/E106/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E106/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E106/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E106/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2235394b7f70d965ee776dfd9fb164a1c814b1b8",
+      "size": 290,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/2235394b7f70d965ee776dfd9fb164a1c814b1b8"
+     },
+     {
+      "path": "tests/fixtures/broken/E108",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "74d69278c220fd82a521e947485097497f48e836",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/74d69278c220fd82a521e947485097497f48e836"
+     },
+     {
+      "path": "tests/fixtures/broken/E108/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E108/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E108/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E108/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d625de7c39b7637aa5be6a16cbafb9d9d85af465",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d625de7c39b7637aa5be6a16cbafb9d9d85af465"
+     },
+     {
+      "path": "tests/fixtures/broken/E109",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d2bdd7e11bf2d2067779908c993be4d32602d19b",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/d2bdd7e11bf2d2067779908c993be4d32602d19b"
+     },
+     {
+      "path": "tests/fixtures/broken/E109/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E109/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E109/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/E110",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a682b29da829682ce3a0bf8186c02645c65471df",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/a682b29da829682ce3a0bf8186c02645c65471df"
+     },
+     {
+      "path": "tests/fixtures/broken/E110/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E110/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "629c910b3ce59d30693c38b5f07d75d187384630",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/629c910b3ce59d30693c38b5f07d75d187384630"
+     },
+     {
+      "path": "tests/fixtures/broken/E110/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0404ee4bce8425e64069c267b30fc0792149c87f",
+      "size": 162,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/0404ee4bce8425e64069c267b30fc0792149c87f"
+     },
+     {
+      "path": "tests/fixtures/broken/E110/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/E201",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "bf7d07a861644e0701664a79d8fcda9d33f42bd1",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/bf7d07a861644e0701664a79d8fcda9d33f42bd1"
+     },
+     {
+      "path": "tests/fixtures/broken/E201/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E201/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2853b2893ae23931cfdbb04dc23ad71ae5b2abe0",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/2853b2893ae23931cfdbb04dc23ad71ae5b2abe0"
+     },
+     {
+      "path": "tests/fixtures/broken/E201/Private/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "06f3cfc20cf91e10f1ae3364cb43cf1e6defc085",
+      "size": 171,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/06f3cfc20cf91e10f1ae3364cb43cf1e6defc085"
+     },
+     {
+      "path": "tests/fixtures/broken/E201/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb",
+      "size": 284,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb"
+     },
+     {
+      "path": "tests/fixtures/broken/E201/Private/notes.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "69206b0d0b7bc5bdeca08ca94bd5dc5baa34a239",
+      "size": 18,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/69206b0d0b7bc5bdeca08ca94bd5dc5baa34a239"
+     },
+     {
+      "path": "tests/fixtures/broken/E201/Private/recipients.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "16194aa8a17443deb38e58123ca8d0c3885e8e4e",
+      "size": 121,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/16194aa8a17443deb38e58123ca8d0c3885e8e4e"
+     },
+     {
+      "path": "tests/fixtures/broken/E201/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E201/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E201/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79f3231691e10d43da9d6010e68c4b65fff80ff3",
+      "size": 290,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/79f3231691e10d43da9d6010e68c4b65fff80ff3"
+     },
+     {
+      "path": "tests/fixtures/broken/E202",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "abc56b432edaddddcff5e52cdbf41c9773b700b7",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/abc56b432edaddddcff5e52cdbf41c9773b700b7"
+     },
+     {
+      "path": "tests/fixtures/broken/E202/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E202/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "cac1dca026b324c8487811d94e587cac1e7df888",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/cac1dca026b324c8487811d94e587cac1e7df888"
+     },
+     {
+      "path": "tests/fixtures/broken/E202/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "092f39a017aa47addefbb8f3eed4099e570eab31",
+      "size": 11,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/092f39a017aa47addefbb8f3eed4099e570eab31"
+     },
+     {
+      "path": "tests/fixtures/broken/E202/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/E203",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f2ae3c3a7323a6e89ee65b95ff7ec27903ccb843",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/f2ae3c3a7323a6e89ee65b95ff7ec27903ccb843"
+     },
+     {
+      "path": "tests/fixtures/broken/E203/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E203/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ef7439f983ba7b7a8316560f9357b39dd03fb79b",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/ef7439f983ba7b7a8316560f9357b39dd03fb79b"
+     },
+     {
+      "path": "tests/fixtures/broken/E203/Private/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e10b9585010e739a3f6ca2f520b595de8aaf651",
+      "size": 113,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7e10b9585010e739a3f6ca2f520b595de8aaf651"
+     },
+     {
+      "path": "tests/fixtures/broken/E203/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "750fcec26a78cfb71291a17aae8d6b3f1a20f62c",
+      "size": 284,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/750fcec26a78cfb71291a17aae8d6b3f1a20f62c"
+     },
+     {
+      "path": "tests/fixtures/broken/E203/Private/recipients.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "16194aa8a17443deb38e58123ca8d0c3885e8e4e",
+      "size": 121,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/16194aa8a17443deb38e58123ca8d0c3885e8e4e"
+     },
+     {
+      "path": "tests/fixtures/broken/E203/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E203/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E203/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79f3231691e10d43da9d6010e68c4b65fff80ff3",
+      "size": 290,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/79f3231691e10d43da9d6010e68c4b65fff80ff3"
+     },
+     {
+      "path": "tests/fixtures/broken/E204",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "52d1efab097729ad421dfc358aaf382bc9e55cb5",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/52d1efab097729ad421dfc358aaf382bc9e55cb5"
+     },
+     {
+      "path": "tests/fixtures/broken/E204/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E204/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "78f9bbd534909111d33070fd0a0b88c1d7e176c3",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/78f9bbd534909111d33070fd0a0b88c1d7e176c3"
+     },
+     {
+      "path": "tests/fixtures/broken/E204/Private/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e10b9585010e739a3f6ca2f520b595de8aaf651",
+      "size": 113,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7e10b9585010e739a3f6ca2f520b595de8aaf651"
+     },
+     {
+      "path": "tests/fixtures/broken/E204/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb",
+      "size": 284,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb"
+     },
+     {
+      "path": "tests/fixtures/broken/E204/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E204/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E204/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79f3231691e10d43da9d6010e68c4b65fff80ff3",
+      "size": 290,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/79f3231691e10d43da9d6010e68c4b65fff80ff3"
+     },
+     {
+      "path": "tests/fixtures/broken/E206",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e136def754426730633c1802c55e76890c7fa2e9",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/e136def754426730633c1802c55e76890c7fa2e9"
+     },
+     {
+      "path": "tests/fixtures/broken/E206/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E206/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d49a1eec9e004270dc0797aed1af261abd84bf08",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/d49a1eec9e004270dc0797aed1af261abd84bf08"
+     },
+     {
+      "path": "tests/fixtures/broken/E206/Private/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e10b9585010e739a3f6ca2f520b595de8aaf651",
+      "size": 113,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7e10b9585010e739a3f6ca2f520b595de8aaf651"
+     },
+     {
+      "path": "tests/fixtures/broken/E206/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb",
+      "size": 284,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb"
+     },
+     {
+      "path": "tests/fixtures/broken/E206/Private/recipients.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c16726c095de7fa3c6dd6d12966e8c269244c597",
+      "size": 132,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c16726c095de7fa3c6dd6d12966e8c269244c597"
+     },
+     {
+      "path": "tests/fixtures/broken/E206/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E206/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E206/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79f3231691e10d43da9d6010e68c4b65fff80ff3",
+      "size": 290,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/79f3231691e10d43da9d6010e68c4b65fff80ff3"
+     },
+     {
+      "path": "tests/fixtures/broken/E207",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "68f920c197a42b2b1666b8fe514ed881ababe6a6",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/68f920c197a42b2b1666b8fe514ed881ababe6a6"
+     },
+     {
+      "path": "tests/fixtures/broken/E207/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E207/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9ac409801ab33ad48dc99165a3648bfd41bbf454",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/9ac409801ab33ad48dc99165a3648bfd41bbf454"
+     },
+     {
+      "path": "tests/fixtures/broken/E207/Public/Inner",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c75a273c5ef33d6ebb78b245a8105a247a2017a4",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/c75a273c5ef33d6ebb78b245a8105a247a2017a4"
+     },
+     {
+      "path": "tests/fixtures/broken/E207/Public/Inner/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ccf38d84ccfd3b085fcb1fdd89ad078ae54ed3ec",
+      "size": 160,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ccf38d84ccfd3b085fcb1fdd89ad078ae54ed3ec"
+     },
+     {
+      "path": "tests/fixtures/broken/E207/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E207/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/E208",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f025d4966473b8959725d9f51ca74c24a4306a94",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/f025d4966473b8959725d9f51ca74c24a4306a94"
+     },
+     {
+      "path": "tests/fixtures/broken/E208/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E208/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "823b9047495af6e5c7f8e35ec708320430ba8553",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/823b9047495af6e5c7f8e35ec708320430ba8553"
+     },
+     {
+      "path": "tests/fixtures/broken/E208/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb",
+      "size": 284,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb"
+     },
+     {
+      "path": "tests/fixtures/broken/E208/Private/recipients.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "16194aa8a17443deb38e58123ca8d0c3885e8e4e",
+      "size": 121,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/16194aa8a17443deb38e58123ca8d0c3885e8e4e"
+     },
+     {
+      "path": "tests/fixtures/broken/E208/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E208/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E208/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79f3231691e10d43da9d6010e68c4b65fff80ff3",
+      "size": 290,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/79f3231691e10d43da9d6010e68c4b65fff80ff3"
+     },
+     {
+      "path": "tests/fixtures/broken/E209",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0356683be0f6036bff885f0dcf85cd11fec5646a",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/0356683be0f6036bff885f0dcf85cd11fec5646a"
+     },
+     {
+      "path": "tests/fixtures/broken/E209/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E209/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "24d57712d5ad1e1aa013525f3023b85e2b00d218",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/24d57712d5ad1e1aa013525f3023b85e2b00d218"
+     },
+     {
+      "path": "tests/fixtures/broken/E209/Private/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e10b9585010e739a3f6ca2f520b595de8aaf651",
+      "size": 113,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7e10b9585010e739a3f6ca2f520b595de8aaf651"
+     },
+     {
+      "path": "tests/fixtures/broken/E209/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb",
+      "size": 284,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb"
+     },
+     {
+      "path": "tests/fixtures/broken/E209/Private/recipients.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "82965667b6c343f4b15ed9489c3ef9a44daa3e01",
+      "size": 133,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/82965667b6c343f4b15ed9489c3ef9a44daa3e01"
+     },
+     {
+      "path": "tests/fixtures/broken/E209/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E209/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E209/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79f3231691e10d43da9d6010e68c4b65fff80ff3",
+      "size": 290,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/79f3231691e10d43da9d6010e68c4b65fff80ff3"
+     },
+     {
+      "path": "tests/fixtures/broken/E301",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "12b9d8425e57af1b1087f3a0846a0cd7553366d4",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/12b9d8425e57af1b1087f3a0846a0cd7553366d4"
+     },
+     {
+      "path": "tests/fixtures/broken/E301/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E301/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "37a4b733c2b769475f7b48a0b2b71f95c26bb5a8",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/37a4b733c2b769475f7b48a0b2b71f95c26bb5a8"
+     },
+     {
+      "path": "tests/fixtures/broken/E301/Private/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e10b9585010e739a3f6ca2f520b595de8aaf651",
+      "size": 113,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7e10b9585010e739a3f6ca2f520b595de8aaf651"
+     },
+     {
+      "path": "tests/fixtures/broken/E301/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb",
+      "size": 284,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb"
+     },
+     {
+      "path": "tests/fixtures/broken/E301/Private/notes.md.age",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "18ce7af0b55315155e829aa6543a2e5542daac51",
+      "size": 86,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/18ce7af0b55315155e829aa6543a2e5542daac51"
+     },
+     {
+      "path": "tests/fixtures/broken/E301/Private/recipients.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "16194aa8a17443deb38e58123ca8d0c3885e8e4e",
+      "size": 121,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/16194aa8a17443deb38e58123ca8d0c3885e8e4e"
+     },
+     {
+      "path": "tests/fixtures/broken/E301/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E301/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E301/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79f3231691e10d43da9d6010e68c4b65fff80ff3",
+      "size": 290,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/79f3231691e10d43da9d6010e68c4b65fff80ff3"
+     },
+     {
+      "path": "tests/fixtures/broken/E302",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "20ec28bb10d387f0e416dd3fac909394ce3d66a0",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/20ec28bb10d387f0e416dd3fac909394ce3d66a0"
+     },
+     {
+      "path": "tests/fixtures/broken/E302/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E302/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "a4da63c61dd776762985d054c32d363962254e6a",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/a4da63c61dd776762985d054c32d363962254e6a"
+     },
+     {
+      "path": "tests/fixtures/broken/E302/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E302/Public/notes.md.age",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "97cd66493f40ed1c421faac624057626a13f787a",
+      "size": 251,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/97cd66493f40ed1c421faac624057626a13f787a"
+     },
+     {
+      "path": "tests/fixtures/broken/E302/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/E304",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "92f677c31e416229d2da75f1df67b1dd03ce4cb9",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/92f677c31e416229d2da75f1df67b1dd03ce4cb9"
+     },
+     {
+      "path": "tests/fixtures/broken/E304/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E304/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9a3ee1bd91ca845fd391282c32f65f7b7a462bb1",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/9a3ee1bd91ca845fd391282c32f65f7b7a462bb1"
+     },
+     {
+      "path": "tests/fixtures/broken/E304/Private/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e10b9585010e739a3f6ca2f520b595de8aaf651",
+      "size": 113,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7e10b9585010e739a3f6ca2f520b595de8aaf651"
+     },
+     {
+      "path": "tests/fixtures/broken/E304/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "26719dca23796f84f42e7eb3c21c0da2f5754a47",
+      "size": 280,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/26719dca23796f84f42e7eb3c21c0da2f5754a47"
+     },
+     {
+      "path": "tests/fixtures/broken/E304/Private/notes.age",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4a6b32f9e3bcdf256acf893844cde8ed839f49bc",
+      "size": 244,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/4a6b32f9e3bcdf256acf893844cde8ed839f49bc"
+     },
+     {
+      "path": "tests/fixtures/broken/E304/Private/recipients.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "16194aa8a17443deb38e58123ca8d0c3885e8e4e",
+      "size": 121,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/16194aa8a17443deb38e58123ca8d0c3885e8e4e"
+     },
+     {
+      "path": "tests/fixtures/broken/E304/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E304/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E304/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79f3231691e10d43da9d6010e68c4b65fff80ff3",
+      "size": 290,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/79f3231691e10d43da9d6010e68c4b65fff80ff3"
+     },
+     {
+      "path": "tests/fixtures/broken/E305",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "97f66132df8693aee662ddbb788e51cc74ba518b",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/97f66132df8693aee662ddbb788e51cc74ba518b"
+     },
+     {
+      "path": "tests/fixtures/broken/E305/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E305/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "de0a31997f45a20180d4ade4dcb9e0feaf1fcf7c",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/de0a31997f45a20180d4ade4dcb9e0feaf1fcf7c"
+     },
+     {
+      "path": "tests/fixtures/broken/E305/Private/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e10b9585010e739a3f6ca2f520b595de8aaf651",
+      "size": 113,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7e10b9585010e739a3f6ca2f520b595de8aaf651"
+     },
+     {
+      "path": "tests/fixtures/broken/E305/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ceefcd035318967099cf2f2e5ca5a7b82b3c9a52",
+      "size": 281,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ceefcd035318967099cf2f2e5ca5a7b82b3c9a52"
+     },
+     {
+      "path": "tests/fixtures/broken/E305/Private/recipients.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "16194aa8a17443deb38e58123ca8d0c3885e8e4e",
+      "size": 121,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/16194aa8a17443deb38e58123ca8d0c3885e8e4e"
+     },
+     {
+      "path": "tests/fixtures/broken/E305/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E305/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E305/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79f3231691e10d43da9d6010e68c4b65fff80ff3",
+      "size": 290,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/79f3231691e10d43da9d6010e68c4b65fff80ff3"
+     },
+     {
+      "path": "tests/fixtures/broken/E306",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "019a16fc1d6e0b30ddedcbf56f47defc1b49a779",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/019a16fc1d6e0b30ddedcbf56f47defc1b49a779"
+     },
+     {
+      "path": "tests/fixtures/broken/E306/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E306/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f098e57bb6c3681e125a141a4f15346c845626be",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/f098e57bb6c3681e125a141a4f15346c845626be"
+     },
+     {
+      "path": "tests/fixtures/broken/E306/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b0b2a1f4dcd64a93cb387707fdf63ee3ca0642e2",
+      "size": 158,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/b0b2a1f4dcd64a93cb387707fdf63ee3ca0642e2"
+     },
+     {
+      "path": "tests/fixtures/broken/E306/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/E401",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "537dd48d87d32dd649bed9e131d865cac73e86f0",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/537dd48d87d32dd649bed9e131d865cac73e86f0"
+     },
+     {
+      "path": "tests/fixtures/broken/E401/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E401/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "690aec961528d46c198341ba127fffccb7ce355c",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/690aec961528d46c198341ba127fffccb7ce355c"
+     },
+     {
+      "path": "tests/fixtures/broken/E401/Public/first.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b5f61c913a9043e564e1cb7bf8effe9347e3eafc",
+      "size": 91,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/b5f61c913a9043e564e1cb7bf8effe9347e3eafc"
+     },
+     {
+      "path": "tests/fixtures/broken/E401/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E401/Public/second.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b7fbbe4832fd11c38365aceb3f9b570ddb4fbaef",
+      "size": 93,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/b7fbbe4832fd11c38365aceb3f9b570ddb4fbaef"
+     },
+     {
+      "path": "tests/fixtures/broken/E401/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/E402",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "68204bf0d029b00180dc033e2a4439085d69d95b",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/68204bf0d029b00180dc033e2a4439085d69d95b"
+     },
+     {
+      "path": "tests/fixtures/broken/E402/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E402/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "73086dc1404eb91e21fecf1cf529287c51e6102f",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/73086dc1404eb91e21fecf1cf529287c51e6102f"
+     },
+     {
+      "path": "tests/fixtures/broken/E402/Public/broken.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "127d9d45839b8a97ec6cc2c43fce4352d94e9aae",
+      "size": 32,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/127d9d45839b8a97ec6cc2c43fce4352d94e9aae"
+     },
+     {
+      "path": "tests/fixtures/broken/E402/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E402/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/E403",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "22a9eb979e8e4f1e04c41c7282b5feaf94669ebf",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/22a9eb979e8e4f1e04c41c7282b5feaf94669ebf"
+     },
+     {
+      "path": "tests/fixtures/broken/E403/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E403/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "ed2163b7d20d44df3cf453ada7f20dbf71be2a87",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/ed2163b7d20d44df3cf453ada7f20dbf71be2a87"
+     },
+     {
+      "path": "tests/fixtures/broken/E403/Public/doc.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e7173ce71ad8560b05f9f9dbbd95a4ce1736330f",
+      "size": 71,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/e7173ce71ad8560b05f9f9dbbd95a4ce1736330f"
+     },
+     {
+      "path": "tests/fixtures/broken/E403/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E403/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/E404",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1e159a234165bb635b2b0025a2fdf7eb67250c8e",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/1e159a234165bb635b2b0025a2fdf7eb67250c8e"
+     },
+     {
+      "path": "tests/fixtures/broken/E404/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E404/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "693c50f9cd3af94fbf772456482da9b77456f42c",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/693c50f9cd3af94fbf772456482da9b77456f42c"
+     },
+     {
+      "path": "tests/fixtures/broken/E404/Public/doc.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "672c156194e0094b73d2cacc7085523650198359",
+      "size": 88,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/672c156194e0094b73d2cacc7085523650198359"
+     },
+     {
+      "path": "tests/fixtures/broken/E404/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E404/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/E405",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1f09e4bed8ddda3f052223c203b8f80ff5d83219",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/1f09e4bed8ddda3f052223c203b8f80ff5d83219"
+     },
+     {
+      "path": "tests/fixtures/broken/E405/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E405/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b9a2c9ac5c42fc903bce56633dc76c875a2053cf",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/b9a2c9ac5c42fc903bce56633dc76c875a2053cf"
+     },
+     {
+      "path": "tests/fixtures/broken/E405/Public/doc.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e9755737e73d1ed5e14e944bdab03c613d16c9dd",
+      "size": 76,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/e9755737e73d1ed5e14e944bdab03c613d16c9dd"
+     },
+     {
+      "path": "tests/fixtures/broken/E405/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E405/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/E507",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "bdd97151b281a3d220be1bb7cebd8574b6c9dacb",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/bdd97151b281a3d220be1bb7cebd8574b6c9dacb"
+     },
+     {
+      "path": "tests/fixtures/broken/E507/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/E507/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/E507/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/E507/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "69af61fabc902c44a30695389ade48a084181227",
+      "size": 292,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/69af61fabc902c44a30695389ade48a084181227"
+     },
+     {
+      "path": "tests/fixtures/broken/W601",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6839d9117e9cbe606237c1c626d0f6eab053a1c5",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/6839d9117e9cbe606237c1c626d0f6eab053a1c5"
+     },
+     {
+      "path": "tests/fixtures/broken/W601/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/W601/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4008be7e224f366b06495b3ac586df78136610b0",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/4008be7e224f366b06495b3ac586df78136610b0"
+     },
+     {
+      "path": "tests/fixtures/broken/W601/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1e0a21f78faa6bbd72c392ae222b41bc91fc22de",
+      "size": 162,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/1e0a21f78faa6bbd72c392ae222b41bc91fc22de"
+     },
+     {
+      "path": "tests/fixtures/broken/W601/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/W601/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/W601/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "83aa20ffef8178dcf7396b02735cdb912bca9438",
+      "size": 211,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/83aa20ffef8178dcf7396b02735cdb912bca9438"
+     },
+     {
+      "path": "tests/fixtures/broken/W602",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c0a3a28d4e9c47ce48e77a3807a359766814c5a6",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/c0a3a28d4e9c47ce48e77a3807a359766814c5a6"
+     },
+     {
+      "path": "tests/fixtures/broken/W602/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947",
+      "size": 57,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/07ac8bbac4a7892dfd1c261aee6e4b1c3e10a947"
+     },
+     {
+      "path": "tests/fixtures/broken/W602/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "b5b066806105b7afb642e201fe2905cea63fc055",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/b5b066806105b7afb642e201fe2905cea63fc055"
+     },
+     {
+      "path": "tests/fixtures/broken/W602/Private/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7e10b9585010e739a3f6ca2f520b595de8aaf651",
+      "size": 113,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7e10b9585010e739a3f6ca2f520b595de8aaf651"
+     },
+     {
+      "path": "tests/fixtures/broken/W602/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb",
+      "size": 284,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb"
+     },
+     {
+      "path": "tests/fixtures/broken/W602/Private/recipients.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c17402e9ba044bf639b3383d47f62f0721702c13",
+      "size": 55,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c17402e9ba044bf639b3383d47f62f0721702c13"
+     },
+     {
+      "path": "tests/fixtures/broken/W602/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60b69bfc848f45db81cea0287fbe2197e716bf39",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/60b69bfc848f45db81cea0287fbe2197e716bf39"
+     },
+     {
+      "path": "tests/fixtures/broken/W602/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/broken/W602/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "79f3231691e10d43da9d6010e68c4b65fff80ff3",
+      "size": 290,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/79f3231691e10d43da9d6010e68c4b65fff80ff3"
+     },
+     {
+      "path": "tests/fixtures/conforming",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "913717713bc96547a09c7b6154b6f01972eceb84",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/913717713bc96547a09c7b6154b6f01972eceb84"
+     },
+     {
+      "path": "tests/fixtures/conforming/.gitattributes",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d071800d33910661a6eff7b05b26d0a41f3750af",
+      "size": 912,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d071800d33910661a6eff7b05b26d0a41f3750af"
+     },
+     {
+      "path": "tests/fixtures/conforming/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "659327c872c269eb5df75b5d737c641a95742eda",
+      "size": 1093,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/659327c872c269eb5df75b5d737c641a95742eda"
+     },
+     {
+      "path": "tests/fixtures/conforming/Private",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c7abfc4a8dcafd981d4a21f71a6e28e3347e844b",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/c7abfc4a8dcafd981d4a21f71a6e28e3347e844b"
+     },
+     {
+      "path": "tests/fixtures/conforming/Private/.gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4d05d7bb56033966568e6793adb5d687de9d6ccd",
+      "size": 635,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/4d05d7bb56033966568e6793adb5d687de9d6ccd"
+     },
+     {
+      "path": "tests/fixtures/conforming/Private/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb",
+      "size": 284,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/a7a47d4bd85e6ba1e4ed8f83d90c354ea5b888eb"
+     },
+     {
+      "path": "tests/fixtures/conforming/Private/recipients.txt",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7f3c262e650e0edaec692ca57cb44b97f510e407",
+      "size": 833,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/7f3c262e650e0edaec692ca57cb44b97f510e407"
+     },
+     {
+      "path": "tests/fixtures/conforming/Public",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "24ad2b6539c02712f27af0f25844a39f4aa37b58",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/24ad2b6539c02712f27af0f25844a39f4aa37b58"
+     },
+     {
+      "path": "tests/fixtures/conforming/Public/fjord.vault.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25e41c3831a1c1787c7912d773d04ad9ed0b6fd6",
+      "size": 161,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25e41c3831a1c1787c7912d773d04ad9ed0b6fd6"
+     },
+     {
+      "path": "tests/fixtures/conforming/Public/welcome.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6450c9b5b37dac25065b6bbe7e68caa0d0901867",
+      "size": 892,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/6450c9b5b37dac25065b6bbe7e68caa0d0901867"
+     },
+     {
+      "path": "tests/fixtures/conforming/README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ef0f3aa01af69daeda1b04dc7e2baca7a22e8e1c",
+      "size": 15190,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ef0f3aa01af69daeda1b04dc7e2baca7a22e8e1c"
+     },
+     {
+      "path": "tests/fixtures/conforming/fjord.json",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5e5483adb89c422e779f97c0f3e6fd11f64608ff",
+      "size": 318,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/5e5483adb89c422e779f97c0f3e6fd11f64608ff"
+     }
+    ],
+    "truncated": false
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/repos/sovereignfs/fjord/git/trees/96baa7cfcaac4366d51a19496e432f7e0663b86a",
+   "accept": "application/vnd.github+json",
+   "status": 200,
+   "headers": {
+    "etag": "W/\"af071b26da576ab8e603ed343f9990d4be25da0d2e2bc2fcbae78982e27f7c02\"",
+    "content-type": "application/json; charset=utf-8"
+   },
+   "body": {
+    "sha": "96baa7cfcaac4366d51a19496e432f7e0663b86a",
+    "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/96baa7cfcaac4366d51a19496e432f7e0663b86a",
+    "tree": [
+     {
+      "path": ".github",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d2d8635e71e8c4fcc35348cfb78e9f4ad3db6a8e",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/d2d8635e71e8c4fcc35348cfb78e9f4ad3db6a8e"
+     },
+     {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3a529bb419234110b8f1a5c0128c92e6cd83078a",
+      "size": 107,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/3a529bb419234110b8f1a5c0128c92e6cd83078a"
+     },
+     {
+      "path": "CLAUDE.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ea13aa1711c7c98779989a9deee4849571daa568",
+      "size": 16852,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/ea13aa1711c7c98779989a9deee4849571daa568"
+     },
+     {
+      "path": "CONTRIBUTING.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "25affd3fccc45e40ff2c0074aec795aa83987413",
+      "size": 5592,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/25affd3fccc45e40ff2c0074aec795aa83987413"
+     },
+     {
+      "path": "Cargo.lock",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c0e28d5496709daec83ba2368704e11ea74e986e",
+      "size": 54591,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/c0e28d5496709daec83ba2368704e11ea74e986e"
+     },
+     {
+      "path": "Cargo.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "300c1f45f94975c541b0a6656bad04b00c254e25",
+      "size": 2768,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/300c1f45f94975c541b0a6656bad04b00c254e25"
+     },
+     {
+      "path": "LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d0a1fa1482eea82e19510e7920cbe3a03e41f691",
+      "size": 16726,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/d0a1fa1482eea82e19510e7920cbe3a03e41f691"
+     },
+     {
+      "path": "README.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cd80e81bc556d91f8a270d0a7c3c3f422cdb1c1d",
+      "size": 3619,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/cd80e81bc556d91f8a270d0a7c3c3f422cdb1c1d"
+     },
+     {
+      "path": "RELEASING.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "90c6fa5fbda8856ece65a53f7ae2b897c2b48bbf",
+      "size": 9383,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/90c6fa5fbda8856ece65a53f7ae2b897c2b48bbf"
+     },
+     {
+      "path": "ROADMAP.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "85464bb1c1ba139e39b4d984a3f2a935d88f62b9",
+      "size": 73557,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/85464bb1c1ba139e39b4d984a3f2a935d88f62b9"
+     },
+     {
+      "path": "clients",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "c2ba90547026ef403c982322aee24c4164809c0d",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/c2ba90547026ef403c982322aee24c4164809c0d"
+     },
+     {
+      "path": "crates",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0068a4d03866a6812f3b02ba7151894a6991da0f",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/0068a4d03866a6812f3b02ba7151894a6991da0f"
+     },
+     {
+      "path": "deny.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "bceb6a8f52b9586e5fbb068708c0e41b1c118ad4",
+      "size": 5040,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/bceb6a8f52b9586e5fbb068708c0e41b1c118ad4"
+     },
+     {
+      "path": "dist-workspace.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4ac439c88e48005ba20622c958a45379c429fe04",
+      "size": 2092,
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/blobs/4ac439c88e48005ba20622c958a45379c429fe04"
+     },
+     {
+      "path": "schema",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d134f73885d342e2f3c6f55bfc23c2a3b3e77dc4",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/d134f73885d342e2f3c6f55bfc23c2a3b3e77dc4"
+     },
+     {
+      "path": "scripts",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2d1df2106821e9eded3d7392b16a12a2d25bb0d8",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/2d1df2106821e9eded3d7392b16a12a2d25bb0d8"
+     },
+     {
+      "path": "spec",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "e9fea31f9fca94db204dfc490c38683ace8af275",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/e9fea31f9fca94db204dfc490c38683ace8af275"
+     },
+     {
+      "path": "tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "cd28dc6ae2caf8eaab947ac8936897b194cb26ca",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/cd28dc6ae2caf8eaab947ac8936897b194cb26ca"
+     }
+    ],
+    "truncated": false
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/repos/sovereignfs/fjord/git/trees/0068a4d03866a6812f3b02ba7151894a6991da0f",
+   "accept": "application/vnd.github+json",
+   "status": 200,
+   "headers": {
+    "etag": "W/\"1ed57be28ca1f976aea1a01ac5f92eca9738f4ea6f41ab11ac3aabf46a4cb207\"",
+    "content-type": "application/json; charset=utf-8"
+   },
+   "body": {
+    "sha": "0068a4d03866a6812f3b02ba7151894a6991da0f",
+    "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/0068a4d03866a6812f3b02ba7151894a6991da0f",
+    "tree": [
+     {
+      "path": "fjord-cli",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "82e0a6925a989dfa9807c0e176cc4043b3b1d251",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/82e0a6925a989dfa9807c0e176cc4043b3b1d251"
+     },
+     {
+      "path": "fjord-core",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "32b54e0eb09f66df6c9c8b2b68a884616beb7726",
+      "url": "https://api.github.com/repos/sovereignfs/fjord/git/trees/32b54e0eb09f66df6c9c8b2b68a884616beb7726"
+     }
+    ],
+    "truncated": false
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/repos/sovereignfs/fjord/git/blobs/cd80e81bc556d91f8a270d0a7c3c3f422cdb1c1d",
+   "accept": "application/vnd.github.raw+json",
+   "status": 200,
+   "headers": {
+    "etag": "W/\"b27b57ca6b3d5d0a53b5c412b5d4c605936ba9bb830e1768b848e94b4d0ad39d\"",
+    "content-type": "text/plain; charset=utf-8"
+   },
+   "bodyBase64": "IyBGam9yZAoKS2VlcCB5b3VyIGRvY3VtZW50cyBhcyBwbGFpbiBmaWxlcyBpbiBhIEdpdCByZXBvc2l0b3J5IHlvdSBjb250cm9sLCB3aXRoCm9wdGlvbmFsIGVuZC10by1lbmQgZW5jcnlwdGlvbiB1c2luZyBbYWdlXShodHRwczovL2FnZS1lbmNyeXB0aW9uLm9yZy92MSkuCkZqb3JkIGlzIGEgKipmb3JtYXQqKiwgd3JpdHRlbiBkb3duIGluIFtgc3BlYy9TUEVDLm1kYF0oc3BlYy9TUEVDLm1kKSwgYW5kIHRoZQp0b29scyB0aGF0IHJlYWQgYW5kIHdyaXRlIGl0LiBBbnl0aGluZyB0aGF0IGZvbGxvd3MgdGhlIHNwZWNpZmljYXRpb24gY2FuIG9wZW4KYSBGam9yZCByZXBvc2l0b3J5LCBhbmQgYSByZXBvc2l0b3J5IHN0YXlzIHJlYWRhYmxlIHdpdGhvdXQgYW55IG9mIHRoZW06IHRoZQpmaWxlcyBhcmUgcGxhaW4gZmlsZXMsIGFuZCBhbiBlbmNyeXB0ZWQgb25lIGlzIHJlY292ZXJlZCB3aXRoIGBhZ2UgLWRgIGFsb25lLgoKVGhpcyByZXBvc2l0b3J5IGhvbGRzIHRoZSBzcGVjaWZpY2F0aW9uLCB0aGUgcmVmZXJlbmNlIGltcGxlbWVudGF0aW9uLCBhbmQgdGhlCmNsaWVudHMgYW5kIGludGVncmF0aW9ucyBidWlsdCBvbiBpdCwgc28gdGhhdCBhIGNoYW5nZSB0byB0aGUgZm9ybWF0IGFuZCB0aGUKY29kZSB0aGF0IGltcGxlbWVudHMgaXQgaXMgb25lIGNvbW1pdC4KCiMjIFdoYXQgaXMgaGVyZQoKfCBDb21wb25lbnQgfCBXaGF0IGl0IGlzIHwgU3RhdHVzIHwgSW5zdGFsbCB8CnwgLS0tIHwgLS0tIHwgLS0tIHwgLS0tIHwKfCBbYHNwZWMvYF0oc3BlYy9TUEVDLm1kKSB8IFRoZSByZXBvc2l0b3J5IGZvcm1hdC4gQ2Fub25pY2FsOyBDQzAuIHwgRHJhZnQgfCDigJQgfAp8IFtgY3JhdGVzL2Zqb3JkLWNvcmVgXShjcmF0ZXMvZmpvcmQtY29yZSkgfCBUaGUgZm9ybWF0IGFzIGEgbGlicmFyeTogbWFuaWZlc3RzLCBwYXRocywgRG9jcywgZW5jcnlwdGlvbiwgYHZlcmlmeWAuIEJ1aWx0IHRvIHJ1biBhbnl3aGVyZSAoZGVza3RvcCwgbW9iaWxlLCBXQVNNKS4gfCBSZWxlYXNlZCB3aXRoIHRoZSBDTEkgfCDigJQgfAp8IFtgY3JhdGVzL2Zqb3JkLWNsaWBdKGNyYXRlcy9mam9yZC1jbGkpIHwgKipgZmpvcmRgKiosIHRoZSBjb21tYW5kLWxpbmUgdG9vbC4gfCBSZWxlYXNlZCB8IFtJbnN0YWxsXShjcmF0ZXMvZmpvcmQtY2xpL1JFQURNRS5tZCNpbnN0YWxsKSB8CnwgW2BjbGllbnRzL3dlYmBdKGNsaWVudHMvd2ViKSB8IFRoZSBob3N0ZWQgd2ViIGNsaWVudDogYnJvd3NlLCBlZGl0LCBzaGFyZSBhbmQgY29tbWVudCBvbiBkb2N1bWVudHMuIHwgQnVpbGRpbmc6IGEgcGxhY2Vob2xkZXIgYXBwIChbcGxhbl0oY2xpZW50cy93ZWIvUk9BRE1BUC5tZCkpIHwg4oCUIHwKfCBbYGNsaWVudHMvbW9iaWxlYF0oY2xpZW50cy9tb2JpbGUpIHwgVGhlIGlPUyBhbmQgQW5kcm9pZCBjbGllbnQ6IGJyb3dzZSwgZWRpdCBhbmQgY2FwdHVyZSBxdWljayBub3Rlcywgb2ZmbGluZS4gfCBEZXNpZ24gKFtwbGFuXShjbGllbnRzL21vYmlsZS9ST0FETUFQLm1kKSkgfCDigJQgfAp8IFtgY2xpZW50cy9tY3BgXShjbGllbnRzL21jcCkgfCAqKmBmam9yZC1tY3BgKio6IENsYXVkZSAoYW5kIGxhdGVyIENoYXRHUFQpIHNhdmVzIGFuZCBtYW5hZ2VzIGRvY3VtZW50cyBpbiB5b3VyIHJlcG9zaXRvcnkuIHwgRGVzaWduIChbcGxhbl0oY2xpZW50cy9tY3AvUk9BRE1BUC5tZCkpIHwg4oCUIHwKfCBgY2xpZW50cy9kZXNrdG9wYCB8IFRoZSBkZXNrdG9wIGFwcC4gfCBQbGFubmVkIHwg4oCUIHwKfCBgcGx1Z2lucy92c2NvZGVgLCBgcGx1Z2lucy9vYnNpZGlhbmAgfCBFZGl0b3IgaW50ZWdyYXRpb25zLiB8IFBsYW5uZWQgfCDigJQgfAoKRGlyZWN0b3JpZXMgZm9yIHBsYW5uZWQgY29tcG9uZW50cyBhcmUgY3JlYXRlZCB3aGVuIHdvcmsgb24gdGhlbSBzdGFydHMuCgpbYHRlc3RzL2ZpeHR1cmVzL2BdKHRlc3RzL2ZpeHR1cmVzKSBpcyB0aGUgZm9ybWF0J3MgY29uZm9ybWFuY2Ugc3VpdGU6IGEgdmFsaWQKcmVwb3NpdG9yeSwgYW5kIG9uZSBtaW5pbWFsIGJyb2tlbiByZXBvc2l0b3J5IHBlciBkaWFnbm9zdGljLiBJdCBiZWxvbmdzIHRvIHRoZQpmb3JtYXQsIG5vdCB0byB0aGUgQ0xJLCBhbmQgZXZlcnkgY2xpZW50IGlzIGV4cGVjdGVkIHRvIHBhc3MgaXQuCgojIyBUaGUgY29tbWFuZC1saW5lIHRvb2wKCmBgYGJhc2gKIyBtYWNPUyAvIExpbnV4LCB3aXRoIEhvbWVicmV3CmJyZXcgaW5zdGFsbCBzb3ZlcmVpZ25mcy90YXAvZmpvcmQKCiMgbWFjT1MgLyBMaW51eCwgd2l0aG91dCBpdApjdXJsIC0tcHJvdG8gJz1odHRwcycgLS10bHN2MS4yIC1Mc1NmIFwKICBodHRwczovL2dpdGh1Yi5jb20vc292ZXJlaWduZnMvZmpvcmQvcmVsZWFzZXMvbGF0ZXN0L2Rvd25sb2FkL2Zqb3JkLWNsaS1pbnN0YWxsZXIuc2ggfCBzaAoKZmpvcmQgaW5pdCBub3RlcyAmJiBjZCBub3Rlcwpmam9yZCB2ZXJpZnkKYGBgCgpFdmVyeXRoaW5nIGl0IGRvZXMgaXMgaW4gdGhlIFtDTEkncyBSRUFETUVdKGNyYXRlcy9mam9yZC1jbGkvUkVBRE1FLm1kKSwgYW5kIHdoYXQKY2hhbmdlZCBiZXR3ZWVuIHZlcnNpb25zIGlzIGluIGl0cyBbQ0hBTkdFTE9HXShjcmF0ZXMvZmpvcmQtY2xpL0NIQU5HRUxPRy5tZCkuCgojIyBCdWlsZGluZwoKYGBgYmFzaApjYXJnbyBidWlsZCAtLXdvcmtzcGFjZQpjYXJnbyB0ZXN0IC0td29ya3NwYWNlCmNhcmdvIGNsaXBweSAtLXdvcmtzcGFjZSAtLWFsbC10YXJnZXRzIC0tIC1EIHdhcm5pbmdzCmNhcmdvIGZtdCAtLWNoZWNrCmBgYAoKUnVzdCAxLjg4IG9yIG5ld2VyLiBbYENMQVVERS5tZGBdKENMQVVERS5tZCkgaXMgdGhlIGJ1aWxkIGJyaWVmOiB0aGUKaW52YXJpYW50cyBub3RoaW5nIG1heSBicmVhaywgdGhlIGFyY2hpdGVjdHVyZSwgYW5kIHdoYXQgYSBuZXcgY29tcG9uZW50IG93ZXMKdGhlIHJlc3QuIFtgUk9BRE1BUC5tZGBdKFJPQURNQVAubWQpIHJlY29yZHMgd2hhdCBpcyBkb25lLCB3aGF0IGlzIG5vdCwgYW5kIHdoeS4KW2BSRUxFQVNJTkcubWRgXShSRUxFQVNJTkcubWQpIGV4cGxhaW5zIGhvdyBlYWNoIGNvbXBvbmVudCBpcyByZWxlYXNlZC4KCiMjIENvbnRyaWJ1dGluZwoKV29yayBnb2VzIHRocm91Z2ggcHVsbCByZXF1ZXN0czogYSBzaG9ydC1saXZlZCBicmFuY2ggZnJvbSBgbWFpbmAsIGEgZHJhZnQgUFIsCnJlYmFzZSBhbmQgbWVyZ2UuIFtgQ09OVFJJQlVUSU5HLm1kYF0oQ09OVFJJQlVUSU5HLm1kKSBoYXMgdGhlIHJ1bGVzIGFuZApbYENMQVVERS5tZGBdKENMQVVERS5tZCkgdGhlIHZlcnNpb24gZm9yIGFnZW50cy4KCiMjIExpY2VuY2UKClRoZSByZWZlcmVuY2UgaW1wbGVtZW50YXRpb24gaXMgbGljZW5zZWQgdW5kZXIgdGhlCltNb3ppbGxhIFB1YmxpYyBMaWNlbnNlIDIuMF0oTElDRU5TRSkuIFRoZSBzcGVjaWZpY2F0aW9uIGlzIGRlZGljYXRlZCB0byB0aGUKcHVibGljIGRvbWFpbiB1bmRlciBbQ0MwXShzcGVjL0xJQ0VOU0UpLCBzbyB0aGF0IGFueW9uZSBjYW4gaW1wbGVtZW50IGl0LiBGam9yZCBXZWIKKFtgY2xpZW50cy93ZWJgXShjbGllbnRzL3dlYikpIGlzIGxpY2Vuc2VkIHVuZGVyIHRoZQpbQUdQTC0zLjAtb3ItbGF0ZXJdKGNsaWVudHMvd2ViL0xJQ0VOU0UpLCBiZWNhdXNlIGl0IGJ1bmRsZXMgYEBzb3ZlcmVpZ25mcy91aWAuCg=="
+  },
+  {
+   "method": "GET",
+   "path": "/repos/sovereignfs/fjord/git/ref/heads/there-is-no-such-branch",
+   "accept": "application/vnd.github+json",
+   "status": 404,
+   "headers": {
+    "content-type": "application/json; charset=utf-8"
+   },
+   "body": {
+    "message": "Not Found",
+    "documentation_url": "https://docs.github.com/rest/git/refs#get-a-reference",
+    "status": "404"
+   }
+  },
+  {
+   "method": "GET",
+   "path": "/repos/sovereignfs/there-is-no-such-repository",
+   "accept": "application/vnd.github+json",
+   "status": 404,
+   "headers": {
+    "content-type": "application/json; charset=utf-8"
+   },
+   "body": {
+    "message": "Not Found",
+    "documentation_url": "https://docs.github.com/rest/repos/repos#get-a-repository",
+    "status": "404"
+   }
+  }
+ ]
+}
