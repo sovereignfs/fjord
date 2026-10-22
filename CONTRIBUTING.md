@@ -88,7 +88,7 @@ affected:
 | Documentation only: READMEs, CHANGELOGs, `spec/`, the roadmap, `.github` templates | Nothing beyond that first job, a few seconds |
 | `scripts/` only | shellcheck, and the classifier's tests |
 | `crates/` (except a crate's own `README.md` and `CHANGELOG.md`), `schema/`, `tests/`, `Cargo.toml`, `Cargo.lock`, or the workflow itself | The full Rust jobs |
-| `clients/web/` (except its own `README.md`, `CHANGELOG.md`, `CLAUDE.md`, `DESIGN.md`, `ROADMAP.md` and `LICENSE`), or its workflow | Fjord Web's jobs: type-check and build, and the tests against sqld, a SQLite file and PostgreSQL |
+| `clients/web/` (except its own `README.md`, `CHANGELOG.md`, `CLAUDE.md`, `DESIGN.md`, `ROADMAP.md` and `LICENSE`), or its workflow | Fjord Web's jobs: type-check and build, the tests against sqld, a SQLite file and PostgreSQL, and the browser tests |
 
 The full Rust jobs check that the crate and the reference `age` implementation
 agree, run the suite on Linux and macOS, build on Windows, hold clippy and
