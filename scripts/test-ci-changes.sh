@@ -29,10 +29,12 @@ expect() {
   fi
 }
 
-NONE="rust=false scripts=false"
-RUST="rust=true scripts=false"
-SCRIPTS="rust=false scripts=true"
-BOTH="rust=true scripts=true"
+NONE="rust=false scripts=false web=false"
+RUST="rust=true scripts=false web=false"
+SCRIPTS="rust=false scripts=true web=false"
+WEB="rust=false scripts=false web=true"
+BOTH="rust=true scripts=true web=false"
+ALL="rust=true scripts=true web=true"
 
 printf '\nchanges that need nothing\n'
 expect "no changes at all" "$NONE"
@@ -45,6 +47,8 @@ expect "the licence" "$NONE" LICENSE
 expect "deny.toml, which the Audit workflow owns" "$NONE" deny.toml
 expect "dist's config, which its own plan job checks" "$NONE" dist-workspace.toml
 expect "several documents together" "$NONE" ROADMAP.md crates/fjord-cli/CHANGELOG.md spec/SPEC.md
+expect "Fjord Web's documents" "$NONE" clients/web/README.md clients/web/CHANGELOG.md clients/web/CLAUDE.md clients/web/DESIGN.md clients/web/ROADMAP.md clients/web/LICENSE
+expect "the other clients' plans, which have no code yet" "$NONE" clients/mobile/DESIGN.md clients/mobile/ROADMAP.md clients/mcp/DESIGN.md clients/mcp/ROADMAP.md
 
 printf '\nchanges that need the Rust jobs\n'
 expect "a source file" "$RUST" crates/fjord-cli/src/cmd/sync.rs
@@ -61,18 +65,32 @@ expect "a crate's Cargo.toml" "$RUST" crates/fjord-cli/Cargo.toml
 expect "the CI workflow itself" "$RUST" .github/workflows/ci.yml
 expect "a document and a source file together" "$RUST" ROADMAP.md crates/fjord-cli/src/main.rs
 
+printf '\nchanges that need only the Fjord Web jobs\n'
+expect "a page" "$WEB" clients/web/app/page.tsx
+expect "a source file" "$WEB" clients/web/src/site.ts
+expect "the lockfile" "$WEB" clients/web/pnpm-lock.yaml
+expect "package.json" "$WEB" clients/web/package.json
+expect "the app's configuration" "$WEB" clients/web/next.config.ts clients/web/tsconfig.json
+# A document in the sense of this classifier is only a named one.
+expect "a Markdown file that is not one of its documents" "$WEB" clients/web/content/terms.md
+expect "its own workflow" "$WEB" .github/workflows/web-ci.yml
+expect "a document and a source file together" "$WEB" clients/web/README.md clients/web/src/site.ts
+expect "a Rust change leaves the web jobs alone" "$RUST" crates/fjord-core/src/path.rs
+expect "a web change leaves the Rust jobs alone" "$WEB" clients/web/app/layout.tsx
+
 printf '\nchanges that need only the script checks\n'
 expect "a release script" "$SCRIPTS" scripts/release.sh
 expect "the release library" "$SCRIPTS" scripts/lib/release.sh
-expect "a component's release file" "$SCRIPTS" scripts/release/cli.sh
+expect "a component's release file" "$SCRIPTS" scripts/release/cli.sh scripts/release/web.sh
 expect "the release tests" "$SCRIPTS" scripts/test-release.sh
 
 printf '\nthe classifier itself\n'
-expect "changing the classifier runs everything" "$BOTH" scripts/ci-changes.sh
-expect "changing its tests runs everything" "$BOTH" scripts/test-ci-changes.sh
+expect "changing the classifier runs everything" "$ALL" scripts/ci-changes.sh
+expect "changing its tests runs everything" "$ALL" scripts/test-ci-changes.sh
 
 printf '\nboth kinds at once\n'
 expect "a source file and a script" "$BOTH" crates/fjord-core/src/lib.rs scripts/release.sh
+expect "a page and a source file" "$ALL" clients/web/app/page.tsx crates/fjord-core/src/lib.rs scripts/release.sh
 
 printf '\n%s passed, %s failed\n' "$PASSED" "$FAILED"
 [ "$FAILED" -eq 0 ]
