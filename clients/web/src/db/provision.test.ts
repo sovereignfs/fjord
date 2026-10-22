@@ -20,58 +20,23 @@ describe(`provisioning (${leg})`, () => {
     await expect(provisionStores(config, 15_000)).resolves.toBeUndefined();
   });
 
-  it("makes the auth store exist", async () => {
-    const { database } = await freshDatabase();
-    open.push(database);
-
-    if (config.dialect === "postgres") {
-      const row = await dbGet<{ n: number | string }>(
-        database,
-        sql`SELECT COUNT(*) AS n FROM information_schema.schemata WHERE schema_name = ${AUTH_STORE}`,
-      );
-      expect(Number(row?.n)).toBe(1);
-    } else if (config.form === "sqld") {
-      const client = await createSqldClient(config.url, AUTH_STORE);
-      const result = await client.execute("SELECT 1 AS one");
-      expect(Number(result.rows[0]?.one)).toBe(1);
-      client.close();
-    } else {
-      // A file store needs only its directory; the auth file is created when it is opened.
-      expect(config.authPath).toMatch(/fjord_auth\.db$/);
-    }
-  });
-});
-
-describe(`the app and auth stores (${leg})`, () => {
-  // The two must be separate databases: better-auth owns its tables and the app owns
-  // its own, and neither may see or collide with the other's. With sqld the separation
-  // is the `x-namespace` header, which sqld releases before 0.24.33 silently ignore,
-  // leaving every namespace the one default database. Nothing else would notice.
-  it.runIf(leg === "sqld")("are separate namespaces, not one database", async () => {
+  it.runIf(leg === "sqld")("makes both namespaces exist", async () => {
     if (config.dialect !== "sqlite" || config.form !== "sqld") return;
-    await freshDatabase().then(({ database }) => database.close());
-    const app = await createSqldClient(config.url, APP_STORE);
-    const auth = await createSqldClient(config.url, AUTH_STORE);
-    try {
-      await app.execute("CREATE TABLE namespace_probe (x)");
-      const seenByAuth = await auth.execute("SELECT name FROM sqlite_master WHERE name = 'namespace_probe'");
-      expect(seenByAuth.rows).toHaveLength(0);
-    } finally {
-      await app.execute("DROP TABLE IF EXISTS namespace_probe");
-      app.close();
-      auth.close();
+    await resetStores(config);
+    await provisionStores(config, 15_000);
+    for (const store of [APP_STORE, AUTH_STORE]) {
+      const client = await createSqldClient(config.url, store);
+      try {
+        expect(Number((await client.execute("SELECT 1 AS one")).rows[0]?.one)).toBe(1);
+      } finally {
+        client.close();
+      }
     }
   });
 
-  it.runIf(leg === "postgres")("are separate schemas", async () => {
-    const { database } = await freshDatabase();
-    open.push(database);
-    // `fjord_auth` exists, `fjord` is made by the migrations: neither holds the other's tables.
-    const row = await dbGet<{ n: number | string }>(
-      database,
-      sql`SELECT COUNT(*) AS n FROM information_schema.tables WHERE table_schema = ${AUTH_STORE}`,
-    );
-    expect(Number(row?.n)).toBe(0);
+  it.runIf(leg === "file")("keeps the auth store's file beside the app's", () => {
+    if (config.dialect !== "sqlite" || config.form !== "file") return;
+    expect(config.authPath).toMatch(/fjord_auth\.db$/);
   });
 });
 

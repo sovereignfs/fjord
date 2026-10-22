@@ -1,5 +1,5 @@
-// Generate a migration for both dialects, with the same name, so that a reviewer
-// reads two files called 0001_<name>.sql and not two random words.
+// Generate a migration for both dialects and both stores, with the same name, so that a
+// reviewer reads files called 0001_<name>.sql and not random words.
 //
 //   pnpm db:generate <name>     e.g. pnpm db:generate add_connection
 //
@@ -14,11 +14,12 @@ if (!name || !/^[a-z][a-z0-9_]*$/.test(name)) {
   process.exit(2);
 }
 
-for (const dialect of ["sqlite", "postgres"]) {
-  const result = spawnSync(
-    "pnpm",
-    ["exec", "drizzle-kit", "generate", `--config=drizzle.${dialect}.config.ts`, `--name=${name}`],
-    { stdio: "inherit" },
-  );
+// The app's store and the auth store are separate databases with separate migrations, so
+// each is generated on its own; one with no change writes nothing.
+const configs = ["sqlite", "postgres", "auth.sqlite", "auth.postgres"];
+for (const config of configs) {
+  const result = spawnSync("pnpm", ["exec", "drizzle-kit", "generate", `--config=drizzle.${config}.config.ts`, `--name=${name}`], {
+    stdio: "inherit",
+  });
   if (result.status !== 0) process.exit(result.status ?? 1);
 }

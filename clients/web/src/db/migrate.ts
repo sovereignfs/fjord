@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import type { Database } from "./client";
-import type { Env } from "./config";
+import type { Env, Store } from "./config";
 import { sleep } from "./retry";
 
 /**
@@ -30,15 +30,17 @@ import { sleep } from "./retry";
  * bundler is told not to trace it: left to guess, it would pull the whole project
  * into the deployed output.
  */
-export function migrationsFolder(dialect: Database["dialect"], env: Env = process.env): string {
-  return join(env.FJORD_MIGRATIONS_DIR || join(/*turbopackIgnore: true*/ process.cwd(), "migrations"), dialect);
+export function migrationsFolder(dialect: Database["dialect"], store: Store = "app", env: Env = process.env): string {
+  const root = env.FJORD_MIGRATIONS_DIR || join(/*turbopackIgnore: true*/ process.cwd(), "migrations");
+  // The app's migrations sit directly under `sqlite/` and `postgres/`; the auth store's under `auth/`.
+  return store === "auth" ? join(root, "auth", dialect) : join(root, dialect);
 }
 
 const POSTGRES_LOCK_KEY = 4_270_117_001; // arbitrary, stable, and ours
 
 const SQLITE_ATTEMPTS = 4;
 
-export async function runMigrations(database: Database, folder = migrationsFolder(database.dialect)): Promise<void> {
+export async function runMigrations(database: Database, folder = migrationsFolder(database.dialect, database.store)): Promise<void> {
   if (database.dialect === "sqlite") {
     const { migrate } = await import("drizzle-orm/libsql/migrator");
     for (let attempt = 1; ; attempt++) {
@@ -53,11 +55,14 @@ export async function runMigrations(database: Database, folder = migrationsFolde
   }
 
   const { migrate } = await import("drizzle-orm/node-postgres/migrator");
+  // Each store keeps its own record of what ran: PostgreSQL has one database for both, and
+  // Drizzle's default record (`drizzle.__drizzle_migrations`) would be shared and confused.
+  const migrationsSchema = database.store === "auth" ? "drizzle_auth" : "drizzle";
   const client = await database.db.$client.connect();
   try {
     await client.query("SELECT pg_advisory_lock($1)", [POSTGRES_LOCK_KEY]);
     try {
-      await migrate(database.db, { migrationsFolder: folder });
+      await migrate(database.db, { migrationsFolder: folder, migrationsSchema });
     } finally {
       await client.query("SELECT pg_advisory_unlock($1)", [POSTGRES_LOCK_KEY]);
     }

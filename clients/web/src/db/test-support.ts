@@ -76,8 +76,8 @@ export async function resetStores(config: DatabaseConfig): Promise<void> {
   const client = new pg.Client({ connectionString: config.url });
   await client.connect();
   try {
-    // `drizzle` is where Drizzle keeps its record of applied migrations.
-    for (const schema of [APP_STORE, AUTH_STORE, "drizzle"]) {
+    // `drizzle` and `drizzle_auth` are where Drizzle keeps its record of applied migrations.
+    for (const schema of [APP_STORE, AUTH_STORE, "drizzle", "drizzle_auth"]) {
       await client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
     }
   } finally {
@@ -86,11 +86,11 @@ export async function resetStores(config: DatabaseConfig): Promise<void> {
 }
 
 /** An empty, provisioned database, opened but not migrated. */
-export async function freshDatabase(): Promise<{ database: Database } & TestTarget> {
+export async function freshDatabase(store: "app" | "auth" = "app"): Promise<{ database: Database } & TestTarget> {
   const { config, leg } = testTarget();
   await resetStores(config);
   await provisionStores(config, 15_000);
-  return { database: await openDatabase(config), config, leg };
+  return { database: await openDatabase(config, store), config, leg };
 }
 
 /** The environment that makes `resolveDatabaseConfig` return this target's configuration. */
