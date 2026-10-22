@@ -27,7 +27,7 @@ before the web slices that need them.
 | P2 | **CLI: create and list documents.** `fjord new --document` writes `name.fj.md`; `ls` shows which is which. | Created file verifies; `ls --json` reports `kind`. | `todo` |
 | P3 | **`fjord-core`: vault discovery from a listing.** A pure function from a list of paths (and the manifests' bytes) to vaults and classified files, so a client with no filesystem can use it. The CLI's walk calls the same function. | Same results as the filesystem walk over every fixture. | `todo` |
 | P4 | **`fjord-core` to WebAssembly, pure subset.** A `fjord-wasm` crate (`wasm-bindgen`) exposing manifests, vault discovery (P3), path rules, frontmatter parse/preserve/promote and new-document headers. Time and randomness injected (the system clock panics on `wasm32-unknown-unknown`); the filesystem walker and `tempfile` excluded from the build. Runs in Node and the browser. | A JS test suite runs the conformance fixtures through the WASM build and gets the CLI's answers; bundle size recorded. | `todo` |
-| P5 | **Component scaffolding.** `clients/web` and `packages/fjord-editor` with their own lockfile, CI workflow (a `changes` job like `ci.yml`'s, with an sqld service, a PostgreSQL service and a `file:` leg ready for 1a.0), `README.md`, `CHANGELOG.md` and `LICENSE`; `scripts/release/web.sh`; root layout table updated. | CI runs only for web changes; a placeholder build passes; the release component dry-runs. | `todo` |
+| P5 | **Component scaffolding.** `clients/web`, a placeholder Next.js app with its own lockfile, `README.md`, `CHANGELOG.md`, `LICENSE` (AGPL-3.0-or-later) and `CLAUDE.md`; `web-ci.yml` (a `changes` job like `ci.yml`'s; type-check and build; the tests on three legs, an sqld container, a `file:` database and PostgreSQL, ready for 1a.0); `scripts/release/web.sh` and `web-release.yml`; root layout tables updated. `packages/fjord-editor` is **not** created here: it starts with 1b.1, when its licence is decided (§19 #4). | CI runs only for web changes; a placeholder build passes; the release component dry-runs. | `done` |
 
 P4 is the longest pole; 1a needs P3–P5, 1b needs P1, P2 and P4.
 
@@ -55,7 +55,7 @@ P4 is the longest pole; 1a needs P3–P5, 1b needs P1, P2 and P4.
 
 | # | Task | Accepts when | Status |
 | --- | --- | --- | --- |
-| 1b.1 | **Editor package interface** (§10): `DocumentEditor`, `NoteEditor`, props, events; stories. | The app uses only the package's interface. | `open` (§19 #4) |
+| 1b.1 | **Editor package interface** (§10): creates `packages/fjord-editor`, with its own CI and licence; `DocumentEditor`, `NoteEditor`, props, events; stories. | The app uses only the package's interface. | `open` (§19 #4) |
 | 1b.2 | **Note editor** (§10): CodeMirror 6, byte-faithful. | Round-trip corpus: open, edit one word, save → the diff is that word. | `todo` |
 | 1b.3 | **Document editor** (§10): MDXEditor; Markdown-only toolbar; tables; images by URL; raw blocks preserved. | Every corpus file opens and saves; unknown syntax survives untouched. | `todo` |
 | 1b.4 | **House style** (§10): documented, applied on save, first-save preview for documents written elsewhere. | The style is written down; the preview lists what changes. | `todo` (§19 #7) |

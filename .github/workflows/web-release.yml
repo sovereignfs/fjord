@@ -1,0 +1,91 @@
+# Releases Fjord Web: a `web-vX.Y.Z` tag, pushed by scripts/release.sh once the
+# release PR has merged and CI is green on the merged commit (RELEASING.md), starts
+# this. It checks that the app still builds at the tag, then publishes a GitHub
+# release whose notes are the version's section of clients/web/CHANGELOG.md.
+#
+# It is never marked Latest: that slot is the CLI's, and the CLI's install URLs
+# depend on it. The container image, Fjord Web's real artifact, is added here
+# with ROADMAP 1a.12.
+name: Web release
+
+on:
+  push:
+    tags:
+      - "web-v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check the app
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: clients/web
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: The tag must name the version in package.json
+        run: |
+          version="${GITHUB_REF_NAME#web-v}"
+          declared="$(jq -r .version package.json)"
+          if [ "$version" != "$declared" ]; then
+            echo "::error::the tag says $version but package.json says $declared"
+            exit 1
+          fi
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: clients/web/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: clients/web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  release:
+    name: publish the release
+    needs: check
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # The version's section of the changelog: from its heading to the next
+      # heading or to the link references at the foot of the file. The same rule
+      # as scripts/lib/release.sh's section_body.
+      - name: Take the release notes from the changelog
+        run: |
+          version="${GITHUB_REF_NAME#web-v}"
+          awk -v h="## [$version]" '
+            index($0, h) == 1 { f = 1; next }
+            /^## \[/ { f = 0 }
+            /^\[[^]]+\]: / { f = 0 }
+            f' clients/web/CHANGELOG.md | sed '/./,$!d' > "$RUNNER_TEMP/notes.md"
+          if ! grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"; then
+            echo "::error::clients/web/CHANGELOG.md has no notes for $version"
+            exit 1
+          fi
+
+      # The title is the component and the version, with no date, as for every
+      # release here (RELEASING.md § Release titles).
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#web-v}"
+          gh release create "$GITHUB_REF_NAME" \
+            --title "fjord-web $version" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --verify-tag \
+            --latest=false

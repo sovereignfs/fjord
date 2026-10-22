@@ -36,6 +36,8 @@
 #   C_CHANGELOG          path of the component's CHANGELOG.md
 #   C_TOUCHED            the files `prepare` edits (the changelog is one)
 #   C_RELEASE_WORKFLOW   the workflow file that the tag starts
+#   C_NEEDS              the tools its commands run, beyond git, jq and gh
+#                        (the CLI: "cargo dist"; Fjord Web: "node pnpm")
 #   C_LATEST             "yes" if its releases are marked Latest on GitHub
 #                        (the CLI's are: the install URLs say "latest"),
 #                        "no" if they must never be
@@ -123,6 +125,15 @@ trap cleanup EXIT
 
 need() {
   command -v "$1" >/dev/null 2>&1 || die "$1 is required and was not found"
+}
+
+# The tools this component's own commands run (C_NEEDS), so that releasing a
+# component that is not Rust does not demand a Rust toolchain, and the reverse.
+need_component_tools() {
+  local tool
+  for tool in ${C_NEEDS:-}; do
+    need "$tool"
+  done
 }
 
 valid_version() {
@@ -234,17 +245,22 @@ promote_unreleased() {
 # link, from the previous release's tag to this one's. Skipped, with a
 # warning, if the file has no [Unreleased] link.
 update_footer_links() {
-  local version=$1 previous=$2 vre=${1//./\\.} has_link=no new_tag prev_tag
+  local version=$1 previous=$2 vre=${1//./\\.} has_link=no first new_tag prev_tag
   new_tag=$(tag_of "$version")
   prev_tag=$(previous_tag "$previous")
   if grep -q '^\[Unreleased\]: ' "$C_CHANGELOG"; then
     if grep -q "^\[$vre\]: " "$C_CHANGELOG"; then
       has_link=yes
     fi
-    awk -v url="$REPO_URL" -v v="$version" -v new="$new_tag" -v prev="$prev_tag" -v has="$has_link" '
+    # A component at 0.0.0 has never been released, so there is nothing to compare
+    # with: its first version links to the release itself, as a changelog does.
+    first=no
+    [ "$previous" != 0.0.0 ] || first=yes
+    awk -v url="$REPO_URL" -v v="$version" -v new="$new_tag" -v prev="$prev_tag" -v has="$has_link" -v first="$first" '
       index($0, "[Unreleased]: ") == 1 {
         print "[Unreleased]: " url "/compare/" new "...HEAD"
-        if (has == "no") print "[" v "]: " url "/compare/" prev "..." new
+        if (has == "no" && first == "yes") print "[" v "]: " url "/releases/tag/" new
+        else if (has == "no") print "[" v "]: " url "/compare/" prev "..." new
         next
       }
       { print }' "$C_CHANGELOG" >"$WORK/changelog.new"
@@ -304,9 +320,8 @@ preflight_prepare() {
 
   valid_version "$v" || die "'$v' is not a version of the form X.Y.Z"
   need git
-  need cargo
-  need dist
   need jq
+  need_component_tools
 
   # Said before the checks that follow, which would otherwise tell someone who
   # has already prepared to "switch to main": the wrong advice.
@@ -546,9 +561,8 @@ verify_release_page() {
 # The tools and the login the steps that talk to GitHub need.
 need_github() {
   need git
-  need cargo
-  need dist
   need jq
+  need_component_tools
   need gh
   gh auth status >/dev/null 2>&1 || die "gh is not logged in"
 }

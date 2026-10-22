@@ -43,6 +43,14 @@ own tests, `scripts/test-release.sh`, run against throwaway repositories.
 | Component | Tag | Notes live in | Released by | Marked *Latest* |
 | --- | --- | --- | --- | --- |
 | `cli` (`fjord-cli`, with `fjord-core`) | `fjord-cli-vX.Y.Z` | `crates/fjord-cli/CHANGELOG.md` | `dist`, from `.github/workflows/fjord-cli-release.yml` | **yes** |
+| `web` (`fjord-web`) | `web-vX.Y.Z` | `clients/web/CHANGELOG.md` | `.github/workflows/web-release.yml`, written by hand | no |
+
+Fjord Web's release publishes the notes and nothing else for now; its container
+image joins it with `clients/web/ROADMAP.md` 1a.12. Its version lives in
+`clients/web/package.json` (the lockfile does not record it), and the component
+needs Node and pnpm, not Rust. A component that has never been released is at
+`0.0.0`, and its first version's changelog link points at the release page,
+since there is nothing to compare with.
 
 Releases up to 0.2.0 were tagged `vX.Y.Z`, before there was more than one
 component. They are finished and stay as they are; the script finds them when
