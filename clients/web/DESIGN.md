@@ -201,6 +201,45 @@ assumption:
    repository with *Contents: read and write*. Its permissions are checked when it
    is added.
 
+### The provider interface, as built (ROADMAP 1a.5)
+
+Everything the app asks of a git host goes through `Provider` (`src/providers/types.ts`); nothing
+else imports a host's HTTP client. Everything is by git object id, so a result never changes under
+its reader: the tree read for a commit is that commit's tree for ever, which is what the cache of
+§8 relies on.
+
+- **Reading:** `listRepositories`, `getRepository`, `getHead` (with an etag, so a poll that finds
+  nothing new costs no rate limit), `getTree` (every path with its size and id, in one request,
+  and `complete: false` when the host cut it short), `listDirectory` (the fallback for that, one
+  directory at a time), `readBlob` (bytes, with a size limit).
+- **Writing:** `commit(ref, { branch, expectedHead, message, author, changes })`: several file
+  changes as one commit, on top of the head the caller read. It is made the way git makes one
+  (blobs, a tree on the head's, a commit, then a fast-forward of the branch), so it is atomic.
+  **It is never forced.** A branch that has moved gives `head_moved` and writes nothing to the
+  branch; the early look makes that cost one request, and the host's own fast-forward rule is the
+  real guarantee for the race after it. A commit that would change nothing gives `no_changes`, so
+  an idle save makes no empty commit. A move is a blob put at a new path (nothing re-uploaded) and a
+  delete. A folder is changed by changing each of its files; the caller has the tree.
+- **Paths are checked by every provider**: nothing may write `.git/…`, `..`, an absolute path or
+  a duplicate. (The format's own path rules, spec §5, are `fjord-core`'s and are applied before a
+  commit is built.)
+- **Errors are ours, not the host's**: `unauthorized`, `forbidden`, `not_found`,
+  `empty_repository`, `head_moved`, `no_changes`, `too_large`, `rate_limited` (with when to try
+  again), `unavailable`, `invalid_request`, `invalid_webhook`. An error never carries a credential.
+- **Retries:** a read is tried again after a network failure or a 502, 503 or 504, twice. A write
+  never is: a commit whose answer was lost may have happened, and sending it again is how a history
+  gets a duplicate. The caller reads the head and decides.
+- **Webhooks:** `verifyWebhook` checks `X-Hub-Signature-256` (HMAC-SHA256 over the exact body, in
+  constant time) before reading a byte of it, and reports a push to a branch. A host without
+  webhooks says so (`webhooks: false`) and is polled with `getHead`.
+- **Tested three ways, against one contract** (`src/providers/testing/contract.ts`): GitHub's
+  provider over a fake whose storage is a **real git repository** (object ids, trees and the
+  fast-forward rule are git's, not my belief about git's), the in-memory provider (the second
+  implementation, which the rest of the app is tested against), and GitHub's **real answers**,
+  recorded from a public repository and replayed byte for byte, which also check that the fake
+  emits the shapes GitHub does. `node scripts/record-github-fixtures.mjs` records them again, with
+  no credential, to see whether GitHub's shapes have changed.
+
 **Every credential is encrypted at rest** (envelope encryption with an instance key
 from the environment; rotation is supported). Credentials are never sent to the
 browser.
@@ -719,4 +758,6 @@ standalone output would otherwise prune it.
 | 2026-10-22 | Sign-up is `closed` by default (the first account, then refused) and `open` by choice | Open by default; invites (they need email) |
 | 2026-10-22 | Email is optional: with SMTP, verified addresses and reset by email; without it, neither | SMTP required; no email at all |
 | 2026-10-22 | The browser tests run the built app in Chromium with Playwright, and a virtual authenticator stands in for a passkey device | Server-level tests only, leaving passkeys to a manual check |
+| 2026-10-22 | One `Provider` interface, tested by one contract against GitHub over a git-backed fake, an in-memory provider, and GitHub's recorded real answers | A recording of the real API alone (cannot show a write); a hand-written fake of git's rules |
+| 2026-10-22 | A commit is blobs, a tree, a commit and a fast-forward, never forced, and never retried | The Contents API (one file at a time, no atomic multi-file commit); forcing the branch; retrying a lost write |
 | 2026-10-22 | The landing page is static, server-rendered HTML in `@sovereignfs/ui`'s tokens, with the design system reached through one `"use client"` module, a theme script that follows the system, and a native `<details>` FAQ | A client-rendered page; a bespoke palette; importing the package from Server Components (it fails: the bundle calls `createContext` at module scope) |

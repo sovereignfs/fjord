@@ -13,6 +13,11 @@ section.
 
 ### Added
 
+- **The git host interface and GitHub** (ROADMAP 1a.5): list repositories, read a branch's
+  head (with etags), a commit's whole tree or one directory, and a file; make several file
+  changes as one atomic commit, never forced and never retried; verify `push` webhooks.
+  Errors are typed (`head_moved`, `rate_limited`, `forbidden`, ...). Not yet connected to
+  anything: the GitHub App and token connections are the next tasks.
 - **Local sign-in** (ROADMAP 1a.2): email and password, passkeys, and two-factor with an
   authenticator app and ten backup codes, on better-auth 1.7. Off unless `FJORD_AUTH_LOCAL`
   is set, and then off entirely (404). Sign-up is the first account only unless
