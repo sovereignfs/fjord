@@ -13,6 +13,13 @@ section.
 
 ### Added
 
+- **The database layer** (`DESIGN.md` §14): SQLite by default, as an sqld service or a
+  plain file, or PostgreSQL by choice, selected by `DB_DIALECT`. The server makes its
+  own namespaces, schemas and tables when it starts and refuses to start if it
+  cannot. Paired Drizzle schemas and generated migrations, an `event` table for
+  worker-to-web notices, portable query helpers, `GET /api/health`, and
+  `pnpm db:dev` for a local sqld or PostgreSQL. CI runs the tests against all three
+  databases.
 - A placeholder app: Next.js 16 with React 19 and TypeScript, which type-checks,
   tests and builds in CI. Nothing in it is usable yet; the work is planned in
   [`ROADMAP.md`](ROADMAP.md).

@@ -18,6 +18,9 @@ pnpm typecheck                   # next typegen && tsc --noEmit
 pnpm test                        # vitest
 pnpm build                       # next build
 pnpm dev
+pnpm db:generate <name>          # migrations for both dialects, from the schemas
+pnpm db:dev sqld | postgres      # a local database in Docker (not needed: a file: URL works)
+pnpm build && pnpm boot-check    # a fresh instance boots on the database in the environment
 ```
 
 Node 24 and the pnpm version in `package.json`. A change to a dependency commits
@@ -36,10 +39,18 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 - **Every route and API checks the caller's role** before it does anything
   (`DESIGN.md` §12). A new endpoint without a test of who may call it is not done.
 - **The database has two dialects and three test legs** (`DESIGN.md` §14): a schema
-  and migrations per dialect, generated with `drizzle-kit generate` and never
-  `push`; one representation per type; no `LISTEN/NOTIFY`; short transactions,
-  nothing held across a call to the git host. A data-layer test runs on sqld, a
-  `file:` database and PostgreSQL, so one that only passes on one is not done.
+  and migrations per dialect, generated with `pnpm db:generate` and never written by
+  hand or `push`ed; one representation per type, through the column vocabulary in
+  `src/db/schema/*/columns.ts` (a 64-bit id or an `epochMs`, never a `Date` or a bare
+  `bigint`); no `LISTEN/NOTIFY`, the `event` table instead; short transactions,
+  nothing held across a call to the git host. Raw SQL goes through `src/db/exec.ts`
+  and is standard SQL, with values bound and never interpolated. A data-layer test
+  runs on sqld, a `file:` database and PostgreSQL, so one that only passes on one is
+  not done. A schema change is made in both dialects, and its migrations committed
+  with it: CI fails if generating from the schemas would write anything.
+- **Tests that drop data never read the app's variables.** They read `FJORD_TEST_*`
+  (`src/db/test-support.ts`), so a developer's exported `POSTGRES_DB_URL` can never
+  be wiped by `pnpm test`.
 - **Untrusted Markdown is sanitised** and pages send a strict
   Content-Security-Policy (`DESIGN.md` §15). Nothing third-party loads.
 - **TypeScript is strict**, with `noUncheckedIndexedAccess`. No `any` without a
@@ -58,6 +69,10 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | --- | --- |
 | `app/` | Next.js routes and layouts (App Router) |
 | `src/` | Everything that is not a route: the data layer, providers, auth, the format glue. Tested with Vitest, `*.test.ts` beside the code |
+| `src/db/` | The database layer: configuration, the two clients, the schemas (`schema/{sqlite,postgres}`), portable queries, migrations at start-up |
+| `migrations/` | The generated SQL, `sqlite/` and `postgres/`, committed and reviewed |
+| `instrumentation.ts` | Runs once at server start: brings the database up, so a server that cannot reach or migrate it does not start |
+| `scripts/` | Small Node scripts: `db-generate`, `db-dev`, `boot-check` |
 | `DESIGN.md`, `ROADMAP.md` | The design and the plan |
 
 `packages/fjord-editor` is shared with other clients and is created when slice 1b

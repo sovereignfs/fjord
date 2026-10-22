@@ -28,8 +28,47 @@ pnpm test
 pnpm build
 ```
 
-CI runs the same four checks for a change to this directory, and nothing else runs
-for it (`.github/workflows/web-ci.yml`).
+CI runs those for a change to this directory, and nothing else runs for it
+(`.github/workflows/web-ci.yml`).
+
+### The database
+
+Fjord Web keeps accounts, connections, shares and the like in SQLite (the default,
+in production too) or PostgreSQL (`DESIGN.md` §14). It makes its own namespaces,
+schemas and tables when it starts, from the variables below.
+
+| Variable | Meaning | Default |
+| --- | --- | --- |
+| `DB_DIALECT` | `sqlite` or `postgres` | `sqlite` |
+| `SQLITE_URL` | `http://host:port` for an [sqld](https://github.com/tursodatabase/libsql) service, or `file:/path/fjord.db` for a plain file | `http://sqld:8080` |
+| `SQLD_ADMIN_URL` | sqld's admin API, used to create its namespaces | `http://sqld:8081` |
+| `POSTGRES_DB_URL` | `postgres://user:password@host:port/db`, required for `postgres` | |
+| `POSTGRES_POOL_MAX`, `PGSSLROOTCERT` | pool size (5), and a CA file for `sslmode=verify-*` | |
+| `FJORD_DB_CONNECT_TIMEOUT_MS` | how long to wait for the database to come up | 30000 |
+
+You need no database service to develop: a file works with no Docker.
+
+```bash
+SQLITE_URL=file:./data/fjord.db pnpm dev      # a file, no Docker
+pnpm db:dev sqld                              # or sqld in Docker; prints the variables to export
+pnpm db:dev postgres                          # or PostgreSQL, to try the other dialect
+pnpm db:dev stop
+```
+
+The file form keeps the auth database beside the app's, as `fjord_auth.db`. The tests
+use a throwaway file when nothing says otherwise; CI runs them on sqld, a file and
+PostgreSQL. They read `FJORD_TEST_*` variables, not the ones above, because they drop
+whole databases (`src/db/test-support.ts`).
+
+**Changing the schema** means changing it twice, because the two dialects use
+different builders: `src/db/schema/sqlite/` and `src/db/schema/postgres/`. A parity
+test fails if they drift. Then generate the migrations, never write them by hand and
+never `drizzle-kit push`:
+
+```bash
+pnpm db:generate add_connection     # writes migrations/{sqlite,postgres}/NNNN_add_connection.sql
+pnpm boot-check                     # after pnpm build: boots an instance on the database in the environment
+```
 
 ## Licence
 

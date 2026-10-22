@@ -472,12 +472,13 @@ path is the default one.
 | `file:/data/fjord.db` | a plain file | the smallest self-host: one container, no database service |
 
 - With sqld, the app and auth databases are the namespaces `fjord` and `fjord_auth`,
-  created through `SQLD_ADMIN_URL`. With a file, auth is `fjord_auth.db` beside it.
-- **`SQLITE_URL` must name a host, not an IP address.** With namespaces on, sqld takes
-  the default namespace from the first label of the `Host` header, so
-  `http://127.0.0.1:8080` selects a namespace called `127` and every request 404s.
-  Use `localhost` or a service name (Sovereign found this the hard way; CI uses
-  `localhost`).
+  created through `SQLD_ADMIN_URL`; every request names its namespace in the
+  `x-namespace` header. With a file, auth is `fjord_auth.db` beside it.
+- **sqld must be 0.24.33 or later.** Earlier releases ignore `x-namespace`, so every
+  "namespace" is the one default database and the app's tables and better-auth's would
+  share it, with no error to say so. The newest GitHub *release* is 0.24.32, but the
+  image `…/libsql-server:v0.24.33` (the same as `latest`) exists, and is what CI and
+  the dev script pin. A test checks that the two stores really are separate.
 - **The file form has limits, stated plainly:** every process that writes must run on
   the same host (one container, or containers sharing a *local* volume); there are no
   replicas on other hosts; and the file must never sit on a network filesystem, which
@@ -519,12 +520,48 @@ application instead: the connection credentials (§7), as already planned.
 **The dialect is chosen at install time.** Moving an existing instance from one to the
 other is not supported in phase 1 (§19 #1).
 
+**How it starts.** The server brings the database up once, in `instrumentation.ts`
+before it serves anything, and does not start if it cannot: it reads the configuration
+(`src/db/config.ts`, the only place the variables are read), makes the stores that
+must exist (the sqld namespaces `fjord` and `fjord_auth`, the directory of the SQLite
+files, the PostgreSQL schema `fjord_auth`), opens the app's database and applies the
+migrations. It waits up to `FJORD_DB_CONNECT_TIMEOUT_MS` (30 s) for a database that is
+still starting, since in a compose file the two come up together. `GET /api/health`
+answers from the live database, for a container health check and for CI.
+
+- **Migrations** are read from `migrations/` in the directory the server runs from, or
+  `FJORD_MIGRATIONS_DIR`; the image copies the folder next to the server (1a.12).
+  Concurrent starts are safe: PostgreSQL takes an advisory lock on one pinned
+  connection; SQLite has no such lock, so a run that loses the race retries and finds
+  the work done.
+- **Two libSQL clients, one dialect.** An sqld service is reached with
+  `@libsql/client/web`, the HTTP-only build, so an sqld or PostgreSQL instance never
+  loads a native addon. Only the `file:` form loads libSQL's native client, which has
+  no build for every platform (it has none for musl): the image for the `file:` form
+  must be a glibc one, or check for a prebuilt binary (1a.12). A file database runs in
+  WAL mode with a busy timeout, since the web and worker processes may share it.
+- **`bigint` is a number.** PostgreSQL returns 64-bit integers as strings unless told
+  otherwise; every 64-bit column declares `mode: "number"` and the client parses
+  `int8` the same way for raw SQL (on `pg`'s own registry: Drizzle gives each query
+  its own parsers, so a pool option is ignored). A value past 2^53 is an error, not a
+  rounded number. Ids and epoch milliseconds are far below it.
+- **The column vocabulary** (`src/db/schema/*/columns.ts`) is how the portable rule is
+  kept: a table is written with `id64` and `epochMs`, not with a dialect's own types.
+  It grows by one word at a time as tables need one, in both dialects at once.
+- **`event`** (the first table) has an `id` that only grows, so a reader's cursor stays
+  valid after old events are pruned.
+
 **Tested on every form, from the first task.** CI runs the whole data-layer suite
 three times, against an sqld service, a `file:` database and a PostgreSQL service,
-not as optional suites that someone has to remember to write. A **schema parity test**
-checks that the two dialects' schemas declare the same tables, columns and indexes.
-In development a script starts a local sqld, as Sovereign's does; a `file:` URL works
-with no Docker at all.
+not as optional suites that someone has to remember to write, and before it boots a
+built instance from an empty database on each, as an operator would. A **schema parity
+test** checks that the two dialects' schemas declare the same tables, columns and
+indexes, and a CI step fails if generating migrations from the committed schemas would
+write anything. The tests read `FJORD_TEST_*` variables and not the app's, because they
+drop whole schemas and namespaces: a developer's exported `POSTGRES_DB_URL` must never
+be wiped by `pnpm test`. In development `pnpm db:dev` starts a local sqld or PostgreSQL
+in Docker, as Sovereign's script does; a `file:` URL works with no Docker at all, and
+it is what the tests use when nothing else is set.
 
 ## 15. Security and privacy
 
