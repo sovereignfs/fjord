@@ -147,11 +147,12 @@ Phase 1 ships in slices (§15), each usable on its own.
 | Path | What |
 | --- | --- |
 | `clients/mobile/` | The Expo app: its own `package.json` and lockfile, `README.md`, `CHANGELOG.md`, `LICENSE` |
-| `clients/engine/` | A Cargo workspace of its own with `fjord-client` and `fjord-ffi`, depending on `crates/fjord-core` by path |
+| `clients/engine/` | A Cargo workspace of its own with `fjord-client` and `fjord-ffi`, depending on `crates/fjord-core` by path; also home to `fjord-mcp` ([`../mcp/DESIGN.md`](../mcp/DESIGN.md)) |
 
 The engine is a separate workspace, not a member of the root one, so the CLI's
 lockfile, MSRV and `cargo deny` stay small (root `CLAUDE.md`, "Adding a component",
-5). The desktop client will use the same workspace. (Open: §18.)
+5). The desktop client will use the same workspace, and so will `fjord-mcp`, which may
+be the engine's first user. (Open: §18.)
 
 ## 6. Repository connections
 
