@@ -12,12 +12,17 @@
 #
 #   rust     the Rust build, tests and checks can be affected
 #   scripts  the shell scripts can be affected (shellcheck)
+#   web      Fjord Web (clients/web) can be affected
 #
-# A change to documentation alone sets neither, so the expensive jobs do not
+# A change to documentation alone sets none, so the expensive jobs do not
 # run for it. The rules err towards running: a path under crates/ is Rust unless
 # it is one of the documents named below, and the Markdown that is *not* a
 # document in that sense (the init templates that are compiled into the binary,
 # the conformance fixtures) stays Rust.
+#
+# The Rust workflow (ci.yml) and Fjord Web's (web-ci.yml) both run this and each
+# reads the outputs it cares about, so a change to one component never starts the
+# other's jobs.
 #
 # Not here on purpose: deny.toml and the dependency files' audit belong to the
 # Audit workflow, and dist-workspace.toml to the generated release workflow's
@@ -29,6 +34,7 @@ set -euo pipefail
 
 rust=false
 scripts=false
+web=false
 
 # A crate's own README and CHANGELOG: documents nothing compiles and no test
 # reads. A regex and not a glob, because in a `case` pattern `*` matches `/`, and
@@ -36,9 +42,13 @@ scripts=false
 # which is compiled into the binary.
 crate_document='^crates/[^/]+/(README|CHANGELOG)\.md$'
 
+# Fjord Web's own documents, likewise: nothing builds or tests from them. Anything
+# else under clients/web (a Markdown file a page renders, say) counts as code.
+web_document='^clients/web/(README|CHANGELOG|CLAUDE|DESIGN|ROADMAP)\.md$|^clients/web/LICENSE$'
+
 while IFS= read -r path; do
   [ -n "$path" ] || continue
-  if [[ $path =~ $crate_document ]]; then
+  if [[ $path =~ $crate_document || $path =~ $web_document ]]; then
     continue
   fi
   case "$path" in
@@ -46,13 +56,16 @@ while IFS= read -r path; do
     scripts/ci-changes.sh | scripts/test-ci-changes.sh)
       rust=true
       scripts=true
+      web=true
       ;;
     crates/* | schema/* | tests/* | .cargo/* | Cargo.toml | Cargo.lock | rust-toolchain | rust-toolchain.toml | .github/workflows/ci.yml)
       rust=true
       ;;
     scripts/*) scripts=true ;;
+    clients/web/* | .github/workflows/web-ci.yml) web=true ;;
   esac
 done
 
 printf 'rust=%s\n' "$rust"
 printf 'scripts=%s\n' "$scripts"
+printf 'web=%s\n' "$web"
