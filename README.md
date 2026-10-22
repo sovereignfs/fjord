@@ -18,7 +18,8 @@ code that implements it is one commit.
 | [`spec/`](spec/SPEC.md) | The repository format. Canonical; CC0. | Draft | — |
 | [`crates/fjord-core`](crates/fjord-core) | The format as a library: manifests, paths, Docs, encryption, `verify`. Built to run anywhere (desktop, mobile, WASM). | Released with the CLI | — |
 | [`crates/fjord-cli`](crates/fjord-cli) | **`fjord`**, the command-line tool. | Released | [Install](crates/fjord-cli/README.md#install) |
-| `clients/web`, `clients/desktop`, `clients/mobile` | End-user apps. | Planned | — |
+| [`clients/web`](clients/web) | The hosted web client: browse, edit, share and comment on documents. | Design ([plan](clients/web/ROADMAP.md)) | — |
+| `clients/desktop`, `clients/mobile` | End-user apps. | Planned | — |
 | `plugins/vscode`, `plugins/obsidian` | Editor integrations. | Planned | — |
 
 Directories for planned components are created when work on them starts.

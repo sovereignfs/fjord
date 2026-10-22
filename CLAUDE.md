@@ -87,7 +87,9 @@ Where this differs from `sovereign`, on purpose:
 | `schema/`, `tests/fixtures/` | The `verify --json` schema, and the conformance fixtures **every** client must pass | MPL-2.0 | — |
 | `crates/fjord-core/` | The format as a library | MPL-2.0 | with the CLI |
 | `crates/fjord-cli/` | The CLI: package `fjord-cli`, binary `fjord` | MPL-2.0 | `fjord-cli-vX.Y.Z` |
-| `clients/web`, `clients/desktop`, `clients/mobile` | Not created yet | — | their own tags |
+| `clients/web` | The hosted web client. **Design only so far:** [`DESIGN.md`](clients/web/DESIGN.md), [`ROADMAP.md`](clients/web/ROADMAP.md) | AGPL-3.0-or-later (it bundles `@sovereignfs/ui`) | `web-vX.Y.Z` |
+| `packages/fjord-editor` | The document and note editors, shared by the clients. Not created yet | Open (`clients/web/DESIGN.md` §19) | with its users |
+| `clients/desktop`, `clients/mobile` | Not created yet | — | their own tags |
 | `plugins/vscode`, `plugins/obsidian` | Not created yet | — | their own tags |
 
 Directories are created when the component starts, not before.
