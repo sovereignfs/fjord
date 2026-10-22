@@ -51,6 +51,15 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 - **Tests that drop data never read the app's variables.** They read `FJORD_TEST_*`
   (`src/db/test-support.ts`), so a developer's exported `POSTGRES_DB_URL` can never
   be wiped by `pnpm test`.
+- **The design system comes through `src/ui`, and its tokens are the only palette.**
+  `@sovereignfs/ui` is one bundle with no `"use client"` and a module-level
+  `createContext`, so a Server Component that imports it directly fails to build;
+  import from `src/ui` (a `"use client"` re-export, which still renders on the
+  server). Add a component there when a page needs it. Style with the `--sv-*`
+  tokens (`@sovereignfs/ui/tokens.css`), never a literal colour, so dark mode and
+  theming keep working. The package's README is out of date: take icon names and
+  props from its types (`IconName`; `Icon` needs `aria-hidden` or `aria-label`). It
+  has `@dnd-kit/*` peers that it imports unconditionally, so they are installed too.
 - **Untrusted Markdown is sanitised** and pages send a strict
   Content-Security-Policy (`DESIGN.md` §15). Nothing third-party loads.
 - **TypeScript is strict**, with `noUncheckedIndexedAccess`. No `any` without a
@@ -69,6 +78,9 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | --- | --- |
 | `app/` | Next.js routes and layouts (App Router) |
 | `src/` | Everything that is not a route: the data layer, providers, auth, the format glue. Tested with Vitest, `*.test.ts` beside the code |
+| `src/ui/` | The design system's client boundary, and components of ours that match it (`LinkButton`) |
+| `src/landing/` | The landing page at `/`: its content as typed data, the component and its styles |
+| `src/theme/` | The script that sets `data-theme` from the visitor's colour scheme, before first paint |
 | `src/db/` | The database layer: configuration, the two clients, the schemas (`schema/{sqlite,postgres}`), portable queries, migrations at start-up |
 | `migrations/` | The generated SQL, `sqlite/` and `postgres/`, committed and reviewed |
 | `instrumentation.ts` | Runs once at server start: brings the database up, so a server that cannot reach or migrate it does not start |

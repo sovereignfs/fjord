@@ -38,7 +38,7 @@ P4 is the longest pole; 1a needs P3–P5, 1b needs P1, P2 and P4.
 | # | Task | Accepts when | Status |
 | --- | --- | --- | --- |
 | 1a.0 | **Database layer, both dialects** (§14): `DB_DIALECT` (default `sqlite`); the libSQL client for sqld and `file:`; the PostgreSQL client; paired Drizzle schemas and migrations; the portability helper; the `event` table; the dev sqld script; CI legs for sqld, `file:` and PostgreSQL. | A fresh instance boots on each of the three from the documented variables; migrations apply cleanly from empty on each; the data-layer suite passes on all three in CI; the schema parity test is seen to fail when a column is added to one dialect only. | `done` |
-| 1a.1 | **Landing page** (§3): what Fjord is, why, features; sign-in and sign-up. | Renders for visitors; `/` becomes the repository view once signed in. | `todo` |
+| 1a.1 | **Landing page** (§3): what Fjord is, why, features; sign-in and sign-up. | Renders for visitors, as static HTML, in light and dark, on a phone; links to `/sign-in` and `/sign-up`. A signed-in user seeing the repository view at `/` needs a session, so it is 1a.9 (after 1a.2). | `done` |
 | 1a.2 | **Local auth** (§6): email and password, passkeys, TOTP with backup codes; screens copied from Sovereign. `FJORD_AUTH_LOCAL`. | Sign up, sign in, enrol and use a passkey and TOTP, recover with a backup code; off when the variable is unset. | `todo` |
 | 1a.3 | **Sovereign OIDC** (§6): authorization code flow against a Sovereign instance; `FJORD_AUTH_SOVEREIGN_*`. | Sign in through a real Sovereign instance; `sub`, `email`, `name` used; off when unset. | `todo` |
 | 1a.4 | **Account linking when both are on** (§6). | Behaviour matches the decision. | `open` (§19 #2) |
@@ -49,7 +49,7 @@ P4 is the longest pole; 1a needs P3–P5, 1b needs P1, P2 and P4.
 | 1a.9 | **First run and defaults** (§3, §7): prompt to add a repository; default repo (first); default vault per repo; switcher. | New account is prompted; second visit lands on the default repo and vault. | `todo` |
 | 1a.10 | **Not a Fjord repository** (§7). | Behaviour matches the decision. | `open` (§19 #3) |
 | 1a.11 | **File browser** (§8): vaults from the listing (P3), documents and notes openable, others greyed, encrypted vaults locked; lazy metadata; tree cache by commit. | Matches `fjord ls` on the fixtures; a large repo falls back to per-directory listing; nothing downloaded to draw it. | `todo` |
-| 1a.12 | **Deployment** (§17): image, `web` and `worker`; compose with the sqld service, a single-container `file:` example and a PostgreSQL overlay; backups for each; configuration; a staging instance. | A fresh instance comes up from the documented variables in each of the three database setups. | `todo` |
+| 1a.12 | **Deployment** (§17): image, `web` and `worker`, carrying the third-party notices (`@sovereignfs/ui`'s `NOTICE`: Lucide's ISC licence, which asks that its notice travel with copies); compose with the sqld service, a single-container `file:` example and a PostgreSQL overlay; backups for each; configuration; a staging instance. | A fresh instance comes up from the documented variables in each of the three database setups. | `todo` |
 
 ### 1b — Write and version
 

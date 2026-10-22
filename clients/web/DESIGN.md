@@ -621,7 +621,10 @@ Each slice ends usable, tested and released. The tasks are in
 `clients/web` is **AGPL-3.0-or-later**, because it bundles `@sovereignfs/ui`, which
 is AGPL-3.0-or-later. The rest of the repository stays MPL-2.0 and the spec CC0.
 `packages/fjord-editor` is meant to be reused by the desktop app and editor plugins;
-whether it depends on `@sovereignfs/ui` decides its licence (§19).
+whether it depends on `@sovereignfs/ui` decides its licence (§19). The design system bundles
+icons derived from Lucide (ISC), whose notice must accompany a distributed copy: the
+container image carries `@sovereignfs/ui`'s `NOTICE` (ROADMAP 1a.12), and Next's
+standalone output would otherwise prune it.
 
 ## 19. Open questions
 
@@ -661,3 +664,4 @@ whether it depends on `@sovereignfs/ui` decides its licence (§19).
 | 2026-10-22 | SQLite by default, in production too; PostgreSQL by the operator's choice; `DB_DIALECT` defaults to `sqlite` | PostgreSQL only; requiring the dialect to be set, as Sovereign does |
 | 2026-10-22 | SQLite as an sqld service by default, or a `file:` URL for a single-container install, through one libSQL client | sqld only, as Sovereign; a plain file only |
 | 2026-10-22 | Every data-layer test runs on sqld, a file and PostgreSQL in CI, with a schema parity test | Dialect suites that run only when their database URL is set |
+| 2026-10-22 | The landing page is static, server-rendered HTML in `@sovereignfs/ui`'s tokens, with the design system reached through one `"use client"` module, a theme script that follows the system, and a native `<details>` FAQ | A client-rendered page; a bespoke palette; importing the package from Server Components (it fails: the bundle calls `createContext` at module scope) |
