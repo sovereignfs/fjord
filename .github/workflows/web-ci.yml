@@ -8,7 +8,7 @@
 # documents alone runs nothing more. The workflow always reports, so skipped jobs
 # count as passed and a branch protection rule can require these checks.
 #
-# Two things are checked:
+# Three things are checked:
 #
 # 1. `check` type-checks and builds the app, and checks that the committed migrations
 #    are the ones the schemas generate.
@@ -17,6 +17,9 @@
 #    boots a built instance against it from nothing (the server makes its own
 #    namespaces, schemas and tables), and then runs the whole suite, so a test that
 #    passes on one database and not another is caught where it is written.
+# 3. `e2e` runs the browser tests: the built app, in Chromium, with a virtual authenticator
+#    for passkeys (clients/web/playwright.config.ts). It uses a file database and needs no
+#    service, so it does not repeat across the database legs.
 #
 # A leg sets the variables an operator would set (DB_DIALECT, SQLITE_URL,
 # SQLD_ADMIN_URL, POSTGRES_DB_URL) and the boot uses them as they are. The tests are
@@ -262,3 +265,46 @@ jobs:
         run: pnpm boot-check
 
       - run: pnpm test
+
+  e2e:
+    name: browser tests
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: clients/web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: clients/web/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: clients/web/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      # The browser build has to match the Playwright version in the lockfile, so it is
+      # fetched here and not baked into anything. `--with-deps` adds the system libraries
+      # Chromium needs on a bare runner.
+      - name: Install the browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm build
+      - run: pnpm e2e
+
+      # The trace of a failed test shows every step, request and screenshot.
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            clients/web/playwright-report
+            clients/web/test-results
+          retention-days: 7
