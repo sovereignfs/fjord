@@ -89,7 +89,9 @@ Where this differs from `sovereign`, on purpose:
 | `crates/fjord-cli/` | The CLI: package `fjord-cli`, binary `fjord` | MPL-2.0 | `fjord-cli-vX.Y.Z` |
 | `clients/web` | The hosted web client. **Design only so far:** [`DESIGN.md`](clients/web/DESIGN.md), [`ROADMAP.md`](clients/web/ROADMAP.md) | AGPL-3.0-or-later (it bundles `@sovereignfs/ui`) | `web-vX.Y.Z` |
 | `packages/fjord-editor` | The document and note editors, shared by the clients. Not created yet | Open (`clients/web/DESIGN.md` §19) | with its users |
-| `clients/desktop`, `clients/mobile` | Not created yet | — | their own tags |
+| `clients/mobile` | The iOS and Android client (Expo). **Design only so far:** [`DESIGN.md`](clients/mobile/DESIGN.md), [`ROADMAP.md`](clients/mobile/ROADMAP.md) | MPL-2.0 | `mobile-vX.Y.Z` |
+| `clients/engine` | The Rust engine for the native clients (`fjord-client`, `fjord-ffi`), its own Cargo workspace. Not created yet | MPL-2.0 | with its users |
+| `clients/desktop` | Not created yet | — | its own tag |
 | `plugins/vscode`, `plugins/obsidian` | Not created yet | — | their own tags |
 
 Directories are created when the component starts, not before.

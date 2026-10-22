@@ -117,5 +117,6 @@ In outline.
 ## Later
 
 GitLab, Forgejo/Gitea and other git servers (a provider each); search;
-notifications; Sheets; the desktop and mobile clients and the VS Code and
-Obsidian plugins reusing `packages/fjord-editor`.
+notifications; Sheets; the desktop client and the VS Code and Obsidian plugins
+reusing `packages/fjord-editor`. The mobile client has its own plan:
+[`../mobile/ROADMAP.md`](../mobile/ROADMAP.md).
