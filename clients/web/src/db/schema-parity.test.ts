@@ -2,10 +2,12 @@ import { type Table, is } from "drizzle-orm";
 import { PgTable, getTableConfig as pgTableConfig } from "drizzle-orm/pg-core";
 import { SQLiteTable, getTableConfig as sqliteTableConfig } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
-import * as pgColumns from "./schema/postgres/columns";
 import * as pgSchema from "./schema/postgres";
-import * as sqliteColumns from "./schema/sqlite/columns";
+import * as pgAuth from "./schema/postgres/auth";
+import * as pgColumns from "./schema/postgres/columns";
 import * as sqliteSchema from "./schema/sqlite";
+import * as sqliteAuth from "./schema/sqlite/auth";
+import * as sqliteColumns from "./schema/sqlite/columns";
 
 /**
  * The two dialects' schemas must declare the same tables, columns and indexes
@@ -40,10 +42,15 @@ function shapeOf(tables: Table[], config: (table: never) => { name: string; colu
   return shape;
 }
 
-// The schema modules export tables, and for PostgreSQL the `app` schema object too.
+// Both stores' tables: the app's and better-auth's. The schema modules export tables, and
+// for PostgreSQL the schema objects too, which are not tables.
 const sqliteShape = () =>
-  shapeOf(Object.values(sqliteSchema).filter((v) => is(v, SQLiteTable)) as unknown as Table[], sqliteTableConfig as never);
-const pgShape = () => shapeOf(Object.values(pgSchema).filter((v) => is(v, PgTable)) as unknown as Table[], pgTableConfig as never);
+  shapeOf(
+    [...Object.values(sqliteSchema), ...Object.values(sqliteAuth)].filter((v) => is(v, SQLiteTable)) as unknown as Table[],
+    sqliteTableConfig as never,
+  );
+const pgShape = () =>
+  shapeOf([...Object.values(pgSchema), ...Object.values(pgAuth)].filter((v) => is(v, PgTable)) as unknown as Table[], pgTableConfig as never);
 
 /** Every way two shapes differ, as sentences. Empty means they match. */
 export function differences(sqlite: Shape, postgres: Shape): string[] {

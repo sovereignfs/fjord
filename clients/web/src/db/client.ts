@@ -2,9 +2,7 @@ import { readFileSync } from "node:fs";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import type { NodePgDatabase } from "drizzle-orm/node-postgres";
 import type { Pool } from "pg";
-import { APP_STORE, type DatabaseConfig, type FileConfig, type PostgresConfig, type SqldConfig } from "./config";
-import * as postgresSchema from "./schema/postgres";
-import * as sqliteSchema from "./schema/sqlite";
+import { APP_STORE, AUTH_STORE, type DatabaseConfig, type FileConfig, type PostgresConfig, type SqldConfig, type Store } from "./config";
 import { createSqldClient } from "./sqld";
 
 /**
@@ -14,44 +12,52 @@ import { createSqldClient } from "./sqld";
  */
 export type Database = SqliteDatabase | PostgresDatabase;
 
+/**
+ * `db` carries no schema type: queries are raw SQL through `exec.ts`, and better-auth's
+ * adapter is handed its tables explicitly, so the relational query API that a schema type
+ * would serve is not used.
+ */
 export interface SqliteDatabase {
   dialect: "sqlite";
   form: "sqld" | "file";
-  db: LibSQLDatabase<typeof sqliteSchema>;
+  store: Store;
+  db: LibSQLDatabase;
   close(): Promise<void>;
 }
 
 export interface PostgresDatabase {
   dialect: "postgres";
-  db: NodePgDatabase<typeof postgresSchema> & { $client: Pool };
+  store: Store;
+  db: NodePgDatabase & { $client: Pool };
   close(): Promise<void>;
 }
 
 /**
- * Open the app's database. Every driver is loaded when it is needed and not before:
+ * Open one of the two stores: the app's (the default) or better-auth's. Every driver is loaded when it is needed and not before:
  * an sqld or PostgreSQL instance never loads libSQL's native addon, which has no
  * build for every platform (a musl image has none) and would fail at import time.
  */
-export async function openDatabase(config: DatabaseConfig): Promise<Database> {
-  if (config.dialect === "postgres") return openPostgres(config);
-  return config.form === "sqld" ? openSqld(config) : openFile(config);
+export async function openDatabase(config: DatabaseConfig, store: Store = "app"): Promise<Database> {
+  if (config.dialect === "postgres") return openPostgres(config, store);
+  return config.form === "sqld" ? openSqld(config, store) : openFile(config, store);
 }
 
-async function openSqld(config: SqldConfig): Promise<SqliteDatabase> {
+async function openSqld(config: SqldConfig, store: Store): Promise<SqliteDatabase> {
   const { drizzle } = await import("drizzle-orm/libsql/web");
-  const client = await createSqldClient(config.url, APP_STORE);
+  const client = await createSqldClient(config.url, store === "auth" ? AUTH_STORE : APP_STORE);
   return {
     dialect: "sqlite",
     form: "sqld",
-    db: drizzle(client, { schema: sqliteSchema }),
+    store,
+    db: drizzle(client),
     close: async () => client.close(),
   };
 }
 
-async function openFile(config: FileConfig): Promise<SqliteDatabase> {
+async function openFile(config: FileConfig, store: Store): Promise<SqliteDatabase> {
   const { createClient } = await import("@libsql/client/node");
   const { drizzle } = await import("drizzle-orm/libsql/node");
-  const client = createClient({ url: `file:${config.path}` });
+  const client = createClient({ url: `file:${store === "auth" ? config.authPath : config.path}` });
   // Several processes (web and worker) may share the file on one host: WAL lets
   // readers and a writer overlap, and a busy timeout makes a second writer wait for
   // the first instead of failing. Foreign keys are off in SQLite until asked.
@@ -61,12 +67,13 @@ async function openFile(config: FileConfig): Promise<SqliteDatabase> {
   return {
     dialect: "sqlite",
     form: "file",
-    db: drizzle(client, { schema: sqliteSchema }),
+    store,
+    db: drizzle(client),
     close: async () => client.close(),
   };
 }
 
-async function openPostgres(config: PostgresConfig): Promise<PostgresDatabase> {
+async function openPostgres(config: PostgresConfig, store: Store): Promise<PostgresDatabase> {
   const { default: pg } = await import("pg");
   const { drizzle } = await import("drizzle-orm/node-postgres");
   // `bigint` comes back as a string by default, which is how a 64-bit integer stays
@@ -84,7 +91,8 @@ async function openPostgres(config: PostgresConfig): Promise<PostgresDatabase> {
   const pool = new pg.Pool({ ...pgConnectionOptions(config), max: config.poolMax });
   return {
     dialect: "postgres",
-    db: drizzle(pool, { schema: postgresSchema }),
+    store,
+    db: drizzle(pool),
     close: async () => pool.end(),
   };
 }

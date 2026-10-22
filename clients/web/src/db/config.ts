@@ -19,6 +19,9 @@
 export const APP_STORE = "fjord";
 export const AUTH_STORE = "fjord_auth";
 
+/** Which of the two a handle is for. */
+export type Store = "app" | "auth";
+
 const DEFAULT_SQLD_URL = "http://sqld:8080";
 const DEFAULT_SQLD_ADMIN_URL = "http://sqld:8081";
 const DEFAULT_POOL_MAX = 5;

@@ -17,7 +17,12 @@ function journalLength(database: Database): number {
 
 /** How many Drizzle has recorded as applied. */
 async function appliedCount(database: Database): Promise<number> {
-  const table = database.dialect === "postgres" ? sql`"drizzle"."__drizzle_migrations"` : sql`"__drizzle_migrations"`;
+  const table =
+    database.dialect === "postgres"
+      ? database.store === "auth"
+        ? sql`"drizzle_auth"."__drizzle_migrations"`
+        : sql`"drizzle"."__drizzle_migrations"`
+      : sql`"__drizzle_migrations"`;
   const row = await dbGet<{ n: number | string }>(database, sql`SELECT COUNT(*) AS n FROM ${table}`);
   return Number(row?.n);
 }
@@ -25,7 +30,10 @@ async function appliedCount(database: Database): Promise<number> {
 async function tableNames(database: Database): Promise<string[]> {
   const rows =
     database.dialect === "postgres"
-      ? await dbAll<{ name: string }>(database, sql`SELECT table_name AS name FROM information_schema.tables WHERE table_schema = 'fjord'`)
+      ? await dbAll<{ name: string }>(
+          database,
+          sql`SELECT table_name AS name FROM information_schema.tables WHERE table_schema = ${database.store === "auth" ? "fjord_auth" : "fjord"}`,
+        )
       : await dbAll<{ name: string }>(database, sql`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE '\\_\\_%' ESCAPE '\\' AND name NOT LIKE 'sqlite_%'`);
   return rows.map((r) => r.name).sort();
 }
@@ -44,6 +52,16 @@ describe(`migrations (${leg})`, () => {
     await runMigrations(database);
 
     expect(await tableNames(database)).toEqual(["event"]);
+    expect(await appliedCount(database)).toBe(journalLength(database));
+  });
+
+  it("apply to an empty auth store, with a record of their own", async () => {
+    const { database } = await freshDatabase("auth");
+    open.push(database);
+
+    await runMigrations(database);
+
+    expect(await tableNames(database)).toEqual(["account", "passkey", "rate_limit", "session", "two_factor", "user", "verification"]);
     expect(await appliedCount(database)).toBe(journalLength(database));
   });
 
@@ -87,16 +105,20 @@ describe(`migrations (${leg})`, () => {
 });
 
 describe("the migration files", () => {
-  it.each(["sqlite", "postgres"] as const)("%s: every journal entry has its SQL file", (dialect) => {
-    const folder = migrationsFolder(dialect);
-    const journal = JSON.parse(readFileSync(join(folder, "meta", "_journal.json"), "utf8"));
-    expect(journal.entries.length).toBeGreaterThan(0);
-    for (const entry of journal.entries) expect(() => readFileSync(join(folder, `${entry.tag}.sql`), "utf8")).not.toThrow();
+  it.each(["sqlite", "postgres"] as const)("%s: every journal entry has its SQL file, for both stores", (dialect) => {
+    for (const store of ["app", "auth"] as const) {
+      const folder = migrationsFolder(dialect, store);
+      const journal = JSON.parse(readFileSync(join(folder, "meta", "_journal.json"), "utf8"));
+      expect(journal.entries.length).toBeGreaterThan(0);
+      for (const entry of journal.entries) expect(() => readFileSync(join(folder, `${entry.tag}.sql`), "utf8")).not.toThrow();
+    }
   });
 
   it("are named alike on both dialects, so a reviewer reads a pair", () => {
-    const tags = (dialect: "sqlite" | "postgres") =>
-      JSON.parse(readFileSync(join(migrationsFolder(dialect), "meta", "_journal.json"), "utf8")).entries.map((e: { tag: string }) => e.tag);
-    expect(tags("postgres")).toEqual(tags("sqlite"));
+    for (const store of ["app", "auth"] as const) {
+      const tags = (dialect: "sqlite" | "postgres") =>
+        JSON.parse(readFileSync(join(migrationsFolder(dialect, store), "meta", "_journal.json"), "utf8")).entries.map((e: { tag: string }) => e.tag);
+      expect(tags("postgres")).toEqual(tags("sqlite"));
+    }
   });
 });
