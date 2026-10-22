@@ -1,0 +1,37 @@
+/**
+ * What to tell a person when sign-in goes wrong. better-auth answers with a code and an
+ * English message meant for developers; these say what the person can do. A code that is not
+ * here falls back to better-auth's own message, and failing that to a plain sentence, and no
+ * message ever says whether an email address has an account.
+ */
+const BY_CODE: Record<string, string> = {
+  INVALID_EMAIL_OR_PASSWORD: "That email address and password do not match. Check them and try again.",
+  EMAIL_NOT_VERIFIED: "Confirm your email address first: we sent you a link when you signed up.",
+  INVALID_PASSWORD: "That password is not right.",
+  PASSWORD_TOO_SHORT: "That password is too short.",
+  PASSWORD_TOO_LONG: "That password is too long.",
+  USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: "There is already an account with that email address. Try signing in instead.",
+  INVALID_CODE: "That code is not right. Check it and try again.",
+  INVALID_BACKUP_CODE: "That backup code is not right, or it has been used already.",
+  TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE: "Too many wrong codes. Sign in again to get another try.",
+  INVALID_TWO_FACTOR_COOKIE: "Your sign-in took too long or has been used up. Start again.",
+  INVALID_TOKEN: "That link has expired or has already been used. Ask for a new one.",
+  RESET_PASSWORD_DISABLED: "Password reset by email is not set up on this instance.",
+  UNAUTHORIZED: "You need to sign in first.",
+};
+
+export interface AuthError {
+  code?: string | undefined;
+  message?: string | undefined;
+  status?: number | undefined;
+}
+
+export function messageFor(error: AuthError | null | undefined, fallback = "Something went wrong. Please try again."): string {
+  if (!error) return fallback;
+  if (error.status === 429) return "Too many tries. Wait a few seconds and try again.";
+  if (error.code && BY_CODE[error.code]) return BY_CODE[error.code]!;
+  if (error.status === 403 && /closed/i.test(error.message ?? "")) return "Sign-up is closed on this instance.";
+  // A passkey ceremony cancelled by the person is not an error worth shouting about.
+  if (/cancel|abort|not allowed/i.test(error.message ?? "")) return "That was cancelled.";
+  return error.message && error.message.length < 140 ? error.message : fallback;
+}

@@ -43,7 +43,8 @@ export function Landing() {
         <div className={styles.container}>
           <div className={styles.notice}>
             <Alert variant="info" heading="Fjord Web is being built in the open">
-              Signing in and the editor are not available yet. This page says what Fjord is for and how it will work.
+              Where an operator has switched it on, you can create an account and secure it. Connecting a repository and the editor are not
+              available yet. This page says what Fjord is for and how it will work.
             </Alert>
           </div>
         </div>

@@ -1,0 +1,214 @@
+/* Sign-in screens and the account pages. Design-system tokens only. */
+.page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sv-space-6);
+  min-height: 100dvh;
+  padding: var(--sv-space-10) var(--sv-space-5);
+}
+
+.brand {
+  font-size: var(--sv-font-size-xl);
+  font-weight: var(--sv-font-weight-bold);
+  letter-spacing: -0.02em;
+  color: var(--sv-color-text-primary);
+  text-decoration: none;
+}
+
+.card {
+  width: 100%;
+  max-width: 26rem;
+  box-sizing: border-box;
+}
+
+.wide {
+  max-width: 40rem;
+}
+
+.title {
+  margin: 0 0 var(--sv-space-2);
+  font-size: var(--sv-font-size-2xl);
+  font-weight: var(--sv-font-weight-bold);
+  letter-spacing: -0.02em;
+}
+
+.lead {
+  margin: 0 0 var(--sv-space-6);
+  color: var(--sv-color-text-muted);
+  line-height: 1.5;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
+  margin-top: var(--sv-space-5);
+}
+
+.field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-3);
+  align-items: center;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-3);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-3);
+  margin: var(--sv-space-5) 0 0;
+  color: var(--sv-color-text-subtle);
+  font-size: var(--sv-font-size-caption);
+}
+
+.divider::before,
+.divider::after {
+  content: "";
+  flex: 1;
+  border-top: var(--sv-border-width-hairline) solid var(--sv-color-border);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+  font-size: var(--sv-font-size-sm);
+}
+
+.links a,
+.footer a,
+.link {
+  color: var(--sv-color-text-primary);
+  text-underline-offset: 3px;
+}
+
+.linkButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--sv-color-text-primary);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.footer {
+  margin: 0;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-muted);
+  text-align: center;
+}
+
+.notice {
+  margin-bottom: var(--sv-space-4);
+}
+
+.code {
+  font-family: var(--sv-font-family-mono);
+  font-size: var(--sv-font-size-sm);
+  letter-spacing: 0.08em;
+}
+
+.codeInput input {
+  font-family: var(--sv-font-family-mono);
+  font-size: var(--sv-font-size-lg);
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+
+/* Account pages */
+.account {
+  width: 100%;
+  max-width: 40rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-5);
+}
+
+.accountHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+  width: 100%;
+  max-width: 40rem;
+}
+
+.section h2 {
+  margin: 0 0 var(--sv-space-1);
+  font-size: var(--sv-font-size-lg);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+.section p {
+  margin: 0 0 var(--sv-space-4);
+  color: var(--sv-color-text-muted);
+  line-height: 1.5;
+}
+
+.qr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sv-space-5);
+}
+
+.qrBox {
+  padding: var(--sv-space-3);
+  border-radius: var(--sv-radius-lg);
+  background: var(--sv-white); /* a QR code must be dark on light to scan, in either theme: the one place a fixed colour is right */
+  line-height: 0;
+}
+
+.secret {
+  max-width: 18rem;
+  overflow-wrap: anywhere;
+}
+
+.codes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sv-space-2) var(--sv-space-5);
+  margin: 0 0 var(--sv-space-4);
+  padding: var(--sv-space-4);
+  border: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+  background: var(--sv-color-surface-sunken);
+  list-style: none;
+}
+
+.list {
+  margin: 0 0 var(--sv-space-4);
+  padding: 0;
+  list-style: none;
+  border-top: var(--sv-border-width-hairline) solid var(--sv-color-border);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+  padding: var(--sv-space-3) 0;
+  border-bottom: var(--sv-border-width-hairline) solid var(--sv-color-border);
+}
+
+.itemMeta {
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-caption);
+}
