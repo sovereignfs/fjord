@@ -310,9 +310,33 @@ export function providerContract(label: string, make: () => Promise<ProviderHarn
       });
     });
 
+    describe("whether it can write", () => {
+      beforeEach(async () => {
+        await h.seed({ "a.md": "a" });
+      });
+
+      it("says yes for a credential that can, and changes nothing to find out", async () => {
+        const before = await head();
+        expect(await h.provider.canWrite(h.repo, "main")).toBe(true);
+        expect(await head()).toEqual(before);
+        expect(await paths()).toEqual(["a.md"]);
+      });
+
+      it("says a branch that is not there is not found", async () => {
+        await expectCode(h.provider.canWrite(h.repo, "no-such-branch"), "not_found");
+      });
+    });
+
     describe.runIf(capabilities.credentials)("credentials and limits", () => {
       beforeEach(async () => {
         await h.seed({ "a.md": "a" });
+      });
+
+      it("says no for a credential that can read and not write, and yes to a rejected one never: it throws", async () => {
+        const before = await head();
+        expect(await h.readOnly!().canWrite(h.repo, "main")).toBe(false);
+        expect(await head()).toEqual(before);
+        await expectCode(h.revoked!().canWrite(h.repo, "main"), "unauthorized");
       });
 
       it("lets a read-only credential read and refuses it a commit, as forbidden", async () => {

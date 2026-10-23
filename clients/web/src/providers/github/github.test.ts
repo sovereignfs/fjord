@@ -74,6 +74,33 @@ describe("reading", () => {
   });
 });
 
+describe("finding out whether it can write", () => {
+  beforeEach(async () => {
+    await h.seed({ "a.md": "a" });
+  });
+
+  it("looks at the head, then points the branch at where it already is, never forced: two requests, nothing changed", async () => {
+    const before = await head();
+    fake.requests.length = 0;
+    expect(await h.provider.canWrite(h.repo, "main")).toBe(true);
+    expect(fake.requests.map((r) => `${r.method} ${r.path}`)).toEqual(["GET /repos/acme/notes/git/ref/heads/main", "PATCH /repos/acme/notes/git/refs/heads/main"]);
+    expect(fake.requests[1]!.body).toEqual({ sha: before.commit, force: false });
+    expect((await head()).commit).toBe(before.commit);
+    await fake.fsck();
+  });
+
+  it("says no when GitHub refuses the update, without a second try", async () => {
+    fake.requests.length = 0;
+    expect(await h.readOnly!().canWrite(h.repo, "main")).toBe(false);
+    expect(fake.requests.filter((r) => r.method === "PATCH")).toHaveLength(1);
+  });
+
+  it("does not take a rate limit for a no", async () => {
+    fake.fail(/git\/refs\/heads/, { status: 403, method: "PATCH", headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(Math.floor(Date.now() / 1000) + 60) }, body: { message: "API rate limit exceeded" } });
+    await expect(h.provider.canWrite(h.repo, "main")).rejects.toSatisfy((e) => isProviderError(e, "rate_limited"));
+  });
+});
+
 describe("a commit, as git sees it", () => {
   beforeEach(async () => {
     await h.seed({ "a.md": "a" });

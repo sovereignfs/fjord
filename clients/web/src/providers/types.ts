@@ -127,6 +127,16 @@ export interface Provider {
   commit(ref: RepositoryRef, request: CommitRequest): Promise<CommitResult>;
 
   /**
+   * Whether this credential can write to a branch, found out by trying something that changes
+   * nothing: pointing the branch at the commit it is already on. Asking the host what it
+   * permits is not enough (a fine-grained token's grants are not what a repository reports),
+   * and the only trustworthy answer is the host's own refusal. `false` is a credential that can
+   * read and not write; a credential that is rejected outright, or a branch that is not there,
+   * throws as it does anywhere else.
+   */
+  canWrite(ref: RepositoryRef, branch: string): Promise<boolean>;
+
+  /**
    * Whether this host sends change notifications. Where it does not, the app asks `getHead`
    * again now and then; where it does, `verifyWebhook` is how one is trusted.
    */

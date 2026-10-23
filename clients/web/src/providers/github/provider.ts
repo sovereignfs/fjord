@@ -106,6 +106,20 @@ export class GitHubProvider implements Provider {
     return { changed: true, head: { branch, commit: data!.object.sha, etag: headers.get("etag") ?? undefined } };
   }
 
+  async canWrite(ref: RepositoryRef, branch: string): Promise<boolean> {
+    const current = await this.getHead(ref, branch);
+    if (!current.changed) throw new ProviderError("unavailable", "the host answered a head request that had no etag as unchanged");
+    try {
+      // The branch is "moved" to where it already is: a fast-forward of nothing, never forced.
+      // It needs the same permission as a real commit's last step, and changes nothing.
+      await this.client.json("PATCH", `${repoPath(ref)}/git/refs/heads/${encodePath(branch)}`, { json: { sha: current.head.commit, force: false } });
+      return true;
+    } catch (error) {
+      if (error instanceof ProviderError && error.code === "forbidden") return false;
+      throw error;
+    }
+  }
+
   async getTree(ref: RepositoryRef, commit: string): Promise<Tree> {
     // A commit id is accepted where a tree id is expected: one request, not two.
     const { data } = await this.client.json<{ tree: GitHubTreeEntry[]; truncated: boolean }>("GET", `${repoPath(ref)}/git/trees/${commit}`, { query: { recursive: 1 } });
