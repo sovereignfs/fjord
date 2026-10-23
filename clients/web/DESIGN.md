@@ -177,7 +177,8 @@ instance can run either or both:
   say of its OIDC clients, Fjord Web decides what an account may do.
 - **When both methods are on**, an account is matched to a Sovereign login by `sub`,
   never by email alone. Linking an existing local account to Sovereign is done
-  from a signed-in session. (Open: §19.)
+  from a signed-in session, and only when the two use the same email address
+  (as built below).
 
 ### Sovereign sign-in, as built (ROADMAP 1a.3)
 
@@ -196,10 +197,34 @@ instance can run either or both:
   overwritten on later sign-ins. A change of email at Sovereign does not change who someone is.
 - **No implicit linking.** A Sovereign login whose email is a local account's is refused
   (`account_not_linked`, a message on the sign-in page), whether or not that address is
-  confirmed, until linking from a signed-in session exists (1a.4). A Sovereign-only person has
-  no password, two-factor or passkeys, so those settings (`/account/security`) answer 404 on an
-  instance with only Sovereign on; with both on, the page is the local methods' and does not yet
-  know that a person who came through Sovereign has no password to change (1a.4).
+  confirmed, until the person links the two from a signed-in session (below). A Sovereign-only
+  person has no password, two-factor or passkeys, so those settings (`/account/security`) answer
+  404 on an instance with only Sovereign on.
+- **Linking (ROADMAP 1a.4), when both methods are on.** On `/account/security` a signed-in person can
+  *Link Sovereign*: they go to Sovereign and back, and Sovereign's `sub` is attached to **this**
+  account. The rules are the server's, and each is tested:
+  - **Only from a signed-in session**, so linking is something a person who has shown they control the
+    account does. Nothing links by email at sign-in; an unlinked Sovereign login whose address is a
+    local account's is refused with a message that says to link from the security page.
+  - **Only when Sovereign's email address is the account's own** (case aside). A link with a different
+    address would attach someone else's identity to this account; it is refused, with the reason and
+    without naming either address, and nothing is linked. (Decided: the same address on both.)
+  - **Sovereign is trusted to have verified its address** (its contract: `email` is verified), so a token
+    that omits `email_verified` does not stop a link. That trust is for linking only: it never turns on
+    implicit linking.
+  - **An already-linked Sovereign identity** cannot be linked to a second account.
+  - **Unlinking** is a fresh-session action and can never remove an account's last way to sign in: an
+    account that came in through Sovereign has no password and cannot unlink it (the button says why).
+    Unlinking a local account's Sovereign means the same address is refused at sign-in again.
+  - After linking, signing in through Sovereign signs in the **local** account, by `sub`, whatever
+    Sovereign's address or name later become; the account keeps its own name and email.
+  - **Two-factor is Fjord's password's, not Sovereign's.** A person with Fjord two-factor on who links
+    Sovereign is not asked for the Fjord code when they sign in through it: Sovereign has its own, and
+    the page says so beside the button. (Making Sovereign sign-in ask for it would mean treating
+    Sovereign as a first factor only; not done.)
+  - **The page for an account that came in through Sovereign** has no password, two-factor or passkey
+    sections (they would not work: two-factor asks for the password) and says so; the Sovereign section
+    shows it linked, with *Unlink* disabled. Adding a password to such an account is later work.
 - **Sign-up policy is one policy.** `FJORD_AUTH_SIGNUP=closed` refuses a second Sovereign person
   as it refuses a second local one, in the server's user-creation hook; the refusal carries a
   code (`SIGNUP_CLOSED`) so that the person is sent back to the sign-in page with the reason and
@@ -854,7 +879,7 @@ standalone output would otherwise prune it.
 | # | Question | Default until decided |
 | --- | --- | --- |
 | 1 | Moving an existing instance between dialects (SQLite ↔ PostgreSQL) | Not in phase 1; a documented export and import later |
-| 2 | When both auth methods are enabled, how are a local account and a Sovereign login linked? | By `sub`; linking only from a signed-in session |
+| 2 | ~~When both auth methods are enabled, how are a local account and a Sovereign login linked?~~ **Decided (1a.4):** by `sub`, only from a signed-in session, and only when both use the same email address | — |
 | 3 | Offer to initialise a repository that is not a Fjord repository? With which vaults? | Offer, one plaintext vault, after confirmation |
 | 4 | Licence of `packages/fjord-editor`: AGPL with the design system, or MPL-2.0 without it? | Decide before 1b |
 | 5 | Idle-commit interval | Five minutes |
@@ -889,6 +914,7 @@ standalone output would otherwise prune it.
 | 2026-10-22 | Every data-layer test runs on sqld, a file and PostgreSQL in CI, with a schema parity test | Dialect suites that run only when their database URL is set |
 | 2026-10-22 | Local sign-in on better-auth 1.7 through its Drizzle adapter, in the auth store with migrations of its own | The 1.6 line Sovereign runs (an account-identity migration before 1a.3); better-auth's own Kysely adapter (the design chose Drizzle) |
 | 2026-10-23 | Sovereign sign-in through better-auth's `genericOAuth` and discovery, identity by `sub`, no implicit linking by email, the same sign-up policy as local, local sign-out only, with a fake Sovereign checked against a recording of a real one | Linking by verified email (the takeover case 1a.4 has to decide); signing out of Sovereign too; tests against the live service |
+| 2026-10-23 | A local account and a Sovereign login are linked from a signed-in session by `sub`, only when both use the same email address; Sovereign is trusted to have verified it; unlinking never removes the last way in; an account that came in through Sovereign sees no password settings | Linking by email at sign-in (the takeover case); allowing a different address (it attaches a stranger's identity); letting Sovereign-created accounts add a password now |
 | 2026-10-22 | Sign-up is `closed` by default (the first account, then refused) and `open` by choice | Open by default; invites (they need email) |
 | 2026-10-22 | Email is optional: with SMTP, verified addresses and reset by email; without it, neither | SMTP required; no email at all |
 | 2026-10-22 | The browser tests run the built app in Chromium with Playwright, and a virtual authenticator stands in for a passkey device | Server-level tests only, leaving passkeys to a manual check |

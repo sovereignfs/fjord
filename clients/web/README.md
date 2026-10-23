@@ -97,6 +97,11 @@ works, and can write, before keeping it, and keeps it encrypted (it needs `FJORD
 below; without one the page says so). `FJORD_GITHUB_API_URL` is only for a GitHub Enterprise Server
 (`https://github.example.com/api/v3`); tokens are sent there, so it must be https.
 
+When both ways of signing in are on, an account made with a password can **link** a Sovereign account on
+its security page: Sovereign must use the same email address as the account, or nothing is linked. After that
+either way signs in the same account. An account that came in through Sovereign has no password; it can
+sign in through Sovereign only.
+
 Once a repository is connected, `/` is that repository: the first one you connect is your default,
 and **Make this my default** on another one changes it. With several, a list on the repository's page
 moves between them. (Listing a repository's documents is the next task.)

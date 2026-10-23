@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { messageFor } from "./messages";
+import { messageFor, oauthErrorMessage } from "./messages";
 
 describe("messageFor", () => {
   it("never says whether an address has an account: a wrong password and a missing user read alike", () => {
@@ -32,3 +32,25 @@ describe("messageFor", () => {
     expect(messageFor(null)).toBe("Something went wrong. Please try again.");
   });
 });
+
+describe("linking Sovereign", () => {
+  it("says what to do about each way a link can fail, without naming an address", () => {
+    expect(oauthErrorMessage("email_does_not_match")).toMatch(/different email address/);
+    expect(oauthErrorMessage("account_already_linked_to_different_user")).toMatch(/already linked to another account/);
+    expect(oauthErrorMessage("account_not_linked")).toMatch(/security page/);
+    for (const code of ["email_does_not_match", "account_already_linked_to_different_user", "account_not_linked", "unable_to_link_account"]) {
+      expect(oauthErrorMessage(code)).not.toMatch(/@/);
+    }
+  });
+
+  it("explains a refused unlink and a session that is not fresh enough", () => {
+    expect(messageFor({ code: "FAILED_TO_UNLINK_LAST_ACCOUNT", status: 400 })).toMatch(/only way you can sign in/);
+    expect(messageFor({ code: "SESSION_NOT_FRESH", status: 403 })).toMatch(/sign in again/);
+  });
+
+  it("has a plain sentence for a code it does not know, and nothing for no error", () => {
+    expect(oauthErrorMessage("something_new")).toMatch(/Something went wrong with Sovereign/);
+    expect(oauthErrorMessage(undefined)).toBeNull();
+  });
+});
+
