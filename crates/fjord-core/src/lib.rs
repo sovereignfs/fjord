@@ -11,7 +11,10 @@
 //! # Portability
 //!
 //! This crate is compiled into the CLI, the Tauri desktop app, the mobile
-//! clients via FFI, and the web client via WASM. It therefore must never
+//! clients via FFI, and the web client via WASM. The WASM build is the
+//! **pure subset**: without the default `native` feature there is no
+//! filesystem, no `age`, no `tar`, and no clock or random source of its own
+//! (see [`scalar::new_ulid_from`]). It therefore must never
 //! depend on:
 //!
 //! - a subprocess — no `std::process::Command`, for anything, ever;
@@ -32,18 +35,28 @@
 #![warn(missing_debug_implementations)]
 
 pub mod conformance;
-pub mod container;
-pub mod crypto;
 pub mod diagnostics;
 pub mod doc;
 pub mod listing;
 pub mod manifest;
 pub mod path;
-pub mod repair;
-pub mod scaffold;
 pub mod scalar;
+
+// What needs a real machine: a disk, `age`, `tar`. Not in the pure subset, which is what compiles to
+// WebAssembly (see this crate's `Cargo.toml`).
+#[cfg(feature = "native")]
+pub mod container;
+#[cfg(feature = "native")]
+pub mod crypto;
+#[cfg(feature = "native")]
+pub mod repair;
+#[cfg(feature = "native")]
+pub mod scaffold;
+#[cfg(feature = "native")]
 pub mod store;
+#[cfg(feature = "native")]
 pub mod vault;
+#[cfg(feature = "native")]
 pub mod verify;
 
 /// The format version this build implements.

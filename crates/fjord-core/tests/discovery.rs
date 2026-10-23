@@ -1,6 +1,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
+#![cfg(feature = "native")]
+// These read repositories from a disk, which the pure subset has no part in.
 
 //! A listing and the filesystem walk must say the same about every fixture (ROADMAP P3).
 //!
