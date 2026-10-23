@@ -2,7 +2,7 @@
 
 **Version:** 1 (draft)
 **Status:** Draft. Not yet stable; breaking changes possible until declared stable.
-**Date:** 2026-10-21
+**Date:** 2026-10-23
 
 ---
 
@@ -48,6 +48,8 @@ RECOMMENDED, MAY and OPTIONAL are to be interpreted as described in
 | **Repository** | A Git repository containing `fjord.json` at its root. |
 | **Vault** | A top-level directory containing `fjord.vault.json`. The unit of encryption. |
 | **Fjord Doc** | A `.md` file in a vault whose frontmatter contains a valid `id`. |
+| **Document** | A Fjord Doc whose file name ends in `.fj.md`. See §8.4. |
+| **Note** | Any other Fjord Doc. See §8.4. |
 | **Vault file** | Any other file in a vault. First-class, synced and encrypted, but carries no Fjord metadata. |
 | **Client** | Any software that reads or writes a repository. |
 | **Identity** | An age private key, held by a user, never stored in the repository. |
@@ -440,6 +442,28 @@ repositories created by Fjord 0.1.0 carry identifiers in that form. Those
 repositories do not conform to this revision.
 
 ---
+
+### 8.4 Documents and notes
+
+A Fjord Doc is a **document** if its file name ends in `.fj.md`, with at least
+one character before it, and a **note** otherwise. The two are the same
+format: they have the same frontmatter, the same rules (§8.1, §8.2) and the
+same identifiers, and a `.fj.md` file with no valid `id` is a vault file like
+any other `.md` file (§8.2). The name is the only difference, and what it is
+for is presentation: a client MAY offer a different way of editing a document
+(long-form writing, say) from a note, and MAY treat them differently in other
+ways it documents. A client MUST NOT infer anything about a file's content from
+the distinction.
+
+A file changes from one to the other only by changing its name, which is an
+ordinary rename: its `id` is immutable (§8.2) and does not change with it.
+
+Every `.md` Fjord Doc written before this section existed is a note, and
+nothing in a repository has to change.
+
+In an encrypted vault the name that counts is the file's real name: the name
+without the suffix (§6.3), or, with `fileNaming` `"id"`, the name inside the
+container (§6.4), which a client that has not opened the container does not have.
 
 ## 9. Git requirements
 

@@ -50,6 +50,6 @@ result. It loads the web build as a page does, with the page's own clock and `cr
 
 ## Size
 
-`fjord_wasm_bg.wasm` is **499,119 bytes, 214,687 gzipped** (release, `opt-level = "z"`, LTO; `wasm-opt` is
+`fjord_wasm_bg.wasm` is **499,598 bytes, 214,928 gzipped** (release, `opt-level = "z"`, LTO; `wasm-opt` is
 not required and would take a little more off). The YAML parser, `time`, Unicode normalisation and
 `serde_json` are most of it. CI records it on every run.
