@@ -1,0 +1,37 @@
+[package]
+name = "fjord-wasm"
+description = "fjord-core's pure subset for WebAssembly: manifests, documents, path rules, vault discovery from a listing."
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MPL-2.0"
+repository = "https://github.com/sovereignfs/fjord"
+publish = false
+
+# Its own workspace, so its own lockfile: wasm-bindgen's dependency tree stays out of the CLI's
+# lockfile, its `cargo deny` audit and its minimum supported Rust version, which is what
+# CLAUDE.md § Adding a component asks of anything that is not the CLI.
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# The pure subset: no filesystem, no `age`, no `tar`, no clock and no random source of its own.
+#
+# `>=` and not an exact version: the CLI's release bumps `fjord-core`, and this crate has its own
+# lockfile and no part in that script, so a pin here would break the release PR's CI. It always builds
+# against the `fjord-core` next to it (the path), whatever that version is.
+fjord-core = { path = "../fjord-core", version = ">=0.3.1", default-features = false }
+serde_json = { version = "1.0", features = ["preserve_order"] }
+# Pinned exactly. The `wasm-bindgen` command line tool that makes the JavaScript glue must be the same
+# version as this crate, or it refuses the module: build.sh checks.
+wasm-bindgen = "=0.2.129"
+
+[profile.release]
+# A page downloads this: size over speed.
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

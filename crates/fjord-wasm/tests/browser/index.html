@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   License, v. 2.0. If a copy of the MPL was not distributed with this
+   file, You can obtain one at https://mozilla.org/MPL/2.0/. -->
+<meta charset="utf-8" />
+<title>fjord-wasm in a browser</title>
+<!--
+  Loads the web build the way a page does and checks it works: serve the crate's directory (any static
+  server: `python3 -m http.server --directory crates/fjord-wasm`) after `./build.sh`, open
+  /tests/browser/index.html, and read #result. Not part of the automated suite, which runs in Node.
+-->
+<pre id="result">running…</pre>
+<script type="module">
+  import init, * as fjord from "../../pkg/web/fjord_wasm.js";
+
+  const checks = [];
+  const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
+
+  try {
+    await init(new URL("../../pkg/web/fjord_wasm_bg.wasm", import.meta.url));
+
+    check("format version 1", fjord.formatVersion() === 1);
+
+    const files = [
+      { path: "fjord.json" },
+      { path: "Notes/fjord.vault.json" },
+      { path: "Notes/a.md", size: 12 },
+      { path: "Secret/fjord.vault.json" },
+      { path: "Secret/x.md.age", size: 99 },
+    ];
+    const paths = JSON.parse(fjord.manifestPaths(JSON.stringify(files)));
+    check("the manifests to fetch are the vaults'", paths.join() === "Notes/fjord.vault.json,Secret/fjord.vault.json");
+    const found = JSON.parse(
+      fjord.discover(
+        JSON.stringify(files),
+        JSON.stringify({
+          "Notes/fjord.vault.json": '{"name":"Notes","encryption":null}',
+          "Secret/fjord.vault.json": '{"name":"Secret","encryption":{"tool":"age","recipients":"r.txt","suffix":".age","container":"none","armor":false}}',
+        }),
+      ),
+    );
+    check("two vaults found", found.vaults.length === 2);
+    check("a payload in an encrypted vault", found.vaults[1].files[0].kind === "payload" && found.vaults[1].files[0].logical === "x.md");
+
+    // The page supplies the clock and the randomness; the module has none of its own.
+    const id = fjord.newUlid(Date.now(), crypto.getRandomValues(new Uint8Array(10)));
+    check("an identifier from this page's clock and random source", fjord.isUlid(id));
+    const doc = fjord.newDocument(id, 'A: "title"', new Date().toISOString().replace(/\.\d+Z$/, "Z"));
+    check("a new document reads back", JSON.parse(fjord.parseDocument(doc)).docId === id);
+    check("a malformed call throws", (() => { try { fjord.discover("nope", "{}"); return false; } catch { return true; } })());
+  } catch (error) {
+    check(`loaded (${error})`, false);
+  }
+
+  const failed = checks.filter((c) => !c.ok);
+  document.getElementById("result").textContent = `${failed.length === 0 ? "ok" : "FAILED"} ${checks.length - failed.length}/${checks.length}\n` + checks.map((c) => `${c.ok ? "✓" : "✗"} ${c.name}`).join("\n");
+  document.title = failed.length === 0 ? "ok" : "failed";
+</script>

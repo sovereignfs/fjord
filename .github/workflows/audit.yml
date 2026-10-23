@@ -57,3 +57,6 @@ jobs:
       # advisories, licences, sources and bans — all four, so a failure
       # names which policy was broken.
       - run: cargo deny check
+      # The WebAssembly crate is a workspace of its own, with its own lockfile (so wasm-bindgen's tree
+      # stays out of the CLI's), and the same policy applies to it.
+      - run: cargo deny --manifest-path crates/fjord-wasm/Cargo.toml check
