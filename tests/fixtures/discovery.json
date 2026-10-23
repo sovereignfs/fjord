@@ -1,0 +1,1035 @@
+{
+  "conforming": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": []
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "welcome.md",
+            "logical": "welcome.md",
+            "is_payload": false,
+            "size": 892
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 0
+        },
+        {
+          "path": "Public",
+          "docs": 1,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E101": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": []
+    }
+  },
+  "broken/E102": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": []
+    }
+  },
+  "broken/E103": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E104": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E105": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E106": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E108": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E109": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E110": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E201": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": [
+          {
+            "relative": "notes.md",
+            "logical": "notes.md",
+            "is_payload": false,
+            "size": 18
+          }
+        ]
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 0
+        },
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E202": {
+    "discover": "error",
+    "verify": {
+      "nested": [],
+      "vaults": []
+    }
+  },
+  "broken/E203": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": []
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 0
+        },
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E204": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": []
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 0
+        },
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E206": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": []
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 0
+        },
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E207": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "Inner/fjord.vault.json",
+            "logical": "Inner/fjord.vault.json",
+            "is_payload": false,
+            "size": 160
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [
+        "Public/Inner"
+      ],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 1
+        }
+      ]
+    }
+  },
+  "broken/E208": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": []
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 0
+        },
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E209": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": []
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 0
+        },
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E301": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": [
+          {
+            "relative": "notes.md.age",
+            "logical": "notes.md",
+            "is_payload": true,
+            "size": 86
+          }
+        ]
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 1
+        },
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E302": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "notes.md.age",
+            "logical": "notes.md.age",
+            "is_payload": false,
+            "size": 251
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 1
+        }
+      ]
+    }
+  },
+  "broken/E304": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": [
+          {
+            "relative": "notes.age",
+            "logical": "notes",
+            "is_payload": true,
+            "size": 244
+          }
+        ]
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 1
+        },
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E305": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": []
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 0
+        },
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E306": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E401": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "first.md",
+            "logical": "first.md",
+            "is_payload": false,
+            "size": 91
+          },
+          {
+            "relative": "second.md",
+            "logical": "second.md",
+            "is_payload": false,
+            "size": 93
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 2,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E402": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "broken.md",
+            "logical": "broken.md",
+            "is_payload": false,
+            "size": 32
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 1
+        }
+      ]
+    }
+  },
+  "broken/E403": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "doc.md",
+            "logical": "doc.md",
+            "is_payload": false,
+            "size": 71
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 1
+        }
+      ]
+    }
+  },
+  "broken/E404": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "doc.md",
+            "logical": "doc.md",
+            "is_payload": false,
+            "size": 88
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 1
+        }
+      ]
+    }
+  },
+  "broken/E405": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "doc.md",
+            "logical": "doc.md",
+            "is_payload": false,
+            "size": 76
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 1,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E507": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/W601": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 0
+        },
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/W602": {
+    "discover": [
+      {
+        "directory": "Private",
+        "label": "Private",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": []
+      },
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Private",
+          "docs": 0,
+          "files": 0
+        },
+        {
+          "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  }
+}

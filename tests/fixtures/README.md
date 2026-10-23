@@ -14,6 +14,16 @@ The suite lives in `crates/fjord-core/tests/fixtures.rs`, and
 recorded as deferred. Adding a diagnostic therefore means adding a fixture,
 or saying in that file why it has none.
 
+## `discovery.json`
+
+What the filesystem walk said about every committed fixture — which directories are vaults, what each
+file in them is and its size, which vault manifests are nested, and what `verify` counted — recorded
+from the code **before** vault discovery was moved onto `fjord_core::listing` (ROADMAP P3).
+`crates/fjord-core/tests/discovery.rs` holds three things to it: the pure function over a bare list of
+paths, the CLI's own filesystem API, and `verify`. It is a recording, not something to regenerate: if a
+change makes it disagree, the change is what needs explaining. Adding a fixture means adding its entry
+(a test checks they are in step).
+
 ## Why some fixtures are not here
 
 A fixture for most of the `E5xx` path rules **cannot** be a committed

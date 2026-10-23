@@ -36,6 +36,7 @@ pub mod container;
 pub mod crypto;
 pub mod diagnostics;
 pub mod doc;
+pub mod listing;
 pub mod manifest;
 pub mod path;
 pub mod repair;
