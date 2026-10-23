@@ -27,7 +27,7 @@ pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
         return Ok(code);
     }
 
-    let relative = match destination(&root, &args.path) {
+    let relative = match destination(&root, &args.path, args.document) {
         Ok(relative) => relative,
         Err(message) => return Ok(usage(message)),
     };
@@ -152,7 +152,7 @@ fn write_new(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 /// Accepts the same two spellings as every other command — relative to the
 /// working directory, or to the repository root — preferring whichever has
 /// an existing parent directory, and the repository root when neither does.
-fn destination(root: &Path, input: &Path) -> std::result::Result<String, String> {
+fn destination(root: &Path, input: &Path, document: bool) -> std::result::Result<String, String> {
     let canonical_root = std::fs::canonicalize(root)
         .map_err(|err| format!("could not resolve {}: {err}", root.display()))?;
 
@@ -167,7 +167,7 @@ fn destination(root: &Path, input: &Path) -> std::result::Result<String, String>
 
     for candidate in &candidates {
         if let Ok(relative) = candidate.strip_prefix(&canonical_root) {
-            let relative = with_markdown_extension(&relative.to_string_lossy())?;
+            let relative = with_markdown_extension(&relative.to_string_lossy(), document)?;
             return Ok(relative);
         }
     }
@@ -182,9 +182,30 @@ fn destination(root: &Path, input: &Path) -> std::result::Result<String, String>
 /// A Fjord Doc is a `.md` file (§8), so a bare name gains the extension and
 /// anything else is refused rather than silently made into a vault file
 /// with frontmatter nobody will read.
-fn with_markdown_extension(relative: &str) -> std::result::Result<String, String> {
+///
+/// With `document`, the name ends in `.fj.md` (§8.4): `plan` and `plan.md` become `plan.fj.md`, and a
+/// name that already is one is kept. Without it, `plan.fj.md` is still a document: the name decides, and
+/// nothing here has to be told.
+fn with_markdown_extension(relative: &str, document: bool) -> std::result::Result<String, String> {
     let relative = relative.replace('\\', "/");
     let name = relative.rsplit('/').next().unwrap_or(&relative);
+
+    if document && !doc::is_document_name(name) {
+        let directory = &relative[..relative.len() - name.len()];
+        let stem = match name.rsplit_once('.') {
+            // A Markdown name loses its `.md` to gain `.fj.md`. (A dotfile such as `.md` has no stem.)
+            Some((stem, "md")) if !stem.is_empty() => stem,
+            Some((_, extension)) if extension != "md" && !name.starts_with('.') => {
+                return Err(format!(
+                    "a Fjord Doc is a Markdown file (spec §8), so `.{extension}` cannot carry \
+                     frontmatter. Create it with your editor and bring it in with \
+                     `fjord encrypt`"
+                ))
+            }
+            _ => name,
+        };
+        return Ok(format!("{directory}{stem}{}", doc::DOCUMENT_SUFFIX));
+    }
 
     match name.rsplit_once('.') {
         Some((_, "md")) => Ok(relative),
@@ -234,10 +255,15 @@ fn offending_component(relative: &str) -> Option<String> {
     None
 }
 
-/// The title a file name implies: `sync-design.md` becomes `sync-design`.
+/// The title a file name implies: `sync-design.md` and `sync-design.fj.md` both become `sync-design`.
 fn default_title(relative: &str) -> String {
     let name = relative.rsplit('/').next().unwrap_or(relative);
-    name.strip_suffix(".md").unwrap_or(name).to_string()
+    let stem = if doc::is_document_name(name) {
+        name.strip_suffix(doc::DOCUMENT_SUFFIX)
+    } else {
+        name.strip_suffix(".md")
+    };
+    stem.unwrap_or(name).to_string()
 }
 
 #[cfg(test)]
@@ -246,16 +272,19 @@ mod tests {
 
     #[test]
     fn a_bare_name_becomes_markdown() {
-        assert_eq!(with_markdown_extension("notes"), Ok("notes.md".to_string()));
         assert_eq!(
-            with_markdown_extension("Public/notes.md"),
+            with_markdown_extension("notes", false),
+            Ok("notes.md".to_string())
+        );
+        assert_eq!(
+            with_markdown_extension("Public/notes.md", false),
             Ok("Public/notes.md".to_string())
         );
     }
 
     #[test]
     fn another_extension_is_refused_with_a_way_forward() {
-        match with_markdown_extension("Private/report.pdf") {
+        match with_markdown_extension("Private/report.pdf", false) {
             Err(message) => {
                 assert!(message.contains("§8"), "{message}");
                 assert!(message.contains("fjord encrypt"), "{message}");
@@ -267,7 +296,7 @@ mod tests {
     #[test]
     fn a_dotfile_still_gains_the_extension() {
         assert_eq!(
-            with_markdown_extension("Public/.notes"),
+            with_markdown_extension("Public/.notes", false),
             Ok("Public/.notes.md".to_string())
         );
     }
@@ -297,5 +326,43 @@ mod tests {
         let long = format!("Public/{}.md", "a".repeat(300));
         let message = offending_component(&long).expect("a message");
         assert!(message.contains("E504"), "{message}");
+    }
+
+    #[test]
+    fn a_document_is_named_fj_md() {
+        let named = |name: &str| with_markdown_extension(name, true);
+        assert_eq!(named("plan"), Ok("plan.fj.md".to_string()));
+        assert_eq!(named("plan.md"), Ok("plan.fj.md".to_string()));
+        assert_eq!(
+            named("Public/Q4/plan.md"),
+            Ok("Public/Q4/plan.fj.md".to_string())
+        );
+        assert_eq!(
+            named("Public/plan.fj.md"),
+            Ok("Public/plan.fj.md".to_string())
+        );
+        assert_eq!(
+            named("Public/.notes"),
+            Ok("Public/.notes.fj.md".to_string())
+        );
+        // Still refused, with the same way forward, for what cannot carry frontmatter.
+        assert!(named("Public/report.pdf")
+            .unwrap_err()
+            .contains("fjord encrypt"));
+    }
+
+    #[test]
+    fn a_name_ending_in_fj_md_is_a_document_without_being_told() {
+        assert_eq!(
+            with_markdown_extension("Public/plan.fj.md", false),
+            Ok("Public/plan.fj.md".to_string())
+        );
+    }
+
+    #[test]
+    fn a_documents_title_does_not_keep_its_suffix() {
+        assert_eq!(default_title("Public/sync-design.fj.md"), "sync-design");
+        assert_eq!(default_title("Public/sync-design.md"), "sync-design");
+        assert_eq!(default_title("Public/fj.md"), "fj");
     }
 }

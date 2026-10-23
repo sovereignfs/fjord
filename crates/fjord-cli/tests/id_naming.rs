@@ -113,6 +113,47 @@ fn repo() -> Repo {
 
 // --- The acceptance criteria ---------------------------------------------
 
+/// §8.4 in an `id` vault: the name on disk is the identifier, so a document is known by the name inside
+/// the container, which `ls` reads.
+#[test]
+fn a_document_in_an_id_vault_is_still_a_document() {
+    let repo = repo();
+    for name in ["plan.fj.md", "idea.md"] {
+        let created = repo.run(&["new", &format!("Secret/{name}"), "--no-edit"]);
+        assert_eq!(code(&created), 0, "{name}: {}", err(&created));
+    }
+    let listed = repo.run(&["ls", "Secret", "--json"]);
+    assert_eq!(code(&listed), 0, "{}", err(&listed));
+    let rows: serde_json::Value =
+        serde_json::from_str(&String::from_utf8_lossy(&listed.stdout)).expect("json");
+    let mut kinds: Vec<(String, String)> = rows
+        .as_array()
+        .expect("array")
+        .iter()
+        .map(|row| {
+            (
+                row["title"].as_str().unwrap_or_default().to_string(),
+                row["docKind"].as_str().unwrap_or("none").to_string(),
+            )
+        })
+        .collect();
+    kinds.sort();
+    // The title column carries the real name (and the title when it differs) in an `id` vault.
+    assert_eq!(kinds.len(), 2, "{kinds:?}");
+    assert!(
+        kinds
+            .iter()
+            .any(|(title, kind)| title.contains("plan.fj.md") && kind == "document"),
+        "{kinds:?}"
+    );
+    assert!(
+        kinds
+            .iter()
+            .any(|(title, kind)| title.contains("idea.md") && kind == "note"),
+        "{kinds:?}"
+    );
+}
+
 /// "A vault in id mode round-trips a file whose name contains a space."
 #[test]
 fn a_name_with_a_space_round_trips_in_id_mode() {

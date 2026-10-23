@@ -139,6 +139,126 @@ fn a_new_document_passes_verify() {
     assert_eq!(doc["id"].as_str().map(str::len), Some(26));
 }
 
+/// ROADMAP P2: "`fjord new --document` writes `name.fj.md`; `ls` shows which is which. Created file verifies;
+/// `ls --json` reports `kind`."
+#[test]
+fn a_new_document_is_named_fj_md_verifies_and_is_listed_as_a_document() {
+    let repo = repo();
+
+    for (given, written) in [
+        ("Public/plan", "Public/plan.fj.md"),
+        ("Public/Q4/report.md", "Public/Q4/report.fj.md"),
+        ("Public/already.fj.md", "Public/already.fj.md"),
+    ] {
+        let created = repo.run(&["new", given, "--document", "--no-edit"]);
+        assert_eq!(code(&created), 0, "{given}: {}", err(&created));
+        assert!(
+            out(&created).contains(written),
+            "{given}: {}",
+            out(&created)
+        );
+        assert!(repo.root.join(written).is_file(), "{written} should exist");
+    }
+
+    let verified = repo.run(&["verify"]);
+    assert_eq!(code(&verified), 0, "{}", out(&verified));
+
+    // A note beside them, which is the same format and a different name.
+    assert_eq!(code(&repo.run(&["new", "Public/idea.md", "--no-edit"])), 0);
+
+    let listed = repo.run(&["ls", "Public", "--json", "-R"]);
+    let rows: Value = serde_json::from_str(&out(&listed)).expect("json");
+    let find = |path: &str| {
+        rows.as_array()
+            .expect("array")
+            .iter()
+            .find(|row| row["path"] == path)
+            .unwrap_or_else(|| panic!("{path} not listed"))
+            .clone()
+    };
+    // `kind` stays what it was, a Fjord Doc, so nothing that read it breaks; `docKind` says which.
+    for (path, docs) in [
+        ("Public/plan.fj.md", "document"),
+        ("Public/Q4/report.fj.md", "document"),
+        ("Public/already.fj.md", "document"),
+        ("Public/idea.md", "note"),
+        ("Public/welcome.md", "note"),
+    ] {
+        let row = find(path);
+        assert_eq!(row["kind"], Value::from("doc"), "{path}");
+        assert_eq!(row["docKind"], Value::from(docs), "{path}");
+    }
+    // A document's title does not keep its suffix.
+    assert_eq!(find("Public/plan.fj.md")["title"], Value::from("plan"));
+
+    // And the human listing says it too: the long one, which reads the files to know they are Docs.
+    let human = repo.run(&["ls", "Public", "--long"]);
+    let plan = out(&human)
+        .lines()
+        .find(|line| line.contains("plan.fj.md"))
+        .expect("plan.fj.md")
+        .to_string();
+    assert!(plan.contains("document"), "{plan}");
+    let idea = out(&human)
+        .lines()
+        .find(|line| line.contains("idea.md"))
+        .expect("idea.md")
+        .to_string();
+    assert!(
+        idea.contains("note") && !idea.contains("document"),
+        "{idea}"
+    );
+}
+
+#[test]
+fn a_name_ending_in_fj_md_is_a_document_without_the_flag() {
+    let repo = repo();
+    assert_eq!(
+        code(&repo.run(&["new", "Public/plan.fj.md", "--no-edit"])),
+        0
+    );
+    let listed = repo.run(&["ls", "Public", "--json"]);
+    let rows: Value = serde_json::from_str(&out(&listed)).expect("json");
+    let row = rows
+        .as_array()
+        .expect("array")
+        .iter()
+        .find(|row| row["path"] == "Public/plan.fj.md")
+        .expect("listed");
+    assert_eq!(row["docKind"], Value::from("document"));
+}
+
+/// Only Fjord Docs have a kind of Fjord Doc: a vault file, a directory and a vault do not.
+#[test]
+fn only_a_fjord_doc_has_a_doc_kind() {
+    let repo = repo();
+    std::fs::write(
+        repo.root.join("Public/draft.fj.md"),
+        "# no frontmatter, so not a Doc\n",
+    )
+    .expect("write");
+    let listed = repo.run(&["ls", "Public", "--json"]);
+    let rows: Value = serde_json::from_str(&out(&listed)).expect("json");
+    let draft = rows
+        .as_array()
+        .expect("array")
+        .iter()
+        .find(|row| row["path"] == "Public/draft.fj.md")
+        .expect("listed");
+    // A `.fj.md` name makes a document only if the file is a Doc (§8.4): this one is a vault file.
+    assert_eq!(draft["kind"], Value::from("file"));
+    assert_eq!(draft["docKind"], Value::Null);
+
+    let root = repo.run(&["ls", "--json"]);
+    for row in serde_json::from_str::<Value>(&out(&root))
+        .expect("json")
+        .as_array()
+        .expect("array")
+    {
+        assert_eq!(row["docKind"], Value::Null, "{row}");
+    }
+}
+
 /// "`grep` searches decrypted content in an encrypted vault."
 #[test]
 fn grep_searches_inside_an_encrypted_vault() {
