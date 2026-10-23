@@ -29,6 +29,9 @@ struct Row {
     /// Repository-relative, as a user would type it.
     path: String,
     kind: Kind,
+    /// For a Fjord Doc, whether it is a document or a note (spec §8.4): by its name, which in an `id`
+    /// vault is the name inside the container.
+    doc_kind: Option<DocKind>,
     id: Option<String>,
     title: Option<String>,
     size: u64,
@@ -44,6 +47,32 @@ enum Kind {
     Document,
     /// Everything else: stored, synced and encrypted identically.
     File,
+}
+
+/// The two kinds of Fjord Doc, told apart by file name alone. Spec §8.4.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DocKind {
+    /// Named `*.fj.md`.
+    Document,
+    /// Any other `.md`.
+    Note,
+}
+
+impl DocKind {
+    fn of(name: &str) -> Self {
+        if doc::is_document_name(name) {
+            DocKind::Document
+        } else {
+            DocKind::Note
+        }
+    }
+
+    fn as_str(self) -> &'static str {
+        match self {
+            DocKind::Document => "document",
+            DocKind::Note => "note",
+        }
+    }
 }
 
 impl Kind {
@@ -82,6 +111,7 @@ pub fn run(args: &LsArgs, global: &GlobalArgs) -> Result<ExitCode> {
             rows.push(Row {
                 path: vault.directory.clone(),
                 kind: Kind::Vault,
+                doc_kind: None,
                 id: None,
                 title: vault.label().map(String::from),
                 size: 0,
@@ -192,9 +222,20 @@ fn collect(
         let worth_reading =
             detailed && (content.is_markdown() || fjord_core::store::uses_container(vault));
 
+        // The name a person knows the file by: the one inside a container, else its own.
+        let mut real_name = content
+            .logical
+            .rsplit('/')
+            .next()
+            .unwrap_or(&content.logical)
+            .to_string();
+
         let (id, title) = if worth_reading {
             match inspect(root, vault, content, identities) {
                 Inspected::Read { name, frontmatter } => {
+                    if let Some(inside) = &name {
+                        real_name = inside.clone();
+                    }
                     let id = frontmatter
                         .as_ref()
                         .and_then(|frontmatter| frontmatter.doc_id().map(String::from));
@@ -228,6 +269,7 @@ fn collect(
             } else {
                 Kind::File
             },
+            doc_kind: id.as_ref().map(|_| DocKind::of(&real_name)),
             id,
             title,
             size: content.size,
@@ -240,6 +282,7 @@ fn collect(
         rows.push(Row {
             path,
             kind: Kind::Directory,
+            doc_kind: None,
             id: None,
             title: Some(crate::cmd::plural(count, "entry", "entries")),
             size,
@@ -325,11 +368,12 @@ fn render(rows: &[Row], long: bool, unreadable: usize, quiet: bool) {
         .min(60);
 
     for row in rows {
-        let marker = match row.kind {
-            Kind::Vault => "vault",
-            Kind::Directory => "dir",
-            Kind::Document => "doc",
-            Kind::File => "",
+        let marker = match (&row.kind, row.doc_kind) {
+            (Kind::Vault, _) => "vault",
+            (Kind::Directory, _) => "dir",
+            (Kind::Document, Some(kind)) => kind.as_str(),
+            (Kind::Document, None) => "doc",
+            (Kind::File, _) => "",
         };
 
         if !long {
@@ -347,12 +391,16 @@ fn render(rows: &[Row], long: bool, unreadable: usize, quiet: bool) {
         let leaf = row.path.rsplit('/').next().unwrap_or(&row.path);
         let id = row.id.as_deref().filter(|id| *id != leaf);
 
-        let detail = match (id, &row.title) {
-            (Some(id), Some(title)) => format!("{id}  {title}"),
-            (Some(id), None) => id.to_string(),
-            (None, Some(title)) => title.clone(),
-            (None, None) => String::new(),
-        };
+        // A Fjord Doc says which kind it is (§8.4), first: it is what a person scans for.
+        let detail = [
+            row.doc_kind.map(|kind| kind.as_str().to_string()),
+            id.map(str::to_string),
+            row.title.clone(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>()
+        .join("  ");
         println!(
             "  {:<width$}  {:>9}  {:<10}  {}",
             row.path,
@@ -408,6 +456,7 @@ fn render_json(rows: &[Row]) -> String {
             serde_json::json!({
                 "path": row.path,
                 "kind": row.kind.as_str(),
+                "docKind": row.doc_kind.map(DocKind::as_str),
                 "id": row.id,
                 "title": row.title,
                 "size": row.size,

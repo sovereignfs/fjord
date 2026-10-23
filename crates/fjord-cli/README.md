@@ -315,13 +315,20 @@ not even for the instant between creating a file and encrypting it.
 `.md` is added if you leave it off. Another extension is refused, since a
 PDF cannot carry frontmatter — bring those in with `fjord encrypt`.
 
+A Fjord Doc is a **document** if its name ends in `.fj.md` and a **note** if it
+ends in plain `.md` (spec §8.4): the same format, told apart by name, so an
+editor can treat a long-form document differently. `--document` makes it one —
+`plan` and `plan.md` become `plan.fj.md` — and a name that already ends in
+`.fj.md` is a document without the flag.
+
 Names are checked against the path rules of spec §5 *before* anything is
 written, so a document that could not be checked out on Windows or macOS is
 never created in the first place.
 
 | Flag | Effect |
 | --- | --- |
-| `--title <text>` | Set the title. Defaults to the file stem. |
+| `--title <text>` | Set the title. Defaults to the file stem (without `.md` or `.fj.md`). |
+| `--document` | Make it a document: name it `*.fj.md`. |
 | `--no-edit` | Create the file without opening an editor. |
 
 Paths in `open`, `encrypt`, `decrypt` and `new` may be given relative to the
@@ -343,8 +350,8 @@ an identity they list what they can and say what they could not read.
 
 | Flag | Effect |
 | --- | --- |
-| `--json` | Machine-readable output. |
-| `--long` | Show size, date, id and title. |
+| `--json` | Machine-readable output. A Fjord Doc has `"kind": "doc"` and `"docKind": "document"` or `"note"` (spec §8.4); anything else has `"docKind": null`. |
+| `--long` | Show size, date, and for a Fjord Doc its kind (`document` or `note`), id and title. |
 | `-R`, `--recursive` | Recurse into subdirectories. |
 
 ### `fjord grep <pattern> [path]`

@@ -210,6 +210,14 @@ pub struct NewArgs {
     #[arg(long)]
     pub title: Option<String>,
 
+    /// Make it a document: name it `*.fj.md` (spec §8.4).
+    ///
+    /// A document is the same format as a note, told apart by its name, so a client can edit a long-form
+    /// document differently. `plan` and `plan.md` become `plan.fj.md`; a name already ending in `.fj.md`
+    /// is a document without this flag.
+    #[arg(long)]
+    pub document: bool,
+
     /// Create the file without opening an editor.
     #[arg(long)]
     pub no_edit: bool,

@@ -14,6 +14,12 @@ tagging it.
 
 ### Added
 
+- **`fjord new --document`, and `ls` says which is which** (ROADMAP P2): `--document` names a new Doc
+  `*.fj.md` (`plan` and `plan.md` become `plan.fj.md`; a name already ending in `.fj.md` is a document without
+  the flag), and a document's default title no longer keeps its suffix. `ls --json` keeps `"kind": "doc"` for every
+  Fjord Doc, so nothing that reads it breaks, and adds `"docKind": "document"` or `"note"` (null for anything that
+  is not a Fjord Doc); `ls --long` shows the kind before the id and title. In an `id`-named encrypted vault, where
+  the name on disk is the identifier, the kind comes from the name inside the container.
 - **Documents and notes** (spec §8.4, ROADMAP P1): a Fjord Doc whose file name ends in `.fj.md` is a *document*,
   any other a *note*. It is the same format (same frontmatter, same rules, same identifiers; a `.fj.md` file with no
   valid `id` is a vault file like any `.md`), told apart by name so a client can edit a long-form document
