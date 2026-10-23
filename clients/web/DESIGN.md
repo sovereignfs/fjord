@@ -280,6 +280,36 @@ its reader: the tree read for a commit is that commit's tree for ever, which is 
 from the environment; rotation is supported). Credentials are never sent to the
 browser.
 
+### Credentials at rest, as built (ROADMAP 1a.8)
+
+- **Envelope encryption** (`src/crypto/`): a credential is encrypted in AES-256-GCM with a random
+  data key of its own, and that data key is wrapped, also in AES-256-GCM, under the instance key.
+  Node's `crypto` only: no dependency. Each encryption has a fresh random nonce.
+- **Bound to where it lives.** The credential's id and purpose are in the authenticated data of
+  both layers, and the wrapped key's also names the instance key. A sealed value copied onto
+  another row, or given another purpose, is refused as corrupt and never decrypted for someone
+  else. The id is random (not a counter) because the encryption is bound to it before the row
+  exists.
+- **The `credential` table** (both dialects, §14): `id`, `purpose`, `kek_id`, `wrapped_key`,
+  `ciphertext`, `created_at`, `rewrapped_at`. Whatever stores a credential (a connection, 1a.6
+  and 1a.7) holds its id. The server asks for the secret only where it is used; nothing returns
+  it to the browser, and no error, log line or URL carries it.
+- **The instance key** is `FJORD_ENCRYPTION_KEY` (or `_FILE`): 32 random bytes, base64 or hex.
+  It is known by a fingerprint (a domain-separated SHA-256, 16 hex characters), so a stored
+  credential says which key it needs without saying anything about the key. It is optional until
+  something is stored: storing a credential without one is refused, with a message saying so.
+- **Rotation is a restart.** Put the new key in `FJORD_ENCRYPTION_KEY` and the old in
+  `FJORD_ENCRYPTION_KEY_PREVIOUS`; when the server starts it wraps every credential's data key
+  under the new key (32 bytes each, the credentials untouched) and logs when the previous key
+  can be removed. Credentials are readable throughout, from any replica; the update names the
+  key it replaces, so two processes doing it at once is safe.
+- **It refuses to start rather than lose a credential quietly:** with credentials stored and no
+  key, or a key that some credentials were sealed under dropped from both settings, the server
+  stops at start-up and names the fingerprints. A lost key means connecting the repositories
+  again; the key belongs with secrets, not with database backups.
+- **Not covered by this:** better-auth's own tokens (Sovereign's, §6) are encrypted with its own
+  setting and are not used after sign-in; share-link tokens are hashes (§12).
+
 **Defaults.** The first repository connected is the default; with two or more the
 user can change it. Each connection has a default vault: the first vault listed in
 `fjord.json` until the user picks another.

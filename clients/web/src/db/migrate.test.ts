@@ -11,7 +11,7 @@ const { leg } = testTarget();
 
 /** How many migrations the committed journal says there are. */
 function journalLength(database: Database): number {
-  const journal = JSON.parse(readFileSync(join(migrationsFolder(database.dialect), "meta", "_journal.json"), "utf8"));
+  const journal = JSON.parse(readFileSync(join(migrationsFolder(database.dialect, database.store), "meta", "_journal.json"), "utf8"));
   return journal.entries.length;
 }
 
@@ -51,7 +51,7 @@ describe(`migrations (${leg})`, () => {
 
     await runMigrations(database);
 
-    expect(await tableNames(database)).toEqual(["event"]);
+    expect(await tableNames(database)).toEqual(["credential", "event"]);
     expect(await appliedCount(database)).toBe(journalLength(database));
   });
 
@@ -84,7 +84,7 @@ describe(`migrations (${leg})`, () => {
     await Promise.all([runMigrations(database), runMigrations(second)]);
 
     expect(await appliedCount(database)).toBe(journalLength(database));
-    expect(await tableNames(database)).toEqual(["event"]);
+    expect(await tableNames(database)).toEqual(["credential", "event"]);
   });
 
   it("fail, and say so, when the migrations are missing", async () => {
@@ -100,7 +100,7 @@ describe(`migrations (${leg})`, () => {
     open.push(database);
     await expect(runMigrations(database, "/nonexistent/migrations")).rejects.toThrow();
     await runMigrations(database);
-    expect(await tableNames(database)).toEqual(["event"]);
+    expect(await tableNames(database)).toEqual(["credential", "event"]);
   });
 });
 

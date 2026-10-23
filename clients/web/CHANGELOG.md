@@ -13,6 +13,12 @@ section.
 
 ### Added
 
+- **Credentials at rest** (ROADMAP 1a.8): a `credential` table that holds secrets only as
+  envelope encryption (AES-256-GCM, a data key per credential wrapped under an instance key
+  from `FJORD_ENCRYPTION_KEY`), bound to its row and purpose so it cannot be moved to another.
+  Rotation is a restart with the old key in `FJORD_ENCRYPTION_KEY_PREVIOUS`: every credential is
+  re-wrapped, none re-encrypted. The server will not start with credentials it could never
+  open. Nothing stores a credential yet; the connections (1a.6, 1a.7) will.
 - **Sovereign's typeface and a new icon.** The app is set in Hanken Grotesk, loaded as
   Sovereign's own apps load it, through `next/font`: it is downloaded when the app is built
   and served from our own origin, so visitors' browsers never contact Google (the build needs
