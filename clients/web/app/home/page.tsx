@@ -20,9 +20,12 @@ export default async function HomePage() {
         <Card as="article" padding="lg">
           <h1 className={styles.title}>Hello, {user.name}</h1>
           <p className={styles.lead}>You are signed in as {user.email}.</p>
-          <Alert variant="info" heading="Repositories are next">
-            Connecting a Git repository and browsing your documents are the next things to be built.{security ? " For now you can set up how you sign in." : ""}
+          <Alert variant="info" heading="Browsing is next">
+            You can connect a repository now; browsing and editing its documents are the next things to be built.{security ? " You can also set up how you sign in." : ""}
           </Alert>
+          <p style={{ marginTop: "var(--sv-space-5)" }}>
+            <a href="/repositories">Repositories</a>
+          </p>
           {security ? (
             <p style={{ marginTop: "var(--sv-space-5)" }}>
               <a href="/account/security">Account security</a>

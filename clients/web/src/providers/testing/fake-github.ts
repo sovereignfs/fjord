@@ -19,6 +19,8 @@ export interface FakeGitHubOptions {
   name?: string;
   /** Tokens it accepts, and whether each may write. Default: `test-token`, which may. */
   tokens?: Record<string, { push: boolean }>;
+  /** A port to listen on, for a test that has to tell another process where it is; default a free one. */
+  port?: number;
 }
 
 interface Failure {
@@ -72,7 +74,7 @@ export class FakeGitHub {
     mkdirSync(this.repo);
     await this.git(["init", "--bare", "--initial-branch=main", "--quiet"]);
     this.server = createServer((req, res) => void this.handle(req, res));
-    await new Promise<void>((resolve) => this.server.listen(0, "127.0.0.1", resolve));
+    await new Promise<void>((resolve) => this.server.listen(this.options.port ?? 0, "127.0.0.1", resolve));
   }
 
   async stop(): Promise<void> {

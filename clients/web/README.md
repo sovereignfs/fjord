@@ -89,6 +89,14 @@ SQLITE_URL=file:./data/fjord.db pnpm dev
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` or `_FILE`, `SMTP_FROM` | email, optional. With it, addresses are verified and a password can be reset by email; without it, neither | none |
 | `FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION` | `false` to skip verification even with SMTP | on with SMTP |
 
+**Connecting a repository.** Signed in, open **Repositories**, give the repository's address and a
+**fine-grained personal access token**: on GitHub, Settings, Developer settings, Personal access tokens,
+Fine-grained tokens, with *Repository access* limited to that one repository and the repository
+permission **Contents: Read and write** (Metadata: Read comes with it). Fjord checks that the token
+works, and can write, before keeping it, and keeps it encrypted (it needs `FJORD_ENCRYPTION_KEY`,
+below; without one the page says so). `FJORD_GITHUB_API_URL` is only for a GitHub Enterprise Server
+(`https://github.example.com/api/v3`); tokens are sent there, so it must be https.
+
 **Credentials at rest.** Repository credentials (a token, a GitHub App's key) are stored
 encrypted, under an instance key you provide. Make one and keep it with your secrets, not with
 database backups:

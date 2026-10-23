@@ -42,7 +42,7 @@ describe(`booting an instance (${leg})`, () => {
   it("keeps the app's tables and better-auth's in separate stores", async () => {
     await resetStores(config);
     const { app, auth } = await getStores(envFor(config));
-    expect(await tablesOf(app)).toEqual(["credential", "event"]);
+    expect(await tablesOf(app)).toEqual(["connection", "credential", "event"]);
     const authTables = await tablesOf(auth);
     expect(authTables).toEqual(expect.arrayContaining(["user", "session", "account", "verification", "two_factor", "passkey", "rate_limit"]));
     expect(authTables).not.toContain("event");

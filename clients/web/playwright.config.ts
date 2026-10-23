@@ -11,11 +11,15 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Five instances of the app run, each on a file database of its own, because what is under
  * test differs by how the instance is set up:
- *   open       local sign-in on, anyone may sign up        (e2e/*.open.spec.ts)
+ *   open       local sign-in on, anyone may sign up, repositories can be connected (e2e/*.open.spec.ts)
  *   closed     local sign-in on, only the first account    (e2e/*.closed.spec.ts)
  *   off        no sign-in switched on                      (e2e/*.off.spec.ts)
  *   sovereign  Sovereign sign-in only, first account only  (e2e/*.sovereign.spec.ts)
  *   both       local and Sovereign, anyone may sign up     (e2e/*.both.spec.ts)
+ *
+ * `open` connects repositories to a fake GitHub (src/providers/testing/fake-github.ts, whose storage
+ * is a real git repository) that its spec starts on port 3192; the instance has an encryption key
+ * for the tokens, the others do not.
  *
  * The last two sign in through a fake Sovereign (src/auth/testing/fake-sovereign.ts), run by
  * e2e/fake-sovereign-server.ts on port 3190, with a control port at 3191 that says who the next
@@ -30,7 +34,7 @@ const SECRET = "e2e-only-secret-not-for-anything-real-0123456789";
 // settings there (a real Sovereign, say) would reach these instances. Setting a name, even to
 // nothing, keeps it out: an empty value is "not set" to the app.
 const BLANK = Object.fromEntries(
-  ["FJORD_URL", "FJORD_AUTH_LOCAL", "FJORD_AUTH_SECRET", "FJORD_AUTH_SIGNUP", "FJORD_AUTH_SOVEREIGN_ISSUER", "FJORD_AUTH_SOVEREIGN_CLIENT_ID", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET_FILE", "FJORD_AUTH_SECRET_FILE", "SMTP_HOST"].map((name) => [name, ""]),
+  ["FJORD_URL", "FJORD_AUTH_LOCAL", "FJORD_AUTH_SECRET", "FJORD_AUTH_SIGNUP", "FJORD_AUTH_SOVEREIGN_ISSUER", "FJORD_AUTH_SOVEREIGN_CLIENT_ID", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET_FILE", "FJORD_AUTH_SECRET_FILE", "SMTP_HOST", "FJORD_ENCRYPTION_KEY", "FJORD_ENCRYPTION_KEY_FILE", "FJORD_ENCRYPTION_KEY_PREVIOUS", "FJORD_GITHUB_API_URL"].map((name) => [name, ""]),
 );
 
 // A directory of its own for each instance: the auth database is `fjord_auth.db` beside the
@@ -66,7 +70,12 @@ export default defineConfig({
   webServer: [
     // First, so that it is up when the instances that sign in through it start and discover it.
     { command: "node e2e/fake-sovereign-server.ts", url: "http://localhost:3191/health", timeout: 30_000, reuseExistingServer: false },
-    instance("open", 3201, { ...on(3201), FJORD_AUTH_SIGNUP: "open" }),
+    instance("open", 3201, {
+      ...on(3201),
+      FJORD_AUTH_SIGNUP: "open",
+      FJORD_ENCRYPTION_KEY: "ZTJlLW9ubHkta2V5LW5vdC1mb3ItYW55dGhpbmchISE=",
+      FJORD_GITHUB_API_URL: "http://localhost:3192",
+    }),
     instance("closed", 3202, on(3202)),
     instance("off", 3203, {}),
     instance("sovereign", 3204, { FJORD_URL: "http://localhost:3204", FJORD_AUTH_SECRET: SECRET, ...sovereign }),

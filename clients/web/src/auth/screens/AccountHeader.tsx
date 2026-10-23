@@ -12,6 +12,7 @@ export function AccountHeader({ name, email, security }: { name: string; email: 
         Fjord
       </a>
       <nav className={styles.actions} aria-label="Account">
+        <a href="/repositories">Repositories</a>
         {security ? <a href="/account/security">Security</a> : null}
         <span className={styles.itemMeta} title={email}>
           {name}
