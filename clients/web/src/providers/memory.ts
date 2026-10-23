@@ -93,6 +93,12 @@ export class MemoryProvider implements Provider {
     return { changed: true, head: { branch, commit, etag } };
   }
 
+  async canWrite(ref: RepositoryRef, branch: string): Promise<boolean> {
+    // The branch has to be there, as it does for the real host; whether it may be written is the repository's setting.
+    await this.getHead(ref, branch);
+    return this.repo(ref).info.canPush !== false;
+  }
+
   async getTree(ref: RepositoryRef, commit: string): Promise<Tree> {
     const stored = this.commitOf(this.repo(ref), commit);
     const entries = this.allEntries(this.repo(ref), stored);
