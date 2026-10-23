@@ -1,4 +1,4 @@
-import { index, pgSchema, text } from "drizzle-orm/pg-core";
+import { index, pgSchema, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { APP_STORE } from "../../config";
 import { epochMs, id64 } from "./columns";
 
@@ -30,4 +30,23 @@ export const credential = app.table(
     rewrappedAt: epochMs("rewrapped_at"),
   },
   (table) => [index("credential_kek_id_idx").on(table.kekId)],
+);
+
+/** A repository an account has connected; see `schema/sqlite/app.ts`. */
+export const connection = app.table(
+  "connection",
+  {
+    id: id64("id"),
+    accountId: text("account_id").notNull(),
+    provider: text("provider").notNull(),
+    kind: text("kind").notNull(),
+    owner: text("owner").notNull(),
+    name: text("name").notNull(),
+    branch: text("branch").notNull(),
+    credentialId: text("credential_id").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("connection_account_repository_idx").on(table.accountId, table.provider, table.owner, table.name),
+  ],
 );

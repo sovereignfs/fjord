@@ -244,7 +244,7 @@ else imports a host's HTTP client. Everything is by git object id, so a result n
 its reader: the tree read for a commit is that commit's tree for ever, which is what the cache of
 §8 relies on.
 
-- **Reading:** `listRepositories`, `getRepository`, `getHead` (with an etag, so a poll that finds
+- **Reading:** `listRepositories`, `getRepository`, `canWrite` (below), `getHead` (with an etag, so a poll that finds
   nothing new costs no rate limit), `getTree` (every path with its size and id, in one request,
   and `complete: false` when the host cut it short), `listDirectory` (the fallback for that, one
   directory at a time), `readBlob` (bytes, with a size limit).
@@ -256,6 +256,12 @@ its reader: the tree read for a commit is that commit's tree for ever, which is 
   real guarantee for the race after it. A commit that would change nothing gives `no_changes`, so
   an idle save makes no empty commit. A move is a blob put at a new path (nothing re-uploaded) and a
   delete. A folder is changed by changing each of its files; the caller has the tree.
+- **`canWrite(ref, branch)` finds out by trying something that changes nothing**: it points the
+  branch at the commit it is already on, never forced, which needs the same permission as a real
+  commit's last step. A repository's reported permissions are not enough for this (a fine-grained
+  token's grants are not what the repository says about its user), and the host's own refusal is the
+  only answer to trust. `false` is "can read, cannot write"; a rejected token or a branch that is not
+  there throws as it does anywhere else.
 - **Paths are checked by every provider**: nothing may write `.git/…`, `..`, an absolute path or
   a duplicate. (The format's own path rules, spec §5, are `fjord-core`'s and are applied before a
   commit is built.)
@@ -279,6 +285,43 @@ its reader: the tree read for a commit is that commit's tree for ever, which is 
 **Every credential is encrypted at rest** (envelope encryption with an instance key
 from the environment; rotation is supported). Credentials are never sent to the
 browser.
+
+### Connecting a repository with a token, as built (ROADMAP 1a.7)
+
+- **What a person does:** on `/repositories`, gives the repository's address (`https://github.com/o/r`,
+  with or without `.git`, `git@github.com:o/r`, or `o/r`) and a fine-grained personal access token
+  limited to that repository with *Contents: Read and write*. Only GitHub so far, and the address is
+  refused with a reason if it is another host, a page inside a repository, or has a password in it.
+- **Checked before anything is kept** (`src/connections/service.ts`), in the order a person would fix
+  things: GitHub accepts the token; it can see the repository (the repository's own spelling is what is
+  kept); the default branch has something in it (a branch that is not there is an empty repository, and
+  is said to be: there is nothing to work on yet); it is not connected already; and the token can
+  **write**, by `canWrite`. Each refusal is a message of ours saying what to do (“create the token with
+  *Contents: Read and write*”), never GitHub's text, never the token. A token that fails leaves nothing
+  behind, and neither does one whose connection could not be recorded.
+- **A token that reaches more than it needs to** is accepted with a warning naming how many other
+  repositories it can reach: the design's advice is a token for one repository, but a person's choice
+  is theirs.
+- **Kept encrypted:** the token goes to the credential store (§7, 1a.8) and the `connection` row holds
+  its id, with the account, the repository (as GitHub spells it), the branch (the default branch when it
+  was connected, DESIGN §19 #6) and when. `account_id` is better-auth's user id; that table is in the
+  other store, so it is not a foreign key. One account cannot connect the same repository twice; two
+  accounts can, each with a token of their own. Disconnecting deletes the connection and its token.
+  The default flag and default vault are 1a.9's.
+- **The API (`/api/connections`, `src/connections/http.ts`)** is where §12 is applied: nobody who is
+  not signed in (401, before anything is read); a write must come from this instance's own pages, its
+  `Origin` checked against `FJORD_URL`, so another site cannot make a signed-in person's browser
+  connect a repository with a token it chose; an account sees and changes only its own connections, and
+  another's is 404, as if it were not there; the token is in one request and in no response, log line
+  or error. Without `FJORD_ENCRYPTION_KEY` the page says why it cannot connect and the API answers 503.
+- **`FJORD_GITHUB_API_URL`** is where GitHub's API is when it is not github.com's (an Enterprise Server's
+  `https://host/api/v3`, or a stand-in on localhost in the browser tests). Tokens are sent there, so it
+  must be https, except on localhost.
+- **Tested** against a GitHub whose storage is a real git repository (`FakeGitHub`) on all three
+  databases, in a browser, and each safeguard switched off to see its test fail. Not yet tested against
+  real GitHub with a real fine-grained token: the one thing assumed of it is that pointing a branch at
+  its own head is accepted when the token can write and refused (403) when it cannot, which a first
+  real connection confirms.
 
 ### Credentials at rest, as built (ROADMAP 1a.8)
 
@@ -574,7 +617,7 @@ Roughly, beyond better-auth's own:
 
 | Table | Holds |
 | --- | --- |
-| `connection` | account, provider, repository, branch, encrypted credential, default flag, default vault |
+| `connection` | account, provider, how it is reached (`kind`), repository, branch, the id of its credential in `credential` (§7), when; the default flag and default vault come with 1a.9 |
 | `tree_cache` | connection, commit id, listing |
 | `doc_index` | connection, path, `id`, kind (document/note), blob id |
 | `working_copy` | connection, path, base blob id, content, editors since last version, last edit, upstream-changed flag |

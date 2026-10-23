@@ -80,6 +80,10 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
   back on the server where it is used, never send it to the browser or put it in an error, a log or a
   URL. A change to how it is sealed keeps the binding to the row and purpose, and has a test seen to
   fail with that switched off.
+- **A route that changes something is tested for who may call it and from where.** `src/connections/http.ts`
+  is the pattern: the caller is found by the route and handed in, the rules (signed in, this site's
+  `Origin` on every write, an account's own rows only, another's is 404) are tested directly with a stand-in
+  service, and each was seen to fail with the rule switched off.
 - **A git host is reached only through `Provider`** (`src/providers/`), and the app is tested
   against `MemoryProvider`, not against GitHub. A new host is a new implementation that passes
   `providerContract`. A commit is never forced and never retried; `head_moved` is the app's cue to
@@ -109,6 +113,7 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | `src/theme/` | The script that sets `data-theme` from the visitor's colour scheme, before first paint |
 | `src/auth/` | Sign-in, local and Sovereign: its settings, the better-auth instance, the client, the screens (`screens/`), the test harness, and a fake Sovereign (`testing/`) with a recording of a real one's discovery (`fixtures/`) |
 | `src/crypto/` | Credentials at rest: the instance key (`config.ts`, `keyring.ts`), envelope encryption (`envelope.ts`), the `credential` table's store and the start-up rotation (`store.ts`) |
+| `src/connections/` | The repositories an account has connected: the address parser, the service that checks a token before keeping it, the HTTP rules (`http.ts`), the screens (`screens/`) |
 | `src/mail/` | Sending email: the SMTP mailer, a mailer for tests, the templates |
 | `e2e/` | Browser tests, and `playwright.config.ts` for the five instances they run against (and the fake Sovereign two of them sign in through) |
 | `proxy.ts` | Shows a signed-in person `/home` at `/`; only looks for a cookie |

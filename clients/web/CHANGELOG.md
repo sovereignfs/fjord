@@ -13,6 +13,14 @@ section.
 
 ### Added
 
+- **Connect a repository with a token** (ROADMAP 1a.7): on `/repositories`, an address and a
+  fine-grained GitHub token. It is checked before anything is kept (accepted, can see the
+  repository, not empty, can write, found out by a no-op update of the branch, never forced), a
+  token that fails leaves nothing behind, and the one that passes is stored encrypted. A token that
+  can reach other repositories is accepted with a warning. `/api/connections` answers only the
+  signed-in account's own, from this site's own pages. New `connection` table and
+  `FJORD_GITHUB_API_URL` (for Enterprise Server). Nothing yet reads a connected repository: browsing
+  and defaults are 1a.9.
 - **Credentials at rest** (ROADMAP 1a.8): a `credential` table that holds secrets only as
   envelope encryption (AES-256-GCM, a data key per credential wrapped under an instance key
   from `FJORD_ENCRYPTION_KEY`), bound to its row and purpose so it cannot be moved to another.

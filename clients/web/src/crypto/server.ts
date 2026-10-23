@@ -1,4 +1,4 @@
-import { ConfigError } from "../db/config";
+import { CredentialError } from "./errors";
 import { getDatabase } from "../db/boot";
 import { resolveEncryptionConfig } from "./config";
 import { CredentialStore } from "./store";
@@ -23,9 +23,9 @@ export function encryptionKeyring(): Keyring | undefined {
   return holder().keyring;
 }
 
-/** The credential store, or a `ConfigError` saying a key is needed. */
+/** The credential store, or a `CredentialError` (`no_key`) saying a key is needed. */
 export async function credentialStore(): Promise<CredentialStore> {
   const keyring = holder().keyring;
-  if (!keyring) throw new ConfigError("FJORD_ENCRYPTION_KEY (or _FILE) is required to store a repository credential (openssl rand -base64 32).");
+  if (!keyring) throw new CredentialError("no_key", "FJORD_ENCRYPTION_KEY (or _FILE) is required to store a repository credential (openssl rand -base64 32).");
   return new CredentialStore(await getDatabase(), keyring);
 }

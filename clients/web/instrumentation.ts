@@ -15,6 +15,8 @@ export async function register(): Promise<void> {
   const { describeAuth } = await import("./src/auth/config");
   const { authConfig } = await import("./src/auth/server");
   console.info(`[fjord] auth: ${describeAuth(authConfig())}`);
+  const { resolveGitHubApiUrl } = await import("./src/connections/config");
+  resolveGitHubApiUrl(process.env);
   const { describeEncryption } = await import("./src/crypto/config");
   const { encryptionKeyring } = await import("./src/crypto/server");
   const { prepareCredentials } = await import("./src/crypto/store");
