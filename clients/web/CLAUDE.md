@@ -58,7 +58,9 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
   import from `src/ui` (a `"use client"` re-export, which still renders on the
   server). Add a component there when a page needs it. Style with the `--sv-*`
   tokens (`@sovereignfs/ui/tokens.css`), never a literal colour, so dark mode and
-  theming keep working. The package's README is out of date: take icon names and
+  theming keep working. The typeface is Hanken Grotesk through `next/font/google` in `app/layout.tsx`,
+  as Sovereign loads it (self-hosted at build time, never a request to Google from the browser; a
+  `<link>` to a font service is not allowed). The package's README is out of date: take icon names and
   props from its types (`IconName`; `Icon` needs `aria-hidden` or `aria-label`). It
   has `@dnd-kit/*` peers that it imports unconditionally, so they are installed too.
 - **Sign-in is tested for what it promises, over real requests.** A test of an auth flow goes
@@ -68,7 +70,11 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
   first-account rule) has a test that was seen to fail with the behaviour switched off. Every
   auth page is `force-dynamic`: with no settings at build time local sign-in is "off", and
   Next would prerender a 404 and keep it. No message says whether an address has an account.
-  A change to what better-auth stores is a change to both dialects' `schema/*/auth.ts`.
+  A change to what better-auth stores is a change to both dialects' `schema/*/auth.ts`. Sovereign
+  sign-in is tested against `src/auth/testing/fake-sovereign.ts`, never the real service (the
+  real one's public discovery document is recorded and compared); a change to it keeps it as
+  strict as Sovereign is. A Sovereign login is known by its `sub`, never matched to an account by
+  email.
 - **A git host is reached only through `Provider`** (`src/providers/`), and the app is tested
   against `MemoryProvider`, not against GitHub. A new host is a new implementation that passes
   `providerContract`. A commit is never forced and never retried; `head_moved` is the app's cue to
@@ -96,15 +102,15 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | `src/ui/` | The design system's client boundary, and components of ours that match it (`LinkButton`) |
 | `src/landing/` | The landing page at `/`: its content as typed data, the component and its styles |
 | `src/theme/` | The script that sets `data-theme` from the visitor's colour scheme, before first paint |
-| `src/auth/` | Local sign-in: its settings, the better-auth instance, the client, the screens (`screens/`), the test harness |
+| `src/auth/` | Sign-in, local and Sovereign: its settings, the better-auth instance, the client, the screens (`screens/`), the test harness, and a fake Sovereign (`testing/`) with a recording of a real one's discovery (`fixtures/`) |
 | `src/mail/` | Sending email: the SMTP mailer, a mailer for tests, the templates |
-| `e2e/` | Browser tests, and `playwright.config.ts` for the three instances they run against |
+| `e2e/` | Browser tests, and `playwright.config.ts` for the five instances they run against (and the fake Sovereign two of them sign in through) |
 | `proxy.ts` | Shows a signed-in person `/home` at `/`; only looks for a cookie |
 | `src/providers/` | The git host interface (`types.ts`), GitHub's implementation (`github/`), an in-memory one (`memory.ts`), and the contract and the git-backed fake they are tested with (`testing/`) |
 | `src/db/` | The database layer: configuration, the two clients, the schemas (`schema/{sqlite,postgres}`), portable queries, migrations at start-up |
 | `migrations/` | The generated SQL, `sqlite/` and `postgres/` for the app's store and `auth/` for better-auth's, committed and reviewed |
 | `instrumentation.ts` | Runs once at server start: brings the database up, so a server that cannot reach or migrate it does not start |
-| `scripts/` | Small Node scripts: `db-generate`, `db-dev`, `boot-check`, `record-github-fixtures` |
+| `scripts/` | Small Node scripts: `db-generate`, `db-dev`, `boot-check`, `record-github-fixtures`, `record-sovereign-discovery` |
 | `DESIGN.md`, `ROADMAP.md` | The design and the plan |
 
 `packages/fjord-editor` is shared with other clients and is created when slice 1b

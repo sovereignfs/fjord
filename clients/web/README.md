@@ -62,9 +62,11 @@ whole databases (`src/db/test-support.ts`).
 
 ### Signing in
 
-Local sign-in (email and password, passkeys, two-factor) is **off unless `FJORD_AUTH_LOCAL` is
-set**; then `/sign-in`, `/sign-up` and `/api/auth` answer 404. The server refuses to start on a
-setting that is wrong, and says which. Try it:
+There are two ways to sign in, and each is **off unless it is set**: local (email and password,
+passkeys, two-factor) with `FJORD_AUTH_LOCAL`, and Sovereign (OIDC) with
+`FJORD_AUTH_SOVEREIGN_*`. With neither, `/sign-in`, `/sign-up` and `/api/auth` answer 404. Either
+or both can be on. The server refuses to start on a setting that is wrong, and says which. Try
+local sign-in:
 
 ```bash
 export FJORD_AUTH_LOCAL=1 FJORD_URL=http://localhost:3000
@@ -75,14 +77,28 @@ SQLITE_URL=file:./data/fjord.db pnpm dev
 | Variable | Meaning | Default |
 | --- | --- | --- |
 | `FJORD_AUTH_LOCAL` | `1` or `true` turns local sign-in on | off |
-| `FJORD_URL` | the address people use; https except on localhost. Passkeys and email links are made from it | required |
-| `FJORD_AUTH_SECRET` or `_FILE` | signs sessions and tokens, 32 characters or more | required |
-| `FJORD_AUTH_SIGNUP` | `closed`: the first account only. `open`: anyone | `closed` |
+| `FJORD_AUTH_SOVEREIGN_ISSUER` | a Sovereign instance's OIDC issuer, e.g. `https://auth.sovereign.example.com/api/auth` (https, except on localhost) | off |
+| `FJORD_AUTH_SOVEREIGN_CLIENT_ID` | the client registered for this instance (below) | with the issuer |
+| `FJORD_AUTH_SOVEREIGN_CLIENT_SECRET` or `_FILE` | its secret. All three are needed together; some without the others is an error | with the issuer |
+| `FJORD_URL` | the address people use; https except on localhost. Passkeys, email links and the Sovereign redirect URI are made from it | required with either |
+| `FJORD_AUTH_SECRET` or `_FILE` | signs sessions and tokens, 32 characters or more | required with either |
+| `FJORD_AUTH_SIGNUP` | `closed`: the first account only. `open`: anyone. For either way in | `closed` |
 | `FJORD_AUTH_PASSWORD_MIN_LENGTH` | | 10 |
 | `FJORD_NAME` | what an authenticator app and a passkey call the instance | Fjord |
 | `FJORD_PASSKEY_RP_ID` | the passkey relying party, to share passkeys across subdomains | the host of `FJORD_URL` |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` or `_FILE`, `SMTP_FROM` | email, optional. With it, addresses are verified and a password can be reset by email; without it, neither | none |
 | `FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION` | `false` to skip verification even with SMTP | on with SMTP |
+
+**Signing in with Sovereign.** An admin of the Sovereign instance registers Fjord Web in its
+Console, under *External clients*: a display name, the redirect URI
+`<FJORD_URL>/api/auth/callback/sovereign` (matched exactly, so `http://localhost:3000/...` for
+development and the `https://` address for production, each registered), and the scopes `openid
+profile email`. The Console shows the client id and secret once; they go in the three variables
+above, the secret preferably in a file (`_FILE`). Fjord Web asks for `sub`, `email` and `name`,
+uses `sub` to know who someone is, and never signs them out of Sovereign. A Sovereign account is
+who someone is, not what they may do here: with `FJORD_AUTH_SIGNUP=closed` only the first account
+is made, whichever way it signs in. Put the settings of a development instance in
+`clients/web/.env.local`, which is not committed.
 
 Run it **behind a reverse proxy that sets `X-Forwarded-For`**: the sign-in rate limit is per
 address, and a client that reaches the app directly can name its own (`DESIGN.md` §15).

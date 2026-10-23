@@ -179,6 +179,42 @@ instance can run either or both:
   never by email alone. Linking an existing local account to Sovereign is done
   from a signed-in session. (Open: §19.)
 
+### Sovereign sign-in, as built (ROADMAP 1a.3)
+
+- **Registered by the Sovereign instance's admin** (Console, External clients; no dynamic
+  registration): redirect URI exactly `<FJORD_URL>/api/auth/callback/sovereign`, scopes `openid
+  profile email`. Fjord Web holds the client id and secret (`FJORD_AUTH_SOVEREIGN_*`, the secret
+  from a file if wanted); all three or none, and a partial set stops the server at start-up.
+- **better-auth's `genericOAuth`** with the issuer's discovery document: authorization code with
+  PKCE S256, the secret sent by basic auth, a `nonce` bound to the request. The ID token (EdDSA
+  on Sovereign) must verify against the keys the document points to, and a document without
+  them means no Sovereign sign-in at all (`requireIdTokenVerification`), not unchecked tokens.
+  If Sovereign cannot be reached at start-up the instance still starts, and the button works
+  once it can be.
+- **Identity is the `sub`**, stored as the account id; `email` and `name` are copied when the
+  account is made (a missing name becomes the part of the email before the `@`) and not
+  overwritten on later sign-ins. A change of email at Sovereign does not change who someone is.
+- **No implicit linking.** A Sovereign login whose email is a local account's is refused
+  (`account_not_linked`, a message on the sign-in page), whether or not that address is
+  confirmed, until linking from a signed-in session exists (1a.4). A Sovereign-only person has
+  no password, two-factor or passkeys, so those settings (`/account/security`) answer 404 on an
+  instance with only Sovereign on; with both on, the page is the local methods' and does not yet
+  know that a person who came through Sovereign has no password to change (1a.4).
+- **Sign-up policy is one policy.** `FJORD_AUTH_SIGNUP=closed` refuses a second Sovereign person
+  as it refuses a second local one, in the server's user-creation hook; the refusal carries a
+  code (`SIGNUP_CLOSED`) so that the person is sent back to the sign-in page with the reason and
+  not shown bare JSON.
+- **Signing out is local.** `disableProviderLogout`: a person's Sovereign session is theirs, for
+  other things as well, and ending Fjord's does not end it.
+- **Tokens at rest.** The access and ID tokens Sovereign hands over are not used after sign-in;
+  what better-auth stores is encrypted (`encryptOAuthTokens`). Credentials for repositories are a
+  separate matter (ROADMAP 1a.8).
+- **Tested against a fake that is checked against a real one.** `src/auth/testing/fake-sovereign.ts`
+  is a strict OIDC provider (exact redirect, PKCE, client secret, single-use codes, EdDSA tokens)
+  that the tests, and the browser tests as a process of its own, sign in through; and
+  `sovereign-discovery.test.ts` ties its discovery document to a recording of a real instance's
+  (`node scripts/record-sovereign-discovery.mjs`).
+
 ## 7. Repository connections
 
 A **provider** interface, so GitHub is the first implementation and not an
@@ -755,6 +791,7 @@ standalone output would otherwise prune it.
 | 2026-10-22 | SQLite as an sqld service by default, or a `file:` URL for a single-container install, through one libSQL client | sqld only, as Sovereign; a plain file only |
 | 2026-10-22 | Every data-layer test runs on sqld, a file and PostgreSQL in CI, with a schema parity test | Dialect suites that run only when their database URL is set |
 | 2026-10-22 | Local sign-in on better-auth 1.7 through its Drizzle adapter, in the auth store with migrations of its own | The 1.6 line Sovereign runs (an account-identity migration before 1a.3); better-auth's own Kysely adapter (the design chose Drizzle) |
+| 2026-10-23 | Sovereign sign-in through better-auth's `genericOAuth` and discovery, identity by `sub`, no implicit linking by email, the same sign-up policy as local, local sign-out only, with a fake Sovereign checked against a recording of a real one | Linking by verified email (the takeover case 1a.4 has to decide); signing out of Sovereign too; tests against the live service |
 | 2026-10-22 | Sign-up is `closed` by default (the first account, then refused) and `open` by choice | Open by default; invites (they need email) |
 | 2026-10-22 | Email is optional: with SMTP, verified addresses and reset by email; without it, neither | SMTP required; no email at all |
 | 2026-10-22 | The browser tests run the built app in Chromium with Playwright, and a virtual authenticator stands in for a passkey device | Server-level tests only, leaving passkeys to a manual check |

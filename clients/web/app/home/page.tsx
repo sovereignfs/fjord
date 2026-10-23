@@ -1,5 +1,5 @@
 import { AccountHeader } from "../../src/auth/screens/AccountHeader";
-import { requireSession } from "../../src/auth/server";
+import { localAuthConfig, requireSession } from "../../src/auth/server";
 import { Alert, Card } from "../../src/ui";
 import styles from "../../src/auth/screens/screens.module.css";
 
@@ -12,19 +12,22 @@ export const metadata = { title: "Home" };
  */
 export default async function HomePage() {
   const { user } = await requireSession();
+  const security = localAuthConfig() !== undefined;
   return (
     <main className={styles.page}>
-      <AccountHeader name={user.name} email={user.email} />
+      <AccountHeader name={user.name} email={user.email} security={security} />
       <div className={styles.account}>
         <Card as="article" padding="lg">
           <h1 className={styles.title}>Hello, {user.name}</h1>
           <p className={styles.lead}>You are signed in as {user.email}.</p>
           <Alert variant="info" heading="Repositories are next">
-            Connecting a Git repository and browsing your documents are the next things to be built. For now you can set up how you sign in.
+            Connecting a Git repository and browsing your documents are the next things to be built.{security ? " For now you can set up how you sign in." : ""}
           </Alert>
-          <p style={{ marginTop: "var(--sv-space-5)" }}>
-            <a href="/account/security">Account security</a>
-          </p>
+          {security ? (
+            <p style={{ marginTop: "var(--sv-space-5)" }}>
+              <a href="/account/security">Account security</a>
+            </p>
+          ) : null}
         </Card>
       </div>
     </main>

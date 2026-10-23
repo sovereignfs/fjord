@@ -2,7 +2,7 @@ import { runMigrations } from "../db/migrate";
 import { freshDatabase } from "../db/test-support";
 import { MemoryMailer } from "../mail/mailer";
 import { createAuth } from "./auth";
-import type { LocalAuthConfig } from "./config";
+import type { EnabledAuthConfig, InstanceSettings, LocalSettings, SovereignSettings } from "./config";
 
 /**
  * Everything a test of the sign-in flows needs: a better-auth instance on a freshly migrated
@@ -12,29 +12,48 @@ import type { LocalAuthConfig } from "./config";
  */
 export interface TestAuth {
   auth: ReturnType<typeof createAuth>;
-  config: LocalAuthConfig;
+  config: EnabledAuthConfig;
   mailer?: MemoryMailer;
   database: Awaited<ReturnType<typeof freshDatabase>>["database"];
   client(): TestClient;
   close(): Promise<void>;
 }
 
-const BASE: LocalAuthConfig = {
-  local: true,
+const INSTANCE: InstanceSettings = {
   url: "http://localhost:3000",
   secret: "test-secret-".padEnd(40, "x"),
   signUp: "closed",
-  passwordMinLength: 10,
   name: "Fjord",
+};
+
+const LOCAL: LocalSettings = {
+  passwordMinLength: 10,
   passkeyRpId: "localhost",
   requireEmailVerification: false,
 };
 
-export async function makeAuth(overrides: Partial<LocalAuthConfig> = {}): Promise<TestAuth> {
+/**
+ * What a test changes about the instance it gets. Local sign-in is on unless `local: false`;
+ * the rest of the local settings are overrides of the defaults above. Sovereign is off unless
+ * `sovereign` is given.
+ */
+export type AuthOverrides = Partial<InstanceSettings> & Partial<LocalSettings> & { local?: false; sovereign?: SovereignSettings };
+
+export async function makeAuth(overrides: AuthOverrides = {}): Promise<TestAuth> {
   const { database } = await freshDatabase("auth");
   await runMigrations(database);
-  const config = { ...BASE, ...overrides } as LocalAuthConfig;
-  const mailer = config.smtp ? new MemoryMailer() : undefined;
+  const { local: noLocal, sovereign, url, secret, signUp, name, ...localOverrides } = overrides;
+  const config: EnabledAuthConfig = {
+    enabled: true,
+    ...INSTANCE,
+    ...(url !== undefined ? { url } : {}),
+    ...(secret !== undefined ? { secret } : {}),
+    ...(signUp !== undefined ? { signUp } : {}),
+    ...(name !== undefined ? { name } : {}),
+    ...(noLocal === false ? {} : { local: { ...LOCAL, ...localOverrides } }),
+    ...(sovereign ? { sovereign } : {}),
+  };
+  const mailer = config.local?.smtp ? new MemoryMailer() : undefined;
   const auth = createAuth({ config, database, ...(mailer ? { mailer } : {}) });
   return {
     auth,
