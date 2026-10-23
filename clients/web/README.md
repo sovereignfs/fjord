@@ -89,6 +89,21 @@ SQLITE_URL=file:./data/fjord.db pnpm dev
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` or `_FILE`, `SMTP_FROM` | email, optional. With it, addresses are verified and a password can be reset by email; without it, neither | none |
 | `FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION` | `false` to skip verification even with SMTP | on with SMTP |
 
+**Credentials at rest.** Repository credentials (a token, a GitHub App's key) are stored
+encrypted, under an instance key you provide. Make one and keep it with your secrets, not with
+database backups:
+
+```bash
+export FJORD_ENCRYPTION_KEY="$(openssl rand -base64 32)"   # or FJORD_ENCRYPTION_KEY_FILE
+```
+
+It is optional until the first repository is connected. To **rotate** it, set the new key as
+`FJORD_ENCRYPTION_KEY` and the old one as `FJORD_ENCRYPTION_KEY_PREVIOUS` (several, separated by
+commas or newlines, if there have been more), then restart. The server wraps every credential
+under the new key as it starts, and logs that the previous key can be removed. A server will not
+start if stored credentials need a key that is not set: the message names it by fingerprint.
+If a key is lost the credentials it protected are lost; connect the repositories again.
+
 **Signing in with Sovereign.** An admin of the Sovereign instance registers Fjord Web in its
 Console, under *External clients*: a display name, the redirect URI
 `<FJORD_URL>/api/auth/callback/sovereign` (matched exactly, so `http://localhost:3000/...` for

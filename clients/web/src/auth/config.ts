@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { ConfigError, type Env } from "../db/config";
+import { type ReadFile, resolveSecret } from "../secret-env";
 
 /**
  * How people sign in, read from the environment in one place (DESIGN.md §6). Nothing else
@@ -95,8 +96,6 @@ export interface SmtpConfig {
 const MIN_SECRET_LENGTH = 32;
 const DEFAULT_PASSWORD_MIN_LENGTH = 10;
 
-type ReadFile = (path: string) => string;
-
 export function resolveAuthConfig(env: Env = process.env, readSecretFile: ReadFile = (path) => readFileSync(path, "utf8")): AuthConfig {
   const local = isOn(env.FJORD_AUTH_LOCAL);
   const sovereign = resolveSovereign(env, readSecretFile);
@@ -189,21 +188,6 @@ function resolveUrl(raw: string | undefined, why: string): string {
 
 function isLocalHost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]" || hostname.endsWith(".localhost");
-}
-
-/** A value from `NAME`, or from the file `NAME_FILE` names (its trailing newline trimmed). */
-function resolveSecret(name: string, env: Env, readFile: ReadFile): string | undefined {
-  const direct = env[name];
-  const file = (env[`${name}_FILE`] ?? "").trim();
-  if (direct && file) throw new ConfigError(`Set ${name} or ${name}_FILE, not both.`);
-  if (file) {
-    try {
-      return readFile(file).replace(/\r?\n$/, "");
-    } catch {
-      throw new ConfigError(`${name}_FILE names a file that cannot be read.`);
-    }
-  }
-  return direct === undefined || direct === "" ? undefined : direct;
 }
 
 function resolveSmtp(env: Env, readFile: ReadFile): SmtpConfig | undefined {

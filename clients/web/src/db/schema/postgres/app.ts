@@ -16,3 +16,18 @@ export const event = app.table(
   },
   (table) => [index("event_created_at_idx").on(table.createdAt)],
 );
+
+/** A secret the instance holds, envelope encrypted; see `schema/sqlite/app.ts`. */
+export const credential = app.table(
+  "credential",
+  {
+    id: text("id").primaryKey(),
+    purpose: text("purpose").notNull(),
+    kekId: text("kek_id").notNull(),
+    wrappedKey: text("wrapped_key").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+    rewrappedAt: epochMs("rewrapped_at"),
+  },
+  (table) => [index("credential_kek_id_idx").on(table.kekId)],
+);
