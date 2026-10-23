@@ -10,4 +10,4 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 - **`fjord-core`'s pure subset for WebAssembly** (ROADMAP P4): vault discovery from a tree listing, manifests,
   the path rules, documents and their frontmatter, and identifiers and timestamps from a clock and random
   source the caller supplies. Runs in Node and in a browser. Held, by a JavaScript suite over every
-  conformance fixture, to what the CLI's filesystem walk says. 499,119 bytes, 214,687 gzipped.
+  conformance fixture, to what the CLI's filesystem walk says. 499,598 bytes, 214,928 gzipped.

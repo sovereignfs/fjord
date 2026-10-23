@@ -48,6 +48,44 @@
       ]
     }
   },
+  "documents": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "idea.md",
+            "logical": "idea.md",
+            "is_payload": false,
+            "size": 252
+          },
+          {
+            "relative": "plan.fj.md",
+            "logical": "plan.fj.md",
+            "is_payload": false,
+            "size": 383
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 2,
+          "files": 0
+        }
+      ]
+    }
+  },
   "broken/E101": {
     "discover": [
       {

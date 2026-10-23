@@ -12,6 +12,17 @@ tagging it.
 
 ## [Unreleased]
 
+### Added
+
+- **Documents and notes** (spec §8.4, ROADMAP P1): a Fjord Doc whose file name ends in `.fj.md` is a *document*,
+  any other a *note*. It is the same format (same frontmatter, same rules, same identifiers; a `.fj.md` file with no
+  valid `id` is a vault file like any `.md`), told apart by name so a client can edit a long-form document
+  differently from a note without reading the file. **Nothing changes for an existing repository**: every `.md`
+  Doc written before is a note, and `fjord verify` counts both kinds as Docs, as it always counted any `.md`
+  with an `id`. In `fjord-core`, `doc::is_document_name` and `doc::DOCUMENT_SUFFIX`, and
+  `listing::FileKind::Markdown` is now `Document` and `Note`. A new fixture, `tests/fixtures/documents/`, holds one
+  of each (`fjord new --document` and `ls` showing which is which are ROADMAP P2).
+
 ### Changed
 
 - **`fjord-core` has a pure subset that compiles to WebAssembly** (ROADMAP P4). A new default feature, `native`,

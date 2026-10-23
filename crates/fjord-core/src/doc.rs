@@ -28,6 +28,19 @@ use serde_yaml_ng::Value;
 /// The fence that opens and closes a frontmatter block. Spec §8.1.
 pub const FENCE: &str = "---";
 
+/// What a document's file name ends in; any other Fjord Doc is a note. Spec §8.4.
+pub const DOCUMENT_SUFFIX: &str = ".fj.md";
+
+/// Whether a file name makes a Fjord Doc a *document* rather than a *note*: it ends in `.fj.md`, with at
+/// least one character before it. Spec §8.4.
+///
+/// By name alone, which is why a listing can say it without reading a file. Whether the file is a Doc at all
+/// is the frontmatter's to say (§8): a `.fj.md` file with no valid `id` is a vault file, as any `.md` is.
+/// `name` is a leaf name, not a path.
+pub fn is_document_name(name: &str) -> bool {
+    name.len() > DOCUMENT_SUFFIX.len() && name.ends_with(DOCUMENT_SUFFIX)
+}
+
 /// Keys the specification fixes. Spec §8.1.
 pub mod key {
     pub const ID: &str = "id";
@@ -576,5 +589,18 @@ mod tests {
         // values.
         assert_eq!(round_tripped.raw().keys().collect::<Vec<&String>>(), keys);
         assert_eq!(round_tripped.raw(), first.raw());
+    }
+
+    #[test]
+    fn a_document_is_a_name_ending_in_fj_md_with_something_before_it() {
+        assert!(is_document_name("plan.fj.md"));
+        assert!(is_document_name("a.fj.md"));
+        assert!(is_document_name("Q4 plan.fj.md"));
+        assert!(!is_document_name("plan.md"));
+        assert!(!is_document_name(".fj.md"));
+        assert!(!is_document_name("fj.md"));
+        assert!(!is_document_name("plan.fj.md.md"));
+        assert!(!is_document_name("plan.fj"));
+        assert!(!is_document_name(""));
     }
 }

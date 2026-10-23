@@ -281,6 +281,69 @@ fn e503_reserved_device_name() {
     assert_eq!(codes(temp.path()), vec!["E503"]);
 }
 
+// --- Documents and notes (spec §8.4) -------------------------------------
+
+#[test]
+fn the_documents_fixture_conforms_and_has_one_of_each() {
+    // `documents/` is a conforming repository whose Public vault holds a document (`plan.fj.md`) and a note
+    // (`idea.md`): the same format, told apart by name alone (spec §8.4).
+    let report = run(&fixtures().join("documents"));
+    assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+    let public = report
+        .vaults
+        .iter()
+        .find(|v| v.path == "Public")
+        .expect("Public");
+    assert_eq!((public.docs, public.files), (2, 0));
+}
+
+const DOC_ID_A: &str = "01jagc4k7pt8y3wqnmzv5xrb9a";
+const DOC_ID_B: &str = "01jagc4k7pt8y3wqnmzv5xrb9b";
+
+fn doc(id: &str) -> String {
+    format!("---\nid: {id}\ntitle: T\n---\n\n# T\n")
+}
+
+fn public_summary(root: &Path) -> (usize, usize) {
+    let report = run(root);
+    let public = report
+        .vaults
+        .iter()
+        .find(|v| v.path == "Public")
+        .expect("Public");
+    (public.docs, public.files)
+}
+
+#[test]
+fn a_document_and_a_note_are_both_docs() {
+    let temp = scaffold();
+    let public = temp.path().join("Public");
+    fs::write(public.join("plan.fj.md"), doc(DOC_ID_A)).expect("write");
+    fs::write(public.join("idea.md"), doc(DOC_ID_B)).expect("write");
+    assert_eq!(codes(temp.path()), Vec::<String>::new());
+    assert_eq!(public_summary(temp.path()), (2, 0));
+}
+
+#[test]
+fn a_document_without_an_id_is_a_vault_file_like_any_markdown_file() {
+    // §8.4: the name decides what kind of Doc a file is, not whether it is one; that is the frontmatter's.
+    let temp = scaffold();
+    let public = temp.path().join("Public");
+    fs::write(public.join("draft.fj.md"), "# just a draft\n").expect("write");
+    fs::write(public.join("plain.md"), "# just a note\n").expect("write");
+    assert_eq!(codes(temp.path()), Vec::<String>::new());
+    assert_eq!(public_summary(temp.path()), (0, 2));
+}
+
+#[test]
+fn an_id_is_unique_across_documents_and_notes() {
+    let temp = scaffold();
+    let public = temp.path().join("Public");
+    fs::write(public.join("plan.fj.md"), doc(DOC_ID_A)).expect("write");
+    fs::write(public.join("copy.md"), doc(DOC_ID_A)).expect("write");
+    assert_eq!(codes(temp.path()), vec!["E401"]);
+}
+
 #[test]
 fn e505_case_collision() {
     let temp = scaffold();

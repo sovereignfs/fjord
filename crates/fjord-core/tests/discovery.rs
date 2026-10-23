@@ -85,7 +85,7 @@ fn strings(value: &Value) -> Vec<String> {
 
 #[test]
 fn the_golden_file_covers_every_committed_fixture() {
-    let mut expected = vec!["conforming".to_string()];
+    let mut expected = vec!["conforming".to_string(), "documents".to_string()];
     for entry in std::fs::read_dir(fixtures().join("broken")).expect("broken") {
         expected.push(format!(
             "broken/{}",

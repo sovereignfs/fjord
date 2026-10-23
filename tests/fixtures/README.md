@@ -3,6 +3,11 @@
 `conforming/` is one valid repository. `fjord verify` must exit 0 against it
 with **no diagnostics at all** — not even a warning.
 
+`documents/` is a second valid repository, with the one thing `conforming/` leaves out: a **document**
+(`Public/plan.fj.md`) and a **note** (`Public/idea.md`), the two kinds of Fjord Doc told apart by file name
+alone (spec §8.4). It must verify with no diagnostics and count both as Docs. (It is separate from
+`conforming/` because `fjord init` must produce exactly what `conforming/` describes.)
+
 `broken/<code>/` is a minimal repository that triggers exactly diagnostic
 `<code>` and nothing else: for example `broken/E201/` holds a plaintext file
 inside an encrypted vault. Each is the same minimal conforming base — a

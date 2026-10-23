@@ -1,0 +1,27 @@
+# Normalise line endings for text, so the same file does not look modified
+# on Windows and macOS.
+*                  text=auto eol=lf
+
+# Markdown gets heading-aware hunk headers in diffs.
+*.md               text diff=markdown
+
+# Config and key material are text.
+fjord.json         text
+fjord.vault.json   text
+recipients.txt     text
+
+# Encrypted payloads are opaque. Without this, git tries to diff and merge
+# ciphertext, which produces unreadable conflicts and useless patches.
+# Fjord merges by decrypting, merging the plaintext, and re-encrypting —
+# git should never attempt it.
+*.age              binary -diff -merge
+
+# Common binary document types, for when a vault holds more than markdown.
+*.pdf              binary
+*.xlsx             binary
+*.docx             binary
+*.pptx             binary
+*.png              binary
+*.jpg              binary
+*.jpeg             binary
+*.webp             binary

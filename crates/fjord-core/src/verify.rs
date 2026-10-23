@@ -947,7 +947,8 @@ fn classify_content(
                 summary.files += 1;
             }
             FileKind::Other => summary.files += 1,
-            FileKind::Markdown => match check_markdown(entry, report)? {
+            // A document and a note are the same format (§8.4): both are Docs if their frontmatter says so.
+            FileKind::Document | FileKind::Note => match check_markdown(entry, report)? {
                 Some(id) => {
                     summary.docs += 1;
                     match seen_ids.get(&id) {

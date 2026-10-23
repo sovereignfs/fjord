@@ -20,8 +20,9 @@
 //! # What a listing cannot say
 //!
 //! Whether a Markdown file is a Doc (has an `id` in its frontmatter) needs its contents, not its
-//! name. A listing classifies by name only: a file that *could* carry frontmatter is
-//! [`FileKind::Markdown`], and a client reads it, lazily, to find out.
+//! name. A listing classifies by name only: a file that *could* carry frontmatter is a
+//! [`FileKind::Document`] (`*.fj.md`) or a [`FileKind::Note`] (any other `.md`), spec §8.4, and a client
+//! reads it, lazily, to find out whether it is one.
 
 use crate::manifest::{self, EncryptionField, Manifest};
 use crate::{RESERVED_DIRECTORY, VAULT_MANIFEST};
@@ -171,9 +172,11 @@ pub enum FileKind {
     /// A file in a plaintext vault that ends in the encryption suffix. Reported as
     /// [`crate::diagnostics::Code::EncryptedFileInPlaintextVault`].
     MisplacedPayload,
-    /// A file in a plaintext vault that could carry frontmatter (`.md`). Whether it is a Doc is for
-    /// its contents to say. §8.
-    Markdown,
+    /// A file in a plaintext vault named `*.fj.md`: a **document**, if its frontmatter has a valid `id`
+    /// (whether it does is for its contents to say, §8). §8.4.
+    Document,
+    /// Any other `.md` file in a plaintext vault: a **note**, on the same condition. §8.4.
+    Note,
     /// Any other file in a plaintext vault.
     Other,
 }
@@ -192,7 +195,15 @@ pub fn classify(relative: &str, settings: &VaultSettings) -> Option<FileKind> {
         (true, true) => FileKind::Payload,
         (true, false) => FileKind::Stray,
         (false, true) => FileKind::MisplacedPayload,
-        (false, false) if relative.ends_with(".md") => FileKind::Markdown,
+        (false, false) if relative.ends_with(".md") => {
+            // The leaf name decides, not the folders above it.
+            let leaf = relative.rsplit('/').next().unwrap_or(relative);
+            if crate::doc::is_document_name(leaf) {
+                FileKind::Document
+            } else {
+                FileKind::Note
+            }
+        }
         (false, false) => FileKind::Other,
     })
 }
@@ -447,8 +458,13 @@ mod tests {
     #[test]
     fn files_are_classified_by_name_and_by_the_vault_they_are_in() {
         let plain = VaultSettings::from_manifest(&Manifest::parse(PLAIN).unwrap());
-        assert_eq!(classify("a.md", &plain), Some(FileKind::Markdown));
-        assert_eq!(classify("deep/er/a.md", &plain), Some(FileKind::Markdown));
+        assert_eq!(classify("a.md", &plain), Some(FileKind::Note));
+        assert_eq!(classify("deep/er/a.md", &plain), Some(FileKind::Note));
+        assert_eq!(classify("a.fj.md", &plain), Some(FileKind::Document));
+        assert_eq!(
+            classify("deep/er/a.fj.md", &plain),
+            Some(FileKind::Document)
+        );
         assert_eq!(classify("photo.png", &plain), Some(FileKind::Other));
         assert_eq!(
             classify("a.md.age", &plain),
@@ -509,7 +525,7 @@ mod tests {
         assert_eq!(found[1].path, "Notes/sub/b.md");
         assert!(found
             .iter()
-            .all(|f| f.kind == FileKind::Markdown && f.size == 10));
+            .all(|f| f.kind == FileKind::Note && f.size == 10));
     }
 
     #[test]
@@ -564,5 +580,42 @@ mod tests {
             assert!(vault.settings.is_none());
             assert!(vault.files.is_empty());
         }
+    }
+
+    #[test]
+    fn a_document_is_known_by_its_leaf_name_alone() {
+        let plain = VaultSettings::from_manifest(&Manifest::parse(PLAIN).unwrap());
+        // The folders above it do not matter, nor does a `.fj.md` in the middle of a name.
+        assert_eq!(classify("a.fj.md/b.md", &plain), Some(FileKind::Note));
+        assert_eq!(classify("notes.fj.md.md", &plain), Some(FileKind::Note));
+        assert_eq!(classify("fj.md", &plain), Some(FileKind::Note));
+        // With nothing before the suffix it is not a document's name.
+        assert_eq!(classify(".fj.md", &plain), Some(FileKind::Note));
+        // And a `.fj` that is not Markdown is not a document.
+        assert_eq!(classify("a.fj", &plain), Some(FileKind::Other));
+    }
+
+    #[test]
+    fn a_vault_with_both_kinds_lists_each_for_what_it_is() {
+        let files = listed(&[
+            "Notes/fjord.vault.json",
+            "Notes/plan.fj.md",
+            "Notes/idea.md",
+            "Notes/sub/deep.fj.md",
+        ]);
+        let settings = VaultSettings::from_manifest(&Manifest::parse(PLAIN).unwrap());
+        let kinds: Vec<(&str, FileKind)> = classify_vault("Notes", &settings, &files)
+            .iter()
+            .map(|f| (f.relative.clone(), f.kind))
+            .map(|(r, k)| (Box::leak(r.into_boxed_str()) as &str, k))
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                ("idea.md", FileKind::Note),
+                ("plan.fj.md", FileKind::Document),
+                ("sub/deep.fj.md", FileKind::Document)
+            ]
+        );
     }
 }

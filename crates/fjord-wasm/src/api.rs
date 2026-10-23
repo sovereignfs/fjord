@@ -65,7 +65,8 @@ fn kind_name(kind: FileKind) -> &'static str {
         FileKind::Payload => "payload",
         FileKind::Stray => "stray",
         FileKind::MisplacedPayload => "misplacedPayload",
-        FileKind::Markdown => "markdown",
+        FileKind::Document => "document",
+        FileKind::Note => "note",
         FileKind::Other => "other",
     }
 }
@@ -77,11 +78,12 @@ fn kind_name(kind: FileKind) -> &'static str {
 /// { "vaults": [ { "directory": "Notes", "name": "Notes", "encrypted": false, "fileNaming": "plain",
 ///                 "suffix": ".age", "manifestError": null,
 ///                 "files": [ { "path": "Notes/a.md", "relative": "a.md", "logical": "a.md",
-///                              "kind": "markdown", "size": 120 } ] } ],
+///                              "kind": "note", "size": 120 } ] } ],
 ///   "nested": [ "Notes/Inner" ] }
 /// ```
 ///
-/// `kind` is `payload`, `stray`, `misplacedPayload`, `markdown` or `other`; machinery (the manifest,
+/// `kind` is `payload`, `stray`, `misplacedPayload`, `document` (`*.fj.md`), `note` (any other `.md`) or
+/// `other`, spec §8.4; machinery (the manifest,
 /// `.gitignore`, the recipients file) is not listed. A vault whose manifest is missing or not JSON has
 /// `manifestError` set and no files, as `fjord verify` treats it.
 pub fn discover(files_json: &str, manifests_json: &str) -> Result<String, String> {
@@ -379,7 +381,7 @@ mod tests {
         assert_eq!(notes, ["Inner/fjord.vault.json", "a.md"]);
         assert_eq!(
             vaults[0]["files"][1],
-            json!({ "path": "Notes/a.md", "relative": "a.md", "logical": "a.md", "kind": "markdown", "size": 12 })
+            json!({ "path": "Notes/a.md", "relative": "a.md", "logical": "a.md", "kind": "note", "size": 12 })
         );
 
         assert_eq!(vaults[1]["encrypted"], true);

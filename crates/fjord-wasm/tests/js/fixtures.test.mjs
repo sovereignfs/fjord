@@ -58,7 +58,7 @@ for (const [name, expected] of Object.entries(golden)) {
       for (const file of vault.files) {
         // A Doc is a Markdown file in a plaintext vault whose frontmatter has a valid `id`: that needs the
         // file's text, which a listing does not have, so it is read and asked of the module.
-        if (file.kind === "markdown") {
+        if (file.kind === "document" || file.kind === "note") {
           const read = JSON.parse(wasm.parseDocument(readFileSync(join(root, file.path), "utf8")));
           if (read.status === "present" && read.docId) docs += 1;
           else others += 1;
