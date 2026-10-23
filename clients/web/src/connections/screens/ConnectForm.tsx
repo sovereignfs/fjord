@@ -10,7 +10,7 @@ import styles from "../../auth/screens/screens.module.css";
  * server in one request and is checked there; it is not kept in the page after, and it is never
  * shown again.
  */
-export function ConnectForm() {
+export function ConnectForm({ heading = "Connect a repository" }: { heading?: string }) {
   const router = useRouter();
   const [repository, setRepository] = useState("");
   const [token, setToken] = useState("");
@@ -47,7 +47,7 @@ export function ConnectForm() {
 
   return (
     <section className={styles.section} aria-labelledby="connect-title">
-      <h2 id="connect-title">Connect a repository</h2>
+      <h2 id="connect-title">{heading}</h2>
       <p>
         On GitHub, create a <strong>fine-grained personal access token</strong> (Settings, Developer settings, Personal access tokens). Give it access to <em>only this repository</em>, with the
         repository permission <strong>Contents: Read and write</strong>. Fjord checks that it works before keeping it, and keeps it encrypted.

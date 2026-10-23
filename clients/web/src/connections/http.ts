@@ -12,6 +12,7 @@ import type { ConnectionService } from "./service";
  *    `FJORD_URL`, so a page on another site cannot make a signed-in person's browser connect a
  *    repository with a token it chose.
  *  - An account sees and changes only its own connections: another's is 404, as if it were not there.
+ *    That includes choosing its default.
  *  - A token comes in on one request and is never in any response, log line or error.
  */
 export interface Caller {
@@ -20,7 +21,7 @@ export interface Caller {
 
 export interface Deps {
   /** The service, or an error saying why there is none (no instance key). */
-  service: () => Promise<Pick<ConnectionService, "addWithToken" | "list" | "remove">>;
+  service: () => Promise<Pick<ConnectionService, "addWithToken" | "list" | "remove" | "setDefault">>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
 }
@@ -93,6 +94,20 @@ export async function handleConnection(request: Request, caller: Caller | null, 
   try {
     const removed = number === undefined ? false : await (await deps.service()).remove((caller as Caller).accountId, number);
     return removed ? new Response(null, { status: 204, headers: { "cache-control": "no-store" } }) : failure(404, "not_found", "There is no such connection.");
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+/** `POST` makes one of the caller's connections their default, where `/` lands. */
+export async function handleDefault(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  const denied = unsignedIn(caller) ?? crossOrigin(request, deps);
+  if (denied) return denied;
+  const number = /^[1-9][0-9]{0,15}$/.test(id) ? Number(id) : undefined;
+  try {
+    const done = number === undefined ? false : await (await deps.service()).setDefault((caller as Caller).accountId, number);
+    return done ? new Response(null, { status: 204, headers: { "cache-control": "no-store" } }) : failure(404, "not_found", "There is no such connection.");
   } catch (error) {
     return fromError(error);
   }

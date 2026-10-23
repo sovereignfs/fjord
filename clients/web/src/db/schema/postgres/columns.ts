@@ -8,3 +8,6 @@ import { bigint } from "drizzle-orm/pg-core";
 export const id64 = (name: string) => bigint(name, { mode: "number" }).primaryKey().generatedAlwaysAsIdentity();
 
 export const epochMs = (name: string) => bigint(name, { mode: "number" });
+
+/** A reference to another table's `id64`; see `schema/sqlite/columns.ts`. */
+export const ref64 = (name: string) => bigint(name, { mode: "number" });

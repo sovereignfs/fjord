@@ -1,5 +1,5 @@
 import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { epochMs, id64 } from "./columns";
+import { epochMs, id64, ref64 } from "./columns";
 
 /**
  * Notices from the worker to the web processes (DESIGN.md §14): an upstream change
@@ -65,3 +65,15 @@ export const connection = sqliteTable(
     uniqueIndex("connection_account_repository_idx").on(table.accountId, table.provider, table.owner, table.name),
   ],
 );
+
+/**
+ * Where `/` lands for an account: the connection it has chosen as its default (DESIGN.md §7). One
+ * row per account, and none until it has connected something. The first connection becomes the
+ * default; with no row, or a row whose connection is gone, the first one it has is (`src/connections`).
+ * `account_id` is better-auth's user id, in the other store, so it is not a foreign key.
+ */
+export const accountDefault = sqliteTable("account_default", {
+  accountId: text("account_id").primaryKey(),
+  connectionId: ref64("connection_id").notNull(),
+  updatedAt: epochMs("updated_at").notNull(),
+});

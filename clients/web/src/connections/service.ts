@@ -29,6 +29,8 @@ export interface ConnectionInfo {
   branch: string;
   /** Milliseconds since the epoch. */
   createdAt: number;
+  /** Where `/` lands for this account. Exactly one of an account's connections is. */
+  isDefault: boolean;
 }
 
 export interface Added {
@@ -50,6 +52,7 @@ const PURPOSE = "github-pat";
 const MAX_TOKEN_LENGTH = 1000;
 
 const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.connection : sqliteSchema.connection);
+const defaults = (database: Database) => (database.dialect === "postgres" ? postgresSchema.accountDefault : sqliteSchema.accountDefault);
 const COLUMNS = sql.raw('id, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId"');
 
 interface Row {
@@ -61,7 +64,7 @@ interface Row {
   credentialId: string;
 }
 
-const toInfo = (row: Row): ConnectionInfo => ({
+const toInfo = (row: Row, isDefault: boolean): ConnectionInfo => ({
   id: Number(row.id),
   provider: "github",
   kind: "pat",
@@ -69,6 +72,7 @@ const toInfo = (row: Row): ConnectionInfo => ({
   name: row.name,
   branch: row.branch,
   createdAt: Number(row.createdAt),
+  isDefault,
 });
 
 export class ConnectionService {
@@ -116,7 +120,10 @@ export class ConnectionService {
             VALUES (${accountId}, 'github', 'pat', ${ref.owner}, ${ref.name}, ${branch}, ${credentialId}, ${this.now()})
             RETURNING ${COLUMNS}`,
       );
-      return { connection: toInfo(rows[0] as Row), warnings };
+      const row = rows[0] as Row;
+      // The first repository an account connects is its default; one that is not the first is not.
+      const isDefault = await this.defaultIfNone(accountId, Number(row.id));
+      return { connection: toInfo(row, isDefault), warnings };
     } catch (error) {
       // Nothing may be left holding a token that no connection points to.
       await this.credentials.remove(credentialId);
@@ -126,12 +133,25 @@ export class ConnectionService {
 
   async list(accountId: string): Promise<ConnectionInfo[]> {
     const rows = await dbAll<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE account_id = ${accountId} ORDER BY id ASC`);
-    return rows.map(toInfo);
+    const chosen = this.effectiveDefault(rows, await this.storedDefault(accountId));
+    return rows.map((row) => toInfo(row, Number(row.id) === chosen));
   }
 
   async get(accountId: string, id: number): Promise<ConnectionInfo | undefined> {
-    const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
-    return row ? toInfo(row) : undefined;
+    return (await this.list(accountId)).find((connection) => connection.id === id);
+  }
+
+  /** Where `/` lands: the connection chosen as the default, or the account's first if none is (or it is gone). */
+  async defaultFor(accountId: string): Promise<ConnectionInfo | undefined> {
+    const all = await this.list(accountId);
+    return all.find((connection) => connection.isDefault);
+  }
+
+  /** Make one of this account's connections its default. False if it is not theirs (or not there). */
+  async setDefault(accountId: string, id: number): Promise<boolean> {
+    if (!(await this.get(accountId, id))) return false;
+    await this.writeDefault(accountId, id);
+    return true;
   }
 
   /** Disconnect: the connection and its token are deleted. False if it is not this account's (or not there). */
@@ -139,6 +159,7 @@ export class ConnectionService {
     const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
     if (!row) return false;
     await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
+    await dbRun(this.database, sql`DELETE FROM ${defaults(this.database)} WHERE account_id = ${accountId} AND connection_id = ${id}`);
     await this.credentials.remove(row.credentialId);
     return true;
   }
@@ -148,10 +169,41 @@ export class ConnectionService {
    * and for nothing else: the token goes into the provider and is not returned.
    */
   async provider(accountId: string, id: number): Promise<{ provider: Provider; connection: ConnectionInfo } | undefined> {
+    const connection = await this.get(accountId, id);
+    if (!connection) return undefined;
     const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
-    if (!row) return undefined;
-    const { secret } = await this.credentials.get(row.credentialId);
-    return { provider: this.github(secret), connection: toInfo(row) };
+    const { secret } = await this.credentials.get((row as Row).credentialId);
+    return { provider: this.github(secret), connection };
+  }
+
+  private async storedDefault(accountId: string): Promise<number | undefined> {
+    const row = await dbGet<{ connectionId: number | string }>(
+      this.database,
+      sql`SELECT connection_id AS "connectionId" FROM ${defaults(this.database)} WHERE account_id = ${accountId}`,
+    );
+    return row ? Number(row.connectionId) : undefined;
+  }
+
+  private effectiveDefault(rows: Row[], stored: number | undefined): number | undefined {
+    if (stored !== undefined && rows.some((row) => Number(row.id) === stored)) return stored;
+    return rows[0] ? Number(rows[0].id) : undefined;
+  }
+
+  private async writeDefault(accountId: string, id: number): Promise<void> {
+    await dbRun(
+      this.database,
+      sql`INSERT INTO ${defaults(this.database)} (account_id, connection_id, updated_at) VALUES (${accountId}, ${id}, ${this.now()})
+          ON CONFLICT (account_id) DO UPDATE SET connection_id = ${id}, updated_at = ${this.now()}`,
+    );
+  }
+
+  /** Make a new connection the default if it is the account's first; says whether it is now. */
+  private async defaultIfNone(accountId: string, id: number): Promise<boolean> {
+    const rows = await dbAll<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE account_id = ${accountId} ORDER BY id ASC`);
+    // Only when it is the account's only connection: otherwise the account already has a default, chosen or not.
+    if (rows.some((row) => Number(row.id) !== id)) return false;
+    await this.writeDefault(accountId, id);
+    return true;
   }
 
   private async find(accountId: string, ref: RepositoryRef): Promise<boolean> {

@@ -97,6 +97,10 @@ works, and can write, before keeping it, and keeps it encrypted (it needs `FJORD
 below; without one the page says so). `FJORD_GITHUB_API_URL` is only for a GitHub Enterprise Server
 (`https://github.example.com/api/v3`); tokens are sent there, so it must be https.
 
+Once a repository is connected, `/` is that repository: the first one you connect is your default,
+and **Make this my default** on another one changes it. With several, a list on the repository's page
+moves between them. (Listing a repository's documents is the next task.)
+
 **Credentials at rest.** Repository credentials (a token, a GitHub App's key) are stored
 encrypted, under an instance key you provide. Make one and keep it with your secrets, not with
 database backups:

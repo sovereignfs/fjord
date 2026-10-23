@@ -1,38 +1,23 @@
-import { AccountHeader } from "../../src/auth/screens/AccountHeader";
 import { localAuthConfig, requireSession } from "../../src/auth/server";
-import { Alert, Card } from "../../src/ui";
-import styles from "../../src/auth/screens/screens.module.css";
+import { FirstRun } from "../../src/connections/screens/FirstRun";
+import { RepositoryView } from "../../src/connections/screens/RepositoryView";
+import { connectionService } from "../../src/connections/server";
+import { encryptionKeyring } from "../../src/crypto/server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Home" };
 
 /**
- * What someone signed in sees at `/` (the proxy shows this page there). It will be the default
- * repository's view (ROADMAP 1a.9); until there are repositories it says so.
+ * What someone signed in sees at `/` (the proxy shows this page there): the repository they have
+ * chosen as their default, which is the first they connected until they choose another, and
+ * before they have connected one, the prompt to connect their first (ROADMAP 1a.9).
  */
 export default async function HomePage() {
   const { user } = await requireSession();
   const security = localAuthConfig() !== undefined;
-  return (
-    <main className={styles.page}>
-      <AccountHeader name={user.name} email={user.email} security={security} />
-      <div className={styles.account}>
-        <Card as="article" padding="lg">
-          <h1 className={styles.title}>Hello, {user.name}</h1>
-          <p className={styles.lead}>You are signed in as {user.email}.</p>
-          <Alert variant="info" heading="Browsing is next">
-            You can connect a repository now; browsing and editing its documents are the next things to be built.{security ? " You can also set up how you sign in." : ""}
-          </Alert>
-          <p style={{ marginTop: "var(--sv-space-5)" }}>
-            <a href="/repositories">Repositories</a>
-          </p>
-          {security ? (
-            <p style={{ marginTop: "var(--sv-space-5)" }}>
-              <a href="/account/security">Account security</a>
-            </p>
-          ) : null}
-        </Card>
-      </div>
-    </main>
-  );
+  const canConnect = encryptionKeyring() !== undefined;
+  const connections = canConnect ? await (await connectionService()).list(user.id) : [];
+  const current = connections.find((connection) => connection.isDefault);
+  if (!current) return <FirstRun user={user} canConnect={canConnect} security={security} />;
+  return <RepositoryView user={user} connections={connections} current={current} security={security} />;
 }
