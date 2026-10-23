@@ -35,6 +35,7 @@ const BOB = "user-bob";
 
 const connectionTable = () => (database.dialect === "postgres" ? postgresSchema.connection : sqliteSchema.connection);
 const credentialTable = () => (database.dialect === "postgres" ? postgresSchema.credential : sqliteSchema.credential);
+const defaultTable = () => (database.dialect === "postgres" ? postgresSchema.accountDefault : sqliteSchema.accountDefault);
 const count = async (table: unknown) => Number((await dbAll<{ n: number | string }>(database, sql`SELECT COUNT(*) AS n FROM ${table as never}`))[0]!.n);
 const everything = async () => JSON.stringify([...(await dbAll(database, sql`SELECT * FROM ${connectionTable()}`)), ...(await dbAll(database, sql`SELECT * FROM ${credentialTable()}`))]);
 
@@ -58,6 +59,7 @@ afterAll(async () => {
 beforeEach(async () => {
   await dbRun(database, sql`DELETE FROM ${connectionTable()}`);
   await dbRun(database, sql`DELETE FROM ${credentialTable()}`);
+  await dbRun(database, sql`DELETE FROM ${defaultTable()}`);
   await fake.commitFiles({ "fjord.json": "{}" }, { replace: true });
 });
 
@@ -73,7 +75,7 @@ async function refused(promise: Promise<unknown>, code: ConnectionErrorCode): Pr
 describe(`connecting with a token (${leg})`, () => {
   it("keeps a repository the token can read and write", async () => {
     const { connection, warnings } = await service.addWithToken(ALICE, { repository: "https://github.com/acme/notes", token: GOOD });
-    expect(connection).toEqual({ id: expect.any(Number), provider: "github", kind: "pat", owner: "acme", name: "notes", branch: "main", createdAt: 1_800_000_000_000 });
+    expect(connection).toEqual({ id: expect.any(Number), provider: "github", kind: "pat", owner: "acme", name: "notes", branch: "main", createdAt: 1_800_000_000_000, isDefault: true });
     expect(warnings).toEqual([]);
     expect(await service.list(ALICE)).toEqual([connection]);
   });
@@ -260,5 +262,93 @@ describe(`using and removing a connection (${leg})`, () => {
     expect(await service.list(ALICE)).toEqual([]);
     expect(await count(credentialTable())).toBe(0);
     expect(await service.remove(ALICE, connection.id)).toBe(false);
+  });
+});
+
+/** Several repositories for one service: a memory provider that has them, so there is more than one to choose between. */
+function serviceWithRepositories(...names: string[]): ConnectionService {
+  const memory = new MemoryProvider();
+  for (const name of names) {
+    memory.createRepository({ owner: "acme", name });
+    memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+  }
+  return new ConnectionService({ database, credentials, github: () => memory });
+}
+const connect = (s: ConnectionService, account: string, name: string) => s.addWithToken(account, { repository: `acme/${name}`, token: GOOD });
+
+describe(`the default repository (${leg})`, () => {
+  it("is the first one an account connects, and the ones after it are not", async () => {
+    const s = serviceWithRepositories("one", "two", "three");
+    const one = (await connect(s, ALICE, "one")).connection;
+    const two = (await connect(s, ALICE, "two")).connection;
+    const three = (await connect(s, ALICE, "three")).connection;
+    expect([one.isDefault, two.isDefault, three.isDefault]).toEqual([true, false, false]);
+    expect((await s.list(ALICE)).filter((c) => c.isDefault).map((c) => c.name)).toEqual(["one"]);
+    expect((await s.defaultFor(ALICE))?.name).toBe("one");
+  });
+
+  it("can be changed to another of the account's own, and there is only ever one", async () => {
+    const s = serviceWithRepositories("one", "two");
+    await connect(s, ALICE, "one");
+    const two = (await connect(s, ALICE, "two")).connection;
+    expect(await s.setDefault(ALICE, two.id)).toBe(true);
+    expect((await s.list(ALICE)).map((c) => [c.name, c.isDefault])).toEqual([["one", false], ["two", true]]);
+    expect((await s.defaultFor(ALICE))?.name).toBe("two");
+    expect(await s.setDefault(ALICE, two.id)).toBe(true);
+    expect(await count(defaultTable())).toBe(1);
+  });
+
+  it("cannot be set to someone else's connection, or one that is not there, and then nothing changes", async () => {
+    const s = serviceWithRepositories("one", "two");
+    const alices = (await connect(s, ALICE, "one")).connection;
+    const bobs = (await connect(s, BOB, "two")).connection;
+    expect(await s.setDefault(ALICE, bobs.id)).toBe(false);
+    expect(await s.setDefault(BOB, alices.id)).toBe(false);
+    expect(await s.setDefault(ALICE, 999_999)).toBe(false);
+    expect((await s.defaultFor(ALICE))?.id).toBe(alices.id);
+    expect((await s.defaultFor(BOB))?.id).toBe(bobs.id);
+  });
+
+  it("is an account's own: each account's first connection is its default", async () => {
+    const s = serviceWithRepositories("one", "two");
+    const a = (await connect(s, ALICE, "two")).connection;
+    const b = (await connect(s, BOB, "one")).connection;
+    expect([a.isDefault, b.isDefault]).toEqual([true, true]);
+  });
+
+  it("moves to the first one left when the default is disconnected, and stays when another is", async () => {
+    const s = serviceWithRepositories("one", "two", "three");
+    const one = (await connect(s, ALICE, "one")).connection;
+    const two = (await connect(s, ALICE, "two")).connection;
+    const three = (await connect(s, ALICE, "three")).connection;
+    await s.setDefault(ALICE, two.id);
+
+    await s.remove(ALICE, three.id);
+    expect((await s.defaultFor(ALICE))?.id).toBe(two.id);
+
+    await s.remove(ALICE, two.id);
+    expect((await s.defaultFor(ALICE))?.id).toBe(one.id);
+    expect(await count(defaultTable())).toBe(0);
+
+    await s.remove(ALICE, one.id);
+    expect(await s.defaultFor(ALICE)).toBeUndefined();
+  });
+
+  it("makes the next one connected the default again after the last was disconnected", async () => {
+    const s = serviceWithRepositories("one", "two");
+    const one = (await connect(s, ALICE, "one")).connection;
+    await s.remove(ALICE, one.id);
+    const two = (await connect(s, ALICE, "two")).connection;
+    expect(two.isDefault).toBe(true);
+  });
+
+  it("is repaired on reading when the connection it names has gone some other way", async () => {
+    const s = serviceWithRepositories("one", "two");
+    const one = (await connect(s, ALICE, "one")).connection;
+    const two = (await connect(s, ALICE, "two")).connection;
+    await dbRun(database, sql`DELETE FROM ${connectionTable()} WHERE id = ${one.id}`);
+    expect((await s.defaultFor(ALICE))?.id).toBe(two.id);
+    const three = serviceWithRepositories("one", "two", "three");
+    expect((await connect(three, ALICE, "three")).connection.isDefault).toBe(false);
   });
 });

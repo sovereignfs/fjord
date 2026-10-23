@@ -1,6 +1,6 @@
 import { index, pgSchema, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { APP_STORE } from "../../config";
-import { epochMs, id64 } from "./columns";
+import { epochMs, id64, ref64 } from "./columns";
 
 /** The app's schema; better-auth's is `fjord_auth` (DESIGN.md §14). */
 export const app = pgSchema(APP_STORE);
@@ -50,3 +50,10 @@ export const connection = app.table(
     uniqueIndex("connection_account_repository_idx").on(table.accountId, table.provider, table.owner, table.name),
   ],
 );
+
+/** Where `/` lands for an account; see `schema/sqlite/app.ts`. */
+export const accountDefault = app.table("account_default", {
+  accountId: text("account_id").primaryKey(),
+  connectionId: ref64("connection_id").notNull(),
+  updatedAt: epochMs("updated_at").notNull(),
+});

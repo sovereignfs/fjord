@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { CredentialError } from "../crypto/errors";
-import { type Caller, type Deps, handleConnection, handleConnections } from "./http";
+import { type Caller, type Deps, handleConnection, handleConnections, handleDefault } from "./http";
 import { ConnectionError } from "./errors";
 
 /**
@@ -21,6 +21,7 @@ function stub(overrides: Partial<Awaited<ReturnType<Deps["service"]>>> = {}) {
       return { connection: { id: 1, provider: "github" as const, kind: "pat" as const, owner: "acme", name: "notes", branch: "main", createdAt: 1 }, warnings: ["broad"] };
     }),
     remove: vi.fn(async (...args: unknown[]) => (calls.push(["remove", ...args]), true)),
+    setDefault: vi.fn(async (...args: unknown[]) => (calls.push(["setDefault", ...args]), true)),
     ...overrides,
   };
   const deps: Deps = { service: async () => service as never, origin: ORIGIN };
@@ -168,5 +169,33 @@ describe("what it says when something goes wrong", () => {
     } finally {
       log.mockRestore();
     }
+  });
+});
+
+describe("choosing the default repository", () => {
+  const post = (init: Parameters<typeof request>[1] = {}) => request("POST", { type: null, path: "/api/connections/3/default", ...init });
+
+  it("is for a signed-in person, from this site, and for their own connection", async () => {
+    const { deps, service, calls } = stub();
+    expect((await handleDefault(post(), null, deps, "3")).status).toBe(401);
+    expect((await handleDefault(post({ origin: "https://evil.example" }), ALICE, deps, "3")).status).toBe(403);
+    expect((await handleDefault(post({ origin: null }), ALICE, deps, "3")).status).toBe(403);
+    expect(service.setDefault).not.toHaveBeenCalled();
+
+    const done = await handleDefault(post(), ALICE, deps, "3");
+    expect(done.status).toBe(204);
+    expect(calls).toEqual([["setDefault", "alice", 3]]);
+  });
+
+  it("answers another account's connection, or one that is not there, as not found", async () => {
+    const { deps } = stub({ setDefault: async () => false });
+    expect((await handleDefault(post(), ALICE, deps, "3")).status).toBe(404);
+    for (const id of ["abc", "-1", "0", "1.5", ""]) expect((await handleDefault(post(), ALICE, deps, id)).status, id).toBe(404);
+  });
+
+  it("takes only POST", async () => {
+    const { deps } = stub();
+    expect((await handleDefault(request("GET", { path: "/api/connections/3/default" }), ALICE, deps, "3")).status).toBe(405);
+    expect((await handleDefault(request("DELETE", { path: "/api/connections/3/default" }), ALICE, deps, "3")).status).toBe(405);
   });
 });

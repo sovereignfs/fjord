@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Alert, Button } from "../../ui";
+import { Alert, Badge, Button } from "../../ui";
+import { MakeDefaultButton } from "./MakeDefaultButton";
 import styles from "../../auth/screens/screens.module.css";
 
 export interface ConnectionRow {
@@ -11,6 +12,7 @@ export interface ConnectionRow {
   name: string;
   branch: string;
   createdAt: number;
+  isDefault: boolean;
 }
 
 /** The repositories this account has connected, each with a way to disconnect it. */
@@ -42,15 +44,21 @@ export function ConnectionList({ connections }: { connections: ConnectionRow[] }
         {connections.map((connection) => (
           <li key={connection.id} className={styles.item}>
             <span>
-              {connection.owner}/{connection.name}
+              <a href={`/p/${connection.id}`}>
+                {connection.owner}/{connection.name}
+              </a>{" "}
+              {connection.isDefault ? <Badge>Default</Badge> : null}
               <span className={styles.itemMeta}>
                 {" "}
                 · branch {connection.branch} · connected {new Date(connection.createdAt).toLocaleDateString()}
               </span>
             </span>
-            <Button variant="ghost" size="sm" onClick={() => onDisconnect(connection)}>
-              Disconnect
-            </Button>
+            <span className={styles.actions}>
+              {connection.isDefault ? null : <MakeDefaultButton id={connection.id} label={`${connection.owner}/${connection.name}`} />}
+              <Button variant="ghost" size="sm" onClick={() => onDisconnect(connection)}>
+                Disconnect
+              </Button>
+            </span>
           </li>
         ))}
       </ul>

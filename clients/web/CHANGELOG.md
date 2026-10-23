@@ -13,6 +13,13 @@ section.
 
 ### Added
 
+- **First run and defaults** (ROADMAP 1a.9): an account with no repository is prompted, at `/`, to
+  connect its first. The first repository an account connects is its default, and `/` is that
+  repository's page (`/p/<connection>` for any of its own, a 404 for anyone else's), with a switcher
+  between repositories and *Make this my default* (`POST /api/connections/<id>/default`, signed in,
+  this site's origin, the caller's own). Disconnecting the default moves it to the first one left. New
+  `account_default` table. The default vault is not here: it needs `fjord.json` read by `fjord-core`
+  (P3, P4), and moves to 1a.11.
 - **Connect a repository with a token** (ROADMAP 1a.7): on `/repositories`, an address and a
   fine-grained GitHub token. It is checked before anything is kept (accepted, can see the
   repository, not empty, can write, found out by a no-op update of the branch, never forced), a
