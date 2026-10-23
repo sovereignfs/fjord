@@ -54,6 +54,22 @@ export function getAuth(): Promise<Auth | null> {
 
 export type Session = NonNullable<Awaited<ReturnType<Auth["api"]["getSession"]>>>;
 
+/** A way of signing in that an account has: better-auth keeps one `account` per way. Nothing secret. */
+export interface LinkedAccount {
+  /** better-auth's id for the row: what unlinking names. */
+  id: string;
+  /** `credential` for a password, or the provider's id (`sovereign`). */
+  providerId: string;
+}
+
+/** The signed-in person's accounts: a password, and/or a linked Sovereign. Empty when nobody is signed in. */
+export async function listAccounts(): Promise<LinkedAccount[]> {
+  const auth = await getAuth();
+  if (!auth) return [];
+  const accounts = await auth.api.listUserAccounts({ headers: await headers() });
+  return accounts.map((account) => ({ id: account.id, providerId: account.providerId }));
+}
+
 /** The signed-in person's session, or null: nobody signed in, or sign-in is off. */
 export async function getSession(): Promise<Session | null> {
   const auth = await getAuth();

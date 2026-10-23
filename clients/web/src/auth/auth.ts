@@ -85,9 +85,19 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
       : {},
     account: {
       // A Sovereign login is matched to an account by its `sub`, never by an email address that
-      // happens to be the same as a local account's (DESIGN.md §6). Linking the two is done
-      // from a signed-in session (ROADMAP 1a.4), and until then such a login is refused.
-      accountLinking: { disableImplicitLinking: true },
+      // happens to be the same as a local account's (DESIGN.md §6). The two are linked from a
+      // signed-in session (ROADMAP 1a.4), by someone who has shown they control both, and only
+      // when Sovereign's address is the account's own: a link that came with a different address
+      // would be a way to attach someone else's identity to this account. Until linked, a Sovereign
+      // login whose address is a local account's is refused.
+      accountLinking: {
+        disableImplicitLinking: true,
+        allowDifferentEmails: false,
+        // Unlinking can never leave an account with no way to sign in: its last account stays.
+        allowUnlinkingAll: false,
+        // Sovereign's contract is that `email` is verified, which is what linking asks of a provider.
+        ...(sovereign ? { trustedProviders: [SOVEREIGN_PROVIDER_ID] } : {}),
+      },
       // The tokens Sovereign hands over are not used after sign-in; what is kept is kept encrypted.
       encryptOAuthTokens: true,
     },

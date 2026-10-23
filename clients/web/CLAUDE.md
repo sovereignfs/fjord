@@ -74,7 +74,8 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
   sign-in is tested against `src/auth/testing/fake-sovereign.ts`, never the real service (the
   real one's public discovery document is recorded and compared); a change to it keeps it as
   strict as Sovereign is. A Sovereign login is known by its `sub`, never matched to an account by
-  email.
+  email at sign-in: it is linked only from a signed-in session, and only when the address is the
+  account's own (DESIGN.md §6).
 - **A credential is stored only through `src/crypto/`** (`CredentialStore`: envelope encryption under
   `FJORD_ENCRYPTION_KEY`), never as text in a column, and a table that holds one holds its id. Read it
   back on the server where it is used, never send it to the browser or put it in an error, a log or a

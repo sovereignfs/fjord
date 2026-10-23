@@ -13,6 +13,13 @@ section.
 
 ### Added
 
+- **Link Sovereign to a local account** (ROADMAP 1a.4): on the security page of an instance with both
+  sign-in methods, a signed-in person can link a Sovereign account, **only when it uses the same email
+  address** as the account (a different one is refused, with the reason, and nothing is linked). After that,
+  signing in through Sovereign signs in that account, by Sovereign's `sub`. Unlinking is a fresh-session
+  action and never removes an account's last way in. An account that came in through Sovereign has no
+  password, so its security page has no password, two-factor or passkey sections, and says why. Signing in
+  through Sovereign does not ask for the Fjord two-factor code (Sovereign has its own); the page says so.
 - **First run and defaults** (ROADMAP 1a.9): an account with no repository is prompted, at `/`, to
   connect its first. The first repository an account connects is its default, and `/` is that
   repository's page (`/p/<connection>` for any of its own, a 404 for anyone else's), with a switcher

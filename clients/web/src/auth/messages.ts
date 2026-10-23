@@ -17,6 +17,9 @@ const BY_CODE: Record<string, string> = {
   INVALID_TWO_FACTOR_COOKIE: "Your sign-in took too long or has been used up. Start again.",
   INVALID_TOKEN: "That link has expired or has already been used. Ask for a new one.",
   SIGNUP_CLOSED: "Sign-up is closed on this instance.",
+  FAILED_TO_UNLINK_LAST_ACCOUNT: "Sovereign is the only way you can sign in here, so it cannot be unlinked.",
+  SESSION_NOT_FRESH: "For your security, sign in again and then try this once more.",
+  LINKING_DIFFERENT_EMAILS_NOT_ALLOWED: "That Sovereign account uses a different email address from this account. Both must use the same one.",
   RESET_PASSWORD_DISABLED: "Password reset by email is not set up on this instance.",
   UNAUTHORIZED: "You need to sign in first.",
 };
@@ -45,7 +48,10 @@ export function messageFor(error: AuthError | null | undefined, fallback = "Some
  */
 const BY_OAUTH_ERROR: Record<string, string> = {
   account_not_linked:
-    "There is already an account here with that email address, signed in another way. Sign in the way you did before, and link Sovereign from your account settings.",
+    "There is already an account here with that email address, signed in another way. Sign in the way you did before, and link Sovereign from your account's security page.",
+  email_does_not_match: "That Sovereign account uses a different email address from this account. Both must use the same one to be linked.",
+  account_already_linked_to_different_user: "That Sovereign account is already linked to another account here.",
+  unable_to_link_account: "Sovereign could not be linked to this account. Try again.",
   SIGNUP_CLOSED: "Sign-up is closed on this instance. Ask whoever runs it to let you in.",
   unable_to_create_user: "Sign-up is closed on this instance. Ask whoever runs it to let you in.",
   signup_disabled: "Sign-up is closed on this instance. Ask whoever runs it to let you in.",
@@ -57,8 +63,8 @@ const BY_OAUTH_ERROR: Record<string, string> = {
   please_restart_the_process: "Your sign-in took too long or was started somewhere else. Start again.",
 };
 
-/** A message for the `?error=` on the sign-in page, or null when there is none to show. */
+/** A message for the `?error=` on the sign-in page or the security page, or null when there is none to show. */
 export function oauthErrorMessage(code: string | undefined): string | null {
   if (!code) return null;
-  return BY_OAUTH_ERROR[code] ?? "Signing in with Sovereign did not work. Try again, or ask whoever runs this instance.";
+  return BY_OAUTH_ERROR[code] ?? "Something went wrong with Sovereign. Try again, or ask whoever runs this instance.";
 }
