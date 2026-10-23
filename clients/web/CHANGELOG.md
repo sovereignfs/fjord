@@ -13,6 +13,20 @@ section.
 
 ### Added
 
+- **Sovereign's typeface and a new icon.** The app is set in Hanken Grotesk, loaded as
+  Sovereign's own apps load it, through `next/font`: it is downloaded when the app is built
+  and served from our own origin, so visitors' browsers never contact Google (the build needs
+  network access to fetch it). The tab icon now reads "Fj".
+- **Sign-in through Sovereign** (ROADMAP 1a.3): OpenID Connect against a Sovereign instance
+  (RFC 0072), by authorization code with PKCE, switched on by `FJORD_AUTH_SOVEREIGN_ISSUER`,
+  `_CLIENT_ID` and `_CLIENT_SECRET`. Either way in, or both, can be on; with neither, sign-in
+  is off. A person is known by their Sovereign `sub`, never by an email address that matches a
+  local account (such a login is refused until linking exists, 1a.4); `email` and `name` are
+  copied; the ID token must verify against the issuer's keys, and the tokens are stored
+  encrypted. Signing out of Fjord does not sign out of Sovereign. `FJORD_AUTH_SIGNUP` applies
+  to both ways in, and a refused Sovereign login comes back to the sign-in page with the
+  reason. Tested over real requests against a fake Sovereign on all three databases, in the
+  browser, and against a recording of a real instance's discovery document.
 - **The git host interface and GitHub** (ROADMAP 1a.5): list repositories, read a branch's
   head (with etags), a commit's whole tree or one directory, and a file; make several file
   changes as one atomic commit, never forced and never retried; verify `push` webhooks.

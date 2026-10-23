@@ -3,14 +3,15 @@ import { notFound, redirect } from "next/navigation";
 import { getAuthDatabase } from "../db/boot";
 import { createSmtpMailer } from "../mail/mailer";
 import { type Auth, createAuth } from "./auth";
-import { type AuthConfig, type LocalAuthConfig, resolveAuthConfig } from "./config";
+import { type AuthConfig, type LocalAuthConfig, type SovereignSettings, resolveAuthConfig } from "./config";
 import { countUsers } from "./users";
 
 /**
  * The server's view of sign-in: the configuration, the better-auth instance, and the session
  * of whoever is asking. Used by pages and routes, never by a test (which makes its own with
- * `createAuth`). Local sign-in is off unless FJORD_AUTH_LOCAL is set, and then `getAuth()` is
- * null and everything that needs it answers 404: there is no local sign-in, not a disabled one.
+ * `createAuth`). Each way of signing in is off unless it is configured, and with neither on
+ * `getAuth()` is null and everything that needs it answers 404: there is no sign-in, not a
+ * disabled one.
  */
 const KEY = Symbol.for("fjord.auth");
 type Holder = { [KEY]?: { config: AuthConfig; auth?: Promise<Auth> } };
@@ -26,25 +27,34 @@ export function authConfig(): AuthConfig {
   return holder().config;
 }
 
-/** The local sign-in settings, or undefined when it is off. */
+/** The local sign-in settings (with the instance's own), or undefined when it is off. */
 export function localAuthConfig(): LocalAuthConfig | undefined {
   const config = authConfig();
-  return config.local ? config : undefined;
+  if (!config.enabled || !config.local) return undefined;
+  const { enabled: _enabled, local, sovereign: _sovereign, ...instance } = config;
+  return { ...instance, ...local };
+}
+
+/** The Sovereign sign-in settings, or undefined when it is off. */
+export function sovereignAuthConfig(): SovereignSettings | undefined {
+  const config = authConfig();
+  return config.enabled ? config.sovereign : undefined;
 }
 
 export function getAuth(): Promise<Auth | null> {
   const state = holder();
   const config = state.config;
-  if (!config.local) return Promise.resolve(null);
+  if (!config.enabled) return Promise.resolve(null);
+  const smtp = config.local?.smtp;
   state.auth ??= getAuthDatabase().then((database) =>
-    createAuth({ config, database, ...(config.smtp ? { mailer: createSmtpMailer(config.smtp) } : {}) }),
+    createAuth({ config, database, ...(smtp ? { mailer: createSmtpMailer(smtp) } : {}) }),
   );
   return state.auth;
 }
 
 export type Session = NonNullable<Awaited<ReturnType<Auth["api"]["getSession"]>>>;
 
-/** The signed-in person's session, or null: nobody signed in, or local sign-in is off. */
+/** The signed-in person's session, or null: nobody signed in, or sign-in is off. */
 export async function getSession(): Promise<Session | null> {
   const auth = await getAuth();
   if (!auth) return null;
@@ -53,7 +63,7 @@ export async function getSession(): Promise<Session | null> {
 
 /** For a page that is only for someone signed in. */
 export async function requireSession(): Promise<Session> {
-  if (!authConfig().local) notFound();
+  if (!authConfig().enabled) notFound();
   const session = await getSession();
   if (!session) redirect("/sign-in");
   return session;
