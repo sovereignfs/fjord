@@ -8,12 +8,15 @@ export const uniqueEmail = () => `person${Date.now()}${++counter}@example.com`;
 
 /**
  * Every test is a visitor of its own. Sign-in is rate limited per address, and the instance
- * sees every test as 127.0.0.1, so without this the tests would limit one another.
+ * sees every test as 127.0.0.1, so without this the tests would limit one another. The worker's
+ * index is in the address because a worker that is restarted (after a failure, for a retry) starts
+ * its counter again, and the instance remembers what it has counted: without it a retry would
+ * arrive from an address that has already been limited, and fail for that reason.
  */
 export const test = base.extend({
-  context: async ({ context }, use) => {
+  context: async ({ context }, use, testInfo) => {
     const n = ++counter;
-    await context.setExtraHTTPHeaders({ "x-forwarded-for": `10.${(n >> 8) & 255}.${n & 255}.1` });
+    await context.setExtraHTTPHeaders({ "x-forwarded-for": `10.${testInfo.workerIndex % 200}.${(n >> 8) & 255}.${n & 255}` });
     await use(context);
   },
 });
@@ -55,9 +58,12 @@ export async function enableTwoFactor(page: Page) {
   await page.getByLabel("Code from the app").fill(totp(secret));
   await page.getByRole("button", { name: "Turn on" }).click();
 
-  await expect(page.getByText("Two-factor is on")).toBeVisible();
-  const backupCodes = await page.getByRole("list", { name: "Backup codes" }).locator("code").allInnerTexts();
-  expect(backupCodes).toHaveLength(10);
+  // Wait for the codes themselves. "Two-factor is on" alone is not enough: the previous step's hint
+  // ("Two-factor is on only once a code works") matches it, so it is true before anything has happened.
+  await expect(page.getByText("Two-factor is on. Keep your backup codes")).toBeVisible();
+  const codes = page.getByRole("list", { name: "Backup codes" }).locator("code");
+  await expect(codes).toHaveCount(10);
+  const backupCodes = await codes.allInnerTexts();
   await page.getByRole("button", { name: "I have saved them" }).click();
   return { secret, backupCodes };
 }
