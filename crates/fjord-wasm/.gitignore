@@ -1,0 +1,3 @@
+/target
+# The JavaScript glue and the module, built by build.sh.
+/pkg

@@ -87,6 +87,7 @@ Where this differs from `sovereign`, on purpose:
 | `schema/`, `tests/fixtures/` | The `verify --json` schema, and the conformance fixtures **every** client must pass | MPL-2.0 | — |
 | `crates/fjord-core/` | The format as a library | MPL-2.0 | with the CLI |
 | `crates/fjord-cli/` | The CLI: package `fjord-cli`, binary `fjord` | MPL-2.0 | `fjord-cli-vX.Y.Z` |
+| `crates/fjord-wasm/` | `fjord-core`'s pure subset for WebAssembly (`wasm-bindgen`): vault discovery from a listing, manifests, path rules, frontmatter, identifiers from a supplied clock and randomness. Its own workspace and lockfile, built into the web client and not released on its own. See its [`README.md`](crates/fjord-wasm/README.md) | MPL-2.0 | — |
 | `clients/web` | The hosted web client (Next.js, pnpm). **A placeholder app so far:** [`DESIGN.md`](clients/web/DESIGN.md), [`ROADMAP.md`](clients/web/ROADMAP.md), and its own [`CLAUDE.md`](clients/web/CLAUDE.md) | AGPL-3.0-or-later (it bundles `@sovereignfs/ui`) | `web-vX.Y.Z` |
 | `packages/fjord-editor` | The document and note editors, shared by the clients. Not created yet | Open (`clients/web/DESIGN.md` §19) | with its users |
 | `clients/mobile` | The iOS and Android client (Expo). **Design only so far:** [`DESIGN.md`](clients/mobile/DESIGN.md), [`ROADMAP.md`](clients/mobile/ROADMAP.md) | MPL-2.0 | `mobile-vX.Y.Z` |
@@ -155,15 +156,26 @@ fjord/
 └── clients/  plugins/         when they exist; see Repository layout
 ```
 
-**`fjord-core` must stay portable.** It will later be compiled into the Tauri
-desktop app, iOS/Android via FFI, and the web client via WASM. Therefore, in
-`fjord-core`:
+**`fjord-core` must stay portable.** It is compiled into the Tauri
+desktop app, iOS/Android via FFI, and the web client via WASM
+(`crates/fjord-wasm`). It has two builds: the default `native` feature is
+everything, and without it (`default-features = false`) it is the **pure
+subset** (manifests, documents, path rules, discovery from a listing,
+identifiers from a supplied clock and randomness) that compiles to
+`wasm32-unknown-unknown`. Anything that reads a disk or needs `age` or `tar`
+goes behind `native`; the pure subset must keep building for wasm32, and CI
+checks it does. Therefore, in `fjord-core`:
 
 - No `std::process::Command`. No shelling out to anything, ever.
 - No terminal IO, no `println!`, no colour, no progress bars. Return data.
 - No `git`. Git is the binary's concern.
 - Keep filesystem access behind the few functions that genuinely need it, so
   a WASM virtual filesystem can be slotted in later without a rewrite.
+- No system clock and no random source in the pure subset: a function that
+  makes a time or an identifier takes them as arguments
+  (`scalar::new_ulid_from`, `scalar::rfc3339_utc_from_unix`), and the native
+  convenience that reads them (`new_ulid`, `now_rfc3339_utc`) is behind
+  `native`.
 
 **`fjord` (the binary)** owns everything `fjord-core` refuses to: argument
 parsing, prompting, colour, the editor round trip, and git.

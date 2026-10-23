@@ -242,6 +242,73 @@ jobs:
       - if: needs.changes.outputs.rust == 'true'
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
 
+  # `fjord-core`'s pure subset built for WebAssembly, and what runs on top of it (ROADMAP P4): the crate's
+  # own tests, the module and its JavaScript glue for Node and a browser, and the JavaScript suite that runs
+  # the conformance fixtures through the module and holds it to the CLI's answers. The crate is a workspace
+  # of its own (its own lockfile), so this job is separate from the CLI's matrix.
+  wasm:
+    name: WebAssembly build
+    needs: changes
+    if: needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: crates/fjord-wasm
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Add the WebAssembly target and the lint components
+        run: |
+          rustup target add wasm32-unknown-unknown
+          rustup component add clippy rustfmt
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            ~/.cargo/bin/wasm-bindgen
+            crates/fjord-wasm/target
+          key: wasm-${{ runner.os }}-${{ hashFiles('crates/fjord-wasm/Cargo.lock', 'Cargo.lock') }}
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      # The command line tool must be the version the crate uses, or it refuses the module; the lockfile
+      # names it, and build.sh checks it again.
+      - name: Install wasm-bindgen at the version the lockfile names
+        run: |
+          want="$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | sed -n 's/^version = "\(.*\)"$/\1/p')"
+          if [ "$(wasm-bindgen --version 2>/dev/null | awk '{print $2}')" != "$want" ]; then
+            cargo install wasm-bindgen-cli --version "=$want" --locked
+          fi
+          wasm-bindgen --version
+
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo clippy --locked --manifest-path ../fjord-core/Cargo.toml --no-default-features --all-targets -- -D warnings
+      - run: cargo test --locked
+
+      # The pure subset itself: it builds for the target it exists for, and its own tests pass without
+      # `age`, `tar` or a disk.
+      - name: fjord-core's pure subset builds for wasm32
+        run: cargo build --locked --manifest-path ../fjord-core/Cargo.toml --no-default-features --target wasm32-unknown-unknown
+      - name: fjord-core's pure subset passes its own tests
+        run: cargo test --locked --manifest-path ../fjord-core/Cargo.toml --no-default-features
+
+      - run: ./build.sh
+      - name: The conformance fixtures, through the module
+        run: node --test "tests/js/*.test.mjs"
+
+      - name: Record the size
+        run: |
+          raw="$(wc -c < pkg/web/fjord_wasm_bg.wasm | tr -d ' ')"
+          gz="$(gzip -9 -c pkg/web/fjord_wasm_bg.wasm | wc -c | tr -d ' ')"
+          echo "fjord_wasm_bg.wasm: $raw bytes, $gz gzipped" | tee -a "$GITHUB_STEP_SUMMARY"
+
   msrv:
     name: minimum supported Rust version
     needs: changes

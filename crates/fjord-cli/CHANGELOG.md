@@ -14,6 +14,13 @@ tagging it.
 
 ### Changed
 
+- **`fjord-core` has a pure subset that compiles to WebAssembly** (ROADMAP P4). A new default feature, `native`,
+  gates everything that needs a machine (the filesystem walk, `age`, `tar`); with `default-features = false` the
+  crate is manifests, documents, the path rules, discovery from a listing, and identifiers and timestamps made
+  from a clock and random source the caller supplies (`scalar::new_ulid_from`, `scalar::rfc3339_utc_from_unix`).
+  The CLI and every command **behave as before**. A new crate, `crates/fjord-wasm`, wraps the subset for
+  JavaScript (see its README); it is built into the web client and is not released with the CLI. Two unused
+  dependencies of `fjord-core` (`ignore`, and `blake3` outside its tests) are gone from its library.
 - **`fjord-core` can discover vaults from a list of paths** (`fjord_core::listing`), for clients that
   have no filesystem: which directories are vaults, which vault manifests are where the format does
   not allow one, and what each file in a vault is by its name (an encrypted payload, plaintext where
