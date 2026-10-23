@@ -10,6 +10,17 @@ repository.workspace = true
 # This crate is compiled into the CLI, the Tauri clients, mobile via FFI, and
 # the web client via WASM. It must therefore never depend on a terminal, a
 # subprocess, or git. See CLAUDE.md § Architecture.
+#
+# The crate has two builds. The default, `native`, is everything: it reads a repository from a
+# disk, encrypts with `age` and packs `tar` containers. Without it (`default-features = false`)
+# it is the **pure subset**: manifests, documents and their frontmatter, the path rules, vault
+# discovery from a list of paths, identifiers and timestamps from a clock and a random source the
+# caller supplies. That is what compiles to WebAssembly (`crates/fjord-wasm`), where there is no
+# filesystem, no system clock (it panics) and no random source the crate may assume.
+[features]
+default = ["native"]
+native = ["dep:age", "dep:tar", "dep:zeroize", "ulid/std"]
+
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
@@ -17,13 +28,12 @@ serde_yaml_ng.workspace = true
 indexmap.workspace = true
 ulid.workspace = true
 time.workspace = true
-age.workspace = true
-zeroize.workspace = true
-blake3.workspace = true
-ignore.workspace = true
-tar.workspace = true
 unicode-normalization.workspace = true
 thiserror.workspace = true
+age = { workspace = true, optional = true }
+tar = { workspace = true, optional = true }
+zeroize = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile.workspace = true
+blake3.workspace = true

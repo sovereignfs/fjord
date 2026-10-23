@@ -60,6 +60,10 @@ pub fn is_rfc3339_utc(s: &str) -> bool {
 ///
 /// Subsecond precision is dropped: it is noise in a creation timestamp, and
 /// a whole-second value is what someone reading a manifest expects.
+///
+/// Reads the system clock, so it is not in the pure subset: a caller with no clock of its own to
+/// trust (a web page) passes the time in and uses [`rfc3339_utc_from_unix`].
+#[cfg(feature = "native")]
 pub fn now_rfc3339_utc() -> String {
     use time::format_description::well_known::Rfc3339;
     use time::OffsetDateTime;
@@ -94,9 +98,39 @@ pub fn is_ulid_ignoring_case(s: &str) -> bool {
 /// "exactly one identifier form is permitted" is enforced by there being
 /// exactly one way to make one. The `ulid` crate emits uppercase, the
 /// ULID specification's canonical form; this is where it becomes Fjord's.
+///
+/// Reads the system clock and a random source, so it is not in the pure subset: see [`new_ulid_from`].
+#[cfg(feature = "native")]
 pub fn new_ulid() -> String {
     // `generate` in ulid 3; it was `new` before 3.0.
     ulid::Ulid::generate().to_string().to_ascii_lowercase()
+}
+
+/// An identifier made from a time and some randomness the caller supplies. Spec §8.3.
+///
+/// What [`new_ulid`] is, with the two things a WebAssembly build has no business assuming handed in:
+/// milliseconds since the Unix epoch (a ULID holds 48 bits of it, so a larger value is cut to them) and
+/// 80 random bits (the first ten bytes of `random`; its remaining bytes are ignored, and an identifier
+/// is only as unguessable as these are).
+pub fn new_ulid_from(timestamp_ms: u64, random: [u8; 16]) -> String {
+    let mut bits: u128 = 0;
+    for byte in &random[..10] {
+        bits = (bits << 8) | u128::from(*byte);
+    }
+    ulid::Ulid::from_parts(timestamp_ms & ((1 << 48) - 1), bits)
+        .to_string()
+        .to_ascii_lowercase()
+}
+
+/// A time given as seconds since the Unix epoch, as RFC 3339 in UTC, or `None` if it cannot be
+/// represented. The pure counterpart of [`now_rfc3339_utc`]: the caller says what time it is.
+pub fn rfc3339_utc_from_unix(seconds: i64) -> Option<String> {
+    use time::format_description::well_known::Rfc3339;
+
+    time::OffsetDateTime::from_unix_timestamp(seconds)
+        .ok()?
+        .format(&Rfc3339)
+        .ok()
 }
 
 /// A filesystem timestamp as RFC 3339 in UTC, or `None` if it predates the
@@ -186,6 +220,7 @@ mod tests {
         assert!(is_rfc3339_utc("2026-10-16T09:34:00+00:00"));
     }
 
+    #[cfg(feature = "native")]
     #[test]
     fn the_clock_produces_a_value_we_accept() {
         let now = now_rfc3339_utc();
@@ -194,6 +229,7 @@ mod tests {
         assert!(!now.contains('.'), "{now}");
     }
 
+    #[cfg(feature = "native")]
     #[test]
     fn generated_ulids_satisfy_our_own_validator() {
         for _ in 0..32 {
@@ -217,5 +253,49 @@ mod tests {
         assert!(!is_rfc3339_utc("2026-10-16"));
         assert!(!is_rfc3339_utc("yesterday"));
         assert!(!is_rfc3339_utc(""));
+    }
+
+    #[test]
+    fn an_identifier_from_a_time_and_randomness_is_the_one_form_the_spec_permits() {
+        let id = new_ulid_from(1_700_000_000_000, [7; 16]);
+        assert!(is_ulid(&id), "{id}");
+        assert_eq!(id, id.to_ascii_lowercase());
+    }
+
+    #[test]
+    fn the_same_time_and_randomness_make_the_same_identifier_and_different_ones_do_not() {
+        assert_eq!(new_ulid_from(5, [1; 16]), new_ulid_from(5, [1; 16]));
+        assert_ne!(new_ulid_from(5, [1; 16]), new_ulid_from(5, [2; 16]));
+        assert_ne!(new_ulid_from(5, [1; 16]), new_ulid_from(6, [1; 16]));
+    }
+
+    #[test]
+    fn identifiers_sort_by_the_time_they_were_made() {
+        let earlier = new_ulid_from(1_000, [255; 16]);
+        let later = new_ulid_from(2_000, [0; 16]);
+        assert!(earlier < later);
+    }
+
+    #[test]
+    fn only_ten_bytes_of_randomness_count_and_only_forty_eight_bits_of_time() {
+        // The last six bytes are ignored: an identifier holds 80 random bits.
+        let mut tail = [9; 16];
+        tail[15] = 200;
+        assert_eq!(new_ulid_from(1, [9; 16]), new_ulid_from(1, tail));
+        // A time past 48 bits is cut to them, never an invalid identifier.
+        let huge = new_ulid_from(u64::MAX, [0; 16]);
+        assert!(is_ulid(&huge), "{huge}");
+    }
+
+    #[test]
+    fn a_time_given_in_seconds_is_formatted_as_the_spec_requires() {
+        assert_eq!(
+            rfc3339_utc_from_unix(0).as_deref(),
+            Some("1970-01-01T00:00:00Z")
+        );
+        let formatted = rfc3339_utc_from_unix(1_700_000_000).expect("a timestamp");
+        assert_eq!(formatted, "2023-11-14T22:13:20Z");
+        assert!(is_rfc3339_utc(&formatted));
+        assert_eq!(rfc3339_utc_from_unix(i64::MAX), None);
     }
 }
