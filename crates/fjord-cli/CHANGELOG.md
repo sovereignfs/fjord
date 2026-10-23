@@ -12,6 +12,19 @@ tagging it.
 
 ## [Unreleased]
 
+### Changed
+
+- **`fjord-core` can discover vaults from a list of paths** (`fjord_core::listing`), for clients that
+  have no filesystem: which directories are vaults, which vault manifests are where the format does
+  not allow one, and what each file in a vault is by its name (an encrypted payload, plaintext where
+  there must be none, a Markdown file that may carry frontmatter, machinery). It is pure, so it
+  compiles to WebAssembly (ROADMAP P3, the web client's file browser). The filesystem walk that
+  `fjord verify`, `ls`, `grep` and the rest perform now asks the same function instead of restating
+  the rules, and **behaves as before** on every fixture (held to a recording of what it said before:
+  `tests/fixtures/discovery.json`). One difference at the edges: vaults whose directory names are
+  prefixes of one another (`A` and `A-b`) are now always in directory order, where `verify` listed
+  them in the order of their manifests' paths.
+
 ## [0.3.1] - 2026-10-21
 
 **The tool behaves as before,** apart from the Unicode update below. What is new

@@ -32,6 +32,7 @@
 
 use crate::diagnostics::{Code, Diagnostic, Severity};
 use crate::doc;
+use crate::listing::{self, FileKind, ListedFile, VaultSettings};
 use crate::manifest::{self, EncryptionField, Manifest, RecipientKind, Vaults};
 use crate::scalar;
 use crate::{
@@ -161,7 +162,7 @@ pub fn verify(root: &Path, options: &Options) -> Result<Report, Error> {
     let walk = walk_repository(&root)?;
     check_names(&root, &walk, &mut report);
 
-    let vaults = root_vaults(&walk, &mut report);
+    let vaults = root_vaults(&root, &walk, &mut report);
     reconcile_manifest(&root, &manifest, &vaults, &mut report);
 
     // An `id` is unique across the repository, not within a vault, so the
@@ -488,46 +489,38 @@ struct DiscoveredVault {
 
 /// Vaults at the repository root, which are the only permitted ones.
 /// Anything deeper is reported and then ignored. Spec §2.3.
-fn root_vaults(walk: &Walk, report: &mut Report) -> Vec<DiscoveredVault> {
-    let mut vaults = Vec::new();
+///
+/// Which directories those are is [`listing::locate_vaults`]'s to say, on the walk as a list of its
+/// files: the rule is written once, for every client.
+fn root_vaults(root: &Path, walk: &Walk, report: &mut Report) -> Vec<DiscoveredVault> {
+    let files: Vec<ListedFile> = walk
+        .entries
+        .iter()
+        .filter(|entry| !entry.is_dir)
+        .map(|entry| ListedFile {
+            path: entry.rel.clone(),
+            size: entry.size,
+        })
+        .collect();
+    let located = listing::locate_vaults(&files);
 
-    for entry in &walk.entries {
-        if entry.is_dir || entry.name != VAULT_MANIFEST {
-            continue;
-        }
-
-        let parent = match entry.rel.rsplit_once('/') {
-            Some((parent, _)) => parent,
-            // A vault manifest at the repository root would make the root
-            // itself a vault, which §2.3 does not permit.
-            None => {
-                report.push(
-                    Diagnostic::at(Code::NestedVault, &entry.rel)
-                        .with_detail("a vault must be a directory at the repository root"),
-                );
-                continue;
-            }
-        };
-
-        if parent.contains('/') {
-            report.push(
-                Diagnostic::at(Code::NestedVault, parent)
-                    .with_detail("a vault must be a directory at the repository root"),
-            );
-            continue;
-        }
-
-        let abs = match entry.abs.parent() {
-            Some(abs) => abs.to_path_buf(),
-            None => continue,
-        };
-        vaults.push(DiscoveredVault {
-            rel: parent.to_string(),
-            abs,
-        });
+    // A vault manifest at the repository root would make the root itself a vault, and one deeper than
+    // a directory makes a nested vault. Neither is permitted.
+    for nested in located.nested {
+        report.push(
+            Diagnostic::at(Code::NestedVault, nested)
+                .with_detail("a vault must be a directory at the repository root"),
+        );
     }
 
-    vaults
+    located
+        .vaults
+        .into_iter()
+        .map(|rel| DiscoveredVault {
+            abs: root.join(&rel),
+            rel,
+        })
+        .collect()
 }
 
 /// Reconcile `fjord.json`'s vault list against what is on disk. The
@@ -702,10 +695,10 @@ fn check_vault(
         files: 0,
     };
 
-    // The files §2.2 reserves, which are never user documents and never
-    // count as vault content.
-    let mut machinery = vec![VAULT_MANIFEST.to_string(), ".gitignore".to_string()];
-    let mut suffix = manifest::SUFFIX_AGE.to_string();
+    // What the manifest says decides what each file is: whether the vault is encrypted, the suffix of
+    // a payload, and the files §2.2 reserves, which are never user documents and never count as vault
+    // content. `listing` owns it, so every client reads a vault's files the same way.
+    let settings = VaultSettings::from_manifest(&manifest);
 
     match manifest.encryption() {
         EncryptionField::Absent => {}
@@ -752,7 +745,6 @@ fn check_vault(
                         ),
                     );
                 }
-                suffix = declared.to_string();
             }
 
             let container = manifest::object_string(encryption, manifest::field::CONTAINER);
@@ -783,8 +775,7 @@ fn check_vault(
                 );
             }
 
-            summary.recipients =
-                check_recipients(vault, encryption, &manifest_rel, &mut machinery, report)?;
+            summary.recipients = check_recipients(vault, encryption, &manifest_rel, report)?;
 
             check_plaintext_guard(vault, report)?;
         }
@@ -793,8 +784,7 @@ fn check_vault(
     classify_content(
         vault,
         walk,
-        &suffix,
-        &machinery,
+        &settings,
         id_naming,
         seen_ids,
         &mut summary,
@@ -804,13 +794,12 @@ fn check_vault(
     Ok(Some(summary))
 }
 
-/// Read and classify the recipients file, and register it as machinery so
-/// its own presence is not mistaken for plaintext. Spec §6.2.
+/// Read and classify the recipients file. Its presence is not mistaken for plaintext because
+/// `listing` counts it as machinery. Spec §6.2.
 fn check_recipients(
     vault: &DiscoveredVault,
     encryption: &serde_json::Map<String, serde_json::Value>,
     manifest_rel: &str,
-    machinery: &mut Vec<String>,
     report: &mut Report,
 ) -> Result<usize, Error> {
     let declared = match manifest::object_string(encryption, manifest::field::RECIPIENTS) {
@@ -826,8 +815,6 @@ fn check_recipients(
         );
         return Ok(0);
     }
-
-    machinery.push(declared.to_string());
 
     let path = vault.abs.join(declared);
     if !path.is_file() {
@@ -906,12 +893,10 @@ fn check_plaintext_guard(vault: &DiscoveredVault, report: &mut Report) -> Result
 
 /// Classify every file in the vault, and check what its naming and
 /// encryption settings imply. Spec §6.5, §7.
-#[allow(clippy::too_many_arguments)]
 fn classify_content(
     vault: &DiscoveredVault,
     walk: &Walk,
-    suffix: &str,
-    machinery: &[String],
+    settings: &VaultSettings,
     id_naming: bool,
     seen_ids: &mut IndexMap<String, String>,
     summary: &mut VaultSummary,
@@ -925,17 +910,17 @@ fn classify_content(
         }
         let vault_rel = &entry.rel[prefix.len()..];
 
-        if machinery.iter().any(|name| name == vault_rel) {
+        // What a file is comes from its name and the vault's settings, and is `listing`'s to say.
+        // Machinery is not content.
+        let Some(kind) = listing::classify(vault_rel, settings) else {
             continue;
-        }
+        };
 
-        let encrypted_payload = vault_rel.ends_with(suffix);
-
-        if summary.encrypted {
-            if encrypted_payload {
+        match kind {
+            FileKind::Payload => {
                 summary.files += 1;
                 if id_naming {
-                    check_id_named(vault_rel, suffix, &entry.rel, report);
+                    check_id_named(vault_rel, &settings.suffix, &entry.rel, report);
                 }
                 // Header only: authenticating the body needs an identity,
                 // and `verify` never asks for one. A payload in a
@@ -947,46 +932,36 @@ fn classify_content(
                             .with_detail("not an age file: the header could not be parsed"),
                     );
                 }
-            } else {
-                report.push(
-                    Diagnostic::at(Code::PlaintextInEncryptedVault, &entry.rel).with_detail(
-                        "not an encrypted payload; decrypted content must live outside the \
-                         repository",
-                    ),
-                );
             }
-            continue;
-        }
-
-        // A plaintext vault.
-        if encrypted_payload {
-            report.push(Diagnostic::at(
-                Code::EncryptedFileInPlaintextVault,
-                &entry.rel,
-            ));
-            summary.files += 1;
-            continue;
-        }
-
-        if !vault_rel.ends_with(".md") {
-            summary.files += 1;
-            continue;
-        }
-
-        match check_markdown(entry, report)? {
-            Some(id) => {
-                summary.docs += 1;
-                match seen_ids.get(&id) {
-                    Some(first) => report.push(
-                        Diagnostic::at(Code::DuplicateId, &entry.rel)
-                            .with_detail(format!("{id} is already used by {first}")),
-                    ),
-                    None => {
-                        seen_ids.insert(id, entry.rel.clone());
+            FileKind::Stray => report.push(
+                Diagnostic::at(Code::PlaintextInEncryptedVault, &entry.rel).with_detail(
+                    "not an encrypted payload; decrypted content must live outside the \
+                     repository",
+                ),
+            ),
+            FileKind::MisplacedPayload => {
+                report.push(Diagnostic::at(
+                    Code::EncryptedFileInPlaintextVault,
+                    &entry.rel,
+                ));
+                summary.files += 1;
+            }
+            FileKind::Other => summary.files += 1,
+            FileKind::Markdown => match check_markdown(entry, report)? {
+                Some(id) => {
+                    summary.docs += 1;
+                    match seen_ids.get(&id) {
+                        Some(first) => report.push(
+                            Diagnostic::at(Code::DuplicateId, &entry.rel)
+                                .with_detail(format!("{id} is already used by {first}")),
+                        ),
+                        None => {
+                            seen_ids.insert(id, entry.rel.clone());
+                        }
                     }
                 }
-            }
-            None => summary.files += 1,
+                None => summary.files += 1,
+            },
         }
     }
 

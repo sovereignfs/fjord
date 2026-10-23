@@ -6,15 +6,16 @@
 //!
 //! A directory is a vault **if and only if** it contains
 //! `fjord.vault.json`, and in version 1 vaults are directories at the
-//! repository root. That rule is stated once here and once in
-//! [`crate::verify`], which discovers vaults as part of the single walk it
-//! already performs in order to diagnose nested ones. A test holds the two
-//! together against the conforming fixture, so they cannot drift into
-//! disagreeing about what a vault is.
+//! repository root. That rule, and what each file in a vault is, is written
+//! once, in [`crate::listing`], which works on a list of paths and so also
+//! serves a client with no filesystem. This module walks the disk and asks
+//! it, as [`crate::verify`] does, and a test holds all three to what the
+//! walk said about every fixture before they shared it.
 //!
 //! This module answers "which vault, and how is it configured"; it performs
 //! no cryptography and reads no payloads.
 
+use crate::listing::{self, FileKind, ManifestAt, VaultSettings};
 use crate::manifest::{self, EncryptionField, Manifest};
 use crate::{RESERVED_DIRECTORY, VAULT_MANIFEST};
 use std::fs;
@@ -60,10 +61,7 @@ impl Vault {
     /// verify` reports as a missing required field, but a reader should
     /// still be able to open the vault.
     pub fn suffix(&self) -> String {
-        self.encryption()
-            .and_then(|encryption| manifest::object_string(encryption, manifest::field::SUFFIX))
-            .unwrap_or(manifest::SUFFIX_AGE)
-            .to_string()
+        self.settings().suffix
     }
 
     /// Whether to write ASCII armor. Spec §4.1.
@@ -117,14 +115,11 @@ impl Vault {
     /// Vault-relative, so a recipients file declared in a subdirectory is
     /// still recognised.
     pub fn machinery(&self) -> Vec<String> {
-        let mut names = vec![crate::VAULT_MANIFEST.to_string(), ".gitignore".to_string()];
-        if let Some(declared) = self
-            .encryption()
-            .and_then(|encryption| manifest::object_string(encryption, manifest::field::RECIPIENTS))
-        {
-            names.push(declared.to_string());
-        }
-        names
+        self.settings().machinery
+    }
+
+    fn settings(&self) -> VaultSettings {
+        VaultSettings::from_manifest(&self.manifest)
     }
 
     /// Every file in the vault, machinery excluded, sorted by path.
@@ -132,15 +127,10 @@ impl Vault {
     /// Recursive: §2.1 permits nesting directories inside a vault as deeply
     /// as the user likes, and they are all vault content.
     pub fn contents(&self) -> Result<Vec<Content>, Error> {
-        let machinery = self.machinery();
-        let suffix = if self.is_encrypted() {
-            Some(self.suffix())
-        } else {
-            None
-        };
+        let settings = self.settings();
 
         let mut found = Vec::new();
-        collect(&self.path, "", &machinery, suffix.as_deref(), &mut found)?;
+        collect(&self.path, "", &settings, &mut found)?;
         found.sort_by(|a, b| a.relative.cmp(&b.relative));
         Ok(found)
     }
@@ -178,8 +168,7 @@ impl Content {
 fn collect(
     base: &Path,
     relative: &str,
-    machinery: &[String],
-    suffix: Option<&str>,
+    settings: &VaultSettings,
     found: &mut Vec<Content>,
 ) -> Result<(), Error> {
     let directory = if relative.is_empty() {
@@ -220,26 +209,19 @@ fn collect(
         };
 
         if metadata.is_dir() && !metadata.file_type().is_symlink() {
-            collect(base, &child, machinery, suffix, found)?;
+            collect(base, &child, settings, found)?;
             continue;
         }
 
-        if machinery.iter().any(|reserved| reserved == &child) {
+        // What a file is, and which are machinery, is `listing`'s to say.
+        let Some(kind) = listing::classify(&child, settings) else {
             continue;
-        }
-
-        let is_payload = suffix
-            .map(|suffix| child.ends_with(suffix))
-            .unwrap_or(false);
-        let logical = match suffix.filter(|_| is_payload) {
-            Some(suffix) => child.strip_suffix(suffix).unwrap_or(&child).to_string(),
-            None => child.clone(),
         };
 
         found.push(Content {
+            logical: listing::logical_name(&child, kind, settings).to_string(),
             relative: child,
-            logical,
-            is_payload,
+            is_payload: kind == FileKind::Payload,
             size: metadata.len(),
             modified: metadata.modified().ok(),
         });
@@ -275,7 +257,10 @@ pub fn discover(root: &Path) -> Result<Vec<Vault>, Error> {
         if name == ".git" || name == RESERVED_DIRECTORY {
             continue;
         }
-        if entry.path().join(VAULT_MANIFEST).is_file() {
+        let manifest = format!("{name}/{VAULT_MANIFEST}");
+        if entry.path().join(VAULT_MANIFEST).is_file()
+            && listing::vault_manifest_at(&manifest) == ManifestAt::Vault(name.clone())
+        {
             directories.push(name);
         }
     }
@@ -310,7 +295,10 @@ pub fn containing(root: &Path, relative: &str) -> Result<Option<Vault>, Error> {
         Some(first) if !first.is_empty() => first,
         _ => return Ok(None),
     };
-    if !root.join(first).join(VAULT_MANIFEST).is_file() {
+    let manifest = format!("{first}/{VAULT_MANIFEST}");
+    if !root.join(first).join(VAULT_MANIFEST).is_file()
+        || listing::vault_manifest_at(&manifest) != ManifestAt::Vault(first.to_string())
+    {
         return Ok(None);
     }
     read(root, first).map(Some)
