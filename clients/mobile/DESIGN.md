@@ -366,7 +366,8 @@ several changes `Update <n> files` with one line per change in the body.
 **When a merge cannot complete**, neither side is discarded (spec §9.1, CLI
 invariant 5). Upstream's version stays in place and this phone's is written beside
 it as a new Doc with a fresh `id`, named as the CLI names it,
-`name.conflict-<id suffix>.md`. Unlike `fjord sync`, which stops without pushing,
+`name.conflict-<id suffix>.md` (`name.conflict-<id suffix>.fj.md` for a document, which stays a document),
+by `fjord-core` (`merge::conflict_copy_path`). Unlike `fjord sync`, which stops without pushing,
 the app commits the copy: both sides are then safe in the repository, the state is
 complete rather than half-merged, and the phone has no working tree to resolve in.
 The file is badged as conflicted until the user deletes one of the two.

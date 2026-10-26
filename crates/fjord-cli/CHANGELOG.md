@@ -46,6 +46,10 @@ tagging it.
 
 ### Changed
 
+- **`fjord sync` keeps a conflicted document a document**: the copy of the side it could not merge is now
+  `plan.conflict-<id>.fj.md` for `plan.fj.md`, not `plan.fj.conflict-<id>.md`, which is a note (it was split at the
+  last dot, before `.fj.md` was one extension). The copy's name is also kept under 255 bytes and never overwrites a
+  file already beside it.
 - **`fjord-core` has a pure subset that compiles to WebAssembly** (ROADMAP P4). A new default feature, `native`,
   gates everything that needs a machine (the filesystem walk, `age`, `tar`); with `default-features = false` the
   crate is manifests, documents, the path rules, discovery from a listing, and identifiers and timestamps made
