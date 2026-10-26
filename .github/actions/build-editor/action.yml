@@ -1,0 +1,19 @@
+name: Build fjord-editor
+description: >-
+  Builds the editors' package (packages/fjord-editor) to packages/fjord-editor/dist, which Fjord Web imports (it is a
+  linked dependency, so the web client's type-check, build and tests need the package built first). Used by every job that
+  type-checks, builds or runs the web client, so there is one place that says how. Needs a checkout, pnpm and Node first.
+
+runs:
+  using: composite
+  steps:
+    # The package is its own project with its own lockfile; the web client's install only links it.
+    - name: Install the editors' dependencies
+      shell: bash
+      working-directory: packages/fjord-editor
+      run: pnpm install --frozen-lockfile
+
+    - name: Build the editors' package
+      shell: bash
+      working-directory: packages/fjord-editor
+      run: pnpm build
