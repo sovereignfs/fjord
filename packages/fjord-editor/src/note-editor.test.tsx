@@ -174,6 +174,36 @@ describe("reading and writing", () => {
     expect(view().state.sliceDoc()).toBe("two");
   });
 
+  it("keeps what the person typed when it is switched to reading and back, though the app still gives the text it started with", () => {
+    // An app that keeps the text itself, and gives the editor only the text to start with, locks it while it saves.
+    const onChange = vi.fn();
+    const { rerender } = mount("start", { onChange });
+    view().dispatch({ changes: { from: 5, insert: " and typed" }, userEvent: "input.type" });
+    expect(onChange).toHaveBeenLastCalledWith("start and typed");
+
+    rerender(<NoteEditor aria-label={LABEL} value="start" onChange={onChange} readOnly />);
+    expect(view().state.sliceDoc()).toBe("start and typed");
+    rerender(<NoteEditor aria-label={LABEL} value="start" onChange={onChange} readOnly={false} />);
+    expect(view().state.sliceDoc()).toBe("start and typed");
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps what the person typed when its name changes, though the app still gives the text it started with", () => {
+    const { rerender } = render(<NoteEditor aria-label="First" value="start" />);
+    viewOf(screen.getByRole("textbox", { name: "First" })).dispatch({ changes: { from: 5, insert: "!" }, userEvent: "input.type" });
+    rerender(<NoteEditor aria-label="Second" value="start" />);
+    expect(viewOf(screen.getByRole("textbox", { name: "Second" })).state.sliceDoc()).toBe("start!");
+  });
+
+  it("still takes a different text from the app afterwards, and the text it started with again after that", () => {
+    const { rerender } = mount("start");
+    view().dispatch({ changes: { from: 5, insert: "!" }, userEvent: "input.type" });
+    rerender(<NoteEditor aria-label={LABEL} value="other" />);
+    expect(view().state.sliceDoc()).toBe("other");
+    rerender(<NoteEditor aria-label={LABEL} value="start" />);
+    expect(view().state.sliceDoc()).toBe("start");
+  });
+
   it("follows a change of its name", () => {
     const { rerender } = render(<NoteEditor aria-label="First" value="x" />);
     expect(screen.getByRole("textbox", { name: "First" })).toBeTruthy();
