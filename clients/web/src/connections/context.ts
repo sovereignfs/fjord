@@ -1,5 +1,5 @@
 import { authConfig, getSession } from "../auth/server";
-import { readConnection } from "../browse/server";
+import { readConnection, setUpRepository } from "../browse/server";
 import { connectionService } from "./server";
 import type { Caller, Deps } from "./http";
 
@@ -22,6 +22,7 @@ export async function connectionContext(): Promise<{ caller: Caller | null; deps
         const outcome = await readConnection(accountId, connection);
         return { found: true, vaults: outcome.ok ? outcome.read.discovery.vaults.map((vault) => vault.directory) : null };
       },
+      setUp: setUpRepository,
     },
   };
 }

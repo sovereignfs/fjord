@@ -481,7 +481,7 @@ repository's default vault.
   directory at a time (the root, then each top-level directory, six at once) and the page says what is inside
   them is too large to list at once; browsing them is the next step.
 - **No `fjord.json` is not an error**: vaults are found from the listing, which is the authority (spec §2.1), and
-  the page says the file is missing. Offering to initialise it is 1a.10. A `fjord.json` that cannot be read is
+  the page says the file is missing (and, where there is no vault either, offers the setup: §7, as built below). A `fjord.json` that cannot be read is
   said too. Vault manifests where §2.3 allows none are listed as not shown.
 - **What the host or the setup gets wrong is said, not thrown** (`src/browse/problems.ts`): a token GitHub no
   longer accepts, a repository or branch that is gone, a rate limit, an unreachable host, a stored token this
@@ -950,6 +950,33 @@ Each slice ends usable, tested and released. The tasks are in
   tagged `web-vX.Y.Z`, never marked *Latest* on GitHub (the CLI's install URLs depend
   on that slot), with its own CI workflow that runs only for changes that can affect
   it.
+
+### Setting up a repository, as built (ROADMAP 1a.10)
+
+The offer of §7, as it works (`src/browse/setup.ts`, `src/browse/screens/SetupOffer.tsx`):
+
+- **When it is offered:** the repository has no `fjord.json` **and** no vault at its root. A `fjord.json` that cannot be read,
+  or a repository with vaults and no `fjord.json`, is not offered it: the page says what is wrong, as before, and
+  repairing a manifest is not this. The offer shows the repository, the branch, the vault's name (`Public`, else the next
+  free one; the person may type another) and the exact list of files, each marked *New* or, for the one existing file that
+  grows, *One line added*. Nothing is written until the button.
+- **Looking is not writing.** To make the preview it reads the root of the repository (one request) and, as the connection
+  did, tries a write that changes nothing (`canWrite`): a token that can no longer write is told why, instead of being
+  offered what would fail.
+- **The request carries only the vault's name** (`POST /api/connections/<id>/setup`, §12's rules: signed in, this site's
+  `Origin`, the caller's own connection, another's a 404). The server reads the head, makes the plan again with the format
+  module on the repository as it is then, and commits it on that head, never forced. If anything landed in between, nothing
+  is written and the person is told to look again (`head_moved`, 409).
+- **`.gitattributes` is read exactly.** The line is appended to the whole file, so the file is decoded strictly, byte order
+  mark kept; one that is not valid UTF-8, is larger than 64 KiB, or is not a file is refused (`gitattributes_unreadable`)
+  rather than rewritten from a lossy reading.
+- **What it refuses**, in words and with nothing written: a repository that already has a `fjord.json` or vaults (409), a
+  token that cannot write (422), and a vault name that is taken (case aside) or cannot be a directory (422, with the reason).
+- **The commit** is authored by the host's identity for the token, with a message saying what was added. The tree cache is
+  by commit, so the next view reads the new head.
+- **Tested** against the in-memory host and the real module on all three databases (what is written, what is left alone,
+  every refusal, a race), and in a browser against the git-backed fake GitHub (the preview, the commit and what it
+  contains, a name taken, a race, who may call it).
 
 ### Deployment, as built (ROADMAP 1a.12)
 

@@ -27,6 +27,12 @@ export interface Deps {
    * (or not there), `vaults: null` if the host could not be asked. Only called for a connection the caller owns.
    */
   vaults: (accountId: string, id: number) => Promise<{ found: false } | { found: true; vaults: string[] | null }>;
+  /**
+   * Set one of the caller's repositories up as a Fjord repository with a vault of this name (ROADMAP 1a.10), or
+   * throw a `ConnectionError` saying why not. `found: false` if it is not the caller's (or not there). The browser
+   * says only the name; what is written is decided by the server, on the repository as it is.
+   */
+  setUp: (accountId: string, id: number, vault: string) => Promise<{ found: false } | { found: true; commit: string }>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
 }
@@ -48,6 +54,12 @@ const STATUS: Record<ConnectionErrorCode, number> = {
   unavailable: 502,
   not_configured: 503,
   unknown_vault: 422,
+  already_fjord: 409,
+  has_vaults: 409,
+  head_moved: 409,
+  gitattributes_unreadable: 422,
+  invalid_vault_name: 422,
+  vault_name_taken: 422,
 };
 
 const NOT_CONFIGURED = "This instance cannot store repository tokens yet: its administrator needs to set FJORD_ENCRYPTION_KEY.";
@@ -150,6 +162,31 @@ export async function handleVault(request: Request, caller: Caller | null, deps:
     }
     const done = await (await deps.service()).setDefaultVault(account, number, vault);
     return done ? new Response(null, { status: 204, headers: { "cache-control": "no-store" } }) : notFound();
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+/** `POST` sets one of the caller's repositories up as a Fjord repository, `{ "vault": "<directory>" }`: one commit. */
+export async function handleSetup(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  const denied = unsignedIn(caller) ?? crossOrigin(request, deps);
+  if (denied) return denied;
+  const number = /^[1-9][0-9]{0,15}$/.test(id) ? Number(id) : undefined;
+  if (number === undefined) return failure(404, "not_found", "There is no such connection.");
+
+  try {
+    if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) {
+      return failure(415, "unsupported_media_type", "Send JSON.");
+    }
+    const body = await readJson(request);
+    if (body instanceof Response) return body;
+    const vault = body.vault;
+    if (typeof vault !== "string" || vault === "" || vault.length > MAX_VAULT_LENGTH) {
+      return failure(400, "invalid_request", "Send the vault's name as text.");
+    }
+    const done = await deps.setUp((caller as Caller).accountId, number, vault);
+    return done.found ? json(201, { commit: done.commit }) : failure(404, "not_found", "There is no such connection.");
   } catch (error) {
     return fromError(error);
   }

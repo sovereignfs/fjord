@@ -50,6 +50,35 @@ export interface Discovery {
   nested: string[];
 }
 
+/** What to add to a repository that is not a Fjord repository (`fjord-core`'s `scaffold::plan_setup`). */
+export interface SetupOptions {
+  /** `fjord.json`'s `name`. */
+  repositoryName: string;
+  /** The vault's directory at the root, which is also its display name. */
+  vault: string;
+  /** Tool and version, recorded in `fjord.json`'s `generator`. */
+  generator: string;
+}
+
+/** What is already in the repository: the path of every file (a root listing's names are enough), and `.gitattributes`'s text if it has one. */
+export interface SetupExisting {
+  paths: string[];
+  gitattributes: string | null;
+}
+
+export type SetupRefusalCode = "already_fjord" | "invalid_vault_name" | "vault_name_taken" | "gitattributes_not_read";
+
+export type SetupResult =
+  | {
+      ok: true;
+      /** `create`, or `append` for the `.gitattributes` that was there (its `contents` are the whole new file). */
+      files: { path: string; contents: string; change: "create" | "append" }[];
+      repositoryId: string;
+      vaultId: string;
+      createdAt: string;
+    }
+  | { ok: false; error: { code: SetupRefusalCode; message: string } };
+
 /** `fjord.json`, read. `raw` is the whole manifest as written, which a rewrite must preserve. */
 export type RepositoryManifest =
   | {

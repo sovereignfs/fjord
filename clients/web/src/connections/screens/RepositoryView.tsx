@@ -1,6 +1,8 @@
 import { AccountHeader } from "../../auth/screens/AccountHeader";
 import type { ReactNode } from "react";
 import { chosenVault } from "../../browse/screens/Landing";
+import { SetupOffer } from "../../browse/screens/SetupOffer";
+import type { Assessment } from "../../browse/setup";
 import { VaultList } from "../../browse/screens/VaultList";
 import type { Outcome } from "../../browse/server";
 import { Alert, Badge, Card } from "../../ui";
@@ -20,6 +22,7 @@ export function RepositoryView({
   outcome,
   content,
   landing,
+  setup,
   security,
 }: {
   user: { name: string; email: string };
@@ -30,6 +33,8 @@ export function RepositoryView({
   content?: ReactNode;
   /** The top of the vault the repository opens on, under the list of vaults (`<Landing>`); only without `content`. */
   landing?: ReactNode;
+  /** For a repository that is not a Fjord repository: the offer to set it up, or why there is none (ROADMAP 1a.10). */
+  setup?: Assessment | undefined;
   security: boolean;
 }) {
   const label = `${current.owner}/${current.name}`;
@@ -50,8 +55,17 @@ export function RepositoryView({
         <Card as="article" padding="lg">
           {content ? (
             content
+          ) : outcome.ok && setup?.offer ? (
+            <SetupOffer connectionId={current.id} preview={setup.preview} />
           ) : outcome.ok ? (
             <>
+              {setup && !setup.offer ? (
+                <div className={styles.notice}>
+                  <Alert variant="warning" heading="This repository cannot be set up from here">
+                    {setup.refusal.message}
+                  </Alert>
+                </div>
+              ) : null}
               <VaultList read={outcome.read} connectionId={current.id} opensOn={chosenVault(current, outcome)} />
               {landing}
             </>
