@@ -189,7 +189,8 @@ with no server there is no account to carry them between devices.
 
 **A repository that is not a Fjord repository** is shown as such and browsed
 read-only; quick capture needs a default vault, so it is unavailable until there is
-one. Whether to offer initialising it follows the web's answer (web §19 #3).
+one. The web offers to set such a repository up (web §19 #3, decided); the phone does
+not in phase 1, and shows it read-only as above.
 
 **Branch:** the repository's default branch, as on the web (web §19 #6).
 

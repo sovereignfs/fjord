@@ -89,7 +89,7 @@ Where this differs from `sovereign`, on purpose:
 | `crates/fjord-cli/` | The CLI: package `fjord-cli`, binary `fjord` | MPL-2.0 | `fjord-cli-vX.Y.Z` |
 | `crates/fjord-wasm/` | `fjord-core`'s pure subset for WebAssembly (`wasm-bindgen`): vault discovery from a listing, manifests, path rules, frontmatter, identifiers from a supplied clock and randomness. Its own workspace and lockfile, built into the web client and not released on its own. See its [`README.md`](crates/fjord-wasm/README.md) | MPL-2.0 | — |
 | `clients/web` | The hosted web client (Next.js, pnpm). **A placeholder app so far:** [`DESIGN.md`](clients/web/DESIGN.md), [`ROADMAP.md`](clients/web/ROADMAP.md), and its own [`CLAUDE.md`](clients/web/CLAUDE.md) | AGPL-3.0-or-later (it bundles `@sovereignfs/ui`) | `web-vX.Y.Z` |
-| `packages/fjord-editor` | The document and note editors, shared by the clients. Not created yet | Open (`clients/web/DESIGN.md` §19) | with its users |
+| `packages/fjord-editor` | The document and note editors, shared by the clients. Not created yet | MPL-2.0, and independent of `@sovereignfs/ui` (`clients/web/DESIGN.md` §18) | with its users |
 | `clients/mobile` | The iOS and Android client (Expo). **Design only so far:** [`DESIGN.md`](clients/mobile/DESIGN.md), [`ROADMAP.md`](clients/mobile/ROADMAP.md) | MPL-2.0 | `mobile-vX.Y.Z` |
 | `clients/engine` | The Rust engine for the native clients (`fjord-client`, `fjord-ffi`) and the `fjord-mcp` binary, its own Cargo workspace. Not created yet | MPL-2.0 | with its users |
 | `clients/mcp` | `fjord-mcp`, the MCP server for Claude and later ChatGPT. **Design only so far:** [`DESIGN.md`](clients/mcp/DESIGN.md), [`ROADMAP.md`](clients/mcp/ROADMAP.md) | MPL-2.0 | `mcp-vX.Y.Z` |
