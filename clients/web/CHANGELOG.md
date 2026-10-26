@@ -24,6 +24,13 @@ section.
   locked; a repository too large for the host to list is browsed a directory at a time, reading the same; and a path
   that is not there, that climbs (`..`), or that is in someone else's repository is a 404. Opening a document or
   note is the editors' (1b) and shows a placeholder for now.
+- **A container image and the three ways to run it** (ROADMAP 1a.12): `clients/web/Dockerfile` builds the format module
+  and the app into one small image (a Node runtime, the app, the module and the licences, `@sovereignfs/ui`'s `NOTICE`
+  among them), and `clients/web/deploy/` has Docker Compose files for sqld (the default), a single container with a
+  database file, and a PostgreSQL overlay, with `.env.example` and a README covering configuration, a reverse proxy,
+  backups and updating. `/api/health` also says whether the format module loaded. A server that cannot start now exits
+  with `[fjord] cannot start: <the setting>` instead of staying up and failing every request. CI builds the image and
+  brings each setup up from nothing (`scripts/deploy-check.sh`).
 - **A repository's default vault** (ROADMAP 1a.11, third step): `/` and `/repo/<connection>` now open on a vault: the
   one the account chose, or until it does the first vault `fjord.json` lists (a listed vault that is not there is
   skipped, and with no usable `fjord.json` it is the first found). The page marks it *Opens first*, shows its top

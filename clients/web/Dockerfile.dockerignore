@@ -1,0 +1,22 @@
+# What `docker build -f clients/web/Dockerfile .` sends: the web app, and the two crates the format module is
+# built from. Nothing else, and nothing that is local to a machine.
+**
+!Cargo.toml
+!crates/fjord-core
+!crates/fjord-wasm
+!clients/web
+
+crates/*/target
+crates/fjord-wasm/pkg
+clients/web/node_modules
+clients/web/.next
+clients/web/data
+clients/web/test-results
+clients/web/playwright-report
+clients/web/e2e
+clients/web/*.tsbuildinfo
+# A developer's own settings and databases, which must never reach an image (DESIGN.md §14, §15).
+**/.env
+**/.env.*
+**/*.db
+**/*.db-*

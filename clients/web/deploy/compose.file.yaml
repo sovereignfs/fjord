@@ -1,0 +1,29 @@
+# The smallest setup: one container, and the database is a file on a volume (clients/web/DESIGN.md §17).
+#
+#   cp .env.example .env     # then edit it: at least FJORD_URL, FJORD_AUTH_SECRET and FJORD_ENCRYPTION_KEY
+#   docker compose -f compose.file.yaml up -d --build
+#
+# One process, so there is nothing to wait for and nothing else to run. It suits one person or a small group; a
+# second instance cannot share the file, so this setup does not scale out.
+name: fjord
+
+services:
+  web:
+    build:
+      context: ../../..
+      dockerfile: clients/web/Dockerfile
+    image: ${FJORD_IMAGE:-fjord-web}
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DB_DIALECT: sqlite
+      SQLITE_URL: file:/data/fjord.db
+    volumes:
+      - fjord-data:/data
+    ports:
+      - "127.0.0.1:${FJORD_PORT:-3000}:3000"
+
+volumes:
+  fjord-data:

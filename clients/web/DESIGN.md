@@ -932,6 +932,32 @@ Each slice ends usable, tested and released. The tasks are in
   on that slot), with its own CI workflow that runs only for changes that can affect
   it.
 
+### Deployment, as built (ROADMAP 1a.12)
+
+- **The image** (`Dockerfile`, built from the repository's root because the format module is built from `crates/`):
+  three stages. A Rust stage builds `fjord-wasm` with the `wasm-bindgen` version its lockfile names; a Node stage builds
+  the app as a self-contained Next.js server (`FJORD_STANDALONE=1`, `next.config.ts`); the runtime stage is Node and
+  nothing else, about 100 MB, as an unprivileged user, with the migrations beside the server (it reads them from its
+  working directory), the module in `/app/wasm` (marked CommonJS: the app's `package.json` says `"type": "module"`, and
+  Node would otherwise read the module's glue as ESM and fail), and the licences in `/usr/share/licenses/`, including
+  `@sovereignfs/ui`'s `NOTICE`, which a standalone build prunes. Its health check is `/api/health`, which also says
+  whether the format module loaded (`"format": "ok"`), so an image without a working module is found by looking there.
+- **Three setups** (`deploy/`): `compose.yaml` (the web service and sqld, which the web service waits for through a
+  health check), `compose.file.yaml` (one container, `SQLITE_URL=file:/data/fjord.db` on a volume) and
+  `compose.postgres.yaml`, an overlay that removes sqld and adds PostgreSQL. The port is published on the loopback
+  address only, for a reverse proxy; the database services are not published at all. `deploy/README.md` has the
+  configuration, the proxy, backups (each tried: back up, wipe, restore, sign in) and updating.
+- **A server that cannot start stops.** `next start` exits when the start-up hook (`instrumentation.ts`) fails, but the
+  standalone `server.js` the image runs logs it and keeps serving, every request an error, which a container manager
+  sees as a container that is merely unhealthy. In production `register` now exits with `[fjord] cannot start: <why>`
+  and a non-zero code, whichever way the server was launched.
+- **Checked by CI** (job `image`): `scripts/deploy-check.sh` builds nothing and, given the image, brings each setup up
+  from nothing, checks the database and the format module through `/api/health`, makes an account, takes the stack
+  down keeping its volumes and up again, signs in, and checks that sign-in without a secret stops the container and names it.
+- **Not built yet:** the `worker` (nothing to run until idle commits, 1b.9, and webhooks, 1a.6, exist; it will be another
+  command of the same image), and publishing the image to a registry (a release step, with the `web-vX.Y.Z` tag).
+  Continuous backups and a staging instance are the operator's.
+
 ## 18. Licence
 
 `clients/web` is **AGPL-3.0-or-later**, because it bundles `@sovereignfs/ui`, which
@@ -939,7 +965,7 @@ is AGPL-3.0-or-later. The rest of the repository stays MPL-2.0 and the spec CC0.
 `packages/fjord-editor` is meant to be reused by the desktop app and editor plugins;
 whether it depends on `@sovereignfs/ui` decides its licence (§19). The design system bundles
 icons derived from Lucide (ISC), whose notice must accompany a distributed copy: the
-container image carries `@sovereignfs/ui`'s `NOTICE` (ROADMAP 1a.12), and Next's
+container image carries `@sovereignfs/ui`'s `NOTICE` (ROADMAP 1a.12, §17), and Next's
 standalone output would otherwise prune it.
 
 ## 19. Open questions

@@ -23,6 +23,8 @@ pnpm db:dev sqld | postgres      # a local database in Docker (not needed: a fil
 pnpm build:wasm                  # the format module (Rust + wasm-bindgen); the tests that need it skip without it, CI requires it
 pnpm build && pnpm boot-check    # a fresh instance boots on the database in the environment
 pnpm build && pnpm e2e           # browser tests (Playwright; `pnpm exec playwright install chromium` once)
+docker build -f clients/web/Dockerfile -t fjord-web:ci .   # the image, from the repository's root; then:
+FJORD_IMAGE=fjord-web:ci clients/web/scripts/deploy-check.sh   # it in each of the three setups
 ```
 
 Node 24 and the pnpm version in `package.json`. A change to a dependency commits
@@ -122,6 +124,7 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | `src/format/` | The format: the WebAssembly module's loader and the types of what it answers (`wasm.ts`, `types.ts`). Nothing else in the app knows the format |
 | `src/browse/` | Reading a repository from its git host to show it: the head, the cached tree, the manifests, and `fjord-core`'s discovery of the vaults (`repository.ts`), the `tree_cache` (`tree-cache.ts`), what to say when the host fails (`problems.ts`), where a path inside a vault leads (`location.ts`), and which vault a repository opens on (`default-vault.ts`) |
 | `src/mail/` | Sending email: the SMTP mailer, a mailer for tests, the templates |
+| `Dockerfile`, `deploy/` | The container image (it builds the format module itself, so it is built from the repository's root) and the Compose setups for sqld, a file and PostgreSQL, with their README and `.env.example`; `scripts/deploy-check.sh` brings each up from nothing and CI runs it. The server exits on a setting that is wrong (`instrumentation.ts`): the image's own server would otherwise stay up |
 | `e2e/` | Browser tests, and `playwright.config.ts` for the five instances they run against (and the fake Sovereign two of them sign in through) |
 | `proxy.ts` | Shows a signed-in person `/home` at `/`; only looks for a cookie |
 | `src/providers/` | The git host interface (`types.ts`), GitHub's implementation (`github/`), an in-memory one (`memory.ts`), and the contract and the git-backed fake they are tested with (`testing/`) |

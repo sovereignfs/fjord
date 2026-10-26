@@ -8,7 +8,7 @@
 # documents alone runs nothing more. The workflow always reports, so skipped jobs
 # count as passed and a branch protection rule can require these checks.
 #
-# Three things are checked:
+# Four things are checked:
 #
 # 1. `check` type-checks and builds the app, and checks that the committed migrations
 #    are the ones the schemas generate.
@@ -20,6 +20,8 @@
 # 3. `e2e` runs the browser tests: the built app, in Chromium, with a virtual authenticator
 #    for passkeys (clients/web/playwright.config.ts). It uses a file database and needs no
 #    service, so it does not repeat across the database legs.
+# 4. `image` builds the container image (clients/web/Dockerfile) and brings it up in each of the
+#    three documented setups from nothing (clients/web/deploy/): sqld, a file, PostgreSQL.
 #
 # A leg sets the variables an operator would set (DB_DIALECT, SQLITE_URL,
 # SQLD_ADMIN_URL, POSTGRES_DB_URL) and the boot uses them as they are. The tests are
@@ -315,3 +317,31 @@ jobs:
             clients/web/playwright-report
             clients/web/test-results
           retention-days: 7
+
+  # The container image, as an operator runs it (ROADMAP 1a.12): built from the Dockerfile, which builds the
+  # format module itself, and brought up with the compose files in clients/web/deploy/ in each of the three
+  # database setups. scripts/deploy-check.sh says what is checked. Nothing here is pushed anywhere.
+  image:
+    name: the image, in each setup
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: clients/web/Dockerfile
+          load: true
+          tags: fjord-web:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Each setup comes up, keeps what it is given, and a bad setting stops it
+        env:
+          FJORD_IMAGE: fjord-web:ci
+        run: clients/web/scripts/deploy-check.sh
