@@ -22,8 +22,11 @@ export const test = base.extend({
 });
 export { expect };
 
-/** The page's own alert. Next also puts an empty `role="alert"` on every page, to announce navigation. */
-export const alertOn = (page: Page) => page.getByRole("alert").filter({ hasText: /\S/ });
+/**
+ * The page's own alert. Next also puts a `role="alert"` outside `<main>` on every page, the route
+ * announcer, which has text after a client-side navigation, so an alert is looked for inside `<main>`.
+ */
+export const alertOn = (page: Page) => page.getByRole("main").getByRole("alert");
 
 export async function signUp(page: Page, email = uniqueEmail(), name = "Ada Lovelace") {
   await page.goto("/sign-up");

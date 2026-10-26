@@ -1,4 +1,5 @@
-import { expect, signUp, test } from "./helpers";
+import type { Page } from "@playwright/test";
+import { alertOn, expect, signUp, test } from "./helpers";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
 /**
@@ -10,6 +11,9 @@ test.describe.configure({ mode: "serial" });
 const GOOD = "github_pat_e2egoodtoken0123456789abcdefghijklmnopqrstuvwx";
 const READ_ONLY = "github_pat_e2ereadonlytoken0123456789abcdefghijklmnopqrs";
 const BASE = "http://localhost:3201";
+
+/** The connect form's own alert, never the route announcer that Next puts outside `<main>`. */
+const connectAlert = (page: Page) => page.getByRole("region", { name: "Connect a repository" }).getByRole("alert");
 
 let hubs: TwoGitHubs;
 test.beforeAll(async () => {
@@ -61,12 +65,12 @@ test("a read-only token is refused with a clear message, and nothing is kept", a
   await page.getByLabel("Access token").fill(READ_ONLY);
   await page.getByRole("button", { name: "Connect", exact: true }).click();
 
-  await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toContainText("can read this repository but not write to it");
-  await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toContainText("Contents: Read and write");
+  await expect(connectAlert(page)).toContainText("can read this repository but not write to it");
+  await expect(connectAlert(page)).toContainText("Contents: Read and write");
   await expect(page.getByText("No repositories are connected yet.")).toBeVisible();
   // What was typed stays in its own field, so it can be corrected and sent again; nothing the page
   // says back repeats it.
-  expect(await page.getByRole("alert").filter({ hasText: /\S/ }).innerText()).not.toContain(READ_ONLY);
+  expect(await connectAlert(page).innerText()).not.toContain(READ_ONLY);
   expect(await page.getByRole("main").innerText()).not.toContain(READ_ONLY);
 });
 
@@ -101,7 +105,7 @@ test("the same repository twice is refused, and another person does not see it",
   await page.getByRole("textbox", { name: "Repository" }).fill("https://github.com/acme/notes.git");
   await page.getByLabel("Access token").fill(GOOD);
   await page.getByRole("button", { name: "Connect", exact: true }).click();
-  await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toContainText("already connected");
+  await expect(connectAlert(page)).toContainText("already connected");
 
   // Someone else, in their own browser.
   const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.2" } });
@@ -251,7 +255,7 @@ test("when GitHub stops accepting the token, the page says so and what to do", a
 
   hubs.notes.fail(/git\/ref\/heads/, { status: 401, body: { message: "Bad credentials" }, times: 1 });
   await page.goto("/");
-  await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toContainText("no longer accepts this repository's token");
+  await expect(alertOn(page)).toContainText("no longer accepts this repository's token");
   expect(await page.getByRole("main").innerText()).not.toContain("Bad credentials");
 });
 
@@ -485,7 +489,7 @@ test("a name that is taken or cannot be a directory is refused, with the reason,
     // From the page, the same words.
     await page.getByLabel("Vault name").fill("src");
     await page.getByRole("button", { name: "Set up Fjord here" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "already used" })).toBeVisible();
+    await expect(alertOn(page).filter({ hasText: "already used" })).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(before);
   } finally {
     await restoreMore();
@@ -499,7 +503,7 @@ test("when the repository changes while the person looks, nothing is written, an
     hubs.more.before(/\/git\/commits$/, async () => void (await hubs.more.commitFiles({ "someone-else.txt": "landed in between" })), "POST");
 
     await page.getByRole("button", { name: "Set up Fjord here" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "changed while you were looking" })).toBeVisible();
+    await expect(alertOn(page).filter({ hasText: "changed while you were looking" })).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     const files = await hubs.more.filesAt(head);
     expect(files["someone-else.txt"]).toBe("landed in between");
