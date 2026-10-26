@@ -5,6 +5,12 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
 
 ## [Unreleased]
 
+### Fixed
+
+- **`NoteEditor` no longer reverts the person's typing when it is switched between reading and editing, or renamed**, if
+  the app still gives it the text it started with. It took the unchanged `value` for a text the app had just set, and
+  put it back. Only a different `value` is the app setting a text now.
+
 ### Added
 
 - **The note editor on CodeMirror 6** (ROADMAP 1b.2): `NoteEditor` is CodeMirror with light Markdown styling and

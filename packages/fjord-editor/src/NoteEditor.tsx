@@ -47,10 +47,13 @@ export const NoteEditor = forwardRef<EditorHandle, NoteEditorProps>(function Not
     };
   }, []);
 
-  // The app set a different text.
+  // The app set a different text. Only a different `value` is that: an app that gives the text it started with and keeps
+  // the rest to the editor does not mean to take back what was typed when it switches reading on and off, or renames it.
+  const given = useRef(value);
   useEffect(() => {
     const editor = view.current;
-    if (!editor) return;
+    if (!editor || given.current === value) return;
+    given.current = value;
     const current = editor.state.sliceDoc();
     if (current === value) return;
     if (lineSeparatorOf(value) !== lineSeparatorOf(current)) {
