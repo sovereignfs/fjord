@@ -671,9 +671,37 @@ interface of the sketch above, made exact, with a plain text area behind both ed
   must pass it unchanged. Checks of the package's promises about itself (MPL-2.0, React the only dependency, no
   `@sovereignfs`, styled only through its tokens, one entry point), every story rendering, and a build checked as a
   client takes it, run in CI (`.github/workflows/editor-ci.yml`) for a change to the package and nothing else.
-- **Not yet used by this app.** Linking a built package into a Next.js app in a repository with several projects
-  (building it first in CI and in the image, and where the bundler's root is) is settled with the first page that
-  renders an editor, which is 1b.2.
+- **Used by this app through the interface only** (1b.2): see *The note editor, as built* below.
+
+### The note editor, as built (ROADMAP 1b.2)
+
+`NoteEditor` is CodeMirror 6 (MIT) with light Markdown styling, and a note opens in it at its file page
+(`/repo/<connection>/<vault>/<note>.md`).
+
+- **Byte-faithful.** What goes in comes out unchanged but for what the person changed, which a text area cannot do (a
+  browser turns every line ending into a line feed). CodeMirror is told what a line break is: CRLF when every break in the
+  note is one, else LF, so a CRLF note stays CRLF and a note that mixes them keeps each carriage return as a character,
+  shown as the control character it is. A byte order mark, trailing spaces, tabs, the absence of a final newline, NUL and
+  U+2028 are kept. The text is read back with `sliceDoc`, since `doc.toString()` always joins with a line feed. A change the
+  app makes by setting `value` is applied as the smallest change (so the cursor stays put), never reported as an edit, and
+  not through the middle of a surrogate pair.
+- **The round-trip corpus** (`packages/fjord-editor/corpus`): eleven real Markdown notes (meeting notes, a recipe, a
+  README, Unicode, footnotes and HTML, whitespace, front-matter-like text, a very long line, an empty file, no final
+  newline, math and tables), each tried as written, with CRLF, mixed and old-Mac endings, a byte order mark, no final
+  newline, blank lines first and last, and a NUL and line and paragraph separators in it: open each, edit one word, and the
+  result is the original with that word replaced. Each rule of the editor's state was seen to fail a test with it off.
+- **What the page does.** It reads the note by its blob (once; the tree and manifests are already cached), strictly as
+  UTF-8 with any byte order mark kept, to at most 1 MB, and shows it in the editor **read-only**: saving is working copies
+  and versions (1b.8, 1b.9), and an editor that accepts text it cannot keep would be a trap. A file that is not UTF-8, or is
+  larger than 1 MB, says so and is not shown as a note. A document (`*.fj.md`) waits for its own editor (1b.3); an
+  encrypted file stays locked.
+- **Dressed in the design system's tokens.** The package knows only its own `--fe-*` custom properties; `app/globals.css`
+  maps the `--sv-*` tokens onto them, so light, dark and any theme follow the page (checked in a browser in both).
+- **How the package is consumed** (settled here, since this is the first page that renders it): it is a `link:` dependency
+  on `../../packages/fjord-editor` and must be **built before the app is type-checked or built** (`pnpm build:editor`, the
+  `build-editor` action in CI, a stage in the Dockerfile). The bundler's root is the repository's, so it follows the link
+  (`next.config.ts`); the standalone server therefore sits under `clients/web/` in its output, and the image runs
+  `clients/web/server.js`. Next's own React serves the app router, so the editor does not bring a second copy.
 
 ### Creating
 
@@ -1010,10 +1038,11 @@ The offer of §7, as it works (`src/browse/setup.ts`, `src/browse/screens/SetupO
 ### Deployment, as built (ROADMAP 1a.12)
 
 - **The image** (`Dockerfile`, built from the repository's root because the format module is built from `crates/`):
-  three stages. A Rust stage builds `fjord-wasm` with the `wasm-bindgen` version its lockfile names; a Node stage builds
-  the app as a self-contained Next.js server (`FJORD_STANDALONE=1`, `next.config.ts`); the runtime stage is Node and
-  nothing else, about 100 MB, as an unprivileged user, with the migrations beside the server (it reads them from its
-  working directory), the module in `/app/wasm` (marked CommonJS: the app's `package.json` says `"type": "module"`, and
+  four stages. A Rust stage builds `fjord-wasm` with the `wasm-bindgen` version its lockfile names; a Node stage builds
+  the editors' package (`packages/fjord-editor`); a second Node stage builds the app against it as a self-contained Next.js
+  server (`FJORD_STANDALONE=1`, `next.config.ts`; the server comes out under `clients/web/`, since the bundler's root is the
+  repository's, and the image runs `clients/web/server.js`); the runtime stage is Node and nothing else, about 100 MB, as an
+  unprivileged user, with the migrations beside the server (it reads them from its working directory), the module in `/app/wasm` (marked CommonJS: the app's `package.json` says `"type": "module"`, and
   Node would otherwise read the module's glue as ESM and fail), and the licences in `/usr/share/licenses/`, including
   `@sovereignfs/ui`'s `NOTICE`, which a standalone build prunes. Its health check is `/api/health`, which also says
   whether the format module loaded (`"format": "ok"`), so an image without a working module is found by looking there.

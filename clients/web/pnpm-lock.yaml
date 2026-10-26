@@ -32,6 +32,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.4
         version: 0.45.4(@libsql/client@0.18.0)(@types/pg@8.23.1)(kysely@0.29.7)(pg@8.23.1)
+      fjord-editor:
+        specifier: link:../../packages/fjord-editor
+        version: link:../../packages/fjord-editor
       next:
         specifier: ^16.3.6
         version: 16.4.2(@playwright/test@1.64.1)(@types/node@22.20.5)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)

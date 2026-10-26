@@ -13,6 +13,12 @@ section.
 
 ### Added
 
+- **Notes open in the note editor** (ROADMAP 1b.2): a note's file page (`/repo/<connection>/<vault>/<note>.md`) shows
+  its text, exactly as stored, in the editors' package (`packages/fjord-editor`): CodeMirror with light Markdown styling.
+  It is read-only for now, since saving is working copies and versions. A file that is not UTF-8, or is larger than 1 MB,
+  says so. The package is linked and must be built first (`pnpm build:editor`; CI and the image do it), the bundler's root is
+  the repository's, and the image's server now starts as `clients/web/server.js`. The editor is dressed in the design
+  system's tokens, in light and dark.
 - **Setting up a repository that is not a Fjord repository** (ROADMAP 1a.10): a connected repository with no `fjord.json`
   and no vault is shown with an offer to set it up: the exact files, a vault name (`Public`, or the next free one), and
   nothing written until the button. It makes one commit, never forced, of what `fjord-core` plans: a `fjord.json`, one

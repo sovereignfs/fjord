@@ -1,10 +1,18 @@
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
+
+// The repository's root. The app imports `fjord-editor` from `packages/fjord-editor`, which is outside this project, and the
+// bundler follows a link there only if its root is a directory that holds both. (It also puts a standalone server under
+// `clients/web/` inside its output, which the Dockerfile follows.)
+const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const config: NextConfig = {
   reactStrictMode: true,
   // Fjord Web talks to the git host from the server; nothing here should reach
   // the browser except rendered pages (clients/web/DESIGN.md §5).
   poweredByHeader: false,
+  turbopack: { root },
   // Loaded by Node at run time, not bundled: pg is CommonJS with optional native
   // parts, and libsql ships a native addon that only the `file:` database loads.
   serverExternalPackages: ["pg", "@libsql/client", "libsql"],

@@ -4,7 +4,7 @@ import { decodeSegments } from "../../../../src/browse/links";
 import { safeSegments } from "../../../../src/browse/location";
 import { Landing } from "../../../../src/browse/screens/Landing";
 import { FolderView } from "../../../../src/browse/screens/FolderView";
-import { assessSetupFor, locateInRepository, readConnection } from "../../../../src/browse/server";
+import { assessSetupFor, locateInRepository, readConnection, readNoteFor } from "../../../../src/browse/server";
 import { RepositoryView } from "../../../../src/connections/screens/RepositoryView";
 import { connectionService } from "../../../../src/connections/server";
 import { encryptionKeyring } from "../../../../src/crypto/server";
@@ -43,7 +43,10 @@ export default async function RepositoryPage({ params }: { params: Promise<{ con
     } else if (found.location.kind === "missing") {
       notFound();
     } else {
-      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} />;
+      // A note in a plaintext vault is shown in the note editor; reading it is the only thing that touches the file.
+      const file = found.location.kind === "file" ? found.location.file : undefined;
+      const note = file?.kind === "note" ? await readNoteFor(user.id, current, outcome.read, file.path) : undefined;
+      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} />;
     }
   }
 

@@ -3,13 +3,26 @@ import styles from "../../auth/screens/screens.module.css";
 import type { ClassifiedFile, FileKind } from "../../format/types";
 import { repositoryHref } from "../links";
 import type { Location } from "../location";
+import type { NoteText } from "../note";
+import { NoteView } from "./NoteView";
 
 /**
  * A folder of a vault, or one file of it, as a list (DESIGN.md §8). What can be opened is decided from the name alone,
  * so nothing is downloaded to draw it: a document (`*.fj.md`) and a note (any other `.md`) are links; any other file is
  * greyed out; and everything in an encrypted vault is locked, with its name and no way in (phase 2).
  */
-export function FolderView({ connectionId, repository, location }: { connectionId: number; repository: string; location: Exclude<Location, { kind: "missing" }> }) {
+export function FolderView({
+  connectionId,
+  repository,
+  location,
+  note,
+}: {
+  connectionId: number;
+  repository: string;
+  location: Exclude<Location, { kind: "missing" }>;
+  /** For a note: its text, or why there is none. */
+  note?: NoteText | { ok: false; reason: "problem"; message: string } | undefined;
+}) {
   const here = (...segments: string[]) => repositoryHref(connectionId, ...segments);
   const vault = location.vault;
   const inside = location.kind === "folder" ? location.path : location.kind === "file" ? location.file.relative.split("/").slice(0, -1).join("/") : "";
@@ -36,7 +49,7 @@ export function FolderView({ connectionId, repository, location }: { connectionI
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard file={location.file} encrypted={vault.encrypted === true} /> : null}
+      {location.kind === "file" ? <FileCard file={location.file} encrypted={vault.encrypted === true} note={note} /> : null}
 
       {location.kind === "folder" ? (
         <>
@@ -101,7 +114,7 @@ function FileRow({ connectionId, vault, file }: { connectionId: number; vault: s
   );
 }
 
-function FileCard({ file, encrypted }: { file: ClassifiedFile; encrypted: boolean }) {
+function FileCard({ file, encrypted, note }: { file: ClassifiedFile; encrypted: boolean; note: NoteText | { ok: false; reason: "problem"; message: string } | undefined }) {
   return (
     <section aria-labelledby="file-title">
       <h2 id="file-title" className={styles.title} style={{ fontSize: "var(--sv-font-size-lg)" }}>
@@ -111,9 +124,22 @@ function FileCard({ file, encrypted }: { file: ClassifiedFile; encrypted: boolea
         {KIND_LABEL[file.kind] || "File"}
         {file.size > 0 ? ` · ${humanSize(file.size)}` : ""}
       </p>
-      {openable(file.kind) ? (
+      {file.kind === "note" && note ? (
+        note.ok ? (
+          <>
+            <p className={styles.itemMeta}>You are reading this note. Editing it comes with saving: working copies and versions are the next things to be built.</p>
+            <NoteView text={note.text} label={leaf(file.logical)} />
+          </>
+        ) : (
+          <Alert variant="warning" heading="This note cannot be shown">
+            {note.message}
+          </Alert>
+        )
+      ) : openable(file.kind) ? (
         <Alert variant="info" heading="Opening it comes next">
-          Reading and editing {file.kind === "document" ? "documents" : "notes"} in the browser is the next thing to be built. Until then, this page is where it will open.
+          {file.kind === "document"
+            ? "The document editor is the next thing to be built. Until then, this page is where a document will open."
+            : "Reading and editing notes in the browser is the next thing to be built. Until then, this page is where a note will open."}
         </Alert>
       ) : encrypted ? (
         <Alert variant="info" heading="Locked">Files in an encrypted vault cannot be opened in this version.</Alert>

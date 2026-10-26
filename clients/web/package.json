@@ -19,7 +19,8 @@
     "boot-check": "node scripts/boot-check.mjs",
     "db:dev": "node scripts/dev-db.mjs",
     "e2e": "playwright test",
-    "build:wasm": "bash ../../crates/fjord-wasm/build.sh"
+    "build:wasm": "bash ../../crates/fjord-wasm/build.sh",
+    "build:editor": "pnpm --dir ../../packages/fjord-editor install --frozen-lockfile && pnpm --dir ../../packages/fjord-editor build"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "~1.7.12",
@@ -30,6 +31,7 @@
     "@sovereignfs/ui": "0.83.1",
     "better-auth": "~1.7.12",
     "drizzle-orm": "^0.45.4",
+    "fjord-editor": "link:../../packages/fjord-editor",
     "next": "^16.3.6",
     "nodemailer": "10.0.16",
     "pg": "^8.23.1",
