@@ -29,9 +29,6 @@
   resize: vertical;
 }
 
-.fe-note .fe-text {
-  font-family: var(--fe-font-mono, ui-monospace, monospace);
-}
 
 .fe-text:focus-visible {
   outline: 2px solid var(--fe-color-focus, #0a60ff);
@@ -72,4 +69,74 @@
   margin: 0;
   color: var(--fe-color-muted, #636366);
   font-size: 0.875rem;
+}
+
+/* The note editor (CodeMirror): the same surface as the text area, and the Markdown marked up with classes. */
+
+.fe-note .cm-editor {
+  box-sizing: border-box;
+  min-block-size: 16rem;
+  border: 1px solid var(--fe-color-border, #c7c7cc);
+  border-radius: var(--fe-radius, 0.375rem);
+  background: var(--fe-color-surface, #ffffff);
+  color: var(--fe-color-text, #1c1c1e);
+}
+
+.fe-note .cm-editor.cm-focused {
+  outline: 2px solid var(--fe-color-focus, #0a60ff);
+  outline-offset: 1px;
+}
+
+.fe-note[data-readonly="true"] .cm-editor {
+  color: var(--fe-color-muted, #636366);
+}
+
+.fe-note .cm-scroller {
+  font-family: var(--fe-font-mono, ui-monospace, monospace);
+  line-height: 1.5;
+}
+
+.fe-note .cm-content {
+  padding: var(--fe-space, 0.5rem);
+  caret-color: var(--fe-color-text, #1c1c1e);
+}
+
+.fe-note .cm-line ::selection,
+.fe-note .cm-line::selection {
+  background: var(--fe-color-selection, #b4d5ff);
+}
+
+.fe-note .cm-specialChar {
+  color: var(--fe-color-muted, #636366);
+}
+
+.fe-note .tok-heading {
+  font-weight: 700;
+}
+
+.fe-note .tok-strong {
+  font-weight: 700;
+}
+
+.fe-note .tok-emphasis {
+  font-style: italic;
+}
+
+.fe-note .tok-strikethrough {
+  text-decoration: line-through;
+}
+
+.fe-note .tok-link,
+.fe-note .tok-url {
+  color: var(--fe-color-accent, #0a60ff);
+}
+
+.fe-note .tok-meta,
+.fe-note .tok-comment,
+.fe-note .tok-processingInstruction {
+  color: var(--fe-color-muted, #636366);
+}
+
+.fe-note .tok-monospace {
+  font-family: var(--fe-font-mono, ui-monospace, monospace);
 }

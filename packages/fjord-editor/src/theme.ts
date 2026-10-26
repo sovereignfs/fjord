@@ -15,6 +15,7 @@ export const themeTokens = [
   "--fe-color-accent",
   "--fe-color-accent-text",
   "--fe-color-focus",
+  "--fe-color-selection",
   "--fe-font-body",
   "--fe-font-mono",
   "--fe-radius",

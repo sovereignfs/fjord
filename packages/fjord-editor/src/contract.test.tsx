@@ -7,6 +7,7 @@ import { createRef, useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DocumentEditor } from "./DocumentEditor.js";
 import { NoteEditor } from "./NoteEditor.js";
+import { LABEL, type Surface, codeMirror, textArea } from "./testing/surfaces.js";
 import type { Anchor, CommentsAdapter, DocumentEditorProps, EditorHandle, NoteEditorProps, ThreadMark } from "./types.js";
 
 /**
@@ -16,9 +17,9 @@ import type { Anchor, CommentsAdapter, DocumentEditorProps, EditorHandle, NoteEd
  */
 afterEach(cleanup);
 
-const LABEL = "Editor";
-const box = () => screen.getByRole("textbox", { name: LABEL }) as HTMLTextAreaElement;
-const type = (text: string) => fireEvent.change(box(), { target: { value: text } });
+// The document editor's surface is a text area until MDXEditor arrives (ROADMAP 1b.3); the note editor's is CodeMirror.
+const box = () => textArea.element() as HTMLTextAreaElement;
+const type = (text: string) => textArea.edit(text);
 
 /** The app side of a controlled editor: it keeps the text, as the page will. */
 function Harness({ initial = "Hello world", render: editor }: { initial?: string; render: (value: string, set: (value: string) => void) => React.ReactNode }) {
@@ -32,55 +33,65 @@ const documentIn = (props: Partial<DocumentEditorProps> & { role: DocumentEditor
 const noteIn = (props: Partial<NoteEditorProps> = {}, initial?: string) =>
   render(<Harness {...(initial !== undefined ? { initial } : {})} render={(value, set) => <NoteEditor aria-label={LABEL} {...props} value={value} onChange={(next) => (props.onChange?.(next), set(next))} />} />);
 
-const editors: [string, (onChange: (text: string) => void) => RenderResult, (readOnly: boolean, onChange: (text: string) => void) => RenderResult][] = [
-  ["DocumentEditor", (onChange) => documentIn({ role: "edit", onChange }), (readOnly, onChange) => documentIn({ role: readOnly ? "view" : "edit", onChange })],
-  ["NoteEditor", (onChange) => noteIn({ onChange }), (readOnly, onChange) => noteIn({ readOnly, onChange })],
+const editors: { name: string; surface: Surface; editable: (onChange: (text: string) => void) => RenderResult; readOnly: (onChange: (text: string) => void) => RenderResult }[] = [
+  {
+    name: "DocumentEditor",
+    surface: textArea,
+    editable: (onChange) => documentIn({ role: "edit", onChange }),
+    readOnly: (onChange) => documentIn({ role: "view", onChange }),
+  },
+  {
+    name: "NoteEditor",
+    surface: codeMirror,
+    editable: (onChange) => noteIn({ onChange }),
+    readOnly: (onChange) => noteIn({ readOnly: true, onChange }),
+  },
 ];
 
-describe.each(editors)("%s", (_name, editable, withReadOnly) => {
+describe.each(editors)("$name", ({ surface, editable, readOnly }) => {
   it("shows the text it is given, under the name it is given", () => {
     editable(() => undefined);
-    expect(box().value).toBe("Hello world");
+    expect(surface.text()).toBe("Hello world");
   });
 
   it("tells the app the whole new text after the person edits, and shows what the app then holds", async () => {
     const onChange = vi.fn();
     editable(onChange);
-    type("Hello brave new world");
+    surface.edit("Hello brave new world");
     await waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
     expect(onChange).toHaveBeenCalledWith("Hello brave new world");
-    await waitFor(() => expect(box().value).toBe("Hello brave new world"));
+    await waitFor(() => expect(surface.text()).toBe("Hello brave new world"));
   });
 
-  it("does not call onChange for a change the app made by setting the text", async () => {
+  it("does not call onChange for a change the app made by setting the text", () => {
     const onChange = vi.fn();
-    const { rerender } = render(<NoteEditor aria-label={LABEL} value="one" onChange={onChange} />);
-    rerender(<NoteEditor aria-label={LABEL} value="two" onChange={onChange} />);
-    expect(box().value).toBe("two");
+    const make = (value: string) => (surface === codeMirror ? <NoteEditor aria-label={LABEL} value={value} onChange={onChange} /> : <DocumentEditor aria-label={LABEL} role="edit" value={value} onChange={onChange} />);
+    const view = render(make("one"));
+    view.rerender(make("two"));
+    expect(surface.text()).toBe("two");
     expect(onChange).not.toHaveBeenCalled();
-    cleanup();
-    const documentChange = vi.fn();
-    const view = render(<DocumentEditor aria-label={LABEL} role="edit" value="one" onChange={documentChange} />);
-    view.rerender(<DocumentEditor aria-label={LABEL} role="edit" value="two" onChange={documentChange} />);
-    expect(box().value).toBe("two");
-    expect(documentChange).not.toHaveBeenCalled();
   });
 
   it("does not change, or say it changed, when it may only be read", async () => {
     const onChange = vi.fn();
-    withReadOnly(true, onChange);
-    expect(box().getAttribute("aria-readonly")).toBe("true");
-    type("Something else");
+    readOnly(onChange);
+    expect(surface.readOnly()).toBe(true);
+    surface.edit("Something else");
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(onChange).not.toHaveBeenCalled();
-    expect(box().value).toBe("Hello world");
+    expect(surface.text()).toBe("Hello world");
+  });
+
+  it("says it can be changed when it can", () => {
+    editable(() => undefined);
+    expect(surface.readOnly()).toBe(false);
   });
 
   it("can be told to take focus", () => {
     const ref = createRef<EditorHandle>();
-    render(<NoteEditor ref={ref} aria-label={LABEL} value="x" />);
+    render(surface === codeMirror ? <NoteEditor ref={ref} aria-label={LABEL} value="x" /> : <DocumentEditor ref={ref} aria-label={LABEL} role="edit" value="x" />);
     ref.current?.focus();
-    expect(document.activeElement).toBe(box());
+    expect(document.activeElement).toBe(surface.element());
   });
 });
 
