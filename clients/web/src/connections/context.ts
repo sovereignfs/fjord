@@ -1,4 +1,5 @@
 import { authConfig, getSession } from "../auth/server";
+import { readConnection } from "../browse/server";
 import { connectionService } from "./server";
 import type { Caller, Deps } from "./http";
 
@@ -12,6 +13,15 @@ export async function connectionContext(): Promise<{ caller: Caller | null; deps
   const session = await getSession();
   return {
     caller: session ? { accountId: session.user.id } : null,
-    deps: { service: connectionService, origin: config.url },
+    deps: {
+      service: connectionService,
+      origin: config.url,
+      vaults: async (accountId, id) => {
+        const connection = await (await connectionService()).get(accountId, id);
+        if (!connection) return { found: false };
+        const outcome = await readConnection(accountId, connection);
+        return { found: true, vaults: outcome.ok ? outcome.read.discovery.vaults.map((vault) => vault.directory) : null };
+      },
+    },
   };
 }

@@ -20,6 +20,7 @@ pnpm build                       # next build
 pnpm dev
 pnpm db:generate <name>          # migrations for both dialects, from the schemas
 pnpm db:dev sqld | postgres      # a local database in Docker (not needed: a file: URL works)
+pnpm build:wasm                  # the format module (Rust + wasm-bindgen); the tests that need it skip without it, CI requires it
 pnpm build && pnpm boot-check    # a fresh instance boots on the database in the environment
 pnpm build && pnpm e2e           # browser tests (Playwright; `pnpm exec playwright install chromium` once)
 ```
@@ -30,9 +31,12 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 ## Rules
 
 - **Never reimplement the format.** Manifests, vault discovery, path rules,
-  frontmatter and encryption are `fjord-core`, compiled to WebAssembly (ROADMAP P4).
-  Until that exists, a task that needs one of them waits for it; do not write a
-  stand-in parser. The conformance fixtures in `tests/fixtures/` are the test.
+  frontmatter and encryption are `fjord-core`, compiled to WebAssembly
+  (`crates/fjord-wasm`, loaded by `src/format/`; build it with `pnpm build:wasm`).
+  If the module does not offer something a task needs, add it to the module; do not
+  write a stand-in parser. What a file is comes from the module, given a listing.
+  The conformance fixtures in `tests/fixtures/` are the test, and the web's tests
+  hold it to what the CLI says about them.
 - **The server talks to the git host; the browser never does.** Credentials are
   encrypted at rest and never sent to the client, written to a log, put in a URL or
   shipped in a bundle (`DESIGN.md` §7, §15). Share tokens are redacted from logs
@@ -115,6 +119,8 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | `src/auth/` | Sign-in, local and Sovereign: its settings, the better-auth instance, the client, the screens (`screens/`), the test harness, and a fake Sovereign (`testing/`) with a recording of a real one's discovery (`fixtures/`) |
 | `src/crypto/` | Credentials at rest: the instance key (`config.ts`, `keyring.ts`), envelope encryption (`envelope.ts`), the `credential` table's store and the start-up rotation (`store.ts`) |
 | `src/connections/` | The repositories an account has connected: the address parser, the service that checks a token before keeping it, the HTTP rules (`http.ts`), the screens (`screens/`) |
+| `src/format/` | The format: the WebAssembly module's loader and the types of what it answers (`wasm.ts`, `types.ts`). Nothing else in the app knows the format |
+| `src/browse/` | Reading a repository from its git host to show it: the head, the cached tree, the manifests, and `fjord-core`'s discovery of the vaults (`repository.ts`), the `tree_cache` (`tree-cache.ts`), what to say when the host fails (`problems.ts`), where a path inside a vault leads (`location.ts`), and which vault a repository opens on (`default-vault.ts`) |
 | `src/mail/` | Sending email: the SMTP mailer, a mailer for tests, the templates |
 | `e2e/` | Browser tests, and `playwright.config.ts` for the five instances they run against (and the fake Sovereign two of them sign in through) |
 | `proxy.ts` | Shows a signed-in person `/home` at `/`; only looks for a cookie |

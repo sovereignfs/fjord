@@ -29,6 +29,20 @@
       "when": 1792785269761,
       "tag": "0003_account_default",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792791737214,
+      "tag": "0004_tree_cache",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793026116005,
+      "tag": "0005_default_vault",
+      "breakpoints": true
     }
   ]
 }

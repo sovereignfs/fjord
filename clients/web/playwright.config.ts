@@ -34,7 +34,7 @@ const SECRET = "e2e-only-secret-not-for-anything-real-0123456789";
 // settings there (a real Sovereign, say) would reach these instances. Setting a name, even to
 // nothing, keeps it out: an empty value is "not set" to the app.
 const BLANK = Object.fromEntries(
-  ["FJORD_URL", "FJORD_AUTH_LOCAL", "FJORD_AUTH_SECRET", "FJORD_AUTH_SIGNUP", "FJORD_AUTH_SOVEREIGN_ISSUER", "FJORD_AUTH_SOVEREIGN_CLIENT_ID", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET_FILE", "FJORD_AUTH_SECRET_FILE", "SMTP_HOST", "FJORD_ENCRYPTION_KEY", "FJORD_ENCRYPTION_KEY_FILE", "FJORD_ENCRYPTION_KEY_PREVIOUS", "FJORD_GITHUB_API_URL"].map((name) => [name, ""]),
+  ["FJORD_URL", "FJORD_AUTH_LOCAL", "FJORD_AUTH_SECRET", "FJORD_AUTH_SIGNUP", "FJORD_AUTH_SOVEREIGN_ISSUER", "FJORD_AUTH_SOVEREIGN_CLIENT_ID", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET_FILE", "FJORD_AUTH_SECRET_FILE", "SMTP_HOST", "FJORD_ENCRYPTION_KEY", "FJORD_ENCRYPTION_KEY_FILE", "FJORD_ENCRYPTION_KEY_PREVIOUS", "FJORD_GITHUB_API_URL", "FJORD_WASM_DIR"].map((name) => [name, ""]),
 );
 
 // A directory of its own for each instance: the auth database is `fjord_auth.db` beside the

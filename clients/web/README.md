@@ -104,7 +104,19 @@ sign in through Sovereign only.
 
 Once a repository is connected, `/` is that repository: the first one you connect is your default,
 and **Make this my default** on another one changes it. With several, a list on the repository's page
-moves between them. (Listing a repository's documents is the next task.)
+moves between them. A repository opens on one of its vaults: the first that its `fjord.json` lists, until you
+choose another with **Open this one first** on the list of vaults.
+
+**Reading repositories needs the format module.** The web client runs the Fjord format as WebAssembly (`fjord-core`
+compiled by `crates/fjord-wasm`). Build it once, and again when `fjord-core` changes:
+
+```bash
+pnpm build:wasm      # needs Rust, the wasm32-unknown-unknown target and wasm-bindgen: crates/fjord-wasm/README.md
+```
+
+It is loaded from `crates/fjord-wasm/pkg/node` next to this app; `FJORD_WASM_DIR` names another directory (a
+container image's, say). Without it a repository's page says the instance cannot read repositories yet, and the
+tests that need it are skipped (in CI, which builds it, a missing module is a failure).
 
 **Credentials at rest.** Repository credentials (a token, a GitHub App's key) are stored
 encrypted, under an instance key you provide. Make one and keep it with your secrets, not with

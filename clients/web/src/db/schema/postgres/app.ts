@@ -45,6 +45,8 @@ export const connection = app.table(
     branch: text("branch").notNull(),
     credentialId: text("credential_id").notNull(),
     createdAt: epochMs("created_at").notNull(),
+    /** The vault (its directory) that opens first, when the account has chosen one; null until then (DESIGN.md §7). */
+    defaultVault: text("default_vault"),
   },
   (table) => [
     uniqueIndex("connection_account_repository_idx").on(table.accountId, table.provider, table.owner, table.name),
@@ -57,3 +59,15 @@ export const accountDefault = app.table("account_default", {
   connectionId: ref64("connection_id").notNull(),
   updatedAt: epochMs("updated_at").notNull(),
 });
+
+/** A repository's tree for one commit; see `schema/sqlite/app.ts`. */
+export const treeCache = app.table(
+  "tree_cache",
+  {
+    connectionId: ref64("connection_id").notNull(),
+    commitId: text("commit_id").notNull(),
+    listing: text("listing").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("tree_cache_connection_commit_idx").on(table.connectionId, table.commitId)],
+);

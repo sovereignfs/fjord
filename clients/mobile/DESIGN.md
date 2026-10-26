@@ -240,7 +240,7 @@ one. Whether to offer initialising it follows the web's answer (web §19 #3).
   by path and follows the renames it makes itself, so it does not need an id, and a
   hand-written note edited on the phone stays as it was apart from the edit. This
   differs from Fjord Web, which adds a header on a note's first edit to give it an
-  `/n/<id>` address (web §9); §18 asks whether the two should agree.
+  `/note/<id>` address (web §9); §18 asks whether the two should agree.
 - **Creating** a document or a note (name, vault and folder chosen) writes a valid
   header through `fjord-core`, as `fjord new` does.
 - **Saving** is continuous: every pause in typing writes the draft to the phone

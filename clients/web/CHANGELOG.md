@@ -13,6 +13,23 @@ section.
 
 ### Added
 
+- **A repository's vaults** (ROADMAP 1a.11, first step): a connected repository's page lists its vaults and what is
+  in each (documents, notes, other files, a lock on an encrypted vault), read from the git host as the design
+  says: the head, the tree once per commit, and the vault manifests, never a document. The format is
+  `fjord-core` as WebAssembly (`pnpm build:wasm`, `FJORD_WASM_DIR`). A commit's tree is cached (`tree_cache`); a
+  repository too large for the host to list is searched directory by directory; a missing `fjord.json` is said,
+  not an error; and what the host gets wrong (a revoked token, a missing branch, a rate limit) is said plainly.
+  Each vault opens to its folders and files (`/repo/<connection>/<vault>/<path>`), told by name alone: a document
+  (`*.fj.md`) and a note are links, any other file is greyed, and an encrypted vault's files are shown by name and
+  locked; a repository too large for the host to list is browsed a directory at a time, reading the same; and a path
+  that is not there, that climbs (`..`), or that is in someone else's repository is a 404. Opening a document or
+  note is the editors' (1b) and shows a placeholder for now.
+- **A repository's default vault** (ROADMAP 1a.11, third step): `/` and `/repo/<connection>` now open on a vault: the
+  one the account chose, or until it does the first vault `fjord.json` lists (a listed vault that is not there is
+  skipped, and with no usable `fjord.json` it is the first found). The page marks it *Opens first*, shows its top
+  under the list of vaults, and offers *Open this one first* on the others. The choice is stored per connection
+  (`connection.default_vault`, a migration on both dialects) and set with `PUT /api/connections/<id>/vault`: signed
+  in, this site's origin, the caller's own connection, a vault the repository has, or `null` to forget it.
 - **Link Sovereign to a local account** (ROADMAP 1a.4): on the security page of an instance with both
   sign-in methods, a signed-in person can link a Sovereign account, **only when it uses the same email
   address** as the account (a different one is refused, with the reason, and nothing is linked). After that,
@@ -22,7 +39,7 @@ section.
   through Sovereign does not ask for the Fjord two-factor code (Sovereign has its own); the page says so.
 - **First run and defaults** (ROADMAP 1a.9): an account with no repository is prompted, at `/`, to
   connect its first. The first repository an account connects is its default, and `/` is that
-  repository's page (`/p/<connection>` for any of its own, a 404 for anyone else's), with a switcher
+  repository's page (`/repo/<connection>` for any of its own, a 404 for anyone else's), with a switcher
   between repositories and *Make this my default* (`POST /api/connections/<id>/default`, signed in,
   this site's origin, the caller's own). Disconnecting the default moves it to the first one left. New
   `account_default` table. The default vault is not here: it needs `fjord.json` read by `fjord-core`

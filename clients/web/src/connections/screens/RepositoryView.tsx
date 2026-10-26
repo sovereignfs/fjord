@@ -1,23 +1,35 @@
 import { AccountHeader } from "../../auth/screens/AccountHeader";
-import { Badge, Card } from "../../ui";
+import type { ReactNode } from "react";
+import { chosenVault } from "../../browse/screens/Landing";
+import { VaultList } from "../../browse/screens/VaultList";
+import type { Outcome } from "../../browse/server";
+import { Alert, Badge, Card } from "../../ui";
 import type { ConnectionInfo } from "../service";
 import { MakeDefaultButton } from "./MakeDefaultButton";
 import styles from "../../auth/screens/screens.module.css";
 
 /**
- * A repository's page: which one it is, a way to move between the account's repositories, and,
- * for now, a note that its documents are the next thing to be built (ROADMAP 1a.11). `/` shows the
- * default repository's, and `/p/<id>` any of the account's own.
+ * A repository's page: which one it is, its vaults and what is in them (ROADMAP 1a.11), and a way to move
+ * between the account's repositories. `/` shows the default repository's, and `/repo/<id>` any of the
+ * account's own. What the git host or the setup got wrong is said, not thrown.
  */
 export function RepositoryView({
   user,
   connections,
   current,
+  outcome,
+  content,
+  landing,
   security,
 }: {
   user: { name: string; email: string };
   connections: ConnectionInfo[];
   current: ConnectionInfo;
+  outcome: Outcome;
+  /** What to show in place of the vault list: a folder or a file of a vault (`/repo/<id>/<path>`). */
+  content?: ReactNode;
+  /** The top of the vault the repository opens on, under the list of vaults (`<Landing>`); only without `content`. */
+  landing?: ReactNode;
   security: boolean;
 }) {
   const label = `${current.owner}/${current.name}`;
@@ -36,7 +48,18 @@ export function RepositoryView({
           ) : null}
         </p>
         <Card as="article" padding="lg">
-          <p>Its documents and notes will be listed here: browsing a repository is the next thing to be built.</p>
+          {content ? (
+            content
+          ) : outcome.ok ? (
+            <>
+              <VaultList read={outcome.read} connectionId={current.id} opensOn={chosenVault(current, outcome)} />
+              {landing}
+            </>
+          ) : (
+            <Alert variant="error" heading="This repository cannot be shown right now">
+              {outcome.problem.message}
+            </Alert>
+          )}
           {current.isDefault ? null : <MakeDefaultButton id={current.id} label={label} />}
         </Card>
         {connections.length > 1 ? (
@@ -47,7 +70,7 @@ export function RepositoryView({
             <ul className={styles.list} aria-label="Your repositories">
               {connections.map((connection) => (
                 <li key={connection.id} className={styles.item}>
-                  <a href={`/p/${connection.id}`} aria-current={connection.id === current.id ? "page" : undefined}>
+                  <a href={`/repo/${connection.id}`} aria-current={connection.id === current.id ? "page" : undefined}>
                     {connection.owner}/{connection.name}
                   </a>
                   {connection.isDefault ? <Badge>Default</Badge> : null}

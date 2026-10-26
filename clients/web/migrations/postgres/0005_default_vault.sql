@@ -1,0 +1,1 @@
+ALTER TABLE "fjord"."connection" ADD COLUMN "default_vault" text;

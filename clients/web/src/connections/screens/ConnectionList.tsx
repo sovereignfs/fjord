@@ -44,7 +44,7 @@ export function ConnectionList({ connections }: { connections: ConnectionRow[] }
         {connections.map((connection) => (
           <li key={connection.id} className={styles.item}>
             <span>
-              <a href={`/p/${connection.id}`}>
+              <a href={`/repo/${connection.id}`}>
                 {connection.owner}/{connection.name}
               </a>{" "}
               {connection.isDefault ? <Badge>Default</Badge> : null}
