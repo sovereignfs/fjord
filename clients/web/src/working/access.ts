@@ -1,5 +1,7 @@
+import type { Identity } from "../providers/types";
 import type { Deps, SaveOutcome } from "./http";
 import type { Editor, WorkingCopyService } from "./service";
+import type { VersionResult } from "./version";
 
 /**
  * Who may keep a draft of what, and when the git host is asked (ROADMAP 1b.8). `http.ts` has the request's rules; this
@@ -10,6 +12,7 @@ import type { Editor, WorkingCopyService } from "./service";
  *    plaintext vault. That asks the git host, so it is asked once, when the draft is started, and not at every save: a
  *    draft that exists was already checked, and saving it is a write to our own database and nothing else.
  *  - What is kept is attributed to the caller (`Editor`), who is added to those who have edited it.
+ *  - A version is made only for a connection of the caller's, and only from a draft that is there (`version.ts`).
  */
 export interface AccessDeps {
   service: Pick<WorkingCopyService, "get" | "save" | "discard">;
@@ -17,10 +20,17 @@ export interface AccessDeps {
   owns: (accountId: string, id: number) => Promise<boolean>;
   /** Whether `path` is an editable note of the connection's repository now; `unavailable` if the host could not be asked. */
   editableNote: (accountId: string, id: number, path: string) => Promise<"yes" | "no" | "unavailable">;
+  /** Make the version, through the connection's own token. Only called for a connection that is the caller's. */
+  version: (accountId: string, id: number, input: { path: string; message: string | undefined; author: Identity }) => Promise<VersionResult>;
 }
 
-export function workingCopyAccess(deps: AccessDeps): Pick<Deps, "save" | "discard"> {
+export function workingCopyAccess(deps: AccessDeps): Pick<Deps, "save" | "discard" | "saveVersion"> {
   return {
+    async saveVersion(accountId, id, input) {
+      if (!(await deps.owns(accountId, id))) return { found: false };
+      return { found: true, result: await deps.version(accountId, id, input) };
+    },
+
     async save(accountId, id, input): Promise<SaveOutcome> {
       if (!(await deps.owns(accountId, id))) return { found: false };
       if ((await deps.service.get(id, input.path)) === undefined) {

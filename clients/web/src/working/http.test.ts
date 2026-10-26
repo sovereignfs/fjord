@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { CredentialError } from "../crypto/errors";
 import { ProviderError } from "../providers/errors";
-import { type Caller, type Deps, MAX_BODY_CHARS, type SaveOutcome, handleWorkingCopy, isRepositoryPath } from "./http";
+import { type Caller, type Deps, MAX_BODY_CHARS, type SaveOutcome, handleVersion, handleWorkingCopy, isRepositoryPath } from "./http";
+import { MAX_MESSAGE_CHARS, type VersionResult } from "./version";
 
 /**
  * Who may call `/api/connections/<id>/working-copy`, from where, with what, and what they are told: the rules of
@@ -9,15 +10,21 @@ import { type Caller, type Deps, MAX_BODY_CHARS, type SaveOutcome, handleWorking
  * `service.test.ts`; the rules for starting a draft are `access.test.ts`; the whole of it in a browser is `e2e/`.
  */
 const ORIGIN = "https://fjord.example.com";
-const ALICE: Caller = { accountId: "alice" };
+const ALICE: Caller = { accountId: "alice", name: "Alice Example", email: "alice@example.com" };
 const BLOB = "a".repeat(40);
 const COPY = { path: "Notes/a.md", baseBlob: BLOB, content: "SECRET TEXT", editors: [{ type: "account" as const, id: "alice" }], createdAt: 10, lastEdit: 20 };
 
 function stub(outcome: SaveOutcome = { found: true, result: { ok: true, workingCopy: COPY } }) {
   const save = vi.fn(async (..._args: unknown[]): Promise<SaveOutcome> => outcome);
   const discard = vi.fn(async (..._args: unknown[]) => ({ found: true }));
-  const deps: Deps = { save: (accountId, id, input) => save(accountId, id, input), discard: (accountId, id, path) => discard(accountId, id, path), origin: ORIGIN };
-  return { deps, save, discard };
+  const saveVersion = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: VersionResult }> => ({ found: true, result: { ok: true, commit: "c".repeat(40) } }));
+  const deps: Deps = {
+    save: (accountId, id, input) => save(accountId, id, input),
+    discard: (accountId, id, path) => discard(accountId, id, path),
+    saveVersion: (accountId, id, input) => saveVersion(accountId, id, input),
+    origin: ORIGIN,
+  };
+  return { deps, save, discard, saveVersion };
 }
 
 const put = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
@@ -207,5 +214,134 @@ describe("what they are told", () => {
     expect((await handleWorkingCopy(put(valid), ALICE, deps, "1")).status).toBe(503);
     save.mockRejectedValueOnce(new ProviderError("rate_limited", "slow down"));
     expect((await handleWorkingCopy(put(valid), ALICE, deps, "1")).status).toBe(429);
+  });
+});
+
+// --- Versions (ROADMAP 1b.9) ------------------------------------------------------------------------------------
+
+const post = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
+  const headers: Record<string, string> = {};
+  if (init.origin !== null) headers.origin = init.origin ?? ORIGIN;
+  if (init.type !== null) headers["content-type"] = init.type ?? "application/json";
+  return new Request(`${ORIGIN}/api/connections/1/working-copy/version`, { method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body) });
+};
+
+describe("making a version: who may", () => {
+  it("nobody who is not signed in: 401, and nothing is asked", async () => {
+    const { deps, saveVersion } = stub();
+    expect((await handleVersion(post({ path: "a.md" }), null, deps, "1")).status).toBe(401);
+    expect(saveVersion).not.toHaveBeenCalled();
+  });
+
+  it("not from another site, even for a signed-in person", async () => {
+    const { deps, saveVersion } = stub();
+    for (const origin of ["https://evil.example", "http://fjord.example.com", "null", null]) {
+      expect((await handleVersion(post({ path: "a.md" }, { origin }), ALICE, deps, "1")).status).toBe(403);
+    }
+    expect(saveVersion).not.toHaveBeenCalled();
+  });
+
+  it("only POST", async () => {
+    const { deps } = stub();
+    for (const method of ["GET", "PUT", "DELETE"]) {
+      expect((await handleVersion(new Request(`${ORIGIN}/x`, { method, headers: { origin: ORIGIN } }), ALICE, deps, "1")).status).toBe(405);
+    }
+  });
+
+  it("not another account's connection: a 404 that says nothing else", async () => {
+    const { deps, saveVersion } = stub();
+    saveVersion.mockResolvedValue({ found: false });
+    const response = await handleVersion(post({ path: "a.md" }), ALICE, deps, "1");
+    expect(response.status).toBe(404);
+    expect((await body(response)).error).toEqual({ code: "not_found", message: "There is no such connection." });
+  });
+
+  it.each(["0", "01", "-1", "x", "", "99999999999999999"])("a connection id like %j is a 404 before anything is asked", async (id) => {
+    const { deps, saveVersion } = stub();
+    expect((await handleVersion(post({ path: "a.md" }), ALICE, deps, id)).status).toBe(404);
+    expect(saveVersion).not.toHaveBeenCalled();
+  });
+});
+
+describe("making a version: what may be sent", () => {
+  it("credits the caller, as the account names them, and never someone the request names", async () => {
+    const { deps, saveVersion } = stub();
+    const response = await handleVersion(post({ path: "Notes/a.md", message: "Reword", author: { name: "Mallory", email: "m@evil.example" }, name: "Mallory" }), ALICE, deps, "1");
+    expect(response.status).toBe(201);
+    expect(await body(response)).toEqual({ commit: "c".repeat(40) });
+    expect(saveVersion).toHaveBeenCalledWith("alice", 1, { path: "Notes/a.md", message: "Reword", author: { name: "Alice Example", email: "alice@example.com" } });
+  });
+
+  it("takes no message, or null, as the default", async () => {
+    const { deps, saveVersion } = stub();
+    await handleVersion(post({ path: "a.md" }), ALICE, deps, "1");
+    await handleVersion(post({ path: "a.md", message: null }), ALICE, deps, "1");
+    expect(saveVersion.mock.calls.map((call) => (call[2] as { message: unknown }).message)).toEqual([undefined, undefined]);
+  });
+
+  it("wants JSON", async () => {
+    const { deps, saveVersion } = stub();
+    for (const type of ["text/plain", null]) expect((await handleVersion(post({ path: "a.md" }, { type }), ALICE, deps, "1")).status).toBe(415);
+    expect(saveVersion).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["not JSON", "{nope"],
+    ["an array", "[]"],
+    ["no path", {}],
+    ["a path out of the repository", { path: "../a.md" }],
+    ["a path that is not text", { path: 5 }],
+    ["a message that is not text", { path: "a.md", message: 5 }],
+    ["a message with a NUL", { path: "a.md", message: "a\u0000b" }],
+    ["a message with an unpaired surrogate", { path: "a.md", message: "a\ud800b" }],
+    ["a message that is too long", { path: "a.md", message: "x".repeat(MAX_MESSAGE_CHARS + 1) }],
+  ])("refuses %s with 400, without asking", async (_name, sent) => {
+    const { deps, saveVersion } = stub();
+    expect((await handleVersion(post(sent), ALICE, deps, "1")).status).toBe(400);
+    expect(saveVersion).not.toHaveBeenCalled();
+  });
+
+  it("takes a message of exactly the longest length", async () => {
+    const { deps } = stub();
+    expect((await handleVersion(post({ path: "a.md", message: "x".repeat(MAX_MESSAGE_CHARS) }), ALICE, deps, "1")).status).toBe(201);
+  });
+
+  it("refuses a body that is far too large with 413", async () => {
+    const { deps, saveVersion } = stub();
+    expect((await handleVersion(post({ path: "a.md", message: "y".repeat(100_000) }), ALICE, deps, "1")).status).toBe(413);
+    expect(saveVersion).not.toHaveBeenCalled();
+  });
+});
+
+describe("making a version: what they are told", () => {
+  it.each<[Extract<VersionResult, { ok: false }>["reason"], number]>([
+    ["no_draft", 409],
+    ["nothing_to_save", 409],
+    ["upstream_changed", 409],
+    ["gone", 409],
+    ["head_moved", 409],
+    ["read_only", 422],
+    ["bad_token", 422],
+    ["unavailable", 502],
+  ])("%s is %i, with its own code, and says whether the changes are kept", async (reason, status) => {
+    const { deps, saveVersion } = stub();
+    saveVersion.mockResolvedValue({ found: true, result: { ok: false, reason } });
+    const response = await handleVersion(post({ path: "a.md" }), ALICE, deps, "1");
+    const error = (await body(response)).error;
+    expect(response.status).toBe(status);
+    expect(error.code).toBe(reason);
+    expect(error.message.length).toBeGreaterThan(20);
+    if (reason !== "no_draft" && reason !== "nothing_to_save") expect(error.message).toMatch(/kept|Try again/);
+  });
+
+  it("answers an unexpected failure plainly, and logs its name and not its text", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { deps, saveVersion } = stub();
+    saveVersion.mockRejectedValue(new Error("token github_pat_SECRET at postgres://user:hunter2@db"));
+    const response = await handleVersion(post({ path: "a.md" }), ALICE, deps, "1");
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toMatch(/SECRET|hunter2/);
+    expect(logged.mock.calls.flat().join(" ")).not.toMatch(/SECRET|hunter2/);
+    logged.mockRestore();
   });
 });

@@ -142,7 +142,7 @@ function FileCard({
       {file.kind === "note" && note ? (
         note.ok ? (
           <>
-            <p className={styles.itemMeta}>Your changes are kept as a draft as you type. Saving them to the repository as a version comes next.</p>
+            <p className={styles.itemMeta}>Your changes are kept as a draft as you type. Save a version to put them in the repository.</p>
             <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} />
           </>
         ) : (

@@ -56,3 +56,28 @@ export async function discardDraft(connectionId: number, path: string): Promise<
     return false;
   }
 }
+
+export type VersionAttempt = { ok: true; commit: string } | { ok: false; message: string };
+
+/** What an answer to "make a version" means: made, or why not in the server's own words (which say whether the changes are kept). */
+export function versionFrom(status: number, body: { commit?: string; error?: { message?: string } } | undefined): VersionAttempt {
+  if (status === 201 && typeof body?.commit === "string") return { ok: true, commit: body.commit };
+  if (status === 401) return { ok: false, message: "You are signed out, so nothing was saved. Sign in again in another tab, then try again; your changes are kept." };
+  return { ok: false, message: body?.error?.message ?? "Could not save a version just now. Your changes are kept. Try again in a moment." };
+}
+
+/** Make a version of the note's draft: one commit in the repository. */
+export async function sendVersion(connectionId: number, path: string, message: string): Promise<VersionAttempt> {
+  try {
+    const response = await fetch(`${address(connectionId)}/version`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path, message: message.trim() === "" ? null : message }),
+      credentials: "same-origin",
+    });
+    const parsed = (await response.json().catch(() => undefined)) as { commit?: string; error?: { message?: string } } | undefined;
+    return versionFrom(response.status, parsed);
+  } catch {
+    return { ok: false, message: "Could not reach this server, so nothing was saved. Your changes are kept. Try again in a moment." };
+  }
+}

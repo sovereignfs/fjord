@@ -11,8 +11,21 @@ section.
 
 ## [Unreleased]
 
+### Fixed
+
+- **The note editor no longer reverts what was typed** when it is switched between reading and editing, or renamed, while the
+  page still gives it the text it started with (`packages/fjord-editor`). This is what the page does while it saves a version.
+
 ### Added
 
+- **Save version** (ROADMAP 1b.9): a note with changes has a **Save version** button, with an optional message, that makes
+  one commit of the draft through the repository's token, on the branch the note was opened from. It is authored by the
+  person who saved (their account's name and address, which a public repository then shows), with everyone else who edited
+  the draft credited by `Co-authored-by:` lines; the message is theirs or `Edit <name>`. A commit is made only on top of the
+  version the draft started from, never forced: if the note changed or was deleted in the repository nothing is written and
+  the changes are kept (choosing between them is the next step), and a repository that merely moved on elsewhere is read
+  again once. What was typed while the commit was being made is kept, not lost. `POST /api/connections/<id>/working-copy/version`,
+  under the same rules as the other routes. Versions after a quiet period (by a worker) are not here yet.
 - **Working copies** (ROADMAP 1b.8): a note can now be edited, and what is typed is kept as a **draft** on the server, a
   second after the last change (at most five seconds behind, however long the typing). Nothing typed is committed: the draft
   waits for a version to be saved (the next task). Closing the page and opening the note again finds the draft and says so,

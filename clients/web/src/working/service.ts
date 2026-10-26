@@ -137,6 +137,18 @@ export class WorkingCopyService {
     return rows.length > 0;
   }
 
+  /**
+   * Throw the draft away only if nothing was saved to it since `lastEdit`: it has just become a version, and a change that
+   * arrived while that was being made is not part of it. False if there was no such draft.
+   */
+  async discardUnchanged(connectionId: number, path: string, lastEdit: number): Promise<boolean> {
+    const rows = await dbAll<{ id: number }>(
+      this.database,
+      sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path} AND last_edit = ${lastEdit} RETURNING id`,
+    );
+    return rows.length > 0;
+  }
+
   /** Every draft of a connection goes with it (it is disconnected). */
   async forget(connectionId: number): Promise<void> {
     await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);

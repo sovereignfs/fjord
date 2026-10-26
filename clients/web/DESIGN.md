@@ -762,6 +762,29 @@ What is built is the first bullet above, the draft; versions are 1b.9 and the up
   the draft was started (its base is no longer the file's blob) the page says so and keeps the draft editable; choosing between
   the versions is 1b.10. Disconnecting a repository deletes its drafts, like its cached trees.
 
+### Versions, as built (ROADMAP 1b.9)
+
+**Save version** is built: one commit from the draft. The quiet-period commits by the worker are 1b.13, since there is no worker yet (§19 #5 stays at five minutes until then).
+
+- **API.** `POST /api/connections/<id>/working-copy/version` with `{ path, message? }` under §12's rules (signed in, this
+  site's `Origin`, own repositories only; another's is a 404). It answers `201 { commit }`, or refuses with a code and words
+  for a person: `no_draft`, `nothing_to_save` (the draft is the file; it is dropped), `upstream_changed`, `gone`,
+  `head_moved` (all 409), `read_only`, `bad_token` (422), `unavailable` (502). Nothing is written for any refusal, and the
+  draft is kept except for `nothing_to_save`.
+- **Only on top of the base.** The file at the branch's head must still be the blob the draft started from, and a regular
+  file: otherwise nothing is written. A head that moved without touching the file is read again, once, and the commit goes on
+  top of the new head; the commit is never forced and never retried blindly (`head_moved` is the cue to read again and decide,
+  CLAUDE.md). The choice when the file did change is 1b.10.
+- **Author and co-authors.** The author is the person who saved, as their account names them (name and address); the draft's
+  other editors, found by account, are `Co-authored-by:` trailers after a blank line, once each, never the author again and
+  never an account that is gone. A name is stripped of what could break a commit (angle brackets, control characters). The
+  host's own identity commits. The address is the account's own: it is in the repository's history, so a public repository
+  shows it.
+- **The message** is the person's, up to 1000 characters, else `Edit <name>` (a note's file name without `.md`).
+- **The draft ends with the version**, unless something was typed meanwhile (compare-and-delete on the time of the last
+  edit): that is not in the version and is kept. The page makes the editor read-only while it commits, keeps what is on screen
+  first (`flush`), and reads the page again after, saying "Version saved" once.
+
 ## 12. Sharing and permissions
 
 Documents (`*.fj.md`) can be shared in phase 1. Notes cannot.
@@ -1088,7 +1111,7 @@ The offer of §7, as it works (`src/browse/setup.ts`, `src/browse/screens/SetupO
 - **Checked by CI** (job `image`): `scripts/deploy-check.sh` builds nothing and, given the image, brings each setup up
   from nothing, checks the database and the format module through `/api/health`, makes an account, takes the stack
   down keeping its volumes and up again, signs in, and checks that sign-in without a secret stops the container and names it.
-- **Not built yet:** the `worker` (nothing to run until idle commits, 1b.9, and webhooks, 1a.6, exist; it will be another
+- **Not built yet:** the `worker` (nothing to run until idle commits, 1b.13, and webhooks, 1a.6, exist; it will be another
   command of the same image), and publishing the image to a registry (a release step, with the `web-vX.Y.Z` tag).
   Continuous backups and a staging instance are the operator's.
 
