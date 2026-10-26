@@ -176,6 +176,10 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # The web client runs the format as WebAssembly built from fjord-core (crates/fjord-wasm); the tests
+      # read it from where it is built (ROADMAP 1a.11). A missing module is a failure here, not a skip.
+      - uses: ./.github/actions/build-wasm
+
       # sqld is run with `docker run` and not as a service container, because a
       # service container cannot be given arguments and sqld needs
       # `--enable-namespaces` (one namespace per logical database, the analogue of
@@ -289,6 +293,9 @@ jobs:
           cache-dependency-path: clients/web/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
+
+      # The server under test reads repositories with the format module, so it has to be built first.
+      - uses: ./.github/actions/build-wasm
 
       # The browser build has to match the Playwright version in the lockfile, so it is
       # fetched here and not baked into anything. `--with-deps` adds the system libraries
