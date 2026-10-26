@@ -57,8 +57,8 @@ Phase 1 ships in slices (§16), each usable on its own.
 5. **Browsing** shows names, paths and sizes only, nothing downloaded (§8).
    Documents and notes are clearly openable; other files are shown greyed out.
    Encrypted vaults show a lock and are not openable yet (phase 2).
-6. **Opening** a document (`name.fj.md`) goes to `/d/<id>` and the document editor;
-   opening a note (any other `.md`) goes to `/n/<id>` and the note editor (§9, §10).
+6. **Opening** a document (`name.fj.md`) goes to `/doc/<id>` and the document editor;
+   opening a note (any other `.md`) goes to `/note/<id>` and the note editor (§9, §10).
 7. **Editing** saves continuously to a working copy on the server; a version (a git
    commit) is made on "Save version" or after a quiet period (§11).
    **Renaming, moving and deleting** a document, note or folder is one commit each;
@@ -380,7 +380,7 @@ browser.
 
 **Defaults.** The first repository connected is the default; with two or more the
 user can change it. Each connection has a default vault: the first vault listed in
-`fjord.json` until the user picks another.
+`fjord.json` until the user picks another (see *The default vault*, below).
 
 ### First run and defaults, as built (ROADMAP 1a.9)
 
@@ -393,17 +393,16 @@ user can change it. Each connection has a default vault: the first vault listed 
   Disconnecting the default moves it to the account's first remaining connection (or none); a row that
   names a connection that is gone any other way is ignored on reading, so `/` never lands on a
   repository that is not there.
-- **The repository page** is `/` for the default and `/p/<connection>` for any of the account's own
-  (the path inside it, `/p/<connection>/<path>`, comes with the file browser, 1a.11). It names the
+- **The repository page** is `/` for the default and `/repo/<connection>` for any of the account's own
+  (the path inside it, `/repo/<connection>/<path>`, comes with the file browser, 1a.11). It names the
   repository and its branch, marks the default, and offers *Make this my default* on the others. With
   two or more it has the switcher: a list of the account's repositories, each a link. Someone else's
-  `/p/<id>`, or one that is not there, is a 404; choosing a default is an API call
+  `/repo/<id>`, or one that is not there, is a 404; choosing a default is an API call
   (`POST /api/connections/<id>/default`) with the same rules as the rest of §12: signed in, this site's
   `Origin`, the caller's own.
-- **Not here: the default vault.** Which vault opens first is “the first vault listed in `fjord.json`”,
+- **The default vault** is not here: which vault opens first is “the first vault listed in `fjord.json`”,
   and reading `fjord.json` is the format's, which is `fjord-core` through WebAssembly (ROADMAP P3, P4),
-  not a parser of ours (the build brief's first rule). It moves to 1a.11, which needs the same. Nothing
-  is stored for it yet.
+  not a parser of ours (the build brief's first rule). It is 1a.11's, below.
 
 **A repository that is not a Fjord repository** (no `fjord.json`) is shown as such,
 with an offer to initialise it: a commit adding `fjord.json` and one plaintext vault,
@@ -424,8 +423,8 @@ the user's confirmation. (Open: §19.)
 
   | File | Shown as | Opens in |
   | --- | --- | --- |
-  | `*.fj.md` | Document | Document editor, `/d/<id>` |
-  | `*.md` (any other) | Note | Note editor, `/n/<id>` |
+  | `*.fj.md` | Document | Document editor, `/doc/<id>` |
+  | `*.md` (any other) | Note | Note editor, `/note/<id>` |
   | anything else | greyed out | — (phase 1) |
   | anything in an encrypted vault | greyed out, with a lock | — (phase 2) |
 
@@ -434,6 +433,75 @@ the user's confirmation. (Open: §19.)
   what is on screen, and cached by blob id.
 - An encrypted vault with `fileNaming: "id"` shows identifiers, not names; that is
   what it is for (spec §7.2).
+
+### Browsing, as built (ROADMAP 1a.11: the vaults, browsing them, and the default vault)
+
+1a.11 was built in three steps: the vaults of a repository, browsing a vault's folders and files, and each
+repository's default vault.
+
+- **The format is `fjord-core` as WebAssembly, in Node** (`src/format/`): `crates/fjord-wasm`, built by
+  `pnpm build:wasm` and loaded at run time from where it was built (`FJORD_WASM_DIR` overrides the monorepo
+  default), through `process.getBuiltinModule` so the bundler leaves the path alone. Nothing in the web client
+  knows the format: it hands the module a list of paths and a few manifests' text and parses the JSON it answers
+  with (`src/format/types.ts`). It is built in each web job that needs it by one shared CI action, so the web is
+  always tested against the current core, and web CI runs when the core, the module or the fixtures change.
+- **What is read from the host** (`src/browse/repository.ts`): the **head** (one request), the **tree** of that
+  commit (one request, none if cached), and the **manifests** it names: `fjord.json` and each vault's
+  `fjord.vault.json`. Not one document is read to draw the list. A manifest over 256 KiB is not read (a hostile
+  repository must not make the server fetch a gigabyte): that vault is shown as unreadable.
+- **Cached by commit** (`tree_cache`, both dialects): a commit's tree never changes, so a cached tree is never
+  stale; a new head is a new row. The host's answer is kept as it came, `complete` included, and only the latest
+  three commits of a connection are kept; disconnecting forgets them. A manifest's text is cached by blob id in
+  memory (bounded). The head is asked for at each view, which is what makes a push show; the webhook that makes
+  that free is 1a.6.
+- **What a file is comes from its name** (spec §2, §6.3, §8.4): a document (`*.fj.md`), a note (any other `.md`),
+  another file (greyed, phase 1), an encrypted payload, or plaintext where there must be none. The page lists
+  each vault with its counts and a lock for an encrypted one. Whether a document or a note is a Fjord Doc at all
+  needs its contents, which are read lazily, later.
+- **A listing the host cut short** (very large repositories) is not downloaded further: the vaults are found a
+  directory at a time (the root, then each top-level directory, six at once) and the page says what is inside
+  them is too large to list at once; browsing them is the next step.
+- **No `fjord.json` is not an error**: vaults are found from the listing, which is the authority (spec §2.1), and
+  the page says the file is missing. Offering to initialise it is 1a.10. A `fjord.json` that cannot be read is
+  said too. Vault manifests where §2.3 allows none are listed as not shown.
+- **What the host or the setup gets wrong is said, not thrown** (`src/browse/problems.ts`): a token GitHub no
+  longer accepts, a repository or branch that is gone, a rate limit, an unreachable host, a stored token this
+  instance cannot open, a module that is not built. No message carries a token or the host's own text; a bug
+  still surfaces as one.
+- **Browsing a vault** (`/repo/<connection>/<vault>/<folders…>/<file>`, `src/browse/location.ts`): the first
+  segment is a vault (a directory at the root, spec §2.3) and the rest is inside it. A **folder** lists its
+  subfolders first (with how many files are somewhere in each) and then its files, by name without regard to case;
+  folders are derived from the paths of what they hold, since git has no empty directories and the host lists
+  files. A **file** is named with its kind. A vault's machinery (its manifest, `.gitignore`, the recipients file) is
+  not content and is not listed. Where the listing is whole, all of it comes from the tree already read; where the
+  host cut it short, the one directory is listed from the host (a file is found in its parent's listing) and its
+  files classified by the module with the vault's own manifest, so both read alike (a test holds them to each other).
+- **What can be opened is told by name alone** (§8's table): a document (`*.fj.md`) and a note (any other `.md`)
+  are links; any other file is named and greyed, not linked; in an encrypted vault every file is shown under its real
+  name (the suffix removed; an identifier in an `id` vault, which is what it is for, spec §7.2) with a lock and no
+  link. A document or note's own page is, for now, a placeholder saying opening it comes with the editors (1b); it
+  names the file and its kind and is where the editor will open.
+- **A path that is not a path is a 404 and never reaches the host**: an empty segment, `.`, `..`, a backslash, or a
+  slash inside a segment (`%2f`), after decoding. So is a vault or folder or file that is not there, and anything at
+  all in a repository that is not the caller's. A vault whose manifest cannot be read is said to be unreadable and
+  lists nothing. Browsing reads no tree and no file: the head, and the tree and manifests that are kept.
+- **The default vault** (`src/browse/default-vault.ts`) is the vault a repository opens on: `/` and `/repo/<connection>`
+  show the list of its vaults and, under it, the top of that vault. It is **the one the account chose**, and until it
+  chooses, **the first vault `fjord.json` lists**. The filesystem is authoritative (spec §2.1), so a vault `fjord.json`
+  lists that is not there is skipped, one that is there and not listed can still be chosen, and with no usable
+  `fjord.json` it is the first vault found. A choice that names a vault that has since gone is ignored, not an
+  error: the next one stands in until the account chooses again. Which vaults exist and `fjord.json`'s order are the
+  module's answers (§7); the rule only picks among them.
+- **The choice is stored, the default is not.** The connection has a nullable `default_vault` (the vault's
+  directory); it is written only by an explicit choice, so a repository whose `fjord.json` changes follows it. It is
+  set with `PUT /api/connections/<id>/vault` and `{"vault": "<directory>"}`, or `{"vault": null}` to forget it, under
+  §12's rules: signed in, this site's `Origin`, the caller's own connection (another's is a 404, before the git host
+  is asked anything). A named vault must be one the repository has, checked against the repository as it is now (422
+  if not, 502 if the host cannot be reached). Each vault on the list but the first offers *Open this one first*.
+- **Tested** against the in-memory host and the real module on all three databases, holding the result to the
+  CLI's walk over every conformance fixture (`tests/fixtures/discovery.json`); and in a browser against the
+  git-backed fake GitHub, including that a second look reads no tree and no blob, that `fjord.json`'s order beats the
+  directories', and that a choice is kept.
 
 ### Renaming, moving and deleting
 
@@ -445,7 +513,7 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
 - **Who:** the owner, in phase 1 (as for sharing, §12). An edit share edits content;
   it does not rename, move or delete.
 - **Identity survives a rename or move.** A Doc's `id` is in its frontmatter, so
-  `/d/<id>`, `/n/<id>`, shares, comments and the id index follow the file; only its
+  `/doc/<id>`, `/note/<id>`, shares, comments and the id index follow the file; only its
   path changes. A note without an id keeps none: a rename is not an edit of its
   content, so the file moves byte for byte (spec §8.2) and its path route changes.
 - **The extension stays.** The rename field edits the name before `.fj.md` or
@@ -487,12 +555,12 @@ show it). This needs a one-sentence spec amendment and CLI support (ROADMAP,
 
 **Identifiers and routes.**
 
-- `/d/<id>` for documents, `/n/<id>` for notes, where `<id>` is the Doc's `id`
+- `/doc/<id>` for documents, `/note/<id>` for notes, where `<id>` is the Doc's `id`
   (spec §8.3, a lowercase ULID).
 - **A note without frontmatter has no id**, and the spec forbids adding one merely
   because the file was opened (§8.2). Until its first edit it is addressed by path,
-  `/p/<connection>/<path>`; the first edit gives it frontmatter and an `id` (§8.2
-  allows that on an explicit edit), and the page moves to `/n/<id>`. A new
+  `/repo/<connection>/<path>`; the first edit gives it frontmatter and an `id` (§8.2
+  allows that on an explicit edit), and the page moves to `/note/<id>`. A new
   document is created with an id.
 - **Resolving an id** uses a server-side index of `id → connection, path`, filled
   as files are read and by a background pass over each connection's Markdown files,
@@ -609,16 +677,16 @@ Documents (`*.fj.md`) can be shared in phase 1. Notes cannot.
   role, an optional expiry, and can be revoked; a document can have several links,
   for example a comment link for reviewers and an edit link for collaborators.
 
-**Link URLs** are `/d/<id>?token=<token>`. A document id is not a secret (it is in
+**Link URLs** are `/doc/<id>?token=<token>`. A document id is not a secret (it is in
 the file's frontmatter, so in the repository, its history and its commits), so a
 link carries its own random token. On first use the server swaps the token for a
-short-lived cookie scoped to that share and redirects to the clean `/d/<id>`, so
+short-lived cookie scoped to that share and redirects to the clean `/doc/<id>`, so
 the token does not stay in the address bar, history or `Referer`. Pages send
 `Referrer-Policy: no-referrer`; tokens are redacted from logs. A password-protected
 link asks for its password at that swap; passwords are hashed with Argon2id and
 attempts are rate-limited.
 
-**Signed-in users with a named share** use the plain `/d/<id>`.
+**Signed-in users with a named share** use the plain `/doc/<id>`.
 
 **Anonymous link users** choose a display name before they comment or switch to
 edit mode; it is kept in the browser and shown on their comments and edits.
@@ -666,7 +734,7 @@ Roughly, beyond better-auth's own:
 | Table | Holds |
 | --- | --- |
 | `account_default` | account, the connection `/` lands on |
-| `connection` | account, provider, how it is reached (`kind`), repository, branch, the id of its credential in `credential` (§7), when; where `/` lands is `account_default`, one row per account (§7); the default vault comes with 1a.11 |
+| `connection` | account, provider, how it is reached (`kind`), repository, branch, the id of its credential in `credential` (§7), when; where `/` lands is `account_default`, one row per account (§7); the vault chosen to open first is its nullable `default_vault` (§8) |
 | `tree_cache` | connection, commit id, listing |
 | `doc_index` | connection, path, `id`, kind (document/note), blob id |
 | `working_copy` | connection, path, base blob id, content, editors since last version, last edit, upstream-changed flag |
@@ -887,7 +955,7 @@ standalone output would otherwise prune it.
 | 7 | House style for documents: exact list and emphasis markers, table layout | Write it down in 1b, with the round-trip corpus |
 | 8 | Can an editor (not only the owner) share further? | Owner only in phase 1 |
 | 9 | Notes in phase 1: sharing and comments? | Neither |
-| 10 | Path route for notes without an id: `/p/<connection>/<path>` | As written |
+| 10 | Path route for notes without an id: `/repo/<connection>/<path>` | As written |
 | 11 | Restore window for deleted files | 30 days, per instance |
 | 12 | Converting a document to a note or back (changing the extension) | Not in phase 1; rename keeps the extension |
 
@@ -899,11 +967,12 @@ standalone output would otherwise prune it.
 | 2026-10-22 | Auth: better-auth, local (password + passkeys + TOTP) and/or Sovereign OIDC, by environment | — |
 | 2026-10-22 | GitHub App, with a fine-grained PAT fallback; provider interface for other hosts | OAuth App (scope reaches every private repo); PAT only |
 | 2026-10-22 | Documents are `*.fj.md`, notes any other `.md` | A new `.fjmd` extension (not rendered by GitHub, hidden by Obsidian); a frontmatter field (needs every file read to tell) |
-| 2026-10-22 | Routes `/d/<id>` and `/n/<id>`; path route until a note has an id | — |
+| 2026-10-22 | Routes `/doc/<id>` and `/note/<id>`; path route until a note has an id | — |
+| 2026-10-26 | The routes are spelled out: `/doc/<id>`, `/note/<id>` and `/repo/<connection>/<path>` | Single letters (`/d/`, `/n/`, `/p/`): shorter, but not readable in a link someone shares |
 | 2026-10-22 | Document editor on MDXEditor; note editor minimal and byte-faithful; both in `packages/fjord-editor` | — |
 | 2026-10-22 | Server-side working copies; versions on save or after a quiet period | A commit per save; copy-and-approve |
 | 2026-10-22 | Shares: named users and links (public or password); view, comment, edit; until revoked, expiry optional | Expiring anonymous shares |
-| 2026-10-22 | Link URL `/d/<id>?token=…`, swapped for a cookie on first use | A separate share route |
+| 2026-10-22 | Link URL `/doc/<id>?token=…`, swapped for a cookie on first use | A separate share route |
 | 2026-10-22 | `fjord-core` as WebAssembly, in Node and (phase 2) the browser | A TypeScript reimplementation of the format |
 | 2026-10-22 | `clients/web` is AGPL-3.0-or-later and open | Dual-licensing the design system; tokens only |
 | 2026-10-22 | Phase 1 is plaintext only; encryption phase 2; collaborative editing phase 3 | — |

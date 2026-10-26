@@ -1,0 +1,1 @@
+ALTER TABLE `connection` ADD `default_vault` text;

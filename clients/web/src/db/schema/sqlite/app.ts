@@ -60,6 +60,8 @@ export const connection = sqliteTable(
     branch: text("branch").notNull(),
     credentialId: text("credential_id").notNull(),
     createdAt: epochMs("created_at").notNull(),
+    /** The vault (its directory) that opens first, when the account has chosen one; null until then (DESIGN.md §7). */
+    defaultVault: text("default_vault"),
   },
   (table) => [
     uniqueIndex("connection_account_repository_idx").on(table.accountId, table.provider, table.owner, table.name),
@@ -77,3 +79,20 @@ export const accountDefault = sqliteTable("account_default", {
   connectionId: ref64("connection_id").notNull(),
   updatedAt: epochMs("updated_at").notNull(),
 });
+
+/**
+ * A repository's tree as the git host listed it, for one commit (DESIGN.md §8, §14). A commit's tree never
+ * changes, so this is never stale: a new head is a new row, and a push simply makes the next view read the
+ * new commit. `listing` is the JSON of the host's answer (`complete`, and each entry's path, kind, id and
+ * size). Only the latest few commits of a connection are kept, and a disconnected repository's go with it.
+ */
+export const treeCache = sqliteTable(
+  "tree_cache",
+  {
+    connectionId: ref64("connection_id").notNull(),
+    commitId: text("commit_id").notNull(),
+    listing: text("listing").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("tree_cache_connection_commit_idx").on(table.connectionId, table.commitId)],
+);

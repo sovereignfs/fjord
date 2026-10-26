@@ -31,6 +31,11 @@ export interface ConnectionInfo {
   createdAt: number;
   /** Where `/` lands for this account. Exactly one of an account's connections is. */
   isDefault: boolean;
+  /**
+   * The vault (its directory) the account chose to open first, or null until it does. What opens when it is null, or
+   * when the vault has since gone, is decided from the repository (`src/browse/default-vault.ts`), not stored.
+   */
+  defaultVault: string | null;
 }
 
 export interface Added {
@@ -52,8 +57,9 @@ const PURPOSE = "github-pat";
 const MAX_TOKEN_LENGTH = 1000;
 
 const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.connection : sqliteSchema.connection);
+const trees = (database: Database) => (database.dialect === "postgres" ? postgresSchema.treeCache : sqliteSchema.treeCache);
 const defaults = (database: Database) => (database.dialect === "postgres" ? postgresSchema.accountDefault : sqliteSchema.accountDefault);
-const COLUMNS = sql.raw('id, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId"');
+const COLUMNS = sql.raw('id, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", default_vault AS "defaultVault"');
 
 interface Row {
   id: number;
@@ -62,6 +68,7 @@ interface Row {
   branch: string;
   createdAt: number;
   credentialId: string;
+  defaultVault: string | null;
 }
 
 const toInfo = (row: Row, isDefault: boolean): ConnectionInfo => ({
@@ -73,6 +80,7 @@ const toInfo = (row: Row, isDefault: boolean): ConnectionInfo => ({
   branch: row.branch,
   createdAt: Number(row.createdAt),
   isDefault,
+  defaultVault: row.defaultVault ?? null,
 });
 
 export class ConnectionService {
@@ -154,12 +162,25 @@ export class ConnectionService {
     return true;
   }
 
+  /**
+   * Choose which vault of one of this account's repositories opens first, or forget the choice (null). False if the
+   * connection is not this account's (or not there). Whether the vault exists is the caller's to have checked against
+   * the repository: the service has no view of it, and a choice that has gone is ignored on reading.
+   */
+  async setDefaultVault(accountId: string, id: number, vault: string | null): Promise<boolean> {
+    if (!(await this.get(accountId, id))) return false;
+    await dbRun(this.database, sql`UPDATE ${table(this.database)} SET default_vault = ${vault} WHERE id = ${id} AND account_id = ${accountId}`);
+    return true;
+  }
+
   /** Disconnect: the connection and its token are deleted. False if it is not this account's (or not there). */
   async remove(accountId: string, id: number): Promise<boolean> {
     const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
     if (!row) return false;
     await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
     await dbRun(this.database, sql`DELETE FROM ${defaults(this.database)} WHERE account_id = ${accountId} AND connection_id = ${id}`);
+    // Its trees are of nothing now.
+    await dbRun(this.database, sql`DELETE FROM ${trees(this.database)} WHERE connection_id = ${id}`);
     await this.credentials.remove(row.credentialId);
     return true;
   }

@@ -18,7 +18,8 @@
     "db:generate": "node scripts/db-generate.mjs",
     "boot-check": "node scripts/boot-check.mjs",
     "db:dev": "node scripts/dev-db.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "build:wasm": "bash ../../crates/fjord-wasm/build.sh"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "~1.7.12",

@@ -1,5 +1,7 @@
 import { localAuthConfig, requireSession } from "../../src/auth/server";
 import { FirstRun } from "../../src/connections/screens/FirstRun";
+import { Landing } from "../../src/browse/screens/Landing";
+import { readConnection } from "../../src/browse/server";
 import { RepositoryView } from "../../src/connections/screens/RepositoryView";
 import { connectionService } from "../../src/connections/server";
 import { encryptionKeyring } from "../../src/crypto/server";
@@ -19,5 +21,7 @@ export default async function HomePage() {
   const connections = canConnect ? await (await connectionService()).list(user.id) : [];
   const current = connections.find((connection) => connection.isDefault);
   if (!current) return <FirstRun user={user} canConnect={canConnect} security={security} />;
-  return <RepositoryView user={user} connections={connections} current={current} security={security} />;
+  const outcome = await readConnection(user.id, current);
+  const landing = <Landing accountId={user.id} connection={current} outcome={outcome} />;
+  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} landing={landing} security={security} />;
 }

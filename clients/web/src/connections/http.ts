@@ -21,12 +21,18 @@ export interface Caller {
 
 export interface Deps {
   /** The service, or an error saying why there is none (no instance key). */
-  service: () => Promise<Pick<ConnectionService, "addWithToken" | "list" | "remove" | "setDefault">>;
+  service: () => Promise<Pick<ConnectionService, "addWithToken" | "list" | "remove" | "setDefault" | "setDefaultVault">>;
+  /**
+   * The vaults one of the caller's repositories has, read from its git host: `found: false` if it is not the caller's
+   * (or not there), `vaults: null` if the host could not be asked. Only called for a connection the caller owns.
+   */
+  vaults: (accountId: string, id: number) => Promise<{ found: false } | { found: true; vaults: string[] | null }>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
 }
 
 const MAX_BODY_BYTES = 8_000;
+const MAX_VAULT_LENGTH = 255;
 
 const STATUS: Record<ConnectionErrorCode, number> = {
   invalid_repository: 422,
@@ -41,6 +47,7 @@ const STATUS: Record<ConnectionErrorCode, number> = {
   rate_limited: 429,
   unavailable: 502,
   not_configured: 503,
+  unknown_vault: 422,
 };
 
 const NOT_CONFIGURED = "This instance cannot store repository tokens yet: its administrator needs to set FJORD_ENCRYPTION_KEY.";
@@ -108,6 +115,41 @@ export async function handleDefault(request: Request, caller: Caller | null, dep
   try {
     const done = number === undefined ? false : await (await deps.service()).setDefault((caller as Caller).accountId, number);
     return done ? new Response(null, { status: 204, headers: { "cache-control": "no-store" } }) : failure(404, "not_found", "There is no such connection.");
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+/** `PUT` chooses which vault of one of the caller's repositories opens first, `{ "vault": "<directory>" }`, or `null` to forget the choice. */
+export async function handleVault(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "PUT") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  const denied = unsignedIn(caller) ?? crossOrigin(request, deps);
+  if (denied) return denied;
+  const account = (caller as Caller).accountId;
+  const number = /^[1-9][0-9]{0,15}$/.test(id) ? Number(id) : undefined;
+  const notFound = () => failure(404, "not_found", "There is no such connection.");
+  if (number === undefined) return notFound();
+
+  try {
+    if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) {
+      return failure(415, "unsupported_media_type", "Send JSON.");
+    }
+    const body = await readJson(request);
+    if (body instanceof Response) return body;
+    const vault = body.vault;
+    if (vault !== null && (typeof vault !== "string" || vault === "" || vault.length > MAX_VAULT_LENGTH)) {
+      return failure(400, "invalid_request", "Send the vault's directory as text, or null.");
+    }
+
+    // The vault has to be one the repository has: checked against the repository, and only for a connection that is theirs.
+    if (vault !== null) {
+      const known = await deps.vaults(account, number);
+      if (!known.found) return notFound();
+      if (known.vaults === null) return failure(502, "unavailable", "Could not read that repository just now. Try again in a moment.");
+      if (!known.vaults.includes(vault)) return failure(STATUS.unknown_vault, "unknown_vault", "That repository has no such vault.");
+    }
+    const done = await (await deps.service()).setDefaultVault(account, number, vault);
+    return done ? new Response(null, { status: 204, headers: { "cache-control": "no-store" } }) : notFound();
   } catch (error) {
     return fromError(error);
   }

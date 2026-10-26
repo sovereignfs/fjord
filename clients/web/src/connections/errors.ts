@@ -14,6 +14,7 @@
  *   rate_limited         the host is limiting requests; try later
  *   unavailable          the host could not be reached
  *   not_configured       this instance has no FJORD_ENCRYPTION_KEY, so it cannot hold a token
+ *   unknown_vault        the vault chosen as a default is not in the repository
  */
 export type ConnectionErrorCode =
   | "invalid_repository"
@@ -27,7 +28,8 @@ export type ConnectionErrorCode =
   | "already_connected"
   | "rate_limited"
   | "unavailable"
-  | "not_configured";
+  | "not_configured"
+  | "unknown_vault";
 
 export class ConnectionError extends Error {
   override name = "ConnectionError";

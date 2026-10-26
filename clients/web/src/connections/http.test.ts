@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { CredentialError } from "../crypto/errors";
-import { type Caller, type Deps, handleConnection, handleConnections, handleDefault } from "./http";
+import { type Caller, type Deps, handleConnection, handleConnections, handleDefault, handleVault } from "./http";
 import { ConnectionError } from "./errors";
 
 /**
@@ -22,10 +22,12 @@ function stub(overrides: Partial<Awaited<ReturnType<Deps["service"]>>> = {}) {
     }),
     remove: vi.fn(async (...args: unknown[]) => (calls.push(["remove", ...args]), true)),
     setDefault: vi.fn(async (...args: unknown[]) => (calls.push(["setDefault", ...args]), true)),
+    setDefaultVault: vi.fn(async (...args: unknown[]) => (calls.push(["setDefaultVault", ...args]), true)),
     ...overrides,
   };
-  const deps: Deps = { service: async () => service as never, origin: ORIGIN };
-  return { service, deps, calls };
+  const vaults = vi.fn(async (...args: unknown[]) => (calls.push(["vaults", ...args]), { found: true as const, vaults: ["Private", "Public"] as string[] | null }));
+  const deps: Deps = { service: async () => service as never, origin: ORIGIN, vaults: (accountId, id) => vaults(accountId, id) };
+  return { service, deps, calls, vaults };
 }
 
 const request = (method: string, init: { origin?: string | null; body?: unknown; type?: string | null; path?: string } = {}) => {
@@ -197,5 +199,74 @@ describe("choosing the default repository", () => {
     const { deps } = stub();
     expect((await handleDefault(request("GET", { path: "/api/connections/3/default" }), ALICE, deps, "3")).status).toBe(405);
     expect((await handleDefault(request("DELETE", { path: "/api/connections/3/default" }), ALICE, deps, "3")).status).toBe(405);
+  });
+});
+
+describe("choosing the vault a repository opens on", () => {
+  const put = (body: unknown = { vault: "Public" }, init: Parameters<typeof request>[1] = {}) =>
+    request("PUT", { path: "/api/connections/3/vault", body, ...init });
+
+  it("is for a signed-in person, from this site, and for their own connection; the host is never asked before that", async () => {
+    const { deps, service, vaults } = stub();
+    expect((await handleVault(put(), null, deps, "3")).status).toBe(401);
+    for (const origin of ["https://evil.example", "null", null]) {
+      expect((await handleVault(put(undefined, { origin }), ALICE, deps, "3")).status, String(origin)).toBe(403);
+    }
+    expect(vaults).not.toHaveBeenCalled();
+    expect(service.setDefaultVault).not.toHaveBeenCalled();
+  });
+
+  it("stores a vault the repository has, for the caller's account and the connection in the address", async () => {
+    const { deps, calls } = stub();
+    const done = await handleVault(put({ vault: "Public", accountId: "bob" }), ALICE, deps, "3");
+    expect(done.status).toBe(204);
+    expect(calls).toEqual([["vaults", "alice", 3], ["setDefaultVault", "alice", 3, "Public"]]);
+  });
+
+  it("refuses a vault the repository does not have, and stores nothing", async () => {
+    const { deps, service } = stub();
+    for (const vault of ["Nope", "public", "Public/", "../Public", " Public"]) {
+      const response = await handleVault(put({ vault }), ALICE, deps, "3");
+      expect(response.status, vault).toBe(422);
+      expect((await body(response)).error.code).toBe("unknown_vault");
+    }
+    expect(service.setDefaultVault).not.toHaveBeenCalled();
+  });
+
+  it("answers another account's connection, or one that is not there, as not found, and stores nothing", async () => {
+    const setDefaultVault = vi.fn(async () => false);
+    const { deps } = stub({ setDefaultVault });
+    const missing = { ...deps, vaults: async () => ({ found: false as const }) };
+    expect((await handleVault(put(), ALICE, missing, "3")).status).toBe(404);
+    expect(setDefaultVault).not.toHaveBeenCalled();
+    // Forgetting a choice goes straight to the service, which answers for a connection that is not theirs.
+    expect((await handleVault(put({ vault: null }), ALICE, deps, "3")).status).toBe(404);
+    setDefaultVault.mockClear();
+    for (const id of ["abc", "-1", "0", "1.5", ""]) expect((await handleVault(put(), ALICE, deps, id)).status, id).toBe(404);
+    expect(setDefaultVault).not.toHaveBeenCalled();
+  });
+
+  it("forgets the choice with null, which needs no look at the repository", async () => {
+    const { deps, calls, vaults } = stub();
+    expect((await handleVault(put({ vault: null }), ALICE, deps, "3")).status).toBe(204);
+    expect(vaults).not.toHaveBeenCalled();
+    expect(calls).toEqual([["setDefaultVault", "alice", 3, null]]);
+  });
+
+  it("says so when the repository cannot be read just now, and stores nothing", async () => {
+    const { deps, service } = stub();
+    const down = { ...deps, vaults: async () => ({ found: true as const, vaults: null }) };
+    expect((await handleVault(put(), ALICE, down, "3")).status).toBe(502);
+    expect(service.setDefaultVault).not.toHaveBeenCalled();
+  });
+
+  it("takes only JSON of the right shape, and only PUT", async () => {
+    const { deps, service } = stub();
+    for (const bad of [{}, { vault: 3 }, { vault: "" }, { vault: "x".repeat(256) }, { vault: ["Public"] }, "[]", "nope"]) {
+      expect((await handleVault(put(bad), ALICE, deps, "3")).status, JSON.stringify(bad)).toBe(400);
+    }
+    expect((await handleVault(put({ vault: "Public" }, { type: "text/plain" }), ALICE, deps, "3")).status).toBe(415);
+    for (const method of ["GET", "POST", "DELETE"]) expect((await handleVault(request(method, { path: "/api/connections/3/vault" }), ALICE, deps, "3")).status, method).toBe(405);
+    expect(service.setDefaultVault).not.toHaveBeenCalled();
   });
 });

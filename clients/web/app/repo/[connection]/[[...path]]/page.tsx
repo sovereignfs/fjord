@@ -1,0 +1,52 @@
+import { notFound } from "next/navigation";
+import { localAuthConfig, requireSession } from "../../../../src/auth/server";
+import { decodeSegments } from "../../../../src/browse/links";
+import { safeSegments } from "../../../../src/browse/location";
+import { Landing } from "../../../../src/browse/screens/Landing";
+import { FolderView } from "../../../../src/browse/screens/FolderView";
+import { locateInRepository, readConnection } from "../../../../src/browse/server";
+import { RepositoryView } from "../../../../src/connections/screens/RepositoryView";
+import { connectionService } from "../../../../src/connections/server";
+import { encryptionKeyring } from "../../../../src/crypto/server";
+import { Alert } from "../../../../src/ui";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Repository" };
+
+/**
+ * One of the account's own repositories (`/repo/<connection>`), and a place inside it: `/repo/<connection>/<vault>/<folders…>`
+ * is a folder, and down to a file's name is the file (ROADMAP 1a.11). Someone else's repository, a path that is not there and
+ * one that tries to climb out are all a 404 and nothing more.
+ */
+export default async function RepositoryPage({ params }: { params: Promise<{ connection: string; path?: string[] }> }) {
+  const { user } = await requireSession();
+  const { connection, path } = await params;
+  if (!/^[1-9][0-9]{0,15}$/.test(connection) || encryptionKeyring() === undefined) notFound();
+  const connections = await (await connectionService()).list(user.id);
+  const current = connections.find((c) => c.id === Number(connection));
+  if (!current) notFound();
+
+  const outcome = await readConnection(user.id, current);
+  const decoded = decodeSegments(path);
+  const segments = decoded === undefined ? undefined : safeSegments(decoded);
+  if (path !== undefined && path.length > 0 && segments === undefined) notFound();
+
+  let content;
+  if (outcome.ok && segments !== undefined && segments.length > 0) {
+    const found = await locateInRepository(user.id, current, outcome.read, segments);
+    if (!found.ok) {
+      content = (
+        <Alert variant="error" heading="This cannot be shown right now">
+          {found.problem.message}
+        </Alert>
+      );
+    } else if (found.location.kind === "missing") {
+      notFound();
+    } else {
+      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} />;
+    }
+  }
+
+  const landing = content === undefined && (path === undefined || path.length === 0) ? <Landing accountId={user.id} connection={current} outcome={outcome} /> : undefined;
+  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} security={localAuthConfig() !== undefined} />;
+}
