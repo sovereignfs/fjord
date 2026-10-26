@@ -39,6 +39,7 @@ pub mod diagnostics;
 pub mod doc;
 pub mod listing;
 pub mod manifest;
+pub mod naming;
 pub mod path;
 pub mod scalar;
 
