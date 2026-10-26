@@ -142,8 +142,8 @@ older version, restore a backup taken before the update.
 ## What is not here yet
 
 - **The worker.** The design runs the image as `web` and as `worker` (idle commits, webhooks), and the single-container
-  setup runs both in one process. There is no worker to run until the editors and versions (ROADMAP 1b.9) and the
-  GitHub App's webhooks (1a.6) are built; it will be another command of this same image, and the Compose files will gain
+  setup runs both in one process. There is no worker to run until idle versions (ROADMAP 1b.13) and the
+  GitHub App's webhooks (1a.6) are built (Save version, 1b.9, is made by the web process); it will be another command of this same image, and the Compose files will gain
   it then.
 - **Continuous backups and a staging instance** are the operator's to set up; this directory does not provide them.
 

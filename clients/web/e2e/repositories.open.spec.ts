@@ -543,9 +543,9 @@ test("who may set a repository up: a signed-in person, from this site, for their
 // --- A note in the note editor (ROADMAP 1b.2) -----------------------------------------------------------------
 
 /** `acme/more` holding these files, connected by a new account. */
-async function repositoryWith(page: import("@playwright/test").Page, files: Record<string, string | Uint8Array>): Promise<number> {
+async function repositoryWith(page: import("@playwright/test").Page, files: Record<string, string | Uint8Array>, who?: { email: string; name: string }): Promise<number> {
   await hubs.more.commitFiles(files, { replace: true });
-  await signUp(page);
+  await signUp(page, who?.email, who?.name);
   await page.goto("/repositories");
   await connect(page, "acme/more");
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/more");
@@ -587,7 +587,7 @@ test("what is typed in a note is kept as a draft, found again on opening it, and
     await editor.click();
     await page.keyboard.press("ControlOrMeta+End");
     await page.keyboard.type("more words, kept");
-    await expect(status(page)).toHaveText(/kept as a draft/);
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
 
     // Opened again, it is the draft that is shown, and it is said to be one.
     await page.goto(`/repo/${id}/Notes/n.md`);
@@ -634,7 +634,7 @@ test("a draft is kept when the note changes in the repository, and the page says
     await page.goto(`/repo/${id}/Notes/n.md`);
     await noteEditor(page, "n.md").click();
     await page.keyboard.type("MINE ");
-    await expect(status(page)).toHaveText(/kept as a draft/);
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
 
     await hubs.more.commitFiles({ "Notes/n.md": "changed elsewhere\n" });
     await page.goto(`/repo/${id}/Notes/n.md`);
@@ -645,7 +645,7 @@ test("a draft is kept when the note changes in the repository, and the page says
     await noteEditor(page, "n.md").click();
     await page.keyboard.press("ControlOrMeta+End");
     await page.keyboard.type("MORE");
-    await expect(status(page)).toHaveText(/kept as a draft/);
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
 
     await page.getByRole("button", { name: "Discard changes" }).click();
     await page.getByRole("button", { name: "Yes, discard" }).click();
@@ -698,6 +698,125 @@ test("drafts are kept only for the caller's own repository, from this site, for 
     // Disconnecting takes the drafts with it.
     expect((await page.request.delete(`/api/connections/${id}`, { headers: { origin: BASE } })).status()).toBe(204);
     expect((await page.request.put(url, { headers: { origin: BASE }, data: { path: "Notes/n.md", baseBlob: blob, content: "x" } })).status()).toBe(404);
+  } finally {
+    await restoreMore();
+  }
+});
+
+// --- Versions (ROADMAP 1b.9) ----------------------------------------------------------------------------------
+
+test("Save version makes one commit of the draft, authored by the person, and the note is then the repository's", async ({ page }) => {
+  try {
+    const who = { email: `grace-${Date.now()}@example.com`, name: "Grace Hopper" };
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "# Title\n", "Notes/other.md": "untouched" }, who);
+    const before = (await hubs.more.branchHead()) as string;
+
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await expect(page.getByRole("button", { name: "Save version" })).toHaveCount(0); // nothing to save yet
+    await noteEditor(page, "n.md").click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type("A new line, saved at once.");
+    // No wait for the debounce: saving a version keeps what is on screen first.
+    await page.getByLabel("Message").fill("Add a line");
+    await expect(page.getByRole("button", { name: "Save version" })).toBeVisible();
+    await page.getByRole("button", { name: "Save version" }).click();
+
+    await expect(page.getByText("Version saved")).toBeVisible();
+    const head = (await hubs.more.branchHead()) as string;
+    expect(head).not.toBe(before);
+    expect(await hubs.more.show(head, "%P")).toBe(before);
+    expect(await hubs.more.show(head, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
+    expect(await hubs.more.show(head, "%B")).toBe("Add a line");
+    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "# Title\nA new line, saved at once.", "Notes/other.md": "untouched" });
+    await hubs.more.fsck();
+
+    // The draft is gone: the note is what the repository has, and nothing says there are unsaved changes.
+    await expect(noteEditor(page, "n.md")).toContainText("A new line, saved at once.");
+    await expect(page.getByText("Your changes were kept")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Save version" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Discard changes" })).toHaveCount(0);
+    // And it is said once.
+    await page.reload();
+    await expect(page.getByText("Version saved")).toHaveCount(0);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a version without a message is called Edit and the note's name", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Meeting notes.md": "x\n" });
+    await page.goto(`/repo/${id}/Notes/Meeting notes.md`);
+    await noteEditor(page, "Meeting notes.md").click();
+    await page.keyboard.type("y");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+    expect(await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).toBe("Edit Meeting notes");
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a version is not made on top of a note that changed in the repository, and the changes are kept", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await noteEditor(page, "n.md").click();
+    await page.keyboard.type("MINE ");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+
+    // A second edit is started from that version; then someone else changes the note before it is saved.
+    await noteEditor(page, "n.md").click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type("MORE");
+    await expect(page.getByTestId("draft-status")).toHaveText("Changes kept as a draft.");
+    const theirs = await hubs.more.commitFiles({ "Notes/n.md": "changed elsewhere\n" });
+
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("No version was made")).toBeVisible();
+    await expect(page.getByText("changed in the repository after you started")).toBeVisible();
+    expect(await hubs.more.branchHead()).toBe(theirs);
+    await expect(noteEditor(page, "n.md")).toContainText("MORE"); // still on screen, and still kept
+    await page.reload();
+    await expect(page.getByText("This note has changed since you started editing it")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save version" })).toHaveCount(0);
+    await expect(noteEditor(page, "n.md")).toContainText("MORE");
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("who may make a version: a signed-in person, from this site, of their own draft", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "x\n" });
+    const url = `/api/connections/${id}/working-copy/version`;
+    const head = (await hubs.more.branchHead()) as string;
+    const post = (data: unknown, origin: string = BASE) => page.request.post(url, { headers: { origin }, data });
+
+    expect((await post({ path: "Notes/n.md" }, "https://evil.example")).status()).toBe(403);
+    expect((await post({ path: "../x.md" })).status()).toBe(400);
+    expect((await post({ path: "Notes/n.md", message: "x".repeat(1001) })).status()).toBe(400);
+    expect((await page.request.get(url)).status()).toBe(405);
+    const none = await post({ path: "Notes/n.md" });
+    expect(none.status()).toBe(409);
+    expect((await none.json()).error.code).toBe("no_draft");
+
+    // A draft that is another person's draft cannot be turned into a version by someone else.
+    await page.request.put(`/api/connections/${id}/working-copy`, { headers: { origin: BASE }, data: { path: "Notes/n.md", baseBlob: "a".repeat(40), content: "draft" } });
+    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.11" } });
+    const other = await stranger.newPage();
+    expect((await other.request.post(url, { headers: { origin: BASE }, data: { path: "Notes/n.md" } })).status()).toBe(401);
+    await signUp(other);
+    expect((await other.request.post(url, { headers: { origin: BASE }, data: { path: "Notes/n.md" } })).status()).toBe(404);
+    await stranger.close();
+
+    // Nothing above wrote anything; and the owner's draft, of a made-up base, is refused rather than committed.
+    expect(await hubs.more.branchHead()).toBe(head);
+    const refused = await post({ path: "Notes/n.md" });
+    expect(refused.status()).toBe(409);
+    expect((await refused.json()).error.code).toBe("upstream_changed");
+    expect(await hubs.more.branchHead()).toBe(head);
   } finally {
     await restoreMore();
   }

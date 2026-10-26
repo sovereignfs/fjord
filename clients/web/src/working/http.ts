@@ -1,7 +1,10 @@
 import { safeSegments } from "../browse/location";
 import { isCredentialError } from "../crypto/errors";
 import { isProviderError } from "../providers/errors";
+import type { Identity } from "../providers/types";
 import { MAX_CONTENT_BYTES, type SaveResult } from "./service";
+import { MAX_MESSAGE_CHARS } from "./limits";
+import type { VersionResult } from "./version";
 
 /**
  * The HTTP face of drafts (`/api/connections/<id>/working-copy`): who may call, what they may send, what they are told.
@@ -16,6 +19,9 @@ import { MAX_CONTENT_BYTES, type SaveResult } from "./service";
  */
 export interface Caller {
   accountId: string;
+  /** How a commit names them (`handleVersion`): the account's own name and address. */
+  name: string;
+  email: string;
 }
 
 export type SaveOutcome =
@@ -27,6 +33,11 @@ export interface Deps {
   save: (accountId: string, id: number, input: { path: string; baseBlob: string; content: string }) => Promise<SaveOutcome>;
   /** Throw a draft away. `found: false` if the repository is not the caller's. Throwing away what is not there is not an error. */
   discard: (accountId: string, id: number, path: string) => Promise<{ found: boolean }>;
+  /**
+   * Make a version of one of the caller's drafts (ROADMAP 1b.9): one commit, authored by `author`. `found: false` if the
+   * repository is not the caller's.
+   */
+  saveVersion: (accountId: string, id: number, input: { path: string; message: string | undefined; author: Identity }) => Promise<{ found: false } | { found: true; result: VersionResult }>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
 }
@@ -84,6 +95,51 @@ export async function handleWorkingCopy(request: Request, caller: Caller | null,
     return fromError(error);
   }
 }
+
+/** `POST` makes a version of a file's draft, `{ path, message? }`: one commit, with the caller as its author. */
+export async function handleVersion(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  if (!caller) return failure(401, "unauthorized", "Sign in first.");
+  if (request.headers.get("origin") !== deps.origin) return failure(403, "forbidden", "This request did not come from this site.");
+  const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
+  if (number === undefined) return notFound();
+
+  try {
+    if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");
+    const text = await request.text();
+    if (text.length > MAX_VERSION_BODY_CHARS) return failure(413, "too_large", "That request is too large.");
+    const body = parse(text);
+    if (!body) return failure(400, "invalid_request", "Send a JSON object.");
+    const { path, message } = body;
+    if (!isRepositoryPath(path)) return failure(400, "invalid_request", "Say which file, by its path in the repository.");
+    if (message !== undefined && message !== null && (typeof message !== "string" || message.length > MAX_MESSAGE_CHARS || message.includes("\u0000") || !message.isWellFormed())) {
+      return failure(400, "invalid_request", `Send the message as text of at most ${MAX_MESSAGE_CHARS} characters, or leave it out.`);
+    }
+
+    const outcome = await deps.saveVersion(caller.accountId, number, { path, message: typeof message === "string" ? message : undefined, author: { name: caller.name, email: caller.email } });
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (result.ok) return json(201, { commit: result.commit });
+    const refusal = VERSION_REFUSALS[result.reason];
+    return failure(refusal.status, result.reason, refusal.message);
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+const MAX_VERSION_BODY_CHARS = 8_000 + MAX_MESSAGE_CHARS * 6;
+
+/** What each reason a version was not made is told as. Nothing was written, and the draft is kept, in each but the one that says otherwise. */
+const VERSION_REFUSALS: Record<Extract<VersionResult, { ok: false }>["reason"], { status: number; message: string }> = {
+  no_draft: { status: 409, message: "There are no changes to save in this note." },
+  nothing_to_save: { status: 409, message: "This note is the same as the one in the repository, so there is nothing to save. The draft was dropped." },
+  upstream_changed: { status: 409, message: "This note changed in the repository after you started editing it. Nothing was saved, and your changes are kept." },
+  gone: { status: 409, message: "This note is no longer in the repository. Nothing was saved, and your changes are kept." },
+  head_moved: { status: 409, message: "The repository kept changing while this was being saved. Nothing was saved. Try again." },
+  read_only: { status: 422, message: "That token can read this repository but not write to it, so nothing was saved. Create the token with the repository permission “Contents: Read and write”, and connect the repository again. Your changes are kept." },
+  bad_token: { status: 422, message: "The git host did not accept this repository's token. Connect the repository again with a new one. Your changes are kept." },
+  unavailable: { status: 502, message: "Could not reach the git host just now. Nothing was saved, and your changes are kept. Try again in a moment." },
+};
 
 const notFound = () => failure(404, "not_found", "There is no such connection.");
 const tooLarge = () => failure(413, "too_large", `That is more than a note can be: at most ${MAX_CONTENT_BYTES / 1024 / 1024} MB of text.`);

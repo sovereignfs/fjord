@@ -17,8 +17,9 @@ function setup(over: { owns?: boolean; existing?: WorkingCopy; editable?: "yes" 
   };
   const owns = vi.fn(async (..._args: unknown[]) => over.owns ?? true);
   const editableNote = vi.fn(async (..._args: unknown[]) => over.editable ?? "yes");
-  const deps: AccessDeps = { service: service as never, owns, editableNote: (a, i, p) => editableNote(a, i, p) };
-  return { access: workingCopyAccess(deps), service, owns, editableNote };
+  const version = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "c".repeat(40) }));
+  const deps: AccessDeps = { service: service as never, owns, editableNote: (a, i, p) => editableNote(a, i, p), version: (a, i, input) => version(a, i, input) };
+  return { access: workingCopyAccess(deps), service, owns, editableNote, version };
 }
 
 describe("whose", () => {
@@ -78,5 +79,22 @@ describe("saving a draft that exists", () => {
     const { access, service } = setup({ existing: COPY });
     await access.save("alice", 3, INPUT);
     expect(service.get).toHaveBeenCalledWith(3, "Notes/a.md");
+  });
+});
+
+describe("making a version", () => {
+  const input = { path: "Notes/a.md", message: "m", author: { name: "Alice", email: "alice@example.com" } };
+
+  it("is for the caller's own connection only: another's is not found, and nothing is made", async () => {
+    const { access, version } = setup({ owns: false });
+    expect(await access.saveVersion("mallory", 1, input)).toEqual({ found: false });
+    expect(version).not.toHaveBeenCalled();
+  });
+
+  it("is made for the connection asked, by the caller, as the caller", async () => {
+    const { access, version, editableNote } = setup();
+    expect(await access.saveVersion("alice", 7, input)).toEqual({ found: true, result: { ok: true, commit: "c".repeat(40) } });
+    expect(version).toHaveBeenCalledWith("alice", 7, input);
+    expect(editableNote).not.toHaveBeenCalled(); // the draft was checked when it was started
   });
 });

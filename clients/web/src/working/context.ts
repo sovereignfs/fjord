@@ -12,11 +12,12 @@ export async function workingCopyContext(): Promise<{ caller: Caller | null; dep
   const session = await getSession();
   const access = session ? await workingCopyAccessFor() : undefined;
   return {
-    caller: session ? { accountId: session.user.id } : null,
+    caller: session ? { accountId: session.user.id, name: session.user.name, email: session.user.email } : null,
     deps: {
       origin: config.url,
       save: (accountId, id, input) => (access as NonNullable<typeof access>).save(accountId, id, input),
       discard: (accountId, id, path) => (access as NonNullable<typeof access>).discard(accountId, id, path),
+      saveVersion: (accountId, id, input) => (access as NonNullable<typeof access>).saveVersion(accountId, id, input),
     },
   };
 }

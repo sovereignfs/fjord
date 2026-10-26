@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attemptFrom } from "./client";
+import { attemptFrom, versionFrom } from "./client";
 
 /** What each answer from the server means for the saver: a text is only ever given up on for a reason that retrying cannot fix. */
 const error = (code: string, message = "words") => ({ error: { code, message } });
@@ -33,5 +33,26 @@ describe("attemptFrom", () => {
   it.each([429, 500, 502, 503, 504, 0])("tries again later for %i, and also for an answer that is not ours", (status) => {
     expect(attemptFrom(status, undefined)).toEqual({ kind: "failed" });
     expect(attemptFrom(status, error("rate_limited"))).toEqual({ kind: "failed" });
+  });
+});
+
+describe("versionFrom", () => {
+  it("is made, with the commit", () => {
+    expect(versionFrom(201, { commit: "abc123" })).toEqual({ ok: true, commit: "abc123" });
+  });
+
+  it("is not made for a success that does not name a commit", () => {
+    expect(versionFrom(201, {})).toMatchObject({ ok: false });
+    expect(versionFrom(200, { commit: "abc123" })).toMatchObject({ ok: false });
+  });
+
+  it("says what the server said, which is in words a person can act on", () => {
+    expect(versionFrom(409, { error: { message: "This note changed in the repository." } })).toEqual({ ok: false, message: "This note changed in the repository." });
+  });
+
+  it("says nothing was saved and the changes are kept, when signed out or when the server said nothing", () => {
+    for (const result of [versionFrom(401, undefined), versionFrom(502, undefined), versionFrom(500, {})]) {
+      expect(result).toMatchObject({ ok: false, message: expect.stringMatching(/your changes are kept/i) });
+    }
   });
 });
