@@ -5,6 +5,7 @@
 !crates/fjord-core
 !crates/fjord-wasm
 !clients/web
+!packages/fjord-editor
 
 crates/*/target
 crates/fjord-wasm/pkg
@@ -15,6 +16,10 @@ clients/web/test-results
 clients/web/playwright-report
 clients/web/e2e
 clients/web/*.tsbuildinfo
+packages/fjord-editor/node_modules
+packages/fjord-editor/dist
+packages/fjord-editor/build
+packages/fjord-editor/*.tsbuildinfo
 # A developer's own settings and databases, which must never reach an image (DESIGN.md §14, §15).
 **/.env
 **/.env.*

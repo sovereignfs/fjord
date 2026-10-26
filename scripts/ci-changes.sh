@@ -13,9 +13,9 @@
 #   rust     the Rust build, tests and checks can be affected
 #   scripts  the shell scripts can be affected (shellcheck)
 #   web      Fjord Web (clients/web) can be affected: its own files, and what it builds into itself
-#            (the format as WebAssembly, and the fixtures its tests read)
+#            (the format as WebAssembly, the fixtures its tests read, and the editors' package)
 #   editor   the editors' package (packages/fjord-editor) can be affected. It depends on nothing of the repository's,
-#            so only its own files start its jobs
+#            so only its own files start its jobs (and Fjord Web's, which imports it, as above)
 #
 # A change to documentation alone sets none, so the expensive jobs do not
 # run for it. The rules err towards running: a path under crates/ is Rust unless
@@ -76,9 +76,11 @@ while IFS= read -r path; do
 
   # Fjord Web runs the format as WebAssembly built from `fjord-core` (`crates/fjord-wasm`) and its tests read the
   # conformance fixtures, so a change to any of them is a change to what the web client runs, whatever else it
-  # is. (The CLI alone, under crates/fjord-cli, is not.)
+  # is. (The CLI alone, under crates/fjord-cli, is not.) It also imports the editors' package, built, so a change to
+  # that is one too.
   case "$path" in
     crates/fjord-core/* | crates/fjord-wasm/* | tests/fixtures/* | Cargo.toml | Cargo.lock | .github/actions/build-wasm/*) web=true ;;
+    packages/fjord-editor/* | .github/actions/build-editor/*) web=true ;;
   esac
 done
 

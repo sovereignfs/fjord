@@ -3,8 +3,8 @@
 #
 #   docker build -f clients/web/Dockerfile -t fjord-web .
 #
-# Three stages: the format module (Rust, to WebAssembly), the app (Node, a self-contained Next.js server), and a
-# small runtime with neither toolchain in it.
+# Four stages: the format module (Rust, to WebAssembly), the editors' package (TypeScript, built), the app (Node, a
+# self-contained Next.js server) and a small runtime with none of the toolchains in it.
 
 ARG NODE_VERSION=24
 ARG RUST_VERSION=1.91
@@ -28,18 +28,35 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/build/crates/fjord-wasm/target \
     ./build.sh
 
+# --- The editors' package (packages/fjord-editor) -----------------------------------------------------------------
+FROM node:${NODE_VERSION}-bookworm-slim AS editor
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
+WORKDIR /build/packages/fjord-editor
+
+COPY packages/fjord-editor/package.json packages/fjord-editor/pnpm-lock.yaml packages/fjord-editor/pnpm-workspace.yaml ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
+COPY packages/fjord-editor/ ./
+RUN pnpm build
+
 # --- The app ---------------------------------------------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable
-WORKDIR /app
+
+# The app links the editors' package from `../../packages/fjord-editor` (package.json), so the two sit where they do in the
+# repository. The package is built, and keeps its node_modules: the bundler resolves the editors' own imports (CodeMirror)
+# from there, as it does in a checkout.
+COPY --from=editor /build/packages/fjord-editor /build/packages/fjord-editor
+WORKDIR /build/clients/web
 
 # Dependencies first, from the lockfile alone, so they are not fetched again for a change to the source.
 COPY clients/web/package.json clients/web/pnpm-lock.yaml clients/web/pnpm-workspace.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 
 COPY clients/web/ ./
-# `FJORD_STANDALONE` makes `next build` write a server that carries what it needs (next.config.ts).
+# `FJORD_STANDALONE` makes `next build` write a server that carries what it needs (next.config.ts). Its bundler root is the
+# repository's, so the server comes out under `clients/web/` in the output.
 RUN FJORD_STANDALONE=1 pnpm build
 
 # --- What runs -------------------------------------------------------------------------------------------------
@@ -57,19 +74,22 @@ ENV NODE_ENV=production \
     FJORD_WASM_DIR=/app/wasm
 
 WORKDIR /app
-COPY --from=app /app/.next/standalone ./
-COPY --from=app /app/.next/static ./.next/static
+# The standalone server is `clients/web/server.js` with what it needs beside it; it changes into its own directory.
+COPY --from=app /build/clients/web/.next/standalone ./
+COPY --from=app /build/clients/web/.next/static ./clients/web/.next/static
 # Read at start-up from the working directory (src/db/migrate.ts), so they are files, not part of the bundle.
-COPY --from=app /app/migrations ./migrations
+COPY --from=app /build/clients/web/migrations ./clients/web/migrations
 COPY --from=wasm /build/crates/fjord-wasm/pkg/node ./wasm
 # The module is CommonJS and this app's package.json says `"type": "module"`, which would make Node read it as ESM.
 RUN echo '{"type":"commonjs"}' > ./wasm/package.json
 
 # Licences travel with the image: ours, and the design system's NOTICE, which carries Lucide's ISC licence
 # and asks that it accompany copies (a standalone build prunes it).
-COPY --from=app /app/LICENSE /usr/share/licenses/fjord-web/LICENSE
-COPY --from=app /app/node_modules/@sovereignfs/ui/LICENSE /usr/share/licenses/sovereignfs-ui/LICENSE
-COPY --from=app /app/node_modules/@sovereignfs/ui/NOTICE /usr/share/licenses/sovereignfs-ui/NOTICE
+COPY --from=app /build/clients/web/LICENSE /usr/share/licenses/fjord-web/LICENSE
+COPY --from=app /build/clients/web/node_modules/@sovereignfs/ui/LICENSE /usr/share/licenses/sovereignfs-ui/LICENSE
+COPY --from=app /build/clients/web/node_modules/@sovereignfs/ui/NOTICE /usr/share/licenses/sovereignfs-ui/NOTICE
+# The editors' package is MPL-2.0 and is part of the server's bundle, so its licence travels too.
+COPY --from=editor /build/packages/fjord-editor/LICENSE /usr/share/licenses/fjord-editor/LICENSE
 
 # The database file, when the instance keeps one (SQLITE_URL=file:/data/fjord.db), and nothing else, is written.
 RUN mkdir /data && chown node:node /data
@@ -80,4 +100,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 
-CMD ["node", "server.js"]
+CMD ["node", "clients/web/server.js"]

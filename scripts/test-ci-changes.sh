@@ -34,7 +34,8 @@ RUST="rust=true scripts=false web=false editor=false"
 RUST_WEB="rust=true scripts=false web=true editor=false"
 SCRIPTS="rust=false scripts=true web=false editor=false"
 WEB="rust=false scripts=false web=true editor=false"
-EDITOR="rust=false scripts=false web=false editor=true"
+EDITOR="rust=false scripts=false web=true editor=true"
+EDITOR_ONLY="rust=false scripts=false web=false editor=true"
 BOTH="rust=true scripts=true web=false editor=false"
 ALL="rust=true scripts=true web=true editor=true"
 
@@ -85,16 +86,17 @@ expect "a document and a source file together" "$WEB" clients/web/README.md clie
 expect "a Rust change leaves the web jobs alone, when it is the CLI's" "$RUST" crates/fjord-cli/src/cmd/sync.rs
 expect "a web change leaves the Rust jobs alone" "$WEB" clients/web/app/layout.tsx
 
-printf '\nchanges that need only the editor package jobs\n'
+printf '\nchanges that need the editor package jobs, and the web client'"'"'s, which imports it\n'
 expect "a source file" "$EDITOR" packages/fjord-editor/src/DocumentEditor.tsx
 expect "a story" "$EDITOR" packages/fjord-editor/stories/NoteEditor.stories.tsx
 expect "the lockfile" "$EDITOR" packages/fjord-editor/pnpm-lock.yaml
 expect "package.json" "$EDITOR" packages/fjord-editor/package.json
 expect "the stylesheet" "$EDITOR" packages/fjord-editor/src/styles.css
-expect "its own workflow" "$EDITOR" .github/workflows/editor-ci.yml
+expect "its own workflow, which only the package uses" "$EDITOR_ONLY" .github/workflows/editor-ci.yml
+expect "the action that builds it for the web jobs, which only they use" "$WEB" .github/actions/build-editor/action.yml
 expect "a document and a source file together" "$EDITOR" packages/fjord-editor/README.md packages/fjord-editor/src/types.ts
-# The package depends on nothing else here, and nothing else here depends on it (yet).
-expect "an editor change leaves the Rust and web jobs alone" "$EDITOR" packages/fjord-editor/src/anchor.ts
+# The package depends on nothing else here, and only Fjord Web depends on it.
+expect "an editor change leaves the Rust jobs alone, and starts the web client's, which imports it" "$EDITOR" packages/fjord-editor/src/anchor.ts
 expect "a web change leaves the editors' jobs alone" "$WEB" clients/web/app/layout.tsx
 expect "a Rust change leaves the editors' jobs alone" "$RUST" crates/fjord-cli/src/cmd/sync.rs
 
