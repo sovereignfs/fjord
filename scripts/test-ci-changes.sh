@@ -29,13 +29,14 @@ expect() {
   fi
 }
 
-NONE="rust=false scripts=false web=false"
-RUST="rust=true scripts=false web=false"
-RUST_WEB="rust=true scripts=false web=true"
-SCRIPTS="rust=false scripts=true web=false"
-WEB="rust=false scripts=false web=true"
-BOTH="rust=true scripts=true web=false"
-ALL="rust=true scripts=true web=true"
+NONE="rust=false scripts=false web=false editor=false"
+RUST="rust=true scripts=false web=false editor=false"
+RUST_WEB="rust=true scripts=false web=true editor=false"
+SCRIPTS="rust=false scripts=true web=false editor=false"
+WEB="rust=false scripts=false web=true editor=false"
+EDITOR="rust=false scripts=false web=false editor=true"
+BOTH="rust=true scripts=true web=false editor=false"
+ALL="rust=true scripts=true web=true editor=true"
 
 printf '\nchanges that need nothing\n'
 expect "no changes at all" "$NONE"
@@ -50,6 +51,7 @@ expect "dist's config, which its own plan job checks" "$NONE" dist-workspace.tom
 expect "several documents together" "$NONE" ROADMAP.md crates/fjord-cli/CHANGELOG.md spec/SPEC.md
 expect "Fjord Web's documents" "$NONE" clients/web/README.md clients/web/CHANGELOG.md clients/web/CLAUDE.md clients/web/DESIGN.md clients/web/ROADMAP.md clients/web/LICENSE
 expect "the other clients' plans, which have no code yet" "$NONE" clients/mobile/DESIGN.md clients/mobile/ROADMAP.md clients/mcp/DESIGN.md clients/mcp/ROADMAP.md
+expect "the editors' documents" "$NONE" packages/fjord-editor/README.md packages/fjord-editor/CHANGELOG.md packages/fjord-editor/CLAUDE.md packages/fjord-editor/LICENSE
 
 printf '\nchanges that need the Rust jobs\n'
 expect "a source file" "$RUST" crates/fjord-cli/src/cmd/sync.rs
@@ -83,6 +85,19 @@ expect "a document and a source file together" "$WEB" clients/web/README.md clie
 expect "a Rust change leaves the web jobs alone, when it is the CLI's" "$RUST" crates/fjord-cli/src/cmd/sync.rs
 expect "a web change leaves the Rust jobs alone" "$WEB" clients/web/app/layout.tsx
 
+printf '\nchanges that need only the editor package jobs\n'
+expect "a source file" "$EDITOR" packages/fjord-editor/src/DocumentEditor.tsx
+expect "a story" "$EDITOR" packages/fjord-editor/stories/NoteEditor.stories.tsx
+expect "the lockfile" "$EDITOR" packages/fjord-editor/pnpm-lock.yaml
+expect "package.json" "$EDITOR" packages/fjord-editor/package.json
+expect "the stylesheet" "$EDITOR" packages/fjord-editor/src/styles.css
+expect "its own workflow" "$EDITOR" .github/workflows/editor-ci.yml
+expect "a document and a source file together" "$EDITOR" packages/fjord-editor/README.md packages/fjord-editor/src/types.ts
+# The package depends on nothing else here, and nothing else here depends on it (yet).
+expect "an editor change leaves the Rust and web jobs alone" "$EDITOR" packages/fjord-editor/src/anchor.ts
+expect "a web change leaves the editors' jobs alone" "$WEB" clients/web/app/layout.tsx
+expect "a Rust change leaves the editors' jobs alone" "$RUST" crates/fjord-cli/src/cmd/sync.rs
+
 printf '\nchanges that need only the script checks\n'
 expect "a release script" "$SCRIPTS" scripts/release.sh
 expect "the release library" "$SCRIPTS" scripts/lib/release.sh
@@ -95,7 +110,8 @@ expect "changing its tests runs everything" "$ALL" scripts/test-ci-changes.sh
 
 printf '\nboth kinds at once\n'
 expect "a source file and a script" "$BOTH" crates/fjord-cli/src/main.rs scripts/release.sh
-expect "a page and a source file" "$ALL" clients/web/app/page.tsx crates/fjord-core/src/lib.rs scripts/release.sh
+expect "a page and a source file" "$ALL" clients/web/app/page.tsx crates/fjord-core/src/lib.rs scripts/release.sh packages/fjord-editor/src/types.ts
+expect "an editor file and a web file" "rust=false scripts=false web=true editor=true" packages/fjord-editor/src/types.ts clients/web/app/page.tsx
 
 printf '\n%s passed, %s failed\n' "$PASSED" "$FAILED"
 [ "$FAILED" -eq 0 ]

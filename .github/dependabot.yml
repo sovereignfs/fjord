@@ -46,3 +46,14 @@ updates:
         update-types: ["minor", "patch"]
         exclude-patterns: ["@sovereignfs/ui"]
     open-pull-requests-limit: 5
+
+  # The editors' package is its own pnpm project with its own lockfile (packages/fjord-editor), and is built and tested
+  # alone. Grouped as for Fjord Web; a major bump arrives alone.
+  - package-ecosystem: npm
+    directory: /packages/fjord-editor
+    schedule:
+      interval: weekly
+    groups:
+      minor-and-patch:
+        update-types: ["minor", "patch"]
+    open-pull-requests-limit: 5

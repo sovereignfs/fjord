@@ -1,0 +1,110 @@
+# Continuous integration for the editors' package (packages/fjord-editor).
+#
+# Each component has a workflow of its own (CLAUDE.md § Adding a component): this one runs only for a change that can
+# affect the editors, and ci.yml and web-ci.yml do not run for it. Like theirs it always starts, and a cheap `changes`
+# job first works out what the change touches (scripts/ci-changes.sh); the check needs it, so a change to the
+# package's documents alone runs nothing more. The workflow always reports, so a skipped job counts as passed and a
+# branch protection rule can require it.
+#
+# The package depends on React and on nothing else of this repository's: no client's design system, and no part of the
+# Rust or the web code. So it is built and tested alone, and nothing else is built for it.
+name: Editor CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    # `ready_for_review` is how a draft starts running CI, and `labeled` and `unlabeled` are how `skip-ci` takes
+    # effect straight away.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+  # So that a dependency's new release cannot quietly break the build unnoticed between commits.
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Works out what this change touches. It carries the draft / skip-ci guard, so on a draft it is skipped and
+  # everything that needs it is skipped with it.
+  changes:
+    name: what changed
+    runs-on: ubuntu-24.04
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
+    outputs:
+      editor: ${{ steps.classify.outputs.editor }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: classify
+        name: Classify the changed paths
+        run: |
+          set -euo pipefail
+          base=""
+          case "${{ github.event_name }}" in
+            pull_request) base="${{ github.event.pull_request.base.sha }}" ;;
+            push) base="${{ github.event.before }}" ;;
+          esac
+          # No base to compare with (a schedule, a new branch, a force-push that lost the old tip): run everything
+          # rather than guess.
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] ||
+             ! git cat-file -e "$base^{commit}" 2>/dev/null ||
+             [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "No base to compare against, so running everything."
+            printf 'editor=true\n' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "Changed since ${base:0:7}:"
+          git diff --name-only "$base" HEAD | sed 's/^/  /'
+          git diff --name-only "$base" HEAD | scripts/ci-changes.sh | tee -a "$GITHUB_OUTPUT"
+
+  check:
+    name: build, test and stories
+    needs: changes
+    if: needs.changes.outputs.editor == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: packages/fjord-editor
+    steps:
+      - uses: actions/checkout@v7
+
+      # The pnpm version is the one in package.json's `packageManager`, so the declaration and the thing that runs
+      # cannot drift apart.
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: packages/fjord-editor/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: packages/fjord-editor/pnpm-lock.yaml
+
+      # `--frozen-lockfile` fails if package.json and the lockfile disagree, which is the point: the lockfile is what
+      # was reviewed.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+
+      # The contract every core of an editor must pass, the package's promises about itself (MPL-2.0, no client's
+      # design system, styled only through its own custom properties, one entry point), and every story rendering.
+      - run: pnpm test
+
+      # The package as a client takes it: built, loadable in plain Node, exporting what the interface says, shipping
+      # its stylesheet and its types.
+      - run: pnpm build
+      - run: pnpm check:build
+
+      # The stories build, so the examples cannot break while the interface moves.
+      - run: pnpm stories:build
