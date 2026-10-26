@@ -14,6 +14,14 @@ tagging it.
 
 ### Added
 
+- **A three-way text merge in `fjord-core`, and conflict copies named by it** (ROADMAP MP1, `clients/mobile`):
+  `fjord_core::merge::merge3` merges two edits of a text by lines and says what it could not: it agrees with
+  `git merge-file` on which merges are clean and on their text (a test runs the real `git` over generated and
+  hand-written merges), so a client with no `git`, the web client or a phone, produces the result `fjord sync` does.
+  `conflict_copy_path` and `conflict_copy_text` are how the side that could not be merged is kept (§9.1), and
+  `add_add` settles two different files added at one path: both are kept, the pulled one in place and the local one
+  moved to the next free number. Pure, so in the WebAssembly subset. `fjord sync` still merges with
+  `git merge-file`; it now names its conflict copies through `fjord-core`.
 - **A note's name from its text** (ROADMAP MP2, `clients/mobile`): `fjord_core::naming::quick_note_name` gives a new
   note the file name its first line asks for, so a note captured on a phone and one typed in a browser get the same
   name. Markdown markers (`#`, `>`, `-`, `1.`, `[ ]`) are stripped; what spec §5 forbids becomes a space; the name is
