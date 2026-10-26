@@ -555,7 +555,7 @@ async function repositoryWith(page: import("@playwright/test").Page, files: Reco
 const VAULT_MANIFEST = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "Notes", createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" });
 const noteEditor = (page: import("@playwright/test").Page, name: string) => page.getByRole("textbox", { name });
 
-test("a note opens in the note editor, which can only be read for now, and reads the file once", async ({ page }) => {
+test("a note opens in the note editor, and reads the file once", async ({ page }) => {
   const id = await connected(page);
   await page.goto(`/repo/${id}/Public`);
   hubs.notes.requests.length = 0;
@@ -564,19 +564,143 @@ test("a note opens in the note editor, which can only be read for now, and reads
   const editor = noteEditor(page, "idea.md");
   await expect(editor).toBeVisible();
   await expect(editor).toContainText("# Idea");
-  await expect(editor).toHaveAttribute("aria-readonly", "true");
-  await expect(editor).toHaveAttribute("contenteditable", "false");
-  await expect(page.getByText("You are reading this note")).toBeVisible();
+  await expect(editor).toHaveAttribute("contenteditable", "true");
+  await expect(page.getByTestId("draft-status")).toHaveText("No changes yet. What you type is kept as a draft.");
 
-  // Typing does nothing to a note that is only being read.
-  await editor.click();
-  await page.keyboard.type("nope");
-  await expect(editor).not.toContainText("nope");
-
-  // The file was read, once, by its blob; nothing else was.
+  // The file was read, once, by its blob; nothing else was (finding a draft asks our own database, not the host).
   const blobReads = hubs.notes.requests.filter((request) => request.path.includes("/git/blobs/"));
   expect(blobReads).toHaveLength(1);
   expect(hubs.notes.requests.filter((request) => request.path.includes("/git/trees/"))).toEqual([]);
+});
+
+// --- Working copies (ROADMAP 1b.8) ----------------------------------------------------------------------------
+
+const status = (page: import("@playwright/test").Page) => page.getByTestId("draft-status");
+
+test("what is typed in a note is kept as a draft, found again on opening it, and never committed", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "# Title\n\nbody\n" });
+    const head = await hubs.more.branchHead();
+
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    const editor = noteEditor(page, "n.md");
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type("more words, kept");
+    await expect(status(page)).toHaveText(/kept as a draft/);
+
+    // Opened again, it is the draft that is shown, and it is said to be one.
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await expect(noteEditor(page, "n.md")).toContainText("more words, kept");
+    await expect(page.getByText("Your changes were kept")).toBeVisible();
+
+    // The repository was not touched: typing is not a commit.
+    expect(await hubs.more.branchHead()).toBe(head);
+    await hubs.more.fsck();
+
+    // Discarding goes back to the note as the repository has it.
+    await page.getByRole("button", { name: "Discard changes" }).click();
+    await page.getByRole("button", { name: "Yes, discard" }).click();
+    await expect(noteEditor(page, "n.md")).not.toContainText("more words, kept");
+    await expect(noteEditor(page, "n.md")).toContainText("# Title");
+    await expect(page.getByText("Your changes were kept")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Discard changes" })).toHaveCount(0);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("typing and deleting it again leaves no draft", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "x\n" });
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await noteEditor(page, "n.md").click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type("abc");
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Backspace");
+    await page.keyboard.press("Backspace");
+    await page.waitForTimeout(2500);
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await expect(page.getByText("Your changes were kept")).toHaveCount(0);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a draft is kept when the note changes in the repository, and the page says so", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await noteEditor(page, "n.md").click();
+    await page.keyboard.type("MINE ");
+    await expect(status(page)).toHaveText(/kept as a draft/);
+
+    await hubs.more.commitFiles({ "Notes/n.md": "changed elsewhere\n" });
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await expect(page.getByText("This note has changed since you started editing it")).toBeVisible();
+    await expect(noteEditor(page, "n.md")).toContainText("MINE");
+
+    // Still editable, and still of the version it was started from.
+    await noteEditor(page, "n.md").click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type("MORE");
+    await expect(status(page)).toHaveText(/kept as a draft/);
+
+    await page.getByRole("button", { name: "Discard changes" }).click();
+    await page.getByRole("button", { name: "Yes, discard" }).click();
+    await expect(noteEditor(page, "n.md")).toContainText("changed elsewhere");
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("drafts are kept only for the caller's own repository, from this site, for notes", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "x\n", "Notes/d.fj.md": "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8m\n---\nbody\n", "Notes/pic.png": "png" });
+    const url = `/api/connections/${id}/working-copy`;
+    const blob = "a".repeat(40);
+    const put = (data: unknown, origin: string = BASE) => page.request.put(url, { headers: { origin }, data });
+
+    expect((await put({ path: "Notes/n.md", baseBlob: blob, content: "ok" }, "https://evil.example")).status()).toBe(403);
+    expect((await put({ path: "../escape.md", baseBlob: blob, content: "ok" })).status()).toBe(400);
+    expect((await put({ path: "Notes/n.md", baseBlob: "main", content: "ok" })).status()).toBe(400);
+    // A file that is not a note in a plaintext vault: a document, a picture, a file that is not there.
+    for (const path of ["Notes/d.fj.md", "Notes/pic.png", "Notes/missing.md", "Notes"]) {
+      const response = await put({ path, baseBlob: blob, content: "ok" });
+      expect([path, response.status()]).toEqual([path, 422]);
+      expect((await response.json()).error.code).toBe("not_editable");
+    }
+    const kept = await put({ path: "Notes/n.md", baseBlob: blob, content: "ok" });
+    expect(kept.status()).toBe(200);
+    expect(Object.keys((await kept.json()).workingCopy).sort()).toEqual(["baseBlob", "createdAt", "lastEdit"]);
+    // Another version's text is not mixed into the draft.
+    const mismatch = await put({ path: "Notes/n.md", baseBlob: "b".repeat(40), content: "other" });
+    expect(mismatch.status()).toBe(409);
+    expect((await mismatch.json()).error.baseBlob).toBe(blob);
+    // A text that cannot be kept in the database is refused and does not replace the draft.
+    expect((await put({ path: "Notes/n.md", baseBlob: blob, content: "a\u0000b" })).status()).toBe(422);
+
+    // Nobody else can touch it: signed out, it is 401; another account's, 404.
+    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.9" } });
+    const other = await stranger.newPage();
+    expect((await other.request.put(url, { headers: { origin: BASE }, data: { path: "Notes/n.md", baseBlob: blob, content: "mine now" } })).status()).toBe(401);
+    await signUp(other);
+    expect((await other.request.put(url, { headers: { origin: BASE }, data: { path: "Notes/n.md", baseBlob: blob, content: "mine now" } })).status()).toBe(404);
+    expect((await other.request.delete(`${url}?path=Notes/n.md`, { headers: { origin: BASE } })).status()).toBe(404);
+    await stranger.close();
+
+    // ...so the draft is still the owner's (its base was made up above, so the page says the note is not the one it was started from).
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await expect(noteEditor(page, "n.md")).toHaveText("ok");
+    await expect(page.getByText("This note has changed since you started editing it")).toBeVisible();
+
+    // Disconnecting takes the drafts with it.
+    expect((await page.request.delete(`/api/connections/${id}`, { headers: { origin: BASE } })).status()).toBe(204);
+    expect((await page.request.put(url, { headers: { origin: BASE }, data: { path: "Notes/n.md", baseBlob: blob, content: "x" } })).status()).toBe(404);
+  } finally {
+    await restoreMore();
+  }
 });
 
 test("a document is not opened in the note editor, and an encrypted file stays locked", async ({ page }) => {

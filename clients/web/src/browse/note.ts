@@ -10,7 +10,8 @@ import type { RepositoryRead } from "./repository";
 export const MAX_NOTE_BYTES = 1024 * 1024;
 
 export type NoteText =
-  | { ok: true; text: string }
+  /** `blob` is the file's git object id: the version this text is of, which a draft of it is based on (ROADMAP 1b.8). */
+  | { ok: true; text: string; blob: string }
   | { ok: false; reason: "too_large" | "not_text" | "gone"; message: string };
 
 const MESSAGES = {
@@ -46,7 +47,7 @@ export async function readNoteText(provider: Provider, ref: RepositoryRef, read:
     throw error;
   }
   try {
-    return { ok: true, text: new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes) };
+    return { ok: true, text: new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes), blob };
   } catch {
     return refused("not_text");
   }

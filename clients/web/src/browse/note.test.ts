@@ -29,14 +29,14 @@ describe("readNoteText", () => {
     for (const text of ["# Title\n\nbody\n", "a\r\nb\r\nc", "﻿with a BOM\r\n", "mixed\r\nand\nand\rlone", "nul\u0000 ls  ps ", "café é", "", "\n\n\n"]) {
       const { host, commit } = repository({ "Public/n.md": text });
       const read = await readOf(host, commit, true);
-      expect(await readNoteText(host, REF, read, "Public/n.md"), JSON.stringify(text)).toEqual({ ok: true, text });
+      expect(await readNoteText(host, REF, read, "Public/n.md"), JSON.stringify(text)).toEqual({ ok: true, text, blob: read.blobs.get("Public/n.md") });
     }
   });
 
   it("finds a file the listing did not name, in its directory", async () => {
     const { host, commit } = repository({ "Public/deep/er/n.md": "found it\n" });
     const read = await readOf(host, commit, false);
-    expect(await readNoteText(host, REF, read, "Public/deep/er/n.md")).toEqual({ ok: true, text: "found it\n" });
+    expect(await readNoteText(host, REF, read, "Public/deep/er/n.md")).toEqual({ ok: true, text: "found it\n", blob: expect.stringMatching(/^[0-9a-f]{40}$/) });
   });
 
   it("does not show as text what is not: bytes that are not UTF-8", async () => {
@@ -68,7 +68,8 @@ describe("readNoteText", () => {
         return typeof value === "function" ? value.bind(target) : value;
       },
     });
-    expect(await readNoteText(counting, REF, await readOf(host, commit, true), "Public/n.md")).toEqual({ ok: true, text: "x" });
+    const read = await readOf(host, commit, true);
+    expect(await readNoteText(counting, REF, read, "Public/n.md")).toEqual({ ok: true, text: "x", blob: read.blobs.get("Public/n.md") });
     expect(listings).toBe(0);
   });
 

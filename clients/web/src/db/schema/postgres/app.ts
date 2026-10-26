@@ -71,3 +71,29 @@ export const treeCache = app.table(
   },
   (table) => [uniqueIndex("tree_cache_connection_commit_idx").on(table.connectionId, table.commitId)],
 );
+
+/**
+ * A draft of a file someone is editing (DESIGN.md §11, §14): what they have typed so far, kept on the server as they
+ * type, so that closing the tab and opening it again, or opening it on another device, finds it. **Nothing here is
+ * in the repository**: it is a version only when someone saves one (ROADMAP 1b.9). `base_blob` is the file's blob
+ * when the draft was started, the version it is a draft *of*, so a commit can be made only on top of it and a file
+ * that has moved on is noticed (never overwritten, DESIGN.md §11). `content` is the whole text (a note, so at most
+ * 1 MiB, with no NUL and well-formed Unicode, which PostgreSQL's `text` cannot hold). `editors` is the JSON list of
+ * who edited since the last version, tagged so that people without an account can join it (`src/working/`). One
+ * draft per file, and a disconnected repository's go with it.
+ */
+export const workingCopy = app.table(
+  "working_copy",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    /** Repository-relative, with forward slashes. */
+    path: text("path").notNull(),
+    baseBlob: text("base_blob").notNull(),
+    content: text("content").notNull(),
+    editors: text("editors").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+    lastEdit: epochMs("last_edit").notNull(),
+  },
+  (table) => [uniqueIndex("working_copy_connection_path_idx").on(table.connectionId, table.path)],
+);

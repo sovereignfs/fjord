@@ -51,7 +51,7 @@ describe(`migrations (${leg})`, () => {
 
     await runMigrations(database);
 
-    expect(await tableNames(database)).toEqual(["account_default", "connection", "credential", "event", "tree_cache"]);
+    expect(await tableNames(database)).toEqual(["account_default", "connection", "credential", "event", "tree_cache", "working_copy"]);
     expect(await appliedCount(database)).toBe(journalLength(database));
   });
 
@@ -84,7 +84,7 @@ describe(`migrations (${leg})`, () => {
     await Promise.all([runMigrations(database), runMigrations(second)]);
 
     expect(await appliedCount(database)).toBe(journalLength(database));
-    expect(await tableNames(database)).toEqual(["account_default", "connection", "credential", "event", "tree_cache"]);
+    expect(await tableNames(database)).toEqual(["account_default", "connection", "credential", "event", "tree_cache", "working_copy"]);
   });
 
   it("fail, and say so, when the migrations are missing", async () => {
@@ -100,7 +100,7 @@ describe(`migrations (${leg})`, () => {
     open.push(database);
     await expect(runMigrations(database, "/nonexistent/migrations")).rejects.toThrow();
     await runMigrations(database);
-    expect(await tableNames(database)).toEqual(["account_default", "connection", "credential", "event", "tree_cache"]);
+    expect(await tableNames(database)).toEqual(["account_default", "connection", "credential", "event", "tree_cache", "working_copy"]);
   });
 });
 

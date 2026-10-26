@@ -13,6 +13,7 @@ import { GitHubProvider } from "../providers/github/provider";
 import { MemoryProvider } from "../providers/memory";
 import { FakeGitHub } from "../providers/testing/fake-github";
 import { TreeCache } from "../browse/tree-cache";
+import { WorkingCopyService } from "../working/service";
 import { type ConnectionErrorCode, isConnectionError } from "./errors";
 import { ConnectionService } from "./service";
 
@@ -62,6 +63,7 @@ beforeEach(async () => {
   await dbRun(database, sql`DELETE FROM ${credentialTable()}`);
   await dbRun(database, sql`DELETE FROM ${defaultTable()}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.treeCache : sqliteSchema.treeCache}`);
+  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy}`);
   await fake.commitFiles({ "fjord.json": "{}" }, { replace: true });
 });
 
@@ -258,6 +260,24 @@ describe(`using and removing a connection (${leg})`, () => {
     await s.remove(ALICE, one.id);
     expect(await cache.get(one.id, "c1")).toBeUndefined();
     expect(await cache.get(two.id, "c1")).toBeDefined();
+  });
+
+  it("forgets the repository's drafts when it is disconnected, and no other's", async () => {
+    const memory = new MemoryProvider();
+    for (const name of ["one", "two"]) {
+      memory.createRepository({ owner: "acme", name });
+      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    }
+    const s = new ConnectionService({ database, credentials, github: () => memory });
+    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const drafts = new WorkingCopyService(database);
+    const editor = { type: "account" as const, id: ALICE };
+    for (const { id } of [one, two]) await drafts.save(id, "Notes/a.md", { baseBlob: "b".repeat(40), content: "unsaved" }, editor);
+
+    await s.remove(ALICE, one.id);
+    expect(await drafts.get(one.id, "Notes/a.md")).toBeUndefined();
+    expect(await drafts.get(two.id, "Notes/a.md")).toBeDefined();
   });
 
   it("shows an account only its own connections, and answers for another's as if there were none", async () => {

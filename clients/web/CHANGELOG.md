@@ -13,9 +13,18 @@ section.
 
 ### Added
 
+- **Working copies** (ROADMAP 1b.8): a note can now be edited, and what is typed is kept as a **draft** on the server, a
+  second after the last change (at most five seconds behind, however long the typing). Nothing typed is committed: the draft
+  waits for a version to be saved (the next task). Closing the page and opening the note again finds the draft and says so,
+  with **Discard changes** to go back to the note as the repository has it. A draft records the version of the note it was
+  started from; if the note changes in the repository meanwhile the page says so and keeps the draft. A failed save is
+  retried and a text that could not be kept warns before the page is left. `PUT` and `DELETE`
+  `/api/connections/<id>/working-copy` keep and throw away a draft, under the rules of the other routes (signed in, this
+  site's `Origin`, an account's own repositories only); a text with a NUL or an unpaired surrogate is refused, as is one over
+  1 MB. A new table, `working_copy`, in both dialects (migration `0006`). Disconnecting a repository deletes its drafts.
 - **Notes open in the note editor** (ROADMAP 1b.2): a note's file page (`/repo/<connection>/<vault>/<note>.md`) shows
   its text, exactly as stored, in the editors' package (`packages/fjord-editor`): CodeMirror with light Markdown styling.
-  It is read-only for now, since saving is working copies and versions. A file that is not UTF-8, or is larger than 1 MB,
+  A file that is not UTF-8, or is larger than 1 MB,
   says so. The package is linked and must be built first (`pnpm build:editor`; CI and the image do it), the bundler's root is
   the repository's, and the image's server now starts as `clients/web/server.js`. The editor is dressed in the design
   system's tokens, in light and dark.
