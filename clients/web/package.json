@@ -32,8 +32,8 @@
     "better-auth": "~1.7.12",
     "drizzle-orm": "^0.45.4",
     "fjord-editor": "link:../../packages/fjord-editor",
-    "next": "^16.3.6",
-    "nodemailer": "10.0.16",
+    "next": "^16.4.3",
+    "nodemailer": "10.2.1",
     "pg": "^8.23.1",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.8",
@@ -46,7 +46,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "drizzle-kit": "^0.31.11",
-    "jose": "6.2.12",
+    "jose": "6.2.13",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"
   }
