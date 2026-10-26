@@ -43,6 +43,13 @@
       "when": 1793026116005,
       "tag": "0005_default_vault",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793055019090,
+      "tag": "0006_working_copy",
+      "breakpoints": true
     }
   ]
 }

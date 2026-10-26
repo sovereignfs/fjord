@@ -691,9 +691,9 @@ interface of the sketch above, made exact, with a plain text area behind both ed
   newline, blank lines first and last, and a NUL and line and paragraph separators in it: open each, edit one word, and the
   result is the original with that word replaced. Each rule of the editor's state was seen to fail a test with it off.
 - **What the page does.** It reads the note by its blob (once; the tree and manifests are already cached), strictly as
-  UTF-8 with any byte order mark kept, to at most 1 MB, and shows it in the editor **read-only**: saving is working copies
-  and versions (1b.8, 1b.9), and an editor that accepts text it cannot keep would be a trap. A file that is not UTF-8, or is
-  larger than 1 MB, says so and is not shown as a note. A document (`*.fj.md`) waits for its own editor (1b.3); an
+  UTF-8 with any byte order mark kept, to at most 1 MB, and shows it in the editor. What is typed is kept as a draft
+  (§11, ROADMAP 1b.8); making it a version in the repository is 1b.9. A file that is not UTF-8, or is larger than 1 MB, says
+  so and is not shown as a note. A document (`*.fj.md`) waits for its own editor (1b.3); an
   encrypted file stays locked.
 - **Dressed in the design system's tokens.** The package knows only its own `--fe-*` custom properties; `app/globals.css`
   maps the `--sv-*` tokens onto them, so light, dark and any theme follow the page (checked in a browser in both).
@@ -731,6 +731,36 @@ header written by `fjord-core`). Renaming, moving and deleting are in §8.
   a web editor.
 - **Phase 3** carries real-time collaboration on this same working copy (a shared
   Yjs document per open file), which is why it exists now rather than later.
+
+### Working copies, as built (ROADMAP 1b.8)
+
+What is built is the first bullet above, the draft; versions are 1b.9 and the upstream-change choice is 1b.10.
+
+- **One draft per file**, in `working_copy`, unique on connection and path. It holds the text exactly as typed (the editor
+  is byte-faithful), the **base** (the git object id of the file the draft was started from, which a save never changes),
+  who has edited it since (`[{ "type": "account", "id": … }]`, tagged so that a person without an account, 1c.6, needs no
+  migration), when it was started and when it was last edited. Typing never commits anything.
+- **When it is sent.** The page's `DraftSaver` (`src/working/saver.ts`) sends the text a second after the last change, and
+  at the latest five seconds after the first change not yet sent, so typing that never pauses is still kept. Never more than
+  one request at a time, so an older text can never replace a newer one; a text equal to what the server holds (the draft, or
+  the note when there is none) is not sent, so typing and deleting again starts no draft. A request that fails is retried
+  after 2, 5, 15 and then every 30 seconds with the latest text, and typing does not put a retry off. Leaving the page (it is
+  hidden, closed, or navigated away from) sends what is waiting, with `keepalive`; only a text that could not be sent asks
+  the person before they go.
+- **API.** `PUT /api/connections/<id>/working-copy` with `{ path, baseBlob, content }` keeps the text; `DELETE …?path=`
+  throws the draft away. Both need a signed-in caller and this site's `Origin`; another account's connection is a 404.
+  `409 base_mismatch` (the draft is of another version of the file; it is left as it is), `422 unstorable` (the text has a
+  NUL or an unpaired surrogate, which PostgreSQL's `text` cannot hold and UTF-8 cannot spell), `422 too_many_drafts` (500 per
+  connection), `422 not_editable`, `413` (a text is at most 1 MiB). An answer carries when, never the text.
+- **A draft is started only for an editable note**: a file that is, in the repository as it is now, a note in a plaintext
+  vault. That asks the git host, so it is asked once, when the draft is started, and not at every save.
+- **Concurrent saves lose nothing.** A save is a compare-and-swap on the time of the last edit (which only moves forward),
+  retried a few times, so two saves at once both leave their editor in the list, on every database, with no transaction
+  held across anything.
+- **What the page does.** It finds the draft when the note is opened and shows it instead of the repository's text, saying so,
+  with **Discard changes** (asks first) to go back to the note as the repository has it. If the note has changed upstream since
+  the draft was started (its base is no longer the file's blob) the page says so and keeps the draft editable; choosing between
+  the versions is 1b.10. Disconnecting a repository deletes its drafts, like its cached trees.
 
 ## 12. Sharing and permissions
 
@@ -813,7 +843,7 @@ Roughly, beyond better-auth's own:
 | `connection` | account, provider, how it is reached (`kind`), repository, branch, the id of its credential in `credential` (§7), when; where `/` lands is `account_default`, one row per account (§7); the vault chosen to open first is its nullable `default_vault` (§8) |
 | `tree_cache` | connection, commit id, listing |
 | `doc_index` | connection, path, `id`, kind (document/note), blob id |
-| `working_copy` | connection, path, base blob id, content, editors since last version, last edit, upstream-changed flag |
+| `working_copy` | connection, path, base blob id, content, editors since last version (JSON), when started, last edit (§11). Whether the file changed upstream is not stored: it is the base compared with the file's blob when the page loads (a `push` webhook flag comes with 1b.10) |
 | `deletion` | connection, path, `id`, kind, last blob id, deleting commit, deleted by, timestamp, restored (§8) |
 | `share_user` | document, account, role |
 | `share_link` | document, token hash, role, password hash, expiry, revoked |
