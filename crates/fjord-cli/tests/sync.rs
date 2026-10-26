@@ -344,6 +344,67 @@ fn an_unresolvable_merge_keeps_both_versions_and_exits_one() {
     );
 }
 
+/// A conflicted document stays a document: its copy is `*.conflict-<id>.fj.md`, and not a note that happens
+/// to be named like one. (`.fj.md` is the whole extension, spec §8.4; splitting at the last dot made `plan.fj.md`
+/// into `plan.fj.conflict-<id>.md`, which a client reads as a note, with no shares or comments.)
+#[test]
+fn the_copy_of_a_conflicted_document_is_still_a_document() {
+    let world = world();
+    let document =
+        |line: &str, id: &str| format!("---\nid: {id}\ntitle: Plan\n---\n\n# Plan\n\n{line}\n");
+    let first_id = "01jagc4k7pt8y3wqnmzv5xrb8a";
+
+    std::fs::write(
+        world.first.join("Public/plan.fj.md"),
+        document("the contested line", first_id),
+    )
+    .expect("write");
+    assert_eq!(code(&world.first(&["sync"])), 0);
+    assert_eq!(code(&world.second(&["sync"])), 0);
+
+    std::fs::write(
+        world.first.join("Public/plan.fj.md"),
+        document("as the first machine wants it", first_id),
+    )
+    .expect("write");
+    assert_eq!(code(&world.first(&["sync"])), 0);
+    std::fs::write(
+        world.second.join("Public/plan.fj.md"),
+        document("as the second machine wants it", first_id),
+    )
+    .expect("write");
+
+    let synced = world.second(&["sync"]);
+    assert_eq!(code(&synced), 1, "{}{}", out(&synced), err(&synced));
+
+    let names: Vec<String> = std::fs::read_dir(world.second.join("Public"))
+        .expect("read")
+        .filter_map(|entry| entry.ok()?.file_name().into_string().ok())
+        .filter(|name| name.contains("conflict-"))
+        .collect();
+    assert_eq!(names.len(), 1, "{names:?}");
+    assert!(
+        names[0].starts_with("plan.conflict-") && names[0].ends_with(".fj.md"),
+        "the copy of a document must stay a document: {names:?}"
+    );
+
+    let copy = std::fs::read_to_string(world.second.join("Public").join(&names[0])).expect("read");
+    assert!(copy.contains("as the first machine wants it"), "{copy}");
+    assert!(
+        !copy.contains(first_id),
+        "the copy kept the original's id: {copy}"
+    );
+
+    let verified = world.second(&["verify", "--json"]);
+    let report: serde_json::Value = serde_json::from_str(&out(&verified)).expect("json");
+    assert_eq!(
+        report["counts"]["errors"],
+        serde_json::Value::from(0),
+        "{}",
+        out(&verified)
+    );
+}
+
 // --- The ordinary path ---------------------------------------------------
 
 #[test]

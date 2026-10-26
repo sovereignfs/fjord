@@ -32,7 +32,7 @@ use crate::git::{Git, MergeOutcome};
 use anyhow::{Context, Result};
 use fjord_core::crypto::Identities;
 use fjord_core::vault::{self, Vault};
-use fjord_core::{crypto, doc, scalar};
+use fjord_core::{crypto, doc, merge, scalar};
 use std::io::Write;
 use std::path::Path;
 use zeroize::Zeroizing;
@@ -451,7 +451,7 @@ fn keep_both(
     git.add_path(path)?;
 
     let id = scalar::new_ulid();
-    let alongside = alongside_path(path, vault, &id);
+    let alongside = alongside_path(root, path, vault, &id);
 
     // Theirs becomes a new Doc with a fresh id, so that preserving it does
     // not create a duplicate id (E401). When the vault is encrypted and we
@@ -503,20 +503,29 @@ fn rewritten_theirs(
 }
 
 /// Where the other side is written: beside the original, under a name that
-/// says what it is.
-fn alongside_path(path: &str, vault: Option<&Vault>, id: &str) -> String {
+/// says what it is. The name is `fjord-core`'s (`merge::conflict_copy_path`),
+/// so every client names it alike; this only says what is already in the
+/// folder, so that nothing is overwritten.
+fn alongside_path(root: &Path, path: &str, vault: Option<&Vault>, id: &str) -> String {
     let suffix = vault
         .filter(|vault| vault.is_encrypted())
         .map(|vault| vault.suffix())
         .unwrap_or_default();
 
-    let logical = path.strip_suffix(&suffix).unwrap_or(path);
-    let short = &id[id.len().saturating_sub(8)..];
+    let folder = match path.rfind('/') {
+        Some(at) => root.join(&path[..at]),
+        None => root.to_path_buf(),
+    };
+    let existing: Vec<String> = std::fs::read_dir(folder)
+        .map(|entries| {
+            entries
+                .filter_map(|entry| entry.ok())
+                .filter_map(|entry| entry.file_name().into_string().ok())
+                .collect()
+        })
+        .unwrap_or_default();
 
-    match logical.rsplit_once('.') {
-        Some((stem, extension)) => format!("{stem}.conflict-{short}.{extension}{suffix}"),
-        None => format!("{logical}.conflict-{short}{suffix}"),
-    }
+    merge::conflict_copy_path(path, &suffix, id, &existing)
 }
 
 fn write_private(path: &Path, bytes: &[u8]) -> Result<()> {
