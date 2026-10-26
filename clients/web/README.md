@@ -129,6 +129,15 @@ It is loaded from `crates/fjord-wasm/pkg/node` next to this app; `FJORD_WASM_DIR
 container image's, say). Without it a repository's page says the instance cannot read repositories yet, and the
 tests that need it are skipped (in CI, which builds it, a missing module is a failure).
 
+**The app imports the editors' package, which has to be built first.** `packages/fjord-editor` is a linked dependency
+(`link:../../packages/fjord-editor`), so after `pnpm install`, and again when the package changes:
+
+```bash
+pnpm build:editor    # installs the package's own dependencies and builds it; before pnpm typecheck, pnpm build and pnpm dev
+```
+
+CI and the image do the same before they type-check or build the app.
+
 **Credentials at rest.** Repository credentials (a token, a GitHub App's key) are stored
 encrypted, under an instance key you provide. Make one and keep it with your secrets, not with
 database backups:

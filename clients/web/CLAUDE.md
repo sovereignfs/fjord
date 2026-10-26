@@ -21,6 +21,7 @@ pnpm dev
 pnpm db:generate <name>          # migrations for both dialects, from the schemas
 pnpm db:dev sqld | postgres      # a local database in Docker (not needed: a file: URL works)
 pnpm build:wasm                  # the format module (Rust + wasm-bindgen); the tests that need it skip without it, CI requires it
+pnpm build:editor                # packages/fjord-editor, built: the app imports it, so run it before typecheck, build and dev
 pnpm build && pnpm boot-check    # a fresh instance boots on the database in the environment
 pnpm build && pnpm e2e           # browser tests (Playwright; `pnpm exec playwright install chromium` once)
 docker build -f clients/web/Dockerfile -t fjord-web:ci .   # the image, from the repository's root; then:
@@ -136,4 +137,4 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 
 `packages/fjord-editor` is shared with other clients (ROADMAP 1b.1; its own `CLAUDE.md`). It is
 **MPL-2.0** and must not import `@sovereignfs/ui` or anything else of this app's (`DESIGN.md` §18).
-This app does not import it yet: how it is built and linked in comes with the first page that renders an editor.
+The app imports it as a `link:` dependency, through its interface only (`fjord-editor` and `fjord-editor/styles.css`), and it must be built first (`pnpm build:editor`). Its look comes from `--fe-*` custom properties that `app/globals.css` maps the `--sv-*` tokens onto.

@@ -42,3 +42,20 @@ summary:focus-visible {
     scroll-behavior: auto;
   }
 }
+
+/* The editors (packages/fjord-editor) are dressed in the design system's tokens: they take their look from `--fe-*`
+   custom properties and know no other. Mapped here, so light and dark and any theme follow the rest of the page. */
+:root {
+  --fe-color-text: var(--sv-color-text-primary);
+  --fe-color-muted: var(--sv-color-text-muted);
+  --fe-color-surface: var(--sv-color-surface);
+  --fe-color-border: var(--sv-color-border);
+  --fe-color-accent: var(--sv-color-accent);
+  --fe-color-accent-text: var(--sv-color-text-on-accent);
+  --fe-color-focus: var(--sv-color-focus-ring);
+  --fe-color-selection: color-mix(in srgb, var(--sv-color-accent) 25%, transparent);
+  --fe-font-body: var(--sv-font-family);
+  --fe-font-mono: var(--sv-font-family-mono);
+  --fe-radius: var(--sv-radius-md);
+  --fe-space: var(--sv-space-3);
+}

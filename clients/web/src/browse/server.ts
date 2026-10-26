@@ -6,6 +6,7 @@ import { fjord } from "../format/wasm";
 import { type Problem, describeProblem } from "./problems";
 import { type Location, locate } from "./location";
 import { type RepositoryRead, readRepository } from "./repository";
+import { type NoteText, readNoteText } from "./note";
 import { type Assessment, applySetup, assessSetup, isNotFjord } from "./setup";
 import { TreeCache } from "./tree-cache";
 
@@ -100,6 +101,19 @@ export async function setUpRepository(accountId: string, id: number, vault: stri
     const problem = describeProblem(error);
     if (problem?.code === "setup") console.error(`[fjord] ${error instanceof Error ? error.message : "the format module is not available"}`);
     if (problem) throw new ConnectionError(PROBLEM_CODES[problem.code], problem.message);
+    throw error;
+  }
+}
+
+/** A note's text for the page, or why there is none: what the host or the setup got wrong is said, not thrown. */
+export async function readNoteFor(accountId: string, connection: ConnectionInfo, read: RepositoryRead, path: string): Promise<NoteText | { ok: false; reason: "problem"; message: string }> {
+  try {
+    const used = await (await connectionService()).provider(accountId, connection.id);
+    if (!used) return { ok: false, reason: "problem", message: "That repository is not connected." };
+    return await readNoteText(used.provider, { owner: connection.owner, name: connection.name }, read, path);
+  } catch (error) {
+    const problem = describeProblem(error);
+    if (problem) return { ok: false, reason: "problem", message: problem.message };
     throw error;
   }
 }

@@ -535,3 +535,130 @@ test("who may set a repository up: a signed-in person, from this site, for their
     await restoreMore();
   }
 });
+
+// --- A note in the note editor (ROADMAP 1b.2) -----------------------------------------------------------------
+
+/** `acme/more` holding these files, connected by a new account. */
+async function repositoryWith(page: import("@playwright/test").Page, files: Record<string, string | Uint8Array>): Promise<number> {
+  await hubs.more.commitFiles(files, { replace: true });
+  await signUp(page);
+  await page.goto("/repositories");
+  await connect(page, "acme/more");
+  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/more");
+  return (await (await page.request.get("/api/connections")).json()).connections[0].id as number;
+}
+
+const VAULT_MANIFEST = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "Notes", createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" });
+const noteEditor = (page: import("@playwright/test").Page, name: string) => page.getByRole("textbox", { name });
+
+test("a note opens in the note editor, which can only be read for now, and reads the file once", async ({ page }) => {
+  const id = await connected(page);
+  await page.goto(`/repo/${id}/Public`);
+  hubs.notes.requests.length = 0;
+  await page.goto(`/repo/${id}/Public/idea.md`);
+
+  const editor = noteEditor(page, "idea.md");
+  await expect(editor).toBeVisible();
+  await expect(editor).toContainText("# Idea");
+  await expect(editor).toHaveAttribute("aria-readonly", "true");
+  await expect(editor).toHaveAttribute("contenteditable", "false");
+  await expect(page.getByText("You are reading this note")).toBeVisible();
+
+  // Typing does nothing to a note that is only being read.
+  await editor.click();
+  await page.keyboard.type("nope");
+  await expect(editor).not.toContainText("nope");
+
+  // The file was read, once, by its blob; nothing else was.
+  const blobReads = hubs.notes.requests.filter((request) => request.path.includes("/git/blobs/"));
+  expect(blobReads).toHaveLength(1);
+  expect(hubs.notes.requests.filter((request) => request.path.includes("/git/trees/"))).toEqual([]);
+});
+
+test("a document is not opened in the note editor, and an encrypted file stays locked", async ({ page }) => {
+  const id = await connected(page);
+  await page.goto(`/repo/${id}/Public/plan.fj.md`);
+  await expect(page.getByText("The document editor is the next thing to be built")).toBeVisible();
+  await expect(page.getByRole("textbox")).toHaveCount(0);
+  await page.goto(`/repo/${id}/Private/secret.md.age`);
+  await expect(page.getByText("Files in an encrypted vault cannot be opened in this version.")).toBeVisible();
+  await expect(page.getByRole("textbox")).toHaveCount(0);
+});
+
+test("a note from another tool is shown as it is: line endings and a byte order mark are not rewritten", async ({ page }) => {
+  try {
+    const crlf = "# Windows note\r\n\r\n- one\r\n- two\r\n";
+    const mixed = "unix\nwindows\r\nold mac\rend";
+    const id = await repositoryWith(page, {
+      "Notes/fjord.vault.json": VAULT_MANIFEST,
+      "Notes/crlf.md": crlf,
+      "Notes/mixed.md": mixed,
+      "Notes/bom.md": "﻿# With a BOM\n",
+    });
+
+    // Every line break is CRLF: nothing is shown that is not text, and the lines are the lines.
+    await page.goto(`/repo/${id}/Notes/crlf.md`);
+    const lines = noteEditor(page, "crlf.md").locator(".cm-line");
+    await expect(lines).toHaveCount(5);
+    await expect(lines.first()).toHaveText("# Windows note");
+    await expect(page.locator(".cm-specialChar")).toHaveCount(0);
+
+    // A note that mixes them shows each carriage return as the control character it is: two of them here, in three lines
+    // (the lines end at the line feeds; the carriage returns are characters).
+    await page.goto(`/repo/${id}/Notes/mixed.md`);
+    await expect(noteEditor(page, "mixed.md").locator(".cm-line")).toHaveCount(3);
+    await expect(page.locator(".cm-specialChar")).toHaveCount(2);
+
+    // A byte order mark is kept, and shown as one.
+    await page.goto(`/repo/${id}/Notes/bom.md`);
+    await expect(noteEditor(page, "bom.md")).toContainText("# With a BOM");
+    await expect(page.locator(".cm-specialChar")).toHaveCount(1);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a file that is not text, or is too large, is not shown as a note", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, {
+      "Notes/fjord.vault.json": VAULT_MANIFEST,
+      "Notes/binary.md": Uint8Array.from([0x68, 0x69, 0xff, 0xfe, 0x0a]),
+      "Notes/huge.md": "x".repeat(1024 * 1024 + 1),
+    });
+    await page.goto(`/repo/${id}/Notes/binary.md`);
+    await expect(page.getByText("This file is not valid UTF-8 text")).toBeVisible();
+    await expect(page.getByRole("textbox")).toHaveCount(0);
+
+    await page.goto(`/repo/${id}/Notes/huge.md`);
+    await expect(page.getByText("This note is larger than 1 MB")).toBeVisible();
+    await expect(page.getByRole("textbox")).toHaveCount(0);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("the editor wears the design system's tokens, in light and in dark", async ({ page }) => {
+  const id = await connected(page);
+  const surfaces = async () =>
+    page.evaluate(() => {
+      const editor = document.querySelector(".cm-editor") as HTMLElement;
+      return { editor: getComputedStyle(editor).backgroundColor, page: getComputedStyle(document.body).backgroundColor, text: getComputedStyle(editor).color, font: getComputedStyle(editor.querySelector(".cm-scroller") as HTMLElement).fontFamily };
+    });
+
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto(`/repo/${id}/Public/idea.md`);
+  await expect(noteEditor(page, "idea.md")).toBeVisible();
+  const light = await surfaces();
+  // The editor's surface is the page's: it took the token and not its own default (which is white in both).
+  expect(light.editor).toBe(light.page);
+  // Its font is the design system's monospace, not the browser's.
+  expect(light.font).toMatch(/mono/i);
+
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.reload();
+  await expect(noteEditor(page, "idea.md")).toBeVisible();
+  const dark = await surfaces();
+  expect(dark.editor).toBe(dark.page);
+  expect(dark.editor).not.toBe(light.editor);
+  expect(dark.text).not.toBe(light.text);
+});
