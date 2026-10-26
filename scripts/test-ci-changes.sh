@@ -31,6 +31,7 @@ expect() {
 
 NONE="rust=false scripts=false web=false"
 RUST="rust=true scripts=false web=false"
+RUST_WEB="rust=true scripts=false web=true"
 SCRIPTS="rust=false scripts=true web=false"
 WEB="rust=false scripts=false web=true"
 BOTH="rust=true scripts=true web=false"
@@ -52,15 +53,18 @@ expect "the other clients' plans, which have no code yet" "$NONE" clients/mobile
 
 printf '\nchanges that need the Rust jobs\n'
 expect "a source file" "$RUST" crates/fjord-cli/src/cmd/sync.rs
-expect "the core library" "$RUST" crates/fjord-core/src/path.rs
+expect "the core library, which the web client builds into itself as WebAssembly" "$RUST_WEB" crates/fjord-core/src/path.rs
+expect "the WebAssembly crate" "$RUST_WEB" crates/fjord-wasm/src/api.rs crates/fjord-wasm/build.sh
+expect "the CLI alone does not touch the web client" "$RUST" crates/fjord-cli/src/cmd/ls.rs
+expect "the shared action that builds the module" "$RUST_WEB" .github/actions/build-wasm/action.yml
 expect "a test" "$RUST" crates/fjord-cli/tests/guard.rs
 # These are Markdown, and the build or the tests read them.
-expect "an init template, which is compiled into the binary" "$RUST" crates/fjord-core/templates/README.md
-expect "a Markdown template" "$RUST" crates/fjord-core/templates/welcome.md
-expect "a conformance fixture, which is a .md Doc" "$RUST" tests/fixtures/conforming/Public/welcome.md
+expect "an init template, which is compiled into the binary" "$RUST_WEB" crates/fjord-core/templates/README.md
+expect "a Markdown template" "$RUST_WEB" crates/fjord-core/templates/welcome.md
+expect "a conformance fixture, which is a .md Doc, and which the web tests read" "$RUST_WEB" tests/fixtures/conforming/Public/welcome.md
 expect "the verify schema" "$RUST" schema/verify.schema.json
-expect "Cargo.toml" "$RUST" Cargo.toml
-expect "Cargo.lock" "$RUST" Cargo.lock
+expect "Cargo.toml, which the format module is built from" "$RUST_WEB" Cargo.toml
+expect "Cargo.lock, which the format module is built from" "$RUST_WEB" Cargo.lock
 expect "a crate's Cargo.toml" "$RUST" crates/fjord-cli/Cargo.toml
 expect "the CI workflow itself" "$RUST" .github/workflows/ci.yml
 expect "a document and a source file together" "$RUST" ROADMAP.md crates/fjord-cli/src/main.rs
@@ -75,7 +79,7 @@ expect "the app's configuration" "$WEB" clients/web/next.config.ts clients/web/t
 expect "a Markdown file that is not one of its documents" "$WEB" clients/web/content/terms.md
 expect "its own workflow" "$WEB" .github/workflows/web-ci.yml
 expect "a document and a source file together" "$WEB" clients/web/README.md clients/web/src/site.ts
-expect "a Rust change leaves the web jobs alone" "$RUST" crates/fjord-core/src/path.rs
+expect "a Rust change leaves the web jobs alone, when it is the CLI's" "$RUST" crates/fjord-cli/src/cmd/sync.rs
 expect "a web change leaves the Rust jobs alone" "$WEB" clients/web/app/layout.tsx
 
 printf '\nchanges that need only the script checks\n'
@@ -89,7 +93,7 @@ expect "changing the classifier runs everything" "$ALL" scripts/ci-changes.sh
 expect "changing its tests runs everything" "$ALL" scripts/test-ci-changes.sh
 
 printf '\nboth kinds at once\n'
-expect "a source file and a script" "$BOTH" crates/fjord-core/src/lib.rs scripts/release.sh
+expect "a source file and a script" "$BOTH" crates/fjord-cli/src/main.rs scripts/release.sh
 expect "a page and a source file" "$ALL" clients/web/app/page.tsx crates/fjord-core/src/lib.rs scripts/release.sh
 
 printf '\n%s passed, %s failed\n' "$PASSED" "$FAILED"

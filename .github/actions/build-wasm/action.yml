@@ -1,0 +1,39 @@
+name: Build fjord-wasm
+description: >-
+  Builds the format module (fjord-core's pure subset as WebAssembly, crates/fjord-wasm) for Node and the web, at
+  crates/fjord-wasm/pkg. Used by every job that runs the web client or the module's own suite, so there is one place
+  that says how. Needs a checkout first.
+
+runs:
+  using: composite
+  steps:
+    - name: Add the WebAssembly target
+      shell: bash
+      run: rustup target add wasm32-unknown-unknown
+
+    - uses: actions/cache@v6
+      with:
+        path: |
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          ~/.cargo/git/db
+          ~/.cargo/bin/wasm-bindgen
+          crates/fjord-wasm/target
+        key: wasm-${{ runner.os }}-${{ hashFiles('crates/fjord-wasm/Cargo.lock', 'Cargo.lock') }}
+
+    # The command line tool must be the version the crate uses, or it refuses the module; the lockfile names it,
+    # and build.sh checks it again.
+    - name: Install wasm-bindgen at the version the lockfile names
+      shell: bash
+      working-directory: crates/fjord-wasm
+      run: |
+        want="$(grep -A1 '^name = "wasm-bindgen"$' Cargo.lock | sed -n 's/^version = "\(.*\)"$/\1/p')"
+        if [ "$(wasm-bindgen --version 2>/dev/null | awk '{print $2}')" != "$want" ]; then
+          cargo install wasm-bindgen-cli --version "=$want" --locked
+        fi
+        wasm-bindgen --version
+
+    - name: Build the module
+      shell: bash
+      working-directory: crates/fjord-wasm
+      run: ./build.sh
