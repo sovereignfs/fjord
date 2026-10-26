@@ -35,17 +35,26 @@ describe("the package", () => {
     expect(readFileSync(join(root, "LICENSE"), "utf8")).toContain("Mozilla Public License Version 2.0");
   });
 
-  it("needs React and nothing else at run time, and never a client's design system", () => {
-    expect(manifest.dependencies ?? {}).toEqual({});
+  it("needs React and an editor core's own packages at run time, and never a client's design system", () => {
+    // The cores are CodeMirror's packages (and, with 1b.3, MDXEditor's). Anything else is a decision, so it is listed.
+    const cores = [/^@codemirror\//, /^@lezer\//];
+    for (const name of Object.keys(manifest.dependencies ?? {})) expect(cores.some((core) => core.test(name)), `${name} is not an editor core's package`).toBe(true);
     expect(Object.keys(manifest.peerDependencies ?? {})).toEqual(["react"]);
     for (const file of sourceFiles(join(root, "src")).concat(sourceFiles(join(root, "stories")))) {
       const text = readFileSync(file, "utf8");
       expect(text, file).not.toMatch(/@sovereignfs/);
       for (const [, specifier] of text.matchAll(/from\s+"([^"]+)"/g)) {
         const from = specifier as string;
-        const fine = from.startsWith(".") || from === "react" || from.startsWith("vitest") || from.startsWith("@testing-library/") || from.startsWith("node:") || from === "@ladle/react";
+        const fine = from.startsWith(".") || from === "react" || from.startsWith("@codemirror/") || from.startsWith("@lezer/") || from.startsWith("vitest") || from.startsWith("@testing-library/") || from.startsWith("node:") || from === "@ladle/react";
         expect(fine, `${file} imports ${from}`).toBe(true);
       }
+    }
+  });
+
+  it("depends only on packages whose licence can be combined with MPL-2.0 and with the clients' own", () => {
+    for (const name of Object.keys(manifest.dependencies ?? {})) {
+      const licence = (JSON.parse(readFileSync(join(root, "node_modules", name, "package.json"), "utf8")) as { license?: string }).license;
+      expect(licence, name).toBe("MIT");
     }
   });
 

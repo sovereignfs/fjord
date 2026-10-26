@@ -5,10 +5,10 @@ the desktop app, the editor plugins and the mobile client's WebView are meant to
 [MPL-2.0](LICENSE) and depends on **no client's design system**: React is its only dependency, and a client sets its
 look from outside.
 
-**Status: the interface, and a plain text area behind it.** `DocumentEditor` and `NoteEditor` implement the whole
-interface below with a text area standing in for the real cores: CodeMirror 6 for notes (ROADMAP 1b.2) and MDXEditor
-for documents (1b.3). The contract tests are what those cores must pass, so the swap changes nothing for a client. The
-design is [`clients/web/DESIGN.md`](../../clients/web/DESIGN.md) §10 and §13.
+**Status: the note editor is real; the document editor is a text area behind the same interface.** `NoteEditor` is
+CodeMirror 6 with light Markdown styling, and byte-faithful (below). `DocumentEditor` implements the whole interface with
+a plain text area standing in for MDXEditor (ROADMAP 1b.3). The contract tests are what a core must pass, so the swap
+changes nothing for a client. The design is [`clients/web/DESIGN.md`](../../clients/web/DESIGN.md) §10 and §13.
 
 ## Using it
 
@@ -26,6 +26,14 @@ import "fjord-editor/styles.css";
 
 <NoteEditor value={text} onChange={setText} readOnly={false} />
 ```
+
+### The note editor is byte-faithful
+
+A note is often edited by hand or in Obsidian too, so opening one changes nothing and an edit changes only what the person
+changed: line endings (CRLF where every break in the note is one; a note that mixes them keeps each carriage return, shown
+as a control character), a byte order mark, trailing spaces, tabs and a missing final newline are all kept, and `onChange` is
+given the whole text exactly. The editor holds the text while the person types; `value` is what it starts with and what it
+is set to when it changes from outside, which is not reported as an edit.
 
 - `onChange` is called with the whole new text, and **never** for a change the app made by setting `value`, nor
   when the text may only be read.
@@ -69,6 +77,11 @@ CI runs those for a change to this directory, and nothing else runs for it (`.gi
 
 ## Not here yet
 
-The real cores (1b.2, 1b.3), the house style (1b.4), the comment marks and anchors (1d), and the round-trip corpus
-that the note editor's "an edit changes only what was changed" is held to (1b.2). Fjord Web does not import the package
-yet: how it builds and links it comes with the first page that renders an editor.
+The document editor's real core (MDXEditor, 1b.3), the house style (1b.4), and the comment marks and anchors (1d).
+
+## The corpus
+
+`corpus/` is real Markdown, and `src/note-editor.test.tsx` opens every file in eight variants (as written, CRLF, mixed
+endings, old-Mac CR, a byte order mark, no final newline, blank lines first and last, a NUL and line and paragraph
+separators in it): the text must come out the same, and editing one word must change that word and nothing else. The
+files carry `-text` in `corpus/.gitattributes` so that Git never normalises them.
