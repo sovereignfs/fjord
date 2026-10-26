@@ -135,4 +135,5 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | `DESIGN.md`, `ROADMAP.md` | The design and the plan |
 
 `packages/fjord-editor` is shared with other clients and is created when slice 1b
-starts (ROADMAP 1b.1), not before.
+starts (ROADMAP 1b.1), not before. It is **MPL-2.0** and must not import `@sovereignfs/ui`
+or anything else of this app's (`DESIGN.md` §18).

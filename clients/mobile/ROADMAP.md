@@ -52,7 +52,7 @@ MP3–MP6 and P3; 1b needs MP1 and P1; 1c needs MP2.
 | 1a.3 | **PAT connection** (§6): URL and fine-grained token; permissions checked on add. | A read-only token is refused with a clear message; a correct one works. | `todo` |
 | 1a.4 | **Tokens in the keystore** (§13). | Tokens survive a restart, are gone on removing the connection, and are not in the app's files or logs. | `todo` |
 | 1a.5 | **First run and defaults** (§3, §6): prompt to add a repository; default repository; default vault per repository; switcher. | A fresh install is prompted; the next launch opens the default repository and vault. | `todo` |
-| 1a.6 | **Not a Fjord repository** (§6): shown as such, read-only, capture unavailable. | Behaviour matches web §19 #3's answer. | `open` |
+| 1a.6 | **Not a Fjord repository** (§6): shown as such, read-only, capture unavailable. | A repository without `fjord.json` is shown as such, read-only, with capture unavailable; no offer to set it up in phase 1 (the web offers it, web §19 #3). | `todo` |
 | 1a.7 | **Local store and tree cache** (§7, §11): listings by commit, blob cache, head checks on foreground, refresh and every minute. | Browsing a cached repository in airplane mode works; an unchanged head costs no rate limit (conditional request seen). | `todo` |
 | 1a.8 | **File browser** (§7): vaults from the listing (P3), documents and notes openable, others greyed, encrypted vaults locked, cached files marked, large repositories listed per directory. | Matches `fjord ls` on the fixtures; nothing downloaded to draw it. | `todo` |
 | 1a.9 | **App lock** (§13), optional. | With it on, nothing is shown before Face ID, Touch ID or the device credential; the app switcher shows a blank. | `todo` |
