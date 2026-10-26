@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Discovery, ListedFile, RepositoryManifest } from "./types";
+import type { Discovery, ListedFile, RepositoryManifest, SetupExisting, SetupOptions, SetupResult } from "./types";
 
 /**
  * `fjord-core` as WebAssembly, in Node (DESIGN.md §2: the server reads the format, the browser never does in
@@ -20,6 +20,8 @@ interface Module {
   manifestPaths(filesJson: string): string;
   discover(filesJson: string, manifestsJson: string): string;
   describeRepositoryManifest(text: string): string;
+  planSetup(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
+  freeVaultName(preferred: string, existingJson: string): string;
 }
 
 /** The module has not been built, or cannot be loaded: a setup problem, never a repository's. */
@@ -95,5 +97,20 @@ export class Fjord {
   /** `fjord.json`, read. */
   describeRepositoryManifest(text: string): RepositoryManifest {
     return JSON.parse(this.module.describeRepositoryManifest(text)) as RepositoryManifest;
+  }
+
+  /**
+   * What to add to a repository that is not a Fjord repository so that it is one: a `fjord.json`, one plaintext
+   * vault, and the `.gitattributes` merge guard only where it is missing. Pure: the time and at least 80 random
+   * bytes are given, and the same call gives the same answer. A finding about the repository (it is one already, the
+   * name is taken) is `ok: false`; a malformed call throws.
+   */
+  planSetup(options: SetupOptions, existing: SetupExisting, nowMs: number, random: Uint8Array): SetupResult {
+    return JSON.parse(this.module.planSetup(JSON.stringify(options), JSON.stringify(existing), nowMs, random)) as SetupResult;
+  }
+
+  /** A vault name that is free at the root: `preferred`, else `preferred 2`, `preferred 3`, … (case aside). */
+  freeVaultName(preferred: string, paths: string[]): string {
+    return this.module.freeVaultName(preferred, JSON.stringify({ paths, gitattributes: null }));
   }
 }

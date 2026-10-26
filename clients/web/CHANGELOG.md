@@ -13,6 +13,14 @@ section.
 
 ### Added
 
+- **Setting up a repository that is not a Fjord repository** (ROADMAP 1a.10): a connected repository with no `fjord.json`
+  and no vault is shown with an offer to set it up: the exact files, a vault name (`Public`, or the next free one), and
+  nothing written until the button. It makes one commit, never forced, of what `fjord-core` plans: a `fjord.json`, one
+  plaintext vault with a starter note, and spec §9's merge guard in `.gitattributes` only where it is missing (a line
+  added to the end of the one that is there; nothing else that is there is changed). `POST /api/connections/<id>/setup`
+  takes only the vault's name, under §12's rules; the plan is made again on the repository as it is, and a repository
+  that changed meanwhile is left alone. A `.gitattributes` that is not valid text, or is large, is refused rather than
+  rewritten.
 - **A repository's vaults** (ROADMAP 1a.11, first step): a connected repository's page lists its vaults and what is
   in each (documents, notes, other files, a lock on an encrypted vault), read from the git host as the design
   says: the head, the tree once per commit, and the vault manifests, never a document. The format is

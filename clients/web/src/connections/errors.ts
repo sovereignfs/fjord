@@ -15,6 +15,12 @@
  *   unavailable          the host could not be reached
  *   not_configured       this instance has no FJORD_ENCRYPTION_KEY, so it cannot hold a token
  *   unknown_vault        the vault chosen as a default is not in the repository
+ *   already_fjord        setting up a repository that has a fjord.json
+ *   has_vaults           setting up a repository that already has vaults
+ *   head_moved           the repository changed while it was being set up; nothing was written
+ *   gitattributes_unreadable  its .gitattributes is not text, or too large to add a line to
+ *   invalid_vault_name   the name cannot be a directory a vault lives in
+ *   vault_name_taken     something at the root already has that name, case aside
  */
 export type ConnectionErrorCode =
   | "invalid_repository"
@@ -29,7 +35,13 @@ export type ConnectionErrorCode =
   | "rate_limited"
   | "unavailable"
   | "not_configured"
-  | "unknown_vault";
+  | "unknown_vault"
+  | "already_fjord"
+  | "has_vaults"
+  | "head_moved"
+  | "gitattributes_unreadable"
+  | "invalid_vault_name"
+  | "vault_name_taken";
 
 export class ConnectionError extends Error {
   override name = "ConnectionError";

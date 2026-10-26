@@ -4,7 +4,7 @@ import { decodeSegments } from "../../../../src/browse/links";
 import { safeSegments } from "../../../../src/browse/location";
 import { Landing } from "../../../../src/browse/screens/Landing";
 import { FolderView } from "../../../../src/browse/screens/FolderView";
-import { locateInRepository, readConnection } from "../../../../src/browse/server";
+import { assessSetupFor, locateInRepository, readConnection } from "../../../../src/browse/server";
 import { RepositoryView } from "../../../../src/connections/screens/RepositoryView";
 import { connectionService } from "../../../../src/connections/server";
 import { encryptionKeyring } from "../../../../src/crypto/server";
@@ -48,5 +48,5 @@ export default async function RepositoryPage({ params }: { params: Promise<{ con
   }
 
   const landing = content === undefined && (path === undefined || path.length === 0) ? <Landing accountId={user.id} connection={current} outcome={outcome} /> : undefined;
-  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} security={localAuthConfig() !== undefined} />;
+  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} setup={landing ? await assessSetupFor(user.id, current, outcome) : undefined} security={localAuthConfig() !== undefined} />;
 }

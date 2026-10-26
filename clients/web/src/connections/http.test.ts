@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { CredentialError } from "../crypto/errors";
-import { type Caller, type Deps, handleConnection, handleConnections, handleDefault, handleVault } from "./http";
-import { ConnectionError } from "./errors";
+import { type Caller, type Deps, handleConnection, handleConnections, handleDefault, handleSetup, handleVault } from "./http";
+import { ConnectionError, type ConnectionErrorCode } from "./errors";
 
 /**
  * Who may call `/api/connections`, from where, and what they are told (DESIGN.md §12): the rules
@@ -26,8 +26,9 @@ function stub(overrides: Partial<Awaited<ReturnType<Deps["service"]>>> = {}) {
     ...overrides,
   };
   const vaults = vi.fn(async (...args: unknown[]) => (calls.push(["vaults", ...args]), { found: true as const, vaults: ["Private", "Public"] as string[] | null }));
-  const deps: Deps = { service: async () => service as never, origin: ORIGIN, vaults: (accountId, id) => vaults(accountId, id) };
-  return { service, deps, calls, vaults };
+  const setUp = vi.fn(async (...args: unknown[]) => (calls.push(["setUp", ...args]), { found: true as const, commit: "c0ffee" } as { found: false } | { found: true; commit: string }));
+  const deps: Deps = { service: async () => service as never, origin: ORIGIN, vaults: (accountId, id) => vaults(accountId, id), setUp: (accountId, id, vault) => setUp(accountId, id, vault) };
+  return { service, deps, calls, vaults, setUp };
 }
 
 const request = (method: string, init: { origin?: string | null; body?: unknown; type?: string | null; path?: string } = {}) => {
@@ -268,5 +269,78 @@ describe("choosing the vault a repository opens on", () => {
     expect((await handleVault(put({ vault: "Public" }, { type: "text/plain" }), ALICE, deps, "3")).status).toBe(415);
     for (const method of ["GET", "POST", "DELETE"]) expect((await handleVault(request(method, { path: "/api/connections/3/vault" }), ALICE, deps, "3")).status, method).toBe(405);
     expect(service.setDefaultVault).not.toHaveBeenCalled();
+  });
+});
+
+describe("setting a repository up as a Fjord repository", () => {
+  const post = (body: unknown = { vault: "Public" }, init: Parameters<typeof request>[1] = {}) =>
+    request("POST", { path: "/api/connections/3/setup", body, ...init });
+
+  it("is for a signed-in person, from this site; nothing is asked of the host before that", async () => {
+    const { deps, setUp } = stub();
+    expect((await handleSetup(post(), null, deps, "3")).status).toBe(401);
+    for (const origin of ["https://evil.example", "null", null]) {
+      expect((await handleSetup(post(undefined, { origin }), ALICE, deps, "3")).status, String(origin)).toBe(403);
+    }
+    expect(setUp).not.toHaveBeenCalled();
+  });
+
+  it("sets up the caller's own connection with the vault named, and answers with the commit", async () => {
+    const { deps, calls } = stub();
+    const done = await handleSetup(post({ vault: "Notes", accountId: "bob", files: [{ path: "x", contents: "y" }] }), ALICE, deps, "3");
+    expect(done.status).toBe(201);
+    expect(await body(done)).toEqual({ commit: "c0ffee" });
+    // Only the name is taken from the request: the account is the caller's, and what is written is not the browser's to say.
+    expect(calls).toEqual([["setUp", "alice", 3, "Notes"]]);
+  });
+
+  it("answers another account's connection, or one that is not there, as not found", async () => {
+    const { deps, setUp } = stub();
+    const missing = { ...deps, setUp: async () => ({ found: false as const }) };
+    expect((await handleSetup(post(), ALICE, missing, "3")).status).toBe(404);
+    for (const id of ["abc", "-1", "0", "1.5", ""]) expect((await handleSetup(post(), ALICE, deps, id)).status, id).toBe(404);
+    expect(setUp).not.toHaveBeenCalled();
+  });
+
+  it("tells a person why it could not, in our words and with a status that fits", async () => {
+    const cases: [ConnectionErrorCode, number][] = [
+      ["already_fjord", 409],
+      ["has_vaults", 409],
+      ["head_moved", 409],
+      ["read_only", 422],
+      ["gitattributes_unreadable", 422],
+      ["invalid_vault_name", 422],
+      ["vault_name_taken", 422],
+      ["rate_limited", 429],
+      ["unavailable", 502],
+    ];
+    for (const [code, status] of cases) {
+      const { deps } = stub();
+      const failing = { ...deps, setUp: async () => { throw new ConnectionError(code, `because ${code}`); } };
+      const response = await handleSetup(post(), ALICE, failing, "3");
+      expect(response.status, code).toBe(status);
+      expect(await body(response)).toEqual({ error: { code, message: `because ${code}` } });
+    }
+  });
+
+  it("takes only JSON of the right shape, and only POST; an unexpected failure is not described", async () => {
+    const { deps, setUp } = stub();
+    for (const bad of [{}, { vault: 3 }, { vault: "" }, { vault: "x".repeat(256) }, { vault: null }, { vault: ["Public"] }, "[]", "nope"]) {
+      expect((await handleSetup(post(bad), ALICE, deps, "3")).status, JSON.stringify(bad)).toBe(400);
+    }
+    expect((await handleSetup(post({ vault: "Public" }, { type: "text/plain" }), ALICE, deps, "3")).status).toBe(415);
+    for (const method of ["GET", "PUT", "DELETE"]) expect((await handleSetup(request(method, { path: "/api/connections/3/setup" }), ALICE, deps, "3")).status, method).toBe(405);
+    expect(setUp).not.toHaveBeenCalled();
+
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const broken = { ...deps, setUp: async () => { throw new Error(`secret ${TOKEN}`); } };
+      const response = await handleSetup(post(), ALICE, broken, "3");
+      expect(response.status).toBe(500);
+      expect(await response.text()).not.toContain(TOKEN);
+      expect(JSON.stringify(error.mock.calls)).not.toContain(TOKEN);
+    } finally {
+      error.mockRestore();
+    }
   });
 });

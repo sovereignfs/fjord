@@ -386,3 +386,152 @@ test("browsing reads no tree and no file from the host, and a path that is not t
     expect((await page.goto(`/repo/${id}/${path}`))?.status(), path).toBe(404);
   }
 });
+
+// --- A repository that is not a Fjord repository (ROADMAP 1a.10) ----------------------------------------------
+
+const PLAIN_FILES = {
+  "README.md": "# My code\n",
+  "src/main.rs": "fn main() {}\n",
+  ".gitattributes": "* text=auto\n*.png binary\n",
+};
+
+/** `acme/more` as somebody's code repository, connected by a new account, whose page is open. Put back by `restoreMore`. */
+async function plainRepository(page: import("@playwright/test").Page): Promise<{ id: number; before: string }> {
+  const before = await hubs.more.commitFiles(PLAIN_FILES, { replace: true });
+  await signUp(page);
+  await page.goto("/repositories");
+  await connect(page, "acme/more");
+  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/more");
+  const id = (await (await page.request.get("/api/connections")).json()).connections[0].id as number;
+  await page.goto(`/repo/${id}`);
+  return { id, before };
+}
+
+const restoreMore = () => hubs.more.commitFiles({ "fjord.json": "{}" }, { replace: true });
+
+test("a repository that is not a Fjord repository is offered the setup, which writes nothing until the button, and is one after", async ({ page }) => {
+  try {
+    const { before } = await plainRepository(page);
+
+    await expect(page.getByRole("heading", { name: "This is not a Fjord repository yet" })).toBeVisible();
+    const files = page.getByRole("list", { name: "What would be added" });
+    await expect(files.getByRole("listitem")).toHaveCount(4);
+    await expect(files.getByRole("listitem").filter({ hasText: "fjord.json" }).first()).toContainText("New");
+    await expect(files.getByRole("listitem").filter({ hasText: ".gitattributes" })).toContainText("One line added");
+    await expect(files.getByRole("listitem").filter({ hasText: "Public/welcome.md" })).toContainText("New");
+    // The page says it changes one line of a file that is there, and the README and .gitignore are not touched.
+    await expect(page.getByText("one line is added to the end of your .gitattributes")).toBeVisible();
+    expect(await files.innerText()).not.toContain("README");
+
+    // Looking is not writing: the branch has not moved.
+    expect(await hubs.more.branchHead()).toBe(before);
+
+    await page.getByRole("button", { name: "Set up Fjord here" }).click();
+    await expect(page.getByRole("list", { name: "Vaults" })).toContainText("Public");
+    await expect(page.getByRole("heading", { name: "This is not a Fjord repository yet" })).toHaveCount(0);
+
+    // One commit on top of what was there, adding only what the page said, and leaving the rest as it was.
+    const after = (await hubs.more.branchHead()) as string;
+    expect(await hubs.more.show(after, "%P")).toBe(before);
+    expect(await hubs.more.show(after, "%B")).toContain("Set up Fjord");
+    const written = await hubs.more.filesAt(after);
+    expect(Object.keys(written).sort()).toEqual([".gitattributes", "Public/fjord.vault.json", "Public/welcome.md", "README.md", "fjord.json", "src/main.rs"]);
+    expect(written["README.md"]).toBe(PLAIN_FILES["README.md"]);
+    expect(written["src/main.rs"]).toBe(PLAIN_FILES["src/main.rs"]);
+    expect(written[".gitattributes"]?.startsWith(PLAIN_FILES[".gitattributes"])).toBe(true);
+    expect(written[".gitattributes"]).toContain("*.age binary -diff -merge");
+    expect(JSON.parse(written["fjord.json"] as string)).toMatchObject({ fjord: 1, name: "more", vaults: [{ path: "Public" }] });
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("the setup cannot be done twice, and a name is the person's to choose", async ({ page }) => {
+  try {
+    const { id } = await plainRepository(page);
+
+    await page.getByLabel("Vault name").fill("My notes");
+    // The list follows the name.
+    await expect(page.getByRole("list", { name: "What would be added" })).toContainText("My notes/welcome.md");
+    await page.getByRole("button", { name: "Set up Fjord here" }).click();
+    await expect(page.getByRole("list", { name: "Vaults" })).toContainText("My notes");
+
+    // Now it is a Fjord repository: no offer, and the API will not do it again.
+    await page.goto(`/repo/${id}`);
+    await expect(page.getByRole("heading", { name: "This is not a Fjord repository yet" })).toHaveCount(0);
+    const again = await page.request.post(`/api/connections/${id}/setup`, { headers: { origin: BASE }, data: { vault: "Other" } });
+    expect(again.status()).toBe(409);
+    expect((await again.json()).error.code).toBe("already_fjord");
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a name that is taken or cannot be a directory is refused, with the reason, and nothing is written", async ({ page }) => {
+  try {
+    const { id, before } = await plainRepository(page);
+    const post = (vault: string) => page.request.post(`/api/connections/${id}/setup`, { headers: { origin: BASE }, data: { vault } });
+
+    const taken = await post("SRC");
+    expect(taken.status()).toBe(422);
+    expect((await taken.json()).error.code).toBe("vault_name_taken");
+    const hidden = await post(".hidden");
+    expect(hidden.status()).toBe(422);
+    expect((await hidden.json()).error.code).toBe("invalid_vault_name");
+    expect((await hidden.json()).error.message).toContain("hidden");
+    expect(await hubs.more.branchHead()).toBe(before);
+
+    // From the page, the same words.
+    await page.getByLabel("Vault name").fill("src");
+    await page.getByRole("button", { name: "Set up Fjord here" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "already used" })).toBeVisible();
+    expect(await hubs.more.branchHead()).toBe(before);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("when the repository changes while the person looks, nothing is written, and looking again works", async ({ page }) => {
+  try {
+    await plainRepository(page);
+    // Somebody commits just as the setup is about to move the branch.
+    hubs.more.before(/\/git\/commits$/, async () => void (await hubs.more.commitFiles({ "someone-else.txt": "landed in between" })), "POST");
+
+    await page.getByRole("button", { name: "Set up Fjord here" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "changed while you were looking" })).toBeVisible();
+    const head = (await hubs.more.branchHead()) as string;
+    const files = await hubs.more.filesAt(head);
+    expect(files["someone-else.txt"]).toBe("landed in between");
+    expect(files["fjord.json"]).toBeUndefined();
+
+    await page.getByRole("button", { name: "Set up Fjord here" }).click();
+    await expect(page.getByRole("list", { name: "Vaults" })).toContainText("Public");
+    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["someone-else.txt"]).toBe("landed in between");
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("who may set a repository up: a signed-in person, from this site, for their own repository", async ({ page, browser }) => {
+  try {
+    const { id } = await plainRepository(page);
+    const url = `/api/connections/${id}/setup`;
+
+    expect((await page.request.post(url, { headers: { origin: "https://evil.example" }, data: { vault: "Public" } })).status()).toBe(403);
+    expect((await page.request.post(url, { headers: { origin: BASE }, data: {} })).status()).toBe(400);
+    expect((await page.request.get(url)).status()).toBe(405);
+
+    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.5" } });
+    const other = await stranger.newPage();
+    expect((await other.request.post(url, { headers: { origin: BASE }, data: { vault: "Public" } })).status()).toBe(401);
+    await signUp(other);
+    expect((await other.request.post(url, { headers: { origin: BASE }, data: { vault: "Public" } })).status()).toBe(404);
+    await stranger.close();
+
+    // None of those wrote anything.
+    expect(await hubs.more.filesAt((await hubs.more.branchHead()) as string).then((f) => f["fjord.json"])).toBeUndefined();
+  } finally {
+    await restoreMore();
+  }
+});

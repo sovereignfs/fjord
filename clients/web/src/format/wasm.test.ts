@@ -2,6 +2,7 @@ import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { ListedFile } from "./types";
+import type { SetupExisting, SetupOptions } from "./types";
 import { fjord, wasmAvailable, wasmDirectory } from "./wasm";
 
 /**
@@ -87,6 +88,39 @@ describe.skipIf(!available)("the format module", () => {
     const read = fjord().describeRepositoryManifest(readFileSync(join(fixtures, "conforming", "fjord.json"), "utf8"));
     expect(read).toMatchObject({ ok: true, version: 1, vaultsState: "entries" });
     expect(fjord().describeRepositoryManifest("not json")).toMatchObject({ ok: false });
+  });
+
+  describe("setting up a repository that is not a Fjord repository (P6)", () => {
+    // The recorded answers of `fjord-core` (tests/fixtures/setup.json): what the built module says, case by case,
+    // and so what the web client's wrapper must hand back unchanged.
+    const cases = JSON.parse(readFileSync(join(fixtures, "setup.json"), "utf8")) as {
+      name: string;
+      options: SetupOptions;
+      existing: SetupExisting;
+      nowMs: number;
+      randomHex: string;
+      expected: unknown;
+    }[];
+    const bytes = (hex: string) => Uint8Array.from((hex.match(/../g) ?? []).map((pair) => Number.parseInt(pair, 16)));
+
+    for (const recorded of cases) {
+      it(`${recorded.name}: says what fjord-core says`, () => {
+        expect(fjord().planSetup(recorded.options, recorded.existing, recorded.nowMs, bytes(recorded.randomHex))).toEqual(recorded.expected);
+      });
+    }
+
+    it("numbers a vault name after what is at the root", () => {
+      expect(fjord().freeVaultName("Public", ["README.md"])).toBe("Public");
+      expect(fjord().freeVaultName("Public", ["public/a.md"])).toBe("Public 2");
+    });
+
+    it("throws for a malformed call and does not for a finding", () => {
+      const existing = { paths: [], gitattributes: null };
+      const options = { repositoryName: "r", vault: "V", generator: "g" };
+      expect(fjord().planSetup(options, existing, 1e12, new Uint8Array(80)).ok).toBe(true);
+      expect(() => fjord().planSetup(options, existing, 1e12, new Uint8Array(10))).toThrow();
+      expect(fjord().planSetup(options, { paths: ["fjord.json"], gitattributes: null }, 1e12, new Uint8Array(80))).toMatchObject({ ok: false, error: { code: "already_fjord" } });
+    });
   });
 
   it("is loaded once, whatever asks", () => {

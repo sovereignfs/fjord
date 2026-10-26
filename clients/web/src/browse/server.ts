@@ -1,3 +1,4 @@
+import { ConnectionError, type ConnectionErrorCode } from "../connections/errors";
 import { connectionService } from "../connections/server";
 import type { ConnectionInfo } from "../connections/service";
 import { getDatabase } from "../db/boot";
@@ -5,6 +6,7 @@ import { fjord } from "../format/wasm";
 import { type Problem, describeProblem } from "./problems";
 import { type Location, locate } from "./location";
 import { type RepositoryRead, readRepository } from "./repository";
+import { type Assessment, applySetup, assessSetup, isNotFjord } from "./setup";
 import { TreeCache } from "./tree-cache";
 
 /**
@@ -40,6 +42,64 @@ export async function locateInRepository(accountId: string, connection: Connecti
   } catch (error) {
     const problem = describeProblem(error);
     if (problem) return { ok: false, problem };
+    throw error;
+  }
+}
+
+/**
+ * What to offer a repository that is not a Fjord repository (ROADMAP 1a.10), or nothing for one that is, or that could
+ * not be read. Reads the root of the repository and tries a write that changes nothing; writes nothing.
+ */
+export async function assessSetupFor(accountId: string, connection: ConnectionInfo, outcome: Outcome): Promise<Assessment | undefined> {
+  if (!outcome.ok || !isNotFjord(outcome.read)) return undefined;
+  try {
+    const used = await (await connectionService()).provider(accountId, connection.id);
+    if (!used) return undefined;
+    return await assessSetup(
+      { provider: used.provider, cache: new TreeCache(await getDatabase()), format: fjord() },
+      { id: connection.id, ref: { owner: connection.owner, name: connection.name }, branch: connection.branch, repositoryName: connection.name },
+      outcome.read,
+    );
+  } catch (error) {
+    const problem = describeProblem(error);
+    if (problem) return { offer: false, refusal: { code: "unavailable", message: problem.message } };
+    throw error;
+  }
+}
+
+/** How a problem with the host or the setup is told to the person who asked for the setup. */
+const PROBLEM_CODES: Record<Problem["code"], ConnectionErrorCode> = {
+  unauthorized: "bad_token",
+  not_found: "not_found",
+  forbidden: "forbidden",
+  empty_repository: "empty_repository",
+  rate_limited: "rate_limited",
+  unavailable: "unavailable",
+  credential: "bad_token",
+  setup: "unavailable",
+};
+
+/**
+ * Set one of the account's repositories up as a Fjord repository with a vault of this name: one commit. `found: false`
+ * if it is not theirs. Everything that can go wrong comes back as a `ConnectionError` with words for the person.
+ */
+export async function setUpRepository(accountId: string, id: number, vault: string): Promise<{ found: false } | { found: true; commit: string }> {
+  const connection = await (await connectionService()).get(accountId, id);
+  if (!connection) return { found: false };
+  try {
+    const used = await (await connectionService()).provider(accountId, id);
+    if (!used) return { found: false };
+    const done = await applySetup(
+      { provider: used.provider, cache: new TreeCache(await getDatabase()), format: fjord() },
+      { id, ref: { owner: connection.owner, name: connection.name }, branch: connection.branch, repositoryName: connection.name },
+      vault,
+    );
+    return { found: true, commit: done.commit };
+  } catch (error) {
+    if (error instanceof ConnectionError) throw error;
+    const problem = describeProblem(error);
+    if (problem?.code === "setup") console.error(`[fjord] ${error instanceof Error ? error.message : "the format module is not available"}`);
+    if (problem) throw new ConnectionError(PROBLEM_CODES[problem.code], problem.message);
     throw error;
   }
 }
