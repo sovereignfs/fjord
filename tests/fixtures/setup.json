@@ -1,0 +1,394 @@
+[
+  {
+    "name": "a code repository with no .gitattributes",
+    "options": {
+      "repositoryName": "notes",
+      "vault": "Public",
+      "generator": "fjord-web 0.0.0"
+    },
+    "existing": {
+      "paths": [
+        "README.md",
+        "src/main.rs",
+        "src/lib/mod.rs",
+        "Cargo.toml",
+        ".gitignore"
+      ],
+      "gitattributes": null
+    },
+    "nowMs": 1792000000000,
+    "randomHex": "030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dce3eaf1f8ff060d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+          "change": "create"
+        },
+        {
+          "path": ".gitattributes",
+          "contents": "# Fjord: never diff or merge ciphertext (spec §9).\n*.age binary -diff -merge\n",
+          "change": "create"
+        },
+        {
+          "path": "Public/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc000edx8324fjtet9axj\",\n  \"name\": \"Public\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"encryption\": null,\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "Public/welcome.md",
+          "contents": "---\nid: 01m4xrc000wfnf3y7z0r6h86s2\ntitle: Welcome\ncreated: 2026-10-14T17:46:40Z\ntags: [fjord]\nfjord:\n  schema: 1\n  starred: false\n---\n\n# Welcome\n\nThis file is a working example of a Fjord document. It is an ordinary\nMarkdown file in an ordinary directory — open it in Obsidian, VS Code, `vim`\nor anything else and edit it however you like.\n\nThe block at the top is the frontmatter. Only `id` matters to Fjord: it is\nwhat lets a document keep its identity and its history when you rename it or\nmove it to another folder. Everything else is convenience, and any keys\nFjord does not recognise are left exactly as they are when it writes the\nfile back — so other tools can add their own.\n\nYou can delete this file. The vault it sits in, \"Public\", is not\nencrypted, which means anyone who can read the repository can read it.\n\nFjord added only this vault (\"Public\") and a `fjord.json` that lists it to\nthis repository. Nothing else in it was changed.\n",
+          "change": "create"
+        }
+      ],
+      "repositoryId": "01m4xrc0000c51260z4rpk8et2",
+      "vaultId": "01m4xrc000edx8324fjtet9axj",
+      "createdAt": "2026-10-14T17:46:40Z"
+    }
+  },
+  {
+    "name": "a vault named by the user",
+    "options": {
+      "repositoryName": "My Notes",
+      "vault": "Notes",
+      "generator": "fjord-web 0.0.0"
+    },
+    "existing": {
+      "paths": [
+        "README.md",
+        "src/main.rs",
+        "src/lib/mod.rs",
+        "Cargo.toml",
+        ".gitignore"
+      ],
+      "gitattributes": null
+    },
+    "nowMs": 1792000000000,
+    "randomHex": "05121f2c394653606d7a8794a1aebbc8d5e2effc091623303d4a5764717e8b98a5b2bfccd9e6f3000d1a2734414e5b6875828f9ca9b6c3d0ddeaf704111e2b3845525f6c798693a0adbac7d4e1eefb08",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000m91yb1s8s9p0vbt\",\n  \"name\": \"My Notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Notes\",\n      \"id\": \"01m4xrc000tqhezz092rhk0faa\"\n    }\n  ]\n}\n",
+          "change": "create"
+        },
+        {
+          "path": ".gitattributes",
+          "contents": "# Fjord: never diff or merge ciphertext (spec §9).\n*.age binary -diff -merge\n",
+          "change": "create"
+        },
+        {
+          "path": "Notes/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc000tqhezz092rhk0faa\",\n  \"name\": \"Notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"encryption\": null,\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "Notes/welcome.md",
+          "contents": "---\nid: 01m4xrc000mpsbzk6swvsg038t\ntitle: Welcome\ncreated: 2026-10-14T17:46:40Z\ntags: [fjord]\nfjord:\n  schema: 1\n  starred: false\n---\n\n# Welcome\n\nThis file is a working example of a Fjord document. It is an ordinary\nMarkdown file in an ordinary directory — open it in Obsidian, VS Code, `vim`\nor anything else and edit it however you like.\n\nThe block at the top is the frontmatter. Only `id` matters to Fjord: it is\nwhat lets a document keep its identity and its history when you rename it or\nmove it to another folder. Everything else is convenience, and any keys\nFjord does not recognise are left exactly as they are when it writes the\nfile back — so other tools can add their own.\n\nYou can delete this file. The vault it sits in, \"Notes\", is not\nencrypted, which means anyone who can read the repository can read it.\n\nFjord added only this vault (\"Notes\") and a `fjord.json` that lists it to\nthis repository. Nothing else in it was changed.\n",
+          "change": "create"
+        }
+      ],
+      "repositoryId": "01m4xrc0000m91yb1s8s9p0vbt",
+      "vaultId": "01m4xrc000tqhezz092rhk0faa",
+      "createdAt": "2026-10-14T17:46:40Z"
+    }
+  },
+  {
+    "name": "a .gitattributes without the guard gains it",
+    "options": {
+      "repositoryName": "notes",
+      "vault": "Public",
+      "generator": "fjord-web 0.0.0"
+    },
+    "existing": {
+      "paths": [
+        "README.md",
+        "src/main.rs",
+        "src/lib/mod.rs",
+        "Cargo.toml",
+        ".gitignore",
+        ".gitattributes"
+      ],
+      "gitattributes": "* text=auto\n*.png binary\n"
+    },
+    "nowMs": 1792000000000,
+    "randomHex": "030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dce3eaf1f8ff060d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+          "change": "create"
+        },
+        {
+          "path": ".gitattributes",
+          "contents": "* text=auto\n*.png binary\n# Fjord: never diff or merge ciphertext (spec §9).\n*.age binary -diff -merge\n",
+          "change": "append"
+        },
+        {
+          "path": "Public/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc000edx8324fjtet9axj\",\n  \"name\": \"Public\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"encryption\": null,\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "Public/welcome.md",
+          "contents": "---\nid: 01m4xrc000wfnf3y7z0r6h86s2\ntitle: Welcome\ncreated: 2026-10-14T17:46:40Z\ntags: [fjord]\nfjord:\n  schema: 1\n  starred: false\n---\n\n# Welcome\n\nThis file is a working example of a Fjord document. It is an ordinary\nMarkdown file in an ordinary directory — open it in Obsidian, VS Code, `vim`\nor anything else and edit it however you like.\n\nThe block at the top is the frontmatter. Only `id` matters to Fjord: it is\nwhat lets a document keep its identity and its history when you rename it or\nmove it to another folder. Everything else is convenience, and any keys\nFjord does not recognise are left exactly as they are when it writes the\nfile back — so other tools can add their own.\n\nYou can delete this file. The vault it sits in, \"Public\", is not\nencrypted, which means anyone who can read the repository can read it.\n\nFjord added only this vault (\"Public\") and a `fjord.json` that lists it to\nthis repository. Nothing else in it was changed.\n",
+          "change": "create"
+        }
+      ],
+      "repositoryId": "01m4xrc0000c51260z4rpk8et2",
+      "vaultId": "01m4xrc000edx8324fjtet9axj",
+      "createdAt": "2026-10-14T17:46:40Z"
+    }
+  },
+  {
+    "name": "a .gitattributes without a final newline",
+    "options": {
+      "repositoryName": "notes",
+      "vault": "Public",
+      "generator": "fjord-web 0.0.0"
+    },
+    "existing": {
+      "paths": [
+        "README.md",
+        "src/main.rs",
+        "src/lib/mod.rs",
+        "Cargo.toml",
+        ".gitignore",
+        ".gitattributes"
+      ],
+      "gitattributes": "* text=auto"
+    },
+    "nowMs": 1792000000000,
+    "randomHex": "030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dce3eaf1f8ff060d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+          "change": "create"
+        },
+        {
+          "path": ".gitattributes",
+          "contents": "* text=auto\n# Fjord: never diff or merge ciphertext (spec §9).\n*.age binary -diff -merge\n",
+          "change": "append"
+        },
+        {
+          "path": "Public/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc000edx8324fjtet9axj\",\n  \"name\": \"Public\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"encryption\": null,\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "Public/welcome.md",
+          "contents": "---\nid: 01m4xrc000wfnf3y7z0r6h86s2\ntitle: Welcome\ncreated: 2026-10-14T17:46:40Z\ntags: [fjord]\nfjord:\n  schema: 1\n  starred: false\n---\n\n# Welcome\n\nThis file is a working example of a Fjord document. It is an ordinary\nMarkdown file in an ordinary directory — open it in Obsidian, VS Code, `vim`\nor anything else and edit it however you like.\n\nThe block at the top is the frontmatter. Only `id` matters to Fjord: it is\nwhat lets a document keep its identity and its history when you rename it or\nmove it to another folder. Everything else is convenience, and any keys\nFjord does not recognise are left exactly as they are when it writes the\nfile back — so other tools can add their own.\n\nYou can delete this file. The vault it sits in, \"Public\", is not\nencrypted, which means anyone who can read the repository can read it.\n\nFjord added only this vault (\"Public\") and a `fjord.json` that lists it to\nthis repository. Nothing else in it was changed.\n",
+          "change": "create"
+        }
+      ],
+      "repositoryId": "01m4xrc0000c51260z4rpk8et2",
+      "vaultId": "01m4xrc000edx8324fjtet9axj",
+      "createdAt": "2026-10-14T17:46:40Z"
+    }
+  },
+  {
+    "name": "a .gitattributes that already has the guard is left alone",
+    "options": {
+      "repositoryName": "notes",
+      "vault": "Public",
+      "generator": "fjord-web 0.0.0"
+    },
+    "existing": {
+      "paths": [
+        "README.md",
+        "src/main.rs",
+        "src/lib/mod.rs",
+        "Cargo.toml",
+        ".gitignore",
+        ".gitattributes"
+      ],
+      "gitattributes": "*.age binary -diff -merge\n"
+    },
+    "nowMs": 1792000000000,
+    "randomHex": "030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dce3eaf1f8ff060d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "Public/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc000edx8324fjtet9axj\",\n  \"name\": \"Public\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"encryption\": null,\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "Public/welcome.md",
+          "contents": "---\nid: 01m4xrc000wfnf3y7z0r6h86s2\ntitle: Welcome\ncreated: 2026-10-14T17:46:40Z\ntags: [fjord]\nfjord:\n  schema: 1\n  starred: false\n---\n\n# Welcome\n\nThis file is a working example of a Fjord document. It is an ordinary\nMarkdown file in an ordinary directory — open it in Obsidian, VS Code, `vim`\nor anything else and edit it however you like.\n\nThe block at the top is the frontmatter. Only `id` matters to Fjord: it is\nwhat lets a document keep its identity and its history when you rename it or\nmove it to another folder. Everything else is convenience, and any keys\nFjord does not recognise are left exactly as they are when it writes the\nfile back — so other tools can add their own.\n\nYou can delete this file. The vault it sits in, \"Public\", is not\nencrypted, which means anyone who can read the repository can read it.\n\nFjord added only this vault (\"Public\") and a `fjord.json` that lists it to\nthis repository. Nothing else in it was changed.\n",
+          "change": "create"
+        }
+      ],
+      "repositoryId": "01m4xrc0000c51260z4rpk8et2",
+      "vaultId": "01m4xrc000edx8324fjtet9axj",
+      "createdAt": "2026-10-14T17:46:40Z"
+    }
+  },
+  {
+    "name": "a .gitattributes whose text was not given",
+    "options": {
+      "repositoryName": "notes",
+      "vault": "Public",
+      "generator": "fjord-web 0.0.0"
+    },
+    "existing": {
+      "paths": [
+        "README.md",
+        "src/main.rs",
+        "src/lib/mod.rs",
+        "Cargo.toml",
+        ".gitignore",
+        ".gitattributes"
+      ],
+      "gitattributes": null
+    },
+    "nowMs": 1792000000000,
+    "randomHex": "030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dce3eaf1f8ff060d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "gitattributes_not_read",
+        "message": ".gitattributes is there but its text was not supplied"
+      }
+    }
+  },
+  {
+    "name": "already a Fjord repository",
+    "options": {
+      "repositoryName": "notes",
+      "vault": "Public",
+      "generator": "fjord-web 0.0.0"
+    },
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json"
+      ],
+      "gitattributes": null
+    },
+    "nowMs": 1792000000000,
+    "randomHex": "030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dce3eaf1f8ff060d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "already_fjord",
+        "message": "this repository already has a fjord.json"
+      }
+    }
+  },
+  {
+    "name": "the vault name is taken, case aside",
+    "options": {
+      "repositoryName": "notes",
+      "vault": "SRC",
+      "generator": "fjord-web 0.0.0"
+    },
+    "existing": {
+      "paths": [
+        "README.md",
+        "src/main.rs",
+        "src/lib/mod.rs",
+        "Cargo.toml",
+        ".gitignore"
+      ],
+      "gitattributes": null
+    },
+    "nowMs": 1792000000000,
+    "randomHex": "030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dce3eaf1f8ff060d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "vault_name_taken",
+        "message": "\"SRC\" is already used in this repository"
+      }
+    }
+  },
+  {
+    "name": "the vault name cannot be a directory",
+    "options": {
+      "repositoryName": "notes",
+      "vault": ".hidden",
+      "generator": "fjord-web 0.0.0"
+    },
+    "existing": {
+      "paths": [
+        "README.md",
+        "src/main.rs",
+        "src/lib/mod.rs",
+        "Cargo.toml",
+        ".gitignore"
+      ],
+      "gitattributes": null
+    },
+    "nowMs": 1792000000000,
+    "randomHex": "030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dce3eaf1f8ff060d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "invalid_vault_name",
+        "message": "\".hidden\" cannot be the name of a vault: it would be a hidden directory"
+      }
+    }
+  },
+  {
+    "name": "a vault name in NFD is written in NFC",
+    "options": {
+      "repositoryName": "notes",
+      "vault": "café",
+      "generator": "fjord-web 0.0.0"
+    },
+    "existing": {
+      "paths": [
+        "README.md",
+        "src/main.rs",
+        "src/lib/mod.rs",
+        "Cargo.toml",
+        ".gitignore"
+      ],
+      "gitattributes": null
+    },
+    "nowMs": 1792000000000,
+    "randomHex": "030a11181f262d343b424950575e656c737a81888f969da4abb2b9c0c7ced5dce3eaf1f8ff060d141b222930373e454c535a61686f767d848b9299a0a7aeb5bcc3cad1d8dfe6edf4fb020910171e252c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"café\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+          "change": "create"
+        },
+        {
+          "path": ".gitattributes",
+          "contents": "# Fjord: never diff or merge ciphertext (spec §9).\n*.age binary -diff -merge\n",
+          "change": "create"
+        },
+        {
+          "path": "café/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc000edx8324fjtet9axj\",\n  \"name\": \"café\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"encryption\": null,\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "café/welcome.md",
+          "contents": "---\nid: 01m4xrc000wfnf3y7z0r6h86s2\ntitle: Welcome\ncreated: 2026-10-14T17:46:40Z\ntags: [fjord]\nfjord:\n  schema: 1\n  starred: false\n---\n\n# Welcome\n\nThis file is a working example of a Fjord document. It is an ordinary\nMarkdown file in an ordinary directory — open it in Obsidian, VS Code, `vim`\nor anything else and edit it however you like.\n\nThe block at the top is the frontmatter. Only `id` matters to Fjord: it is\nwhat lets a document keep its identity and its history when you rename it or\nmove it to another folder. Everything else is convenience, and any keys\nFjord does not recognise are left exactly as they are when it writes the\nfile back — so other tools can add their own.\n\nYou can delete this file. The vault it sits in, \"café\", is not\nencrypted, which means anyone who can read the repository can read it.\n\nFjord added only this vault (\"café\") and a `fjord.json` that lists it to\nthis repository. Nothing else in it was changed.\n",
+          "change": "create"
+        }
+      ],
+      "repositoryId": "01m4xrc0000c51260z4rpk8et2",
+      "vaultId": "01m4xrc000edx8324fjtet9axj",
+      "createdAt": "2026-10-14T17:46:40Z"
+    }
+  }
+]

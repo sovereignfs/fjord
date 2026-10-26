@@ -14,6 +14,16 @@ tagging it.
 
 ### Added
 
+- **`fjord-core` can plan a repository's files without a disk or a clock, and set one up in a repository that
+  is not one** (ROADMAP P6): `scaffold` is now in the pure subset (WebAssembly). `plan_with` is `plan` with the
+  time and the identifiers given (`Origin`), so the same inputs give the same files; `plan`, which reads the clock,
+  and `write` stay behind `native`, and `fjord init` writes what it did, through `plan_with`. `plan_setup` decides
+  what to add to a repository that is not a Fjord repository: a `fjord.json`, one plaintext vault with a starter
+  note, and, only when it is missing, spec §9's `*.age` merge guard in `.gitattributes`. It changes nothing that is
+  there (the guard is a line appended to an existing `.gitattributes`), leaves out the `README.md`, `.gitignore`
+  and line-ending rule that `fjord init` writes, refuses a repository that has a `fjord.json`, and refuses a vault
+  name that is taken (case aside) or cannot be a directory. A repository it has set up passes `fjord verify`.
+  `has_merge_guard` is the one check of that guard, used by `verify` too.
 - **A three-way text merge in `fjord-core`, and conflict copies named by it** (ROADMAP MP1, `clients/mobile`):
   `fjord_core::merge::merge3` merges two edits of a text by lines and says what it could not: it agrees with
   `git merge-file` on which merges are clean and on their text (a test runs the real `git` over generated and
