@@ -134,6 +134,6 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | `scripts/` | Small Node scripts: `db-generate`, `db-dev`, `boot-check`, `record-github-fixtures`, `record-sovereign-discovery` |
 | `DESIGN.md`, `ROADMAP.md` | The design and the plan |
 
-`packages/fjord-editor` is shared with other clients and is created when slice 1b
-starts (ROADMAP 1b.1), not before. It is **MPL-2.0** and must not import `@sovereignfs/ui`
-or anything else of this app's (`DESIGN.md` §18).
+`packages/fjord-editor` is shared with other clients (ROADMAP 1b.1; its own `CLAUDE.md`). It is
+**MPL-2.0** and must not import `@sovereignfs/ui` or anything else of this app's (`DESIGN.md` §18).
+This app does not import it yet: how it is built and linked in comes with the first page that renders an editor.

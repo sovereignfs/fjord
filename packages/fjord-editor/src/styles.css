@@ -1,0 +1,75 @@
+/*
+ * This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/.
+ *
+ * The editors' look. It is made of the custom properties in `themeTokens` (src/theme.ts), each with a default, and a
+ * client sets them to its own palette and type. Nothing else is a colour or a font here.
+ */
+
+.fe-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fe-space, 0.5rem);
+  color: var(--fe-color-text, #1c1c1e);
+  font-family: var(--fe-font-body, system-ui, sans-serif);
+}
+
+.fe-text {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 16rem;
+  padding: var(--fe-space, 0.5rem);
+  border: 1px solid var(--fe-color-border, #c7c7cc);
+  border-radius: var(--fe-radius, 0.375rem);
+  background: var(--fe-color-surface, #ffffff);
+  color: inherit;
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.fe-note .fe-text {
+  font-family: var(--fe-font-mono, ui-monospace, monospace);
+}
+
+.fe-text:focus-visible {
+  outline: 2px solid var(--fe-color-focus, #0a60ff);
+  outline-offset: 1px;
+}
+
+.fe-text[readonly] {
+  background: var(--fe-color-surface, #ffffff);
+  color: var(--fe-color-muted, #636366);
+}
+
+.fe-toolbar {
+  display: flex;
+  gap: var(--fe-space, 0.5rem);
+}
+
+.fe-button {
+  padding: calc(var(--fe-space, 0.5rem) / 2) var(--fe-space, 0.5rem);
+  border: 1px solid var(--fe-color-accent, #0a60ff);
+  border-radius: var(--fe-radius, 0.375rem);
+  background: var(--fe-color-accent, #0a60ff);
+  color: var(--fe-color-accent-text, #ffffff);
+  font: inherit;
+  cursor: pointer;
+}
+
+.fe-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fe-button:focus-visible {
+  outline: 2px solid var(--fe-color-focus, #0a60ff);
+  outline-offset: 2px;
+}
+
+.fe-status {
+  margin: 0;
+  color: var(--fe-color-muted, #636366);
+  font-size: 0.875rem;
+}
