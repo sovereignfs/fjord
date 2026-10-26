@@ -31,6 +31,17 @@ pnpm build
 CI runs those, and the browser tests, for a change to this directory, and nothing else runs for it
 (`.github/workflows/web-ci.yml`).
 
+### Running it
+
+To run an instance (not to develop), build the container image and use one of the three Compose setups in
+[`deploy/`](deploy/README.md): sqld (the default), a single container with a database file, or PostgreSQL. It has the
+configuration, a reverse proxy, backups and updating.
+
+```bash
+cd deploy && cp .env.example .env     # edit it
+docker compose up -d --build
+```
+
 ### The database
 
 Fjord Web keeps accounts, connections, shares and the like in SQLite (the default,

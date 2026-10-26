@@ -75,6 +75,7 @@ expect "a source file" "$WEB" clients/web/src/site.ts
 expect "the lockfile" "$WEB" clients/web/pnpm-lock.yaml
 expect "package.json" "$WEB" clients/web/package.json
 expect "the app's configuration" "$WEB" clients/web/next.config.ts clients/web/tsconfig.json
+expect "the image and its setups" "$WEB" clients/web/Dockerfile clients/web/Dockerfile.dockerignore clients/web/deploy/compose.yaml clients/web/deploy/README.md clients/web/scripts/deploy-check.sh
 # A document in the sense of this classifier is only a named one.
 expect "a Markdown file that is not one of its documents" "$WEB" clients/web/content/terms.md
 expect "its own workflow" "$WEB" .github/workflows/web-ci.yml
