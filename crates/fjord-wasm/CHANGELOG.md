@@ -7,6 +7,10 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 
 ### Added
 
+- **`planSetup` and `freeVaultName`** (ROADMAP P6): what to add to a repository that is not a Fjord repository so
+  that it is one, from the repository's paths and the text of its `.gitattributes`, with the time and the
+  randomness the caller supplies. Held, by Rust and by the JavaScript suite, to a recorded file of cases
+  (`tests/fixtures/setup.json`). 526,402 bytes, 223,959 gzipped.
 - **`fjord-core`'s pure subset for WebAssembly** (ROADMAP P4): vault discovery from a tree listing, manifests,
   the path rules, documents and their frontmatter, and identifiers and timestamps from a clock and random
   source the caller supplies. Runs in Node and in a browser. Held, by a JavaScript suite over every

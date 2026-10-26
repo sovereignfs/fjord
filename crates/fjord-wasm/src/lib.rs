@@ -90,6 +90,21 @@ pub fn implied_title(text: &str, file_name: &str) -> String {
     api::implied_title(text, file_name)
 }
 
+#[wasm_bindgen(js_name = planSetup)]
+pub fn plan_setup(
+    options_json: &str,
+    existing_json: &str,
+    now_ms: f64,
+    random: &[u8],
+) -> Result<String, JsError> {
+    api::plan_setup(options_json, existing_json, now_ms, random).map_err(thrown)
+}
+
+#[wasm_bindgen(js_name = freeVaultName)]
+pub fn free_vault_name(preferred: &str, existing_json: &str) -> Result<String, JsError> {
+    api::free_vault_name(preferred, existing_json).map_err(thrown)
+}
+
 #[wasm_bindgen(js_name = newUlid)]
 pub fn new_ulid(timestamp_ms: f64, random: &[u8]) -> Result<String, JsError> {
     api::new_ulid(timestamp_ms, random).map_err(thrown)

@@ -20,6 +20,7 @@ malformed *call* throws. [`src/api.rs`](src/api.rs) documents every shape.
 | `describeRepositoryManifest(text)`, `describeVaultManifest(text)` | A manifest, read: its fields, and the whole thing as written (`raw`), which a rewrite must preserve (§10.1). |
 | `checkName`, `caseCollisions`, `toNfc`, `checkManifestPath` | The path rules (§5), by the codes they break (`E501`…). |
 | `parseDocument`, `newDocument`, `withFreshId`, `promoteDocument`, `impliedTitle` | Frontmatter: read with every key in order, a new document's header, a fresh `id`, promoting a file to a Doc without losing unknown keys (§8). |
+| `planSetup(options, existing, nowMs, random)`, `freeVaultName(preferred, existing)` | What to add to a repository that is **not** a Fjord repository so that it is one: a `fjord.json` and one plaintext vault, and nothing else but the one line spec §9 requires of `.gitattributes`. Nothing is changed or removed; the time and 80 random bytes are the caller's, so the same call gives the same answer. A finding (already a Fjord repository, a vault name that is taken or cannot be one) is data. Held to `tests/fixtures/setup.json`. |
 | `newUlid(ms, random)`, `isUlid`, `isRfc3339Utc`, `rfc3339FromUnix`, `formatVersion` | Identifiers and timestamps from a **clock and random source the caller supplies** (`Date.now()`, `crypto.getRandomValues`): the module has none of its own (the system clock panics on `wasm32-unknown-unknown`). |
 
 Not here, on purpose: reading a directory (`verify`, `ls`), `age` encryption, `tar` containers. They need a

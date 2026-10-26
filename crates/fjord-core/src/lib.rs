@@ -42,6 +42,7 @@ pub mod manifest;
 pub mod merge;
 pub mod naming;
 pub mod path;
+pub mod scaffold;
 pub mod scalar;
 
 // What needs a real machine: a disk, `age`, `tar`. Not in the pure subset, which is what compiles to
@@ -52,8 +53,6 @@ pub mod container;
 pub mod crypto;
 #[cfg(feature = "native")]
 pub mod repair;
-#[cfg(feature = "native")]
-pub mod scaffold;
 #[cfg(feature = "native")]
 pub mod store;
 #[cfg(feature = "native")]

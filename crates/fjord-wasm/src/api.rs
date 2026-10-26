@@ -20,6 +20,7 @@
 use fjord_core::doc::{self, Parse};
 use fjord_core::listing::{self, FileKind, ListedFile};
 use fjord_core::manifest::{field, Manifest, Vaults};
+use fjord_core::scaffold::{self, FileChange, Origin, Setup};
 use fjord_core::{path, scalar};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
@@ -340,6 +341,112 @@ pub fn rfc3339_from_unix(seconds: f64) -> Option<String> {
     scalar::rfc3339_utc_from_unix(seconds as i64)
 }
 
+// --- Setting up a repository that is not a Fjord repository --------------------------------------------
+
+/// What to add to a repository that is not a Fjord repository so that it is one (ROADMAP 1a.10): a
+/// `fjord.json` and one plaintext vault, and nothing else but the line spec §9 requires of
+/// `.gitattributes`. Nothing is changed, renamed or removed (`fjord_core::scaffold::plan_setup`).
+///
+/// - `options_json`: `{"repositoryName": string, "vault": string, "generator": string}`.
+/// - `existing_json`: `{"paths": [string], "gitattributes": string | null}`: the path of every file in the
+///   repository, and the text of its `.gitattributes` if it has one.
+/// - `now_ms` and `random`: the time (milliseconds since the Unix epoch) and at least 80 random bytes,
+///   which the identifiers and the creation time are made from. The same inputs give the same answer.
+///
+/// The answer is JSON. A finding about the repository is data: `{"ok": false, "error": {"code",
+/// "message"}}` with the code one of `already_fjord`, `invalid_vault_name`, `vault_name_taken`,
+/// `gitattributes_not_read`. Otherwise `{"ok": true, "files": [{"path", "contents", "change"}],
+/// "repositoryId", "vaultId", "createdAt"}`, where `change` is `"create"`, or `"append"` for a
+/// `.gitattributes` that already existed (its `contents` are the whole new file). `Err` is a malformed
+/// call.
+pub fn plan_setup(
+    options_json: &str,
+    existing_json: &str,
+    now_ms: f64,
+    random: &[u8],
+) -> Result<String, String> {
+    let options: Value = serde_json::from_str(options_json)
+        .map_err(|err| format!("the options are not JSON: {err}"))?;
+    let text = |key: &str| -> Result<String, String> {
+        options
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| format!("the options need a text `{key}`"))
+    };
+    let setup = Setup {
+        repository_name: text("repositoryName")?,
+        vault: text("vault")?,
+        generator: text("generator")?,
+    };
+
+    let (paths, gitattributes) = existing(existing_json)?;
+
+    if !now_ms.is_finite() || now_ms < 0.0 {
+        return Err("the time must be milliseconds since the epoch, not negative".to_string());
+    }
+    let origin = Origin::from_entropy(now_ms as u64, random).ok_or_else(|| {
+        format!(
+            "a setup needs {} random bytes and a time that is a date",
+            Origin::ENTROPY_BYTES
+        )
+    })?;
+
+    Ok(
+        match scaffold::plan_setup(&setup, &origin, &paths, gitattributes.as_deref()) {
+            Ok(plan) => json!({
+                "ok": true,
+                "files": plan.files.iter().map(|file| json!({
+                    "path": file.path,
+                    "contents": file.contents,
+                    "change": match file.change {
+                        FileChange::Create => "create",
+                        FileChange::Append => "append",
+                    },
+                })).collect::<Vec<_>>(),
+                "repositoryId": plan.repository_id,
+                "vaultId": plan.vault_id,
+                "createdAt": plan.created_at,
+            }),
+            Err(error) => json!({
+                "ok": false,
+                "error": { "code": error.code(), "message": error.to_string() },
+            }),
+        }
+        .to_string(),
+    )
+}
+
+/// A vault name that is free at the root of a repository (`"Public"`, else `"Public 2"`, …).
+/// `existing_json` is as for [`plan_setup`]; only its `paths` are looked at.
+pub fn free_vault_name(preferred: &str, existing_json: &str) -> Result<String, String> {
+    let (paths, _) = existing(existing_json)?;
+    Ok(scaffold::free_vault_name(preferred, &paths))
+}
+
+/// `{"paths": [...], "gitattributes": string | null}`, read.
+fn existing(json: &str) -> Result<(Vec<String>, Option<String>), String> {
+    let value: Value =
+        serde_json::from_str(json).map_err(|err| format!("the repository is not JSON: {err}"))?;
+    let paths = value
+        .get("paths")
+        .and_then(Value::as_array)
+        .ok_or("the repository needs a list of `paths`")?
+        .iter()
+        .map(|path| {
+            path.as_str()
+                .map(str::to_string)
+                .ok_or("a path must be text")
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let gitattributes = match value.get("gitattributes") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(text)) => Some(text.clone()),
+        Some(_) => return Err("`gitattributes` must be text or null".to_string()),
+    };
+    Ok((paths, gitattributes))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -588,5 +695,113 @@ mod tests {
         assert!(is_rfc3339_utc("2026-01-01T00:00:00Z"));
         assert!(!is_rfc3339_utc("2026-01-01T00:00:00+02:00"));
         assert_eq!(format_version(), 1);
+    }
+
+    // --- Setting up a repository ---
+
+    fn hex(text: &str) -> Vec<u8> {
+        (0..text.len() / 2)
+            .map(|i| u8::from_str_radix(&text[i * 2..i * 2 + 2], 16).expect("hex"))
+            .collect()
+    }
+
+    /// The recorded cases of `tests/fixtures/setup.json`: what `plan_setup` answers for each input. The
+    /// JavaScript suite holds the built module to the same file, so the module and the Rust agree.
+    fn recorded() -> Vec<Value> {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/setup.json");
+        let text = std::fs::read_to_string(path).expect("setup.json");
+        serde_json::from_str::<Vec<Value>>(&text).expect("an array of cases")
+    }
+
+    fn answer(case: &Value) -> Value {
+        let random = hex(case["randomHex"].as_str().expect("randomHex"));
+        let text = plan_setup(
+            &case["options"].to_string(),
+            &case["existing"].to_string(),
+            case["nowMs"].as_f64().expect("nowMs"),
+            &random,
+        )
+        .expect("a well-formed call");
+        parsed(&text)
+    }
+
+    #[test]
+    fn the_recorded_setups_are_what_it_answers() {
+        let cases = recorded();
+        assert!(cases.len() >= 8, "only {} cases", cases.len());
+        for case in cases {
+            assert_eq!(answer(&case), case["expected"], "{}", case["name"]);
+        }
+    }
+
+    /// Re-record `tests/fixtures/setup.json` after a deliberate change to what a setup writes:
+    /// `cargo test -p fjord-wasm record_the_setups -- --ignored`, then read the diff.
+    #[test]
+    #[ignore = "writes tests/fixtures/setup.json"]
+    fn record_the_setups() {
+        let mut cases = recorded();
+        for case in &mut cases {
+            let expected = answer(case);
+            case["expected"] = expected;
+        }
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/setup.json");
+        let text = serde_json::to_string_pretty(&cases).expect("JSON");
+        std::fs::write(path, format!("{text}\n")).expect("write");
+    }
+
+    #[test]
+    fn a_malformed_call_is_an_error_and_not_a_finding() {
+        let ok_options = r#"{"repositoryName":"r","vault":"V","generator":"g"}"#;
+        let ok_existing = r#"{"paths":[],"gitattributes":null}"#;
+        let random = vec![7u8; 80];
+        assert!(plan_setup(ok_options, ok_existing, 1.0e12, &random).is_ok());
+
+        for (options, existing, now, random) in [
+            ("not json", ok_existing, 1.0e12, &random[..]),
+            (
+                r#"{"vault":"V","generator":"g"}"#,
+                ok_existing,
+                1.0e12,
+                &random[..],
+            ),
+            (
+                r#"{"repositoryName":"r","vault":3,"generator":"g"}"#,
+                ok_existing,
+                1.0e12,
+                &random[..],
+            ),
+            (ok_options, "not json", 1.0e12, &random[..]),
+            (ok_options, r#"{"gitattributes":null}"#, 1.0e12, &random[..]),
+            (ok_options, r#"{"paths":[1]}"#, 1.0e12, &random[..]),
+            (
+                ok_options,
+                r#"{"paths":[],"gitattributes":3}"#,
+                1.0e12,
+                &random[..],
+            ),
+            (ok_options, ok_existing, f64::NAN, &random[..]),
+            (ok_options, ok_existing, -1.0, &random[..]),
+            (ok_options, ok_existing, 1.0e12, &random[..79]),
+        ] {
+            assert!(
+                plan_setup(options, existing, now, random).is_err(),
+                "{options} {existing} {now}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_free_vault_name_comes_from_the_paths() {
+        assert_eq!(
+            free_vault_name("Public", r#"{"paths":["README.md"]}"#).expect("name"),
+            "Public"
+        );
+        assert_eq!(
+            free_vault_name("Public", r#"{"paths":["public/a.md"]}"#).expect("name"),
+            "Public 2"
+        );
+        assert!(free_vault_name("Public", "nope").is_err());
     }
 }

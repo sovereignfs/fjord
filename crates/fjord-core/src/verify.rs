@@ -299,32 +299,13 @@ fn check_merge_guard(root: &Path, report: &mut Report) -> Result<(), Error> {
         return Ok(());
     }
     let text = String::from_utf8_lossy(&read(&path)?).to_string();
-    if !merge_guard_present(&text) {
+    if !crate::scaffold::has_merge_guard(&text) {
         report.push(
             Diagnostic::at(Code::MergeGuardMissing, ".gitattributes")
                 .with_detail("no `*.age` pattern sets `-merge`"),
         );
     }
     Ok(())
-}
-
-/// Whether `.gitattributes` stops Git merging ciphertext. Spec §9.
-///
-/// Only `-merge` is required. `-diff` is strongly advisable and the
-/// specification's example sets it, but a textual diff of ciphertext is
-/// merely useless, where a textual merge writes a corrupt file.
-fn merge_guard_present(text: &str) -> bool {
-    text.lines().any(|line| {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            return false;
-        }
-        let mut fields = line.split_whitespace();
-        match fields.next() {
-            Some("*.age") => fields.any(|attribute| attribute == "-merge"),
-            _ => false,
-        }
-    })
 }
 
 // --- The walk ------------------------------------------------------------
