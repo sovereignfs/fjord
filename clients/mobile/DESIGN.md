@@ -361,7 +361,7 @@ several changes `Update <n> files` with one line per change in the body.
 | deleted | edited | The upstream version is kept and the deletion dropped; the user is told. |
 | renamed or moved | edited | Upstream's content, merged with any edit here, at the new path. |
 | renamed or moved | renamed or moved | Upstream's path wins; an edit here is merged into it; the user is told. |
-| new file | a file at that path | The new file gets a free name, as in §9. |
+| new file | a different new file at that path | Two notes that were given one name (two phones that each captured "Buy milk" offline) are not versions of one document, so nothing is merged and nothing is a conflict: **upstream's stays where it is**, since others have seen it there, and **this phone's moves** to the next free number (`Buy milk 2.md`, as in §9), by `fjord-core` (`merge::add_add`, ROADMAP MP1). Identical files are kept once; two files with one `id` are the same document written twice, and are merged from an empty base like any other. |
 
 **When a merge cannot complete**, neither side is discarded (spec §9.1, CLI
 invariant 5). Upstream's version stays in place and this phone's is written beside
