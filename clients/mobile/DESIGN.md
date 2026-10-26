@@ -266,7 +266,11 @@ with no network, no repository reachable, and the app cold.
   - Characters the spec forbids in names, reserved names and trailing dots or
     spaces are dealt with by the spec's path rules (§5), so the name is valid on
     every operating system.
-  - An empty first line gives the date and time: `2026-10-22 1430.md`.
+  - An empty first line gives the date and time: `2026-10-22 1430.md`. So does a first line with nothing to
+    name a file by (only markers or punctuation). Only the *first* line counts: a note that starts with a blank line
+    is named by the date and time.
+  - A name Windows reserves (`CON`, `nul.txt`, …) is prefixed with `Note `, so a note titled `con` is
+    `Note con.md`.
   - A name that is taken in `Inbox/` (including one that differs only by case) gets
     ` 2`, ` 3`, … before the extension.
 - **The name is chosen once**, when the note is first queued for sync. Editing the

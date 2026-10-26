@@ -14,6 +14,13 @@ tagging it.
 
 ### Added
 
+- **A note's name from its text** (ROADMAP MP2, `clients/mobile`): `fjord_core::naming::quick_note_name` gives a new
+  note the file name its first line asks for, so a note captured on a phone and one typed in a browser get the same
+  name. Markdown markers (`#`, `>`, `-`, `1.`, `[ ]`) are stripped; what spec §5 forbids becomes a space; the name is
+  NFC and cut at 60 characters on a word boundary; a first line with nothing to name it by gives the date and time
+  (`2026-10-22 1430.md`); a Windows device name is prefixed with `Note `; and a name already in the folder, by case
+  or normalisation, gets ` 2`, ` 3`, … before the extension. Pure (the caller supplies the local time and the folder's
+  names), so it is in the WebAssembly subset. Nothing in the CLI uses it yet.
 - **`fjord new --document`, and `ls` says which is which** (ROADMAP P2): `--document` names a new Doc
   `*.fj.md` (`plan` and `plan.md` become `plan.fj.md`; a name already ending in `.fj.md` is a document without
   the flag), and a document's default title no longer keeps its suffix. `ls --json` keeps `"kind": "doc"` for every
