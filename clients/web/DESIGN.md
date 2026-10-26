@@ -646,6 +646,35 @@ Markdown in, Markdown out, compared.
   changes only what the user changed.
 - No toolbar beyond the essentials; no comments; no sharing in phase 1.
 
+### The package, as built (ROADMAP 1b.1)
+
+`packages/fjord-editor` exists (its own [`README.md`](../../packages/fjord-editor/README.md) and `CLAUDE.md`): the
+interface of the sketch above, made exact, with a plain text area behind both editors until the real cores arrive
+(1b.2, 1b.3).
+
+- **The interface**: `DocumentEditor { value, onChange, role, comments, onNeedName }` and
+  `NoteEditor { value, onChange, readOnly }`, and an `EditorHandle { focus() }` through a `ref`. `onChange` gets the
+  whole new text and is never called for a change the app made by setting `value`, nor when the text may only be read.
+  `role` is `view` (reads), `comment` (reads and starts threads) or `edit`.
+- **`onNeedName: () => Promise<boolean>`** is called before an anonymous person's first edit or comment. `true`
+  once the app has a name, `false` if they decline: nothing happens and it is asked again at the next attempt.
+  Attempts made while it is still asking share one question, and one that fails is a no.
+- **`comments` is a `CommentsAdapter`**: `threads()` (what to mark), `subscribe()` (live changes), `create(anchor)` (the
+  person selected text and asked to comment), `open(threadId)`. The thread panel, replies, live updates and storage are
+  the app's (§13). An `Anchor` is the tagged text-quote selector of §13, and `textQuoteAnchor(body, start, end)` makes
+  one (UTF-16 offsets of the body as given, 32 characters of context either side).
+- **Theming is custom properties**: the stylesheet uses `--fe-color-*`, `--fe-font-*`, `--fe-radius` and `--fe-space`,
+  each with a default, and nothing else is a colour or a font. This app will map its `--sv-*` tokens onto them, which is
+  how the package needs no design system.
+- **One entry point**: a client can import `fjord-editor` and `fjord-editor/styles.css`, and nothing deeper.
+- **A contract** (`src/contract.test.tsx`) says what an editor does whatever is behind it, and CodeMirror and MDXEditor
+  must pass it unchanged. Checks of the package's promises about itself (MPL-2.0, React the only dependency, no
+  `@sovereignfs`, styled only through its tokens, one entry point), every story rendering, and a build checked as a
+  client takes it, run in CI (`.github/workflows/editor-ci.yml`) for a change to the package and nothing else.
+- **Not yet used by this app.** Linking a built package into a Next.js app in a repository with several projects
+  (building it first in CI and in the image, and where the bundler's root is) is settled with the first page that
+  renders an editor, which is 1b.2.
+
 ### Creating
 
 Phase 1 can **create** documents and notes (name, vault and folder chosen; a valid

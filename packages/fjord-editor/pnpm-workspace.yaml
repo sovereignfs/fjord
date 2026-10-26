@@ -1,0 +1,9 @@
+# pnpm 11 refuses to run a dependency's install script unless it is decided here, and `pnpm install` fails
+# while any is undecided. Each one is a choice, not a default (clients/web/pnpm-workspace.yaml says why).
+allowBuilds:
+  # The platform binary arrives as an optional dependency; the script only checks that it did.
+  esbuild: false
+  # @swc/core: the same (its binary is an optional dependency); the story viewer's tooling pulls it in.
+  "@swc/core": false
+  # msw: its script copies a browser service worker into place, which nothing here uses.
+  msw: false
