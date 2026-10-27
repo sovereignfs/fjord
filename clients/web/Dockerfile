@@ -90,6 +90,9 @@ COPY --from=app /build/clients/web/node_modules/@sovereignfs/ui/LICENSE /usr/sha
 COPY --from=app /build/clients/web/node_modules/@sovereignfs/ui/NOTICE /usr/share/licenses/sovereignfs-ui/NOTICE
 # The editors' package is MPL-2.0 and is part of the server's bundle, so its licence travels too.
 COPY --from=editor /build/packages/fjord-editor/LICENSE /usr/share/licenses/fjord-editor/LICENSE
+# What the editors are built on (CodeMirror, MDXEditor, Lexical and the rest of their closure) is permissively licensed
+# and asks that its notice accompany copies; the package writes them into one file when it is built.
+COPY --from=editor /build/packages/fjord-editor/dist/THIRD_PARTY_NOTICES.txt /usr/share/licenses/fjord-editor/THIRD_PARTY_NOTICES.txt
 
 # The database file, when the instance keeps one (SQLITE_URL=file:/data/fjord.db), and nothing else, is written.
 RUN mkdir /data && chown node:node /data
