@@ -1703,3 +1703,127 @@ test("a note's header that cannot be read is not split or rewritten: it is shown
     await restoreMore();
   }
 });
+
+// --- Routes by id (ROADMAP 1b.6) -----------------------------------------------------------------------------------------
+
+const ID_DOC = "01jagc4k7pt8y3wqnmzv5xrb8j";
+const ID_NOTE = "01jagc4k7pt8y3wqnmzv5xrb9k";
+const withId = (id: string, body: string) => `---\nid: ${id}\ntitle: T\n---\n\n${body}\n`;
+
+test("a document opens at /doc/<id> and a note at /note/<id>, wherever they are, and the other route sends to the right one", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, {
+      "Notes/fjord.vault.json": VAULT_MANIFEST,
+      "Notes/Deep/Plan.fj.md": withId(ID_DOC, "The plan."),
+      "Notes/Deep/idea.md": withId(ID_NOTE, "The idea."),
+      "Notes/plain.md": "# no header\n",
+    });
+
+    // Nothing has been opened, so the first lookup searches; the address stays the one that was asked for.
+    expect((await page.goto(`/doc/${ID_DOC}`))?.status()).toBe(200);
+    await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan.");
+    await expect(page).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+    await expect(page.getByRole("heading", { name: "acme/more" })).toBeVisible();
+
+    await page.goto(`/note/${ID_NOTE}`);
+    await expect(noteEditor(page, "idea.md")).toContainText("The idea.");
+    await expect(page).toHaveURL(`${BASE}/note/${ID_NOTE}`);
+
+    // A note asked for as a document, and a document as a note, are sent to the address that is theirs.
+    await page.goto(`/doc/${ID_NOTE}`);
+    await expect(page).toHaveURL(`${BASE}/note/${ID_NOTE}`);
+    await expect(noteEditor(page, "idea.md")).toBeVisible();
+    await page.goto(`/note/${ID_DOC}`);
+    await expect(page).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+
+    // The page of a file by its path says the address by id, and it is the one that works.
+    await page.goto(`/repo/${id}/Notes/Deep/idea.md`);
+    await expect(page.getByRole("link", { name: `/note/${ID_NOTE}` })).toHaveAttribute("href", `/note/${ID_NOTE}`);
+    await page.goto(`/repo/${id}/Notes/plain.md`);
+    await expect(page.getByText("Address by id")).toHaveCount(0);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("an id that is not there, is not an id, or is another person's is a 404 that says nothing about which", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/idea.md": withId(ID_NOTE, "mine") });
+    await page.goto(`/note/${ID_NOTE}`);
+    await expect(noteEditor(page, "idea.md")).toBeVisible();
+
+    for (const path of ["/note/01jagc4k7pt8y3wqnmzv5xrbzz", "/doc/01jagc4k7pt8y3wqnmzv5xrbzz", "/note/not-an-id", `/note/${ID_NOTE.toUpperCase()}`, `/doc/${ID_NOTE}%2F..`, `/note/${ID_NOTE}0`]) {
+      expect((await page.goto(path))?.status(), path).toBe(404);
+    }
+
+    // Someone else, with no repository of their own, is told the same as for an id that was never made.
+    const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.9" } });
+    const otherPage = await other.newPage();
+    await signUp(otherPage, `visitor-${Date.now()}@example.com`, "Grace Hopper");
+    expect((await otherPage.goto(`/note/${ID_NOTE}`))?.status()).toBe(404);
+    expect((await otherPage.goto(`/note/01jagc4k7pt8y3wqnmzv5xrbzz`))?.status()).toBe(404);
+    await other.close();
+
+    // And nobody signed out is shown anything.
+    const signedOut = await browser.newContext({ baseURL: BASE });
+    const anonymous = await signedOut.newPage();
+    await anonymous.goto(`/note/${ID_NOTE}`);
+    await expect(anonymous).toHaveURL(/\/sign-in/);
+    await signedOut.close();
+    expect(id).toBeGreaterThan(0);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a file that moves is still found by its id, and one that is deleted is not", async ({ page }) => {
+  try {
+    await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/idea.md": withId(ID_NOTE, "the idea") });
+    await page.goto(`/note/${ID_NOTE}`);
+    await expect(noteEditor(page, "idea.md")).toBeVisible();
+
+    // Moved and changed from another tool: the index still says the old place, and is not believed.
+    await hubs.more.commitFiles({ "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Archive/old idea.md": withId(ID_NOTE, "the idea, moved") }, { replace: true });
+    await page.goto(`/note/${ID_NOTE}`);
+    await expect(noteEditor(page, "old idea.md")).toContainText("the idea, moved");
+    await expect(page).toHaveURL(`${BASE}/note/${ID_NOTE}`);
+
+    await hubs.more.commitFiles({ "Notes/fjord.vault.json": VAULT_MANIFEST }, { replace: true });
+    expect((await page.goto(`/note/${ID_NOTE}`))?.status()).toBe(404);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("an id that two files have is not guessed at: the person chooses", async ({ page }) => {
+  try {
+    await repositoryWith(page, {
+      "Notes/fjord.vault.json": VAULT_MANIFEST,
+      "Notes/idea.md": withId(ID_NOTE, "the first"),
+      "Notes/copy of idea.md": withId(ID_NOTE, "the second"),
+    });
+    await page.goto(`/note/${ID_NOTE}`);
+    await expect(page.getByRole("heading", { name: "More than one file has this id" })).toBeVisible();
+    const choices = page.getByRole("list", { name: "Files with this id" }).getByRole("link");
+    await expect(choices).toHaveText(["Notes/copy of idea.md", "Notes/idea.md"]);
+
+    await choices.last().click();
+    await expect(noteEditor(page, "idea.md")).toContainText("the first");
+    await expect(page).toHaveURL(/\/repo\/\d+\/Notes\/idea\.md$/);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("an id in an encrypted vault is not looked for: nothing of one is read", async ({ page }) => {
+  try {
+    const encrypted = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hw", name: "Secret", createdAt: "2026-10-16T09:34:00Z", encryption: { mode: "none" }, fileNaming: "plain" });
+    await repositoryWith(page, { "Secret/fjord.vault.json": encrypted, "Secret/readme.md": withId(ID_NOTE, "stray plaintext in an encrypted vault") });
+    hubs.more.requests.length = 0;
+    expect((await page.goto(`/note/${ID_NOTE}`))?.status()).toBe(404);
+    // Only the vault manifests are ever read, never the stray note in the encrypted vault (a manifest is at most one blob).
+    expect(hubs.more.requests.filter((request) => request.path.includes("/git/blobs/")).length).toBeLessThanOrEqual(1);
+  } finally {
+    await restoreMore();
+  }
+});

@@ -13,6 +13,13 @@ section.
 
 ### Added
 
+- **Open a file by its id** (ROADMAP 1b.6): `/doc/<id>` and `/note/<id>` show the file with that Doc `id` among your repositories,
+  wherever it is in them, and keep working when it is edited, moved or renamed from another tool. An id that two files share is
+  not guessed at: you choose between them. An id that is not there, not an id, or someone else's is a 404 and says no more; when
+  a repository could not be read, or there are more files than one search covers, the page says that instead. A note asked for as
+  a document, or a document as a note, goes to the right address. A file's page shows its address by id. Encrypted vaults are
+  never read for this. A new `doc_index` table remembers which file has which id; it is filled as files are opened and by
+  searching on a miss, and it is believed only where the repository still has the same version of the file.
 - **Document properties** (ROADMAP 1b.5): a note or a document shows its header in a **Properties** panel beside the editor, which
   is given the body only: the identifier and the day it was made, the title (which can be changed there, and which does not rename
   the file) and every key Fjord does not know, shown as it is written and kept as it is. Editing the body leaves the header byte for

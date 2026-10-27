@@ -3,6 +3,9 @@ import { connectionService } from "../connections/server";
 import type { ConnectionInfo } from "../connections/service";
 import { getDatabase } from "../db/boot";
 import { fjord } from "../format/wasm";
+import type { ClassifiedFile } from "../format/types";
+import { DocIndex } from "./doc-index";
+import { type Resolution, type Source, recordRead, resolveDocId } from "./ids";
 import { type Problem, describeProblem } from "./problems";
 import { type Location, locate } from "./location";
 import { type RepositoryRead, readRepository } from "./repository";
@@ -116,4 +119,37 @@ export async function readNoteFor(accountId: string, connection: ConnectionInfo,
     if (problem) return { ok: false, reason: "problem", message: problem.message };
     throw error;
   }
+}
+
+/**
+ * Note what a page just read of a file, so that its `id` can be found later (ROADMAP 1b.6). The page does not depend on it:
+ * if the index cannot be written the file is shown all the same, and the failure is logged by name only.
+ */
+export async function recordFileRead(connectionId: number, file: ClassifiedFile, blob: string, text: string): Promise<void> {
+  try {
+    await recordRead(new DocIndex(await getDatabase()), fjord(), connectionId, file, blob, text);
+  } catch (error) {
+    console.error(`[fjord] id index: could not record a file (${error instanceof Error ? error.name : "failure"})`);
+  }
+}
+
+/**
+ * Where a Doc `id` is, among the account's own repositories (ROADMAP 1b.6). A repository that cannot be read just now is left
+ * out of the search, and the answer says so: a missing file is not reported as absent when a repository could not be asked.
+ */
+export async function findDocId(accountId: string, docId: string): Promise<Resolution & { unreachable: boolean }> {
+  const service = await connectionService();
+  const sources: Source[] = [];
+  let unreachable = false;
+  for (const connection of await service.list(accountId)) {
+    const outcome = await readConnection(accountId, connection);
+    const used = outcome.ok ? await service.provider(accountId, connection.id) : undefined;
+    if (!outcome.ok || !used) {
+      unreachable = true;
+      continue;
+    }
+    sources.push({ connectionId: connection.id, ref: { owner: connection.owner, name: connection.name }, read: outcome.read, provider: used.provider });
+  }
+  const resolution = await resolveDocId({ index: new DocIndex(await getDatabase()), format: fjord() }, sources, docId);
+  return { ...resolution, unreachable };
 }

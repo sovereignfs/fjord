@@ -126,3 +126,29 @@ export const deletion = app.table(
   },
   (table) => [index("deletion_connection_idx").on(table.connectionId, table.deletedAt)],
 );
+
+/**
+ * Which Doc is at which path of a repository (DESIGN.md §9, §14, ROADMAP 1b.6), so that `/doc/<id>` and `/note/<id>` can find
+ * a file without listing every repository. One row per Markdown file of a plaintext vault that has been **read**: `doc_id`
+ * is the `id` of its header (spec §8.3), or null when it has none, which is still worth knowing (the file is not read again
+ * until its blob changes). `blob` is the file's git object id when it was read, and the index is trusted only where it still
+ * matches the repository's tree: a file that was edited, moved or deleted elsewhere is read again, never believed. An id is
+ * unique within a repository (spec E401) but not across them, nor is the index a promise of that, so a lookup may find
+ * several. A disconnected repository's rows go with it.
+ */
+export const docIndex = app.table(
+  "doc_index",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    /** Repository-relative, with forward slashes. */
+    path: text("path").notNull(),
+    /** The Doc's `id`; null for a file with no header or no valid `id`. */
+    docId: text("doc_id"),
+    /** `note` or `document`: what its name made it. */
+    kind: text("kind").notNull(),
+    blob: text("blob").notNull(),
+    indexedAt: epochMs("indexed_at").notNull(),
+  },
+  (table) => [uniqueIndex("doc_index_connection_path_idx").on(table.connectionId, table.path), index("doc_index_doc_id_idx").on(table.docId)],
+);
