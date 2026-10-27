@@ -774,7 +774,7 @@ What is built is the first bullet above, the draft; versions are 1b.9 and the up
 - **Only on top of the base.** The file at the branch's head must still be the blob the draft started from, and a regular
   file: otherwise nothing is written. A head that moved without touching the file is read again, once, and the commit goes on
   top of the new head; the commit is never forced and never retried blindly (`head_moved` is the cue to read again and decide,
-  CLAUDE.md). The choice when the file did change is 1b.10.
+  CLAUDE.md). The choice when the file did change is the next section.
 - **Author and co-authors.** The author is the person who saved, as their account names them (name and address); the draft's
   other editors, found by account, are `Co-authored-by:` trailers after a blank line, once each, never the author again and
   never an account that is gone. A name is stripped of what could break a commit (angle brackets, control characters). The
@@ -784,6 +784,18 @@ What is built is the first bullet above, the draft; versions are 1b.9 and the up
 - **The draft ends with the version**, unless something was typed meanwhile (compare-and-delete on the time of the last
   edit): that is not in the version and is kept. The page makes the editor read-only while it commits, keeps what is on screen
   first (`flush`), and reads the page again after, saying "Version saved" once.
+
+### Upstream changes, as built (ROADMAP 1b.10)
+
+When the file at the branch's head is not the blob a draft started from, the note's page does not show an editor: it shows **both versions** (the draft and the repository's now), read-only and side by side, and three choices. It is the CLI's rule that a conflicting version is never destroyed (spec §9.1), for the web.
+
+- **Combine** merges the draft's base, the draft and the repository's text by lines with `fjord-core`'s `merge3`, which the CLI's `sync` uses, through the format module's `mergeTexts`; it is one merge for every client. Edits in different places are simply both there. Edits of the same lines are both there between `<<<<<<< Your changes`, `=======` and `>>>>>>> In the repository` lines. The result becomes the draft, on the repository's version; nothing is written to the repository. The page says beforehand whether the two combine cleanly or in how many places they do not.
+- **Keep mine** moves the draft onto the repository's version with its text as it is. The next **Save version** is then a commit on top of what is in the repository; theirs is not destroyed, it is the previous commit.
+- **Take theirs** throws the draft away (the same call as Discard).
+- **The server decides, not the browser.** The request names the choice and the blob the person was shown, never a text; the merge is made from the blobs. A choice is refused, changing nothing, if the file changed again since (`upstream_moved`), if the draft was typed into meanwhile (`draft_changed`, compare-and-swap on its last edit), or if it is no longer different (`up_to_date`); each makes the page look again. A version that cannot be read as UTF-8 text, or a merge that cannot be kept as a draft (a NUL from the repository, over 1 MB), cannot be combined and the page offers the other two.
+- **Conflicts left in the text.** A text that still has marker lines is a draft like any other, with a warning above it, and its button reads **Save version anyway**: the person is asked, not stopped, since a note may say such lines for its own reasons.
+- **When it is found.** When the page is opened, and when a version is saved: that leads to the same page, with nothing written. The `push` webhook that would flag it while the person is editing needs the GitHub App (ROADMAP 1a.6).
+- **A note deleted upstream** keeps its draft: the page shows the unsaved text, read-only so that it can be copied out, and Discard. Making a note again from it comes with creating notes (1b.7).
 
 ## 12. Sharing and permissions
 

@@ -2,9 +2,11 @@ import { locateInRepository, readConnection } from "../browse/server";
 import { connectionService } from "../connections/server";
 import { findUser } from "../auth/users";
 import { getAuthDatabase, getDatabase } from "../db/boot";
+import { fjord } from "../format/wasm";
 import type { Identity } from "../providers/types";
 import { type AccessDeps, workingCopyAccess } from "./access";
-import { WorkingCopyService } from "./service";
+import { type WorkingCopy, WorkingCopyService } from "./service";
+import { type Choice, type Preview, type ResolveResult, previewCombine, resolveUpstream } from "./resolve";
 import { type VersionResult, saveVersion } from "./version";
 
 /** The server's drafts, for routes and pages: the app's database. Never for a test, which builds its own. */
@@ -41,12 +43,36 @@ async function makeVersion(accountId: string, id: number, input: { path: string;
   );
 }
 
+/** Move one of the account's drafts onto the file as it now is: through the connection's own token, on its branch. */
+async function makeResolve(accountId: string, id: number, input: { path: string; choice: Choice; upstreamBlob: string }): Promise<ResolveResult> {
+  const used = await (await connectionService()).provider(accountId, id);
+  if (!used) return { ok: false, reason: "unavailable" };
+  return resolveUpstream(
+    {
+      drafts: await workingCopyService(),
+      provider: used.provider,
+      ref: { owner: used.connection.owner, name: used.connection.name },
+      branch: used.connection.branch,
+      format: fjord(),
+    },
+    { connectionId: id, ...input, editor: { type: "account", id: accountId } },
+  );
+}
+
+/** For a note whose draft is of an older version than the repository has: whether the two combine, found without changing anything. */
+export async function previewCombineFor(accountId: string, connectionId: number, draft: WorkingCopy, upstreamText: string): Promise<Preview> {
+  const used = await (await connectionService()).provider(accountId, connectionId);
+  if (!used) return { state: "unavailable" };
+  return previewCombine(used.provider, { owner: used.connection.owner, name: used.connection.name }, fjord(), draft, upstreamText);
+}
+
 export async function workingCopyAccessFor(): Promise<ReturnType<typeof workingCopyAccess>> {
   const deps: AccessDeps = {
     service: await workingCopyService(),
     owns: async (accountId, id) => (await (await connectionService()).get(accountId, id)) !== undefined,
     editableNote,
     version: makeVersion,
+    resolve: makeResolve,
   };
   return workingCopyAccess(deps);
 }

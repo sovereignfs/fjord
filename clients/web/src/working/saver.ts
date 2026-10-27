@@ -80,6 +80,11 @@ export class DraftSaver {
     return this.current;
   }
 
+  /** The text as it is on screen now. */
+  get text(): string {
+    return this.latest;
+  }
+
   /** Whether the text on screen is not (yet) what the server holds. */
   get unsaved(): boolean {
     return this.latest !== this.kept;

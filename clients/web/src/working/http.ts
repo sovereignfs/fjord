@@ -4,6 +4,7 @@ import { isProviderError } from "../providers/errors";
 import type { Identity } from "../providers/types";
 import { MAX_CONTENT_BYTES, type SaveResult } from "./service";
 import { MAX_MESSAGE_CHARS } from "./limits";
+import type { Choice, ResolveResult } from "./resolve";
 import type { VersionResult } from "./version";
 
 /**
@@ -38,6 +39,11 @@ export interface Deps {
    * repository is not the caller's.
    */
   saveVersion: (accountId: string, id: number, input: { path: string; message: string | undefined; author: Identity }) => Promise<{ found: false } | { found: true; result: VersionResult }>;
+  /**
+   * Go on from a file that changed in the repository (ROADMAP 1b.10): move the caller's draft onto it, as it is or merged.
+   * `found: false` if the repository is not the caller's.
+   */
+  resolve: (accountId: string, id: number, input: { path: string; choice: Choice; upstreamBlob: string }) => Promise<{ found: false } | { found: true; result: ResolveResult }>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
 }
@@ -126,6 +132,51 @@ export async function handleVersion(request: Request, caller: Caller | null, dep
     return fromError(error);
   }
 }
+
+/** `POST` moves a draft onto the file as it now is, `{ path, choice: "mine" | "combine", upstreamBlob }`: nothing is written to the repository. */
+export async function handleResolve(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  if (!caller) return failure(401, "unauthorized", "Sign in first.");
+  if (request.headers.get("origin") !== deps.origin) return failure(403, "forbidden", "This request did not come from this site.");
+  const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
+  if (number === undefined) return notFound();
+
+  try {
+    if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");
+    const text = await request.text();
+    if (text.length > MAX_RESOLVE_BODY_CHARS) return failure(413, "too_large", "That request is too large.");
+    const body = parse(text);
+    if (!body) return failure(400, "invalid_request", "Send a JSON object.");
+    const { path, choice, upstreamBlob } = body;
+    if (!isRepositoryPath(path)) return failure(400, "invalid_request", "Say which file, by its path in the repository.");
+    if (choice !== "mine" && choice !== "combine") return failure(400, "invalid_request", "Say whether to keep yours or to combine.");
+    if (typeof upstreamBlob !== "string" || !OBJECT_ID.test(upstreamBlob)) return failure(400, "invalid_request", "Say which version of the file you were shown, by its git object id.");
+
+    const outcome = await deps.resolve(caller.accountId, number, { path, choice, upstreamBlob });
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (result.ok) return json(200, { conflicts: result.conflicts });
+    const refusal = RESOLVE_REFUSALS[result.reason];
+    return failure(refusal.status, result.reason, refusal.message);
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+const MAX_RESOLVE_BODY_CHARS = 8_000;
+
+/** What each reason a draft was not moved is told as. The draft is as it was in every one. */
+const RESOLVE_REFUSALS: Record<Extract<ResolveResult, { ok: false }>["reason"], { status: number; message: string }> = {
+  no_draft: { status: 409, message: "There are no changes to go on with in this note." },
+  up_to_date: { status: 409, message: "This note has not changed in the repository since you started, so there is nothing to choose." },
+  gone: { status: 409, message: "This note is no longer in the repository. Your changes are kept." },
+  upstream_moved: { status: 409, message: "The note changed in the repository again while you were looking. Nothing was changed; look at it again." },
+  draft_changed: { status: 409, message: "Your changes were edited while this was being done, so nothing was changed. Look again." },
+  unreadable: { status: 422, message: "Either version is not valid UTF-8 text or is larger than 1 MB, so they cannot be combined here. Your changes are kept; you can keep yours or take theirs." },
+  unstorable: { status: 422, message: "The combined text cannot be kept as a draft (it has a NUL character or is larger than 1 MB). Your changes are kept; you can keep yours or take theirs." },
+  bad_token: { status: 422, message: "The git host did not accept this repository's token. Connect the repository again with a new one. Your changes are kept." },
+  unavailable: { status: 502, message: "Could not reach the git host just now. Nothing was changed, and your changes are kept. Try again in a moment." },
+};
 
 const MAX_VERSION_BODY_CHARS = 8_000 + MAX_MESSAGE_CHARS * 6;
 

@@ -8,6 +8,7 @@ import styles from "../../auth/screens/screens.module.css";
 import { discardDraft, sendDraft, sendVersion } from "../../working/client";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
 import { MAX_MESSAGE_CHARS } from "../../working/limits";
+import { hasConflictMarkers } from "../../working/markers";
 
 /** The draft the page found for this note: its text and the version of the note it was started from. */
 export interface DraftOfNote {
@@ -104,6 +105,12 @@ export function NoteView({ connectionId, path, label, text, blob, draft }: { con
       return;
     }
     const made = await sendVersion(connectionId, path, message);
+    if (!made.ok && (made.code === "upstream_changed" || made.code === "gone")) {
+      // The note changed in the repository since the draft was started: the page shows both versions, to choose between.
+      saver.dispose();
+      window.location.reload();
+      return;
+    }
     if (!made.ok) {
       setVersionError(made.message);
       setSaving(false);
@@ -119,20 +126,20 @@ export function NoteView({ connectionId, path, label, text, blob, draft }: { con
     window.location.reload();
   }
 
-  const changedSince = draft !== null && draft.baseBlob !== blob;
+  const unsettled = hasConflictMarkers(saver.text);
   return (
     <div>
-      {draft && !changedSince ? (
+      {draft ? (
         <div className={styles.notice}>
           <Alert variant="info" heading="Your changes were kept">
             These are changes you made earlier and have not saved as a version. They are kept on this server, not in the repository.
           </Alert>
         </div>
       ) : null}
-      {changedSince ? (
+      {unsettled ? (
         <div className={styles.notice}>
-          <Alert variant="warning" heading="This note has changed since you started editing it">
-            Your changes are kept as you left them. Someone changed the note in the repository meanwhile; bringing the two together comes in a later version. Until then you can keep editing your changes, or discard them to see the note as it is now.
+          <Alert variant="warning" heading="There are conflicts to settle in this text">
+            Your changes and the repository&apos;s are both here, between the <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>, <code>=======</code> and <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> lines. Keep what you want, and delete the marker lines.
           </Alert>
         </div>
       ) : null}
@@ -154,7 +161,7 @@ export function NoteView({ connectionId, path, label, text, blob, draft }: { con
           </Alert>
         </div>
       ) : null}
-      {hasDraft && !changedSince ? (
+      {hasDraft ? (
         <form
           className={styles.form}
           onSubmit={(event) => {
@@ -173,8 +180,8 @@ export function NoteView({ connectionId, path, label, text, blob, draft }: { con
             </div>
           ) : null}
           <div className={styles.actions}>
-            <Button type="submit" loading={saving}>
-              Save version
+            <Button type="submit" variant={unsettled ? "secondary" : "primary"} loading={saving}>
+              {unsettled ? "Save version anyway" : "Save version"}
             </Button>
           </div>
         </form>

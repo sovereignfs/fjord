@@ -123,6 +123,29 @@ describe.skipIf(!available)("the format module", () => {
     });
   });
 
+  describe("merging", () => {
+    const labels = { ours: "Your changes", theirs: "In the repository" };
+
+    it("merges edits in different places, and keeps both sides of edits in the same place", () => {
+      expect(fjord().mergeTexts("one\ntwo\nthree\nfour\nfive\n", "ONE\ntwo\nthree\nfour\nfive\n", "one\ntwo\nthree\nfour\nFIVE\n", labels)).toEqual({
+        clean: true,
+        conflicts: 0,
+        text: "ONE\ntwo\nthree\nfour\nFIVE\n",
+      });
+      expect(fjord().mergeTexts("a\nsame\nz\n", "a\nmine\nz\n", "a\ntheirs\nz\n", labels)).toEqual({
+        clean: false,
+        conflicts: 1,
+        text: "a\n<<<<<<< Your changes\nmine\n=======\ntheirs\n>>>>>>> In the repository\nz\n",
+      });
+    });
+
+    it("keeps line endings, a byte order mark and what is not ASCII exactly", () => {
+      const base = "\ufeff# 日本\r\n\r\nline  \r\nlast";
+      const merged = fjord().mergeTexts(base, base.replace("line  ", "LINE  "), base.replace("日本", "日本語"), labels);
+      expect(merged).toEqual({ clean: true, conflicts: 0, text: "\ufeff# 日本語\r\n\r\nLINE  \r\nlast" });
+    });
+  });
+
   it("is loaded once, whatever asks", () => {
     expect(fjord()).toBe(fjord());
   });

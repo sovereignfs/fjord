@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Discovery, ListedFile, RepositoryManifest, SetupExisting, SetupOptions, SetupResult } from "./types";
+import type { Discovery, ListedFile, MergeResult, RepositoryManifest, SetupExisting, SetupOptions, SetupResult } from "./types";
 
 /**
  * `fjord-core` as WebAssembly, in Node (DESIGN.md §2: the server reads the format, the browser never does in
@@ -22,6 +22,7 @@ interface Module {
   describeRepositoryManifest(text: string): string;
   planSetup(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
   freeVaultName(preferred: string, existingJson: string): string;
+  mergeTexts(base: string, ours: string, theirs: string, oursLabel: string, theirsLabel: string): string;
 }
 
 /** The module has not been built, or cannot be loaded: a setup problem, never a repository's. */
@@ -107,6 +108,14 @@ export class Fjord {
    */
   planSetup(options: SetupOptions, existing: SetupExisting, nowMs: number, random: Uint8Array): SetupResult {
     return JSON.parse(this.module.planSetup(JSON.stringify(options), JSON.stringify(existing), nowMs, random)) as SetupResult;
+  }
+
+  /**
+   * Merge two edits (`ours`, `theirs`) of one text (`base`) by lines, as the CLI does. Never an error: when the edits overlap
+   * the text has both sides between marker lines labelled with these names, and `clean` is false.
+   */
+  mergeTexts(base: string, ours: string, theirs: string, labels: { ours: string; theirs: string }): MergeResult {
+    return JSON.parse(this.module.mergeTexts(base, ours, theirs, labels.ours, labels.theirs)) as MergeResult;
   }
 
   /** A vault name that is free at the root: `preferred`, else `preferred 2`, `preferred 3`, … (case aside). */

@@ -9,7 +9,8 @@ import { RepositoryView } from "../../../../src/connections/screens/RepositoryVi
 import { connectionService } from "../../../../src/connections/server";
 import { encryptionKeyring } from "../../../../src/crypto/server";
 import { Alert } from "../../../../src/ui";
-import { workingCopyService } from "../../../../src/working/server";
+import { previewCombineFor, workingCopyService } from "../../../../src/working/server";
+import { DeletedUpstream } from "../../../../src/browse/screens/DeletedUpstream";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Repository" };
@@ -42,7 +43,10 @@ export default async function RepositoryPage({ params }: { params: Promise<{ con
         </Alert>
       );
     } else if (found.location.kind === "missing") {
-      notFound();
+      // Not in the repository any more; but if it was being edited here, those changes are not lost (ROADMAP 1b.10).
+      const orphan = segments.length > 1 ? await (await workingCopyService()).get(current.id, segments.join("/")) : undefined;
+      if (!orphan) notFound();
+      content = <DeletedUpstream connectionId={current.id} path={segments.join("/")} label={segments[segments.length - 1] as string} text={orphan.content} />;
     } else {
       // A note in a plaintext vault is shown in the note editor; reading it is the only thing that touches the file.
       const file = found.location.kind === "file" ? found.location.file : undefined;
@@ -50,7 +54,9 @@ export default async function RepositoryPage({ params }: { params: Promise<{ con
       // What was typed here and not yet saved as a version: kept by the server (ROADMAP 1b.8), and found again here.
       const kept = file !== undefined && note?.ok ? await (await workingCopyService()).get(current.id, file.path) : undefined;
       const draft = kept ? { content: kept.content, baseBlob: kept.baseBlob } : null;
-      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} />;
+      // Edited here while someone changed the note from elsewhere (ROADMAP 1b.10): can the two be combined?
+      const preview = kept && note?.ok && kept.baseBlob !== note.blob ? await previewCombineFor(user.id, current.id, kept, note.text) : undefined;
+      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} />;
     }
   }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attemptFrom, versionFrom } from "./client";
+import { attemptFrom, resolveFrom, versionFrom } from "./client";
 
 /** What each answer from the server means for the saver: a text is only ever given up on for a reason that retrying cannot fix. */
 const error = (code: string, message = "words") => ({ error: { code, message } });
@@ -53,6 +53,38 @@ describe("versionFrom", () => {
   it("says nothing was saved and the changes are kept, when signed out or when the server said nothing", () => {
     for (const result of [versionFrom(401, undefined), versionFrom(502, undefined), versionFrom(500, {})]) {
       expect(result).toMatchObject({ ok: false, message: expect.stringMatching(/your changes are kept/i) });
+    }
+  });
+});
+
+describe("versionFrom's code", () => {
+  it("carries the server's code, so the page can tell a note that changed from one that could not be reached", () => {
+    expect(versionFrom(409, { error: { code: "upstream_changed", message: "This note changed." } })).toEqual({ ok: false, message: "This note changed.", code: "upstream_changed" });
+    expect(versionFrom(502, undefined)).not.toHaveProperty("code");
+  });
+});
+
+describe("resolveFrom", () => {
+  it("is done, with how many conflicts are left to settle", () => {
+    expect(resolveFrom(200, { conflicts: 0 })).toEqual({ ok: true, conflicts: 0 });
+    expect(resolveFrom(200, { conflicts: 3 })).toEqual({ ok: true, conflicts: 3 });
+  });
+
+  it("is not done for a success that does not say how many", () => {
+    expect(resolveFrom(200, {})).toMatchObject({ ok: false });
+  });
+
+  it.each(["no_draft", "up_to_date", "gone", "upstream_moved", "draft_changed"])("%s means the page is out of date: look again", (code) => {
+    expect(resolveFrom(409, { error: { code, message: "words" } })).toEqual({ ok: false, lookAgain: true, message: "words" });
+  });
+
+  it.each(["unreadable", "unstorable", "bad_token", "unavailable"])("%s is not a reason to reload: the person chooses again", (code) => {
+    expect(resolveFrom(422, { error: { code, message: "words" } })).toEqual({ ok: false, lookAgain: false, message: "words" });
+  });
+
+  it("says nothing was changed and the changes are kept, when signed out or when the server said nothing", () => {
+    for (const result of [resolveFrom(401, undefined), resolveFrom(500, undefined)]) {
+      expect(result).toMatchObject({ ok: false, lookAgain: false, message: expect.stringMatching(/your changes are kept/i) });
     }
   });
 });

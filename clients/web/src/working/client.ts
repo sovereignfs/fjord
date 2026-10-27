@@ -57,13 +57,13 @@ export async function discardDraft(connectionId: number, path: string): Promise<
   }
 }
 
-export type VersionAttempt = { ok: true; commit: string } | { ok: false; message: string };
+export type VersionAttempt = { ok: true; commit: string } | { ok: false; message: string; code?: string };
 
 /** What an answer to "make a version" means: made, or why not in the server's own words (which say whether the changes are kept). */
-export function versionFrom(status: number, body: { commit?: string; error?: { message?: string } } | undefined): VersionAttempt {
+export function versionFrom(status: number, body: { commit?: string; error?: { code?: string; message?: string } } | undefined): VersionAttempt {
   if (status === 201 && typeof body?.commit === "string") return { ok: true, commit: body.commit };
   if (status === 401) return { ok: false, message: "You are signed out, so nothing was saved. Sign in again in another tab, then try again; your changes are kept." };
-  return { ok: false, message: body?.error?.message ?? "Could not save a version just now. Your changes are kept. Try again in a moment." };
+  return { ok: false, message: body?.error?.message ?? "Could not save a version just now. Your changes are kept. Try again in a moment.", ...(body?.error?.code ? { code: body.error.code } : {}) };
 }
 
 /** Make a version of the note's draft: one commit in the repository. */
@@ -75,9 +75,40 @@ export async function sendVersion(connectionId: number, path: string, message: s
       body: JSON.stringify({ path, message: message.trim() === "" ? null : message }),
       credentials: "same-origin",
     });
-    const parsed = (await response.json().catch(() => undefined)) as { commit?: string; error?: { message?: string } } | undefined;
+    const parsed = (await response.json().catch(() => undefined)) as { commit?: string; error?: { code?: string; message?: string } } | undefined;
     return versionFrom(response.status, parsed);
   } catch {
     return { ok: false, message: "Could not reach this server, so nothing was saved. Your changes are kept. Try again in a moment." };
+  }
+}
+
+export type ResolveAttempt =
+  | { ok: true; conflicts: number }
+  /** `look_again` is for a refusal that means the page is out of date: it should be read again. */
+  | { ok: false; message: string; lookAgain: boolean };
+
+const LOOK_AGAIN = new Set(["no_draft", "up_to_date", "gone", "upstream_moved", "draft_changed"]);
+
+/** What an answer to "go on from the changed file" means: done, or why not in the server's words, and whether to look again. */
+export function resolveFrom(status: number, body: { conflicts?: number; error?: { code?: string; message?: string } } | undefined): ResolveAttempt {
+  if (status === 200 && typeof body?.conflicts === "number") return { ok: true, conflicts: body.conflicts };
+  if (status === 401) return { ok: false, lookAgain: false, message: "You are signed out, so nothing was changed. Sign in again in another tab, then try again; your changes are kept." };
+  const code = body?.error?.code;
+  return { ok: false, lookAgain: code !== undefined && LOOK_AGAIN.has(code), message: body?.error?.message ?? "Could not do that just now. Your changes are kept. Try again in a moment." };
+}
+
+/** Move the draft onto the file as it is now: as it is (`mine`) or merged with it (`combine`). Nothing is written to the repository. */
+export async function sendResolve(connectionId: number, path: string, choice: "mine" | "combine", upstreamBlob: string): Promise<ResolveAttempt> {
+  try {
+    const response = await fetch(`${address(connectionId)}/resolve`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path, choice, upstreamBlob }),
+      credentials: "same-origin",
+    });
+    const parsed = (await response.json().catch(() => undefined)) as { conflicts?: number; error?: { code?: string; message?: string } } | undefined;
+    return resolveFrom(response.status, parsed);
+  } catch {
+    return { ok: false, lookAgain: false, message: "Could not reach this server, so nothing was changed. Your changes are kept. Try again in a moment." };
   }
 }

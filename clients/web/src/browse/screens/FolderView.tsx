@@ -4,7 +4,9 @@ import type { ClassifiedFile, FileKind } from "../../format/types";
 import { repositoryHref } from "../links";
 import type { Location } from "../location";
 import type { NoteText } from "../note";
+import type { Preview } from "../../working/resolve";
 import { type DraftOfNote, NoteView } from "./NoteView";
+import { UpstreamChanged } from "./UpstreamChanged";
 
 /**
  * A folder of a vault, or one file of it, as a list (DESIGN.md §8). What can be opened is decided from the name alone,
@@ -17,6 +19,7 @@ export function FolderView({
   location,
   note,
   draft,
+  preview,
 }: {
   connectionId: number;
   repository: string;
@@ -25,6 +28,8 @@ export function FolderView({
   note?: NoteText | { ok: false; reason: "problem"; message: string } | undefined;
   /** For a note: the draft of it that was kept, if there is one (ROADMAP 1b.8). */
   draft?: DraftOfNote | null | undefined;
+  /** For a note whose draft is of an older version than the repository has: whether the two combine (ROADMAP 1b.10). */
+  preview?: Preview | undefined;
 }) {
   const here = (...segments: string[]) => repositoryHref(connectionId, ...segments);
   const vault = location.vault;
@@ -52,7 +57,7 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} /> : null}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} /> : null}
 
       {location.kind === "folder" ? (
         <>
@@ -123,12 +128,14 @@ function FileCard({
   encrypted,
   note,
   draft,
+  preview,
 }: {
   connectionId: number;
   file: ClassifiedFile;
   encrypted: boolean;
   note: NoteText | { ok: false; reason: "problem"; message: string } | undefined;
   draft: DraftOfNote | null;
+  preview: Preview;
 }) {
   return (
     <section aria-labelledby="file-title">
@@ -141,10 +148,14 @@ function FileCard({
       </p>
       {file.kind === "note" && note ? (
         note.ok ? (
-          <>
-            <p className={styles.itemMeta}>Your changes are kept as a draft as you type. Save a version to put them in the repository.</p>
-            <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} />
-          </>
+          draft && draft.baseBlob !== note.blob ? (
+            <UpstreamChanged connectionId={connectionId} path={file.path} label={leaf(file.logical)} mine={draft.content} theirs={note.text} upstreamBlob={note.blob} preview={preview} />
+          ) : (
+            <>
+              <p className={styles.itemMeta}>Your changes are kept as a draft as you type. Save a version to put them in the repository.</p>
+              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} />
+            </>
+          )
         ) : (
           <Alert variant="warning" heading="This note cannot be shown">
             {note.message}

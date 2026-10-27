@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { CredentialError } from "../crypto/errors";
 import { ProviderError } from "../providers/errors";
-import { type Caller, type Deps, MAX_BODY_CHARS, type SaveOutcome, handleVersion, handleWorkingCopy, isRepositoryPath } from "./http";
+import { type Caller, type Deps, MAX_BODY_CHARS, type SaveOutcome, handleResolve, handleVersion, handleWorkingCopy, isRepositoryPath } from "./http";
+import type { ResolveResult } from "./resolve";
 import { MAX_MESSAGE_CHARS, type VersionResult } from "./version";
 
 /**
@@ -18,13 +19,15 @@ function stub(outcome: SaveOutcome = { found: true, result: { ok: true, workingC
   const save = vi.fn(async (..._args: unknown[]): Promise<SaveOutcome> => outcome);
   const discard = vi.fn(async (..._args: unknown[]) => ({ found: true }));
   const saveVersion = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: VersionResult }> => ({ found: true, result: { ok: true, commit: "c".repeat(40) } }));
+  const resolve = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: ResolveResult }> => ({ found: true, result: { ok: true, conflicts: 0 } }));
   const deps: Deps = {
     save: (accountId, id, input) => save(accountId, id, input),
     discard: (accountId, id, path) => discard(accountId, id, path),
     saveVersion: (accountId, id, input) => saveVersion(accountId, id, input),
+    resolve: (accountId, id, input) => resolve(accountId, id, input),
     origin: ORIGIN,
   };
-  return { deps, save, discard, saveVersion };
+  return { deps, save, discard, saveVersion, resolve };
 }
 
 const put = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
@@ -339,6 +342,128 @@ describe("making a version: what they are told", () => {
     const { deps, saveVersion } = stub();
     saveVersion.mockRejectedValue(new Error("token github_pat_SECRET at postgres://user:hunter2@db"));
     const response = await handleVersion(post({ path: "a.md" }), ALICE, deps, "1");
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toMatch(/SECRET|hunter2/);
+    expect(logged.mock.calls.flat().join(" ")).not.toMatch(/SECRET|hunter2/);
+    logged.mockRestore();
+  });
+});
+
+// --- Going on after the file changed (ROADMAP 1b.10) ---------------------------------------------------------------
+
+const UPSTREAM = "d".repeat(40);
+const resolvePost = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
+  const headers: Record<string, string> = {};
+  if (init.origin !== null) headers.origin = init.origin ?? ORIGIN;
+  if (init.type !== null) headers["content-type"] = init.type ?? "application/json";
+  return new Request(`${ORIGIN}/api/connections/1/working-copy/resolve`, { method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body) });
+};
+const choice = { path: "Notes/a.md", choice: "combine", upstreamBlob: UPSTREAM };
+
+describe("going on: who may", () => {
+  it("nobody who is not signed in: 401, and nothing is asked", async () => {
+    const { deps, resolve } = stub();
+    expect((await handleResolve(resolvePost(choice), null, deps, "1")).status).toBe(401);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("not from another site", async () => {
+    const { deps, resolve } = stub();
+    for (const origin of ["https://evil.example", "http://fjord.example.com", "null", null]) {
+      expect((await handleResolve(resolvePost(choice, { origin }), ALICE, deps, "1")).status).toBe(403);
+    }
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("only POST", async () => {
+    const { deps } = stub();
+    for (const method of ["GET", "PUT", "DELETE"]) {
+      expect((await handleResolve(new Request(`${ORIGIN}/x`, { method, headers: { origin: ORIGIN } }), ALICE, deps, "1")).status).toBe(405);
+    }
+  });
+
+  it("not another account's connection: a 404 that says nothing else", async () => {
+    const { deps, resolve } = stub();
+    resolve.mockResolvedValue({ found: false });
+    const response = await handleResolve(resolvePost(choice), ALICE, deps, "1");
+    expect(response.status).toBe(404);
+    expect((await body(response)).error).toEqual({ code: "not_found", message: "There is no such connection." });
+  });
+
+  it.each(["0", "01", "x", "", "99999999999999999"])("a connection id like %j is a 404 before anything is asked", async (id) => {
+    const { deps, resolve } = stub();
+    expect((await handleResolve(resolvePost(choice), ALICE, deps, id)).status).toBe(404);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+});
+
+describe("going on: what may be sent", () => {
+  it.each(["mine", "combine"])("asks for %s, for the caller, about the version they were shown, and answers with how many conflicts", async (which) => {
+    const { deps, resolve } = stub();
+    resolve.mockResolvedValue({ found: true, result: { ok: true, conflicts: 2 } });
+    const response = await handleResolve(resolvePost({ ...choice, choice: which, text: "the browser's idea of the merged text" }), ALICE, deps, "1");
+    expect(response.status).toBe(200);
+    expect(await body(response)).toEqual({ conflicts: 2 });
+    // Only the choice goes on: never a text from the browser.
+    expect(resolve).toHaveBeenCalledWith("alice", 1, { path: "Notes/a.md", choice: which, upstreamBlob: UPSTREAM });
+  });
+
+  it("wants JSON", async () => {
+    const { deps, resolve } = stub();
+    for (const type of ["text/plain", null]) expect((await handleResolve(resolvePost(choice, { type }), ALICE, deps, "1")).status).toBe(415);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["not JSON", "{nope"],
+    ["an array", "[]"],
+    ["no path", { choice: "mine", upstreamBlob: UPSTREAM }],
+    ["a path out of the repository", { ...choice, path: "../a.md" }],
+    ["no choice", { path: "a.md", upstreamBlob: UPSTREAM }],
+    ["taking theirs, which is throwing the draft away", { ...choice, choice: "theirs" }],
+    ["a choice that is not one", { ...choice, choice: "overwrite" }],
+    ["no version", { path: "a.md", choice: "mine" }],
+    ["a version that is not an object id", { ...choice, upstreamBlob: "main" }],
+    ["a version in capitals", { ...choice, upstreamBlob: "D".repeat(40) }],
+  ])("refuses %s with 400, without asking", async (_name, sent) => {
+    const { deps, resolve } = stub();
+    expect((await handleResolve(resolvePost(sent), ALICE, deps, "1")).status).toBe(400);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+
+  it("refuses a body that is far too large with 413", async () => {
+    const { deps, resolve } = stub();
+    expect((await handleResolve(resolvePost({ ...choice, extra: "x".repeat(20_000) }), ALICE, deps, "1")).status).toBe(413);
+    expect(resolve).not.toHaveBeenCalled();
+  });
+});
+
+describe("going on: what they are told", () => {
+  it.each<[Extract<ResolveResult, { ok: false }>["reason"], number]>([
+    ["no_draft", 409],
+    ["up_to_date", 409],
+    ["gone", 409],
+    ["upstream_moved", 409],
+    ["draft_changed", 409],
+    ["unreadable", 422],
+    ["unstorable", 422],
+    ["bad_token", 422],
+    ["unavailable", 502],
+  ])("%s is %i, with its own code and words", async (reason, status) => {
+    const { deps, resolve } = stub();
+    resolve.mockResolvedValue({ found: true, result: { ok: false, reason } });
+    const response = await handleResolve(resolvePost(choice), ALICE, deps, "1");
+    const error = (await body(response)).error;
+    expect(response.status).toBe(status);
+    expect(error.code).toBe(reason);
+    expect(error.message.length).toBeGreaterThan(20);
+  });
+
+  it("answers an unexpected failure plainly, and logs its name and not its text", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { deps, resolve } = stub();
+    resolve.mockRejectedValue(new Error("token github_pat_SECRET at postgres://user:hunter2@db"));
+    const response = await handleResolve(resolvePost(choice), ALICE, deps, "1");
     expect(response.status).toBe(500);
     expect(await response.text()).not.toMatch(/SECRET|hunter2/);
     expect(logged.mock.calls.flat().join(" ")).not.toMatch(/SECRET|hunter2/);

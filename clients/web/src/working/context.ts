@@ -18,6 +18,7 @@ export async function workingCopyContext(): Promise<{ caller: Caller | null; dep
       save: (accountId, id, input) => (access as NonNullable<typeof access>).save(accountId, id, input),
       discard: (accountId, id, path) => (access as NonNullable<typeof access>).discard(accountId, id, path),
       saveVersion: (accountId, id, input) => (access as NonNullable<typeof access>).saveVersion(accountId, id, input),
+      resolve: (accountId, id, input) => (access as NonNullable<typeof access>).resolve(accountId, id, input),
     },
   };
 }

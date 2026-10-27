@@ -38,6 +38,11 @@ async function blobOf(provider: Provider, ref: RepositoryRef, read: RepositoryRe
 export async function readNoteText(provider: Provider, ref: RepositoryRef, read: RepositoryRead, path: string): Promise<NoteText> {
   const blob = await blobOf(provider, ref, read, path);
   if (blob === undefined) return refused("gone");
+  return readTextBlob(provider, ref, blob);
+}
+
+/** A blob read as a note's text: strictly UTF-8 with any byte order mark kept, to at most 1 MB; else why not. */
+export async function readTextBlob(provider: Provider, ref: RepositoryRef, blob: string): Promise<NoteText> {
   let bytes: Uint8Array;
   try {
     bytes = await provider.readBlob(ref, blob, { maxBytes: MAX_NOTE_BYTES });
