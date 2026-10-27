@@ -49,8 +49,7 @@ export type CreateResult =
   | { ok: true; path: string; commit: string }
   | { ok: false; reason: "folder_gone" | "bad_title" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
 
-/** A title, at most this long (the name made from it is shorter). */
-export const MAX_TITLE_CHARS = 200;
+export { MAX_TITLE_CHARS } from "./limits";
 const ATTEMPTS = 2;
 const DOCUMENT_EXTENSION = ".fj.md";
 

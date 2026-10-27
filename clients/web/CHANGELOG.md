@@ -13,6 +13,13 @@ section.
 
 ### Added
 
+- **Document properties** (ROADMAP 1b.5): a note or a document shows its header in a **Properties** panel beside the editor, which
+  is given the body only: the identifier and the day it was made, the title (which can be changed there, and which does not rename
+  the file) and every key Fjord does not know, shown as it is written and kept as it is. Editing the body leaves the header byte for
+  byte, comments in it included; changing the title is the one edit that has the header written again (comments in it are lost
+  then). A note with no header gets one (an identifier, a title from its first heading or its name, and the date) the first time it
+  is edited, and not before; editing it back to what it was takes the header off again. A text with carriage returns or a byte
+  order mark is left without one. A header that cannot be read is not split or rewritten, and the file is shown whole.
 - **Documents open in an editor** (ROADMAP 1b.3): a document (`*.fj.md`) opens like a note, in a **visual editor** with a toolbar of
   what Markdown can say (bold, italic, code, headings, lists, links, images by address, tables, rules), tables, task lists and
   code blocks. It has the same drafts as you type, Save version, upstream-change choices and delete. The header (`id`, `title`,

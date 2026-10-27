@@ -10,7 +10,7 @@ import { connectionService } from "../../../../src/connections/server";
 import { encryptionKeyring } from "../../../../src/crypto/server";
 import { Alert } from "../../../../src/ui";
 import { previewCombineFor, workingCopyService } from "../../../../src/working/server";
-import { bodyStartOf } from "../../../../src/browse/document";
+import { headerOf } from "../../../../src/browse/document";
 import { fjord } from "../../../../src/format/wasm";
 import { DeletedUpstream } from "../../../../src/browse/screens/DeletedUpstream";
 
@@ -62,9 +62,10 @@ export default async function RepositoryPage({ params }: { params: Promise<{ con
       const fileBlob = file ? outcome.read.blobs.get(file.path) : undefined;
       const prefix = `${segments.join("/")}/`;
       const folderFiles = found.location.kind === "folder" && !outcome.read.partial ? [...outcome.read.blobs.keys()].filter((path) => path.startsWith(prefix)).length : undefined;
-      // A document is a header and a body, and its editor is given the body: where that starts in the text shown (ROADMAP 1b.3).
-      const bodyStart = file?.kind === "document" && note?.ok ? bodyStartOf(fjord(), draft?.content ?? note.text) : undefined;
-      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} folderFiles={folderFiles} bodyStart={bodyStart} />;
+      // A note or a document is a header and a body, and its editor is given the body: where that starts in the text shown, what
+      // the header says, and the header a file with none is given on its first edit (ROADMAP 1b.3, 1b.5).
+      const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
+      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} folderFiles={folderFiles} header={header} />;
     }
   }
 

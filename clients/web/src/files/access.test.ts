@@ -11,14 +11,16 @@ function setup(over: { owns?: boolean; vault?: Awaited<ReturnType<AccessDeps["va
   const create = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, path: "Notes/Plan.md", commit: "c".repeat(40) }));
   const remove = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "d".repeat(40), files: 1, deletions: [1] }));
   const restore = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "e".repeat(40), paths: ["Notes/Plan.md"] }));
+  const setTitle = vi.fn((header: string, title: string): string | undefined => (header.includes("broken") ? undefined : `${header}title: ${title}\n`));
   const access = filesAccess({
     owns: (a, i) => owns(a, i),
+    setTitle: (header, title) => setTitle(header, title),
     vaultFor: (a, i, v) => vaultFor(a, i, v),
     create: (a, i, x) => create(a, i, x),
     delete: (a, i, x) => remove(a, i, x),
     restore: (a, i, x) => restore(a, i, x),
   });
-  return { access, owns, vaultFor, create, remove, restore };
+  return { access, owns, vaultFor, create, remove, restore, setTitle };
 }
 
 describe("making a file", () => {
@@ -80,5 +82,19 @@ describe("putting back", () => {
     const { access, restore } = setup();
     expect(await access.restore("alice", 7, input)).toEqual({ found: true, result: { ok: true, commit: "e".repeat(40), paths: ["Notes/Plan.md"] } });
     expect(restore).toHaveBeenCalledWith("alice", 7, input);
+  });
+});
+
+describe("changing a header's title", () => {
+  it("is for the caller's own connection only: another's is not found, and the header is not touched", async () => {
+    const { access, setTitle } = setup({ owns: false });
+    expect(await access.header("mallory", 1, { header: "---\n", title: "x" })).toEqual({ found: false });
+    expect(setTitle).not.toHaveBeenCalled();
+  });
+
+  it("gives the header the module wrote, or says it cannot be read", async () => {
+    const { access } = setup();
+    expect(await access.header("alice", 1, { header: "---\n", title: "x" })).toEqual({ found: true, result: { ok: true, header: "---\ntitle: x\n" } });
+    expect(await access.header("alice", 1, { header: "broken", title: "x" })).toEqual({ found: true, result: { ok: false, reason: "unreadable" } });
   });
 });

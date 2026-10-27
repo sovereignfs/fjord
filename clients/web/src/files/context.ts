@@ -16,6 +16,7 @@ export async function filesContext(): Promise<{ caller: Caller | null; deps: Dep
     caller: session ? { accountId: session.user.id, name: session.user.name, email: session.user.email } : null,
     deps: {
       origin: config.url,
+      header: (accountId, id, input) => (access as NonNullable<typeof access>).header(accountId, id, input),
       create: (accountId, id, input) => (access as NonNullable<typeof access>).create(accountId, id, input),
       delete: (accountId, id, input) => (access as NonNullable<typeof access>).delete(accountId, id, input),
       restore: (accountId, id, input) => (access as NonNullable<typeof access>).restore(accountId, id, input),

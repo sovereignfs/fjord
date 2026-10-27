@@ -28,6 +28,9 @@ interface Module {
   freeName(stem: string, extension: string, existingJson: string): string;
   newDocument(id: string, title: string, created: string): string;
   parseDocument(text: string): string;
+  withTitle(text: string, title: string): string | undefined;
+  promoteDocument(text: string, id: string, created: string, title: string): string | undefined;
+  impliedTitle(text: string, fileName: string): string;
   checkName(component: string): string;
   caseCollisions(namesJson: string): string;
   newUlid(timestampMs: number, random: Uint8Array): string;
@@ -81,6 +84,17 @@ function load(directory: string): Module {
   } catch (error) {
     throw new FormatUnavailableError(`The Fjord format module could not be loaded from ${directory}: ${error instanceof Error ? error.message : String(error)}`);
   }
+}
+
+/** What the module answers about a file's header (`parseDocument`). */
+export interface ParsedDocument {
+  status: string;
+  docId?: string | null;
+  title?: string | null;
+  created?: string | null;
+  /** The header's keys, in the order they are written. Present when `status` is `present`. */
+  frontmatter?: Record<string, unknown>;
+  bodyOffset?: number;
 }
 
 export class Fjord {
@@ -150,9 +164,24 @@ export class Fjord {
     return this.module.newDocument(id, title, created);
   }
 
-  /** A file's header, read: whether it has one, and the Doc's identifier if it has a valid one. The body is not the module's here. */
-  parseDocument(text: string): { status: string; docId?: string | null; title?: string | null; bodyOffset?: number } {
-    return JSON.parse(this.module.parseDocument(text)) as { status: string; docId?: string | null; title?: string | null; bodyOffset?: number };
+  /** A file's header, read: whether it has one, the Doc's identifier if it has a valid one, and the header's keys as written. */
+  parseDocument(text: string): ParsedDocument {
+    return JSON.parse(this.module.parseDocument(text)) as ParsedDocument;
+  }
+
+  /** A document's text with its `title` set (or taken away, if empty), every other key kept in its place. Undefined when there is no header to rewrite, or it is broken. */
+  withTitle(text: string, title: string): string | undefined {
+    return this.module.withTitle(text, title);
+  }
+
+  /** A text given the header of a Doc, keeping what it has; `title` and `created` are only filled in when absent. Undefined when the header is broken. */
+  promoteDocument(text: string, id: string, created: string, title: string): string | undefined {
+    return this.module.promoteDocument(text, id, created, title);
+  }
+
+  /** The title a document implies: its first level-one heading, else its file name without `.md` or `.fj.md`. */
+  impliedTitle(text: string, fileName: string): string {
+    return this.module.impliedTitle(text, fileName);
   }
 
   /** The codes of the spec §5 rules a path component breaks (`E501`…); none for a name that is fine. */

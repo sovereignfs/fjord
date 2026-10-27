@@ -2,13 +2,16 @@
 
 import { DocumentEditor, NoteEditor } from "fjord-editor";
 import "fjord-editor/styles.css";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
+import { sendTitle } from "../../files/client";
 import { discardDraft, sendDraft, sendVersion } from "../../working/client";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
 import { MAX_MESSAGE_CHARS } from "../../working/limits";
 import { hasConflictMarkers } from "../../working/markers";
+import type { HeaderInfo, Properties } from "../document";
+import { DocumentProperties } from "./DocumentProperties";
 
 /** The draft the page found for this note: its text and the version of the note it was started from. */
 export interface DraftOfNote {
@@ -18,9 +21,11 @@ export interface DraftOfNote {
 
 /**
  * A note in the note editor, or a document in the document editor, kept as a draft as it is edited (ROADMAP 1b.2, 1b.3,
- * 1b.8). A document is a header and a body, and the document editor is given the body only: `bodyStart` is where the body
- * begins in the text, and the header before it is put back in front of whatever the editor says, so that it is never the
- * editor's to rewrite (DESIGN.md §9). A note has no `bodyStart` and is edited whole. Nothing typed here goes to the
+ * 1b.5, 1b.8). A note or a document is a header and a body, and the editors are given the body only: `header.bodyStart` is
+ * where the body begins in the text, and the header before it is put back in front of whatever the editor says, so that it is
+ * never the editor's to rewrite (DESIGN.md §9). A header that cannot be read means there is no `header`, and the text is
+ * edited whole. The header is shown in the properties panel, where its title can be changed; a file that has no header is
+ * given one the first time it is edited (promotion, spec §8.1), and not before. Nothing typed here goes to the
  * repository: the text is sent to the server a moment after the last change (`DraftSaver`), where it waits until
  * **Save version** makes it one commit (1b.9). Closing the page and opening it again finds the draft, and says so.
  *
@@ -35,19 +40,26 @@ export function NoteView({
   text,
   blob,
   draft,
-  bodyStart,
+  header,
+  kind,
 }: {
   connectionId: number;
   path: string;
   label: string;
   text: string;
   blob: string;
+  kind: "note" | "document";
   draft: DraftOfNote | null;
-  /** For a document with a header that can be read: where its body starts in the text shown (the draft, else the file). */
-  bodyStart?: number | undefined;
+  /** For a file with a header that can be read, or none: where its body starts in the text shown (the draft, else the file), and its properties. */
+  header?: HeaderInfo | undefined;
 }) {
   const start = draft?.content ?? text;
-  const header = bodyStart === undefined ? "" : start.slice(0, bodyStart);
+  const bodyStart = header?.bodyStart;
+  // The header in front of the body, as it is now: the one the file has, the one it is promoted to, or one with a new title.
+  const headerNow = useRef(bodyStart === undefined ? "" : start.slice(0, bodyStart));
+  const promotion = header?.promotion;
+  const [properties, setProperties] = useState<Properties | undefined>(header?.properties ?? header?.promotion?.properties);
+  const [promoted, setPromoted] = useState(false);
   const base = draft?.baseBlob ?? blob;
   const saver = useMemo(() => new DraftSaver({ initial: start, send: (content) => sendDraft(connectionId, path, base, content) }), [connectionId, path, start, base]);
   const [status, setStatus] = useState<SaverStatus>(saver.status);
@@ -102,6 +114,31 @@ export function NoteView({
       void saver.flush(); // the person went to another page of the app
     };
   }, [saver]);
+
+  // What the editor says is the body; the header is put in front of it. The first edit of a file with no header adds one.
+  function changeBody(body: string) {
+    if (promotion && !promoted) {
+      headerNow.current = promotion.header;
+      setPromoted(true);
+    }
+    // Edited back to what it was, with the header still the one it was given: nothing is different, so no header is added.
+    if (promotion && headerNow.current === promotion.header && body === start.slice(bodyStart)) {
+      headerNow.current = "";
+      setPromoted(false);
+    }
+    saver.change(headerNow.current + body);
+  }
+
+  // The server writes the title into the header (the header alone is sent); what is kept is that header and the body as it is.
+  async function changeTitle(title: string): Promise<string | null> {
+    const answer = await sendTitle(connectionId, headerNow.current, title);
+    if (!answer.ok) return answer.message;
+    const body = saver.text.slice(headerNow.current.length);
+    headerNow.current = answer.header;
+    setProperties((now) => (now ? { ...now, title: title.trim() === "" ? null : title.trim() } : now));
+    saver.change(answer.header + body);
+    return null;
+  }
 
   async function discard() {
     setDiscarding(true);
@@ -171,10 +208,13 @@ export function NoteView({
           </Alert>
         </div>
       ) : null}
+      {properties ? <DocumentProperties properties={properties} pending={promotion !== undefined && !promoted} disabled={saving} onTitle={changeTitle} /> : null}
       {bodyStart === undefined ? (
         <NoteEditor aria-label={label} value={start} onChange={(next) => saver.change(next)} readOnly={saving} />
+      ) : kind === "document" ? (
+        <DocumentEditor aria-label={label} role={saving ? "view" : "edit"} value={start.slice(bodyStart)} onChange={changeBody} />
       ) : (
-        <DocumentEditor aria-label={label} role={saving ? "view" : "edit"} value={start.slice(bodyStart)} onChange={(body) => saver.change(header + body)} />
+        <NoteEditor aria-label={label} value={start.slice(bodyStart)} onChange={changeBody} readOnly={saving} />
       )}
       <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="draft-status">
         {describe(status, hasDraft)}
