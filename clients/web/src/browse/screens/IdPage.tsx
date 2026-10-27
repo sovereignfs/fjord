@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { AccountHeader } from "../../auth/screens/AccountHeader";
 import styles from "../../auth/screens/screens.module.css";
@@ -6,8 +7,12 @@ import { localAuthConfig, requireSession } from "../../auth/server";
 import { connectionService } from "../../connections/server";
 import { encryptionKeyring } from "../../crypto/server";
 import { Alert, Badge, Card } from "../../ui";
+import { PasswordForm } from "../../sharing/PasswordForm";
+import { unlockAction } from "../../../app/doc/[id]/actions";
+import { parseShareCookie } from "../../sharing/unlock";
+import { PENDING_COOKIE, SHARE_COOKIE } from "../../sharing/redact";
 import { SharedBody } from "../../sharing/SharedBody";
-import { openLinkedFor, openSharedFor } from "../../sharing/server";
+import { openLinkedFor, openSharedFor, passwordWanted } from "../../sharing/server";
 import { isDocId } from "../ids";
 import { repositoryHref } from "../links";
 import { findDocId } from "../server";
@@ -19,11 +24,15 @@ import { RepositoryScreen } from "./RepositoryScreen";
  * other way round) is sent to the address that is its own; several (an id is unique within a repository, not across them, and a
  * copy is a copy) are listed to choose from; none is a 404, and an id that is not one is too. Another account's file is none.
  */
-export async function IdPage({ route, id, token }: { route: "doc" | "note"; id: string; token?: string | undefined }) {
-  // A share link (ROADMAP 1c.3) needs no account. A token that opens nothing now (never made, for another document, expired or
-  // revoked) is not told apart from one that was never given: the page is then what it is for anyone who has no link.
+export async function IdPage({ route, id, wrong }: { route: "doc" | "note"; id: string; wrong?: "wrong" | "wait" | undefined }) {
+  // A share link (ROADMAP 1c.3) needs no account. Its token is in a cookie, put there when the link was first opened (1c.4) and
+  // checked here against the store at every request, so revoking or expiring a link ends it at once. A token that opens nothing
+  // now (never made, for another document, expired or revoked) is not told apart from none: the page is then what it is for anyone.
+  const jar = route === "doc" ? await cookies() : undefined;
+  const given = jar?.get(SHARE_COOKIE)?.value;
+  const { token, proof } = given === undefined ? { token: undefined, proof: undefined } : parseShareCookie(given);
   if (route === "doc" && token !== undefined && isDocId(id) && encryptionKeyring() !== undefined) {
-    const linked = await openLinkedFor(token, id);
+    const linked = await openLinkedFor(token, id, proof);
     if (linked) {
       return (
         <main className={styles.page}>
@@ -40,6 +49,27 @@ export async function IdPage({ route, id, token }: { route: "doc" | "note"; id: 
         </main>
       );
     }
+  }
+  // A link that asks for a password (ROADMAP 1c.5): its token waits in a cookie that opens nothing, and the person is asked.
+  const waiting = jar?.get(PENDING_COOKIE)?.value;
+  if (route === "doc" && waiting !== undefined && isDocId(id) && encryptionKeyring() !== undefined && (await passwordWanted(waiting, id))) {
+    return (
+      <main className={styles.page}>
+        <div className={styles.account}>
+          <h1 className={styles.title}>This document needs a password</h1>
+          <Card as="article" padding="lg">
+            {wrong ? (
+              <div className={styles.notice}>
+                <Alert variant="error" heading={wrong === "wait" ? "Too soon" : "That was not the password"}>
+                  {wrong === "wait" ? "Wait a little before trying again; each try makes the next wait longer." : "Try again."}
+                </Alert>
+              </div>
+            ) : null}
+            <PasswordForm docId={id} action={unlockAction} />
+          </Card>
+        </div>
+      </main>
+    );
   }
   const { user } = await requireSession();
   if (!isDocId(id) || encryptionKeyring() === undefined) notFound();

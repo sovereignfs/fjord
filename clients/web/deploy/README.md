@@ -85,6 +85,11 @@ fjord.example.com {
 Caddy gets a certificate for the name by itself, and sets `X-Forwarded-For` as asked. (This snippet is an example; it is
 not run by the checks below.)
 
+**Keep share-link tokens out of the proxy's access log.** A share link is opened at `/doc/<id>?token=<token>`; the app swaps the
+token for a cookie and redirects at once and never logs it, but a reverse proxy logs the address it was asked for, query string
+included. Log the path without the query (Caddy's `log` can drop it with a `delete` filter on `uri`'s query; nginx's `$uri` is the path
+alone, where `$request` and `$request_uri` are not), or treat that log as holding secrets.
+
 ## Backups
 
 What is in the database is accounts, connections, shares and working copies. The documents themselves are in the Git

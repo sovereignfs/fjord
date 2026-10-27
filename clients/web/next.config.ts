@@ -13,6 +13,11 @@ const config: NextConfig = {
   // the browser except rendered pages (clients/web/DESIGN.md §5).
   poweredByHeader: false,
   turbopack: { root },
+  // Pages send `Referrer-Policy: no-referrer` (DESIGN.md §12, ROADMAP 1c.4): a link followed from a page does not tell the other
+  // site where it came from, which on a shared document includes the address it was opened at.
+  async headers() {
+    return [{ source: "/:path*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }] }];
+  },
   // Loaded by Node at run time, not bundled: pg is CommonJS with optional native
   // parts, and libsql ships a native addon that only the `file:` database loads.
   serverExternalPackages: ["pg", "@libsql/client", "libsql"],

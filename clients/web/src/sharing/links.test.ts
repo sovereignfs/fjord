@@ -53,7 +53,7 @@ describe("a token", () => {
 describe(`links (${leg})`, () => {
   it("opens, by its token, the link that was made: its document, role and expiry", async () => {
     const { id, token } = await made(1, A, "comment", clock + 1000, "alice");
-    expect(await links.byToken(token)).toEqual({ id, connectionId: 1, docId: A, role: "comment", expiresAt: clock + 1000, revokedAt: null, createdAt: clock });
+    expect(await links.byToken(token)).toEqual({ id, connectionId: 1, docId: A, role: "comment", expiresAt: clock + 1000, revokedAt: null, createdAt: clock, hasPassword: false, passwordHash: null, failures: 0, lockedUntil: null });
   });
 
   it("keeps the token nowhere: not in the row, only its hash", async () => {
@@ -115,5 +115,76 @@ describe(`links (${leg})`, () => {
     await links.forget(1);
     expect(await links.byToken(one.token)).toBeUndefined();
     expect(await links.byToken(two.token)).toBeDefined();
+  });
+
+  it("keeps a password's hash and says only that there is one, in a list; the hash is for the one place that checks it", async () => {
+    const plain = await made(1, A, "view", null, "alice");
+    const locked = await links.create(1, A, "view", null, "alice", "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$hash");
+    if (!locked.ok) throw new Error("not made");
+    const listed = await links.list(1, A);
+    expect(listed.map((link) => [link.id, link.hasPassword])).toEqual([[locked.id, true], [plain.id, false]]);
+    expect(JSON.stringify(listed)).not.toMatch(/argon|hash|failures|lockedUntil/);
+    expect((await links.byToken(locked.token))?.passwordHash).toBe("$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$hash");
+    expect((await links.byToken(plain.token))?.passwordHash).toBeNull();
+  });
+});
+
+describe(`the tries at a link's password (${leg})`, () => {
+  const protectedLink = async () => {
+    const made = await links.create(1, A, "view", null, "alice", "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$hash");
+    if (!made.ok) throw new Error("not made");
+    return made.id;
+  };
+
+  it("lets one try be made at once, and puts the next off by a second", async () => {
+    const id = await protectedLink();
+    expect(await links.claimTry(id)).toEqual({ claimed: true });
+    expect(await links.claimTry(id)).toEqual({ claimed: false, retryAt: clock + 1000 });
+    clock += 999;
+    expect((await links.claimTry(id)).claimed).toBe(false);
+    clock += 1;
+    expect(await links.claimTry(id)).toEqual({ claimed: true });
+  });
+
+  it("gives one try to one of several at once: they cannot be made in parallel", async () => {
+    const id = await protectedLink();
+    const results = await Promise.all(Array.from({ length: 12 }, () => links.claimTry(id)));
+    expect(results.filter((result) => result.claimed)).toHaveLength(1);
+  });
+
+  it("makes each wrong password lengthen the wait: a second for three, then five, ten, twenty seconds", async () => {
+    const id = await protectedLink();
+    const waits: number[] = [];
+    for (let i = 0; i < 6; i++) {
+      expect((await links.claimTry(id)).claimed).toBe(true);
+      await links.recordFailure(id);
+      const next = await links.claimTry(id);
+      waits.push(next.claimed ? 0 : next.retryAt - clock);
+      clock += 60 * 60 * 1000; // long enough to try again
+    }
+    expect(waits).toEqual([1000, 1000, 5000, 10_000, 20_000, 40_000]);
+  });
+
+  it("starts again after the right password", async () => {
+    const id = await protectedLink();
+    for (let i = 0; i < 5; i++) {
+      await links.claimTry(id);
+      await links.recordFailure(id);
+      clock += 60 * 60 * 1000;
+    }
+    await links.claimTry(id);
+    await links.recordSuccess(id);
+    expect(await links.claimTry(id)).toEqual({ claimed: true });
+    await links.recordFailure(id);
+    const next = await links.claimTry(id);
+    expect(next.claimed ? 0 : next.retryAt - clock).toBe(1000);
+  });
+
+  it("is each link's own, and a link that is not there has no try to take", async () => {
+    const a = await protectedLink();
+    const b = await protectedLink();
+    expect((await links.claimTry(a)).claimed).toBe(true);
+    expect((await links.claimTry(b)).claimed).toBe(true);
+    expect((await links.claimTry(999_999)).claimed).toBe(false);
   });
 });

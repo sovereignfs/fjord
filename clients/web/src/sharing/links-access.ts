@@ -1,6 +1,7 @@
 import { type Grant, decide } from "../access/policy";
 import type { Deps, LinkSummary } from "./links-http";
 import type { LinkService } from "./links";
+import { hashPassword } from "./password";
 
 /**
  * Whose, and what has a link (ROADMAP 1c.3). `links-http.ts` has the request's rules; this has the repository's:
@@ -30,7 +31,9 @@ export function linksAccess(deps: AccessDeps): Pick<Deps, "create" | "list" | "r
       const kind = await deps.documentIn(accountId, id, input.docId);
       if (kind === "note") return { found: true, result: { ok: false, reason: "not_a_document" } };
       if (kind !== "document") return { found: true, result: { ok: false, reason: kind } };
-      return { found: true, result: await deps.links.create(id, input.docId, input.role, input.expiresAt, accountId) };
+      // The password is hashed here and goes no further than this: the store is given the hash, and the answer carries neither.
+      const hash = input.password === null ? null : await hashPassword(input.password);
+      return { found: true, result: await deps.links.create(id, input.docId, input.role, input.expiresAt, accountId, hash) };
     },
 
     async list(accountId, id, docId) {
@@ -42,6 +45,7 @@ export function linksAccess(deps: AccessDeps): Pick<Deps, "create" | "list" | "r
         expiresAt: link.expiresAt,
         revokedAt: link.revokedAt,
         createdAt: link.createdAt,
+        passwordProtected: link.hasPassword,
         status: link.revokedAt !== null ? "revoked" : link.expiresAt !== null && link.expiresAt <= at ? "expired" : "active",
       }));
       return { found: true, links };

@@ -2142,18 +2142,21 @@ test("a link opens a document for anyone who has it, until it expires or is revo
     await expect(editor).toContainText("The plan, for reading.");
     await expect(editor).toHaveAttribute("contenteditable", "false");
     expect(await visitor.locator("main").innerText()).not.toMatch(/x-secret|not for the reader|Deep|Plan\.fj\.md|acme\/more|Ada/);
-    await expect(visitor.locator('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
 
     // It is for that document only; without the token, or with a wrong one, the page is what it is for anyone: the sign-in.
+    // (Someone who has not been given the link, so a context with no cookie of its own.)
+    const cold = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.3.5" } });
+    const outsider = await cold.newPage();
     for (const url of [`/doc/01jagc4k7pt8y3wqnmzv5xrbzz?token=${link.token}`, `/doc/${ID_DOC}`, `/doc/${ID_DOC}?token=${"A".repeat(43)}`, `/doc/${ID_DOC}?token=short`, `/note/${ID_DOC}?token=${link.token}`]) {
-      await visitor.goto(url);
-      await expect(visitor, url).toHaveURL(/\/sign-in|\/note\/|404/);
-      await expect(visitor.getByRole("heading", { name: "Q4 plan" }), url).toHaveCount(0);
+      await outsider.goto(url);
+      await expect(outsider, url).toHaveURL(/\/sign-in/);
+      await expect(outsider.getByRole("heading", { name: "Q4 plan" }), url).toHaveCount(0);
     }
+    await cold.close();
 
     // The owner's list says what links there are, with no token; it follows the file when it moves.
     const listed = await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).json();
-    expect(listed.links).toEqual([{ id: link.id, role: "view", expiresAt: null, revokedAt: null, createdAt: expect.any(Number), status: "active" }]);
+    expect(listed.links).toEqual([{ id: link.id, role: "view", expiresAt: null, revokedAt: null, createdAt: expect.any(Number), status: "active", passwordProtected: false }]);
     expect(JSON.stringify(listed)).not.toContain(link.token);
     await hubs.more.commitFiles({ "Notes/Deep/Plan.fj.md": null, "Notes/Moved/Q4 plan.fj.md": SHARE_DOC });
     expect((await visitor.goto(link.url))?.status()).toBe(200);
@@ -2207,6 +2210,174 @@ test("only the owner makes links, only for a document, from this site, and the t
     const made = await (await send(page.request, good)).json();
     expect(made.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).text()).not.toContain(made.token);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a link's token is swapped for a cookie of that document and gone from the address, and ends when the link does", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/Other.fj.md": withId("01jagc4k7pt8y3wqnmzv5xrbzz", "private") });
+    const make = async (data: Record<string, unknown>) => {
+      const response = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, ...data } });
+      return (await response.json()) as { id: number; token: string; url: string };
+    };
+    const link = await make({ role: "view" });
+    const reader = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.4.4" } });
+    const visitor = await reader.newPage();
+
+    // The first request is not a page: it is answered with a redirect to the clean address, and the cookie.
+    const final = await visitor.goto(link.url);
+    expect(final?.status()).toBe(200);
+    expect(visitor.url()).toBe(`${BASE}/doc/${ID_DOC}`);
+    expect(visitor.url()).not.toContain(link.token);
+    const first = final!.request().redirectedFrom()!;
+    const redirect = (await first.response())!;
+    expect(redirect.status()).toBe(303);
+    expect(redirect.headers()["location"]).toBe(`/doc/${ID_DOC}`);
+    expect(JSON.stringify(redirect.headers())).not.toContain(link.token); // not in a header either: Next puts a rewrite there
+    expect(redirect.headers()["referrer-policy"]).toBe("no-referrer");
+    expect(final?.headers()["referrer-policy"]).toBe("no-referrer");
+    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    // Nothing of the token is left in the page that is shown, nor in the history that was made.
+    expect(await visitor.content()).not.toContain(link.token);
+    expect(await visitor.evaluate(() => performance.getEntriesByType("navigation").map((entry) => entry.name).join(" "))).not.toContain("token=");
+
+    // The cookie: that document's path only, out of reach of the page's script, short-lived, and the only place the token is.
+    const cookies = await reader.cookies(`${BASE}/doc/${ID_DOC}`);
+    const share = cookies.find((cookie) => cookie.name === "fjord_share")!;
+    expect(share).toMatchObject({ value: link.token, httpOnly: true, sameSite: "Lax", path: `/doc/${ID_DOC}` });
+    expect(share.expires - Date.now() / 1000).toBeGreaterThan(3500);
+    expect(share.expires - Date.now() / 1000).toBeLessThanOrEqual(3600);
+    expect(await visitor.evaluate(() => document.cookie)).not.toContain("fjord_share");
+    expect((await reader.cookies(`${BASE}/doc/01jagc4k7pt8y3wqnmzv5xrbzz`)).some((cookie) => cookie.name === "fjord_share")).toBe(false);
+    expect((await reader.cookies(`${BASE}/repo/${id}`)).some((cookie) => cookie.name === "fjord_share")).toBe(false);
+
+    // It goes on working at the clean address, with the cookie, and for that document only.
+    await visitor.reload();
+    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    expect((await visitor.goto(`/doc/01jagc4k7pt8y3wqnmzv5xrbzz`))?.status()).toBe(200);
+    await expect(visitor).toHaveURL(/\/sign-in/);
+
+    // Taking the link away ends it for the holder of the cookie on their next request.
+    await visitor.goto(`/doc/${ID_DOC}`);
+    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toBeVisible();
+    await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } });
+    await visitor.reload();
+    await expect(visitor).toHaveURL(/\/sign-in/);
+
+    // A link that ends in a minute gives a cookie that ends with it.
+    const brief = await make({ role: "view", expiresAt: Date.now() + 60_000 });
+    await visitor.goto(brief.url);
+    await expect(visitor).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+    const short = (await reader.cookies(`${BASE}/doc/${ID_DOC}`)).find((cookie) => cookie.name === "fjord_share")!;
+    expect(short.value).toBe(brief.token);
+    expect(short.expires - Date.now() / 1000).toBeLessThanOrEqual(60);
+
+    // A link that does not work gets the same redirect, and no cookie.
+    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.4.5" } });
+    const other = await stranger.newPage();
+    await other.goto(`/doc/${ID_DOC}?token=${link.token}`); // the revoked one
+    await expect(other).toHaveURL(/\/sign-in/);
+    expect((await stranger.cookies()).some((cookie) => cookie.name === "fjord_share")).toBe(false);
+    await stranger.close();
+    await reader.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("every page says where a link followed from it came from: nowhere", async ({ request }) => {
+  for (const path of ["/", "/sign-in", "/sign-up", "/api/health"]) expect((await request.get(path)).headers()["referrer-policy"], path).toBe("no-referrer");
+});
+
+// --- Password links (ROADMAP 1c.5) ---------------------------------------------------------------------------------------------
+
+test("a link with a password lets nobody in with the token alone, slows wrong tries, and opens for the right one", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
+    const PASSWORD = "correct horse battery staple";
+    const made = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "view", password: PASSWORD } });
+    expect(made.status()).toBe(201);
+    const link = (await made.json()) as { id: number; token: string; url: string; passwordProtected: boolean };
+    expect(link.passwordProtected).toBe(true);
+    expect(JSON.stringify(link)).not.toContain(PASSWORD);
+
+    // The owner's list says it has a password, and shows neither it nor its hash.
+    const listed = await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).text();
+    expect(JSON.parse(listed).links[0]).toMatchObject({ id: link.id, passwordProtected: true });
+    expect(listed).not.toMatch(/argon|hash|correct horse|failures|lockedUntil/i);
+
+    const reader = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.5.5" } });
+    const visitor = await reader.newPage();
+    const open = async () => {
+      await visitor.goto(link.url);
+      await expect(visitor).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+    };
+
+    // The token alone shows a question, not the document; and the cookie it left opens nothing.
+    await open();
+    await expect(visitor.getByRole("heading", { name: "This document needs a password" })).toBeVisible();
+    await expect(visitor.getByText("The plan, for reading.")).toHaveCount(0);
+    const names = async () => (await reader.cookies(`${BASE}/doc/${ID_DOC}`)).map((cookie) => cookie.name);
+    expect(await names()).toContain("fjord_share_pending");
+    expect(await names()).not.toContain("fjord_share");
+    expect(await visitor.content()).not.toContain(link.token);
+
+    // A wrong password is said to be wrong; one straight after, even the right one, is "too soon" and is not checked.
+    const give = async (password: string) => {
+      await visitor.getByLabel("Password").fill(password);
+      await visitor.getByRole("button", { name: "Open" }).click();
+    };
+    await give("not the password at all");
+    await expect(visitor.getByText("That was not the password")).toBeVisible();
+    expect(visitor.url()).not.toContain("not the password");
+    await give(PASSWORD);
+    await expect(visitor.getByText("Too soon")).toBeVisible();
+    await expect(visitor.getByText("The plan, for reading.")).toHaveCount(0);
+
+    // After the wait, the right one opens it: the cookie that opens carries the proof as well as the token, and the pending one is gone.
+    await visitor.waitForTimeout(1300);
+    await give(PASSWORD);
+    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    await expect(visitor).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+    const share = (await reader.cookies(`${BASE}/doc/${ID_DOC}`)).find((cookie) => cookie.name === "fjord_share")!;
+    expect(share.value.startsWith(`${link.token}.`)).toBe(true);
+    expect(share).toMatchObject({ httpOnly: true, sameSite: "Lax", path: `/doc/${ID_DOC}` });
+    expect(await names()).not.toContain("fjord_share_pending");
+    await visitor.reload();
+    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+
+    // Revoking ends it for the holder of the cookie on the next request.
+    await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } });
+    await visitor.reload();
+    await expect(visitor).toHaveURL(/\/sign-in/);
+
+    // Someone who has the link and sets the cookie for themselves, with the token and no proof, is not let in.
+    const live = await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "view", password: PASSWORD } })).json();
+    const forger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.5.6" } });
+    await forger.addCookies([{ name: "fjord_share", value: live.token, url: `${BASE}/doc/${ID_DOC}` }]);
+    const forged = await forger.newPage();
+    await forged.goto(`/doc/${ID_DOC}`);
+    await expect(forged).toHaveURL(/\/sign-in/);
+    await forger.addCookies([{ name: "fjord_share", value: `${live.token}.${"A".repeat(43)}`, url: `${BASE}/doc/${ID_DOC}` }]);
+    await forged.goto(`/doc/${ID_DOC}`);
+    await expect(forged).toHaveURL(/\/sign-in/);
+    await forger.close();
+    await reader.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a link's password is checked when the link is made: text of a fit length, or none", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
+    const send = (data: unknown) => page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "view", ...(data as object) } });
+    for (const password of ["short", "x".repeat(201), 12345678, ["abcdefgh"]]) expect((await send({ password })).status(), JSON.stringify(password)).toBe(400);
+    expect((await send({ password: null })).status()).toBe(201);
+    expect((await send({})).status()).toBe(201);
+    expect((await (await send({ password: "long enough password" })).json()).passwordProtected).toBe(true);
   } finally {
     await restoreMore();
   }

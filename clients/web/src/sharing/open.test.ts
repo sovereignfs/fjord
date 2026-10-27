@@ -14,7 +14,8 @@ import { fjord, wasmAvailable, wasmDirectory } from "../format/wasm";
 import { MemoryProvider } from "../providers/memory";
 import type { RepositoryRef } from "../providers/types";
 import { LinkService } from "./links";
-import { type OpenDeps, openByLink, openShared } from "./open";
+import { type OpenDeps, asksForPassword, openByLink, openShared } from "./open";
+import { hashPassword, unlockProof } from "./password";
 import { ShareService } from "./shares";
 
 /**
@@ -142,7 +143,8 @@ describe.skipIf(!available)(`opening what was shared (${leg})`, () => {
 });
 
 describe.skipIf(!available)(`opening by a link (${leg})`, () => {
-  const linkDeps = (deps: OpenDeps, now = () => clock) => ({ links, sourceOf: deps.sourceOf, index: deps.index, format: deps.format, now });
+  const SECRET = "s".repeat(40);
+  const linkDeps = (deps: OpenDeps, now = () => clock) => ({ links, sourceOf: deps.sourceOf, index: deps.index, format: deps.format, secret: SECRET, now });
   const make = async (role: "view" | "comment" | "edit" = "view", expiresAt: number | null = null, docId = ID) => {
     const made = await links.create(1, docId, role, expiresAt, "alice");
     if (!made.ok) throw new Error("not made");
@@ -200,5 +202,53 @@ describe.skipIf(!available)(`opening by a link (${leg})`, () => {
     expect(await openByLink(linkDeps(b.deps), (await make()).token, ID)).toBeUndefined();
     const c = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") }, { unreadable: true });
     expect(await openByLink(linkDeps(c.deps), (await make()).token, ID)).toBeUndefined();
+  });
+
+  describe("with a password", () => {
+    const protect = async () => {
+      const hash = await hashPassword("correct horse battery staple");
+      const made = await links.create(1, ID, "view", null, "alice", hash);
+      if (!made.ok) throw new Error("not made");
+      const record = (await links.byToken(made.token))!;
+      return { token: made.token, proof: unlockProof(SECRET, record.id, hash), id: record.id };
+    };
+
+    it("is not opened by its token, which anyone with the link has: the proof that the password was given is what opens it", async () => {
+      const { deps } = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") });
+      const { token, proof } = await protect();
+      expect(await openByLink(linkDeps(deps), token, ID)).toBeUndefined();
+      expect(await openByLink(linkDeps(deps), token, ID, undefined)).toBeUndefined();
+      for (const wrong of ["", "x", proof.slice(1), `${proof}x`, unlockProof("t".repeat(40), 1, "$other"), token]) expect(await openByLink(linkDeps(deps), token, ID, wrong), wrong).toBeUndefined();
+      expect((await openByLink(linkDeps(deps), token, ID, proof))?.title).toBe("Q4 plan");
+    });
+
+    it("is not opened by the proof of another link, even a link with the same password", async () => {
+      const { deps } = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") });
+      const one = await protect();
+      const two = await protect();
+      expect(await openByLink(linkDeps(deps), one.token, ID, two.proof)).toBeUndefined();
+      expect(await openByLink(linkDeps(deps), two.token, ID, two.proof)).toBeDefined();
+    });
+
+    it("still ends when it expires or is revoked, proof or not", async () => {
+      const { deps } = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") });
+      const { token, proof, id } = await protect();
+      expect(await openByLink(linkDeps(deps), token, ID, proof)).toBeDefined();
+      await links.revoke(1, ID, id);
+      expect(await openByLink(linkDeps(deps), token, ID, proof)).toBeUndefined();
+    });
+
+    it("is one the page asks a password for, while it is live and of that document, and not otherwise", async () => {
+      const { token, id } = await protect();
+      const plain = await make();
+      const deps = { links, now: () => clock };
+      expect(await asksForPassword(deps, token, ID)).toBe(true);
+      expect(await asksForPassword(deps, token, NOTE_ID)).toBe(false); // another document
+      expect(await asksForPassword(deps, plain.token, ID)).toBe(false); // no password to ask
+      expect(await asksForPassword(deps, "A".repeat(43), ID)).toBe(false);
+      expect(await asksForPassword({ links, now: () => clock + 10 }, token, ID)).toBe(true);
+      await links.revoke(1, ID, id);
+      expect(await asksForPassword(deps, token, ID)).toBe(false);
+    });
   });
 });

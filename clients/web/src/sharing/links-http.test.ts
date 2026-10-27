@@ -19,7 +19,7 @@ function stub() {
   const create = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: CreateResult }> => ({ found: true, result: { ok: true, id: 7, token: TOKEN } }));
   const list = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; links: LinkSummary[] }> => ({
     found: true,
-    links: [{ id: 7, role: "view", expiresAt: null, revokedAt: null, createdAt: NOW, status: "active" }],
+    links: [{ id: 7, role: "view", expiresAt: null, revokedAt: null, createdAt: NOW, status: "active", passwordProtected: false }],
   }));
   const revoke = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; revoked: boolean }> => ({ found: true, revoked: true }));
   const deps: Deps = { create: (a, i, x) => create(a, i, x), list: (a, i, d) => list(a, i, d), revoke: (a, i, x) => revoke(a, i, x), origin: ORIGIN, now: () => NOW };
@@ -81,8 +81,8 @@ describe("making a link", () => {
     const { deps, create } = stub();
     const response = await handleLinks(req("POST", { ...good, role: "comment", author: "mallory", token: "chosen" }), ALICE, deps, "1");
     expect(response.status).toBe(201);
-    expect(await body(response)).toEqual({ id: 7, token: TOKEN, url: `${ORIGIN}/doc/${DOC}?token=${TOKEN}` });
-    expect(create).toHaveBeenCalledWith("alice", 1, { docId: DOC, role: "comment", expiresAt: null });
+    expect(await body(response)).toEqual({ id: 7, token: TOKEN, url: `${ORIGIN}/doc/${DOC}?token=${TOKEN}`, passwordProtected: false });
+    expect(create).toHaveBeenCalledWith("alice", 1, { docId: DOC, role: "comment", expiresAt: null, password: null });
   });
 
   it("takes an expiry in the future, and no other", async () => {
@@ -109,6 +109,38 @@ describe("making a link", () => {
     expect(create).not.toHaveBeenCalled();
   });
 
+  it("takes a password of a fit length, hands it on as the owner's, and says only that the link has one", async () => {
+    const { deps, create } = stub();
+    const response = await handleLinks(req("POST", { ...good, password: "correct horse battery staple" }), ALICE, deps, "1");
+    const text = await response.text();
+    expect(response.status).toBe(201);
+    expect(JSON.parse(text).passwordProtected).toBe(true);
+    expect(text).not.toContain("correct horse");
+    expect(create).toHaveBeenCalledWith("alice", 1, expect.objectContaining({ password: "correct horse battery staple" }));
+    create.mockClear();
+    for (const password of [null, undefined]) expect((await handleLinks(req("POST", { ...good, password }), ALICE, deps, "1")).status).toBe(201);
+    expect(create).toHaveBeenLastCalledWith("alice", 1, expect.objectContaining({ password: null }));
+  });
+
+  it("refuses a password that is not text, is too short or too long, or has a NUL, without asking", async () => {
+    const { deps, create } = stub();
+    create.mockClear();
+    for (const password of ["short", "x".repeat(201), 12345678, ["abcdefgh"], "abcdefg\u0000h", "abcdefg\ud800", true]) {
+      expect((await handleLinks(req("POST", { ...good, password }), ALICE, deps, "1")).status, JSON.stringify(password)).toBe(400);
+    }
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it("never carries the password in an unexpected failure's log", async () => {
+    const { deps, create } = stub();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    create.mockRejectedValueOnce(new Error("boom"));
+    const response = await handleLinks(req("POST", { ...good, password: "correct horse battery staple" }), ALICE, deps, "1");
+    expect(await response.text()).not.toContain("correct horse");
+    expect(logged.mock.calls.flat().join(" ")).not.toContain("correct horse");
+    logged.mockRestore();
+  });
+
   it.each<[Extract<CreateResult, { ok: false }>["reason"], number]>([["not_a_document", 422], ["gone", 404], ["too_many", 422], ["unavailable", 502]])(
     "%s is %i, with its own code and words, and no token",
     async (reason, status) => {
@@ -133,7 +165,7 @@ describe("listing, revoking, and what goes wrong", () => {
     const { deps, list } = stub();
     const response = await handleLinks(req("GET", undefined, { query: `?doc=${DOC}` }), ALICE, deps, "1");
     const text = await response.text();
-    expect(JSON.parse(text).links).toEqual([{ id: 7, role: "view", expiresAt: null, revokedAt: null, createdAt: NOW, status: "active" }]);
+    expect(JSON.parse(text).links).toEqual([{ id: 7, role: "view", expiresAt: null, revokedAt: null, createdAt: NOW, status: "active", passwordProtected: false }]);
     expect(text).not.toMatch(/token/i);
     expect(list).toHaveBeenCalledWith("alice", 1, DOC);
     for (const query of ["", "?doc=nope", `?doc=${DOC.toUpperCase()}`]) expect((await handleLinks(req("GET", undefined, { query }), ALICE, deps, "1")).status).toBe(400);

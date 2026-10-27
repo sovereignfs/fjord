@@ -13,11 +13,19 @@ section.
 
 ### Added
 
+- **Password links** (ROADMAP 1c.5): a share link can ask for a password. Whoever has the link is asked for it, and it is hashed with
+  Argon2id (only the hash is kept), checked one try at a time with a growing wait after wrong ones (a second at first, up to a quarter of an
+  hour), and never sent back, logged or put in an address. The token alone does not open such a link. The owner's list says which links
+  have a password.
+- **A share link's token no longer stays in the address** (ROADMAP 1c.4): opening `/doc/<id>?token=…` now sets a cookie for that one
+  document (an hour at most, and no longer than the link lives, out of reach of the page's script) and redirects to the clean
+  `/doc/<id>`, so the token is not left in the address bar, the history or a bookmark. Revoking a link, or its expiry, ends it on the
+  next request, and a link that does not work looks the same as none. Every page now sends `Referrer-Policy: no-referrer`, and a token in
+  anything the server prints (an address, the cookie, JSON) is printed as `[redacted]`.
 - **Share links** (ROADMAP 1c.3): an owner can make a link to a document, as view, comment or edit, with an optional expiry, make several
   for one document, and revoke each on its own (an API for now; the screen comes later). Anyone who opens `/doc/<id>?token=…`, signed
   in or not, reads the document for as long as the link is good, and sees nothing of the repository, the file's place or its header.
   An expired or revoked link, or a wrong one, shows nothing. The token is shown once when the link is made; only a hash of it is kept.
-  **The token stays in the address until the next change (1c.4) swaps it out of it**, so treat these links as secrets.
 - **Share a document with a named account** (ROADMAP 1c.2): an owner can share a document with the account that has an email
   address, as view, comment or edit, and stop again (an API for now; the screen for it comes later). The person it is shared
   with opens it at `/doc/<id>` to read, shown the title and the text and who shared it, and nothing of the repository, the file's

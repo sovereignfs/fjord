@@ -19,6 +19,9 @@ export async function register(): Promise<void> {
   // These two guards stay first, with everything else under them in this one function: the bundler removes
   // what follows them from the Edge build, which must not see (and cannot build) the database client.
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  // Before anything can print: a share token in an address is never in a log line (ROADMAP 1c.4).
+  const { installLogRedaction } = await import("./src/sharing/redact");
+  installLogRedaction();
   if (process.env.FJORD_SKIP_DATABASE === "1") return;
   try {
     const { describeAuth } = await import("./src/auth/config");

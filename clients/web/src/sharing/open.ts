@@ -5,6 +5,7 @@ import { resolveDocId, type Source } from "../browse/ids";
 import { readTextBlob } from "../browse/note";
 import type { Fjord } from "../format/wasm";
 import type { LinkService } from "./links";
+import { proofIsRight } from "./password";
 import type { ShareService } from "./shares";
 
 /**
@@ -67,6 +68,8 @@ export interface LinkOpenDeps {
   sourceOf: OpenDeps["sourceOf"];
   index: DocIndex;
   format: OpenDeps["format"];
+  /** The server's secret: a link with a password opens only with the proof that it was given (`password.ts`). */
+  secret: string;
   now?: () => number;
 }
 
@@ -76,11 +79,21 @@ export interface LinkOpenDeps {
  * and a link that has expired or been revoked is as if it had never been. Undefined for every one of those, so that nothing says
  * which it was.
  */
-export async function openByLink(deps: LinkOpenDeps, token: string, docId: string): Promise<SharedDocument | undefined> {
+export async function openByLink(deps: LinkOpenDeps, token: string, docId: string, proof?: string): Promise<SharedDocument | undefined> {
   const link = await deps.links.byToken(token);
   if (!link || link.docId !== docId) return undefined;
   const grant = { kind: "link", role: link.role, expiresAt: link.expiresAt, revoked: link.revokedAt !== null } as const;
   if (decide([grant], "read", { kind: "document" }, deps.now?.() ?? Date.now()) !== "allow") return undefined;
+  // A link with a password is not opened by its token, which anyone with the link has, but by the proof that the password was given.
+  if (link.passwordHash !== null && !proofIsRight(deps.secret, link.id, link.passwordHash, proof)) return undefined;
   const opened = await readDocument(deps, link.connectionId, docId);
   return opened ? { ...opened, role: link.role, sharedBy: undefined } : undefined;
+}
+
+/** Whether this token is a link of this document that is live and asks for a password: what the page asks the password for. */
+export async function asksForPassword(deps: Pick<LinkOpenDeps, "links" | "now">, token: string, docId: string): Promise<boolean> {
+  const link = await deps.links.byToken(token);
+  if (!link || link.docId !== docId || link.passwordHash === null) return false;
+  const grant = { kind: "link", role: link.role, expiresAt: link.expiresAt, revoked: link.revokedAt !== null } as const;
+  return decide([grant], "read", { kind: "document" }, deps.now?.() ?? Date.now()) === "allow";
 }

@@ -78,6 +78,13 @@
       "when": 1793182047465,
       "tag": "0010_share_link",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793191138940,
+      "tag": "0011_share_link_password",
+      "breakpoints": true
     }
   ]
 }

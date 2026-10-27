@@ -7,7 +7,9 @@ import { getAuthDatabase, getDatabase } from "../db/boot";
 import { fjord } from "../format/wasm";
 import { type AccessDeps, sharingAccess } from "./access";
 import { ShareService } from "./shares";
-import { type SharedDocument, openByLink, openShared } from "./open";
+import { type SharedDocument, asksForPassword, openByLink, openShared } from "./open";
+import { authConfig } from "../auth/server";
+import { type UnlockResult, tryUnlock } from "./unlock";
 import { LinkService } from "./links";
 import { linksAccess } from "./links-access";
 import { readRepository } from "../browse/repository";
@@ -61,10 +63,30 @@ export async function openSharedFor(accountId: string, docId: string): Promise<S
   );
 }
 
-/** The document a link opens, for whoever presents its token (ROADMAP 1c.3). Undefined for a token that opens nothing now. */
-export async function openLinkedFor(token: string, docId: string): Promise<SharedDocument | undefined> {
+/** The server's secret, which the proof that a link's password was given is keyed with. */
+function secretOf(): string {
+  const config = authConfig();
+  if (!config.enabled) throw new Error("sharing needs sign-in settings");
+  return config.secret;
+}
+
+/**
+ * The document a link opens, for whoever presents its token (and, for a link with a password, the proof that it was given). Undefined
+ * for a token that opens nothing now.
+ */
+export async function openLinkedFor(token: string, docId: string, proof?: string): Promise<SharedDocument | undefined> {
   const database = await getDatabase();
-  return openByLink({ links: new LinkService(database), sourceOf: await sourceOfOwner(), index: new DocIndex(database), format: fjord() }, token, docId);
+  return openByLink({ links: new LinkService(database), sourceOf: await sourceOfOwner(), index: new DocIndex(database), format: fjord(), secret: secretOf() }, token, docId, proof);
+}
+
+/** Whether to ask for a password for this token and document (ROADMAP 1c.5). */
+export async function passwordWanted(token: string, docId: string): Promise<boolean> {
+  return asksForPassword({ links: new LinkService(await getDatabase()) }, token, docId);
+}
+
+/** Give a link's password (ROADMAP 1c.5): the cookie that opens it if it is right, or why not. */
+export async function unlockFor(docId: string, password: unknown, pendingToken: string | undefined): Promise<UnlockResult> {
+  return tryUnlock({ links: new LinkService(await getDatabase()), secret: secretOf() }, { docId, password, pendingToken });
 }
 
 /** A repository read with its owner's token, for a share or a link that names it; undefined if it cannot be read. */

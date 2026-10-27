@@ -1,4 +1,4 @@
-import { index, pgSchema, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { index, integer, pgSchema, text, uniqueIndex } from "drizzle-orm/pg-core";
 import { APP_STORE } from "../../config";
 import { epochMs, id64, ref64 } from "./columns";
 
@@ -198,6 +198,12 @@ export const shareLink = app.table(
     /** When it stops working, if it does. */
     expiresAt: epochMs("expires_at"),
     revokedAt: epochMs("revoked_at"),
+    /** For a link with a password (ROADMAP 1c.5): its Argon2id hash as a PHC string, never the password. Null for a link with none. */
+    passwordHash: text("password_hash"),
+    /** Wrong passwords since the last right one: how long to make the next try wait (`sharing/password.ts`). */
+    failures: integer("failures").notNull().default(0),
+    /** No try at the password is taken before this; it is moved on by each try, so tries are one at a time and slow down. */
+    lockedUntil: epochMs("locked_until"),
     createdBy: text("created_by").notNull(),
     createdAt: epochMs("created_at").notNull(),
   },

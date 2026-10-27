@@ -3,6 +3,7 @@ import { isDocId } from "../browse/ids";
 import { isProviderError } from "../providers/errors";
 import { ROLES, type Role } from "../access/policy";
 import { type Caller } from "../working/http";
+import { MAX_PASSWORD_CHARS, MIN_PASSWORD_CHARS, isAcceptablePassword } from "./password";
 
 /**
  * The HTTP face of share links (`/api/connections/<id>/links`, DESIGN.md §12, ROADMAP 1c.3). Like the other file routes,
@@ -15,7 +16,7 @@ import { type Caller } from "../working/http";
  *    answer carries it. What is sent is a role and an optional expiry in the future; the token is the server's to make.
  */
 export interface Deps {
-  create: (accountId: string, id: number, input: { docId: string; role: Role; expiresAt: number | null }) => Promise<{ found: false } | { found: true; result: CreateResult }>;
+  create: (accountId: string, id: number, input: { docId: string; role: Role; expiresAt: number | null; password: string | null }) => Promise<{ found: false } | { found: true; result: CreateResult }>;
   list: (accountId: string, id: number, docId: string) => Promise<{ found: false } | { found: true; links: LinkSummary[] }>;
   revoke: (accountId: string, id: number, input: { docId: string; linkId: number }) => Promise<{ found: false } | { found: true; revoked: boolean }>;
   /** The instance's origin, `FJORD_URL`: what a link's address is made on. */
@@ -33,9 +34,11 @@ export interface LinkSummary {
   revokedAt: number | null;
   createdAt: number;
   status: "active" | "expired" | "revoked";
+  /** Whether it asks for a password. The password is never in an answer, and neither is its hash. */
+  passwordProtected: boolean;
 }
 
-const MAX_BODY_CHARS = 1_000;
+const MAX_BODY_CHARS = 1_000 + 2 * 200;
 const CONNECTION_ID = /^[1-9][0-9]{0,15}$/;
 /** A link may be set to last this long at most. */
 export const MAX_EXPIRY_MS = 10 * 365 * 24 * 60 * 60 * 1000;
@@ -97,10 +100,14 @@ export async function handleLinks(request: Request, caller: Caller | null, deps:
       if (expiry !== undefined && expiry !== null && (typeof expiry !== "number" || !Number.isSafeInteger(expiry) || expiry <= now || expiry > now + MAX_EXPIRY_MS)) {
         return failure(400, "invalid_request", "Say when the link stops working as a time in the future (milliseconds since 1970), or leave it out.");
       }
-      const outcome = await deps.create(caller.accountId, number, { docId: body.doc, role: body.role as Role, expiresAt: typeof expiry === "number" ? expiry : null });
+      const password = body.password;
+      if (password !== undefined && password !== null && !isAcceptablePassword(password)) {
+        return failure(400, "invalid_request", `Give the password as text of ${MIN_PASSWORD_CHARS} to ${MAX_PASSWORD_CHARS} characters, or leave it out.`);
+      }
+      const outcome = await deps.create(caller.accountId, number, { docId: body.doc, role: body.role as Role, expiresAt: typeof expiry === "number" ? expiry : null, password: typeof password === "string" ? password : null });
       if (!outcome.found) return notFound();
       if (!outcome.result.ok) return failure(REFUSALS[outcome.result.reason].status, outcome.result.reason, REFUSALS[outcome.result.reason].message);
-      return json(201, { id: outcome.result.id, token: outcome.result.token, url: linkUrl(deps.origin, body.doc, outcome.result.token) });
+      return json(201, { id: outcome.result.id, token: outcome.result.token, url: linkUrl(deps.origin, body.doc, outcome.result.token), passwordProtected: typeof password === "string" });
     }
 
     if (typeof body.linkId !== "number" || !Number.isSafeInteger(body.linkId) || body.linkId < 1) return failure(400, "invalid_request", "Say which link, by its number.");
