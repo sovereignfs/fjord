@@ -11,6 +11,19 @@ section.
 
 ## [Unreleased]
 
+### Added
+
+- **Upstream changes** (ROADMAP 1b.10): when a note is changed in the repository (from the CLI, Obsidian or another device)
+  while it is being edited here, the note's page shows both versions, side by side and read-only, and three ways to go on.
+  **Combine** merges your changes with theirs exactly as the CLI's `sync` would (the same `fjord-core` merge); where both
+  changed the same lines, both are kept between conflict markers for you to settle, and **Save version anyway** asks before
+  a text with markers is saved. **Keep mine** moves your draft onto their version, so the next version is a commit on top
+  of theirs, which stays in the history. **Take theirs** throws your changes away. Nothing is written to the repository by
+  any of them, and a choice is made only about the version you were shown. Saving a version of a note that changed leads
+  to the same page instead of an error. A note deleted in the repository keeps its draft visible, to copy and discard.
+  `POST /api/connections/<id>/working-copy/resolve`, under the same rules as the other routes. The format module gained
+  `mergeTexts`.
+
 ### Fixed
 
 - **The note editor no longer reverts what was typed** when it is switched between reading and editing, or renamed, while the

@@ -57,7 +57,7 @@ export function composeMessage(path: string, wanted: string | undefined, coAutho
 }
 
 /** The file's blob at a commit, or undefined if there is no file there (a symbolic link or a folder is not a note to replace). */
-async function blobAt(provider: Provider, ref: RepositoryRef, commit: string, path: string): Promise<string | undefined> {
+export async function blobAt(provider: Provider, ref: RepositoryRef, commit: string, path: string): Promise<string | undefined> {
   const directory = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   const entries = await provider.listDirectory(ref, commit, directory).catch((error: unknown) => {
     if (isProviderError(error, "not_found")) return [];

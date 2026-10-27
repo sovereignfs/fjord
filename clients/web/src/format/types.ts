@@ -79,6 +79,16 @@ export type SetupResult =
     }
   | { ok: false; error: { code: SetupRefusalCode; message: string } };
 
+/**
+ * Two edits of one text merged (`fjord-core`'s `merge3`, the merge the CLI uses). `text` is the merged text when `clean`;
+ * otherwise it has each conflict between marker lines, with both sides in it.
+ */
+export interface MergeResult {
+  clean: boolean;
+  conflicts: number;
+  text: string;
+}
+
 /** `fjord.json`, read. `raw` is the whole manifest as written, which a rewrite must preserve. */
 export type RepositoryManifest =
   | {

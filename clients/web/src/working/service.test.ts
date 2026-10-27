@@ -6,7 +6,7 @@ import { runMigrations } from "../db/migrate";
 import * as postgresSchema from "../db/schema/postgres";
 import * as sqliteSchema from "../db/schema/sqlite";
 import { freshDatabase, testTarget } from "../db/test-support";
-import { type Editor, MAX_CONTENT_BYTES, MAX_DRAFTS_PER_CONNECTION, WorkingCopyService, whyUnstorable } from "./service";
+import { type Editor, MAX_CONTENT_BYTES, MAX_DRAFTS_PER_CONNECTION, type WorkingCopy, WorkingCopyService, whyUnstorable } from "./service";
 
 /**
  * Drafts over the real databases: that what is typed is kept exactly, that a draft is of one version, that two saves at
@@ -174,6 +174,54 @@ describe(`drafts (${leg})`, () => {
       await saved(service.save(1, "a.md", { baseBlob: "old", content: "x" }, ALICE));
       await service.discard(1, "a.md");
       expect(await service.save(1, "a.md", { baseBlob: "new", content: "y" }, ALICE)).toMatchObject({ ok: true, workingCopy: { baseBlob: "new", editors: [ALICE] } });
+    });
+  });
+
+  describe("moving a draft onto another version of the file", () => {
+    const start = async () => {
+      await saved(service.save(1, "a.md", { baseBlob: "old", content: "mine" }, ALICE));
+      return (await service.get(1, "a.md"))!;
+    };
+
+    it("changes the base and the text, keeps when it was started, and adds who did it", async () => {
+      const before = await start();
+      clock += 5_000;
+      const result = await service.rebase(1, "a.md", { fromBase: "old", toBase: "new", content: "merged", lastEdit: before.lastEdit }, BOB);
+      expect(result).toEqual({ ok: true, workingCopy: { path: "a.md", baseBlob: "new", content: "merged", editors: [ALICE, BOB], createdAt: before.createdAt, lastEdit: clock } });
+      expect(await service.get(1, "a.md")).toEqual((result as { workingCopy: WorkingCopy }).workingCopy);
+    });
+
+    it("does not list an editor twice", async () => {
+      const before = await start();
+      const result = await service.rebase(1, "a.md", { fromBase: "old", toBase: "new", content: "mine", lastEdit: before.lastEdit }, ALICE);
+      expect((result as { workingCopy: WorkingCopy }).workingCopy.editors).toEqual([ALICE]);
+    });
+
+    it("is refused, changing nothing, if the draft is not the one that was looked at", async () => {
+      const before = await start();
+      const attempt = (over: Partial<{ fromBase: string; lastEdit: number }>, path = "a.md", connection = 1) =>
+        service.rebase(connection, path, { fromBase: "old", toBase: "new", content: "merged", lastEdit: before.lastEdit, ...over }, ALICE);
+      expect(await attempt({ fromBase: "other" })).toEqual({ ok: false, reason: "changed" });
+      expect(await attempt({ lastEdit: before.lastEdit - 1 })).toEqual({ ok: false, reason: "changed" });
+      expect(await attempt({}, "b.md")).toEqual({ ok: false, reason: "changed" });
+      expect(await attempt({}, "a.md", 2)).toEqual({ ok: false, reason: "changed" });
+      clock += 1;
+      await saved(service.save(1, "a.md", { baseBlob: "old", content: "typed since" }, ALICE));
+      expect(await attempt({})).toEqual({ ok: false, reason: "changed" });
+      expect(await service.get(1, "a.md")).toMatchObject({ baseBlob: "old", content: "typed since" });
+    });
+
+    it("is refused for a text that cannot be kept, and the draft is left as it was", async () => {
+      const before = await start();
+      const result = await service.rebase(1, "a.md", { fromBase: "old", toBase: "new", content: "a\u0000b", lastEdit: before.lastEdit }, ALICE);
+      expect(result).toMatchObject({ ok: false, reason: "unstorable" });
+      expect(await service.get(1, "a.md")).toEqual(before);
+    });
+
+    it("only one of two moves at once wins", async () => {
+      const before = await start();
+      const results = await Promise.all([ALICE, BOB].map((editor, i) => service.rebase(1, "a.md", { fromBase: "old", toBase: `new${i}`, content: `c${i}`, lastEdit: before.lastEdit }, editor)));
+      expect(results.filter((result) => result.ok)).toHaveLength(1);
     });
   });
 

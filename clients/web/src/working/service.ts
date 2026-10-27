@@ -74,6 +74,12 @@ export function whyUnstorable(content: string): string | undefined {
   return undefined;
 }
 
+export type RebaseResult =
+  | { ok: true; workingCopy: WorkingCopy }
+  /** The draft is not as it was looked at: gone, on another base, or typed into since. */
+  | { ok: false; reason: "changed" }
+  | { ok: false; reason: "unstorable"; message: string };
+
 export class WorkingCopyService {
   private readonly now: () => number;
 
@@ -135,6 +141,33 @@ export class WorkingCopyService {
   async discard(connectionId: number, path: string): Promise<boolean> {
     const rows = await dbAll<{ id: number }>(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path} RETURNING id`);
     return rows.length > 0;
+  }
+
+  /**
+   * Move the draft onto another version of the file, with this text (ROADMAP 1b.10): the file changed in the repository
+   * and the person chose to go on from there. Only if it is still the draft that was looked at (its base and its last edit
+   * are as they were), so that nothing typed meanwhile is overwritten; the editor is added to those who have edited.
+   */
+  async rebase(
+    connectionId: number,
+    path: string,
+    input: { fromBase: string; toBase: string; content: string; lastEdit: number },
+    editor: Editor,
+  ): Promise<RebaseResult> {
+    const unstorable = whyUnstorable(input.content);
+    if (unstorable) return { ok: false, reason: "unstorable", message: unstorable };
+    const existing = await this.row(connectionId, path);
+    if (!existing || existing.baseBlob !== input.fromBase || Number(existing.lastEdit) !== input.lastEdit) return { ok: false, reason: "changed" };
+    const before = toCopy(existing);
+    const editors = before.editors.some((candidate) => candidate.type === editor.type && candidate.id === editor.id) ? before.editors : [...before.editors, editor];
+    const updated = await dbAll<Row>(
+      this.database,
+      sql`UPDATE ${table(this.database)}
+          SET base_blob = ${input.toBase}, content = ${input.content}, editors = ${JSON.stringify(editors)}, last_edit = ${Math.max(this.now(), input.lastEdit + 1)}
+          WHERE id = ${existing.id} AND last_edit = ${existing.lastEdit} AND base_blob = ${input.fromBase}
+          RETURNING ${COLUMNS}`,
+    );
+    return updated[0] ? { ok: true, workingCopy: toCopy(updated[0]) } : { ok: false, reason: "changed" };
   }
 
   /**
