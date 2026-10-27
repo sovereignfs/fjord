@@ -132,3 +132,21 @@ test("two edits of one text merge by lines: apart cleanly, together with both si
   assert.match(merge("x\n", "m\n", "t\n", "a\nb", "é\u0007").text, /^<<<<<<< a b\nm\n=======\nt\n>>>>>>> é\n$/);
   assert.equal(merge("日本\n", "日本語\n", "日本\n", "m", "t").text, "日本語\n");
 });
+
+test("a new file is named from its first line, then by the time, and numbered past what the folder has", () => {
+  const note = (text, existing = []) => wasm.quickNoteName(text, JSON.stringify(existing), 2026, 10, 22, 14, 30);
+  assert.equal(note("# Meeting notes\n\nbody"), "Meeting notes.md");
+  assert.equal(note("- [ ] Buy milk"), "Buy milk.md");
+  assert.equal(note(""), "2026-10-22 1430.md");
+  assert.equal(note("a/b: c?"), "a b c.md");
+  assert.equal(note("CON"), "Note CON.md");
+  assert.equal(note("日本語のノート"), "日本語のノート.md");
+  assert.equal(note("Plan", ["Plan.md", "PLAN 2.md", "Archive"]), "Plan 3.md");
+  assert.throws(() => wasm.quickNoteName("x", "{}", 2026, 1, 1, 0, 0));
+
+  assert.equal(wasm.titleFromText("# Q4 plan\nmore"), "Q4 plan");
+  assert.equal(wasm.titleFromText("***"), undefined);
+  assert.equal(wasm.freeName("Q4 plan", ".fj.md", JSON.stringify(["q4 plan.fj.md"])), "Q4 plan 2.fj.md");
+  assert.equal(wasm.freeName("Q4 plan", ".fj.md", JSON.stringify(["Q4 plan.md"])), "Q4 plan.fj.md");
+  assert.throws(() => wasm.freeName("x", ".md", "nope"));
+});

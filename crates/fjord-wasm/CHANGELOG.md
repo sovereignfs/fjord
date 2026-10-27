@@ -7,6 +7,8 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 
 ### Added
 
+- **`quickNoteName`, `titleFromText`, `freeName`** (ROADMAP 1b.7): `fjord_core::naming`, so a note or a document the web client creates is
+  named exactly as one made on a phone or by the CLI. 549,291 bytes, 231,680 gzipped.
 - **`mergeTexts`** (ROADMAP 1b.10): `fjord_core::merge::merge3` for the web client's upstream-change handling, so the web
   merges a note exactly as the CLI does: `{clean, conflicts, text}`, with both sides kept between conflict markers when
   the edits overlap. 539,432 bytes, 228,126 gzipped.

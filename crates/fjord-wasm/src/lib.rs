@@ -90,6 +90,29 @@ pub fn implied_title(text: &str, file_name: &str) -> String {
     api::implied_title(text, file_name)
 }
 
+#[wasm_bindgen(js_name = quickNoteName)]
+pub fn quick_note_name(
+    text: &str,
+    existing_json: &str,
+    year: i32,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+) -> Result<String, JsError> {
+    api::quick_note_name(text, existing_json, year, month, day, hour, minute).map_err(thrown)
+}
+
+#[wasm_bindgen(js_name = titleFromText)]
+pub fn title_from_text(text: &str) -> Option<String> {
+    api::title_from_text(text)
+}
+
+#[wasm_bindgen(js_name = freeName)]
+pub fn free_name(stem: &str, extension: &str, existing_json: &str) -> Result<String, JsError> {
+    api::free_name(stem, extension, existing_json).map_err(thrown)
+}
+
 #[wasm_bindgen(js_name = mergeTexts)]
 pub fn merge_texts(
     base: &str,
