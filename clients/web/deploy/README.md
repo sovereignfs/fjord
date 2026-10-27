@@ -49,6 +49,8 @@ Everything is an environment variable, put in `.env` next to the Compose files (
   Keep it with your secrets and **apart from the database backups**: a backup that holds both the tokens and the key
   that opens them is a plaintext copy of the tokens. A lost key means connecting the repositories again.
   Rotating it is `FJORD_ENCRYPTION_KEY_PREVIOUS` for as long as anything is still under the old one (the log says when).
+- **`FJORD_RESTORE_WINDOW_DAYS`** (optional, 1 to 3650, default 30) is how long a deleted file is offered for putting back
+  under Recently deleted. The file is in the repository's history for good; this is how long the app lists it.
 - A secret can come from a file instead (`FJORD_AUTH_SECRET_FILE`, `FJORD_ENCRYPTION_KEY_FILE`, ...), which is how
   Docker or Kubernetes secrets are passed.
 - **Each instance registers its own GitHub App** (ROADMAP 1a.6); until that is built, a repository is connected with a

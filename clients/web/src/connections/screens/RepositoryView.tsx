@@ -94,6 +94,8 @@ export function RepositoryView({
           </Card>
         ) : null}
         <p>
+          <a href={`/deleted/${current.id}`}>Recently deleted</a>
+          {" · "}
           <a href="/repositories">Connect or disconnect repositories</a>
         </p>
       </div>

@@ -5,6 +5,8 @@ import type { Identity } from "../providers/types";
 import { type Caller, isRepositoryPath } from "../working/http";
 import type { CreateResult, FileKind, VaultRefusal } from "./create";
 import { MAX_TITLE_CHARS } from "./create";
+import type { DeleteResult, DeleteTarget } from "./delete";
+import type { RestoreResult } from "./restore";
 
 /**
  * The HTTP face of making files (`/api/connections/<id>/files`): who may call, what they may send, what they are told.
@@ -15,6 +17,9 @@ import { MAX_TITLE_CHARS } from "./create";
  *  - A write must come from this instance's own pages: its `Origin` is checked against `FJORD_URL`.
  *  - An account makes files in its own connections only: another's is 404, as if it were not there.
  *  - What is sent is a place and a title, never a name or a text: the name and the header are `fjord-core`'s.
+ *
+ * The same rules hold for deleting a note, a document or a folder (`handleDelete`) and for putting back what was deleted
+ * (`handleRestore`): what is sent is a place and what the person was shown, and the app finds the rest.
  */
 export interface Deps {
   /**
@@ -26,6 +31,17 @@ export interface Deps {
     id: number,
     input: { vault: string; folder: string; kind: FileKind; title: string; localMinute: LocalMinute; author: Identity },
   ) => Promise<{ found: false } | { found: true; result: CreateResult | { ok: false; reason: VaultRefusal } }>;
+  /**
+   * Delete a note, a document or a folder of one of the caller's repositories (ROADMAP 1b.12). `found: false` if it is not the
+   * caller's (or not there).
+   */
+  delete: (
+    accountId: string,
+    id: number,
+    input: { vault: string; target: DeleteTarget; author: Identity },
+  ) => Promise<{ found: false } | { found: true; result: DeleteResult | { ok: false; reason: VaultRefusal } }>;
+  /** Put back deletions the caller's repository has records of, at the paths they had or, for one, the one given. */
+  restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<{ found: false } | { found: true; result: RestoreResult }>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
 }
@@ -38,7 +54,7 @@ const CONTROL = /[\u0000-\u001f\u007f]/;
 function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 }
-const failure = (status: number, code: string, message: string) => json(status, { error: { code, message } });
+const failure = (status: number, code: string, message: string, extra: Record<string, unknown> = {}) => json(status, { error: { code, message, ...extra } });
 const notFound = () => failure(404, "not_found", "There is no such connection.");
 
 /** `POST` makes a note or a document, `{ vault, folder, kind, title?, localMinute }`: one commit that adds one file. */
@@ -123,3 +139,113 @@ function fromError(error: unknown): Response {
   console.error(`[fjord] files: unexpected ${error instanceof Error ? error.name : "failure"}`);
   return failure(500, "internal_error", "Something went wrong on our side. Try again.");
 }
+
+// --- Deleting and putting back (ROADMAP 1b.12) ---------------------------------------------------------------------
+
+const OBJECT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
+const MAX_IDS = 1000;
+
+/** `POST` deletes `{ vault, type: "file", path, blob }` or `{ vault, type: "folder", path, files }`: one commit. */
+export async function handleDelete(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  const gate = await gateway(request, caller, deps, id);
+  if (gate instanceof Response) return gate;
+
+  try {
+    const { body, number } = gate;
+    const { vault, type, path, blob, files } = body;
+    if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+    if (!isRepositoryPath(path)) return failure(400, "invalid_request", "Say what to delete, by its path in the repository.");
+    let target: DeleteTarget;
+    if (type === "file") {
+      if (typeof blob !== "string" || !OBJECT_ID.test(blob)) return failure(400, "invalid_request", "Say which version of the file you were shown, by its git object id.");
+      target = { type: "file", path, blob };
+    } else if (type === "folder") {
+      if (typeof files !== "number" || !Number.isInteger(files) || files < 1 || files > 1_000_000) return failure(400, "invalid_request", "Say how many files the folder holds, as you were told.");
+      target = { type: "folder", path, files };
+    } else {
+      return failure(400, "invalid_request", "Say whether to delete a file or a folder.");
+    }
+
+    const outcome = await deps.delete(caller!.accountId, number, { vault, target, author: { name: caller!.name, email: caller!.email } });
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (result.ok) return json(200, { commit: result.commit, files: result.files, deletions: result.deletions });
+    if (result.reason === "unknown_vault" || result.reason === "encrypted_vault" || result.reason === "unsupported_vault") {
+      const refusal = REFUSALS[result.reason];
+      return failure(refusal.status, result.reason, refusal.message);
+    }
+    const refusal = DELETE_REFUSALS[result.reason];
+    const detail = "detail" in result ? result.detail : undefined;
+    return failure(refusal.status, result.reason, refusal.message(detail), detail === undefined ? {} : { detail });
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+/** `POST` puts back what was deleted, `{ ids: [deletion ids], path? }`: one commit, never over anything. */
+export async function handleRestore(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  const gate = await gateway(request, caller, deps, id);
+  if (gate instanceof Response) return gate;
+
+  try {
+    const { body, number } = gate;
+    const { ids, path } = body;
+    if (!Array.isArray(ids) || ids.length < 1 || ids.length > MAX_IDS || !ids.every((value) => typeof value === "number" && Number.isSafeInteger(value) && value > 0)) {
+      return failure(400, "invalid_request", "Say which deletions to put back, by their numbers.");
+    }
+    if (path !== undefined && path !== null && !isRepositoryPath(path)) return failure(400, "invalid_request", "Say where to put it, by a path in the repository, or leave it out.");
+
+    const outcome = await deps.restore(caller!.accountId, number, { ids: ids as number[], path: typeof path === "string" ? path : undefined, author: { name: caller!.name, email: caller!.email } });
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (result.ok) return json(200, { commit: result.commit, paths: result.paths });
+    const refusal = RESTORE_REFUSALS[result.reason];
+    return failure(refusal.status, result.reason, refusal.message, result.taken ? { taken: result.taken } : {});
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+/** What every write has to be, before its body is looked at: a POST, a signed-in caller, this site, a connection id, JSON. */
+async function gateway(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response | { body: Record<string, unknown>; number: number }> {
+  if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  if (!caller) return failure(401, "unauthorized", "Sign in first.");
+  if (request.headers.get("origin") !== deps.origin) return failure(403, "forbidden", "This request did not come from this site.");
+  const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
+  if (number === undefined) return notFound();
+  if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");
+  const text = await request.text();
+  if (text.length > MAX_BODY_CHARS) return failure(413, "too_large", "That request is too large.");
+  const body = parse(text);
+  return body ? { body, number } : failure(400, "invalid_request", "Send a JSON object.");
+}
+
+/** What each reason nothing was deleted is told as. Nothing was written, and nothing recorded, in each. */
+const DELETE_REFUSALS: Record<Extract<DeleteResult, { ok: false }>["reason"], { status: number; message: (detail: number | string | undefined) => string }> = {
+  gone: { status: 409, message: () => "That is no longer in the repository. Nothing was deleted." },
+  upstream_changed: { status: 409, message: () => "That note changed in the repository after you looked at it, so it was not deleted. Look at it again." },
+  folder_changed: { status: 409, message: (detail) => `That folder now holds ${typeof detail === "number" ? detail : "a different number of"} files, not the number you were told, so nothing was deleted. Look at it again.` },
+  too_many: { status: 422, message: () => "That folder holds too many files to delete from here. Delete it from the command line, or in smaller parts." },
+  has_drafts: { status: 409, message: (detail) => `${detail ?? "Some"} of the files in that folder have unsaved changes. Save a version of each, or discard the changes, first. Nothing was deleted.` },
+  draft_not_saved: { status: 409, message: () => "This note has unsaved changes, and they could not be saved as a version first, so it was not deleted. Open it and save a version, or discard the changes." },
+  protected: { status: 422, message: () => "A vault, its manifest and the repository's own files cannot be deleted from here." },
+  head_moved: { status: 409, message: () => "The repository kept changing while this was being deleted. Nothing was deleted. Try again." },
+  read_only: { status: 422, message: () => "That token can read this repository but not write to it, so nothing was deleted. Create the token with the repository permission “Contents: Read and write”, and connect the repository again." },
+  bad_token: { status: 422, message: () => "The git host did not accept this repository's token. Connect the repository again with a new one." },
+  unavailable: { status: 502, message: () => "Could not reach the git host just now. Nothing was deleted. Try again in a moment." },
+};
+
+/** What each reason nothing was put back is told as. Nothing was written in each, and what is there is untouched. */
+const RESTORE_REFUSALS: Record<Extract<RestoreResult, { ok: false }>["reason"], { status: number; message: string }> = {
+  not_found: { status: 404, message: "There is no such deletion." },
+  already_restored: { status: 409, message: "That has been put back already." },
+  expired: { status: 409, message: "That was deleted too long ago to be offered here. It is still in the repository's history." },
+  bad_path: { status: 422, message: "That is not a place it can be put back: the name is not a valid one, it must stay in a vault and keep its kind of file, and only one file can be given a place." },
+  vault_unavailable: { status: 422, message: "Its vault can no longer be written to from here (it is gone, encrypted or not one this version writes)." },
+  path_taken: { status: 409, message: "Something is already at that path, or in the way of it, so nothing was put back. Choose another place." },
+  blob_gone: { status: 422, message: "The repository no longer has this file's content in its history, so it cannot be put back from here." },
+  head_moved: { status: 409, message: "The repository kept changing while this was being put back. Nothing was changed. Try again." },
+  read_only: { status: 422, message: "That token can read this repository but not write to it, so nothing was put back." },
+  bad_token: { status: 422, message: "The git host did not accept this repository's token. Connect the repository again with a new one." },
+  unavailable: { status: 502, message: "Could not reach the git host just now. Nothing was put back. Try again in a moment." },
+};

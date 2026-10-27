@@ -6,7 +6,9 @@ import type { Location } from "../location";
 import type { NoteText } from "../note";
 import type { Preview } from "../../working/resolve";
 import { checkVault } from "../../files/create";
+import { DeleteButton } from "./DeleteButton";
 import { NewFile } from "./NewFile";
+import { UndoBanner } from "./UndoBanner";
 import { type DraftOfNote, NoteView } from "./NoteView";
 import { UpstreamChanged } from "./UpstreamChanged";
 
@@ -22,6 +24,8 @@ export function FolderView({
   note,
   draft,
   preview,
+  fileBlob,
+  folderFiles,
 }: {
   connectionId: number;
   repository: string;
@@ -32,11 +36,16 @@ export function FolderView({
   draft?: DraftOfNote | null | undefined;
   /** For a note whose draft is of an older version than the repository has: whether the two combine (ROADMAP 1b.10). */
   preview?: Preview | undefined;
+  /** For a file: its blob in the repository now, which deleting it names (ROADMAP 1b.12). Not known for a repository too large to list. */
+  fileBlob?: string | undefined;
+  /** For a folder: how many files are anywhere inside it now, which deleting it names. Not known for a repository too large to list. */
+  folderFiles?: number | undefined;
 }) {
   const here = (...segments: string[]) => repositoryHref(connectionId, ...segments);
   const vault = location.vault;
   const inside = location.kind === "folder" ? location.path : location.kind === "file" ? location.file.relative.split("/").slice(0, -1).join("/") : "";
   const folders = inside === "" ? [] : inside.split("/");
+  const writable = checkVault([vault], vault.directory) === "ok";
 
   return (
     <>
@@ -53,17 +62,29 @@ export function FolderView({
         {location.kind === "file" ? <span> / {location.file.relative.split("/").at(-1)}</span> : null}
       </nav>
 
+      {location.kind === "folder" ? <UndoBanner connectionId={connectionId} /> : null}
+
       {location.kind === "unreadable" ? (
         <Alert variant="error" heading="This vault cannot be read">
           Its manifest is missing or is not valid JSON, so its files are not known: {vault.manifestError}
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} /> : null}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }}
+          remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document") ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
         <>
-          {checkVault([vault], vault.directory) === "ok" ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} /> : null}
+          {writable ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} /> : null}
+          {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
+            <DeleteButton
+              connectionId={connectionId}
+              vault={vault.directory}
+              target={{ type: "folder", path: `${vault.directory}/${location.path}`, files: folderFiles }}
+              name={folders[folders.length - 1] as string}
+              goTo={[vault.directory, ...folders.slice(0, -1)]}
+            />
+          ) : null}
           {location.folders.length + location.files.length === 0 ? (
             <p>{location.path === "" ? "This vault is empty." : "This folder is empty."}</p>
           ) : (
@@ -132,6 +153,7 @@ function FileCard({
   note,
   draft,
   preview,
+  remove,
 }: {
   connectionId: number;
   file: ClassifiedFile;
@@ -139,6 +161,8 @@ function FileCard({
   note: NoteText | { ok: false; reason: "problem"; message: string } | undefined;
   draft: DraftOfNote | null;
   preview: Preview;
+  /** Set when the file can be deleted from here: where it is and what the page showed. */
+  remove: { vault: string; blob: string; goTo: string[] } | undefined;
 }) {
   return (
     <section aria-labelledby="file-title">
@@ -175,6 +199,9 @@ function FileCard({
       ) : (
         <Alert variant="info" heading="Not openable">This kind of file cannot be opened in this version; it is kept in the repository as it is.</Alert>
       )}
+      {remove ? (
+        <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.fj\.md$/i, "").replace(/\.md$/i, "")} goTo={remove.goTo} />
+      ) : null}
     </section>
   );
 }

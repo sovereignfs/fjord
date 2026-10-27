@@ -27,7 +27,7 @@ async function editableNote(accountId: string, id: number, path: string): Promis
 }
 
 /** Make a version of one of the account's drafts: through the connection's own token, on the branch it was connected with. */
-async function makeVersion(accountId: string, id: number, input: { path: string; message: string | undefined; author: Identity }): Promise<VersionResult> {
+export async function makeVersion(accountId: string, id: number, input: { path: string; message: string | undefined; author: Identity }): Promise<VersionResult> {
   const used = await (await connectionService()).provider(accountId, id);
   if (!used) return { ok: false, reason: "unavailable" };
   const accounts = await getAuthDatabase();

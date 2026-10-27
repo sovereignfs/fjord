@@ -50,6 +50,13 @@
       "when": 1793055019741,
       "tag": "0006_working_copy",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793063260409,
+      "tag": "0007_deletion",
+      "breakpoints": true
     }
   ]
 }

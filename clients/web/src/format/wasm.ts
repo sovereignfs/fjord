@@ -27,6 +27,9 @@ interface Module {
   titleFromText(text: string): string | undefined;
   freeName(stem: string, extension: string, existingJson: string): string;
   newDocument(id: string, title: string, created: string): string;
+  parseDocument(text: string): string;
+  checkName(component: string): string;
+  caseCollisions(namesJson: string): string;
   newUlid(timestampMs: number, random: Uint8Array): string;
   rfc3339FromUnix(seconds: number): string | undefined;
 }
@@ -145,6 +148,21 @@ export class Fjord {
   /** The text of a new document: its header (`id`, `title`, `created`) written by `fjord-core`, and a level-one heading. */
   newDocument(id: string, title: string, created: string): string {
     return this.module.newDocument(id, title, created);
+  }
+
+  /** A file's header, read: whether it has one, and the Doc's identifier if it has a valid one. The body is not the module's here. */
+  parseDocument(text: string): { status: string; docId?: string | null; title?: string | null } {
+    return JSON.parse(this.module.parseDocument(text)) as { status: string; docId?: string | null; title?: string | null };
+  }
+
+  /** The codes of the spec §5 rules a path component breaks (`E501`…); none for a name that is fine. */
+  checkName(component: string): string[] {
+    return JSON.parse(this.module.checkName(component)) as string[];
+  }
+
+  /** The groups of names that differ only by case (spec §5 rule 6): those a case-insensitive filesystem would merge. */
+  caseCollisions(names: string[]): string[][] {
+    return JSON.parse(this.module.caseCollisions(JSON.stringify(names))) as string[][];
   }
 
   /** A new identifier (spec §8.3) from the time and at least ten random bytes the caller gives. */
