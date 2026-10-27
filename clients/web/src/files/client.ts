@@ -89,6 +89,43 @@ export async function sendDelete(connectionId: number, vault: string, target: De
   }
 }
 
+// --- Renaming and moving (ROADMAP 1b.11) ---------------------------------------------------------------------------
+
+export type MoveAttempt =
+  | { ok: true; files: number }
+  /** `lookAgain` is for a refusal that means the page is out of date: it should be read again. `taken` names the paths in the way. */
+  | { ok: false; message: string; lookAgain: boolean; taken: string[] };
+
+const MOVE_LOOK_AGAIN = new Set(["gone", "upstream_changed", "folder_changed"]);
+
+export function moveFrom(status: number, body: { files?: number; error?: { code?: string; message?: string; taken?: string[] } } | undefined): MoveAttempt {
+  if (status === 200 && typeof body?.files === "number") return { ok: true, files: body.files };
+  if (status === 401) return { ok: false, lookAgain: false, taken: [], message: "You are signed out, so nothing was moved. Sign in again, then try again." };
+  const code = body?.error?.code;
+  return {
+    ok: false,
+    lookAgain: code !== undefined && MOVE_LOOK_AGAIN.has(code),
+    taken: body?.error?.taken ?? [],
+    message: body?.error?.message ?? "Could not move that just now. Nothing was moved. Try again in a moment.",
+  };
+}
+
+/** Rename or move a note, a document or a folder to `destination`, a path in the repository. What was shown is what is sent. */
+export async function sendMove(connectionId: number, vault: string, target: DeleteTarget, destination: string): Promise<MoveAttempt> {
+  try {
+    const response = await fetch(`/api/connections/${connectionId}/files/move`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ vault, ...target, destination }),
+      credentials: "same-origin",
+    });
+    const parsed = (await response.json().catch(() => undefined)) as Parameters<typeof moveFrom>[1];
+    return moveFrom(response.status, parsed);
+  } catch {
+    return { ok: false, lookAgain: false, taken: [], message: "Could not reach this server, so nothing was moved. Try again in a moment." };
+  }
+}
+
 export type RestoreAttempt = { ok: true; paths: string[]; commit: string } | { ok: false; message: string; taken: string[] };
 
 export function restoreFrom(status: number, body: { paths?: string[]; commit?: string; error?: { message?: string; taken?: string[] } } | undefined): RestoreAttempt {

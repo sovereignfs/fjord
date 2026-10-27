@@ -47,7 +47,7 @@ export type RestoreResult =
 const ATTEMPTS = 2;
 
 /** What makes a file what it is: `.fj.md`, else its extension. */
-function suffix(path: string): string {
+export function suffix(path: string): string {
   const name = path.slice(path.lastIndexOf("/") + 1);
   if (/\.fj\.md$/i.test(name)) return ".fj.md";
   const dot = name.lastIndexOf(".");
@@ -128,8 +128,17 @@ function targetsOf(deps: RestoreDeps, records: DeletionRecord[], chosen: string 
   return targets;
 }
 
-/** The paths, of these, that something is at already, or that cannot be made because something is in the way. */
-async function takenPaths(deps: RestoreDeps, commit: string, paths: string[]): Promise<string[]> {
+/**
+ * The paths, of these, that something is at already, or that cannot be made because something is in the way. `except` names
+ * entries (repository-relative paths) that do not count, because the same commit takes them away: a file being renamed does
+ * not stand in its own way, so a name that differs from its old one only by case is free.
+ */
+export async function takenPaths(
+  deps: { provider: Provider; ref: RepositoryRef; format: Pick<Fjord, "caseCollisions"> },
+  commit: string,
+  paths: string[],
+  except: ReadonlySet<string> = new Set(),
+): Promise<string[]> {
   const listings = new Map<string, TreeEntry[]>();
   const list = async (directory: string) => {
     let entries = listings.get(directory);
@@ -138,6 +147,7 @@ async function takenPaths(deps: RestoreDeps, commit: string, paths: string[]): P
         if (isProviderError(error, "not_found")) return [] as TreeEntry[];
         throw error;
       });
+      entries = entries.filter((entry) => !except.has(entry.path));
       listings.set(directory, entries);
     }
     return entries;

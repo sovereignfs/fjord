@@ -5,13 +5,14 @@ import { type AccessDeps, filesAccess } from "./access";
 const WHEN = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
 const input = { vault: "Notes", folder: "", kind: "note" as const, title: "Plan", localMinute: WHEN, author: { name: "Alice", email: "alice@example.com" } };
 
-function setup(over: { owns?: boolean; vault?: Awaited<ReturnType<AccessDeps["vaultFor"]>> } = {}) {
+function setup(over: { owns?: boolean; vault?: Awaited<ReturnType<AccessDeps["vaultFor"]>>; vaults?: Record<string, Awaited<ReturnType<AccessDeps["vaultFor"]>>> } = {}) {
   const owns = vi.fn(async (..._args: unknown[]) => over.owns ?? true);
-  const vaultFor = vi.fn(async (..._args: unknown[]) => over.vault ?? ("ok" as const));
+  const vaultFor = vi.fn(async (_a: string, _i: number, vault: string) => over.vaults?.[vault] ?? over.vault ?? ("ok" as const));
   const create = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, path: "Notes/Plan.md", commit: "c".repeat(40) }));
   const remove = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "d".repeat(40), files: 1, deletions: [1] }));
   const restore = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "e".repeat(40), paths: ["Notes/Plan.md"] }));
   const setTitle = vi.fn((header: string, title: string): string | undefined => (header.includes("broken") ? undefined : `${header}title: ${title}\n`));
+  const move = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "f".repeat(40), files: 1, moved: [{ from: "Notes/a.md", to: "Other/a.md" }] }));
   const access = filesAccess({
     owns: (a, i) => owns(a, i),
     setTitle: (header, title) => setTitle(header, title),
@@ -19,8 +20,9 @@ function setup(over: { owns?: boolean; vault?: Awaited<ReturnType<AccessDeps["va
     create: (a, i, x) => create(a, i, x),
     delete: (a, i, x) => remove(a, i, x),
     restore: (a, i, x) => restore(a, i, x),
+    move: (a, i, x) => move(a, i, x),
   });
-  return { access, owns, vaultFor, create, remove, restore, setTitle };
+  return { access, owns, vaultFor, create, remove, restore, setTitle, move };
 }
 
 describe("making a file", () => {
@@ -96,5 +98,36 @@ describe("changing a header's title", () => {
     const { access } = setup();
     expect(await access.header("alice", 1, { header: "---\n", title: "x" })).toEqual({ found: true, result: { ok: true, header: "---\ntitle: x\n" } });
     expect(await access.header("alice", 1, { header: "broken", title: "x" })).toEqual({ found: true, result: { ok: false, reason: "unreadable" } });
+  });
+});
+
+describe("renaming and moving", () => {
+  const input = { vault: "Notes", target: { type: "file" as const, path: "Notes/a.md", blob: "b".repeat(40) }, destination: "Other/a.md", author: { name: "Alice", email: "alice@example.com" } };
+
+  it("is for the caller's own connection only: another's is not found, and no vault is asked about", async () => {
+    const { access, vaultFor, move } = setup({ owns: false });
+    expect(await access.move("mallory", 1, input)).toEqual({ found: false });
+    expect(vaultFor).not.toHaveBeenCalled();
+    expect(move).not.toHaveBeenCalled();
+  });
+
+  it("asks of both vaults, the one it is in and the one it goes to, and says which was refused", async () => {
+    const encrypted = setup({ vaults: { Other: "encrypted_vault" } });
+    expect(await encrypted.access.move("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "encrypted_vault", where: "destination" } });
+    const from = setup({ vaults: { Notes: "unsupported_vault" } });
+    expect(await from.access.move("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unsupported_vault", where: "source" } });
+    const unknown = setup({ vaults: { Other: "unknown_vault" } });
+    expect(await unknown.access.move("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unknown_vault", where: "destination" } });
+    for (const refused of [encrypted, from, unknown]) expect(refused.move).not.toHaveBeenCalled();
+  });
+
+  it("moves when both are fine, asking of the destination only when it is another vault", async () => {
+    const { access, vaultFor, move } = setup();
+    expect((await access.move("alice", 1, input)).found).toBe(true);
+    expect(vaultFor).toHaveBeenCalledTimes(2);
+    expect(move).toHaveBeenCalledWith("alice", 1, input);
+    vaultFor.mockClear();
+    await access.move("alice", 1, { ...input, destination: "Notes/Sub/a.md" });
+    expect(vaultFor).toHaveBeenCalledTimes(1);
   });
 });

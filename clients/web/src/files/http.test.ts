@@ -4,7 +4,8 @@ import { ProviderError } from "../providers/errors";
 import type { Caller } from "../working/http";
 import { type CreateResult, MAX_TITLE_CHARS, type VaultRefusal } from "./create";
 import type { DeleteResult } from "./delete";
-import { type Deps, handleCreate, handleDelete, handleHeader, handleRestore } from "./http";
+import { type Deps, handleCreate, handleDelete, handleHeader, handleMove, handleRestore } from "./http";
+import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 
 /**
@@ -27,18 +28,23 @@ function stub() {
     result: { ok: true, commit: "d".repeat(40), files: 1, deletions: [7] },
   }));
   const restore = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: RestoreResult }> => ({ found: true, result: { ok: true, commit: "e".repeat(40), paths: ["Notes/Plan.md"] } }));
+  const move = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: MoveResult | { ok: false; reason: VaultRefusal; where: "source" | "destination" } }> => ({
+    found: true,
+    result: { ok: true, commit: "f".repeat(40), files: 1, moved: [{ from: "Notes/Plan.md", to: "Notes/Plans/Plan.md" }] },
+  }));
   const header = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; header: string } | { ok: false; reason: "unreadable" } }> => ({
     found: true,
     result: { ok: true, header: "---\ntitle: New\n---\n" },
   }));
   const deps: Deps = {
     header: (accountId, id, input) => header(accountId, id, input),
+    move: (accountId, id, input) => move(accountId, id, input),
     create: (accountId, id, input) => create(accountId, id, input),
     delete: (accountId, id, input) => remove(accountId, id, input),
     restore: (accountId, id, input) => restore(accountId, id, input),
     origin: ORIGIN,
   };
-  return { deps, create, remove, restore, header };
+  return { deps, create, remove, restore, header, move };
 }
 
 const post = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
@@ -219,19 +225,22 @@ const at = (route: string, body: unknown, init: { origin?: string | null; type?:
 describe.each([
   ["delete", handleDelete, delFile],
   ["restore", handleRestore, { ids: [7] }],
+  ["move", handleMove, { ...delFile, destination: "Notes/Plans/Plan.md" }],
 ] as const)("%s: who may", (route, handler, good) => {
   it("nobody who is not signed in: 401, and nothing is asked", async () => {
-    const { deps, remove, restore } = stub();
+    const { deps, remove, restore, move } = stub();
     expect((await handler(at(route, good), null, deps, "1")).status).toBe(401);
     expect(remove).not.toHaveBeenCalled();
     expect(restore).not.toHaveBeenCalled();
+    expect(move).not.toHaveBeenCalled();
   });
 
   it("not from another site", async () => {
-    const { deps, remove, restore } = stub();
+    const { deps, remove, restore, move } = stub();
     for (const origin of ["https://evil.example", "http://fjord.example.com", "null", null]) expect((await handler(at(route, good, { origin }), ALICE, deps, "1")).status).toBe(403);
     expect(remove).not.toHaveBeenCalled();
     expect(restore).not.toHaveBeenCalled();
+    expect(move).not.toHaveBeenCalled();
   });
 
   it("only POST, and only JSON", async () => {
@@ -241,16 +250,18 @@ describe.each([
   });
 
   it.each(["0", "01", "-1", "x", "", "99999999999999999"])("a connection id like %j is a 404 before anything is asked", async (id) => {
-    const { deps, remove, restore } = stub();
+    const { deps, remove, restore, move } = stub();
     expect((await handler(at(route, good), ALICE, deps, id)).status).toBe(404);
     expect(remove).not.toHaveBeenCalled();
     expect(restore).not.toHaveBeenCalled();
+    expect(move).not.toHaveBeenCalled();
   });
 
   it("not another account's connection: a 404 that says nothing else", async () => {
-    const { deps, remove, restore } = stub();
+    const { deps, remove, restore, move } = stub();
     remove.mockResolvedValue({ found: false });
     restore.mockResolvedValue({ found: false });
+    move.mockResolvedValue({ found: false });
     const response = await handler(at(route, good), ALICE, deps, "1");
     expect(response.status).toBe(404);
     expect((await body(response)).error).toEqual({ code: "not_found", message: "There is no such connection." });
@@ -475,5 +486,87 @@ describe("setting a header's title", () => {
     const response = await call(at(sent), ALICE, deps);
     expect(response.status).toBe(500);
     expect(await response.text()).not.toContain("secret detail");
+  });
+});
+
+// --- Renaming and moving (ROADMAP 1b.11) ----------------------------------------------------------------------------------
+
+describe("moving: what may be sent, and what they are told", () => {
+  const mvFile = { ...delFile, destination: "Notes/Plans/Plan.md" };
+  const mvFolder = { ...delFolder, destination: "Other/Projects" };
+
+  it("is a place, what the person was shown and where it goes, for the caller as their account names them", async () => {
+    const { deps, move } = stub();
+    const response = await handleMove(at("move", { ...mvFile, author: { name: "Mallory", email: "m@evil.example" } }), ALICE, deps, "1");
+    expect(response.status).toBe(200);
+    expect(await body(response)).toEqual({ commit: "f".repeat(40), files: 1, moved: [{ from: "Notes/Plan.md", to: "Notes/Plans/Plan.md" }] });
+    expect(move).toHaveBeenCalledWith("alice", 1, { vault: "Notes", target: { type: "file", path: "Notes/Plan.md", blob: BLOB }, destination: "Notes/Plans/Plan.md", author: { name: "Alice Example", email: "alice@example.com" } });
+    await handleMove(at("move", mvFolder), ALICE, deps, "1");
+    expect(move).toHaveBeenLastCalledWith("alice", 1, expect.objectContaining({ target: { type: "folder", path: "Notes/Projects", files: 3 }, destination: "Other/Projects" }));
+  });
+
+  it.each([
+    ["no destination", { ...mvFile, destination: undefined }],
+    ["a destination out of the repository", { ...mvFile, destination: "../x.md" }],
+    ["a destination that is not text", { ...mvFile, destination: 7 }],
+    ["a destination with a control character", { ...mvFile, destination: "Notes/a\u0007.md" }],
+    ["a destination with half a character", { ...mvFile, destination: "Notes/\ud800.md" }],
+    ["a destination that is too long", { ...mvFile, destination: `Notes/${"x".repeat(1000)}.md` }],
+    ["no vault", { ...mvFile, vault: undefined }],
+    ["a file without the version shown", { vault: "Notes", type: "file", path: "Notes/Plan.md", destination: "Notes/b.md" }],
+    ["a folder without a count", { vault: "Notes", type: "folder", path: "Notes/Projects", destination: "Notes/b" }],
+    ["a type that is not one", { ...mvFile, type: "vault" }],
+  ])("refuses %s with 400, without asking", async (_name, sent) => {
+    const { deps, move } = stub();
+    expect((await handleMove(at("move", sent), ALICE, deps, "1")).status).toBe(400);
+    expect(move).not.toHaveBeenCalled();
+  });
+
+  it.each<[Extract<MoveResult, { ok: false }>["reason"], number]>([
+    ["gone", 409],
+    ["upstream_changed", 409],
+    ["folder_changed", 409],
+    ["too_many", 422],
+    ["has_drafts", 409],
+    ["draft_not_saved", 409],
+    ["protected", 422],
+    ["bad_path", 422],
+    ["extension_changed", 422],
+    ["into_itself", 422],
+    ["unchanged", 422],
+    ["path_taken", 409],
+    ["head_moved", 409],
+    ["read_only", 422],
+    ["bad_token", 422],
+    ["unavailable", 502],
+  ])("%s is %i, with its own code and words, and says nothing was moved", async (reason, status) => {
+    const { deps, move } = stub();
+    move.mockResolvedValue({ found: true, result: { ok: false, reason } });
+    const response = await handleMove(at("move", mvFile), ALICE, deps, "1");
+    const error = (await body(response)).error;
+    expect(response.status).toBe(status);
+    expect(error.code).toBe(reason);
+    expect(error.message.length).toBeGreaterThan(15);
+  });
+
+  it("names the paths that are in the way", async () => {
+    const { deps, move } = stub();
+    move.mockResolvedValue({ found: true, result: { ok: false, reason: "path_taken", taken: ["Notes/Plans/Plan.md"] } });
+    expect((await body(await handleMove(at("move", mvFile), ALICE, deps, "1"))).error.taken).toEqual(["Notes/Plans/Plan.md"]);
+  });
+
+  it.each<[VaultRefusal, "source" | "destination"]>([
+    ["unknown_vault", "destination"],
+    ["encrypted_vault", "destination"],
+    ["unsupported_vault", "destination"],
+    ["encrypted_vault", "source"],
+  ])("a vault that is %s (the %s) is a 422 that says which", async (reason, where) => {
+    const { deps, move } = stub();
+    move.mockResolvedValue({ found: true, result: { ok: false, reason, where } });
+    const response = await handleMove(at("move", mvFile), ALICE, deps, "1");
+    expect(response.status).toBe(422);
+    const error = (await body(response)).error;
+    expect(error.code).toBe(reason);
+    if (where === "destination" && reason === "encrypted_vault") expect(error.message).toMatch(/into an encrypted vault/);
   });
 });

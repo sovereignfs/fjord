@@ -52,6 +52,23 @@ describe(`the id index (${leg})`, () => {
     expect([...(await index.all(1)).values()]).toEqual([file("Notes/a.md", A, { kind: "document", blob: "d".repeat(40) })]);
   });
 
+  it("follows a file that moved: what was read of it is at its new path, and the old path is gone", async () => {
+    await index.put(1, [file("Notes/a.md", A), file("Notes/b.md", B), file("Notes/plain.md", null)]);
+    await index.move(1, [
+      { from: "Notes/a.md", to: "Notes/Sub/a.md" },
+      { from: "Notes/never read.md", to: "Notes/Sub/never read.md" },
+    ]);
+    expect([...(await index.all(1)).keys()].sort()).toEqual(["Notes/Sub/a.md", "Notes/b.md", "Notes/plain.md"]);
+    expect((await index.find([1], A))[0]?.file).toEqual(file("Notes/Sub/a.md", A));
+    // A path that one move leaves and another arrives at keeps what arrived.
+    await index.move(1, [
+      { from: "Notes/b.md", to: "Notes/c.md" },
+      { from: "Notes/Sub/a.md", to: "Notes/b.md" },
+    ]);
+    expect((await index.find([1], B))[0]?.file.path).toBe("Notes/c.md");
+    expect((await index.find([1], A))[0]?.file.path).toBe("Notes/b.md");
+  });
+
   it("keeps Unicode paths and a long list as they are, and forgets paths, and a connection", async () => {
     const files = Array.from({ length: 450 }, (_, i) => file(`Notes/日本語/ファイル ${i}.md`, i === 7 ? A : null));
     await index.put(1, files);

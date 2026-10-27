@@ -1827,3 +1827,176 @@ test("an id in an encrypted vault is not looked for: nothing of one is read", as
     await restoreMore();
   }
 });
+
+// --- Rename and move (ROADMAP 1b.11) -------------------------------------------------------------------------------------
+
+const MOVE_DOC_HEADER = `---\nid: ${ID_DOC}\ntitle: Plan\nx-future:\n  - kept\n# a comment\n---\n`;
+const MOVE_ENCRYPTED = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hw", name: "Secret", createdAt: "2026-10-16T09:34:00Z", encryption: { mode: "none" }, fileNaming: "plain" });
+
+test("a note is renamed in one commit, byte for byte, keeping its extension", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/idea.md": "# Idea\r\n\r\nmixed\nendings\r\n", "Notes/other.md": "untouched" });
+    const before = (await hubs.more.branchHead()) as string;
+    await page.goto(`/repo/${id}/Notes/idea.md`);
+    await expect(noteEditor(page, "idea.md")).toBeVisible();
+
+    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await expect(page.getByText("It stays .md.")).toBeVisible();
+    await page.getByLabel("New name").fill("A better idea");
+    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/A%20better%20idea.md`);
+    await expect(noteEditor(page, "A better idea.md")).toContainText("Idea");
+
+    const head = (await hubs.more.branchHead()) as string;
+    expect(await hubs.more.show(head, "%P")).toBe(before);
+    expect(await hubs.more.show(head, "%B")).toBe("Rename idea to A better idea");
+    const files = await hubs.more.filesAt(head);
+    expect(files["Notes/A better idea.md"]).toBe("# Idea\r\n\r\nmixed\nendings\r\n"); // every byte, line endings included
+    expect(files["Notes/idea.md"]).toBeUndefined();
+    expect(files["Notes/other.md"]).toBe("untouched");
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a document moved to another folder is still found by its id, and its header is untouched", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, {
+      "Notes/fjord.vault.json": VAULT_MANIFEST,
+      "Other/fjord.vault.json": VAULT_MANIFEST,
+      "Notes/Plan.fj.md": `${MOVE_DOC_HEADER}\n# Plan\n`,
+      "Notes/Archive/old.md": "old",
+    });
+    await page.goto(`/doc/${ID_DOC}`);
+    await expect(noteEditor(page, "Plan.fj.md")).toContainText("Plan");
+
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await page.getByRole("button", { name: "Move", exact: true }).click();
+    const place = page.getByLabel("Move to");
+    // Folders of plaintext vaults, the top of each first, and not where it already is.
+    await expect(place.locator("option")).toHaveText(["Other", "Notes/Archive"]);
+    await place.selectOption("Other");
+    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Other/Plan.fj.md`);
+
+    const head = (await hubs.more.branchHead()) as string;
+    expect(await hubs.more.show(head, "%B")).toBe("Move Plan to Other");
+    expect((await hubs.more.filesAt(head))["Other/Plan.fj.md"]).toBe(`${MOVE_DOC_HEADER}\n# Plan\n`);
+
+    // The address by id follows the file: nothing about it said where it was.
+    await page.goto(`/doc/${ID_DOC}`);
+    await expect(noteEditor(page, "Plan.fj.md")).toContainText("Plan");
+    await expect(page.getByRole("link", { name: `/doc/${ID_DOC}` })).toBeVisible();
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a folder is renamed with everything in it, in one commit", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, {
+      "Notes/fjord.vault.json": VAULT_MANIFEST,
+      "Notes/Old/a.md": "a",
+      "Notes/Old/Deep/b.fj.md": `${MOVE_DOC_HEADER}\nb\n`,
+      "Notes/keep.md": "k",
+    });
+    const before = (await hubs.more.branchHead()) as string;
+    await page.goto(`/repo/${id}/Notes/Old`);
+    await page.getByRole("button", { name: "Rename folder" }).click();
+    await page.getByLabel("New name").fill("Older");
+    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Older`);
+    await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("Deep");
+
+    const head = (await hubs.more.branchHead()) as string;
+    expect(await hubs.more.show(head, "%P")).toBe(before);
+    expect(await hubs.more.show(head, "%B")).toBe("Rename Old to Older\n\nMoves 2 files.");
+    expect(Object.keys(await hubs.more.filesAt(head)).sort()).toEqual(["Notes/Older/Deep/b.fj.md", "Notes/Older/a.md", "Notes/fjord.vault.json", "Notes/keep.md"]);
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a name that is taken, or taken but for letter case, is refused and says so, and nothing changes", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/a.md": "a", "Notes/Taken.md": "t" });
+    const before = (await hubs.more.branchHead()) as string;
+    await page.goto(`/repo/${id}/Notes/a.md`);
+    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    for (const name of ["Taken", "taken", "bad:name", "CON"]) {
+      await page.getByLabel("New name").fill(name);
+      await page.getByRole("button", { name: "Rename", exact: true }).click();
+      await expect(page.getByRole("alert").filter({ hasText: "The file was not changed" })).toBeVisible();
+      await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/a.md`);
+    }
+    await expect(page.getByRole("alert").filter({ hasText: "not a name or a place" })).toBeVisible();
+    expect(await hubs.more.branchHead()).toBe(before);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("what is typed and not yet saved is saved as a version first, then moved with the file", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "# Title\n" });
+    const before = (await hubs.more.branchHead()) as string;
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await noteEditor(page, "n.md").click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type("typed, not saved");
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
+
+    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await page.getByLabel("New name").fill("renamed");
+    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/renamed.md`);
+
+    const head = (await hubs.more.branchHead()) as string;
+    const version = (await hubs.more.show(head, "%P")) as string;
+    expect(await hubs.more.show(version, "%P")).toBe(before);
+    expect(await hubs.more.show(head, "%B")).toBe("Rename n to renamed");
+    expect((await hubs.more.filesAt(head))["Notes/renamed.md"]).toMatch(/typed, not saved$/);
+    // The draft went with the version; the renamed note opens clean.
+    await expect(page.getByText("Your changes were kept")).toHaveCount(0);
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("nothing is moved into an encrypted vault, and who may move is the owner, from this site", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, {
+      "Notes/fjord.vault.json": VAULT_MANIFEST,
+      "Secret/fjord.vault.json": MOVE_ENCRYPTED,
+      "Notes/Sub/a.md": "a",
+    });
+    // The page offers plaintext vaults only.
+    await page.goto(`/repo/${id}/Notes/Sub/a.md`);
+    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await expect(page.getByLabel("Move to").locator("option")).toHaveText(["Notes"]);
+
+    // And the server holds to that whatever the page sends.
+    const sent = { vault: "Notes", type: "file", path: "Notes/Sub/a.md", blob: "a".repeat(40), destination: "Secret/a.md" };
+    const move = (context: { post: typeof page.request.post }, origin: string | null = BASE) =>
+      context.post(`/api/connections/${id}/files/move`, { headers: origin === null ? {} : { origin }, data: sent });
+    const refused = await move(page.request);
+    expect(refused.status()).toBe(422);
+    expect((await refused.json()).error.code).toBe("encrypted_vault");
+    expect((await move(page.request, "https://evil.example")).status()).toBe(403);
+
+    const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.17" } });
+    const otherPage = await other.newPage();
+    await signUp(otherPage, `visitor-${Date.now()}@example.com`, "Grace Hopper");
+    expect((await move(otherPage.request)).status()).toBe(404);
+    await other.close();
+    const anonymous = await browser.newContext({ baseURL: BASE });
+    expect((await move(anonymous.request)).status()).toBe(401);
+    await anonymous.close();
+  } finally {
+    await restoreMore();
+  }
+});

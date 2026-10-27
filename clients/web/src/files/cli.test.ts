@@ -7,6 +7,7 @@ import { fjord, wasmAvailable } from "../format/wasm";
 import type { FakeGitHub } from "../providers/testing/fake-github";
 import { githubHarness } from "../providers/testing/harnesses";
 import { createFile } from "./create";
+import { movePath } from "./move";
 
 /**
  * The acceptance of ROADMAP 1b.7: what the web client creates is held to what the CLI says. The repository the files were
@@ -91,6 +92,24 @@ describe.skipIf(!enabled)("what the web creates, as the CLI sees it", () => {
     expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
     // The CLI counted the documents it found (a note with no header is not one); the web's own are among them.
     expect(report.vaults[0]!.docs).toBe(before + made.filter((result) => result.ok && result.path.endsWith(".fj.md")).length);
+  });
+
+  it("accepts what renaming and moving leave: the same documents with the same ids, in their new places", async () => {
+    const before = (await verify()).report.vaults[0]!.docs;
+    const common = { provider: h.provider, ref: h.repo, branch: "main", format: fjord(), drafts: { paths: async () => [] as string[] }, saveDraft: async () => ({ ok: false as const, reason: "unavailable" as const }) };
+    const author = { name: "Ada Lovelace", email: "ada@example.com" };
+    const files = await fake.filesAt((await fake.branchHead())!);
+    expect(files["Notes/Projects/2026/plan.fj.md"]).toBeDefined();
+
+    const folder = await movePath(common, { connectionId: 1, vault: "Notes", target: { type: "folder", path: "Notes/Projects", files: 1 }, destination: "Notes/Archive/Old projects", author });
+    expect(folder.ok, JSON.stringify(folder)).toBe(true);
+    const renamed = await movePath(common, { connectionId: 1, vault: "Notes", target: { type: "file", path: "Notes/existing.md", blob: (await h.provider.listDirectory(h.repo, (await fake.branchHead())!, "Notes")).find((entry) => entry.path === "Notes/existing.md")!.id }, destination: "Notes/Existing renamed.md", author });
+    expect(renamed.ok, JSON.stringify(renamed)).toBe(true);
+
+    const { status, report } = await verify();
+    expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
+    expect(report.vaults[0]!.docs).toBe(before);
+    expect((await fake.filesAt((await fake.branchHead())!))["Notes/Archive/Old projects/2026/plan.fj.md"]).toBe(files["Notes/Projects/2026/plan.fj.md"]);
   });
 
   it("is able to fail: a document with a broken header is reported", async () => {

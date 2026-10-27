@@ -6,6 +6,7 @@ import { type Caller, isRepositoryPath } from "../working/http";
 import type { CreateResult, FileKind, VaultRefusal } from "./create";
 import { MAX_TITLE_CHARS } from "./create";
 import type { DeleteResult, DeleteTarget } from "./delete";
+import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 
 /**
@@ -40,6 +41,16 @@ export interface Deps {
     id: number,
     input: { vault: string; target: DeleteTarget; author: Identity },
   ) => Promise<{ found: false } | { found: true; result: DeleteResult | { ok: false; reason: VaultRefusal } }>;
+  /**
+   * Rename or move a note, a document or a folder of one of the caller's repositories to a new path (ROADMAP 1b.11). `found:
+   * false` if it is not the caller's (or not there). `where` says which vault was refused, the one it is in or the one it is
+   * going to.
+   */
+  move: (
+    accountId: string,
+    id: number,
+    input: { vault: string; target: DeleteTarget; destination: string; author: Identity },
+  ) => Promise<{ found: false } | { found: true; result: MoveResult | { ok: false; reason: VaultRefusal; where: "source" | "destination" } }>;
   /** Put back deletions the caller's repository has records of, at the paths they had or, for one, the one given. */
   restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<{ found: false } | { found: true; result: RestoreResult }>;
   /**
@@ -53,6 +64,7 @@ export interface Deps {
 }
 
 const MAX_BODY_CHARS = 8_000;
+const MAX_PATH_CHARS = 1_000;
 const MAX_VAULT_CHARS = 255;
 const CONNECTION_ID = /^[1-9][0-9]{0,15}$/;
 const CONTROL = /[\u0000-\u001f\u007f]/;
@@ -221,6 +233,52 @@ export async function handleDelete(request: Request, caller: Caller | null, deps
   }
 }
 
+/**
+ * `POST` renames or moves a file or a folder, `{ vault, type, path, blob | files, destination }`: one commit that puts the same
+ * files at `destination` (a path in the repository, whose last step is the new name). What is sent is what the page showed
+ * (the file's blob, the folder's file count), so only that moves; the new name is checked by the format module, and nothing
+ * is ever put over anything.
+ */
+export async function handleMove(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  const gate = await gateway(request, caller, deps, id);
+  if (gate instanceof Response) return gate;
+
+  try {
+    const { body, number } = gate;
+    const { vault, type, path, blob, files, destination } = body;
+    if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+    if (!isRepositoryPath(path)) return failure(400, "invalid_request", "Say what to move, by its path in the repository.");
+    if (!isRepositoryPath(destination) || destination.length > MAX_PATH_CHARS || !destination.isWellFormed() || CONTROL.test(destination)) {
+      return failure(400, "invalid_request", "Say where it goes, by a path in the repository.");
+    }
+    let target: DeleteTarget;
+    if (type === "file") {
+      if (typeof blob !== "string" || !OBJECT_ID.test(blob)) return failure(400, "invalid_request", "Say which version of the file you were shown, by its git object id.");
+      target = { type: "file", path, blob };
+    } else if (type === "folder") {
+      if (typeof files !== "number" || !Number.isInteger(files) || files < 1 || files > 1_000_000) return failure(400, "invalid_request", "Say how many files the folder holds, as you were told.");
+      target = { type: "folder", path, files };
+    } else {
+      return failure(400, "invalid_request", "Say whether to move a file or a folder.");
+    }
+
+    const outcome = await deps.move(caller!.accountId, number, { vault, target, destination, author: { name: caller!.name, email: caller!.email } });
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (result.ok) return json(200, { commit: result.commit, files: result.files, moved: result.moved });
+    if (result.reason === "unknown_vault" || result.reason === "encrypted_vault" || result.reason === "unsupported_vault") {
+      const refusal = "where" in result && result.where === "destination" ? MOVE_DESTINATION_REFUSALS[result.reason] : REFUSALS[result.reason];
+      return failure(refusal.status, result.reason, refusal.message);
+    }
+    const refusal = MOVE_REFUSALS[result.reason];
+    const detail = "detail" in result ? result.detail : undefined;
+    const taken = "taken" in result ? result.taken : undefined;
+    return failure(refusal.status, result.reason, refusal.message(detail), { ...(detail === undefined ? {} : { detail }), ...(taken === undefined ? {} : { taken }) });
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
 /** `POST` puts back what was deleted, `{ ids: [deletion ids], path? }`: one commit, never over anything. */
 export async function handleRestore(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
   const gate = await gateway(request, caller, deps, id);
@@ -272,6 +330,33 @@ const DELETE_REFUSALS: Record<Extract<DeleteResult, { ok: false }>["reason"], { 
   read_only: { status: 422, message: () => "That token can read this repository but not write to it, so nothing was deleted. Create the token with the repository permission “Contents: Read and write”, and connect the repository again." },
   bad_token: { status: 422, message: () => "The git host did not accept this repository's token. Connect the repository again with a new one." },
   unavailable: { status: 502, message: () => "Could not reach the git host just now. Nothing was deleted. Try again in a moment." },
+};
+
+/** What each reason nothing was moved is told as. Nothing was written in each. */
+const MOVE_REFUSALS: Record<Extract<MoveResult, { ok: false }>["reason"], { status: number; message: (detail: number | string | undefined) => string }> = {
+  gone: { status: 409, message: () => "That is no longer in the repository. Nothing was moved." },
+  upstream_changed: { status: 409, message: () => "That note changed in the repository after you looked at it, so it was not moved. Look at it again." },
+  folder_changed: { status: 409, message: (detail) => `That folder now holds ${typeof detail === "number" ? detail : "a different number of"} files, not the number you were told, so nothing was moved. Look at it again.` },
+  too_many: { status: 422, message: () => "That folder holds too many files to move from here. Move it from the command line, or in smaller parts." },
+  has_drafts: { status: 409, message: (detail) => `${detail ?? "Some"} of the files in that folder have unsaved changes. Save a version of each, or discard the changes, first. Nothing was moved.` },
+  draft_not_saved: { status: 409, message: () => "This note has unsaved changes, and they could not be saved as a version first, so it was not moved. Open it and save a version, or discard the changes." },
+  protected: { status: 422, message: () => "A vault, its manifest and the repository's own files cannot be renamed or moved from here." },
+  bad_path: { status: 422, message: () => "That is not a name or a place a file can have here. Names cannot hold characters such as : ? * or /, end in a space or a dot, or be one Windows reserves." },
+  extension_changed: { status: 422, message: () => "A rename keeps the file's kind: a document stays a .fj.md and a note stays a .md." },
+  into_itself: { status: 422, message: () => "A folder cannot be moved into itself." },
+  unchanged: { status: 422, message: () => "That is where it is already." },
+  path_taken: { status: 409, message: () => "Something is at that name already, or has a name like it that differs only by letter case. Nothing was moved and nothing was replaced. Choose another name." },
+  head_moved: { status: 409, message: () => "The repository kept changing while this was being moved. Nothing was moved. Try again." },
+  read_only: { status: 422, message: () => "That token can read this repository but not write to it, so nothing was moved. Create the token with the repository permission “Contents: Read and write”, and connect the repository again." },
+  bad_token: { status: 422, message: () => "The git host did not accept this repository's token. Connect the repository again with a new one." },
+  unavailable: { status: 502, message: () => "Could not reach the git host just now. Nothing was moved. Try again in a moment." },
+};
+
+/** The vault something is going to, when that is what is wrong. */
+const MOVE_DESTINATION_REFUSALS: Record<VaultRefusal, { status: number; message: string }> = {
+  unknown_vault: { status: 422, message: "This repository has no such vault to move it to." },
+  encrypted_vault: { status: 422, message: "Nothing can be moved into an encrypted vault from here: it would put plaintext in it. Encrypting on the way in comes later." },
+  unsupported_vault: { status: 422, message: "That vault's manifest cannot be read, or it does not use plain file names, so nothing can be moved into it from here." },
 };
 
 /** What each reason nothing was put back is told as. Nothing was written in each, and what is there is untouched. */

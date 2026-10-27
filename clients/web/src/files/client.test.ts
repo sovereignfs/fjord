@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createFrom, deleteFrom, restoreFrom, sendCreate, sendDelete, sendRestore, sendTitle, titleFrom } from "./client";
+import { createFrom, deleteFrom, moveFrom, restoreFrom, sendCreate, sendDelete, sendMove, sendRestore, sendTitle, titleFrom } from "./client";
 
 describe("createFrom", () => {
   it("is made, with where", () => {
@@ -156,5 +156,40 @@ describe("sendTitle", () => {
   it("says the title was not changed when the server cannot be reached", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("offline"))));
     expect(await sendTitle(3, "---\n---\n", "T")).toMatchObject({ ok: false, message: expect.stringMatching(/not changed/i) });
+  });
+});
+
+describe("moveFrom", () => {
+  it("is moved, with how many files", () => {
+    expect(moveFrom(200, { files: 3 })).toEqual({ ok: true, files: 3 });
+    expect(moveFrom(200, {})).toMatchObject({ ok: false });
+  });
+
+  it("says what the server said, which paths were in the way, and when to look again", () => {
+    expect(moveFrom(409, { error: { code: "path_taken", message: "Something is there.", taken: ["Notes/a.md"] } })).toEqual({ ok: false, lookAgain: false, taken: ["Notes/a.md"], message: "Something is there." });
+    for (const code of ["gone", "upstream_changed", "folder_changed"]) expect(moveFrom(409, { error: { code, message: "x" } })).toMatchObject({ lookAgain: true });
+    expect(moveFrom(422, { error: { code: "bad_path", message: "x" } })).toMatchObject({ lookAgain: false });
+  });
+
+  it("says nothing was moved when signed out or when the server said nothing", () => {
+    for (const result of [moveFrom(401, undefined), moveFrom(502, undefined), moveFrom(500, {})]) expect(result).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was moved/i) });
+  });
+});
+
+describe("sendMove", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("sends the place, what was shown and where it goes, to the connection's own address", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ files: 1 }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await sendMove(3, "Notes", { type: "file", path: "Notes/a.md", blob: "b".repeat(40) }, "Notes/b.md")).toEqual({ ok: true, files: 1 });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/connections/3/files/move");
+    expect(JSON.parse(String(init.body))).toEqual({ vault: "Notes", type: "file", path: "Notes/a.md", blob: "b".repeat(40), destination: "Notes/b.md" });
+  });
+
+  it("says nothing was moved when the server cannot be reached", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("offline"))));
+    expect(await sendMove(3, "Notes", { type: "folder", path: "Notes/A", files: 2 }, "Notes/B")).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was moved/i) });
   });
 });

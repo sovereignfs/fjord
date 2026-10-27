@@ -7,6 +7,7 @@ import type { NoteText } from "../note";
 import type { Preview } from "../../working/resolve";
 import { checkVault } from "../../files/create";
 import { DeleteButton } from "./DeleteButton";
+import { MoveButtons } from "./MoveButtons";
 import { NewFile } from "./NewFile";
 import { UndoBanner } from "./UndoBanner";
 import type { HeaderInfo } from "../document";
@@ -29,6 +30,7 @@ export function FolderView({
   folderFiles,
   header,
   permalink,
+  destinations,
 }: {
   connectionId: number;
   repository: string;
@@ -47,6 +49,8 @@ export function FolderView({
   header?: HeaderInfo | undefined;
   /** For a note or a document whose header has an `id`: its address that does not depend on where it is (`/doc/<id>`, `/note/<id>`). */
   permalink?: string | undefined;
+  /** The folders of plaintext vaults a file or folder can be moved to, repository-relative; none for a repository too large to list. */
+  destinations?: string[] | undefined;
 }) {
   const here = (...segments: string[]) => repositoryHref(connectionId, ...segments);
   const vault = location.vault;
@@ -77,12 +81,21 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} destinations={destinations ?? []}
           remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document") ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
         <>
           {writable ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} /> : null}
+          {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
+            <MoveButtons
+              connectionId={connectionId}
+              vault={vault.directory}
+              target={{ type: "folder", path: `${vault.directory}/${location.path}`, files: folderFiles }}
+              suffix=""
+              destinations={destinations ?? []}
+            />
+          ) : null}
           {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
             <DeleteButton
               connectionId={connectionId}
@@ -163,6 +176,7 @@ function FileCard({
   remove,
   header,
   permalink,
+  destinations,
 }: {
   connectionId: number;
   file: ClassifiedFile;
@@ -174,6 +188,7 @@ function FileCard({
   remove: { vault: string; blob: string; goTo: string[] } | undefined;
   header: HeaderInfo | undefined;
   permalink: string | undefined;
+  destinations: string[];
 }) {
   return (
     <section aria-labelledby="file-title">
@@ -213,6 +228,9 @@ function FileCard({
       ) : (
         <Alert variant="info" heading="Not openable">This kind of file cannot be opened in this version; it is kept in the repository as it is.</Alert>
       )}
+      {remove ? (
+        <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={file.path.match(/\.fj\.md$|\.md$/i)?.[0] ?? ""} destinations={destinations} />
+      ) : null}
       {remove ? (
         <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.fj\.md$/i, "").replace(/\.md$/i, "")} goTo={remove.goTo} />
       ) : null}

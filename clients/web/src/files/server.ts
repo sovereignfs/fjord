@@ -1,3 +1,4 @@
+import { DocIndex } from "../browse/doc-index";
 import { readConnection } from "../browse/server";
 import { connectionService } from "../connections/server";
 import { getDatabase } from "../db/boot";
@@ -10,6 +11,7 @@ import { restoreWindowMs } from "./config";
 import { type CreateResult, type FileKind, checkVault, createFile } from "./create";
 import { type DeleteResult, type DeleteTarget, deletePath } from "./delete";
 import { DeletionService } from "./deletions";
+import { type MoveResult, movePath } from "./move";
 import { type RestoreResult, restoreDeleted } from "./restore";
 
 /** Whether files may be made in a vault of one of the account's repositories, as the repository is now. */
@@ -59,6 +61,27 @@ async function remove(accountId: string, id: number, input: { vault: string; tar
   );
 }
 
+/** Rename or move in one of the account's repositories: through its own token, on its branch, saving unsaved changes first. */
+async function move(accountId: string, id: number, input: { vault: string; target: DeleteTarget; destination: string; author: Identity }): Promise<MoveResult> {
+  const used = await (await connectionService()).provider(accountId, id);
+  if (!used) return { ok: false, reason: "unavailable" };
+  const database = await getDatabase();
+  const result = await movePath(
+    {
+      provider: used.provider,
+      ref: { owner: used.connection.owner, name: used.connection.name },
+      branch: used.connection.branch,
+      format: fjord(),
+      drafts: new WorkingCopyService(database),
+      saveDraft: (path) => makeVersion(accountId, id, { path, message: undefined, author: input.author }),
+    },
+    { connectionId: id, ...input },
+  );
+  // What is known of which Doc is where follows the files. The move stands whatever happens to this; the next search finds them.
+  if (result.ok) await new DocIndex(database).move(id, result.moved).catch(() => console.error("[fjord] files: the id index could not follow a move"));
+  return result;
+}
+
 /** Put back deletions of one of the account's repositories, into the vaults it can still write to. */
 async function restore(accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }): Promise<RestoreResult> {
   const used = await (await connectionService()).provider(accountId, id);
@@ -87,6 +110,7 @@ export async function filesAccessFor(): Promise<ReturnType<typeof filesAccess>> 
     setTitle: (header, title) => fjord().withTitle(header, title),
     create,
     delete: remove,
+    move,
     restore,
   };
   return filesAccess(deps);
