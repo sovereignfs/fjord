@@ -34,6 +34,7 @@ export async function linksContext(): Promise<{ caller: Caller | null; deps: Lin
       create: (accountId, id, input) => (access as NonNullable<typeof access>).create(accountId, id, input),
       list: (accountId, id, docId) => (access as NonNullable<typeof access>).list(accountId, id, docId),
       revoke: (accountId, id, input) => (access as NonNullable<typeof access>).revoke(accountId, id, input),
+      update: (accountId, id, input) => (access as NonNullable<typeof access>).update(accountId, id, input),
     },
   };
 }

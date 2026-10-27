@@ -33,10 +33,23 @@ export interface SharedDocument {
   body: string;
   role: Role;
   sharedBy: string | undefined;
+  /**
+   * Whether the person may change it from the page (ROADMAP 1c.6): the link's role may edit and the document's header can be read, so
+   * that the header can be kept apart. When it is, `body` is the working copy's if there is one, so that edits add up.
+   */
+  editable: boolean;
 }
 
-/** The document with this Doc `id` in one connection's repository as it is now: its title and body, or undefined. */
-async function readDocument(deps: Pick<OpenDeps, "sourceOf" | "index" | "format">, connectionId: number, docId: string): Promise<{ title: string; body: string } | undefined> {
+/**
+ * The document with this Doc `id` in one connection's repository as it is now: its title and body, or undefined. With `draft` (which
+ * a link that may edit is given), the body is that of the working copy when there is one, and `editable` says the header can be kept apart.
+ */
+async function readDocument(
+  deps: Pick<OpenDeps, "sourceOf" | "index" | "format"> & { drafts?: { get: (connectionId: number, path: string) => Promise<{ content: string } | undefined> } },
+  connectionId: number,
+  docId: string,
+  draft = false,
+): Promise<{ title: string; body: string; editable: boolean } | undefined> {
   const source = await deps.sourceOf(connectionId);
   if (!source) return undefined;
   const { matches } = await resolveDocId({ index: deps.index, format: deps.format }, [source], docId);
@@ -44,12 +57,14 @@ async function readDocument(deps: Pick<OpenDeps, "sourceOf" | "index" | "format"
   const match = matches.find((candidate) => candidate.kind === "document");
   const blob = match ? source.read.blobs.get(match.path) : undefined;
   if (!match || blob === undefined) return undefined;
-  const text = await readTextBlob(source.provider, source.ref, blob);
-  if (!text.ok) return undefined;
-  const start = bodyStartOf(deps.format, text.text);
-  const parsed = deps.format.parseDocument(text.text);
-  const title = (parsed.title ?? "").trim() || deps.format.impliedTitle(text.text, match.path.slice(match.path.lastIndexOf("/") + 1));
-  return { title, body: start === undefined ? text.text : text.text.slice(start) };
+  const read = await readTextBlob(source.provider, source.ref, blob);
+  if (!read.ok) return undefined;
+  const kept = draft ? await deps.drafts?.get(connectionId, match.path) : undefined;
+  const text = kept ? kept.content : read.text;
+  const start = bodyStartOf(deps.format, text);
+  const parsed = deps.format.parseDocument(text);
+  const title = (parsed.title ?? "").trim() || deps.format.impliedTitle(text, match.path.slice(match.path.lastIndexOf("/") + 1));
+  return { title, body: start === undefined ? text : text.slice(start), editable: draft && start !== undefined };
 }
 
 export async function openShared(deps: OpenDeps, accountId: string, docId: string): Promise<SharedDocument | undefined> {
@@ -57,7 +72,7 @@ export async function openShared(deps: OpenDeps, accountId: string, docId: strin
   for (const share of await deps.shares.find(accountId, docId)) {
     if (decide([{ kind: "user", role: share.role }], "read", { kind: "document" }, now) !== "allow") continue;
     const opened = await readDocument(deps, share.connectionId, docId);
-    if (opened) return { ...opened, role: share.role, sharedBy: await deps.nameOf(share.sharedBy) };
+    if (opened) return { ...opened, role: share.role, sharedBy: await deps.nameOf(share.sharedBy), editable: false };
   }
   return undefined;
 }
@@ -70,6 +85,8 @@ export interface LinkOpenDeps {
   format: OpenDeps["format"];
   /** The server's secret: a link with a password opens only with the proof that it was given (`password.ts`). */
   secret: string;
+  /** The working copies, for a link that may edit (ROADMAP 1c.6): it is shown the draft, so that what is typed adds up. */
+  drafts?: { get: (connectionId: number, path: string) => Promise<{ content: string } | undefined> };
   now?: () => number;
 }
 
@@ -86,7 +103,8 @@ export async function openByLink(deps: LinkOpenDeps, token: string, docId: strin
   if (decide([grant], "read", { kind: "document" }, deps.now?.() ?? Date.now()) !== "allow") return undefined;
   // A link with a password is not opened by its token, which anyone with the link has, but by the proof that the password was given.
   if (link.passwordHash !== null && !proofIsRight(deps.secret, link.id, link.passwordHash, proof)) return undefined;
-  const opened = await readDocument(deps, link.connectionId, docId);
+  const mayEdit = decide([grant], "edit", { kind: "document" }, deps.now?.() ?? Date.now()) === "allow";
+  const opened = await readDocument(deps, link.connectionId, docId, mayEdit);
   return opened ? { ...opened, role: link.role, sharedBy: undefined } : undefined;
 }
 

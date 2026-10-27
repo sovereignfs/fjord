@@ -17,6 +17,8 @@ import { DocumentProperties } from "./DocumentProperties";
 export interface DraftOfNote {
   content: string;
   baseBlob: string;
+  /** The display names of people who edited it through a link (ROADMAP 1c.6): a version made of it credits them. */
+  guests?: string[];
 }
 
 /**
@@ -189,8 +191,10 @@ export function NoteView({
     <div>
       {draft ? (
         <div className={styles.notice}>
-          <Alert variant="info" heading="Your changes were kept">
-            These are changes you made earlier and have not saved as a version. They are kept on this server, not in the repository.
+          <Alert variant="info" heading={draft.guests?.length ? "Changes were kept" : "Your changes were kept"}>
+            {draft.guests?.length
+              ? `These are changes that have not been saved as a version, made by you and by ${list(draft.guests)} through a link. They are kept on this server, not in the repository; a version credits each of them by name.`
+              : "These are changes you made earlier and have not saved as a version. They are kept on this server, not in the repository."}
           </Alert>
         </div>
       ) : null}
@@ -297,4 +301,9 @@ function describe(status: SaverStatus, hasDraft: boolean): string {
     case "stopped":
       return "Changes are not being kept.";
   }
+}
+
+/** Names as a sentence: `A`, `A and B`, `A, B and C`. */
+function list(names: string[]): string {
+  return names.length <= 1 ? (names[0] ?? "") : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }

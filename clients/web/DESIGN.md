@@ -1059,6 +1059,38 @@ the link can make its password wait for others for up to a quarter of an hour; t
 password cannot be guessed at speed. Revoking or expiring the link still ends the cookie on the next request. Not here: changing a
 link's password or expiry after it is made, and the screen for managing links (1c.7).
 
+*As built (ROADMAP 1c.6), editing through a link.* A link whose role is **edit** opens the document in the document editor, **with a name asked for
+first**: until the person has given one (one line, up to 40 characters, no control characters or angle brackets, kept in their
+browser) the editor can only be read, and the name is shown beside it. What they type is kept as the document's **working copy**,
+the same draft the owner sees (a second after they stop, as for the owner), by `PUT /doc/<id>/draft`. That route is under `/doc/<id>` because
+the link's cookie (1c.4) is sent there and nowhere else; there is no session, and the cookie is the credential: it must hold a token of a link of
+*this* document that is live, whose role may `edit`, and for a link with a password the proof that it was given. A cookie that is absent,
+wrong, for another document, expired or revoked is a 404 (not told apart from there being no document); a good one on a view or comment
+link is a 403, which it may be told. Writes come from this site only. **Only the body is theirs**: the client sends the body, and the header
+(the `id`, the title and whatever else) is the working copy's or the file's own, put back in front, so a guest cannot change what the
+document is; a document whose header cannot be read is not edited through a link. The draft keeps the base it was started from whoever saves
+it, and two people typing at once is last-write-wins until real-time editing (phase 3). `editors` gains the tag the design left room for,
+`{ type: "guest", link, name }`, one entry per link and name (at most 50 per draft, then a new name is refused until a version is saved).
+When the owner opens the document its page says the draft was made by them *and by* the names, and **Save version** credits each guest
+by name: the author is the owner, and each guest is a `Co-authored-by:` trailer with an address that is nobody's
+(`link-<link>-<hash of the name>@users.noreply.fjord.invalid`, so two names on one link are two credits and the address says it was a link, not
+an account). A name is whatever the guest gives; it is not checked against anyone, which is what "the display name they gave" means. Not here:
+a name before **commenting** (comments are 1d, which will use the same name), edit mode for a named account's `edit` share (the policy
+allows it; the page does not yet), and seeing other guests type as they do (phase 3).
+
+*As built (ROADMAP 1c.7), managing shares.* A document's page, for its owner, has a **Sharing** panel (closed until opened, which reads the two
+lists). **People**: everyone it is shared with, by name and address, each with a role to change and *Stop sharing*, and *Share with* an
+address at a role, answered in the same words whatever the address (sharing again with an address changes the role). **Links**: every link,
+revoked ones included, with its role, whether it is active, expired or revoked, whether it has a password, and when it expires or whether it
+does not; *Change* (role, expiry, a new password or none) and *Revoke* (asks first; a revoked link stays revoked and cannot be changed);
+and *Make a link* with a role, an optional expiry and an optional password. A link's address is **shown once**, when it is made, with *Copy
+link*: only a hash of its token is kept, so an existing link's address cannot be shown or copied again, and to share a link again one makes
+another and revokes the old one. Changing a link is `PATCH /api/connections/<id>/links` with `{ doc, linkId, role?, expiresAt?, password? }`
+(owner only, from this site; `expiresAt` a time in the future or `null`, `password` text or `null` to take it away; what is left out
+stays): a later expiry revives a link that had expired, a new password forgets the wrong tries at the old one and ends every cookie given for
+it (the proof in a cookie is bound to the password's hash), and a role change is in force on the next request. Notes, and anything in an
+encrypted vault, have no panel. Not here: a list of what has been shared *with* you, and changing the address a person was shared with.
+
 **Encrypted documents** are shared in phase 2, as sealed copies: the copy and its
 comments encrypted in the browser with a key carried in the link's `#fragment` (or
 derived from a password), so the server never sees the content.

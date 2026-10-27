@@ -215,6 +215,8 @@ function fromResult(result: Extract<SaveOutcome, { found: true }>["result"]): Re
       return failure(409, "base_mismatch", "This draft was started from another version of the file. Reload to see it.", { baseBlob: result.baseBlob });
     case "unstorable":
       return failure(422, "unstorable", `This text cannot be kept as a draft. ${result.message}`);
+    case "too_many_editors":
+      return failure(422, "too_many_editors", "This draft has been edited by as many people as it keeps. Save a version first.");
     case "too_many":
       return failure(422, "too_many_drafts", "There are too many unsaved drafts in this repository. Save or discard some first.");
     case "not_editable":

@@ -77,7 +77,7 @@ describe.skipIf(!available)(`opening what was shared (${leg})`, () => {
     const { deps } = setup({ "Notes/Plans/Plan.fj.md": doc(ID, "Q4 plan") });
     await shares.set(1, ID, "bob", "comment", "alice");
     const opened = await openShared(deps, "bob", ID);
-    expect(opened).toEqual({ title: "Q4 plan", body: "\n# Q4 plan\n\nThe plan.\n", role: "comment", sharedBy: "Alice" });
+    expect(opened).toEqual({ title: "Q4 plan", body: "\n# Q4 plan\n\nThe plan.\n", role: "comment", sharedBy: "Alice", editable: false });
     // The header, with whatever else is in it, and the path, are not in what is given.
     expect(JSON.stringify(opened)).not.toMatch(/x-secret|Plans|not for the reader|Plan\.fj\.md/);
   });
@@ -155,7 +155,7 @@ describe.skipIf(!available)(`opening by a link (${leg})`, () => {
     const { deps } = setup({ "Notes/Plans/Plan.fj.md": doc(ID, "Q4 plan") });
     const { token } = await make("comment");
     const opened = await openByLink(linkDeps(deps), token, ID);
-    expect(opened).toEqual({ title: "Q4 plan", body: "\n# Q4 plan\n\nThe plan.\n", role: "comment", sharedBy: undefined });
+    expect(opened).toEqual({ title: "Q4 plan", body: "\n# Q4 plan\n\nThe plan.\n", role: "comment", sharedBy: undefined, editable: false });
     expect(JSON.stringify(opened)).not.toMatch(/x-secret|Plans|Plan\.fj\.md|alice/);
   });
 
@@ -202,6 +202,38 @@ describe.skipIf(!available)(`opening by a link (${leg})`, () => {
     expect(await openByLink(linkDeps(b.deps), (await make()).token, ID)).toBeUndefined();
     const c = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") }, { unreadable: true });
     expect(await openByLink(linkDeps(c.deps), (await make()).token, ID)).toBeUndefined();
+  });
+
+  describe("that may edit", () => {
+    const editDeps = (deps: OpenDeps, drafts: { get: (connectionId: number, path: string) => Promise<{ content: string } | undefined> }) => ({ ...linkDeps(deps), drafts });
+
+    it("is editable, from the file when there is no working copy, and from the working copy when there is, so that edits add up", async () => {
+      const { deps } = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") });
+      const { token } = await make("edit");
+      const none = await openByLink(editDeps(deps, { get: async () => undefined }), token, ID);
+      expect(none).toMatchObject({ role: "edit", editable: true, body: "\n# Q4 plan\n\nThe plan.\n" });
+      const draft = `---\nid: ${ID}\ntitle: Q4 plan\n---\n\nWhat a guest typed.\n`;
+      const kept = await openByLink(editDeps(deps, { get: async () => ({ content: draft }) }), token, ID);
+      expect(kept).toMatchObject({ editable: true, body: "\nWhat a guest typed.\n" });
+      expect(JSON.stringify(kept)).not.toContain("x-secret");
+    });
+
+    it("is not editable for a view or comment link, which are shown the file even if there is a working copy", async () => {
+      const { deps } = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") });
+      for (const role of ["view", "comment"] as const) {
+        const { token } = await make(role);
+        const opened = await openByLink(editDeps(deps, { get: async () => ({ content: "---\nid: x\n---\nDRAFT" }) }), token, ID);
+        expect(opened).toMatchObject({ role, editable: false });
+        expect(opened?.body).not.toContain("DRAFT");
+      }
+    });
+
+    it("is not editable when the header cannot be kept apart: a working copy whose header is broken is shown whole, to read", async () => {
+      const { deps } = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") });
+      const { token } = await make("edit");
+      const opened = await openByLink(editDeps(deps, { get: async () => ({ content: "---\nid: [\n---\nbody\n" }) }), token, ID);
+      expect(opened).toMatchObject({ editable: false });
+    });
   });
 
   describe("with a password", () => {

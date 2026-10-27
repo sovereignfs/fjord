@@ -56,7 +56,7 @@ export async function RepositoryScreen({ connection, path }: { connection: strin
       const permalink = file !== undefined && docId !== null ? `/${file.kind === "document" ? "doc" : "note"}/${docId}` : undefined;
       // What was typed here and not yet saved as a version: kept by the server (ROADMAP 1b.8), and found again here.
       const kept = file !== undefined && note?.ok ? await (await workingCopyService()).get(current.id, file.path) : undefined;
-      const draft = kept ? { content: kept.content, baseBlob: kept.baseBlob } : null;
+      const draft = kept ? { content: kept.content, baseBlob: kept.baseBlob, guests: [...new Set(kept.editors.flatMap((editor) => (editor.type === "guest" ? [editor.name] : [])))] } : null;
       // Edited here while someone changed the note from elsewhere (ROADMAP 1b.10): can the two be combined?
       const preview = kept && note?.ok && kept.baseBlob !== note.blob ? await previewCombineFor(user.id, current.id, kept, note.text) : undefined;
       // What deleting names, as the page shows it now (ROADMAP 1b.12): the file's blob, and how many files are inside a folder.
@@ -66,7 +66,7 @@ export async function RepositoryScreen({ connection, path }: { connection: strin
       // A note or a document is a header and a body, and its editor is given the body: where that starts in the text shown, what
       // the header says, and the header a file with none is given on its first edit (ROADMAP 1b.3, 1b.5).
       const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
-      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} folderFiles={folderFiles} header={header} permalink={permalink} destinations={moveDestinations(outcome.read)} />;
+      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "document" ? (docId ?? undefined) : undefined} destinations={moveDestinations(outcome.read)} />;
     }
   }
 

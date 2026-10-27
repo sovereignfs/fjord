@@ -129,6 +129,59 @@ describe(`links (${leg})`, () => {
   });
 });
 
+describe(`changing a link (${leg})`, () => {
+  it("changes its role, and leaves what was not named", async () => {
+    const link = await made(1, A, "view", clock + 5000, "alice", "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$hash");
+    expect(await links.update(1, A, link.id, { role: "edit" })).toBe(true);
+    expect(await links.byToken(link.token)).toMatchObject({ role: "edit", expiresAt: clock + 5000, hasPassword: true, passwordHash: "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$hash" });
+  });
+
+  it("sets, moves and takes away an expiry; a later one revives a link that had expired", async () => {
+    const link = await made(1, A, "view", clock + 1000, "alice");
+    await links.update(1, A, link.id, { expiresAt: clock + 9000 });
+    expect((await links.byToken(link.token))?.expiresAt).toBe(clock + 9000);
+    await links.update(1, A, link.id, { expiresAt: null });
+    expect((await links.byToken(link.token))?.expiresAt).toBeNull();
+    await links.update(1, A, link.id, { expiresAt: clock - 1 }); // in the past: the link has ended
+    expect((await links.byToken(link.token))?.expiresAt).toBe(clock - 1);
+    await links.update(1, A, link.id, { expiresAt: clock + 60_000 });
+    expect((await links.byToken(link.token))?.expiresAt).toBe(clock + 60_000);
+  });
+
+  it("sets, changes and takes away a password, and a new one forgets the wrong tries at the old", async () => {
+    const link = await made(1, A, "view", null, "alice");
+    expect((await links.byToken(link.token))?.hasPassword).toBe(false);
+    await links.update(1, A, link.id, { passwordHash: "$argon2id$one" });
+    await links.claimTry(link.id);
+    await links.recordFailure(link.id);
+    await links.recordFailure(link.id);
+    expect((await links.byToken(link.token))).toMatchObject({ hasPassword: true, passwordHash: "$argon2id$one", failures: 2 });
+    await links.update(1, A, link.id, { passwordHash: "$argon2id$two" });
+    expect((await links.byToken(link.token))).toMatchObject({ passwordHash: "$argon2id$two", failures: 0, lockedUntil: null });
+    await links.update(1, A, link.id, { passwordHash: null });
+    expect((await links.byToken(link.token))).toMatchObject({ hasPassword: false, passwordHash: null });
+  });
+
+  it("changes nothing of a revoked link, of another document's, of another connection's, or of one that is not there", async () => {
+    const link = await made(1, A, "view", null, "alice");
+    const gone = await made(1, A, "view", null, "alice");
+    await links.revoke(1, A, gone.id);
+    expect(await links.update(1, A, gone.id, { role: "edit" })).toBe(false);
+    expect(await links.update(1, B, link.id, { role: "edit" })).toBe(false);
+    expect(await links.update(2, A, link.id, { role: "edit" })).toBe(false);
+    expect(await links.update(1, A, 999_999, { role: "edit" })).toBe(false);
+    expect((await links.byToken(gone.token))?.role).toBe("view");
+    expect((await links.byToken(link.token))?.role).toBe("view");
+  });
+
+  it("says whether a link could be changed when nothing is asked", async () => {
+    const link = await made(1, A, "view", null, "alice");
+    expect(await links.update(1, A, link.id, {})).toBe(true);
+    await links.revoke(1, A, link.id);
+    expect(await links.update(1, A, link.id, {})).toBe(false);
+  });
+});
+
 describe(`the tries at a link's password (${leg})`, () => {
   const protectedLink = async () => {
     const made = await links.create(1, A, "view", null, "alice", "$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$hash");

@@ -10,6 +10,8 @@ import { ShareService } from "./shares";
 import { type SharedDocument, asksForPassword, openByLink, openShared } from "./open";
 import { authConfig } from "../auth/server";
 import { type UnlockResult, tryUnlock } from "./unlock";
+import { type GuestSave, saveGuestDraft } from "./guest";
+import { WorkingCopyService } from "../working/service";
 import { LinkService } from "./links";
 import { linksAccess } from "./links-access";
 import { readRepository } from "../browse/repository";
@@ -76,7 +78,7 @@ function secretOf(): string {
  */
 export async function openLinkedFor(token: string, docId: string, proof?: string): Promise<SharedDocument | undefined> {
   const database = await getDatabase();
-  return openByLink({ links: new LinkService(database), sourceOf: await sourceOfOwner(), index: new DocIndex(database), format: fjord(), secret: secretOf() }, token, docId, proof);
+  return openByLink({ links: new LinkService(database), sourceOf: await sourceOfOwner(), index: new DocIndex(database), format: fjord(), secret: secretOf(), drafts: new WorkingCopyService(database) }, token, docId, proof);
 }
 
 /** Whether to ask for a password for this token and document (ROADMAP 1c.5). */
@@ -113,4 +115,13 @@ export async function linksAccessFor(): Promise<ReturnType<typeof linksAccess>> 
     documentIn,
     links: new LinkService(await getDatabase()),
   });
+}
+
+/** A guest's edit of a document through a link's cookie (ROADMAP 1c.6): into the document's working copy, under the name they gave. */
+export async function saveGuestDraftFor(input: { cookie: string | undefined; docId: string; name: unknown; body: string }): Promise<GuestSave> {
+  const database = await getDatabase();
+  return saveGuestDraft(
+    { links: new LinkService(database), secret: secretOf(), sourceOf: await sourceOfOwner(), index: new DocIndex(database), format: fjord(), drafts: new WorkingCopyService(database) },
+    input,
+  );
 }

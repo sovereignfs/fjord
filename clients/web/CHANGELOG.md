@@ -13,6 +13,14 @@ section.
 
 ### Added
 
+- **Manage who a document is shared with** (ROADMAP 1c.7): a document's page has a **Sharing** panel for its owner. It lists the people it is
+  shared with and the links to it, and lets the owner share with another account's address, change a role, stop sharing, make a link (with a
+  role, an expiry and a password if wanted), change a link's role, expiry or password, and revoke it. A link's address is shown once, when it is
+  made, with a button to copy it; it cannot be shown again, so to hand one out again make another and revoke the old one.
+- **Edit a document through a link** (ROADMAP 1c.6): someone with an edit link, and no account, gives a name and edits the document in
+  the editor. What they type is kept as the document's working copy, where its owner sees it, who made it, and saves a version of it: the
+  version is the owner's and credits each person who edited through the link by the name they gave. They cannot change the document's
+  header. A view or comment link still only reads, and a link that is revoked stops taking changes at once.
 - **Password links** (ROADMAP 1c.5): a share link can ask for a password. Whoever has the link is asked for it, and it is hashed with
   Argon2id (only the hash is kept), checked one try at a time with a growing wait after wrong ones (a second at first, up to a quarter of an
   hour), and never sent back, logged or put in an address. The token alone does not open such a link. The owner's list says which links

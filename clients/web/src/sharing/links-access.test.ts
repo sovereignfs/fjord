@@ -18,6 +18,7 @@ function setup(over: { owns?: boolean; kind?: Awaited<ReturnType<AccessDeps["doc
       { id: -1, connectionId: 1, docId: DOC, role: "view" as const, expiresAt: NOW + 1, revokedAt: null, createdAt: NOW - 4, hasPassword: false },
     ]),
     revoke: vi.fn(async (..._args: unknown[]) => true),
+    update: vi.fn(async (..._args: unknown[]) => true),
   };
   const access = linksAccess({ owns: (a, i) => owns(a, i), documentIn: (a, i, d) => documentIn(a, i, d), links, now: () => NOW });
   return { access, owns, documentIn, links };
@@ -29,6 +30,7 @@ describe("links of a document", () => {
     expect(await access.create("mallory", 1, { docId: DOC, role: "view", expiresAt: null, password: null })).toEqual({ found: false });
     expect(await access.list("mallory", 1, DOC)).toEqual({ found: false });
     expect(await access.revoke("mallory", 1, { docId: DOC, linkId: 3 })).toEqual({ found: false });
+    expect(await access.update("mallory", 1, { docId: DOC, linkId: 3, role: "edit" })).toEqual({ found: false });
     expect(documentIn).not.toHaveBeenCalled();
     for (const mock of Object.values(links)) expect(mock).not.toHaveBeenCalled();
   });
@@ -69,5 +71,19 @@ describe("links of a document", () => {
     expect(links.revoke).toHaveBeenCalledWith(1, DOC, 3);
     links.revoke.mockResolvedValueOnce(false);
     expect(await access.revoke("alice", 1, { docId: DOC, linkId: 3 })).toEqual({ found: true, revoked: false });
+  });
+
+  it("are changed by the owner: what is named, a new password as its hash and never itself, and null to take it away", async () => {
+    const { access, links } = setup();
+    expect(await access.update("alice", 1, { docId: DOC, linkId: 3, role: "comment", expiresAt: NOW + 9 })).toEqual({ found: true, updated: true });
+    expect(links.update).toHaveBeenLastCalledWith(1, DOC, 3, { role: "comment", expiresAt: NOW + 9 });
+    await access.update("alice", 1, { docId: DOC, linkId: 3, password: "correct horse battery staple" });
+    const change = links.update.mock.calls.at(-1)![3] as { passwordHash: string };
+    expect(change.passwordHash).toMatch(/^\$argon2id\$v=19\$m=19456,t=2,p=1\$/);
+    expect(JSON.stringify(links.update.mock.calls.at(-1))).not.toContain("correct horse");
+    await access.update("alice", 1, { docId: DOC, linkId: 3, password: null });
+    expect(links.update).toHaveBeenLastCalledWith(1, DOC, 3, { passwordHash: null });
+    links.update.mockResolvedValueOnce(false);
+    expect(await access.update("alice", 1, { docId: DOC, linkId: 3, role: "view" })).toEqual({ found: true, updated: false });
   });
 });

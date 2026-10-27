@@ -2382,3 +2382,216 @@ test("a link's password is checked when the link is made: text of a fit length, 
     await restoreMore();
   }
 });
+
+// --- Editing through a link (ROADMAP 1c.6) -------------------------------------------------------------------------------------
+
+test("someone with an edit link gives a name, edits the working copy, and the owner's next version credits them", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
+    const made = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "edit" } });
+    const link = (await made.json()) as { id: number; token: string; url: string };
+    const before = (await hubs.more.branchHead()) as string;
+
+    const guest = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.6.6" } });
+    const visitor = await guest.newPage();
+    await visitor.goto(link.url);
+    await expect(visitor).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+    await expect(visitor.getByText("Can edit")).toBeVisible();
+
+    // A name comes first: until it is given the document can only be read.
+    const editor = visitor.getByRole("textbox", { name: "Q4 plan" });
+    await expect(editor).toContainText("The plan, for reading.");
+    await expect(editor).toHaveAttribute("contenteditable", "false");
+    await expect(visitor.getByLabel("Your name")).toBeVisible();
+    await expect(visitor.getByRole("button", { name: "Start editing" })).toBeDisabled();
+    await visitor.getByLabel("Your name").fill("Grace   Hopper");
+    await visitor.getByRole("button", { name: "Start editing" }).click();
+    await expect(visitor.getByTestId("guest-name")).toHaveText("Grace Hopper");
+    await expect(editor).toHaveAttribute("contenteditable", "true");
+
+    // What is typed is kept as the document's working copy, and nothing is committed.
+    await typeAtEndOf(visitor, editor.locator("p", { hasText: "The plan, for reading." }), " A guest's line.");
+    await expect(visitor.getByTestId("guest-status")).toHaveText("Changes kept for the owner to save.");
+    expect(await hubs.more.branchHead()).toBe(before);
+
+    // They find it again, under the same name, without being asked.
+    await visitor.reload();
+    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("A guest's line.");
+    await expect(visitor.getByTestId("guest-name")).toHaveText("Grace Hopper");
+
+    // The owner sees it in the draft, who made it, and saves a version that credits them.
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await expect(page.getByText(/made by you and by Grace Hopper through a link/)).toBeVisible();
+    await expect(noteEditor(page, "Plan.fj.md")).toContainText("A guest's line.");
+    await page.getByLabel("Message").fill("Take the guest's line");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+
+    const head = (await hubs.more.branchHead()) as string;
+    expect(await hubs.more.show(head, "%P")).toBe(before);
+    expect(await hubs.more.show(head, "%an <%ae>")).toMatch(/^Ada Lovelace </);
+    expect(await hubs.more.show(head, "%(trailers:key=Co-authored-by,valueonly)")).toMatch(new RegExp(`^Grace Hopper <link-${link.id}-[0-9a-f]{8}@users\\.noreply\\.fjord\\.invalid>`));
+    const saved = (await hubs.more.filesAt(head))["Notes/Plan.fj.md"]!;
+    expect(saved.startsWith(SHARE_DOC.slice(0, SHARE_DOC.indexOf("---\n\n") + 4))).toBe(true); // the header, byte for byte, with what a guest cannot touch
+    expect(saved).toContain("A guest's line.");
+    await hubs.more.fsck();
+    await guest.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a view link or a comment link cannot edit, and an edit link that is revoked stops at once", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
+    const make = async (role: string) => (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role } })).json()) as { id: number; token: string; url: string };
+    const put = (request: import("@playwright/test").APIRequestContext, data: unknown, origin: string | null = BASE) =>
+      request.put(`/doc/${ID_DOC}/draft`, { headers: origin === null ? {} : { origin }, data });
+    const before = (await hubs.more.branchHead()) as string;
+
+    for (const role of ["view", "comment"]) {
+      const link = await make(role);
+      const reader = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": `10.99.6.${role === "view" ? 7 : 8}` } });
+      const visitor = await reader.newPage();
+      await visitor.goto(link.url);
+      await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toHaveAttribute("contenteditable", "false");
+      await expect(visitor.getByLabel("Your name")).toHaveCount(0);
+      const refused = await put(reader.request, { name: "Grace", body: "\nvandalised\n" });
+      expect(refused.status(), role).toBe(403);
+      expect((await refused.json()).error.code).toBe("read_only");
+      await reader.close();
+    }
+
+    // An edit link: from this site only, with a name, and not without the cookie.
+    const link = await make("edit");
+    const guest = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.6.9" } });
+    const visitor = await guest.newPage();
+    await visitor.goto(link.url);
+    await expect(visitor.getByLabel("Your name")).toBeVisible();
+    expect((await put(guest.request, { name: "Grace", body: "\nx\n" }, "https://evil.example")).status()).toBe(403);
+    expect((await put(guest.request, { name: "", body: "\nx\n" })).status()).toBe(400);
+    expect((await put(guest.request, { name: "Grace <b>", body: "\nx\n" })).status()).toBe(400);
+    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.6.10" } });
+    expect((await put(stranger.request, { name: "Grace", body: "\nx\n" })).status()).toBe(404);
+    await stranger.close();
+    expect((await put(guest.request, { name: "Grace", body: "\nfrom the api\n" })).status()).toBe(200);
+
+    // Revoked: the next save is refused and the page says its changes are not being kept.
+    await visitor.getByLabel("Your name").fill("Grace");
+    await visitor.getByRole("button", { name: "Start editing" }).click();
+    await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } });
+    expect((await put(guest.request, { name: "Grace", body: "\nafter the revoke\n" })).status()).toBe(404);
+    await typeAtEndOf(visitor, visitor.getByRole("textbox", { name: "Q4 plan" }).locator("p").last(), " more");
+    await expect(visitor.getByText("Your changes are not being kept")).toBeVisible({ timeout: 15_000 });
+    await guest.close();
+    expect(await hubs.more.branchHead()).toBe(before);
+  } finally {
+    await restoreMore();
+  }
+});
+
+// --- Managing shares (ROADMAP 1c.7) ----------------------------------------------------------------------------------------------
+
+test("the owner sees and controls every share of a document from its page: people, roles, links, copy, change, revoke", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "a note") });
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
+
+    const graceEmail = `grace-${Date.now()}@example.com`;
+    const graceContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.7.7" } });
+    const grace = await graceContext.newPage();
+    await signUp(grace, graceEmail, "Grace Hopper");
+
+    // A note has no sharing; a document has the panel, closed, with nothing shared.
+    await page.goto(`/repo/${id}/Notes/idea.md`);
+    await expect(page.getByTestId("share-panel")).toHaveCount(0);
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    const panel = page.getByTestId("share-panel");
+    await panel.getByText("Sharing", { exact: true }).click();
+    await expect(panel.getByText("Not shared with anyone.")).toBeVisible();
+    await expect(panel.getByText("No links.")).toBeVisible();
+
+    // People: an address with an account and one with none are told the same, and only the account is listed.
+    await panel.getByLabel("Share with").fill(graceEmail);
+    await panel.getByRole("button", { name: "Share", exact: true }).click();
+    const known = await panel.getByText(/If that address has an account here/).textContent();
+    const row = panel.getByRole("list", { name: "People with access" }).getByRole("listitem");
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText("Grace Hopper");
+    await expect(row).toContainText(graceEmail);
+    await panel.getByLabel("Share with").fill(`nobody-${Date.now()}@example.com`);
+    await panel.getByRole("button", { name: "Share", exact: true }).click();
+    await expect(panel.getByText(/If that address has an account here/)).toHaveText(known!);
+    await expect(row).toHaveCount(1);
+
+    // She reads it; the owner makes it comment, and she is told; then stops sharing, and she is not.
+    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(200);
+    await expect(grace.getByText("Can view")).toBeVisible();
+    await panel.getByLabel("Role of Grace Hopper").selectOption("comment");
+    await expect.poll(async () => (await page.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`).then((r) => r.json())).shares[0].role).toBe("comment");
+    await grace.reload();
+    await expect(grace.getByText("Can comment")).toBeVisible();
+    await page.reload();
+    await page.getByTestId("share-panel").getByText("Sharing", { exact: true }).click();
+    await expect(page.getByTestId("share-panel").getByLabel("Role of Grace Hopper")).toHaveValue("comment"); // what the page shows is what is kept
+    await page.getByTestId("share-panel").getByRole("button", { name: "Stop sharing" }).click();
+    await expect(page.getByTestId("share-panel").getByText("Not shared with anyone.")).toBeVisible();
+    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(404);
+
+    // Links: made with a role and a password; the address is shown once and can be copied; it asks for the password.
+    const links = page.getByTestId("share-panel");
+    await links.getByLabel("What the new link allows").selectOption("edit");
+    await links.getByLabel("Password", { exact: true }).fill("correct horse battery staple");
+    await links.getByRole("button", { name: "Make a link" }).click();
+    const fresh = links.getByTestId("new-link");
+    await expect(fresh).toContainText("This is the only time its address is shown.");
+    const address = await fresh.getByLabel("The new link's address").inputValue();
+    expect(address).toMatch(new RegExp(`^${BASE}/doc/${ID_DOC}\\?token=[A-Za-z0-9_-]{43}$`));
+    await fresh.getByRole("button", { name: "Copy link" }).click();
+    await expect(fresh.getByRole("button", { name: "Copied" })).toBeVisible();
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(address);
+    const linkRow = links.getByTestId("link-row");
+    await expect(linkRow).toHaveCount(1);
+    await expect(linkRow).toContainText("Can edit");
+    await expect(linkRow).toContainText("Active");
+    await expect(linkRow).toContainText("Password");
+    await expect(linkRow).toContainText("Does not expire");
+
+    const visitorContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.7.8" } });
+    const visitor = await visitorContext.newPage();
+    await visitor.goto(address);
+    await expect(visitor.getByRole("heading", { name: "This document needs a password" })).toBeVisible();
+
+    // Changing it: a past expiry is refused in words; a role and no password take effect for a new visitor at once.
+    await linkRow.getByRole("button", { name: "Change" }).click();
+    await linkRow.getByLabel("Expires").fill("2020-01-01T10:00");
+    await linkRow.getByRole("button", { name: "Save" }).click();
+    await expect(linkRow.getByText(/time in the future/)).toBeVisible();
+    await linkRow.getByLabel("Expires").fill("");
+    await linkRow.getByLabel("What the link allows").selectOption("view");
+    await linkRow.getByLabel("Remove the password").check();
+    await linkRow.getByRole("button", { name: "Save" }).click();
+    await expect(linkRow).toContainText("Can view");
+    await expect(linkRow).not.toContainText("Password");
+    const open = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.7.9" } });
+    const reader = await open.newPage();
+    await reader.goto(address);
+    await expect(reader.getByText("Can view")).toBeVisible();
+    await expect(reader.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+
+    // Revoking asks first, then ends it at once, and the list says so.
+    await linkRow.getByRole("button", { name: "Revoke" }).click();
+    await linkRow.getByRole("button", { name: "Keep" }).click();
+    await expect(linkRow).toHaveAttribute("data-status", "active");
+    await linkRow.getByRole("button", { name: "Revoke" }).click();
+    await linkRow.getByRole("button", { name: "Yes, revoke" }).click();
+    await expect(linkRow).toHaveAttribute("data-status", "revoked");
+    await expect(linkRow.getByRole("button", { name: "Change" })).toHaveCount(0);
+    await reader.reload();
+    await expect(reader).toHaveURL(/\/sign-in/);
+
+    for (const context of [graceContext, visitorContext, open]) await context.close();
+  } finally {
+    await restoreMore();
+  }
+});

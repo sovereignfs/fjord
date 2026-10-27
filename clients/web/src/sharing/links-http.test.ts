@@ -22,8 +22,9 @@ function stub() {
     links: [{ id: 7, role: "view", expiresAt: null, revokedAt: null, createdAt: NOW, status: "active", passwordProtected: false }],
   }));
   const revoke = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; revoked: boolean }> => ({ found: true, revoked: true }));
-  const deps: Deps = { create: (a, i, x) => create(a, i, x), list: (a, i, d) => list(a, i, d), revoke: (a, i, x) => revoke(a, i, x), origin: ORIGIN, now: () => NOW };
-  return { deps, create, list, revoke };
+  const update = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; updated: boolean }> => ({ found: true, updated: true }));
+  const deps: Deps = { create: (a, i, x) => create(a, i, x), list: (a, i, d) => list(a, i, d), revoke: (a, i, x) => revoke(a, i, x), update: (a, i, x) => update(a, i, x), origin: ORIGIN, now: () => NOW };
+  return { deps, create, list, revoke, update };
 }
 
 const req = (method: string, body?: unknown, init: { origin?: string | null; type?: string | null; query?: string } = {}) => {
@@ -38,34 +39,34 @@ describe.each([
   ["GET", undefined, `?doc=${DOC}`],
   ["POST", good, ""],
   ["DELETE", { doc: DOC, linkId: 7 }, ""],
+  ["PATCH", { doc: DOC, linkId: 7, role: "edit" }, ""],
 ] as const)("%s: who may", (method, sent, query) => {
   it("nobody who is not signed in: 401, and nothing is asked", async () => {
-    const { deps, create, list, revoke } = stub();
+    const { deps, create, list, revoke, update } = stub();
     expect((await handleLinks(req(method, sent, { query }), null, deps, "1")).status).toBe(401);
-    for (const mock of [create, list, revoke]) expect(mock).not.toHaveBeenCalled();
+    for (const mock of [create, list, revoke, update]) expect(mock).not.toHaveBeenCalled();
   });
 
   it.each(["0", "01", "-1", "x", "", "99999999999999999"])("a connection id like %j is a 404 before anything is asked", async (id) => {
-    const { deps, create, list, revoke } = stub();
+    const { deps, create, list, revoke, update } = stub();
     expect((await handleLinks(req(method, sent, { query }), ALICE, deps, id)).status).toBe(404);
-    for (const mock of [create, list, revoke]) expect(mock).not.toHaveBeenCalled();
+    for (const mock of [create, list, revoke, update]) expect(mock).not.toHaveBeenCalled();
   });
 
   it("not another account's connection: a 404 that says nothing else", async () => {
-    const { deps, create, list, revoke } = stub();
-    for (const mock of [create, list, revoke]) mock.mockResolvedValue({ found: false });
+    const { deps, create, list, revoke, update } = stub();
+    for (const mock of [create, list, revoke, update]) mock.mockResolvedValue({ found: false });
     const response = await handleLinks(req(method, sent, { query }), ALICE, deps, "1");
     expect(response.status).toBe(404);
     expect((await body(response)).error).toEqual({ code: "not_found", message: "There is no such connection." });
   });
 });
 
-describe.each([["POST", good], ["DELETE", { doc: DOC, linkId: 7 }]] as const)("%s: what changes something", (method, sent) => {
+describe.each([["POST", good], ["DELETE", { doc: DOC, linkId: 7 }], ["PATCH", { doc: DOC, linkId: 7, role: "edit" }]] as const)("%s: what changes something", (method, sent) => {
   it("must come from this site", async () => {
-    const { deps, create, revoke } = stub();
+    const { deps, create, revoke, update } = stub();
     for (const origin of ["https://evil.example", "http://fjord.example.com", "null", null]) expect((await handleLinks(req(method, sent, { origin }), ALICE, deps, "1")).status).toBe(403);
-    expect(create).not.toHaveBeenCalled();
-    expect(revoke).not.toHaveBeenCalled();
+    for (const mock of [create, revoke, update]) expect(mock).not.toHaveBeenCalled();
   });
 
   it("must be JSON, an object, and not far too large", async () => {
@@ -178,9 +179,9 @@ describe("listing, revoking, and what goes wrong", () => {
     for (const linkId of [undefined, "7", 0, -1, 1.5, null]) expect((await handleLinks(req("DELETE", { doc: DOC, linkId }), ALICE, deps, "1")).status).toBe(400);
   });
 
-  it("only GET, POST and DELETE", async () => {
+  it("only GET, POST, PATCH and DELETE", async () => {
     const { deps } = stub();
-    for (const method of ["PUT", "PATCH"]) expect((await handleLinks(req(method, good), ALICE, deps, "1")).status).toBe(405);
+    for (const method of ["PUT", "OPTIONS"]) expect((await handleLinks(req(method, good), ALICE, deps, "1")).status).toBe(405);
   });
 
   it("says when the instance cannot read repositories, when the host is limiting, and answers the unexpected plainly, never with a token", async () => {
@@ -196,5 +197,49 @@ describe("listing, revoking, and what goes wrong", () => {
     expect(await response.text()).not.toMatch(/hunter2|TTTT/);
     expect(logged.mock.calls.flat().join(" ")).not.toMatch(/hunter2|TTTT/);
     logged.mockRestore();
+  });
+});
+
+describe("changing a link", () => {
+  const patch = (data: Record<string, unknown>) => req("PATCH", { doc: DOC, linkId: 7, ...data });
+
+  it("hands on what was named and nothing that was not, for the caller's own connection", async () => {
+    const { deps, update } = stub();
+    expect((await handleLinks(patch({ role: "comment" }), ALICE, deps, "1")).status).toBe(200);
+    expect(update).toHaveBeenLastCalledWith("alice", 1, { docId: DOC, linkId: 7, role: "comment" });
+    await handleLinks(patch({ expiresAt: NOW + 5000, password: "correct horse battery staple", author: "mallory" }), ALICE, deps, "1");
+    expect(update).toHaveBeenLastCalledWith("alice", 1, { docId: DOC, linkId: 7, expiresAt: NOW + 5000, password: "correct horse battery staple" });
+    await handleLinks(patch({ expiresAt: null, password: null }), ALICE, deps, "1");
+    expect(update).toHaveBeenLastCalledWith("alice", 1, { docId: DOC, linkId: 7, expiresAt: null, password: null });
+  });
+
+  it("answers that it was changed, and never the password", async () => {
+    const { deps } = stub();
+    const response = await handleLinks(patch({ password: "correct horse battery staple" }), ALICE, deps, "1");
+    expect(await body(response)).toEqual({ updated: true });
+  });
+
+  it.each([
+    ["nothing to change", {}],
+    ["a role that is not one", { role: "owner" }],
+    ["a role in capitals", { role: "EDIT" }],
+    ["an expiry in the past", { expiresAt: NOW }],
+    ["an expiry that is not a number", { expiresAt: "tomorrow" }],
+    ["an expiry too far off", { expiresAt: NOW + MAX_EXPIRY_MS + 1 }],
+    ["a password that is too short", { password: "short" }],
+    ["a password that is not text", { password: 12345678 }],
+    ["a link that is not a number", { linkId: "7", role: "view" }],
+  ])("refuses %s with 400, without asking", async (_name, data) => {
+    const { deps, update } = stub();
+    expect((await handleLinks(patch(data), ALICE, deps, "1")).status).toBe(400);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("says a link that is gone or was revoked is, with a 409 and its own code", async () => {
+    const { deps, update } = stub();
+    update.mockResolvedValue({ found: true, updated: false });
+    const response = await handleLinks(patch({ role: "view" }), ALICE, deps, "1");
+    expect(response.status).toBe(409);
+    expect((await body(response)).error.code).toBe("link_gone");
   });
 });

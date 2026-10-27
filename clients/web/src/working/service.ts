@@ -25,8 +25,17 @@ export const MAX_DRAFTS_PER_CONNECTION = 500;
 /** How many times a save retries when another save got in between. */
 const ATTEMPTS = 8;
 
-/** Who edited. Tagged so that a person without an account (ROADMAP 1c.6) can be added without a migration. */
-export type Editor = { type: "account"; id: string };
+/**
+ * Who edited. Tagged so that a person without an account needs no migration: a `guest` is someone who edited through a share link
+ * (ROADMAP 1c.6), known by the link and the display name they gave, and credited by that name.
+ */
+export type Editor = { type: "account"; id: string } | { type: "guest"; link: number; name: string };
+
+/** Who an editor is, for telling whether they are in the list already: an account by its id, a guest by the link and the name. */
+export const editorKey = (editor: Editor): string => (editor.type === "account" ? `account:${editor.id}` : `guest:${editor.link}:${editor.name}`);
+
+/** The most distinct editors a draft keeps: a link can be used under any number of names, and the list is stored with the draft. */
+export const MAX_EDITORS = 50;
 
 export interface WorkingCopy {
   path: string;
@@ -42,6 +51,8 @@ export type SaveResult =
   /** The draft is of a different version of the file. `baseBlob` is the one it is of. */
   | { ok: false; reason: "base_mismatch"; baseBlob: string }
   | { ok: false; reason: "too_many" }
+  /** The draft has as many editors as it keeps, and this one is not among them. */
+  | { ok: false; reason: "too_many_editors" }
   | { ok: false; reason: "unstorable"; message: string };
 
 const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy);
@@ -123,7 +134,9 @@ export class WorkingCopyService {
       if (existing.baseBlob !== input.baseBlob) return { ok: false, reason: "base_mismatch", baseBlob: existing.baseBlob };
 
       const before = toCopy(existing);
-      const editors = before.editors.some((candidate) => candidate.type === editor.type && candidate.id === editor.id) ? before.editors : [...before.editors, editor];
+      const known = before.editors.some((candidate) => editorKey(candidate) === editorKey(editor));
+      if (!known && before.editors.length >= MAX_EDITORS) return { ok: false, reason: "too_many_editors" };
+      const editors = known ? before.editors : [...before.editors, editor];
       const lastEdit = Math.max(now, before.lastEdit + 1);
       const updated = await dbAll<Row>(
         this.database,
@@ -159,7 +172,7 @@ export class WorkingCopyService {
     const existing = await this.row(connectionId, path);
     if (!existing || existing.baseBlob !== input.fromBase || Number(existing.lastEdit) !== input.lastEdit) return { ok: false, reason: "changed" };
     const before = toCopy(existing);
-    const editors = before.editors.some((candidate) => candidate.type === editor.type && candidate.id === editor.id) ? before.editors : [...before.editors, editor];
+    const editors = before.editors.some((candidate) => editorKey(candidate) === editorKey(editor)) ? before.editors : [...before.editors, editor];
     const updated = await dbAll<Row>(
       this.database,
       sql`UPDATE ${table(this.database)}

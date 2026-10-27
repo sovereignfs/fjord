@@ -8,6 +8,7 @@ import type { Preview } from "../../working/resolve";
 import { checkVault } from "../../files/create";
 import { DeleteButton } from "./DeleteButton";
 import { MoveButtons } from "./MoveButtons";
+import { SharePanel } from "../../sharing/SharePanel";
 import { NewFile } from "./NewFile";
 import { UndoBanner } from "./UndoBanner";
 import type { HeaderInfo } from "../document";
@@ -30,6 +31,7 @@ export function FolderView({
   folderFiles,
   header,
   permalink,
+  docId,
   destinations,
 }: {
   connectionId: number;
@@ -49,6 +51,8 @@ export function FolderView({
   header?: HeaderInfo | undefined;
   /** For a note or a document whose header has an `id`: its address that does not depend on where it is (`/doc/<id>`, `/note/<id>`). */
   permalink?: string | undefined;
+  /** For a document whose header has an `id`: what it can be shared by (ROADMAP 1c.7). */
+  docId?: string | undefined;
   /** The folders of plaintext vaults a file or folder can be moved to, repository-relative; none for a repository too large to list. */
   destinations?: string[] | undefined;
 }) {
@@ -81,7 +85,7 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} destinations={destinations ?? []}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []}
           remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document") ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -176,6 +180,7 @@ function FileCard({
   remove,
   header,
   permalink,
+  docId,
   destinations,
 }: {
   connectionId: number;
@@ -188,6 +193,7 @@ function FileCard({
   remove: { vault: string; blob: string; goTo: string[] } | undefined;
   header: HeaderInfo | undefined;
   permalink: string | undefined;
+  docId: string | undefined;
   destinations: string[];
 }) {
   return (
@@ -228,6 +234,7 @@ function FileCard({
       ) : (
         <Alert variant="info" heading="Not openable">This kind of file cannot be opened in this version; it is kept in the repository as it is.</Alert>
       )}
+      {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} /> : null}
       {remove ? (
         <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={file.path.match(/\.fj\.md$|\.md$/i)?.[0] ?? ""} destinations={destinations} />
       ) : null}

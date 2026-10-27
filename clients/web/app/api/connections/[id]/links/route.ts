@@ -9,4 +9,4 @@ async function handle(request: Request, { params }: { params: Promise<{ id: stri
   return handleLinks(request, context.caller, context.deps, (await params).id);
 }
 
-export { handle as DELETE, handle as GET, handle as POST };
+export { handle as DELETE, handle as GET, handle as PATCH, handle as POST };

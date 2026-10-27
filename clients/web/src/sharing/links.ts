@@ -115,6 +115,27 @@ export class LinkService {
     return done.length > 0;
   }
 
+  /**
+   * Change a link that has not been revoked (ROADMAP 1c.7): its role, its expiry (`null` for none; a later one revives an expired
+   * link), its password (a hash, or `null` to take it away). A new password forgets the wrong tries at the old one; and because the
+   * proof in a cookie is bound to the password's hash, every cookie given for the old one stops working. What is left out is left as it
+   * is. False if the document has no such link, or it was revoked: a revoked link stays revoked.
+   */
+  async update(connectionId: number, docId: string, id: number, change: { role?: Role; expiresAt?: number | null; passwordHash?: string | null }): Promise<boolean> {
+    const sets = [] as ReturnType<typeof sql>[];
+    if (change.role !== undefined) sets.push(sql`role = ${change.role}`);
+    if (change.expiresAt !== undefined) sets.push(sql`expires_at = ${change.expiresAt}`);
+    if (change.passwordHash !== undefined) sets.push(sql`password_hash = ${change.passwordHash}`, sql`failures = 0`, sql`locked_until = NULL`);
+    if (sets.length === 0) return (await this.list(connectionId, docId)).some((link) => link.id === id && link.revokedAt === null);
+    const done = await dbAll<{ id: number }>(
+      this.database,
+      sql`UPDATE ${table(this.database)} SET ${sql.join(sets, sql`, `)}
+          WHERE connection_id = ${connectionId} AND doc_id = ${docId} AND id = ${id} AND revoked_at IS NULL
+          RETURNING id`,
+    );
+    return done.length > 0;
+  }
+
   /** The link a token opens, whether or not it is still good (the policy says that); undefined for a token that opens nothing. */
   async byToken(token: string): Promise<LinkWithSecret | undefined> {
     if (!TOKEN_PATTERN.test(token)) return undefined;

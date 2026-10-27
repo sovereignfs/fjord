@@ -7,9 +7,9 @@ import type { Action } from "./policy";
  *
  *  - `public`: anyone, signed in or not. It shows nothing that belongs to an account.
  *  - `account`: a signed-in account, and only its own data (its connections, its settings). Another's is a 404.
- *  - `resource`: something that belongs to a connection's owner, done for the `action` the policy names (`policy.ts`). These
+ *  - `resource`: something that belongs to a connection's owner, done for the `action` the policy names (`policy.ts`). Most of these
  *    routes are keyed by the connection, which a share never holds, so only its owner is let in. A share is let in at the
- *    routes keyed by a document, which come with each way to share (1c.2, 1c.3) and with comments (1d), and the action
+ *    routes keyed by a document: `/doc/<id>/draft` is the first (a link's holder edits, 1c.6), and the comments' come with 1d. The action
  *    each asks is named in the same way, so the policy, not the route, says which role may.
  */
 export type RouteAccess =
@@ -42,6 +42,8 @@ export const ROUTES: RouteRule[] = [
   // A repository, a folder, a file; a document or note by its id; and what was deleted from it.
   { route: "/repo/[connection]/[[...path]]", page: owner("read") },
   { route: "/doc/[id]", page: owner("read") },
+  // A guest edits through a link's cookie, which is sent under `/doc/<id>` and nowhere else (1c.4, 1c.6): the first route a share reaches, so the policy's `edit` is its action.
+  { route: "/doc/[id]/draft", methods: { PUT: owner("edit") } },
   { route: "/note/[id]", page: owner("read") },
   { route: "/deleted/[connection]", page: owner("restore") },
 
@@ -61,7 +63,7 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/connections/[id]/files/move", methods: { POST: owner("move") } },
   { route: "/api/connections/[id]/files/restore", methods: { POST: owner("restore") } },
   { route: "/api/connections/[id]/shares", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), DELETE: owner("manage_shares") } },
-  { route: "/api/connections/[id]/links", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), DELETE: owner("manage_shares") } },
+  { route: "/api/connections/[id]/links", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), PATCH: owner("manage_shares"), DELETE: owner("manage_shares") } },
   { route: "/api/connections/[id]/working-copy", methods: { PUT: owner("edit"), DELETE: owner("edit") } },
   { route: "/api/connections/[id]/working-copy/version", methods: { POST: owner("save_version") } },
   { route: "/api/connections/[id]/working-copy/resolve", methods: { POST: owner("edit") } },

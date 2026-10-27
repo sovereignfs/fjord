@@ -10,7 +10,7 @@ import type { Identity, Provider } from "../providers/types";
 import type { FakeGitHub } from "../providers/testing/fake-github";
 import { githubHarness } from "../providers/testing/harnesses";
 import { type Editor, WorkingCopyService } from "./service";
-import { composeMessage, defaultMessage, formatIdentity, saveVersion } from "./version";
+import { composeMessage, defaultMessage, formatIdentity, guestIdentity, saveVersion } from "./version";
 
 /**
  * Making a version from a draft (ROADMAP 1b.9), against a GitHub whose storage is a real git repository, so that what
@@ -46,7 +46,7 @@ beforeEach(async () => {
 });
 afterEach(async () => h.close());
 
-const deps = (provider: Provider = h.provider) => ({ drafts, provider, ref: h.repo, branch: "main", identityOf: async (editor: Editor) => PEOPLE[editor.id] });
+const deps = (provider: Provider = h.provider) => ({ drafts, provider, ref: h.repo, branch: "main", identityOf: async (editor: Editor) => (editor.type === "account" ? PEOPLE[editor.id] : undefined) });
 const encode = (text: string) => new TextEncoder().encode(text);
 const blobOf = async (path: string) => {
   const head = await h.provider.getHead(h.repo, "main");
@@ -114,6 +114,51 @@ describe(`a version from a draft (${leg})`, () => {
     });
   });
 
+  describe("someone who edited through a link", () => {
+    const guestDeps = () => ({ ...deps(), identityOf: async (editor: Editor) => (editor.type === "account" ? PEOPLE[editor.id] : guestIdentity(editor)) });
+    const guestEditor = (name: string, link = 3): Editor => ({ type: "guest", link, name });
+
+    it("is credited by the name they gave, in a trailer git recognises, with an address that is nobody's, and the owner stays the author", async () => {
+      await h.seed({ "n.md": "x" });
+      const baseBlob = await blobOf("n.md");
+      await drafts.save(1, "n.md", { baseBlob, content: "y" }, guestEditor("Grace Hopper"));
+      await drafts.save(1, "n.md", { baseBlob, content: "y, and more" }, ed("ada"));
+      const { commit } = (await saveVersion(guestDeps(), { connectionId: 1, path: "n.md", message: "Reword", author: ADA, authorId: "ada" })) as { commit: string };
+      expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
+      expect(await fake.show(commit, "%(trailers:key=Co-authored-by,valueonly)")).toMatch(/^Grace Hopper <link-3-[0-9a-f]{8}@users\.noreply\.fjord\.invalid>\n?$/);
+      expect((await fake.filesAt(commit))["n.md"]).toBe("y, and more");
+    });
+
+    it("is one credit for a name on a link, two for two names, and two for one name on two links", async () => {
+      await h.seed({ "n.md": "x" });
+      const baseBlob = await blobOf("n.md");
+      for (const editor of [guestEditor("Grace"), guestEditor("Grace"), guestEditor("Ada Lovelace"), guestEditor("Grace", 4)]) await drafts.save(1, "n.md", { baseBlob, content: "y" }, editor);
+      const { commit } = (await saveVersion(guestDeps(), { connectionId: 1, path: "n.md", author: ADA, authorId: "ada" })) as { commit: string };
+      const trailers = (await fake.show(commit, "%(trailers:key=Co-authored-by,valueonly,separator=%x7C)")).split("|");
+      expect(trailers).toHaveLength(3);
+      expect(new Set(trailers.map((line) => line.replace(/^.*</, "<"))).size).toBe(3);
+    });
+
+    it("cannot make a name into a second trailer or a header: it is kept to one line", async () => {
+      await h.seed({ "n.md": "x" });
+      const baseBlob = await blobOf("n.md");
+      await drafts.save(1, "n.md", { baseBlob, content: "y" }, guestEditor("Grace\nCo-authored-by: Mallory <m@evil.example>"));
+      const { commit } = (await saveVersion(guestDeps(), { connectionId: 1, path: "n.md", author: ADA, authorId: "ada" })) as { commit: string };
+      const body = await fake.show(commit, "%B");
+      expect(body.split("\n").filter((line) => line.startsWith("Co-authored-by:"))).toHaveLength(1);
+      expect(body).not.toContain("<m@evil.example>");
+    });
+
+    it("has an address made from the link and the name, under a domain that is nobody's", () => {
+      const a = guestIdentity({ link: 3, name: "Grace" });
+      expect(a.email).toMatch(/^link-3-[0-9a-f]{8}@users\.noreply\.fjord\.invalid$/);
+      expect(guestIdentity({ link: 3, name: "Grace" })).toEqual(a);
+      expect(guestIdentity({ link: 3, name: "Ada" }).email).not.toBe(a.email);
+      expect(guestIdentity({ link: 4, name: "Grace" }).email).not.toBe(a.email);
+      expect(a.name).toBe("Grace");
+    });
+  });
+
   describe("co-authors", () => {
     it("credits everyone else who edited since the last version, in a trailer git itself recognises", async () => {
       await h.seed({ "n.md": "x" });
@@ -128,7 +173,7 @@ describe(`a version from a draft (${leg})`, () => {
       await h.seed({ "n.md": "x" });
       await draftOf("n.md", "y", "ada", "ghost", "grace", "twin");
       const people = { ...PEOPLE, twin: { name: "Grace again", email: "grace@example.com" } };
-      const result = await saveVersion({ ...deps(), identityOf: async (editor) => people[editor.id as keyof typeof people] }, { connectionId: 1, path: "n.md", author: ADA, authorId: "ada" });
+      const result = await saveVersion({ ...deps(), identityOf: async (editor) => (editor.type === "account" ? people[editor.id as keyof typeof people] : undefined) }, { connectionId: 1, path: "n.md", author: ADA, authorId: "ada" });
       const { commit } = result as { commit: string };
       expect(await fake.show(commit, "%(trailers:key=Co-authored-by,valueonly,separator=%x2C )")).toBe("Grace Hopper <grace@example.com>");
     });
@@ -136,7 +181,7 @@ describe(`a version from a draft (${leg})`, () => {
     it("does not credit the author under another address either: by account, whatever the address", async () => {
       await h.seed({ "n.md": "x" });
       await draftOf("n.md", "y", "ada", "grace");
-      const result = await saveVersion({ ...deps(), identityOf: async (editor) => (editor.id === "ada" ? { name: "Ada (old address)", email: "ada@old.example" } : PEOPLE[editor.id]) }, { connectionId: 1, path: "n.md", author: ADA, authorId: "ada" });
+      const result = await saveVersion({ ...deps(), identityOf: async (editor) => (editor.type !== "account" ? undefined : editor.id === "ada" ? { name: "Ada (old address)", email: "ada@old.example" } : PEOPLE[editor.id]) }, { connectionId: 1, path: "n.md", author: ADA, authorId: "ada" });
       const { commit } = result as { commit: string };
       expect(await fake.show(commit, "%(trailers:key=Co-authored-by,valueonly,separator=%x2C )")).toBe("Grace Hopper <grace@example.com>");
     });
@@ -144,7 +189,7 @@ describe(`a version from a draft (${leg})`, () => {
     it("does not credit another account that has the author's address: by address, whatever the account", async () => {
       await h.seed({ "n.md": "x" });
       await draftOf("n.md", "y", "ada", "grace");
-      const result = await saveVersion({ ...deps(), identityOf: async (editor) => (editor.id === "grace" ? { name: "Ada's other account", email: "ada@example.com" } : PEOPLE[editor.id]) }, { connectionId: 1, path: "n.md", author: ADA, authorId: "ada" });
+      const result = await saveVersion({ ...deps(), identityOf: async (editor) => (editor.type !== "account" ? undefined : editor.id === "grace" ? { name: "Ada's other account", email: "ada@example.com" } : PEOPLE[editor.id]) }, { connectionId: 1, path: "n.md", author: ADA, authorId: "ada" });
       const { commit } = result as { commit: string };
       expect(await fake.show(commit, "%B")).toBe("Edit n");
     });

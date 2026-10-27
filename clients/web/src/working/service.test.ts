@@ -6,7 +6,7 @@ import { runMigrations } from "../db/migrate";
 import * as postgresSchema from "../db/schema/postgres";
 import * as sqliteSchema from "../db/schema/sqlite";
 import { freshDatabase, testTarget } from "../db/test-support";
-import { type Editor, MAX_CONTENT_BYTES, MAX_DRAFTS_PER_CONNECTION, type WorkingCopy, WorkingCopyService, whyUnstorable } from "./service";
+import { type Editor, MAX_CONTENT_BYTES, MAX_DRAFTS_PER_CONNECTION, MAX_EDITORS, type WorkingCopy, WorkingCopyService, whyUnstorable } from "./service";
 
 /**
  * Drafts over the real databases: that what is typed is kept exactly, that a draft is of one version, that two saves at
@@ -100,6 +100,41 @@ describe(`drafts (${leg})`, () => {
     });
   });
 
+  describe("someone who edited through a link", () => {
+    const guest = (name: string, link = 1): Editor => ({ type: "guest", link, name });
+
+    it("is an editor of the draft, once for a link and a name, and an account and a guest are different editors", async () => {
+      await saved(service.save(1, "a.md", { baseBlob: "b", content: "one" }, ALICE));
+      await saved(service.save(1, "a.md", { baseBlob: "b", content: "two" }, guest("Grace")));
+      await saved(service.save(1, "a.md", { baseBlob: "b", content: "three" }, guest("Grace")));
+      await saved(service.save(1, "a.md", { baseBlob: "b", content: "four" }, guest("Ada", 1)));
+      await saved(service.save(1, "a.md", { baseBlob: "b", content: "five" }, guest("Grace", 2)));
+      expect((await service.get(1, "a.md"))?.editors).toEqual([ALICE, guest("Grace"), guest("Ada"), guest("Grace", 2)]);
+    });
+
+    it("is never mistaken for an account of the same name as its id", async () => {
+      await saved(service.save(1, "a.md", { baseBlob: "b", content: "one" }, { type: "account", id: "Grace" }));
+      await saved(service.save(1, "a.md", { baseBlob: "b", content: "two" }, guest("Grace")));
+      expect((await service.get(1, "a.md"))?.editors).toHaveLength(2);
+    });
+
+    it("stops adding new editors at the most a draft keeps, and still takes the text of those it has", async () => {
+      expect(MAX_EDITORS).toBe(50);
+      await saved(service.save(1, "a.md", { baseBlob: "b", content: "start" }, ALICE));
+      for (let i = 1; i < MAX_EDITORS; i++) await saved(service.save(1, "a.md", { baseBlob: "b", content: `by ${i}` }, guest(`Guest ${i}`)));
+      expect((await service.get(1, "a.md"))?.editors).toHaveLength(MAX_EDITORS);
+      expect(await service.save(1, "a.md", { baseBlob: "b", content: "one more" }, guest("Too many"))).toEqual({ ok: false, reason: "too_many_editors" });
+      expect((await service.get(1, "a.md"))?.content).toBe(`by ${MAX_EDITORS - 1}`);
+      await saved(service.save(1, "a.md", { baseBlob: "b", content: "again" }, guest("Guest 3")));
+      expect((await service.get(1, "a.md"))?.content).toBe("again");
+    });
+
+    it("is kept in the draft as the database holds it, tagged, and read back as it was", async () => {
+      await saved(service.save(1, "a.md", { baseBlob: "b", content: "x" }, guest("Zoë 🌊", 7)));
+      expect((await service.get(1, "a.md"))?.editors).toEqual([{ type: "guest", link: 7, name: "Zoë 🌊" }]);
+    });
+  });
+
   describe("two saves at once", () => {
     it("lose neither editor, and the later text is one of the two", async () => {
       await saved(service.save(1, "a.md", { baseBlob: "b", content: "start" }, ALICE));
@@ -107,7 +142,7 @@ describe(`drafts (${leg})`, () => {
       const results = await Promise.all(editors.map((editor, i) => service.save(1, "a.md", { baseBlob: "b", content: `by ${i}` }, editor)));
       expect(results.every((result) => result.ok)).toBe(true);
       const copy = await service.get(1, "a.md");
-      expect(copy?.editors.map((editor) => editor.id).sort()).toEqual(["user-0", "user-1", "user-2", "user-3", "user-4", "user-5", "user-alice"]);
+      expect(copy?.editors.map((editor) => (editor.type === "account" ? editor.id : editor.name)).sort()).toEqual(["user-0", "user-1", "user-2", "user-3", "user-4", "user-5", "user-alice"]);
       expect(copy?.content).toMatch(/^by [0-5]$/);
     });
 

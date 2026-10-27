@@ -19,6 +19,8 @@ export interface Deps {
   create: (accountId: string, id: number, input: { docId: string; role: Role; expiresAt: number | null; password: string | null }) => Promise<{ found: false } | { found: true; result: CreateResult }>;
   list: (accountId: string, id: number, docId: string) => Promise<{ found: false } | { found: true; links: LinkSummary[] }>;
   revoke: (accountId: string, id: number, input: { docId: string; linkId: number }) => Promise<{ found: false } | { found: true; revoked: boolean }>;
+  /** Change a link's role, expiry or password (ROADMAP 1c.7); `updated` is false for a link that is not there or was revoked. */
+  update: (accountId: string, id: number, input: { docId: string; linkId: number; role?: Role; expiresAt?: number | null; password?: string | null }) => Promise<{ found: false } | { found: true; updated: boolean }>;
   /** The instance's origin, `FJORD_URL`: what a link's address is made on. */
   origin: string;
   /** For tests. */
@@ -69,10 +71,14 @@ function parse(text: string): Record<string, unknown> | undefined {
 /** The address a link is opened at: the document's own, with the token. */
 export const linkUrl = (origin: string, docId: string, token: string): string => `${origin.replace(/\/+$/, "")}/doc/${docId}?token=${token}`;
 
-/** `GET ?doc=<id>` lists a document's links; `POST { doc, role, expiresAt? }` makes one; `DELETE { doc, linkId }` revokes one. */
+/**
+ * `GET ?doc=<id>` lists a document's links; `POST { doc, role, expiresAt?, password? }` makes one; `DELETE { doc, linkId }` revokes one;
+ * `PATCH { doc, linkId, role?, expiresAt?, password? }` changes one: a role, an expiry (`null` for none, or a time in the future), a password
+ * (text to set one, `null` to take it away). What is left out stays.
+ */
 export async function handleLinks(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
   const method = request.method;
-  if (method !== "GET" && method !== "POST" && method !== "DELETE") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  if (method !== "GET" && method !== "POST" && method !== "DELETE" && method !== "PATCH") return failure(405, "method_not_allowed", "That method is not allowed here.");
   if (!caller) return failure(401, "unauthorized", "Sign in first.");
   if (method !== "GET" && request.headers.get("origin") !== deps.origin) return failure(403, "forbidden", "This request did not come from this site.");
   const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
@@ -111,6 +117,28 @@ export async function handleLinks(request: Request, caller: Caller | null, deps:
     }
 
     if (typeof body.linkId !== "number" || !Number.isSafeInteger(body.linkId) || body.linkId < 1) return failure(400, "invalid_request", "Say which link, by its number.");
+    if (method === "PATCH") {
+      const change: { role?: Role; expiresAt?: number | null; password?: string | null } = {};
+      if (body.role !== undefined) {
+        if (typeof body.role !== "string" || !ROLES.includes(body.role as Role)) return failure(400, "invalid_request", "Say what the link allows: view, comment or edit.");
+        change.role = body.role as Role;
+      }
+      if (body.expiresAt !== undefined) {
+        const expiry = body.expiresAt;
+        if (expiry !== null && (typeof expiry !== "number" || !Number.isSafeInteger(expiry) || expiry <= now || expiry > now + MAX_EXPIRY_MS)) {
+          return failure(400, "invalid_request", "Say when the link stops working as a time in the future (milliseconds since 1970), or null for never.");
+        }
+        change.expiresAt = expiry;
+      }
+      if (body.password !== undefined) {
+        if (body.password !== null && !isAcceptablePassword(body.password)) return failure(400, "invalid_request", `Give the password as text of ${MIN_PASSWORD_CHARS} to ${MAX_PASSWORD_CHARS} characters, or null to take it away.`);
+        change.password = body.password;
+      }
+      if (Object.keys(change).length === 0) return failure(400, "invalid_request", "Say what to change: role, expiresAt or password.");
+      const updated = await deps.update(caller.accountId, number, { docId: body.doc, linkId: body.linkId, ...change });
+      if (!updated.found) return notFound();
+      return updated.updated ? json(200, { updated: true }) : failure(409, "link_gone", "That link is not there, or it was revoked, and a revoked link stays revoked.");
+    }
     const outcome = await deps.revoke(caller.accountId, number, { docId: body.doc, linkId: body.linkId });
     return outcome.found ? json(200, { revoked: outcome.revoked }) : notFound();
   } catch (error) {

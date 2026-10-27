@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { isProviderError } from "../providers/errors";
 import type { Identity, Provider, RepositoryRef } from "../providers/types";
 import type { Editor, WorkingCopyService } from "./service";
@@ -36,6 +37,16 @@ const ATTEMPTS = 2;
 export function defaultMessage(path: string): string {
   const leaf = path.slice(path.lastIndexOf("/") + 1);
   return `Edit ${leaf.replace(/\.fj\.md$/i, "").replace(/\.md$/i, "")}`;
+}
+
+/**
+ * How a version credits someone who edited through a link (ROADMAP 1c.6): by the display name they gave, with an address that is
+ * nobody's, under the reserved `.invalid` domain, made from the link and the name so that two names on one link are two credits.
+ * The address is in the repository's history, so it says nothing about who they are.
+ */
+export function guestIdentity(editor: { link: number; name: string }): Identity {
+  const hash = createHash("sha256").update(editor.name, "utf8").digest("hex").slice(0, 8);
+  return { name: editor.name, email: `link-${editor.link}-${hash}@users.noreply.fjord.invalid` };
 }
 
 /** A name or an address as git writes it: no angle brackets, no line breaks, no stray whitespace. */

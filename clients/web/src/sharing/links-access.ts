@@ -14,11 +14,11 @@ export interface AccessDeps {
   owns: (accountId: string, id: number) => Promise<boolean>;
   /** What the Doc `id` is in the connection's repository now. */
   documentIn: (accountId: string, id: number, docId: string) => Promise<"document" | "note" | "gone" | "unavailable">;
-  links: Pick<LinkService, "create" | "list" | "revoke">;
+  links: Pick<LinkService, "create" | "list" | "revoke" | "update">;
   now?: () => number;
 }
 
-export function linksAccess(deps: AccessDeps): Pick<Deps, "create" | "list" | "revoke"> {
+export function linksAccess(deps: AccessDeps): Pick<Deps, "create" | "list" | "revoke" | "update"> {
   const now = () => deps.now?.() ?? Date.now();
   const mayShare = async (accountId: string, id: number): Promise<boolean> => {
     const grants: Grant[] = (await deps.owns(accountId, id)) ? [{ kind: "owner" }] : [];
@@ -49,6 +49,20 @@ export function linksAccess(deps: AccessDeps): Pick<Deps, "create" | "list" | "r
         status: link.revokedAt !== null ? "revoked" : link.expiresAt !== null && link.expiresAt <= at ? "expired" : "active",
       }));
       return { found: true, links };
+    },
+
+    async update(accountId, id, input) {
+      if (!(await mayShare(accountId, id))) return { found: false };
+      // A new password is hashed here and goes no further: the store is given the hash, or null to take the password away.
+      const passwordHash = input.password === undefined ? undefined : input.password === null ? null : await hashPassword(input.password);
+      return {
+        found: true,
+        updated: await deps.links.update(id, input.docId, input.linkId, {
+          ...(input.role === undefined ? {} : { role: input.role }),
+          ...(input.expiresAt === undefined ? {} : { expiresAt: input.expiresAt }),
+          ...(passwordHash === undefined ? {} : { passwordHash }),
+        }),
+      };
     },
 
     async revoke(accountId, id, input) {
