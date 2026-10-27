@@ -562,6 +562,33 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
   that path is taken. A deleted document's shares stop working and its comments are
   kept; restoring brings both back, because the id is the same.
 
+**Deleting and putting back, as built (ROADMAP 1b.12).** Renaming and moving are not built yet (1b.11); deleting is.
+
+- **Delete** is on a note's or document's page and on a folder's, after asking: the question names what will go and, for a folder,
+  how many files. `POST /api/connections/<id>/files/delete` under §12's rules makes one commit through the owner's token, authored
+  by the person, never forced, `Delete <name>`. **Only what was confirmed is deleted:** a file only if it is still the blob the
+  page showed, a folder only if it still holds the number of files the question named; otherwise nothing is written and the page
+  is read again. A head that moved without touching it is read again once. Not a vault, its manifest, `fjord.json`, or a folder
+  with a manifest in it (phase 1 leaves those to the CLI), and not in an encrypted vault. At most 1000 files at once.
+- **Unsaved changes are not thrown away.** A file with a draft has it saved as a version first (§11) and is deleted on top of
+  that; if that cannot be done it is not deleted. A folder with a draft anywhere in it is refused: save or discard first. (§8
+  above says this for folders too; asking first is the safer reading, since one commit per file is not "one commit".)
+- **The record.** Each deleted file is a row of `deletion` (path, kind, last blob, the deleting commit, who, when, and the Doc's
+  `id` when it was read: for a single document or note with a header). A folder is its files' rows with one deleting commit.
+  Git has the file in its history for good; the row is how the app finds it and how long it offers it. If a row cannot be kept the
+  deletion stands and only Undo is lost.
+- **Undo** is on the page after a deletion, once. **Recently deleted** (`/deleted/<connection>`) lists what is within the restore
+  window (`FJORD_RESTORE_WINDOW_DAYS`, default 30, §19 #11), newest first, a folder as one row. Putting back commits the last
+  blobs at the paths they had; for a single file, at a path the person chooses (a plaintext vault, a name `fjord-core` accepts,
+  the same kind of file: a document stays a document).
+- **Never over anything.** Every path is checked against the head the commit goes on top of: it must be free, so must every
+  folder on the way (a file where a folder must go is in the way), and no name in the folder may differ from it only by case. If
+  any is taken, none is put back and the taken ones are named. A restore after the window, twice, or of another repository's
+  record is refused.
+- **Not checked yet:** that a restored document's `id` is not now another file's (E401); that waits for the id index (1b.6), and
+  `fjord verify` says so if it happens. A deleted document's links and comments stopping and returning come with the shares
+  (1c) and comments (1d); the row keeps the `id` for them.
+
 ## 9. Documents and notes
 
 **The distinction is the file name.** A document is `name.fj.md`; any other `.md` in

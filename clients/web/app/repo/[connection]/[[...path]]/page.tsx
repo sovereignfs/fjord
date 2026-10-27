@@ -56,7 +56,11 @@ export default async function RepositoryPage({ params }: { params: Promise<{ con
       const draft = kept ? { content: kept.content, baseBlob: kept.baseBlob } : null;
       // Edited here while someone changed the note from elsewhere (ROADMAP 1b.10): can the two be combined?
       const preview = kept && note?.ok && kept.baseBlob !== note.blob ? await previewCombineFor(user.id, current.id, kept, note.text) : undefined;
-      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} />;
+      // What deleting names, as the page shows it now (ROADMAP 1b.12): the file's blob, and how many files are inside a folder.
+      const fileBlob = file ? outcome.read.blobs.get(file.path) : undefined;
+      const prefix = `${segments.join("/")}/`;
+      const folderFiles = found.location.kind === "folder" && !outcome.read.partial ? [...outcome.read.blobs.keys()].filter((path) => path.startsWith(prefix)).length : undefined;
+      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} folderFiles={folderFiles} />;
     }
   }
 

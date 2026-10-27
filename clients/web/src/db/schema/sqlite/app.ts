@@ -122,3 +122,32 @@ export const workingCopy = sqliteTable(
   },
   (table) => [uniqueIndex("working_copy_connection_path_idx").on(table.connectionId, table.path)],
 );
+
+/**
+ * What was deleted from a repository through this app (DESIGN.md §8, ROADMAP 1b.12): one row per file, so that **Undo**
+ * and **Recently deleted** can put the last blob back. Git still has it in its history; this is how the app finds it, and
+ * how long it offers it (a restore window). A folder's deletion is its files' rows, with the one deleting commit.
+ */
+export const deletion = sqliteTable(
+  "deletion",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    /** Where it was, repository-relative with forward slashes. */
+    path: text("path").notNull(),
+    /** The Doc's `id` (spec §8.3), when it was read: a single document or note with a header. Null otherwise. */
+    docId: text("doc_id"),
+    /** `note`, `document` or `other`: what its name made it. */
+    kind: text("kind").notNull(),
+    /** Its last blob: what a restore commits back. */
+    blob: text("blob").notNull(),
+    /** The commit that deleted it. */
+    deletingCommit: text("deleting_commit").notNull(),
+    /** The account that did it. */
+    deletedBy: text("deleted_by").notNull(),
+    deletedAt: epochMs("deleted_at").notNull(),
+    /** When it was put back; null while it is not. */
+    restoredAt: epochMs("restored_at"),
+  },
+  (table) => [index("deletion_connection_idx").on(table.connectionId, table.deletedAt)],
+);

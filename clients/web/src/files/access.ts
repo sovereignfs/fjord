@@ -1,12 +1,15 @@
 import type { LocalMinute } from "../format/types";
 import type { Identity } from "../providers/types";
 import type { CreateResult, FileKind, VaultRefusal } from "./create";
+import type { DeleteResult, DeleteTarget } from "./delete";
+import type { RestoreResult } from "./restore";
 import type { Deps } from "./http";
 
 /**
  * Whose, and where (ROADMAP 1b.7). `http.ts` has the request's rules; this has the repository's:
  *
  *  - The connection must be the caller's. Another's is "not found", and nothing is read or made.
+ *  - Deleting is in a vault this version writes to; putting back checks the vaults of what it puts back (`restore.ts`).
  *  - The vault must be one this version writes to: in the repository, plaintext, with a manifest that can be read and plain
  *    file names. That is asked of the repository as it is now (`vaultFor`), and is decided before a commit is attempted.
  */
@@ -21,10 +24,26 @@ export interface AccessDeps {
     id: number,
     input: { vault: string; folder: string; kind: FileKind; title: string; localMinute: LocalMinute; author: Identity },
   ) => Promise<CreateResult>;
+  /** Delete, through the connection's own token. Only called for a vault that is `ok` of a connection that is the caller's. */
+  delete: (accountId: string, id: number, input: { vault: string; target: DeleteTarget; author: Identity }) => Promise<DeleteResult>;
+  /** Put back, through the connection's own token. Only called for a connection that is the caller's; its records are checked there. */
+  restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<RestoreResult>;
 }
 
-export function filesAccess(deps: AccessDeps): Pick<Deps, "create"> {
+export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "delete" | "restore"> {
   return {
+    async delete(accountId, id, input) {
+      if (!(await deps.owns(accountId, id))) return { found: false };
+      const vault = await deps.vaultFor(accountId, id, input.vault);
+      if (vault !== "ok") return { found: true, result: { ok: false, reason: vault } };
+      return { found: true, result: await deps.delete(accountId, id, input) };
+    },
+
+    async restore(accountId, id, input) {
+      if (!(await deps.owns(accountId, id))) return { found: false };
+      return { found: true, result: await deps.restore(accountId, id, input) };
+    },
+
     async create(accountId, id, input) {
       if (!(await deps.owns(accountId, id))) return { found: false };
       const vault = await deps.vaultFor(accountId, id, input.vault);

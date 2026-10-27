@@ -13,6 +13,7 @@ import { GitHubProvider } from "../providers/github/provider";
 import { MemoryProvider } from "../providers/memory";
 import { FakeGitHub } from "../providers/testing/fake-github";
 import { TreeCache } from "../browse/tree-cache";
+import { DeletionService } from "../files/deletions";
 import { WorkingCopyService } from "../working/service";
 import { type ConnectionErrorCode, isConnectionError } from "./errors";
 import { ConnectionService } from "./service";
@@ -64,6 +65,7 @@ beforeEach(async () => {
   await dbRun(database, sql`DELETE FROM ${defaultTable()}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.treeCache : sqliteSchema.treeCache}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy}`);
+  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion}`);
   await fake.commitFiles({ "fjord.json": "{}" }, { replace: true });
 });
 
@@ -278,6 +280,23 @@ describe(`using and removing a connection (${leg})`, () => {
     await s.remove(ALICE, one.id);
     expect(await drafts.get(one.id, "Notes/a.md")).toBeUndefined();
     expect(await drafts.get(two.id, "Notes/a.md")).toBeDefined();
+  });
+
+  it("forgets the record of what was deleted when the repository is disconnected, and no other's", async () => {
+    const memory = new MemoryProvider();
+    for (const name of ["one", "two"]) {
+      memory.createRepository({ owner: "acme", name });
+      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    }
+    const s = new ConnectionService({ database, credentials, github: () => memory });
+    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const deletions = new DeletionService(database);
+    for (const { id } of [one, two]) await deletions.record(id, "c".repeat(40), ALICE, [{ path: "Notes/a.md", kind: "note", blob: "b".repeat(40) }]);
+
+    await s.remove(ALICE, one.id);
+    expect(await deletions.list(one.id, 1e12)).toEqual([]);
+    expect(await deletions.list(two.id, 1e12)).toHaveLength(1);
   });
 
   it("shows an account only its own connections, and answers for another's as if there were none", async () => {

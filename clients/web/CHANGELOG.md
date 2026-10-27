@@ -13,6 +13,17 @@ section.
 
 ### Added
 
+- **Delete and put back** (ROADMAP 1b.12): a note, a document or a folder can be deleted after asking (the question names it, and
+  for a folder how many files go with it). It is one commit, authored by you, that removes it; nothing else is touched, and only
+  what you were shown is deleted: a note that changed in the repository meanwhile, or a folder that gained a file, is left alone
+  and the page looks again. A note with unsaved changes has them saved as a version first, so nothing typed is lost; a folder
+  with any is refused. The next page offers **Undo**, and **Recently deleted** (`/deleted/<id>`, linked from the repository) lists
+  what went within the last 30 days (`FJORD_RESTORE_WINDOW_DAYS`): a file is put back where it was or somewhere you choose, a
+  folder's files all together, exactly as they were. Putting back is never over anything: if a path is taken, or something is in
+  the way, nothing is put back and the taken ones are named. A vault, its manifest and `fjord.json` are never deleted from here.
+  A new table, `deletion`, in both dialects (migration `0007`); disconnecting a repository deletes its records.
+  `POST /api/connections/<id>/files/delete` and `…/files/restore`, under the same rules as the other routes. The format module's
+  `parseDocument`, `checkName` and `caseCollisions` are now used by the app.
 - **New notes and documents** (ROADMAP 1b.7): a folder of a plaintext vault has **New note** and **New document**. Give a title
   and the file is made in one commit, authored by you, and opened. The name is `fjord-core`'s, the one every client uses: a note
   from its first line (or, with no title, the date and time, as an empty file), a document from its title with `.fj.md`, numbered

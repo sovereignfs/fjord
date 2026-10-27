@@ -187,6 +187,12 @@ export class WorkingCopyService {
     await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);
   }
 
+  /** The path of every draft of a connection (at most `MAX_DRAFTS_PER_CONNECTION`). */
+  async paths(connectionId: number): Promise<string[]> {
+    const rows = await dbAll<{ path: string }>(this.database, sql`SELECT path FROM ${table(this.database)} WHERE connection_id = ${connectionId} ORDER BY path`);
+    return rows.map((row) => row.path);
+  }
+
   async count(connectionId: number): Promise<number> {
     const row = await dbGet<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);
     return Number(row?.n ?? 0);

@@ -172,6 +172,21 @@ describe.skipIf(!available)("the format module", () => {
     });
   });
 
+  describe("reading a header and checking names", () => {
+    it("says whether a file has a header and its identifier", () => {
+      expect(fjord().parseDocument("---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\ntitle: T\n---\nbody")).toMatchObject({ status: "present", docId: "01jagc4k7pt8y3wqnmzv5xrb8j", title: "T" });
+      expect(fjord().parseDocument("# Just a note\n").status).toBe("absent");
+      expect(fjord().parseDocument("---\nid: nope\n---\n")).toMatchObject({ status: "present", docId: null });
+    });
+
+    it("names the rules a name breaks, and the names a case-insensitive filesystem would merge", () => {
+      expect(fjord().checkName("notes.md")).toEqual([]);
+      expect(fjord().checkName("a:b.md")).toEqual(["E501"]);
+      expect(fjord().caseCollisions(["Notes.md", "notes.md", "x.md"])).toEqual([["Notes.md", "notes.md"]]);
+      expect(fjord().caseCollisions(["a.md", "b.md"])).toEqual([]);
+    });
+  });
+
   it("is loaded once, whatever asks", () => {
     expect(fjord()).toBe(fjord());
   });

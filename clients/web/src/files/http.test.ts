@@ -3,7 +3,9 @@ import { CredentialError } from "../crypto/errors";
 import { ProviderError } from "../providers/errors";
 import type { Caller } from "../working/http";
 import { type CreateResult, MAX_TITLE_CHARS, type VaultRefusal } from "./create";
-import { type Deps, handleCreate } from "./http";
+import type { DeleteResult } from "./delete";
+import { type Deps, handleCreate, handleDelete, handleRestore } from "./http";
+import type { RestoreResult } from "./restore";
 
 /**
  * Who may call `/api/connections/<id>/files`, from where, with what, and what they are told: the rules of `http.ts` with a
@@ -20,8 +22,18 @@ function stub() {
     found: true,
     result: { ok: true, path: "Notes/Projects/Plan.md", commit: "c".repeat(40) },
   }));
-  const deps: Deps = { create: (accountId, id, input) => create(accountId, id, input), origin: ORIGIN };
-  return { deps, create };
+  const remove = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: DeleteResult | { ok: false; reason: VaultRefusal } }> => ({
+    found: true,
+    result: { ok: true, commit: "d".repeat(40), files: 1, deletions: [7] },
+  }));
+  const restore = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: RestoreResult }> => ({ found: true, result: { ok: true, commit: "e".repeat(40), paths: ["Notes/Plan.md"] } }));
+  const deps: Deps = {
+    create: (accountId, id, input) => create(accountId, id, input),
+    delete: (accountId, id, input) => remove(accountId, id, input),
+    restore: (accountId, id, input) => restore(accountId, id, input),
+    origin: ORIGIN,
+  };
+  return { deps, create, remove, restore };
 }
 
 const post = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
@@ -184,5 +196,209 @@ describe("what they are told", () => {
     expect(await response.text()).not.toMatch(/SECRET|hunter2/);
     expect(logged.mock.calls.flat().join(" ")).not.toMatch(/SECRET|hunter2/);
     logged.mockRestore();
+  });
+});
+
+// --- Deleting and putting back (ROADMAP 1b.12) ---------------------------------------------------------------------
+
+const BLOB = "a".repeat(40);
+const delFile = { vault: "Notes", type: "file", path: "Notes/Plan.md", blob: BLOB };
+const delFolder = { vault: "Notes", type: "folder", path: "Notes/Projects", files: 3 };
+const at = (route: string, body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
+  const headers: Record<string, string> = {};
+  if (init.origin !== null) headers.origin = init.origin ?? ORIGIN;
+  if (init.type !== null) headers["content-type"] = init.type ?? "application/json";
+  return new Request(`${ORIGIN}/api/connections/1/files/${route}`, { method: "POST", headers, body: typeof body === "string" ? body : JSON.stringify(body) });
+};
+
+describe.each([
+  ["delete", handleDelete, delFile],
+  ["restore", handleRestore, { ids: [7] }],
+] as const)("%s: who may", (route, handler, good) => {
+  it("nobody who is not signed in: 401, and nothing is asked", async () => {
+    const { deps, remove, restore } = stub();
+    expect((await handler(at(route, good), null, deps, "1")).status).toBe(401);
+    expect(remove).not.toHaveBeenCalled();
+    expect(restore).not.toHaveBeenCalled();
+  });
+
+  it("not from another site", async () => {
+    const { deps, remove, restore } = stub();
+    for (const origin of ["https://evil.example", "http://fjord.example.com", "null", null]) expect((await handler(at(route, good, { origin }), ALICE, deps, "1")).status).toBe(403);
+    expect(remove).not.toHaveBeenCalled();
+    expect(restore).not.toHaveBeenCalled();
+  });
+
+  it("only POST, and only JSON", async () => {
+    const { deps } = stub();
+    for (const method of ["GET", "PUT", "DELETE"]) expect((await handler(new Request(`${ORIGIN}/x`, { method, headers: { origin: ORIGIN } }), ALICE, deps, "1")).status).toBe(405);
+    for (const type of ["text/plain", null]) expect((await handler(at(route, good, { type }), ALICE, deps, "1")).status).toBe(415);
+  });
+
+  it.each(["0", "01", "-1", "x", "", "99999999999999999"])("a connection id like %j is a 404 before anything is asked", async (id) => {
+    const { deps, remove, restore } = stub();
+    expect((await handler(at(route, good), ALICE, deps, id)).status).toBe(404);
+    expect(remove).not.toHaveBeenCalled();
+    expect(restore).not.toHaveBeenCalled();
+  });
+
+  it("not another account's connection: a 404 that says nothing else", async () => {
+    const { deps, remove, restore } = stub();
+    remove.mockResolvedValue({ found: false });
+    restore.mockResolvedValue({ found: false });
+    const response = await handler(at(route, good), ALICE, deps, "1");
+    expect(response.status).toBe(404);
+    expect((await body(response)).error).toEqual({ code: "not_found", message: "There is no such connection." });
+  });
+
+  it.each([["not JSON", "{nope"], ["an array", "[]"]])("refuses %s with 400", async (_name, sent) => {
+    const { deps } = stub();
+    expect((await handler(at(route, sent), ALICE, deps, "1")).status).toBe(400);
+  });
+
+  it("refuses a body that is far too large with 413", async () => {
+    const { deps } = stub();
+    expect((await handler(at(route, { ...good, extra: "y".repeat(20_000) }), ALICE, deps, "1")).status).toBe(413);
+  });
+});
+
+describe("deleting: what may be sent, and what they are told", () => {
+  it("is a place and what the person was shown, for the caller as their account names them", async () => {
+    const { deps, remove } = stub();
+    const response = await handleDelete(at("delete", { ...delFile, author: { name: "Mallory", email: "m@evil.example" } }), ALICE, deps, "1");
+    expect(response.status).toBe(200);
+    expect(await body(response)).toEqual({ commit: "d".repeat(40), files: 1, deletions: [7] });
+    expect(remove).toHaveBeenCalledWith("alice", 1, { vault: "Notes", target: { type: "file", path: "Notes/Plan.md", blob: BLOB }, author: { name: "Alice Example", email: "alice@example.com" } });
+    await handleDelete(at("delete", delFolder), ALICE, deps, "1");
+    expect(remove).toHaveBeenLastCalledWith("alice", 1, expect.objectContaining({ target: { type: "folder", path: "Notes/Projects", files: 3 } }));
+  });
+
+  it.each([
+    ["no vault", { ...delFile, vault: undefined }],
+    ["a vault with a slash", { ...delFile, vault: "Notes/Inner" }],
+    ["no path", { ...delFile, path: undefined }],
+    ["a path out of the repository", { ...delFile, path: "../x.md" }],
+    ["no type", { ...delFile, type: undefined }],
+    ["a type that is not one", { ...delFile, type: "vault" }],
+    ["a file without the version shown", { vault: "Notes", type: "file", path: "Notes/Plan.md" }],
+    ["a file with a version that is not an object id", { ...delFile, blob: "main" }],
+    ["a file with a version in capitals", { ...delFile, blob: "A".repeat(40) }],
+    ["a folder without a count", { vault: "Notes", type: "folder", path: "Notes/Projects" }],
+    ["a folder with a count that is not a whole number", { ...delFolder, files: 1.5 }],
+    ["a folder with a count of none", { ...delFolder, files: 0 }],
+    ["a folder with a count in text", { ...delFolder, files: "3" }],
+  ])("refuses %s with 400, without asking", async (_name, sent) => {
+    const { deps, remove } = stub();
+    expect((await handleDelete(at("delete", sent), ALICE, deps, "1")).status).toBe(400);
+    expect(remove).not.toHaveBeenCalled();
+  });
+
+  it.each<[Extract<DeleteResult, { ok: false }>["reason"], number]>([
+    ["gone", 409],
+    ["upstream_changed", 409],
+    ["folder_changed", 409],
+    ["too_many", 422],
+    ["has_drafts", 409],
+    ["draft_not_saved", 409],
+    ["protected", 422],
+    ["head_moved", 409],
+    ["read_only", 422],
+    ["bad_token", 422],
+    ["unavailable", 502],
+  ])("%s is %i, with its own code and words that say nothing was deleted", async (reason, status) => {
+    const { deps, remove } = stub();
+    remove.mockResolvedValue({ found: true, result: { ok: false, reason } });
+    const response = await handleDelete(at("delete", delFile), ALICE, deps, "1");
+    const error = (await body(response)).error;
+    expect(response.status).toBe(status);
+    expect(error.code).toBe(reason);
+    expect(error.message.length).toBeGreaterThan(20);
+    expect(error.message).not.toMatch(/was made|nothing was made/i); // not the words for creating
+  });
+
+  it("says how many files, for a folder that holds others than the person was told, and for drafts", async () => {
+    const { deps, remove } = stub();
+    remove.mockResolvedValue({ found: true, result: { ok: false, reason: "folder_changed", detail: 4 } });
+    const changed = await body(await handleDelete(at("delete", delFolder), ALICE, deps, "1"));
+    expect(changed.error).toMatchObject({ code: "folder_changed", detail: 4 });
+    expect(changed.error.message).toContain("4 files");
+    remove.mockResolvedValue({ found: true, result: { ok: false, reason: "has_drafts", detail: 2 } });
+    const drafts = await body(await handleDelete(at("delete", delFolder), ALICE, deps, "1"));
+    expect(drafts.error.message).toMatch(/^2 of the files/);
+  });
+
+  it.each(["unknown_vault", "encrypted_vault", "unsupported_vault"] as const)("a vault that is %s is a 422 that says so", async (reason) => {
+    const { deps, remove } = stub();
+    remove.mockResolvedValue({ found: true, result: { ok: false, reason } });
+    const response = await handleDelete(at("delete", delFile), ALICE, deps, "1");
+    expect(response.status).toBe(422);
+    expect((await body(response)).error.code).toBe(reason);
+  });
+
+  it("answers an unexpected failure plainly, and logs its name and not its text", async () => {
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { deps, remove } = stub();
+    remove.mockRejectedValue(new Error("token github_pat_SECRET at postgres://user:hunter2@db"));
+    const response = await handleDelete(at("delete", delFile), ALICE, deps, "1");
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toMatch(/SECRET|hunter2/);
+    expect(logged.mock.calls.flat().join(" ")).not.toMatch(/SECRET|hunter2/);
+    logged.mockRestore();
+  });
+});
+
+describe("putting back: what may be sent, and what they are told", () => {
+  it("is deletions by number and, for one, a place; the caller is who is credited", async () => {
+    const { deps, restore } = stub();
+    const response = await handleRestore(at("restore", { ids: [7, 8, 8], path: null, author: { name: "Mallory", email: "m@evil.example" } }), ALICE, deps, "1");
+    expect(response.status).toBe(200);
+    expect(await body(response)).toEqual({ commit: "e".repeat(40), paths: ["Notes/Plan.md"] });
+    expect(restore).toHaveBeenCalledWith("alice", 1, { ids: [7, 8, 8], path: undefined, author: { name: "Alice Example", email: "alice@example.com" } });
+    await handleRestore(at("restore", { ids: [7], path: "Notes/Archive/Plan.md" }), ALICE, deps, "1");
+    expect(restore).toHaveBeenLastCalledWith("alice", 1, expect.objectContaining({ ids: [7], path: "Notes/Archive/Plan.md" }));
+  });
+
+  it.each([
+    ["no deletions", {}],
+    ["none", { ids: [] }],
+    ["a number that is not one", { ids: ["7"] }],
+    ["a number that is not whole", { ids: [1.5] }],
+    ["a number that is not positive", { ids: [0] }],
+    ["a negative number", { ids: [-1] }],
+    ["too many", { ids: Array.from({ length: 1001 }, (_, i) => i + 1) }],
+    ["a place out of the repository", { ids: [7], path: "../x.md" }],
+    ["a place that is not text", { ids: [7], path: 5 }],
+  ])("refuses %s with 400, without asking", async (_name, sent) => {
+    const { deps, restore } = stub();
+    expect((await handleRestore(at("restore", sent), ALICE, deps, "1")).status).toBe(400);
+    expect(restore).not.toHaveBeenCalled();
+  });
+
+  it.each<[Extract<RestoreResult, { ok: false }>["reason"], number]>([
+    ["not_found", 404],
+    ["already_restored", 409],
+    ["expired", 409],
+    ["bad_path", 422],
+    ["vault_unavailable", 422],
+    ["path_taken", 409],
+    ["blob_gone", 422],
+    ["head_moved", 409],
+    ["read_only", 422],
+    ["bad_token", 422],
+    ["unavailable", 502],
+  ])("%s is %i, with its own code and words", async (reason, status) => {
+    const { deps, restore } = stub();
+    restore.mockResolvedValue({ found: true, result: { ok: false, reason } });
+    const response = await handleRestore(at("restore", { ids: [7] }), ALICE, deps, "1");
+    const error = (await body(response)).error;
+    expect(response.status).toBe(status);
+    expect(error.code).toBe(reason);
+    expect(error.message.length).toBeGreaterThan(15);
+  });
+
+  it("names the paths that are taken", async () => {
+    const { deps, restore } = stub();
+    restore.mockResolvedValue({ found: true, result: { ok: false, reason: "path_taken", taken: ["Notes/a.md", "Notes/b.md"] } });
+    expect((await body(await handleRestore(at("restore", { ids: [7, 8] }), ALICE, deps, "1"))).error.taken).toEqual(["Notes/a.md", "Notes/b.md"]);
   });
 });

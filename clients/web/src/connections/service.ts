@@ -59,6 +59,7 @@ const MAX_TOKEN_LENGTH = 1000;
 const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.connection : sqliteSchema.connection);
 const trees = (database: Database) => (database.dialect === "postgres" ? postgresSchema.treeCache : sqliteSchema.treeCache);
 const drafts = (database: Database) => (database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy);
+const deletions = (database: Database) => (database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion);
 const defaults = (database: Database) => (database.dialect === "postgres" ? postgresSchema.accountDefault : sqliteSchema.accountDefault);
 const COLUMNS = sql.raw('id, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", default_vault AS "defaultVault"');
 
@@ -184,6 +185,8 @@ export class ConnectionService {
     await dbRun(this.database, sql`DELETE FROM ${trees(this.database)} WHERE connection_id = ${id}`);
     // So are the drafts: they are of files of a repository this account no longer has a way into.
     await dbRun(this.database, sql`DELETE FROM ${drafts(this.database)} WHERE connection_id = ${id}`);
+    // And the record of what was deleted: it is of files of a repository that is no longer connected.
+    await dbRun(this.database, sql`DELETE FROM ${deletions(this.database)} WHERE connection_id = ${id}`);
     await this.credentials.remove(row.credentialId);
     return true;
   }

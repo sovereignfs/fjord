@@ -1131,6 +1131,233 @@ test("who may make a file: a signed-in person, from this site, in their own repo
   }
 });
 
+// --- Deleting and putting back (ROADMAP 1b.12) ----------------------------------------------------------------
+
+test("a note is deleted after asking, in one commit, and Undo puts back exactly what was there", async ({ page }) => {
+  try {
+    const who = { email: `grace-${Date.now()}@example.com`, name: "Grace Hopper" };
+    const text = "\ufeff# Weekly\r\n\r\ntrailing  \r\n日本語 💧";
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Weekly review.md": text, "Notes/other.md": "untouched" }, who);
+    const before = (await hubs.more.branchHead()) as string;
+
+    await page.goto(`/repo/${id}/Notes/Weekly review.md`);
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(page.getByText("It stays in the repository's history")).toBeVisible();
+    expect(await hubs.more.branchHead()).toBe(before); // asked, not done
+    await page.getByRole("button", { name: "Yes, delete" }).click();
+
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+    await expect(page.getByText("Deleted “Weekly review”")).toBeVisible();
+    const deleted = (await hubs.more.branchHead()) as string;
+    expect(await hubs.more.show(deleted, "%P")).toBe(before);
+    expect(await hubs.more.show(deleted, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
+    expect(await hubs.more.show(deleted, "%B")).toBe("Delete Weekly review");
+    expect(Object.keys(await hubs.more.filesAt(deleted)).sort()).toEqual(["Notes/fjord.vault.json", "Notes/other.md"]);
+
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("Weekly review");
+    const restored = (await hubs.more.branchHead()) as string;
+    expect(await hubs.more.show(restored, "%P")).toBe(deleted);
+    expect((await hubs.more.filesAt(restored))["Notes/Weekly review.md"]).toBe(text);
+    await hubs.more.fsck();
+    // Said once.
+    await page.reload();
+    await expect(page.getByText("Deleted “Weekly review”")).toHaveCount(0);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("Recently deleted lists what went, and a file is put back where it was or somewhere else", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/a.md": "first", "Notes/b.md": "second", "Notes/Sub/keep.md": "k" });
+    for (const name of ["a", "b"]) {
+      await page.goto(`/repo/${id}/Notes/${name}.md`);
+      await page.getByRole("button", { name: "Delete", exact: true }).click();
+      await page.getByRole("button", { name: "Yes, delete" }).click();
+      await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+    }
+
+    await page.goto(`/deleted/${id}`);
+    const list = page.getByRole("list", { name: "Recently deleted" });
+    await expect(list.getByRole("listitem")).toHaveCount(2);
+    await expect(list.getByRole("listitem").first()).toContainText("Notes/b.md"); // newest first
+
+    // Where it was.
+    await list.getByRole("listitem").filter({ hasText: "Notes/a.md" }).getByRole("button", { name: "Put back" }).click();
+    await expect(page.getByRole("link", { name: "Notes/a.md" })).toBeVisible();
+    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/a.md"]).toBe("first");
+
+    // Somewhere else, in a folder that is there, with the same bytes.
+    const second = list.getByRole("listitem").filter({ hasText: "Notes/b.md" });
+    await second.getByLabel("Put Notes/b.md back at").fill("Notes/Sub/Renamed b.md");
+    await second.getByRole("button", { name: "Put back" }).click();
+    await expect(page.getByRole("link", { name: "Notes/Sub/Renamed b.md" })).toBeVisible();
+    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Sub/Renamed b.md"]).toBe("second");
+
+    await page.reload();
+    await expect(page.getByText("Nothing was deleted in the last 30 days")).toBeVisible();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a folder is deleted with everything in it after naming how many, and put back together", async ({ page }) => {
+  try {
+    const files = { "Notes/Projects/a.md": "a", "Notes/Projects/2026/b.md": "b", "Notes/Projects/2026/c.csv": "x,y" };
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, ...files, "Notes/keep.md": "k" });
+    await page.goto(`/repo/${id}/Notes/Projects`);
+    await page.getByRole("button", { name: "Delete folder" }).click();
+    await expect(page.getByText("the folder “Projects” and the 3 files in it")).toBeVisible();
+    await page.getByRole("button", { name: "Yes, delete" }).click();
+
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+    const deleted = (await hubs.more.branchHead()) as string;
+    expect(Object.keys(await hubs.more.filesAt(deleted)).sort()).toEqual(["Notes/fjord.vault.json", "Notes/keep.md"]);
+    expect((await hubs.more.show(deleted, "%B")).split("\n")[0]).toBe("Delete Projects");
+
+    await page.goto(`/deleted/${id}`);
+    const list = page.getByRole("list", { name: "Recently deleted" });
+    await expect(list.getByRole("listitem")).toHaveCount(1);
+    await expect(list).toContainText("3 files");
+    await list.getByRole("button", { name: "Put all back" }).click();
+    await expect(page.getByText("3 files, where they were.")).toBeVisible();
+    expect(await hubs.more.filesAt((await hubs.more.branchHead()) as string)).toMatchObject(files);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("only what was confirmed is deleted: a folder that gained a file since is left alone", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Projects/a.md": "a", "Notes/Projects/b.md": "b" });
+    await page.goto(`/repo/${id}/Notes/Projects`);
+    await page.getByRole("button", { name: "Delete folder" }).click();
+    const theirs = await hubs.more.commitFiles({ "Notes/Projects/c.md": "arrived meanwhile" });
+    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await expect(page.getByText("Nothing was deleted", { exact: true })).toBeVisible();
+    await expect(page.getByText("now holds 3 files")).toBeVisible();
+    expect(await hubs.more.branchHead()).toBe(theirs);
+    await page.getByRole("button", { name: "Look again" }).click();
+    await expect(page.getByText("the 3 files in it")).toHaveCount(0);
+    await page.getByRole("button", { name: "Delete folder" }).click();
+    await expect(page.getByText("the 3 files in it")).toBeVisible();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a note changed in the repository since it was shown is not deleted", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "mine\n" });
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    const theirs = await hubs.more.commitFiles({ "Notes/n.md": "changed elsewhere\n" });
+    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await expect(page.getByText("changed in the repository after you looked at it")).toBeVisible();
+    expect(await hubs.more.branchHead()).toBe(theirs);
+    expect((await hubs.more.filesAt(theirs))["Notes/n.md"]).toBe("changed elsewhere\n");
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("unsaved changes are saved as a version before a note is deleted, so putting it back has them", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await noteEditor(page, "n.md").click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type("typed, never saved");
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    const before = (await hubs.more.branchHead()) as string;
+
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+
+    const deleted = (await hubs.more.branchHead()) as string;
+    const version = (await hubs.more.show(deleted, "%P")) as string;
+    expect(await hubs.more.show(version, "%P")).toBe(before);
+    expect((await hubs.more.filesAt(version))["Notes/n.md"]).toBe("original\ntyped, never saved");
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("n"); // put back, and the page read again
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await expect(noteEditor(page, "n.md")).toContainText("typed, never saved");
+    await expect(page.getByText("Your changes were kept")).toHaveCount(0); // it is the repository's now, not a draft
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("putting back is never over anything: a path that is taken is named, and what is there stays", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "the deleted one\n" });
+    await page.goto(`/repo/${id}/Notes/n.md`);
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+    const theirs = await hubs.more.commitFiles({ "Notes/n.md": "made since\n" });
+
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByText("Something is already at that path")).toBeVisible();
+    expect(await hubs.more.branchHead()).toBe(theirs);
+    expect((await hubs.more.filesAt(theirs))["Notes/n.md"]).toBe("made since\n");
+
+    // Somewhere free it goes.
+    await page.goto(`/deleted/${id}`);
+    await page.getByLabel("Put Notes/n.md back at").fill("Notes/n restored.md");
+    await page.getByRole("button", { name: "Put back" }).click();
+    await expect(page.getByRole("link", { name: "Notes/n restored.md" })).toBeVisible();
+    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/n restored.md"]).toBe("the deleted one\n");
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("who may delete and put back: a signed-in person, from this site, in their own repository, never a vault's own files", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Secret/fjord.vault.json": ENCRYPTED_MANIFEST, "Secret/recipients.txt": RECIPIENTS, "Secret/x.md.age": "age-encryption.org/v1", "Notes/n.md": "x\n" });
+    const del = `/api/connections/${id}/files/delete`;
+    const res = `/api/connections/${id}/files/restore`;
+    const head = (await hubs.more.branchHead()) as string;
+    const blob = gitBlobId("x\n");
+    const file = { vault: "Notes", type: "file", path: "Notes/n.md", blob };
+    const post = (url: string, data: unknown, origin: string = BASE) => page.request.post(url, { headers: { origin }, data });
+
+    expect((await post(del, file, "https://evil.example")).status()).toBe(403);
+    expect((await post(res, { ids: [1] }, "https://evil.example")).status()).toBe(403);
+    expect((await post(del, { ...file, blob: "main" })).status()).toBe(400);
+    expect((await post(del, { ...file, path: "../x.md" })).status()).toBe(400);
+    expect((await post(res, { ids: [] })).status()).toBe(400);
+    expect((await page.request.get(del)).status()).toBe(405);
+    expect(((await (await post(del, { vault: "Notes", type: "file", path: "Notes/fjord.vault.json", blob })).json()).error.code)).toBe("upstream_changed"); // not its blob
+    expect(((await (await post(del, { vault: "Notes", type: "folder", path: "Notes", files: 2 })).json()).error.code)).toBe("protected");
+    expect(((await (await post(del, { vault: "Secret", type: "file", path: "Secret/x.md.age", blob })).json()).error.code)).toBe("encrypted_vault");
+    expect(((await (await post(res, { ids: [999] })).json()).error.code)).toBe("not_found");
+
+    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.14" } });
+    const other = await stranger.newPage();
+    expect((await other.request.post(del, { headers: { origin: BASE }, data: file })).status()).toBe(401);
+    await signUp(other);
+    expect((await other.request.post(del, { headers: { origin: BASE }, data: file })).status()).toBe(404);
+    expect((await other.request.post(res, { headers: { origin: BASE }, data: { ids: [1] } })).status()).toBe(404);
+    expect((await other.request.get(`/deleted/${id}`)).status()).toBe(404);
+    await stranger.close();
+
+    // None of that wrote anything; the right call deletes exactly one file.
+    expect(await hubs.more.branchHead()).toBe(head);
+    const done = await post(del, file);
+    expect(done.status()).toBe(200);
+    const { deletions } = await done.json();
+    expect(deletions).toHaveLength(1);
+    // A record is another account's to see or use only if it is theirs: it is not.
+    await expect.poll(async () => (await hubs.more.branchHead()) !== head).toBe(true);
+  } finally {
+    await restoreMore();
+  }
+});
+
 test("a document is not opened in the note editor, and an encrypted file stays locked", async ({ page }) => {
   const id = await connected(page);
   await page.goto(`/repo/${id}/Public/plan.fj.md`);

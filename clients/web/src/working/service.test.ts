@@ -225,6 +225,14 @@ describe(`drafts (${leg})`, () => {
     });
   });
 
+  it("lists the paths of a connection's drafts and no other's", async () => {
+    await saved(service.save(1, "b/x.md", { baseBlob: "b", content: "x" }, ALICE));
+    await saved(service.save(1, "a.md", { baseBlob: "b", content: "x" }, ALICE));
+    await saved(service.save(2, "other.md", { baseBlob: "b", content: "x" }, ALICE));
+    expect(await service.paths(1)).toEqual(["a.md", "b/x.md"]);
+    expect(await service.paths(3)).toEqual([]);
+  });
+
   it("forgets every draft of a connection and no other", async () => {
     await saved(service.save(1, "a.md", { baseBlob: "b", content: "x" }, ALICE));
     await saved(service.save(1, "b.md", { baseBlob: "b", content: "x" }, ALICE));
