@@ -90,6 +90,17 @@ pub fn implied_title(text: &str, file_name: &str) -> String {
     api::implied_title(text, file_name)
 }
 
+#[wasm_bindgen(js_name = mergeTexts)]
+pub fn merge_texts(
+    base: &str,
+    ours: &str,
+    theirs: &str,
+    ours_label: &str,
+    theirs_label: &str,
+) -> String {
+    api::merge_texts(base, ours, theirs, ours_label, theirs_label)
+}
+
 #[wasm_bindgen(js_name = planSetup)]
 pub fn plan_setup(
     options_json: &str,
