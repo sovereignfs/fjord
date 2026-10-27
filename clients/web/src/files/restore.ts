@@ -18,8 +18,11 @@ import type { DeletionRecord, DeletionService } from "./deletions";
  *  - **A chosen path keeps what the file is.** Its name is checked by `fjord-core`, it stays in a plaintext vault, and it keeps
  *    its extension, so a document never becomes a note by being put back somewhere else.
  *  - **Not for ever.** A deletion older than the restore window is not offered; git has it still.
- *  - Not checked: that a restored document's `id` is not now another file's (E401). That comes with the id index (1b.6); the
- *    CLI's `fjord verify` says so if it happens.
+ *  - **Never a second file with the same `id`** (spec E401). A deleted document's `id` is kept in its record; if a file in the
+ *    repository has it now (a copy made meanwhile, or the document made again from another tool), nothing is put back and
+ *    those files are named. That is asked of the id index (1b.6), which looks at what has been read and, if need be, a bounded
+ *    share of what has not, so a copy nobody has opened can be missed. Only a single file's deletion records its `id` (a folder's would mean reading every
+ *    file in it), so only that is checked; the CLI's `fjord verify` says so if a duplicate gets through.
  */
 export interface RestoreDeps {
   provider: Provider;
@@ -27,6 +30,11 @@ export interface RestoreDeps {
   branch: string;
   format: Pick<Fjord, "checkName" | "caseCollisions">;
   deletions: Pick<DeletionService, "get" | "markRestored">;
+  /**
+   * Where each of these Doc ids is in the repository now: the paths of the files that have it, for the ids that are anywhere.
+   * Optional so that a caller with no index restores as it did; the web always gives it.
+   */
+  idsInUse?: (docIds: string[]) => Promise<Record<string, string[]>>;
   /** Whether files may be put in this vault of the repository now (it is there, plaintext, plain names). */
   vaultOk: (vault: string) => boolean;
   /** How long after it a deletion is offered, in milliseconds. */
@@ -39,8 +47,8 @@ export type RestoreResult =
   | { ok: true; commit: string; paths: string[] }
   | {
       ok: false;
-      reason: "not_found" | "already_restored" | "expired" | "bad_path" | "vault_unavailable" | "path_taken" | "blob_gone" | "head_moved" | "read_only" | "bad_token" | "unavailable";
-      /** For `path_taken`: the paths that are. */
+      reason: "not_found" | "already_restored" | "expired" | "bad_path" | "vault_unavailable" | "path_taken" | "id_taken" | "blob_gone" | "head_moved" | "read_only" | "bad_token" | "unavailable";
+      /** For `path_taken`: the paths that are. For `id_taken`: the files that have the id of what was to be put back. */
       taken?: string[];
     };
 
@@ -65,6 +73,14 @@ export async function restoreDeleted(deps: RestoreDeps, input: { connectionId: n
   const targets = targetsOf(deps, records, input.path);
   if (typeof targets === "string") return { ok: false, reason: targets };
   if (!targets.every((target) => deps.vaultOk(target.path.split("/")[0] as string))) return { ok: false, reason: "vault_unavailable" };
+
+  // The id of a document is its own: another file with it would make two Docs of one (spec E401).
+  const wanted = [...new Set(records.flatMap((record) => (record.docId === null ? [] : [record.docId])))];
+  if (wanted.length > 0 && deps.idsInUse) {
+    const inUse = await deps.idsInUse(wanted);
+    const holders = [...new Set(wanted.flatMap((docId) => inUse[docId] ?? []))].sort();
+    if (holders.length > 0) return { ok: false, reason: "id_taken", taken: holders };
+  }
 
   try {
     for (let attempt = 1; ; attempt++) {

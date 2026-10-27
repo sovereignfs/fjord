@@ -601,8 +601,10 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
   folder on the way (a file where a folder must go is in the way), and no name in the folder may differ from it only by case. If
   any is taken, none is put back and the taken ones are named. A restore after the window, twice, or of another repository's
   record is refused.
-- **Not checked yet:** that a restored document's `id` is not now another file's (E401); the id index exists now (1b.6, §9) but
-  restoring does not ask it yet, and `fjord verify` says so if it happens. A deleted document's links and comments stopping and returning come with the shares
+- **One id, one file.** That a restored document's `id` is not now another file's (E401) is checked for a single file, whose deletion records its `id`: if a file has it now,
+  nothing is put back and the files that have it are named. A folder's deletion records no ids (it would read every file), so a
+  folder's documents are not checked, and the index only knows what it has read, so a copy nobody opened can be missed;
+  `fjord verify` says so if a duplicate gets through. A deleted document's links and comments stopping and returning come with the shares
   (1c) and comments (1d); the row keeps the `id` for them.
 
 ## 9. Documents and notes

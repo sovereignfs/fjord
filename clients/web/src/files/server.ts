@@ -1,4 +1,5 @@
 import { DocIndex } from "../browse/doc-index";
+import { resolveDocId } from "../browse/ids";
 import { readConnection } from "../browse/server";
 import { connectionService } from "../connections/server";
 import { getDatabase } from "../db/boot";
@@ -97,6 +98,13 @@ async function restore(accountId: string, id: number, input: { ids: number[]; pa
       format: fjord(),
       deletions: new DeletionService(await getDatabase()),
       vaultOk: (vault) => checkVault(vaults, vault) === "ok",
+      idsInUse: async (docIds) => {
+        const source = { connectionId: id, ref: { owner: used.connection.owner, name: used.connection.name }, read: outcome.read, provider: used.provider };
+        const index = new DocIndex(await getDatabase());
+        const found: Record<string, string[]> = {};
+        for (const docId of docIds) found[docId] = (await resolveDocId({ index, format: fjord() }, [source], docId)).matches.map((match) => match.path);
+        return found;
+      },
       windowMs: restoreWindowMs(),
     },
     { connectionId: id, ...input },
