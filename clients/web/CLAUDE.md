@@ -10,6 +10,12 @@ work. Where this file and the design disagree, the design is right and this file
 should be fixed; where either disagrees with [`spec/SPEC.md`](../../spec/SPEC.md),
 the spec is. Build the roadmap's tasks in order, and check each one's "Accepts when".
 
+[`AGENTS.md`](AGENTS.md) is written by `next dev` and says this is not the Next.js you
+know: read the guide in `node_modules/next/dist/docs/` before writing Next code. Other
+agents read it by that name; Claude Code reads it through this line.
+
+@AGENTS.md
+
 ## Commands
 
 ```bash
