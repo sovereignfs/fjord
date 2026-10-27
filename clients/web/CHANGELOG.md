@@ -13,6 +13,14 @@ section.
 
 ### Added
 
+- **New notes and documents** (ROADMAP 1b.7): a folder of a plaintext vault has **New note** and **New document**. Give a title
+  and the file is made in one commit, authored by you, and opened. The name is `fjord-core`'s, the one every client uses: a note
+  from its first line (or, with no title, the date and time, as an empty file), a document from its title with `.fj.md`, numbered
+  (`Plan 2.md`) past what the folder has, case aside. A document gets a header written by `fjord-core`. If someone makes the same
+  name at the same moment, the next free name is taken and theirs is untouched. Encrypted vaults are not offered it.
+  `POST /api/connections/<id>/files`, under the same rules as the other routes. What it makes is held to the real `fjord verify`
+  (set `FJORD_CLI` to run that test locally; CI does). The format module gained `quickNoteName`, `titleFromText` and
+  `freeName`.
 - **Upstream changes** (ROADMAP 1b.10): when a note is changed in the repository (from the CLI, Obsidian or another device)
   while it is being edited here, the note's page shows both versions, side by side and read-only, and three ways to go on.
   **Combine** merges your changes with theirs exactly as the CLI's `sync` would (the same `fjord-core` merge); where both

@@ -5,6 +5,8 @@ import { repositoryHref } from "../links";
 import type { Location } from "../location";
 import type { NoteText } from "../note";
 import type { Preview } from "../../working/resolve";
+import { checkVault } from "../../files/create";
+import { NewFile } from "./NewFile";
 import { type DraftOfNote, NoteView } from "./NoteView";
 import { UpstreamChanged } from "./UpstreamChanged";
 
@@ -61,6 +63,7 @@ export function FolderView({
 
       {location.kind === "folder" ? (
         <>
+          {checkVault([vault], vault.directory) === "ok" ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} /> : null}
           {location.folders.length + location.files.length === 0 ? (
             <p>{location.path === "" ? "This vault is empty." : "This folder is empty."}</p>
           ) : (

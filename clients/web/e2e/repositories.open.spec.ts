@@ -977,6 +977,160 @@ test("who may go on from a changed note: a signed-in person, from this site, abo
   }
 });
 
+// --- Creating notes and documents (ROADMAP 1b.7) ----------------------------------------------------------------
+
+const ENCRYPTED_MANIFEST = JSON.stringify({
+  fjord: 1,
+  id: "01jagc4k7pr9tbm3ykwx6zq2hw",
+  name: "Secret",
+  createdAt: "2026-10-16T09:34:00Z",
+  encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container: "none", armor: false },
+  fileNaming: "plain",
+});
+const RECIPIENTS = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n";
+
+test("a note is made from a title: one commit, by the person, named by fjord-core, and it opens in the editor", async ({ page }) => {
+  try {
+    const who = { email: `grace-${Date.now()}@example.com`, name: "Grace Hopper" };
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/other.md": "untouched", "Notes/Projects/a.md": "a" }, who);
+    const before = (await hubs.more.branchHead()) as string;
+
+    await page.goto(`/repo/${id}/Notes`);
+    await page.getByRole("button", { name: "New note" }).click();
+    await page.getByLabel("Title").fill("Weekly review: what went well?");
+    await page.getByRole("button", { name: "Create note" }).click();
+
+    // The name is fjord-core's: what a file name cannot hold becomes a space.
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Weekly%20review%20what%20went%20well.md`);
+    await expect(noteEditor(page, "Weekly review what went well.md")).toContainText("# Weekly review: what went well?");
+    const head = (await hubs.more.branchHead()) as string;
+    expect(await hubs.more.show(head, "%P")).toBe(before);
+    expect(await hubs.more.show(head, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
+    expect(await hubs.more.show(head, "%B")).toBe("Create Weekly review what went well");
+    expect(await hubs.more.filesAt(head)).toEqual({ ...(await hubs.more.filesAt(before)), "Notes/Weekly review what went well.md": "# Weekly review: what went well?\n" });
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a note without a title is named after the date and time and is empty, and a name that is taken is numbered", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.md": "p" });
+    await page.goto(`/repo/${id}/Notes`);
+    await page.getByRole("button", { name: "New note" }).click();
+    await page.getByRole("button", { name: "Create note" }).click();
+    await expect(page).toHaveURL(new RegExp(`/repo/${id}/Notes/\\d{4}-\\d{2}-\\d{2}%20\\d{4}\\.md$`));
+    const head = (await hubs.more.branchHead()) as string;
+    const [name] = Object.keys(await hubs.more.filesAt(head)).filter((path) => /^Notes\/\d{4}-\d{2}-\d{2} \d{4}\.md$/.test(path));
+    expect((await hubs.more.filesAt(head))[name!]).toBe("");
+
+    await page.goto(`/repo/${id}/Notes`);
+    await page.getByRole("button", { name: "New note" }).click();
+    await page.getByLabel("Title").fill("plan");
+    await page.getByRole("button", { name: "Create note" }).click();
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/plan%202.md`);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a document is made with a header, in a folder, and a note of the same name does not stop it", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Projects/Q4 plan.md": "a note", "Notes/Projects/x.md": "x" });
+    await page.goto(`/repo/${id}/Notes/Projects`);
+    await page.getByRole("button", { name: "New document" }).click();
+    await expect(page.getByRole("button", { name: "Create document" })).toBeVisible();
+    await page.getByLabel("Title").fill("Q4 plan");
+    await page.getByRole("button", { name: "Create document" }).click();
+
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Projects/Q4%20plan.fj.md`);
+    const head = (await hubs.more.branchHead()) as string;
+    const text = (await hubs.more.filesAt(head))["Notes/Projects/Q4 plan.fj.md"]!;
+    expect(text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\ncreated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\n---\n\n# Q4 plan\n$/);
+    expect(await hubs.more.show(head, "%B")).toBe("Create Q4 plan");
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a document needs a title, and says so, and nothing is made", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST });
+    const head = (await hubs.more.branchHead()) as string;
+    await page.goto(`/repo/${id}/Notes`);
+    await page.getByRole("button", { name: "New document" }).click();
+    await page.getByLabel("Title").fill("***");
+    await page.getByRole("button", { name: "Create document" }).click();
+    await expect(page.getByText("A document needs a title with some letters or digits")).toBeVisible();
+    expect(await hubs.more.branchHead()).toBe(head);
+    await page.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("button", { name: "New note" })).toBeVisible();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("nothing is offered in an encrypted vault, and it is refused if asked for", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Secret/fjord.vault.json": ENCRYPTED_MANIFEST, "Secret/recipients.txt": RECIPIENTS, "Secret/x.md.age": "age-encryption.org/v1", "Notes/fjord.vault.json": VAULT_MANIFEST });
+    await page.goto(`/repo/${id}/Secret`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("button", { name: "New note" })).toHaveCount(0);
+    await page.goto(`/repo/${id}/Notes`);
+    await expect(page.getByRole("button", { name: "New note" })).toBeVisible();
+
+    const head = (await hubs.more.branchHead()) as string;
+    const response = await page.request.post(`/api/connections/${id}/files`, {
+      headers: { origin: BASE },
+      data: { vault: "Secret", folder: "", kind: "note", title: "leak", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 } },
+    });
+    expect(response.status()).toBe(422);
+    expect((await response.json()).error.code).toBe("encrypted_vault");
+    expect(await hubs.more.branchHead()).toBe(head);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("who may make a file: a signed-in person, from this site, in their own repository, in a folder that is there", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/a.md": "a" });
+    const url = `/api/connections/${id}/files`;
+    const head = (await hubs.more.branchHead()) as string;
+    const minute = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
+    const good = { vault: "Notes", folder: "", kind: "note", title: "Idea", localMinute: minute };
+    const post = (data: unknown, origin: string = BASE) => page.request.post(url, { headers: { origin }, data });
+
+    expect((await post(good, "https://evil.example")).status()).toBe(403);
+    expect((await post({ ...good, vault: "../Other" })).status()).toBe(400);
+    expect((await post({ ...good, folder: "../x" })).status()).toBe(400);
+    expect((await post({ ...good, title: "one\ntwo" })).status()).toBe(400);
+    expect((await post({ ...good, localMinute: { ...minute, month: 13 } })).status()).toBe(400);
+    expect((await page.request.get(url)).status()).toBe(405);
+    expect(((await (await post({ ...good, vault: "Nowhere" })).json()).error.code)).toBe("unknown_vault");
+    const gone = await post({ ...good, folder: "Missing" });
+    expect(gone.status()).toBe(409);
+    expect((await gone.json()).error.code).toBe("folder_gone");
+    expect(((await (await post({ ...good, kind: "document", title: "---" })).json()).error.code)).toBe("bad_title");
+
+    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.13" } });
+    const other = await stranger.newPage();
+    expect((await other.request.post(url, { headers: { origin: BASE }, data: good })).status()).toBe(401);
+    await signUp(other);
+    expect((await other.request.post(url, { headers: { origin: BASE }, data: good })).status()).toBe(404);
+    await stranger.close();
+
+    // None of that wrote anything; the right call writes exactly one file.
+    expect(await hubs.more.branchHead()).toBe(head);
+    const made = await post(good);
+    expect(made.status()).toBe(201);
+    expect(await made.json()).toEqual({ path: "Notes/Idea.md", commit: expect.stringMatching(/^[0-9a-f]{40}$/) });
+  } finally {
+    await restoreMore();
+  }
+});
+
 test("a document is not opened in the note editor, and an encrypted file stays locked", async ({ page }) => {
   const id = await connected(page);
   await page.goto(`/repo/${id}/Public/plan.fj.md`);

@@ -708,6 +708,30 @@ interface of the sketch above, made exact, with a plain text area behind both ed
 Phase 1 can **create** documents and notes (name, vault and folder chosen; a valid
 header written by `fjord-core`). Renaming, moving and deleting are in §8.
 
+**As built (ROADMAP 1b.7).** A folder page of a plaintext vault has **New note** and **New document**. A person gives a
+title and no more: the name and, for a document, the header are `fjord-core`'s, made on the server.
+
+- **The name** is `fjord-core`'s `quick_note_name` / `free_name`, the one every client uses (a phone's quick note, the
+  CLI). A note is named from its first line with the Markdown that makes a line something other than a title stripped, cut at
+  60 characters on a word boundary, a name Windows reserves prefixed; with no title it is named after the writer's own local
+  date and time (`2026-10-22 1430`, the browser says what that is) and is an empty file. A document is named from its title
+  with `.fj.md`, and needs a title with something to name a file by. Either is numbered (`Plan 2.md`) past what the folder has,
+  case aside (spec §5 rule 6). The text of a titled note is its heading, `# Title`. A document's header (`id`, `title`,
+  `created`) is written by `fjord-core`'s `new_document`, with an identifier from the clock and `crypto.getRandomValues`.
+- **One commit, one file.** `POST /api/connections/<id>/files` with `{ vault, folder, kind, title?, localMinute }` under §12's
+  rules (signed in, this site's `Origin`, own repositories only; another's is a 404). What is sent is a place and a title,
+  never a name or a text. The commit is made through the owner's token, authored by the person, never forced, with the message
+  `Create <name>`, and the new file opens in its editor.
+- **Two files made at one path are two files.** The name is worked out against the folder **at the head the commit goes on
+  top of**. If someone adds the same name meanwhile the head has moved, so the folder is read again once and the next free
+  name is taken; the other file is untouched. A head that keeps moving is `head_moved`, and nothing is made.
+- **Where.** Only into a folder that is there (git has no empty folders, so one with nothing in it is not one; making folders
+  is not part of this), of a vault that is plaintext, has a manifest that can be read and plain file names. An encrypted vault
+  is refused (and not offered): files cannot be made there in this version.
+- **Held to the CLI.** The acceptance is that created files verify: `src/files/cli.test.ts` checks out the repository the
+  files were made in and runs the real `fjord verify --strict` over it (titled, untitled, numbered, Unicode, long, reserved,
+  nested, documents), and sees a broken header reported. CI builds the CLI for one leg.
+
 ## 11. Working copies and versions
 
 - **Editing writes to a working copy** on the server, debounced, as the user types.
