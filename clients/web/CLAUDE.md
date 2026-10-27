@@ -21,6 +21,7 @@ pnpm dev
 pnpm db:generate <name>          # migrations for both dialects, from the schemas
 pnpm db:dev sqld | postgres      # a local database in Docker (not needed: a file: URL works)
 pnpm build:wasm                  # the format module (Rust + wasm-bindgen); the tests that need it skip without it, CI requires it
+FJORD_CLI=…/target/debug/fjord pnpm test   # also runs the check that created files pass the real `fjord verify` (cargo build -p fjord-cli first)
 pnpm build:editor                # packages/fjord-editor, built: the app imports it, so run it before typecheck, build and dev
 pnpm build && pnpm boot-check    # a fresh instance boots on the database in the environment
 pnpm build && pnpm e2e           # browser tests (Playwright; `pnpm exec playwright install chromium` once)
@@ -125,6 +126,7 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | `src/format/` | The format: the WebAssembly module's loader and the types of what it answers (`wasm.ts`, `types.ts`). Nothing else in the app knows the format |
 | `src/browse/` | Reading a repository from its git host to show it: the head, the cached tree, the manifests, and `fjord-core`'s discovery of the vaults (`repository.ts`), the `tree_cache` (`tree-cache.ts`), what to say when the host fails (`problems.ts`), where a path inside a vault leads (`location.ts`), which vault a repository opens on (`default-vault.ts`), and setting up one that is not a Fjord repository (`setup.ts`, the plan is `fjord-core`'s) |
 | `src/working/` | Drafts of files being edited and the versions made of them (ROADMAP 1b.8, 1b.9): the `working_copy` store and its rules (`service.ts`), who may keep which (`access.ts`), making a version, one commit (`version.ts`), going on after the file changed (`resolve.ts`), the HTTP rules (`http.ts`, `context.ts`), and the browser's saver (`saver.ts`, `client.ts`) |
+| `src/files/` | Making files (ROADMAP 1b.7; renaming, moving and deleting join it): the commit that adds one (`create.ts`), whose and where (`access.ts`), the HTTP rules (`http.ts`, `context.ts`), the browser's request (`client.ts`), and the check that what it makes is accepted by the real CLI (`cli.test.ts`, which needs `FJORD_CLI`) |
 | `src/mail/` | Sending email: the SMTP mailer, a mailer for tests, the templates |
 | `Dockerfile`, `deploy/` | The container image (it builds the format module itself, so it is built from the repository's root) and the Compose setups for sqld, a file and PostgreSQL, with their README and `.env.example`; `scripts/deploy-check.sh` brings each up from nothing and CI runs it. The server exits on a setting that is wrong (`instrumentation.ts`): the image's own server would otherwise stay up |
 | `e2e/` | Browser tests, and `playwright.config.ts` for the five instances they run against (and the fake Sovereign two of them sign in through) |

@@ -83,6 +83,15 @@ export type SetupResult =
  * Two edits of one text merged (`fjord-core`'s `merge3`, the merge the CLI uses). `text` is the merged text when `clean`;
  * otherwise it has each conflict between marker lines, with both sides in it.
  */
+/** A moment in the writer's own time zone, to the minute: what a note with nothing to name it by is named after. */
+export interface LocalMinute {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+}
+
 export interface MergeResult {
   clean: boolean;
   conflicts: number;

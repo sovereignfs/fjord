@@ -146,6 +146,32 @@ describe.skipIf(!available)("the format module", () => {
     });
   });
 
+  describe("naming new files", () => {
+    const when = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
+
+    it("names a note from its first line, then by the time, numbered past what the folder has", () => {
+      expect(fjord().quickNoteName("# Meeting notes\n\nbody", [], when)).toBe("Meeting notes.md");
+      expect(fjord().quickNoteName("", [], when)).toBe("2026-10-22 1430.md");
+      expect(fjord().quickNoteName("Plan", ["Plan.md", "PLAN 2.md"], when)).toBe("Plan 3.md");
+      expect(fjord().quickNoteName("日本語", [], when)).toBe("日本語.md");
+    });
+
+    it("names a document from its title, and says when a title names nothing", () => {
+      expect(fjord().titleFromText("Q4 plan")).toBe("Q4 plan");
+      expect(fjord().titleFromText("***")).toBeNull();
+      expect(fjord().freeName("Q4 plan", ".fj.md", ["q4 plan.fj.md"])).toBe("Q4 plan 2.fj.md");
+    });
+
+    it("writes a document's header, an identifier and a date", () => {
+      const created = fjord().rfc3339FromUnix(1_800_000_000);
+      expect(created).toBe("2027-01-15T08:00:00Z");
+      const id = fjord().newUlid(1_800_000_000_000, new Uint8Array(16).fill(7));
+      expect(id).toMatch(/^[0-9a-hjkmnp-tv-z]{26}$/);
+      const text = fjord().newDocument(id, "Q4: plan \"final\"", created);
+      expect(text).toBe(`---\nid: ${id}\ntitle: 'Q4: plan "final"'\ncreated: ${created}\n---\n\n# Q4: plan "final"\n`);
+    });
+  });
+
   it("is loaded once, whatever asks", () => {
     expect(fjord()).toBe(fjord());
   });

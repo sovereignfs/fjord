@@ -281,6 +281,16 @@ jobs:
       - name: A fresh instance boots
         run: pnpm boot-check
 
+      # What the web client creates is held to what the CLI says about it (clients/web/src/files/cli.test.ts, ROADMAP
+      # 1b.7): the real `fjord verify` over a checkout of the files it made. One leg builds the CLI; the tests are
+      # skipped without it, so the other legs do not have to. This is a repository-root build, not clients/web's.
+      - name: Build the CLI
+        if: matrix.database == 'file'
+        working-directory: .
+        run: |
+          cargo build --locked -p fjord-cli
+          echo "FJORD_CLI=$GITHUB_WORKSPACE/target/debug/fjord" >> "$GITHUB_ENV"
+
       - run: pnpm test
 
   e2e:

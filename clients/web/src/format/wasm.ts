@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Discovery, ListedFile, MergeResult, RepositoryManifest, SetupExisting, SetupOptions, SetupResult } from "./types";
+import type { Discovery, ListedFile, LocalMinute, MergeResult, RepositoryManifest, SetupExisting, SetupOptions, SetupResult } from "./types";
 
 /**
  * `fjord-core` as WebAssembly, in Node (DESIGN.md §2: the server reads the format, the browser never does in
@@ -23,6 +23,12 @@ interface Module {
   planSetup(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
   freeVaultName(preferred: string, existingJson: string): string;
   mergeTexts(base: string, ours: string, theirs: string, oursLabel: string, theirsLabel: string): string;
+  quickNoteName(text: string, existingJson: string, year: number, month: number, day: number, hour: number, minute: number): string;
+  titleFromText(text: string): string | undefined;
+  freeName(stem: string, extension: string, existingJson: string): string;
+  newDocument(id: string, title: string, created: string): string;
+  newUlid(timestampMs: number, random: Uint8Array): string;
+  rfc3339FromUnix(seconds: number): string | undefined;
 }
 
 /** The module has not been built, or cannot be loaded: a setup problem, never a repository's. */
@@ -116,6 +122,41 @@ export class Fjord {
    */
   mergeTexts(base: string, ours: string, theirs: string, labels: { ours: string; theirs: string }): MergeResult {
     return JSON.parse(this.module.mergeTexts(base, ours, theirs, labels.ours, labels.theirs)) as MergeResult;
+  }
+
+  /**
+   * The file name for a new note typed as `text` (`fjord-core`'s, the one every client uses): from its first line, else
+   * from the writer's local date and time, and numbered past the names the folder already has, case aside. Ends in `.md`.
+   */
+  quickNoteName(text: string, existing: string[], when: LocalMinute): string {
+    return this.module.quickNoteName(text, JSON.stringify(existing), when.year, when.month, when.day, when.hour, when.minute);
+  }
+
+  /** What a text's first line asks to be called, without an extension; null if there is nothing in it to name a file by. */
+  titleFromText(text: string): string | null {
+    return this.module.titleFromText(text) ?? null;
+  }
+
+  /** `stem` plus `extension`, or `stem 2`, `stem 3`, … plus it: the first no entry of `existing` has (case aside, in NFC). */
+  freeName(stem: string, extension: string, existing: string[]): string {
+    return this.module.freeName(stem, extension, JSON.stringify(existing));
+  }
+
+  /** The text of a new document: its header (`id`, `title`, `created`) written by `fjord-core`, and a level-one heading. */
+  newDocument(id: string, title: string, created: string): string {
+    return this.module.newDocument(id, title, created);
+  }
+
+  /** A new identifier (spec §8.3) from the time and at least ten random bytes the caller gives. */
+  newUlid(timestampMs: number, random: Uint8Array): string {
+    return this.module.newUlid(timestampMs, random);
+  }
+
+  /** Seconds since the epoch as RFC 3339 in UTC. */
+  rfc3339FromUnix(seconds: number): string {
+    const text = this.module.rfc3339FromUnix(seconds);
+    if (text === undefined) throw new Error("that time cannot be written as a date");
+    return text;
   }
 
   /** A vault name that is free at the root: `preferred`, else `preferred 2`, `preferred 3`, … (case aside). */
