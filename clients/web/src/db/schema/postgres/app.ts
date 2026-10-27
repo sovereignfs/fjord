@@ -177,3 +177,32 @@ export const shareUser = app.table(
     index("share_user_account_idx").on(table.accountId),
   ],
 );
+
+/**
+ * A link that lets anyone who has it open a document (DESIGN.md §12, ROADMAP 1c.3). A document can have several, each with a
+ * role, an optional expiry and a way to be revoked. **The token is never stored**: `token_hash` is the SHA-256 of a random
+ * 256-bit token, shown once to the owner who made the link; whoever holds a copy of the database cannot open a link from it.
+ * Like a named share, a link is of a connection and a Doc `id`, so it follows the file through a rename or a move. A revoked link
+ * is kept (`revoked_at`) so that the owner's list says what happened; it allows nothing. A disconnected repository's links go
+ * with it.
+ */
+export const shareLink = app.table(
+  "share_link",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    /** The Doc's `id`. */
+    docId: text("doc_id").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    role: text("role").notNull(),
+    /** When it stops working, if it does. */
+    expiresAt: epochMs("expires_at"),
+    revokedAt: epochMs("revoked_at"),
+    createdBy: text("created_by").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("share_link_token_hash_idx").on(table.tokenHash),
+    index("share_link_document_idx").on(table.connectionId, table.docId),
+  ],
+);

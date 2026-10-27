@@ -2117,3 +2117,97 @@ test("only a document can be shared, only by its owner, from this site", async (
     await restoreMore();
   }
 });
+
+// --- Share links (ROADMAP 1c.3) --------------------------------------------------------------------------------------------
+
+test("a link opens a document for anyone who has it, until it expires or is revoked, and for no other document", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Deep/Plan.fj.md": SHARE_DOC, "Notes/Other.fj.md": withId("01jagc4k7pt8y3wqnmzv5xrbzz", "private") });
+    const make = async (data: Record<string, unknown>) => {
+      const response = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, ...data } });
+      expect(response.status()).toBe(201);
+      return (await response.json()) as { id: number; token: string; url: string };
+    };
+    const reader = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.3.4" } });
+    const visitor = await reader.newPage();
+
+    const link = await make({ role: "view" });
+    expect(link.url).toBe(`${BASE}/doc/${ID_DOC}?token=${link.token}`);
+
+    // Someone with no account and no session reads it: the title and the text, read-only, and nothing of where it is.
+    expect((await visitor.goto(link.url))?.status()).toBe(200);
+    await expect(visitor.getByRole("heading", { name: "Q4 plan" }).first()).toBeVisible();
+    await expect(visitor.getByText("Can view")).toBeVisible();
+    const editor = visitor.getByRole("textbox", { name: "Q4 plan" });
+    await expect(editor).toContainText("The plan, for reading.");
+    await expect(editor).toHaveAttribute("contenteditable", "false");
+    expect(await visitor.locator("main").innerText()).not.toMatch(/x-secret|not for the reader|Deep|Plan\.fj\.md|acme\/more|Ada/);
+    await expect(visitor.locator('meta[name="referrer"]')).toHaveAttribute("content", "no-referrer");
+
+    // It is for that document only; without the token, or with a wrong one, the page is what it is for anyone: the sign-in.
+    for (const url of [`/doc/01jagc4k7pt8y3wqnmzv5xrbzz?token=${link.token}`, `/doc/${ID_DOC}`, `/doc/${ID_DOC}?token=${"A".repeat(43)}`, `/doc/${ID_DOC}?token=short`, `/note/${ID_DOC}?token=${link.token}`]) {
+      await visitor.goto(url);
+      await expect(visitor, url).toHaveURL(/\/sign-in|\/note\/|404/);
+      await expect(visitor.getByRole("heading", { name: "Q4 plan" }), url).toHaveCount(0);
+    }
+
+    // The owner's list says what links there are, with no token; it follows the file when it moves.
+    const listed = await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).json();
+    expect(listed.links).toEqual([{ id: link.id, role: "view", expiresAt: null, revokedAt: null, createdAt: expect.any(Number), status: "active" }]);
+    expect(JSON.stringify(listed)).not.toContain(link.token);
+    await hubs.more.commitFiles({ "Notes/Deep/Plan.fj.md": null, "Notes/Moved/Q4 plan.fj.md": SHARE_DOC });
+    expect((await visitor.goto(link.url))?.status()).toBe(200);
+    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+
+    // Several at once, each its own: revoking one ends that one at once and not the other.
+    const second = await make({ role: "comment" });
+    expect((await (await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } })).json())).toEqual({ revoked: true });
+    await visitor.goto(link.url);
+    await expect(visitor.getByRole("heading", { name: "Q4 plan" })).toHaveCount(0);
+    expect((await visitor.goto(second.url))?.status()).toBe(200);
+    await expect(visitor.getByText("Can comment")).toBeVisible();
+    expect((await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).json()).links.map((entry: { status: string }) => entry.status)).toEqual(["active", "revoked"]);
+
+    // One with an expiry works until it, and is refused after.
+    const brief = await make({ role: "view", expiresAt: Date.now() + 3000 });
+    expect((await visitor.goto(brief.url))?.status()).toBe(200);
+    await expect(visitor.getByRole("heading", { name: "Q4 plan" }).first()).toBeVisible();
+    await visitor.waitForTimeout(3300);
+    await visitor.goto(brief.url);
+    await expect(visitor.getByRole("heading", { name: "Q4 plan" })).toHaveCount(0);
+    await reader.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("only the owner makes links, only for a document, from this site, and the token is shown once", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "a note") });
+    const send = (request: typeof page.request, data: unknown, origin: string | null = BASE) => request.post(`/api/connections/${id}/links`, { headers: origin === null ? {} : { origin }, data });
+    const good = { doc: ID_DOC, role: "view" };
+
+    expect((await send(page.request, { ...good, doc: ID_NOTE })).status()).toBe(422);
+    expect((await send(page.request, { ...good, doc: "01jagc4k7pt8y3wqnmzv5xrbzz" })).status()).toBe(404);
+    for (const bad of [{ ...good, role: "owner" }, { ...good, expiresAt: Date.now() - 1000 }, { ...good, expiresAt: "tomorrow" }, { ...good, doc: "nope" }]) expect((await send(page.request, bad)).status(), JSON.stringify(bad)).toBe(400);
+    expect((await send(page.request, good, "https://evil.example")).status()).toBe(403);
+    expect((await send(page.request, good, null)).status()).toBe(403);
+
+    const anonymous = await browser.newContext({ baseURL: BASE });
+    expect((await send(anonymous.request, good)).status()).toBe(401);
+    await anonymous.close();
+    const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.3.9" } });
+    const stranger = await other.newPage();
+    await signUp(stranger, `visitor-${Date.now()}@example.com`, "Mallory");
+    expect((await send(stranger.request, good)).status()).toBe(404);
+    expect((await stranger.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).status()).toBe(404);
+    await other.close();
+
+    // The token is in the answer to making the link and in nothing after it.
+    const made = await (await send(page.request, good)).json();
+    expect(made.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect(await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).text()).not.toContain(made.token);
+  } finally {
+    await restoreMore();
+  }
+});

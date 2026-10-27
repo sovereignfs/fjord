@@ -13,6 +13,11 @@ section.
 
 ### Added
 
+- **Share links** (ROADMAP 1c.3): an owner can make a link to a document, as view, comment or edit, with an optional expiry, make several
+  for one document, and revoke each on its own (an API for now; the screen comes later). Anyone who opens `/doc/<id>?token=…`, signed
+  in or not, reads the document for as long as the link is good, and sees nothing of the repository, the file's place or its header.
+  An expired or revoked link, or a wrong one, shows nothing. The token is shown once when the link is made; only a hash of it is kept.
+  **The token stays in the address until the next change (1c.4) swaps it out of it**, so treat these links as secrets.
 - **Share a document with a named account** (ROADMAP 1c.2): an owner can share a document with the account that has an email
   address, as view, comment or edit, and stop again (an API for now; the screen for it comes later). The person it is shared
   with opens it at `/doc/<id>` to read, shown the title and the text and who shared it, and nothing of the repository, the file's

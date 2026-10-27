@@ -13,7 +13,8 @@ import { freshDatabase, testTarget } from "../db/test-support";
 import { fjord, wasmAvailable, wasmDirectory } from "../format/wasm";
 import { MemoryProvider } from "../providers/memory";
 import type { RepositoryRef } from "../providers/types";
-import { type OpenDeps, openShared } from "./open";
+import { LinkService } from "./links";
+import { type OpenDeps, openByLink, openShared } from "./open";
 import { ShareService } from "./shares";
 
 /**
@@ -33,18 +34,23 @@ const doc = (id: string, title: string, body = "The plan.") => `---\nid: ${id}\n
 
 let database: Database;
 let shares: ShareService;
+let links: LinkService;
+let clock = 1_800_000_000_000;
 const sharesTable = () => (database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser);
 const indexTable = () => (database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex);
+const linksTable = () => (database.dialect === "postgres" ? postgresSchema.shareLink : sqliteSchema.shareLink);
 const treeTable = () => (database.dialect === "postgres" ? postgresSchema.treeCache : sqliteSchema.treeCache);
 
 beforeAll(async () => {
   ({ database } = await freshDatabase());
   await runMigrations(database);
   shares = new ShareService(database);
+  links = new LinkService(database, { now: () => clock });
 });
 afterAll(async () => database?.close());
 beforeEach(async () => {
-  for (const table of [sharesTable(), indexTable(), treeTable()]) await dbRun(database, sql`DELETE FROM ${table}`);
+  clock = 1_800_000_000_000;
+  for (const table of [sharesTable(), linksTable(), indexTable(), treeTable()]) await dbRun(database, sql`DELETE FROM ${table}`);
 });
 
 function setup(files: Record<string, string | null>, options: { unreadable?: boolean } = {}) {
@@ -132,5 +138,67 @@ describe.skipIf(!available)(`opening what was shared (${leg})`, () => {
     const second = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") });
     await shares.set(1, ID, "bob", "view", "gone-account");
     expect((await openShared(second.deps, "bob", ID))?.sharedBy).toBeUndefined();
+  });
+});
+
+describe.skipIf(!available)(`opening by a link (${leg})`, () => {
+  const linkDeps = (deps: OpenDeps, now = () => clock) => ({ links, sourceOf: deps.sourceOf, index: deps.index, format: deps.format, now });
+  const make = async (role: "view" | "comment" | "edit" = "view", expiresAt: number | null = null, docId = ID) => {
+    const made = await links.create(1, docId, role, expiresAt, "alice");
+    if (!made.ok) throw new Error("not made");
+    return made;
+  };
+
+  it("shows the document to whoever has the token, at the link's role, and not the header, the path or who made it", async () => {
+    const { deps } = setup({ "Notes/Plans/Plan.fj.md": doc(ID, "Q4 plan") });
+    const { token } = await make("comment");
+    const opened = await openByLink(linkDeps(deps), token, ID);
+    expect(opened).toEqual({ title: "Q4 plan", body: "\n# Q4 plan\n\nThe plan.\n", role: "comment", sharedBy: undefined });
+    expect(JSON.stringify(opened)).not.toMatch(/x-secret|Plans|Plan\.fj\.md|alice/);
+  });
+
+  it("opens nothing for a token that was never made, or for one of another document", async () => {
+    const { deps } = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan"), "Notes/Other.fj.md": doc("01jagc4k7pt8y3wqnmzv5xrbzz", "Other") });
+    const { token } = await make();
+    expect(await openByLink(linkDeps(deps), "A".repeat(43), ID)).toBeUndefined();
+    expect(await openByLink(linkDeps(deps), token, "01jagc4k7pt8y3wqnmzv5xrbzz")).toBeUndefined();
+    expect(await openByLink(linkDeps(deps), "not a token", ID)).toBeUndefined();
+  });
+
+  it("stops at the moment it expires, and not before", async () => {
+    const { deps } = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") });
+    const { token } = await make("view", clock + 1000);
+    expect(await openByLink(linkDeps(deps, () => clock + 999), token, ID)).toBeDefined();
+    expect(await openByLink(linkDeps(deps, () => clock + 1000), token, ID)).toBeUndefined();
+    expect(await openByLink(linkDeps(deps, () => clock + 10_000), token, ID)).toBeUndefined();
+  });
+
+  it("stops when it is revoked, and only that link: another to the same document goes on", async () => {
+    const { deps } = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") });
+    const first = await make();
+    const second = await make("edit");
+    expect(await openByLink(linkDeps(deps), first.token, ID)).toBeDefined();
+    await links.revoke(1, ID, first.id);
+    expect(await openByLink(linkDeps(deps), first.token, ID)).toBeUndefined();
+    expect((await openByLink(linkDeps(deps), second.token, ID))?.role).toBe("edit");
+  });
+
+  it("follows the document when it is moved, and is gone with it when it is deleted", async () => {
+    const { deps, host } = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") });
+    const { token } = await make();
+    host.seed(REF, { "Notes/Plan.fj.md": null, "Notes/Archive/Plan.fj.md": doc(ID, "Q4 plan, moved") });
+    expect((await openByLink(linkDeps(deps), token, ID))?.title).toBe("Q4 plan, moved");
+    host.seed(REF, { "Notes/Archive/Plan.fj.md": null });
+    expect(await openByLink(linkDeps(deps), token, ID)).toBeUndefined();
+  });
+
+  it("opens no note, nothing in an encrypted vault, and nothing when the repository cannot be read", async () => {
+    const encrypted = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hw", name: "Secret", createdAt: "2026-10-16T09:34:00Z", encryption: { mode: "none" }, fileNaming: "plain" });
+    const a = setup({ "Notes/idea.md": doc(NOTE_ID, "An idea") });
+    expect(await openByLink(linkDeps(a.deps), (await make("view", null, NOTE_ID)).token, NOTE_ID)).toBeUndefined();
+    const b = setup({ "Secret/fjord.vault.json": encrypted, "Secret/Plan.fj.md": doc(ID, "Hidden") });
+    expect(await openByLink(linkDeps(b.deps), (await make()).token, ID)).toBeUndefined();
+    const c = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") }, { unreadable: true });
+    expect(await openByLink(linkDeps(c.deps), (await make()).token, ID)).toBeUndefined();
   });
 });

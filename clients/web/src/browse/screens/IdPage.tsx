@@ -7,7 +7,7 @@ import { connectionService } from "../../connections/server";
 import { encryptionKeyring } from "../../crypto/server";
 import { Alert, Badge, Card } from "../../ui";
 import { SharedBody } from "../../sharing/SharedBody";
-import { openSharedFor } from "../../sharing/server";
+import { openLinkedFor, openSharedFor } from "../../sharing/server";
 import { isDocId } from "../ids";
 import { repositoryHref } from "../links";
 import { findDocId } from "../server";
@@ -19,7 +19,28 @@ import { RepositoryScreen } from "./RepositoryScreen";
  * other way round) is sent to the address that is its own; several (an id is unique within a repository, not across them, and a
  * copy is a copy) are listed to choose from; none is a 404, and an id that is not one is too. Another account's file is none.
  */
-export async function IdPage({ route, id }: { route: "doc" | "note"; id: string }) {
+export async function IdPage({ route, id, token }: { route: "doc" | "note"; id: string; token?: string | undefined }) {
+  // A share link (ROADMAP 1c.3) needs no account. A token that opens nothing now (never made, for another document, expired or
+  // revoked) is not told apart from one that was never given: the page is then what it is for anyone who has no link.
+  if (route === "doc" && token !== undefined && isDocId(id) && encryptionKeyring() !== undefined) {
+    const linked = await openLinkedFor(token, id);
+    if (linked) {
+      return (
+        <main className={styles.page}>
+          <div className={styles.account}>
+            <h1 className={styles.title}>{linked.title}</h1>
+            <Card as="article" padding="lg">
+              <p className={styles.itemMeta}>
+                Shared with you by a link <Badge>{linked.role === "view" ? "Can view" : linked.role === "comment" ? "Can comment" : "Can edit"}</Badge>
+              </p>
+              {linked.role === "view" ? null : <p className={styles.itemMeta}>Commenting and editing a shared document come later; for now it is shown to read.</p>}
+              <SharedBody title={linked.title} body={linked.body} />
+            </Card>
+          </div>
+        </main>
+      );
+    }
+  }
   const { user } = await requireSession();
   if (!isDocId(id) || encryptionKeyring() === undefined) notFound();
 

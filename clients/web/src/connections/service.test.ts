@@ -14,6 +14,7 @@ import { MemoryProvider } from "../providers/memory";
 import { FakeGitHub } from "../providers/testing/fake-github";
 import { TreeCache } from "../browse/tree-cache";
 import { DocIndex } from "../browse/doc-index";
+import { LinkService } from "../sharing/links";
 import { ShareService } from "../sharing/shares";
 import { DeletionService } from "../files/deletions";
 import { WorkingCopyService } from "../working/service";
@@ -70,6 +71,7 @@ beforeEach(async () => {
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser}`);
+  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.shareLink : sqliteSchema.shareLink}`);
   await fake.commitFiles({ "fjord.json": "{}" }, { replace: true });
 });
 
@@ -345,6 +347,26 @@ describe(`using and removing a connection (${leg})`, () => {
     await s.remove(ALICE, one.id);
     expect(await shares.list(one.id, "01jagc4k7pt8y3wqnmzv5xrb8j")).toEqual([]);
     expect(await shares.list(two.id, "01jagc4k7pt8y3wqnmzv5xrb8j")).toHaveLength(1);
+  });
+
+  it("forgets the links of a repository when it is disconnected, and of no other", async () => {
+    const memory = new MemoryProvider();
+    for (const name of ["one", "two"]) {
+      memory.createRepository({ owner: "acme", name });
+      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    }
+    const s = new ConnectionService({ database, credentials, github: () => memory });
+    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const links = new LinkService(database);
+    const tokens: string[] = [];
+    for (const { id } of [one, two]) {
+      const made = await links.create(id, "01jagc4k7pt8y3wqnmzv5xrb8j", "view", null, ALICE);
+      if (made.ok) tokens.push(made.token);
+    }
+    await s.remove(ALICE, one.id);
+    expect(await links.byToken(tokens[0]!)).toBeUndefined();
+    expect(await links.byToken(tokens[1]!)).toBeDefined();
   });
 
   it("lets two accounts connect the same repository, each with a token of their own", async () => {

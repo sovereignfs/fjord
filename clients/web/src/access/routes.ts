@@ -59,6 +59,7 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/connections/[id]/files/move", methods: { POST: owner("move") } },
   { route: "/api/connections/[id]/files/restore", methods: { POST: owner("restore") } },
   { route: "/api/connections/[id]/shares", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), DELETE: owner("manage_shares") } },
+  { route: "/api/connections/[id]/links", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), DELETE: owner("manage_shares") } },
   { route: "/api/connections/[id]/working-copy", methods: { PUT: owner("edit"), DELETE: owner("edit") } },
   { route: "/api/connections/[id]/working-copy/version", methods: { POST: owner("save_version") } },
   { route: "/api/connections/[id]/working-copy/resolve", methods: { POST: owner("edit") } },

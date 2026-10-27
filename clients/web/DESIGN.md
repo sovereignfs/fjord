@@ -1012,6 +1012,23 @@ and the repository are not shown, nothing else of the owner's is reachable, and 
 request. Comments (1d) and editing (1c.6) arrive for the roles that allow them. Not here: link shares (1c.3), the screen for managing
 shares (1c.7), a list of what has been shared with you, and a limit on how fast an owner can try addresses.
 
+*As built (ROADMAP 1c.3), share links.* `POST /api/connections/<id>/links` with `{ doc, role, expiresAt? }` makes a link and answers
+`{ id, token, url }`, **the one time the token is seen**: it is 32 random bytes (43 URL-safe characters) of which only the SHA-256 is
+stored, so a copy of the database opens no link. `GET …/links?doc=<id>` lists a document's links with their role, expiry and what has
+become of each (`active`, `expired`, `revoked`) and never a token; `DELETE` with `{ doc, linkId }` revokes one and no other. Several
+links per document (50 at most), each its own. The owner only (policy `manage_shares`; another's connection is a 404), writes from
+this site, documents only, and an expiry must be in the future and within ten years. A link is of the connection and the Doc `id`, so
+it follows the file when it is renamed or moved. `/doc/<id>?token=<token>` opens the document for **whoever has the link, signed in
+or not**: the token must be one that was made, for **that** document (a link to one opens no other), and live: the policy is given its
+role, expiry and revocation, and a link that has expired (from the moment of its expiry) or been revoked is as if it had never
+been. A token that opens nothing now is not told apart from none given, so the page is then what it is for anyone: the sign-in.
+The reader gets the title and the body at the link's role, read-only for now (comments and editing arrive with 1d and 1c.6), and not
+the header, the path, the repository or who made it. Revoking ends a link on the next request. The page sends a
+`<meta name="referrer" content="no-referrer">` so that the token in the address is not passed on to a link followed from it. **Until
+1c.4 the token stays in the address bar, the history and the server's access log**: swapping it for a cookie, the redirect to the
+clean address, the response header and log redaction are that task. Not here: password links (1c.5), a name before commenting or
+editing (1c.6), the screen for managing links (1c.7).
+
 **Encrypted documents** are shared in phase 2, as sealed copies: the copy and its
 comments encrypted in the browser with a key carried in the link's `#fragment` (or
 derived from a password), so the server never sees the content.
@@ -1058,7 +1075,7 @@ Roughly, beyond better-auth's own:
 | `working_copy` | connection, path, base blob id, content, editors since last version (JSON), when started, last edit (§11). Whether the file changed upstream is not stored: it is the base compared with the file's blob when the page loads (a `push` webhook flag comes with 1b.10) |
 | `deletion` | connection, path, `id`, kind, last blob id, deleting commit, deleted by, timestamp, restored (§8) |
 | `share_user` | connection, Doc `id`, account, role, who shared it, when (§12); unique per document and account |
-| `share_link` | document, token hash, role, password hash, expiry, revoked |
+| `share_link` | connection, Doc `id`, token hash (never the token), role, expiry, revoked at, who made it, when (§12). The password hash joins it with password links (1c.5) |
 | `thread`, `reply` | document, anchor (tagged), body, author (account or anonymous id + name), timestamps, resolved |
 | `activity` | document, actor, event, timestamp |
 | `event` | cross-process notices (worker → web): kind, subject, timestamp |

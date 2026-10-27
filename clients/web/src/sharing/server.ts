@@ -7,7 +7,9 @@ import { getAuthDatabase, getDatabase } from "../db/boot";
 import { fjord } from "../format/wasm";
 import { type AccessDeps, sharingAccess } from "./access";
 import { ShareService } from "./shares";
-import { type SharedDocument, openShared } from "./open";
+import { type SharedDocument, openByLink, openShared } from "./open";
+import { LinkService } from "./links";
+import { linksAccess } from "./links-access";
 import { readRepository } from "../browse/repository";
 import { TreeCache } from "../browse/tree-cache";
 import { describeProblem } from "../browse/problems";
@@ -46,22 +48,10 @@ export async function sharingAccessFor(): Promise<ReturnType<typeof sharingAcces
 export async function openSharedFor(accountId: string, docId: string): Promise<SharedDocument | undefined> {
   const database = await getDatabase();
   const accounts = await getAuthDatabase();
-  const service = await connectionService();
   return openShared(
     {
       shares: new ShareService(database),
-      sourceOf: async (connectionId) => {
-        const used = await service.providerForShare(connectionId);
-        if (!used) return undefined;
-        try {
-          const read = await readRepository({ provider: used.provider, cache: new TreeCache(database), format: fjord() }, { id: used.id, ref: used.ref, branch: used.branch });
-          return { connectionId, ref: used.ref, read, provider: used.provider };
-        } catch (error) {
-          // The host cannot be reached, or the repository is gone: the share finds nothing, as if it were not there.
-          if (describeProblem(error)) return undefined;
-          throw error;
-        }
-      },
+      sourceOf: await sourceOfOwner(),
       index: new DocIndex(database),
       format: fjord(),
       nameOf: async (id) => (await findUser(accounts, id))?.name,
@@ -69,4 +59,36 @@ export async function openSharedFor(accountId: string, docId: string): Promise<S
     accountId,
     docId,
   );
+}
+
+/** The document a link opens, for whoever presents its token (ROADMAP 1c.3). Undefined for a token that opens nothing now. */
+export async function openLinkedFor(token: string, docId: string): Promise<SharedDocument | undefined> {
+  const database = await getDatabase();
+  return openByLink({ links: new LinkService(database), sourceOf: await sourceOfOwner(), index: new DocIndex(database), format: fjord() }, token, docId);
+}
+
+/** A repository read with its owner's token, for a share or a link that names it; undefined if it cannot be read. */
+async function sourceOfOwner() {
+  const database = await getDatabase();
+  const service = await connectionService();
+  return async (connectionId: number) => {
+    const used = await service.providerForShare(connectionId);
+    if (!used) return undefined;
+    try {
+      const read = await readRepository({ provider: used.provider, cache: new TreeCache(database), format: fjord() }, { id: used.id, ref: used.ref, branch: used.branch });
+      return { connectionId, ref: used.ref, read, provider: used.provider };
+    } catch (error) {
+      // The host cannot be reached, or the repository is gone: the share finds nothing, as if it were not there.
+      if (describeProblem(error)) return undefined;
+      throw error;
+    }
+  };
+}
+
+export async function linksAccessFor(): Promise<ReturnType<typeof linksAccess>> {
+  return linksAccess({
+    owns: async (accountId, id) => (await (await connectionService()).get(accountId, id)) !== undefined,
+    documentIn,
+    links: new LinkService(await getDatabase()),
+  });
 }
