@@ -14,6 +14,7 @@ import { MemoryProvider } from "../providers/memory";
 import { FakeGitHub } from "../providers/testing/fake-github";
 import { TreeCache } from "../browse/tree-cache";
 import { DocIndex } from "../browse/doc-index";
+import { ShareService } from "../sharing/shares";
 import { DeletionService } from "../files/deletions";
 import { WorkingCopyService } from "../working/service";
 import { type ConnectionErrorCode, isConnectionError } from "./errors";
@@ -68,6 +69,7 @@ beforeEach(async () => {
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex}`);
+  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser}`);
   await fake.commitFiles({ "fjord.json": "{}" }, { replace: true });
 });
 
@@ -326,6 +328,23 @@ describe(`using and removing a connection (${leg})`, () => {
     await s.remove(ALICE, one.id);
     expect((await index.all(one.id)).size).toBe(0);
     expect((await index.all(two.id)).size).toBe(1);
+  });
+
+  it("forgets what was shared from a repository when it is disconnected, and for no other's", async () => {
+    const memory = new MemoryProvider();
+    for (const name of ["one", "two"]) {
+      memory.createRepository({ owner: "acme", name });
+      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    }
+    const s = new ConnectionService({ database, credentials, github: () => memory });
+    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const shares = new ShareService(database);
+    for (const { id } of [one, two]) await shares.set(id, "01jagc4k7pt8y3wqnmzv5xrb8j", BOB, "view", ALICE);
+
+    await s.remove(ALICE, one.id);
+    expect(await shares.list(one.id, "01jagc4k7pt8y3wqnmzv5xrb8j")).toEqual([]);
+    expect(await shares.list(two.id, "01jagc4k7pt8y3wqnmzv5xrb8j")).toHaveLength(1);
   });
 
   it("lets two accounts connect the same repository, each with a token of their own", async () => {

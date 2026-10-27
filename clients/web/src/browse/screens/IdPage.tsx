@@ -5,7 +5,9 @@ import styles from "../../auth/screens/screens.module.css";
 import { localAuthConfig, requireSession } from "../../auth/server";
 import { connectionService } from "../../connections/server";
 import { encryptionKeyring } from "../../crypto/server";
-import { Alert, Card } from "../../ui";
+import { Alert, Badge, Card } from "../../ui";
+import { SharedBody } from "../../sharing/SharedBody";
+import { openSharedFor } from "../../sharing/server";
 import { isDocId } from "../ids";
 import { repositoryHref } from "../links";
 import { findDocId } from "../server";
@@ -23,6 +25,21 @@ export async function IdPage({ route, id }: { route: "doc" | "note"; id: string 
 
   const found = await findDocId(user.id, id);
   const [only, ...others] = found.matches;
+  if (only === undefined && route === "doc") {
+    // Not in any repository of theirs: it may have been shared with them (ROADMAP 1c.2), and then it is shown to be read.
+    const shared = await openSharedFor(user.id, id);
+    if (shared) {
+      return (
+        <Shell user={user} title={shared.title}>
+          <p className={styles.itemMeta}>
+            Shared with you{shared.sharedBy ? ` by ${shared.sharedBy}` : ""} <Badge>{shared.role === "view" ? "Can view" : shared.role === "comment" ? "Can comment" : "Can edit"}</Badge>
+          </p>
+          {shared.role === "view" ? null : <p className={styles.itemMeta}>Commenting and editing a shared document come later; for now it is shown to read.</p>}
+          <SharedBody title={shared.title} body={shared.body} />
+        </Shell>
+      );
+    }
+  }
   if (only === undefined) {
     // The search stopped at its limit, or a repository could not be asked: that is not the same as there being no such file.
     if (found.incomplete || found.unreachable) {

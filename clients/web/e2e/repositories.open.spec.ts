@@ -2032,3 +2032,88 @@ test("a document is not put back while another file has its id, and is once that
     await restoreMore();
   }
 });
+
+// --- Sharing with named accounts (ROADMAP 1c.2) --------------------------------------------------------------------------
+
+const SHARE_DOC = `---\nid: ${ID_DOC}\ntitle: Q4 plan\nx-secret: not for the reader\n---\n\n# Q4 plan\n\nThe plan, for reading.\n`;
+
+test("a document shared with a named account opens for them to read, and for no one else, and stops when the share does", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Deep/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "a note"), "Notes/other.fj.md": withId("01jagc4k7pt8y3wqnmzv5xrbzz", "private") });
+    const share = (request: typeof page.request, data: unknown, origin: string | null = BASE) =>
+      request.post(`/api/connections/${id}/shares`, { headers: origin === null ? {} : { origin }, data });
+    const unshare = (request: typeof page.request, data: unknown) => request.delete(`/api/connections/${id}/shares`, { headers: { origin: BASE }, data });
+
+    const graceEmail = `grace-${Date.now()}@example.com`;
+    const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.2.5" } });
+    const grace = await other.newPage();
+    await signUp(grace, graceEmail, "Grace Hopper");
+    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.2.6" } });
+    const mallory = await stranger.newPage();
+    await signUp(mallory, `mallory-${Date.now()}@example.com`, "Mallory");
+
+    // Nobody has been given anything yet.
+    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(404);
+
+    // The owner shares it with an address that has an account, and with one that has none: the same answer, word for word.
+    const known = await share(page.request, { doc: ID_DOC, email: graceEmail, role: "view" });
+    const unknown = await share(page.request, { doc: ID_DOC, email: `nobody-${Date.now()}@example.com`, role: "view" });
+    expect(known.status()).toBe(200);
+    expect(unknown.status()).toBe(200);
+    expect(await unknown.text()).toBe(await known.text());
+
+    // Grace reads it, at the plain address; the header and the file's place are not shown to her.
+    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(200);
+    await expect(grace.getByRole("heading", { name: "Q4 plan" })).toBeVisible();
+    await expect(grace.getByText("Shared with you by Ada Lovelace")).toBeVisible();
+    await expect(grace.getByText("Can view")).toBeVisible();
+    const editor = grace.getByRole("textbox", { name: "Q4 plan" });
+    await expect(editor).toContainText("The plan, for reading.");
+    await expect(editor).toHaveAttribute("contenteditable", "false");
+    const text = await grace.locator("main").innerText();
+    expect(text).not.toMatch(/x-secret|not for the reader|Deep|Plan\.fj\.md|acme\/more/);
+    await expect(grace).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+
+    // Nothing else of the owner's is hers: not the repository, not another document, not the note, nor the owner's routes.
+    for (const path of [`/repo/${id}`, `/repo/${id}/Notes/Deep/Plan.fj.md`, `/doc/01jagc4k7pt8y3wqnmzv5xrbzz`, `/note/${ID_NOTE}`, `/note/${ID_DOC}`]) expect((await grace.goto(path))?.status(), path).toBe(404);
+    expect((await share(grace.request, { doc: ID_DOC, email: graceEmail, role: "edit" })).status()).toBe(404);
+    expect((await grace.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)).status()).toBe(404);
+    // And not a person with no share.
+    expect((await mallory.goto(`/doc/${ID_DOC}`))?.status()).toBe(404);
+
+    // The owner sees who it is shared with; it follows the file when it is moved; and taking the share away ends it at once.
+    const listed = await (await page.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)).json();
+    expect(listed.shares).toEqual([{ accountId: expect.any(String), name: "Grace Hopper", email: graceEmail, role: "view" }]);
+    await hubs.more.commitFiles({ "Notes/Deep/Plan.fj.md": null, "Notes/Moved/Q4 plan.fj.md": SHARE_DOC });
+    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(200);
+    await expect(grace.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+
+    const gone = await unshare(page.request, { doc: ID_DOC, accountId: listed.shares[0].accountId });
+    expect(await gone.json()).toEqual({ removed: true });
+    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(404);
+    await other.close();
+    await stranger.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("only a document can be shared, only by its owner, from this site", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "a note") });
+    const send = (request: typeof page.request, data: unknown, origin: string | null = BASE) => request.post(`/api/connections/${id}/shares`, { headers: origin === null ? {} : { origin }, data });
+    const good = { doc: ID_DOC, email: "someone@example.com", role: "view" };
+
+    expect((await send(page.request, { ...good, doc: ID_NOTE })).status()).toBe(422); // a note
+    expect((await send(page.request, { ...good, doc: "01jagc4k7pt8y3wqnmzv5xrbzz" })).status()).toBe(404); // not there
+    for (const bad of [{ ...good, role: "owner" }, { ...good, email: "no-at-sign" }, { ...good, doc: "nope" }]) expect((await send(page.request, bad)).status(), JSON.stringify(bad)).toBe(400);
+    expect((await send(page.request, good, "https://evil.example")).status()).toBe(403);
+    expect((await send(page.request, good, null)).status()).toBe(403);
+
+    const anonymous = await browser.newContext({ baseURL: BASE });
+    expect((await send(anonymous.request, good)).status()).toBe(401);
+    await anonymous.close();
+  } finally {
+    await restoreMore();
+  }
+});

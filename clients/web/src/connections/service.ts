@@ -60,6 +60,7 @@ const table = (database: Database) => (database.dialect === "postgres" ? postgre
 const trees = (database: Database) => (database.dialect === "postgres" ? postgresSchema.treeCache : sqliteSchema.treeCache);
 const drafts = (database: Database) => (database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy);
 const docIndex = (database: Database) => (database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex);
+const userShares = (database: Database) => (database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser);
 const deletions = (database: Database) => (database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion);
 const defaults = (database: Database) => (database.dialect === "postgres" ? postgresSchema.accountDefault : sqliteSchema.accountDefault);
 const COLUMNS = sql.raw('id, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", default_vault AS "defaultVault"');
@@ -190,6 +191,8 @@ export class ConnectionService {
     await dbRun(this.database, sql`DELETE FROM ${deletions(this.database)} WHERE connection_id = ${id}`);
     // And what was learnt of which Doc is where.
     await dbRun(this.database, sql`DELETE FROM ${docIndex(this.database)} WHERE connection_id = ${id}`);
+    // And what was shared from it: the documents are not reachable any more.
+    await dbRun(this.database, sql`DELETE FROM ${userShares(this.database)} WHERE connection_id = ${id}`);
     await this.credentials.remove(row.credentialId);
     return true;
   }
@@ -204,6 +207,18 @@ export class ConnectionService {
     const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
     const { secret } = await this.credentials.get((row as Row).credentialId);
     return { provider: this.github(secret), connection };
+  }
+
+  /**
+   * A provider for a connection **on behalf of a share** (ROADMAP 1c.2): the owner's token, to read the one document that was
+   * shared, for a person who has no connection of their own. It does not check who is asking, so it is only called after a
+   * share was found for them, and what it reads is that document and nothing the share does not name.
+   */
+  async providerForShare(id: number): Promise<{ provider: Provider; id: number; ref: { owner: string; name: string }; branch: string; ownerId: string } | undefined> {
+    const row = await dbGet<Row & { accountId: string }>(this.database, sql`SELECT ${COLUMNS}, account_id AS "accountId" FROM ${table(this.database)} WHERE id = ${id}`);
+    if (!row) return undefined;
+    const { secret } = await this.credentials.get(row.credentialId);
+    return { provider: this.github(secret), id, ref: { owner: row.owner, name: row.name }, branch: row.branch, ownerId: row.accountId };
   }
 
   private async storedDefault(accountId: string): Promise<number | undefined> {

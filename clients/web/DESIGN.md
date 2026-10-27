@@ -996,6 +996,22 @@ a method that does not match, so a new endpoint cannot be added without saying w
 stay the owner's, since a share never holds a connection; shares reach a document by routes keyed by its id, which arrive
 with 1c.2 to 1c.6 and 1d and ask the policy for their action.
 
+*As built (ROADMAP 1c.2), sharing with named accounts.* `POST /api/connections/<id>/shares` with `{ doc, email, role }` shares a
+document with the account that has exactly that address; `GET …/shares?doc=<id>` lists who it is shared with (name, address,
+role) and `DELETE` with `{ doc, accountId }` stops. The owner only (policy `manage_shares`; another's connection is a 404),
+writes from this site, and only a document: a note, or an id the repository does not have, is refused. **The answer to sharing
+is the same words whether or not the address has an account**: nothing is stored for an address with none (only existing accounts
+are named), naming oneself stores nothing and says the same, and the cap of 100 shares a document is checked before the address
+is looked up so that it cannot tell them apart either. The address is compared whole and without regard to case, never as a
+prefix or pattern. The owner's list names the accounts a document is shared with (it is their own sharing, and the design allows
+them to read it); an address that has no account never appears in it. A share is keyed by the connection and the Doc `id`, so it
+follows the file when it is renamed or moved (1b.11). The account it was shared with opens it at the plain `/doc/<id>` (when it is
+none of theirs): read with the owner's token, as it is in the repository now (a draft the owner has not saved is not shown), as the
+title and the body in the document editor with the `view` role, saying who shared it and at what role. The header, the path
+and the repository are not shown, nothing else of the owner's is reachable, and taking the share away ends it on the next
+request. Comments (1d) and editing (1c.6) arrive for the roles that allow them. Not here: link shares (1c.3), the screen for managing
+shares (1c.7), a list of what has been shared with you, and a limit on how fast an owner can try addresses.
+
 **Encrypted documents** are shared in phase 2, as sealed copies: the copy and its
 comments encrypted in the browser with a key carried in the link's `#fragment` (or
 derived from a password), so the server never sees the content.
@@ -1041,7 +1057,7 @@ Roughly, beyond better-auth's own:
 | `doc_index` | connection, path, `id` (null for a file read that has none), kind (document/note), blob id, when (§9). Only plaintext vaults; the blob it was read at decides whether a row is believed |
 | `working_copy` | connection, path, base blob id, content, editors since last version (JSON), when started, last edit (§11). Whether the file changed upstream is not stored: it is the base compared with the file's blob when the page loads (a `push` webhook flag comes with 1b.10) |
 | `deletion` | connection, path, `id`, kind, last blob id, deleting commit, deleted by, timestamp, restored (§8) |
-| `share_user` | document, account, role |
+| `share_user` | connection, Doc `id`, account, role, who shared it, when (§12); unique per document and account |
 | `share_link` | document, token hash, role, password hash, expiry, revoked |
 | `thread`, `reply` | document, anchor (tagged), body, author (account or anonymous id + name), timestamps, resolved |
 | `activity` | document, actor, event, timestamp |

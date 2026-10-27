@@ -177,3 +177,28 @@ export const docIndex = sqliteTable(
   },
   (table) => [uniqueIndex("doc_index_connection_path_idx").on(table.connectionId, table.path), index("doc_index_doc_id_idx").on(table.docId)],
 );
+
+/**
+ * A document shared with a named account of the instance (DESIGN.md §12, ROADMAP 1c.2): one row per document and account,
+ * with the role it has there (`view`, `comment` or `edit`). A document is its connection and its Doc `id` (spec §8.3), not
+ * its path, so a share follows the file when it is renamed or moved. `account_id` is better-auth's user id, in the other store,
+ * so it is not a foreign key; `created_by` is the owner who shared it. Only an existing account is ever named, and a
+ * disconnected repository's shares go with it.
+ */
+export const shareUser = sqliteTable(
+  "share_user",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    /** The Doc's `id`. */
+    docId: text("doc_id").notNull(),
+    accountId: text("account_id").notNull(),
+    role: text("role").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("share_user_document_account_idx").on(table.connectionId, table.docId, table.accountId),
+    index("share_user_account_idx").on(table.accountId),
+  ],
+);

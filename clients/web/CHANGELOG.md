@@ -13,6 +13,12 @@ section.
 
 ### Added
 
+- **Share a document with a named account** (ROADMAP 1c.2): an owner can share a document with the account that has an email
+  address, as view, comment or edit, and stop again (an API for now; the screen for it comes later). The person it is shared
+  with opens it at `/doc/<id>` to read, shown the title and the text and who shared it, and nothing of the repository, the file's
+  place or its header. Sharing says the same thing whether or not the address has an account, so it cannot be used to find out who
+  has one. Only documents can be shared, not notes; a share follows the document when it is renamed or moved, and ends the
+  moment it is taken away or the repository is disconnected.
 - **Roles and access rules** (ROADMAP 1c.1): the rules for sharing are written down in one place and held to a table by tests: what
   view, comment and edit may do (each including the ones before), that a share never makes a version, renames, moves, deletes,
   restores or shares, that an expired or revoked link allows nothing, that only documents (not notes, folders or encrypted files)
