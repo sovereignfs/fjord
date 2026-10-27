@@ -303,6 +303,17 @@ pub fn promote_document(text: &str, id: &str, created: &str, title: &str) -> Opt
     doc::promote(text, id, created, title)
 }
 
+/// A document's text with its `title` set, or taken away if `title` is empty or only white space; every other key stays,
+/// in its place (`fjord_core::doc::with_title`, spec §8.2). `None` for a text with no header to rewrite, and for one whose
+/// header is broken, which is not ours to rewrite. Only the header is rewritten, by the YAML writer (so a title with a colon
+/// or a quote reads back as it was, and comments in the header are lost); what follows the closing fence is as it was.
+///
+/// A client that keeps the header apart from the body passes the header alone and gets the header back.
+pub fn with_title(text: &str, title: &str) -> Option<String> {
+    let title = title.trim();
+    doc::with_title(text, if title.is_empty() { None } else { Some(title) })
+}
+
 /// The title a document implies: its first level-one heading, else the file name without `.md`.
 pub fn implied_title(text: &str, file_name: &str) -> String {
     doc::implied_title(text, file_name)
@@ -881,6 +892,42 @@ mod tests {
                 "{options} {existing} {now}"
             );
         }
+    }
+
+    #[test]
+    fn a_title_is_set_trimmed_and_taken_away_when_there_is_none() {
+        let text = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\ntitle: Old\nx: 1\n---\nbody\n";
+        let set = with_title(text, "  New  ").expect("a rewrite");
+        let parsed = parsed(&parse_document(&set));
+        assert_eq!(parsed["title"], json!("New"));
+        assert_eq!(parsed["docId"], json!("01jagc4k7pt8y3wqnmzv5xrb7h"));
+        assert_eq!(parsed["frontmatter"]["x"], json!(1));
+        assert!(set.ends_with("---\nbody\n"));
+
+        for none in ["", "   ", "\t\n"] {
+            let taken = with_title(text, none).expect("a rewrite");
+            assert!(parsed_of(&taken).get("title").is_none(), "{none:?}");
+        }
+        assert_eq!(with_title("no header\n", "T"), None);
+        assert_eq!(with_title("---\nnever closed\n", "T"), None);
+        // The header alone, as a client that keeps it apart sends it, comes back alone.
+        let header = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\n---\n";
+        let only = with_title(header, "T").expect("a rewrite");
+        let body_offset = parsed_of_value(&only)["bodyOffset"]
+            .as_u64()
+            .expect("an offset") as usize;
+        assert_eq!(body_offset, only.len());
+    }
+
+    fn parsed_of(text: &str) -> serde_json::Map<String, Value> {
+        parsed(&parse_document(text))["frontmatter"]
+            .as_object()
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    fn parsed_of_value(text: &str) -> Value {
+        parsed(&parse_document(text))
     }
 
     #[test]
