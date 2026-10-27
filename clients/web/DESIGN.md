@@ -982,6 +982,20 @@ edit mode; it is kept in the browser and shown on their comments and edits.
 **Who can share:** the owner, in phase 1. Lifetime: until revoked; an expiry is
 optional per link. Revoking a link, or a named share, ends sessions that used it.
 
+*As built (ROADMAP 1c.1).* `src/access/policy.ts` is the one place that says what a role is: `decide(grants, action, target, now)`
+answers `allow`, `forbidden` (let in, but not to this: a 403) or `hidden` (not let in at all, or nothing there to be let into: a
+404, which does not say whether it exists). Grants are `owner`, a named `user` share or a `link` share with an optional expiry
+that may be revoked; an expired or revoked link allows nothing, and when someone holds several the highest role wins. Roles
+are the table above, each including the ones before; **a share never allows** making a version, creating, renaming, moving,
+deleting, restoring, sharing or moderating comments, which are the owner's in phase 1. A note, a folder and a document in an
+encrypted vault have no share, so a share finds nothing there. Finding someone's grants is not in it: the owner's is the
+connection's ownership, and each way to share (1c.2, 1c.3) adds its own source, so the policy does not change as they arrive.
+`src/access/routes.ts` lists every page and API route with who may use it (public; an account's own data; or a connection
+owner doing a named action), and `routes.test.ts` reads `app/` and fails for a route with no entry, an entry with no route or
+a method that does not match, so a new endpoint cannot be added without saying who may call it. The connection-keyed routes
+stay the owner's, since a share never holds a connection; shares reach a document by routes keyed by its id, which arrive
+with 1c.2 to 1c.6 and 1d and ask the policy for their action.
+
 **Encrypted documents** are shared in phase 2, as sealed copies: the copy and its
 comments encrypted in the browser with a key carried in the link's `#fragment` (or
 derived from a password), so the server never sees the content.

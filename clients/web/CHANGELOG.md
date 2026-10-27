@@ -13,6 +13,11 @@ section.
 
 ### Added
 
+- **Roles and access rules** (ROADMAP 1c.1): the rules for sharing are written down in one place and held to a table by tests: what
+  view, comment and edit may do (each including the ones before), that a share never makes a version, renames, moves, deletes,
+  restores or shares, that an expired or revoked link allows nothing, that only documents (not notes, folders or encrypted files)
+  can be shared, and whether a refusal is a 403 or a 404. Every page and API route is now listed with who may use it, and a
+  test fails for a new route that is not. Nothing changes for anyone yet: sharing itself comes next.
 - **Putting back never repeats an id** (ROADMAP 1b.12): restoring a deleted document is refused, naming the files, if another file in the
   repository has its `id` now (a copy made meanwhile), because that would make two documents of one. It applies to a single
   file's restore; a folder's deletion does not record ids.
