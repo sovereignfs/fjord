@@ -28,6 +28,7 @@ export function FolderView({
   fileBlob,
   folderFiles,
   header,
+  permalink,
 }: {
   connectionId: number;
   repository: string;
@@ -44,6 +45,8 @@ export function FolderView({
   folderFiles?: number | undefined;
   /** For a note or a document: where its body starts in the text shown, its properties, and the header it is given on its first edit; undefined if its header cannot be read (then it is shown whole, as Markdown). */
   header?: HeaderInfo | undefined;
+  /** For a note or a document whose header has an `id`: its address that does not depend on where it is (`/doc/<id>`, `/note/<id>`). */
+  permalink?: string | undefined;
 }) {
   const here = (...segments: string[]) => repositoryHref(connectionId, ...segments);
   const vault = location.vault;
@@ -74,7 +77,7 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink}
           remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document") ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -159,6 +162,7 @@ function FileCard({
   preview,
   remove,
   header,
+  permalink,
 }: {
   connectionId: number;
   file: ClassifiedFile;
@@ -169,6 +173,7 @@ function FileCard({
   /** Set when the file can be deleted from here: where it is and what the page showed. */
   remove: { vault: string; blob: string; goTo: string[] } | undefined;
   header: HeaderInfo | undefined;
+  permalink: string | undefined;
 }) {
   return (
     <section aria-labelledby="file-title">
@@ -186,6 +191,11 @@ function FileCard({
           ) : (
             <>
               <p className={styles.itemMeta}>Your changes are kept as a draft as you type. Save a version to put them in the repository.</p>
+              {permalink ? (
+                <p className={styles.itemMeta}>
+                  Address by id, which does not depend on where the file is: <a href={permalink}>{permalink}</a>
+                </p>
+              ) : null}
               <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} kind={file.kind === "document" ? "document" : "note"} header={header} />
             </>
           )

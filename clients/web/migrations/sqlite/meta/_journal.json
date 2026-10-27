@@ -57,6 +57,13 @@
       "when": 1793063259763,
       "tag": "0007_deletion",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1793111775692,
+      "tag": "0008_doc_index",
+      "breakpoints": true
     }
   ]
 }

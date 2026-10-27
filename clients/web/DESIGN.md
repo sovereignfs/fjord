@@ -585,8 +585,8 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
   folder on the way (a file where a folder must go is in the way), and no name in the folder may differ from it only by case. If
   any is taken, none is put back and the taken ones are named. A restore after the window, twice, or of another repository's
   record is refused.
-- **Not checked yet:** that a restored document's `id` is not now another file's (E401); that waits for the id index (1b.6), and
-  `fjord verify` says so if it happens. A deleted document's links and comments stopping and returning come with the shares
+- **Not checked yet:** that a restored document's `id` is not now another file's (E401); the id index exists now (1b.6, §9) but
+  restoring does not ask it yet, and `fjord verify` says so if it happens. A deleted document's links and comments stopping and returning come with the shares
   (1c) and comments (1d); the row keeps the `id` for them.
 
 ## 9. Documents and notes
@@ -632,9 +632,30 @@ edit gives it `id`, `title` (its first heading, else its name without `.md` or `
 when the page is built, and editing back to what it was takes the header off again, so opening and undoing leave no draft.
 The blank line the module puts between the header and the body is the body's, so a person can select it away. A text with a
 carriage return or a byte order mark is not promoted (its endings would mix, or the mark would leave the first byte); a
-header that cannot be read is not split, rewritten or shown in the panel, and the file is shown whole. Routes by id
-(`/note/<id>`) wait for the index (ROADMAP 1b.6).
+header that cannot be read is not split, rewritten or shown in the panel, and the file is shown whole.
 
+*As built (ROADMAP 1b.6).* **`/doc/<id>` and `/note/<id>`** show the file with that `id` among the signed-in account's own
+repositories, in place and at that address (the page is the one `/repo/<connection>/<path>` shows, which is the same
+screen); a note asked for as a document, or the other way round, is sent to the address that is its own. The id must be a
+lowercase ULID, else it is a 404 before anything is looked up. **One match** opens; **several** (an id is unique within a
+repository, spec E401, not across them, and a copy is a copy) are listed to choose from and nothing is guessed; **none** is a
+404, and another account's file is none, which says nothing about whether the id exists. If a repository could not be read,
+or the search stopped at its limit, the page says so instead of 404: a file that could not be looked for is not reported absent.
+The lists of folders still link by path, since a listing reads no file and so knows no id; a file's page says its address by
+id (`/note/<id>`) once it has been read, and that is the one to keep, because it is the one a rename or a move leaves true
+(1b.11). The first edit of a note stays at the address it was opened at: its new id is in the draft, and is in the
+repository, and so in the index, from the version after.
+
+**The index** (`doc_index`, `src/browse/doc-index.ts`, `ids.ts`) records, for each Markdown file of a plaintext vault that has
+been read, its `id` (or that it has none) and the blob it was read at. It is **filled on read** (opening a file notes it) and
+by a **bounded search**: a lookup that finds nothing reads, up to 300 at a time, the files it has not read or that changed
+(files with no `id` are recorded too, so they are read once), so repeating a lookup goes further. That search is what the
+worker's background pass (1b.13) will do ahead of time; until the worker exists, the first lookup does a share of it. It is
+**believed only where it is still true**: a row counts only if the repository now has that blob at that path; a file edited
+elsewhere is read again, one moved is found by the search and its old row forgotten, one deleted is not found. Encrypted
+vaults are never read, a file that is not text or is over 1 MB is recorded as having no `id`, and a repository whose listing the
+host cut short names no files, so none is searched and what was known of it is kept. A copy that nobody has read is not in the
+index, so a lookup can miss a duplicate that the worker's pass would find; the chooser is for the ones it knows.
 
 ## 10. Editors
 
@@ -985,7 +1006,7 @@ Roughly, beyond better-auth's own:
 | `account_default` | account, the connection `/` lands on |
 | `connection` | account, provider, how it is reached (`kind`), repository, branch, the id of its credential in `credential` (§7), when; where `/` lands is `account_default`, one row per account (§7); the vault chosen to open first is its nullable `default_vault` (§8) |
 | `tree_cache` | connection, commit id, listing |
-| `doc_index` | connection, path, `id`, kind (document/note), blob id |
+| `doc_index` | connection, path, `id` (null for a file read that has none), kind (document/note), blob id, when (§9). Only plaintext vaults; the blob it was read at decides whether a row is believed |
 | `working_copy` | connection, path, base blob id, content, editors since last version (JSON), when started, last edit (§11). Whether the file changed upstream is not stored: it is the base compared with the file's blob when the page loads (a `push` webhook flag comes with 1b.10) |
 | `deletion` | connection, path, `id`, kind, last blob id, deleting commit, deleted by, timestamp, restored (§8) |
 | `share_user` | document, account, role |

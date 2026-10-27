@@ -13,6 +13,7 @@ import { GitHubProvider } from "../providers/github/provider";
 import { MemoryProvider } from "../providers/memory";
 import { FakeGitHub } from "../providers/testing/fake-github";
 import { TreeCache } from "../browse/tree-cache";
+import { DocIndex } from "../browse/doc-index";
 import { DeletionService } from "../files/deletions";
 import { WorkingCopyService } from "../working/service";
 import { type ConnectionErrorCode, isConnectionError } from "./errors";
@@ -66,6 +67,7 @@ beforeEach(async () => {
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.treeCache : sqliteSchema.treeCache}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion}`);
+  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex}`);
   await fake.commitFiles({ "fjord.json": "{}" }, { replace: true });
 });
 
@@ -307,6 +309,23 @@ describe(`using and removing a connection (${leg})`, () => {
     expect(await service.remove(BOB, mine.id)).toBe(false);
     expect(await service.list(ALICE)).toEqual([mine]);
     expect(await count(credentialTable())).toBe(1);
+  });
+
+  it("forgets which Doc is where when the repository is disconnected, and for no other's", async () => {
+    const memory = new MemoryProvider();
+    for (const name of ["one", "two"]) {
+      memory.createRepository({ owner: "acme", name });
+      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    }
+    const s = new ConnectionService({ database, credentials, github: () => memory });
+    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const index = new DocIndex(database);
+    for (const { id } of [one, two]) await index.put(id, [{ path: "Notes/a.md", docId: "01jagc4k7pt8y3wqnmzv5xrb8j", kind: "note", blob: "b".repeat(40) }]);
+
+    await s.remove(ALICE, one.id);
+    expect((await index.all(one.id)).size).toBe(0);
+    expect((await index.all(two.id)).size).toBe(1);
   });
 
   it("lets two accounts connect the same repository, each with a token of their own", async () => {
