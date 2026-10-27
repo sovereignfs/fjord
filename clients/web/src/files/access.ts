@@ -2,6 +2,7 @@ import type { LocalMinute } from "../format/types";
 import type { Identity } from "../providers/types";
 import type { CreateResult, FileKind, VaultRefusal } from "./create";
 import type { DeleteResult, DeleteTarget } from "./delete";
+import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 import type { Deps } from "./http";
 
@@ -28,11 +29,13 @@ export interface AccessDeps {
   ) => Promise<CreateResult>;
   /** Delete, through the connection's own token. Only called for a vault that is `ok` of a connection that is the caller's. */
   delete: (accountId: string, id: number, input: { vault: string; target: DeleteTarget; author: Identity }) => Promise<DeleteResult>;
+  /** Rename or move, through the connection's own token. Only called for two vaults that are `ok` of a connection that is the caller's. */
+  move: (accountId: string, id: number, input: { vault: string; target: DeleteTarget; destination: string; author: Identity }) => Promise<MoveResult>;
   /** Put back, through the connection's own token. Only called for a connection that is the caller's; its records are checked there. */
   restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<RestoreResult>;
 }
 
-export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "delete" | "restore" | "header"> {
+export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "delete" | "restore" | "header" | "move"> {
   return {
     async header(accountId, id, input) {
       if (!(await deps.owns(accountId, id))) return { found: false };
@@ -45,6 +48,17 @@ export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "delete" | 
       const vault = await deps.vaultFor(accountId, id, input.vault);
       if (vault !== "ok") return { found: true, result: { ok: false, reason: vault } };
       return { found: true, result: await deps.delete(accountId, id, input) };
+    },
+
+    async move(accountId, id, input) {
+      if (!(await deps.owns(accountId, id))) return { found: false };
+      const from = await deps.vaultFor(accountId, id, input.vault);
+      if (from !== "ok") return { found: true, result: { ok: false, reason: from, where: "source" } };
+      // Where it goes: the first step of the new path is its vault, which is asked of the repository as it is now.
+      const to = input.destination.split("/")[0] as string;
+      const destination = to === input.vault ? "ok" : await deps.vaultFor(accountId, id, to);
+      if (destination !== "ok") return { found: true, result: { ok: false, reason: destination, where: "destination" } };
+      return { found: true, result: await deps.move(accountId, id, input) };
     },
 
     async restore(accountId, id, input) {

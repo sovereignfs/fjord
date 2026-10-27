@@ -13,6 +13,11 @@ section.
 
 ### Added
 
+- **Rename and move** (ROADMAP 1b.11): a note, a document or a folder can be renamed (the name before its extension, which stays)
+  or moved to another folder, or another plaintext vault, from its page. It is one commit that puts the same files at the new
+  paths, so nothing in them changes, and a document's `/doc/<id>` keeps working. Names follow the format's rules; nothing is
+  ever replaced, and a name that is taken, or differs from one in the folder only by letter case, is refused and said so.
+  Unsaved changes are saved as a version first. Moving into an encrypted vault is refused.
 - **Open a file by its id** (ROADMAP 1b.6): `/doc/<id>` and `/note/<id>` show the file with that Doc `id` among your repositories,
   wherever it is in them, and keep working when it is edited, moved or renamed from another tool. An id that two files share is
   not guessed at: you choose between them. An id that is not there, not an id, or someone else's is a 404 and says no more; when

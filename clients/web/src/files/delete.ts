@@ -134,7 +134,7 @@ export async function deletePath(
 }
 
 /** The file at a path at a commit, as its directory lists it (a folder or a link there is not a file to delete). */
-async function fileAt(provider: Provider, ref: RepositoryRef, commit: string, path: string): Promise<TreeEntry | undefined> {
+export async function fileAt(provider: Provider, ref: RepositoryRef, commit: string, path: string): Promise<TreeEntry | undefined> {
   const directory = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   const entries = await provider.listDirectory(ref, commit, directory).catch((error: unknown) => {
     if (isProviderError(error, "not_found")) return [] as TreeEntry[];

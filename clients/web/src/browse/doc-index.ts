@@ -69,6 +69,21 @@ export class DocIndex {
     }
   }
 
+  /**
+   * These files moved: what was recorded of each is now recorded at its new path, so that the index follows the file (ROADMAP
+   * 1b.11). A file that was never read has no row to move, and is found by the search like any other.
+   */
+  async move(connectionId: number, moves: { from: string; to: string }[]): Promise<void> {
+    if (moves.length === 0) return;
+    const known = await this.all(connectionId);
+    const moved = moves.flatMap(({ from, to }) => {
+      const row = known.get(from);
+      return row ? [{ ...row, path: to }] : [];
+    });
+    await this.put(connectionId, moved);
+    await this.remove(connectionId, moves.map(({ from }) => from).filter((from) => !moves.some(({ to }) => to === from)));
+  }
+
   /** Forget these paths: they are not in the repository any more. */
   async remove(connectionId: number, paths: string[]): Promise<void> {
     for (let start = 0; start < paths.length; start += BATCH) {

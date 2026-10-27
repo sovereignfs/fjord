@@ -553,6 +553,22 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
   is committed on top. People editing it through a share see it move or close.
 - **On top of the head the browser showed.** If any path involved has changed
   upstream since, the action stops and shows what changed, as for edits (§11).
+- **As built (ROADMAP 1b.11), rename and move.** `POST /api/connections/<id>/files/move` takes `{ vault, type, path, blob | files,
+  destination }`: what the page showed (the file's blob, the folder's file count) and the full new path. One commit puts the
+  **same blobs** at the new paths and deletes the old ones, so every byte, a Doc's `id` and its header are untouched; the
+  message is `Rename <old> to <new>` when the folder is the same and `Move <name> to <folder>` when it is not. The new name
+  passes `fjord-core`'s path rules; **nothing is put over anything**: a path that is taken, a file where a folder must go and
+  a name that differs only by letter case from one in the folder are refused and named, while a name that differs from the
+  file's *own* only by case is allowed. A folder is never moved onto a folder that is there (that would be a merge), nor into
+  itself; the extension must stay; a vault, its manifest, `fjord.json` and anything git stores as a link are not touched.
+  Moving to another vault is allowed when both are plaintext with plain names; **into an encrypted vault is refused** (says
+  why), as is a vault the page cannot read. As for deleting, the move is on top of the head that was read, never forced, and
+  stops if the file or folder is not what was shown. A file with unsaved changes has them saved as a version first; a folder
+  with any, or a place that has a draft of its own, is refused. The page offers *Rename* (the name before the extension) and
+  *Move* (a folder from the plaintext vaults the repository lists, up to 300) beside Delete. The id index is moved with the
+  files, so `/doc/<id>` and `/note/<id>` work at once; shares and comments, which follow an `id`, need nothing from a move
+  and do not exist yet. Not here: converting a note to a document, and undoing a move (it is one commit, and moving back is
+  another).
 - **Deleting asks for confirmation**, naming what will go (for a folder, how many
   files). It is recoverable without a trash folder, which the spec leaves out
   (§12): the file is still in history, and the instance records each deletion (its

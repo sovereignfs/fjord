@@ -11,6 +11,7 @@ import { Alert } from "../../ui";
 import { previewCombineFor, workingCopyService } from "../../working/server";
 import { headerOf } from "../document";
 import { docIdOf } from "../ids";
+import type { RepositoryRead } from "../repository";
 import { fjord } from "../../format/wasm";
 import { DeletedUpstream } from "../screens/DeletedUpstream";
 
@@ -65,10 +66,29 @@ export async function RepositoryScreen({ connection, path }: { connection: strin
       // A note or a document is a header and a body, and its editor is given the body: where that starts in the text shown, what
       // the header says, and the header a file with none is given on its first edit (ROADMAP 1b.3, 1b.5).
       const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
-      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} folderFiles={folderFiles} header={header} permalink={permalink} />;
+      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} folderFiles={folderFiles} header={header} permalink={permalink} destinations={moveDestinations(outcome.read)} />;
     }
   }
 
   const landing = content === undefined && (path === undefined || path.length === 0) ? <Landing accountId={user.id} connection={current} outcome={outcome} /> : undefined;
   return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} setup={landing ? await assessSetupFor(user.id, current, outcome) : undefined} security={localAuthConfig() !== undefined} />;
+}
+
+/**
+ * The folders a file or folder can be moved to (ROADMAP 1b.11): the top of every plaintext vault with plain names, and every
+ * folder in them, repository-relative. A repository too large to list names no folders, so none is offered there; the top
+ * of each vault still is. At most 300, the vault tops first.
+ */
+function moveDestinations(read: RepositoryRead): string[] {
+  const tops: string[] = [];
+  const folders = new Set<string>();
+  for (const vault of read.discovery.vaults) {
+    if (vault.manifestError !== null || vault.encrypted !== false || vault.fileNaming !== "plain") continue;
+    tops.push(vault.directory);
+    for (const file of vault.files) {
+      const segments = file.path.split("/").slice(0, -1);
+      for (let i = 2; i <= segments.length; i++) folders.add(segments.slice(0, i).join("/"));
+    }
+  }
+  return [...tops, ...[...folders].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }) || (a < b ? -1 : 1))].slice(0, 300);
 }
