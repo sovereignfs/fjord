@@ -2000,3 +2000,35 @@ test("nothing is moved into an encrypted vault, and who may move is the owner, f
     await restoreMore();
   }
 });
+
+test("a document is not put back while another file has its id, and is once that file is gone", async ({ page }) => {
+  try {
+    const original = `---\nid: ${ID_DOC}\ntitle: Plan\n---\n\n# Plan\n`;
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": original });
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+
+    // Meanwhile a copy appears from another tool, with the same id.
+    await hubs.more.commitFiles({ "Notes/Copy of plan.md": `---\nid: ${ID_DOC}\ntitle: Copy\n---\n\ncopy\n` });
+    const head = (await hubs.more.branchHead()) as string;
+
+    await page.goto(`/deleted/${id}`);
+    await page.getByRole("button", { name: "Put back" }).click();
+    const alert = page.getByRole("alert").filter({ hasText: "Nothing was put back" });
+    await expect(alert).toContainText("already has the id");
+    await expect(alert.getByText("Notes/Copy of plan.md")).toBeVisible();
+    expect(await hubs.more.branchHead()).toBe(head);
+
+    // With the copy gone it can be.
+    await hubs.more.commitFiles({ "Notes/Copy of plan.md": null });
+    await page.reload();
+    await page.getByRole("button", { name: "Put back" }).click();
+    await expect(page.getByRole("link", { name: "Notes/Plan.fj.md" })).toBeVisible();
+    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Plan.fj.md"]).toBe(original);
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});

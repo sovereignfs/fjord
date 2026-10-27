@@ -397,6 +397,7 @@ describe("putting back: what may be sent, and what they are told", () => {
     ["bad_path", 422],
     ["vault_unavailable", 422],
     ["path_taken", 409],
+    ["id_taken", 409],
     ["blob_gone", 422],
     ["head_moved", 409],
     ["read_only", 422],

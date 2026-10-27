@@ -13,6 +13,10 @@ import type { Identity, Provider } from "../providers/types";
 import { WorkingCopyService } from "../working/service";
 import { type DeleteTarget, deletePath } from "./delete";
 import { DeletionService } from "./deletions";
+import { DocIndex } from "../browse/doc-index";
+import { resolveDocId } from "../browse/ids";
+import { readRepository } from "../browse/repository";
+import { TreeCache } from "../browse/tree-cache";
 import { type RestoreDeps, restoreDeleted } from "./restore";
 
 /**
@@ -323,5 +327,59 @@ describe.skipIf(!available)(`when others are writing too, and when it goes wrong
     const result = await restore([id!], undefined, { deletions: { get: deletions.get.bind(deletions), markRestored: async () => Promise.reject(new Error("db down")) } });
     expect(result).toMatchObject({ ok: true });
     logged.mockRestore();
+  });
+});
+
+/** What the web gives a restore to ask which files have an id now: the repository as it is, and the id index. */
+const idsInUse = (): NonNullable<RestoreDeps["idsInUse"]> => async (docIds) => {
+  const read = await readRepository({ provider: h.provider, cache: new TreeCache(database), format: fjord() }, { id: 1, ref: h.repo, branch: "main" });
+  const source = { connectionId: 1, ref: h.repo, read, provider: h.provider };
+  const found: Record<string, string[]> = {};
+  for (const docId of docIds) found[docId] = (await resolveDocId({ index: new DocIndex(database), format: fjord() }, [source], docId)).matches.map((match) => match.path);
+  return found;
+};
+
+describe.skipIf(!available)(`never two files with one id (${leg})`, () => {
+  const ID = "01jagc4k7pt8y3wqnmzv5xrb8j";
+  const DOC = (title: string) => `---\nid: ${ID}\ntitle: ${title}\n---\n\n# ${title}\n`;
+
+  beforeEach(async () => {
+    await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex}`);
+    await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.treeCache : sqliteSchema.treeCache}`);
+  });
+
+  it("puts a document back when nothing else has its id", async () => {
+    await seed({ "Notes/Plan.fj.md": DOC("Plan"), "Notes/other.md": "o" });
+    const [id] = await removeFile("Notes/Plan.fj.md");
+    const result = await restore([id!], undefined, { idsInUse: idsInUse() });
+    expect(result).toMatchObject({ ok: true, paths: ["Notes/Plan.fj.md"] });
+  });
+
+  it("refuses when another file has the id now, names it, and writes and records nothing", async () => {
+    await seed({ "Notes/Plan.fj.md": DOC("Plan") });
+    const [id] = await removeFile("Notes/Plan.fj.md");
+    await fake.commitFiles({ "Notes/Copy of plan.md": DOC("A copy made meanwhile") });
+    const head = await fake.branchHead();
+
+    expect(await restore([id!], undefined, { idsInUse: idsInUse() })).toEqual({ ok: false, reason: "id_taken", taken: ["Notes/Copy of plan.md"] });
+    expect(await fake.branchHead()).toBe(head);
+    expect((await deletions.get(1, [id!]))[0]!.restoredAt).toBeNull();
+  });
+
+  it("asks nothing of a folder's files: a folder's deletion records no ids, since that would read every file of it", async () => {
+    await seed({ "Notes/Old/a.fj.md": DOC("Plan"), "Notes/Old/b.md": "no header" });
+    const ids = await remove({ type: "folder", path: "Notes/Old", files: 2 });
+    await fake.commitFiles({ "Notes/elsewhere.md": DOC("copy") });
+    const spy = vi.fn(async () => ({}));
+    expect(await restore(ids, undefined, { idsInUse: spy })).toMatchObject({ ok: true });
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("does not ask for a note with no id", async () => {
+    await seed({ "Notes/n.md": "# no header\n" });
+    const [id] = await removeFile("Notes/n.md");
+    const spy = vi.fn(async () => ({}));
+    expect(await restore([id!], undefined, { idsInUse: spy })).toMatchObject({ ok: true });
+    expect(spy).not.toHaveBeenCalled();
   });
 });

@@ -13,6 +13,9 @@ section.
 
 ### Added
 
+- **Putting back never repeats an id** (ROADMAP 1b.12): restoring a deleted document is refused, naming the files, if another file in the
+  repository has its `id` now (a copy made meanwhile), because that would make two documents of one. It applies to a single
+  file's restore; a folder's deletion does not record ids.
 - **Rename and move** (ROADMAP 1b.11): a note, a document or a folder can be renamed (the name before its extension, which stays)
   or moved to another folder, or another plaintext vault, from its page. It is one commit that puts the same files at the new
   paths, so nothing in them changes, and a document's `/doc/<id>` keeps working. Names follow the format's rules; nothing is
