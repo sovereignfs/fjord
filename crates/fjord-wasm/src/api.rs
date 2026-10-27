@@ -21,6 +21,7 @@ use fjord_core::doc::{self, Parse};
 use fjord_core::listing::{self, FileKind, ListedFile};
 use fjord_core::manifest::{field, Manifest, Vaults};
 use fjord_core::merge;
+use fjord_core::naming::{self, LocalMinute};
 use fjord_core::scaffold::{self, FileChange, Origin, Setup};
 use fjord_core::{path, scalar};
 use serde_json::{json, Map, Value};
@@ -340,6 +341,64 @@ pub fn rfc3339_from_unix(seconds: f64) -> Option<String> {
         return None;
     }
     scalar::rfc3339_utc_from_unix(seconds as i64)
+}
+
+// --- Naming new files ---------------------------------------------------------------------------------
+
+/// `["Notes.md", "Archive", …]` read: every entry of a folder, files and directories, with extensions.
+fn names(json: &str) -> Result<Vec<String>, String> {
+    let value: Value =
+        serde_json::from_str(json).map_err(|err| format!("the names are not JSON: {err}"))?;
+    value
+        .as_array()
+        .ok_or("the names must be an array")?
+        .iter()
+        .map(|name| {
+            name.as_str()
+                .map(str::to_string)
+                .ok_or_else(|| "a name must be text".to_string())
+        })
+        .collect()
+}
+
+/// The file name for a new note typed as `text` (`fjord_core::naming::quick_note_name`, the one every client uses):
+/// named by its first line, with the Markdown that makes a line something other than a title stripped, cut at 60
+/// characters, else by the date and time (`2026-10-22 1430`), and ` 2`, ` 3`, … if the folder already has it, case
+/// aside. Ends in `.md` and is a valid name (spec §5).
+///
+/// - `existing_json`: `["a.md", "Archive", …]`, every entry of the folder.
+/// - The last five are the writer's own local date and time, to the minute, for the fallback. Out of range is not
+///   checked: the name is still a valid one, and a real date is the caller's to give.
+pub fn quick_note_name(
+    text: &str,
+    existing_json: &str,
+    year: i32,
+    month: u8,
+    day: u8,
+    hour: u8,
+    minute: u8,
+) -> Result<String, String> {
+    let existing = names(existing_json)?;
+    let now = LocalMinute {
+        year,
+        month,
+        day,
+        hour,
+        minute,
+    };
+    Ok(naming::quick_note_name(text, &existing, now))
+}
+
+/// The name a text's first line asks for, without an extension, or `None` when there is nothing in it to name a file
+/// by (empty, or only markers and punctuation). A document is named from its title this way, then given `.fj.md`.
+pub fn title_from_text(text: &str) -> Option<String> {
+    naming::title_from_text(text)
+}
+
+/// `stem` plus `extension`, or `stem 2`, `stem 3`, … plus `extension`: the first no entry of `existing_json` has, names
+/// that differ only by case being the same name (spec §5 rule 6) and compared in NFC.
+pub fn free_name(stem: &str, extension: &str, existing_json: &str) -> Result<String, String> {
+    Ok(naming::free_name(stem, extension, &names(existing_json)?))
 }
 
 // --- Merging --------------------------------------------------------------------------------------------
@@ -822,6 +881,47 @@ mod tests {
                 "{options} {existing} {now}"
             );
         }
+    }
+
+    #[test]
+    fn a_new_note_is_named_by_its_first_line_and_then_by_the_time() {
+        let name = |text: &str, existing: &str| {
+            quick_note_name(text, existing, 2026, 10, 22, 14, 30).expect("name")
+        };
+        assert_eq!(name("# Meeting notes\n\nbody", "[]"), "Meeting notes.md");
+        assert_eq!(name("- [ ] Buy milk", "[]"), "Buy milk.md");
+        assert_eq!(name("", "[]"), "2026-10-22 1430.md");
+        assert_eq!(name("---", "[]"), "2026-10-22 1430.md");
+        assert_eq!(name("a/b: c?", "[]"), "a b c.md");
+        assert_eq!(name("CON", "[]"), "Note CON.md");
+        assert_eq!(
+            name("Plan", r#"["Plan.md", "PLAN 2.md", "Archive"]"#),
+            "Plan 3.md",
+            "case aside, and numbered past what is taken"
+        );
+        assert_eq!(name("Archive", r#"["Archive"]"#), "Archive.md");
+        assert!(quick_note_name("x", "{}", 2026, 1, 1, 0, 0).is_err());
+        assert!(quick_note_name("x", "[1]", 2026, 1, 1, 0, 0).is_err());
+    }
+
+    #[test]
+    fn a_title_names_a_file_and_a_free_name_is_numbered() {
+        assert_eq!(
+            title_from_text("# Q4 plan\nmore").as_deref(),
+            Some("Q4 plan")
+        );
+        assert_eq!(title_from_text("***"), None);
+        assert_eq!(title_from_text(""), None);
+        assert_eq!(
+            free_name("Q4 plan", ".fj.md", r#"["q4 plan.fj.md"]"#).expect("name"),
+            "Q4 plan 2.fj.md"
+        );
+        assert_eq!(
+            free_name("Q4 plan", ".fj.md", r#"["Q4 plan.md"]"#).expect("name"),
+            "Q4 plan.fj.md",
+            "a note of that name does not take a document's"
+        );
+        assert!(free_name("x", ".md", "nope").is_err());
     }
 
     #[test]
