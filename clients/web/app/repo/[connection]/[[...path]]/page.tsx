@@ -10,6 +10,8 @@ import { connectionService } from "../../../../src/connections/server";
 import { encryptionKeyring } from "../../../../src/crypto/server";
 import { Alert } from "../../../../src/ui";
 import { previewCombineFor, workingCopyService } from "../../../../src/working/server";
+import { bodyStartOf } from "../../../../src/browse/document";
+import { fjord } from "../../../../src/format/wasm";
 import { DeletedUpstream } from "../../../../src/browse/screens/DeletedUpstream";
 
 export const dynamic = "force-dynamic";
@@ -48,9 +50,9 @@ export default async function RepositoryPage({ params }: { params: Promise<{ con
       if (!orphan) notFound();
       content = <DeletedUpstream connectionId={current.id} path={segments.join("/")} label={segments[segments.length - 1] as string} text={orphan.content} />;
     } else {
-      // A note in a plaintext vault is shown in the note editor; reading it is the only thing that touches the file.
+      // A note or a document in a plaintext vault is shown in its editor; reading it is the only thing that touches the file.
       const file = found.location.kind === "file" ? found.location.file : undefined;
-      const note = file?.kind === "note" ? await readNoteFor(user.id, current, outcome.read, file.path) : undefined;
+      const note = file?.kind === "note" || file?.kind === "document" ? await readNoteFor(user.id, current, outcome.read, file.path) : undefined;
       // What was typed here and not yet saved as a version: kept by the server (ROADMAP 1b.8), and found again here.
       const kept = file !== undefined && note?.ok ? await (await workingCopyService()).get(current.id, file.path) : undefined;
       const draft = kept ? { content: kept.content, baseBlob: kept.baseBlob } : null;
@@ -60,7 +62,9 @@ export default async function RepositoryPage({ params }: { params: Promise<{ con
       const fileBlob = file ? outcome.read.blobs.get(file.path) : undefined;
       const prefix = `${segments.join("/")}/`;
       const folderFiles = found.location.kind === "folder" && !outcome.read.partial ? [...outcome.read.blobs.keys()].filter((path) => path.startsWith(prefix)).length : undefined;
-      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} folderFiles={folderFiles} />;
+      // A document is a header and a body, and its editor is given the body: where that starts in the text shown (ROADMAP 1b.3).
+      const bodyStart = file?.kind === "document" && note?.ok ? bodyStartOf(fjord(), draft?.content ?? note.text) : undefined;
+      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} folderFiles={folderFiles} bodyStart={bodyStart} />;
     }
   }
 

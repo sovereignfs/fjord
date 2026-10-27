@@ -218,7 +218,7 @@ function fromResult(result: Extract<SaveOutcome, { found: true }>["result"]): Re
     case "too_many":
       return failure(422, "too_many_drafts", "There are too many unsaved drafts in this repository. Save or discard some first.");
     case "not_editable":
-      return failure(422, "not_editable", "That file is not a note that can be edited here.");
+      return failure(422, "not_editable", "That file is not a note or a document that can be edited here.");
     case "unavailable":
       return failure(502, "unavailable", "Could not read that repository just now. Try again in a moment.");
   }

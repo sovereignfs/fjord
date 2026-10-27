@@ -291,7 +291,7 @@ test("a vault is opened to its folders and files, and what can be opened is told
   await inside.getByRole("link", { name: "report.fj.md" }).click();
   await expect(page).toHaveURL(/\/Public\/Q4\/report\.fj\.md$/);
   await expect(page.getByRole("heading", { name: "report.fj.md", level: 2 })).toBeVisible();
-  await expect(page.getByText("Opening it comes next")).toBeVisible();
+  await expect(noteEditor(page, "report.fj.md")).toContainText("Report"); // a document opens in its editor
   // The way back is in the path above it.
   await page.getByRole("navigation", { name: "Path" }).getByRole("link", { name: "Public notes" }).click();
   await expect(page).toHaveURL(/\/repo\/\d+\/Public$/);
@@ -382,10 +382,14 @@ test("browsing reads no tree and no file from the host, and a path that is not t
   hubs.notes.requests.length = 0;
   await page.goto(`/repo/${id}/Public/Q4`);
   await expect(page.getByRole("list", { name: "Folder contents" })).toBeVisible();
+  const reads = () => hubs.notes.requests.map((request) => `${request.method} ${request.path.replace("/repos/acme/notes", "")}`).filter((path) => path.startsWith("GET /git/trees/") || path.startsWith("GET /git/blobs/"));
+  // Looking at folders reads nothing...
+  expect(reads()).toEqual([]);
+  // ...and opening a file reads that file, once, and no tree.
   await page.goto(`/repo/${id}/Public/Q4/report.fj.md`);
-  await expect(page.getByText("Opening it comes next")).toBeVisible();
-  const asked = hubs.notes.requests.map((request) => `${request.method} ${request.path.replace("/repos/acme/notes", "")}`);
-  expect(asked.filter((path) => path.startsWith("GET /git/trees/") || path.startsWith("GET /git/blobs/"))).toEqual([]);
+  await expect(noteEditor(page, "report.fj.md")).toContainText("Report");
+  expect(reads().filter((path) => path.startsWith("GET /git/blobs/"))).toHaveLength(1);
+  expect(reads().filter((path) => path.startsWith("GET /git/trees/"))).toEqual([]);
 
   for (const path of ["Public/nope", "Nope", "Public/Q4/nope.md", "Public/%2e%2e%2fPrivate", "Public/a%5Cb"]) {
     expect((await page.goto(`/repo/${id}/${path}`))?.status(), path).toBe(404);
@@ -639,8 +643,8 @@ test("drafts are kept only for the caller's own repository, from this site, for 
     expect((await put({ path: "Notes/n.md", baseBlob: blob, content: "ok" }, "https://evil.example")).status()).toBe(403);
     expect((await put({ path: "../escape.md", baseBlob: blob, content: "ok" })).status()).toBe(400);
     expect((await put({ path: "Notes/n.md", baseBlob: "main", content: "ok" })).status()).toBe(400);
-    // A file that is not a note in a plaintext vault: a document, a picture, a file that is not there.
-    for (const path of ["Notes/d.fj.md", "Notes/pic.png", "Notes/missing.md", "Notes"]) {
+    // A file that is not a note or a document in a plaintext vault: a picture, a file that is not there, a folder.
+    for (const path of ["Notes/pic.png", "Notes/missing.md", "Notes"]) {
       const response = await put({ path, baseBlob: blob, content: "ok" });
       expect([path, response.status()]).toEqual([path, 422]);
       expect((await response.json()).error.code).toBe("not_editable");
@@ -1358,14 +1362,143 @@ test("who may delete and put back: a signed-in person, from this site, in their 
   }
 });
 
-test("a document is not opened in the note editor, and an encrypted file stays locked", async ({ page }) => {
+test("an encrypted file stays locked, and a document opens in its editor", async ({ page }) => {
   const id = await connected(page);
-  await page.goto(`/repo/${id}/Public/plan.fj.md`);
-  await expect(page.getByText("The document editor is the next thing to be built")).toBeVisible();
-  await expect(page.getByRole("textbox")).toHaveCount(0);
   await page.goto(`/repo/${id}/Private/secret.md.age`);
   await expect(page.getByText("Files in an encrypted vault cannot be opened in this version.")).toBeVisible();
   await expect(page.getByRole("textbox")).toHaveCount(0);
+  await page.goto(`/repo/${id}/Public/plan.fj.md`);
+  await expect(noteEditor(page, "plan.fj.md")).toContainText("Plan");
+});
+
+// --- The document editor (ROADMAP 1b.3) --------------------------------------------------------------------------
+
+/**
+ * Put the caret at the end of an element's text, and type there. Home and End are not used: in a content-editable area
+ * (the visual editor's) the browser decides what they do, and on macOS they scroll the page instead of moving the caret;
+ * the caret is placed through the selection, which behaves the same everywhere.
+ */
+async function typeAtEndOf(page: import("@playwright/test").Page, element: import("@playwright/test").Locator, text: string) {
+  await element.click();
+  await element.evaluate((node) => {
+    const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+    let last: Node | null = null;
+    for (let next = walker.nextNode(); next; next = walker.nextNode()) last = next;
+    if (!last) throw new Error("there is no text to put the caret in");
+    const range = document.createRange();
+    range.setStart(last, last.textContent?.length ?? 0);
+    range.collapse(true);
+    const selection = document.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+  });
+  await page.keyboard.type(text);
+}
+
+const DOC_HEADER = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\ntitle: Q4 plan\nx-future:\n  - kept\n  - as is\ncreated: 2026-10-16T09:34:00Z\n---\n";
+
+test("a document opens in the visual editor, an edit is kept as a draft, and a version leaves the header as it was", async ({ page }) => {
+  try {
+    const body = "\n# Plan\n\nThe quick brown fox.\n\n- one\n- two\n";
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Q4 plan.fj.md": DOC_HEADER + body });
+    await page.goto(`/repo/${id}/Notes/Q4 plan.fj.md`);
+
+    const editor = noteEditor(page, "Q4 plan.fj.md");
+    await expect(editor).toContainText("The quick brown fox.");
+    await expect(page.getByRole("toolbar")).toBeVisible();
+    // The header is not in the editor: it is kept by the app, whatever the person types.
+    await expect(editor).not.toContainText("x-future");
+    await expect(page.getByRole("note")).toHaveCount(0);
+
+    await typeAtEndOf(page, editor.locator("p", { hasText: "The quick brown fox." }), " Jumps higher.");
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
+
+    await page.getByLabel("Message").fill("Extend the fox");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+
+    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Q4 plan.fj.md"]!;
+    expect(saved.startsWith(DOC_HEADER)).toBe(true); // byte for byte, unknown key and all
+    expect(saved.slice(DOC_HEADER.length)).toContain("The quick brown fox. Jumps higher.");
+    expect(saved.endsWith("\n")).toBe(true);
+    expect(await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).toBe("Extend the fox");
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a document the visual editor cannot keep as written is shown as Markdown, and edited byte for byte", async ({ page }) => {
+  try {
+    const body = "\nSome text first.\n\n<details>\n<summary>Raw HTML</summary>\n\nInside.\n\n</details>\n\nA footnote[^1] too.\n\n[^1]: The note.\n";
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Raw.fj.md": DOC_HEADER + body });
+    await page.goto(`/repo/${id}/Notes/Raw.fj.md`);
+
+    await expect(page.getByRole("note")).toContainText("shown as Markdown");
+    const editor = noteEditor(page, "Raw.fj.md");
+    await expect(editor).toContainText("<details>");
+    await expect(page.getByRole("toolbar")).toHaveCount(0);
+
+    await editor.getByText("Some text first.").click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" Added.");
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+
+    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Raw.fj.md"]!;
+    expect(saved).toBe(DOC_HEADER + body.replace("Some text first.", "Some text first. Added."));
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a document whose header cannot be read is shown whole as Markdown, because the header is not ours to split", async ({ page }) => {
+  try {
+    const text = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\ntitle: never closed\n\n# Body\n\nText.\n";
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Broken.fj.md": text });
+    await page.goto(`/repo/${id}/Notes/Broken.fj.md`);
+    const editor = noteEditor(page, "Broken.fj.md");
+    await expect(editor).toContainText("title: never closed"); // the header is in it: it is the file, whole
+    await expect(page.getByRole("toolbar")).toHaveCount(0);
+    await editor.getByText("Text.").click();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" More.");
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Broken.fj.md"]).toBe(text.replace("Text.", "Text. More."));
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a document made from a title opens ready to edit, and edits in the toolbar's formats are Markdown in the repository", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/other.md": "x" });
+    await page.goto(`/repo/${id}/Notes`);
+    await page.getByRole("button", { name: "New document" }).click();
+    await page.getByLabel("Title").fill("Fresh document");
+    await page.getByRole("button", { name: "Create document" }).click();
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Fresh%20document.fj.md`);
+
+    const editor = noteEditor(page, "Fresh document.fj.md");
+    await expect(editor).toContainText("Fresh document");
+    await typeAtEndOf(page, editor.locator("h1"), "");
+    await page.keyboard.press("Enter");
+    // Markdown shortcuts, as the toolbar's formats write them.
+    await page.keyboard.type("- first");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("second");
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+
+    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Fresh document.fj.md"]!;
+    expect(saved).toMatch(/^---\nid: [0-9a-z]{26}\ntitle: Fresh document\ncreated: .+\n---\n\n# Fresh document\n\n- first\n- second\n$/);
+  } finally {
+    await restoreMore();
+  }
 });
 
 test("a note from another tool is shown as it is: line endings and a byte order mark are not rewritten", async ({ page }) => {

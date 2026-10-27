@@ -1,6 +1,6 @@
 "use client";
 
-import { NoteEditor } from "fjord-editor";
+import { DocumentEditor, NoteEditor } from "fjord-editor";
 import "fjord-editor/styles.css";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
@@ -17,7 +17,10 @@ export interface DraftOfNote {
 }
 
 /**
- * A note in the note editor, kept as a draft as it is edited (ROADMAP 1b.2, 1b.8). Nothing typed here goes to the
+ * A note in the note editor, or a document in the document editor, kept as a draft as it is edited (ROADMAP 1b.2, 1b.3,
+ * 1b.8). A document is a header and a body, and the document editor is given the body only: `bodyStart` is where the body
+ * begins in the text, and the header before it is put back in front of whatever the editor says, so that it is never the
+ * editor's to rewrite (DESIGN.md §9). A note has no `bodyStart` and is edited whole. Nothing typed here goes to the
  * repository: the text is sent to the server a moment after the last change (`DraftSaver`), where it waits until
  * **Save version** makes it one commit (1b.9). Closing the page and opening it again finds the draft, and says so.
  *
@@ -25,8 +28,26 @@ export interface DraftOfNote {
  * has is told of each change. Leaving the page sends what is waiting, and a text that could not be kept is not left
  * without a warning.
  */
-export function NoteView({ connectionId, path, label, text, blob, draft }: { connectionId: number; path: string; label: string; text: string; blob: string; draft: DraftOfNote | null }) {
+export function NoteView({
+  connectionId,
+  path,
+  label,
+  text,
+  blob,
+  draft,
+  bodyStart,
+}: {
+  connectionId: number;
+  path: string;
+  label: string;
+  text: string;
+  blob: string;
+  draft: DraftOfNote | null;
+  /** For a document with a header that can be read: where its body starts in the text shown (the draft, else the file). */
+  bodyStart?: number | undefined;
+}) {
   const start = draft?.content ?? text;
+  const header = bodyStart === undefined ? "" : start.slice(0, bodyStart);
   const base = draft?.baseBlob ?? blob;
   const saver = useMemo(() => new DraftSaver({ initial: start, send: (content) => sendDraft(connectionId, path, base, content) }), [connectionId, path, start, base]);
   const [status, setStatus] = useState<SaverStatus>(saver.status);
@@ -150,7 +171,11 @@ export function NoteView({ connectionId, path, label, text, blob, draft }: { con
           </Alert>
         </div>
       ) : null}
-      <NoteEditor aria-label={label} value={start} onChange={(next) => saver.change(next)} readOnly={saving} />
+      {bodyStart === undefined ? (
+        <NoteEditor aria-label={label} value={start} onChange={(next) => saver.change(next)} readOnly={saving} />
+      ) : (
+        <DocumentEditor aria-label={label} role={saving ? "view" : "edit"} value={start.slice(bodyStart)} onChange={(body) => saver.change(header + body)} />
+      )}
       <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="draft-status">
         {describe(status, hasDraft)}
       </p>

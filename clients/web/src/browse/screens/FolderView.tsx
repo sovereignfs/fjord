@@ -26,6 +26,7 @@ export function FolderView({
   preview,
   fileBlob,
   folderFiles,
+  bodyStart,
 }: {
   connectionId: number;
   repository: string;
@@ -40,6 +41,8 @@ export function FolderView({
   fileBlob?: string | undefined;
   /** For a folder: how many files are anywhere inside it now, which deleting it names. Not known for a repository too large to list. */
   folderFiles?: number | undefined;
+  /** For a document: where its body starts in the text shown, or undefined if its header cannot be read (then it is shown whole, as Markdown). */
+  bodyStart?: number | undefined;
 }) {
   const here = (...segments: string[]) => repositoryHref(connectionId, ...segments);
   const vault = location.vault;
@@ -70,7 +73,7 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} bodyStart={bodyStart}
           remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document") ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -154,6 +157,7 @@ function FileCard({
   draft,
   preview,
   remove,
+  bodyStart,
 }: {
   connectionId: number;
   file: ClassifiedFile;
@@ -163,6 +167,7 @@ function FileCard({
   preview: Preview;
   /** Set when the file can be deleted from here: where it is and what the page showed. */
   remove: { vault: string; blob: string; goTo: string[] } | undefined;
+  bodyStart: number | undefined;
 }) {
   return (
     <section aria-labelledby="file-title">
@@ -173,26 +178,24 @@ function FileCard({
         {KIND_LABEL[file.kind] || "File"}
         {file.size > 0 ? ` · ${humanSize(file.size)}` : ""}
       </p>
-      {file.kind === "note" && note ? (
+      {(file.kind === "note" || file.kind === "document") && note ? (
         note.ok ? (
           draft && draft.baseBlob !== note.blob ? (
             <UpstreamChanged connectionId={connectionId} path={file.path} label={leaf(file.logical)} mine={draft.content} theirs={note.text} upstreamBlob={note.blob} preview={preview} />
           ) : (
             <>
               <p className={styles.itemMeta}>Your changes are kept as a draft as you type. Save a version to put them in the repository.</p>
-              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} />
+              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} bodyStart={file.kind === "document" ? bodyStart : undefined} />
             </>
           )
         ) : (
-          <Alert variant="warning" heading="This note cannot be shown">
+          <Alert variant="warning" heading="This file cannot be shown">
             {note.message}
           </Alert>
         )
       ) : openable(file.kind) ? (
-        <Alert variant="info" heading="Opening it comes next">
-          {file.kind === "document"
-            ? "The document editor is the next thing to be built. Until then, this page is where a document will open."
-            : "Reading and editing notes in the browser is the next thing to be built. Until then, this page is where a note will open."}
+        <Alert variant="info" heading="Not opened">
+          This {file.kind === "document" ? "document" : "note"} could not be read just now. Try again in a moment.
         </Alert>
       ) : encrypted ? (
         <Alert variant="info" heading="Locked">Files in an encrypted vault cannot be opened in this version.</Alert>

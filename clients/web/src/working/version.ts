@@ -32,10 +32,10 @@ export { MAX_MESSAGE_CHARS } from "./limits";
 /** A head that moved is read again this many times before giving up. */
 const ATTEMPTS = 2;
 
-/** `Edit <title>`: a note is known by its file name without the extension. */
+/** `Edit <title>`: a note or a document is known by its file name without the extension (`.fj.md` for a document). */
 export function defaultMessage(path: string): string {
   const leaf = path.slice(path.lastIndexOf("/") + 1);
-  return `Edit ${leaf.replace(/\.md$/i, "")}`;
+  return `Edit ${leaf.replace(/\.fj\.md$/i, "").replace(/\.md$/i, "")}`;
 }
 
 /** A name or an address as git writes it: no angle brackets, no line breaks, no stray whitespace. */

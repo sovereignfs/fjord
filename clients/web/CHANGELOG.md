@@ -13,6 +13,16 @@ section.
 
 ### Added
 
+- **Documents open in an editor** (ROADMAP 1b.3): a document (`*.fj.md`) opens like a note, in a **visual editor** with a toolbar of
+  what Markdown can say (bold, italic, code, headings, lists, links, images by address, tables, rules), tables, task lists and
+  code blocks. It has the same drafts as you type, Save version, upstream-change choices and delete. The header (`id`, `title`,
+  `created` and any key Fjord does not know) is never in the editor: it is put back in front of the body byte for byte, so a
+  saved edit leaves it as it was. **The visual editor is used only for a document it can hold without changing what it means.**
+  Anything else (raw HTML, footnotes, maths, `[[wiki links]]`, reference-style links, loose lists, hard breaks written with
+  spaces, or CRLF line endings) opens as Markdown instead, with a notice, and is edited byte for byte. Typing and deleting again
+  starts no draft; the blank line between a header and its body, and a document's final line break, are kept. A document
+  whose header cannot be read is shown whole as Markdown. The page's default message for a version of a document is
+  `Edit <name>`, not `Edit <name>.fj`. The image carries the notices of what the editors are built on.
 - **Delete and put back** (ROADMAP 1b.12): a note, a document or a folder can be deleted after asking (the question names it, and
   for a folder how many files go with it). It is one commit, authored by you, that removes it; nothing else is touched, and only
   what you were shown is deleted: a note that changed in the repository meanwhile, or a folder that gained a file, is left alone

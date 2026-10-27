@@ -151,8 +151,8 @@ export class Fjord {
   }
 
   /** A file's header, read: whether it has one, and the Doc's identifier if it has a valid one. The body is not the module's here. */
-  parseDocument(text: string): { status: string; docId?: string | null; title?: string | null } {
-    return JSON.parse(this.module.parseDocument(text)) as { status: string; docId?: string | null; title?: string | null };
+  parseDocument(text: string): { status: string; docId?: string | null; title?: string | null; bodyOffset?: number } {
+    return JSON.parse(this.module.parseDocument(text)) as { status: string; docId?: string | null; title?: string | null; bodyOffset?: number };
   }
 
   /** The codes of the spec §5 rules a path component breaks (`E501`…); none for a name that is fine. */

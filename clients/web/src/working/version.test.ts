@@ -108,6 +108,8 @@ describe(`a version from a draft (${leg})`, () => {
       expect(composeMessage("a/b.md", undefined, [])).toBe("Edit b");
       expect(composeMessage("a/b.md", "one\r\ntwo\rthree", [])).toBe("one\ntwo\nthree");
       expect(defaultMessage("Notes/Meeting 2026.MD")).toBe("Edit Meeting 2026");
+      expect(defaultMessage("Notes/Q4 plan.fj.md")).toBe("Edit Q4 plan");
+      expect(defaultMessage("Notes/Q4 plan.FJ.MD")).toBe("Edit Q4 plan");
       expect(defaultMessage("plain.txt")).toBe("Edit plain.txt");
     });
   });

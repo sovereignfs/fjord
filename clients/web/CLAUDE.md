@@ -138,6 +138,6 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | `scripts/` | Small Node scripts: `db-generate`, `db-dev`, `boot-check`, `record-github-fixtures`, `record-sovereign-discovery` |
 | `DESIGN.md`, `ROADMAP.md` | The design and the plan |
 
-`packages/fjord-editor` is shared with other clients (ROADMAP 1b.1; its own `CLAUDE.md`). It is
+`packages/fjord-editor` is shared with other clients (ROADMAP 1b.1, 1b.2, 1b.3; its own `CLAUDE.md`). Its document editor is MDXEditor, loaded on demand and used only for a document it can hold without changing what it means; the page gives it the body and keeps the header (`src/browse/document.ts`). It is
 **MPL-2.0** and must not import `@sovereignfs/ui` or anything else of this app's (`DESIGN.md` §18).
 The app imports it as a `link:` dependency, through its interface only (`fjord-editor` and `fjord-editor/styles.css`), and it must be built first (`pnpm build:editor`). Its look comes from `--fe-*` custom properties that `app/globals.css` maps the `--sv-*` tokens onto.

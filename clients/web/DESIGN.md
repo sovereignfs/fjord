@@ -656,7 +656,9 @@ Markdown in, Markdown out, compared.
   documents, which Fjord creates and owns, that is acceptable: the output follows
   one documented house style (list markers, emphasis markers, table layout), and the
   first save of a document written elsewhere shows what will be reformatted. Syntax
-  the editor does not model is kept as an opaque raw block, never dropped.
+  the editor does not model is never dropped: **as built (1b.3), a document the visual
+  editor cannot hold without changing what it means is opened as Markdown instead**
+  (below), rather than with opaque raw blocks inside the visual editor.
 - **Frontmatter is not given to MDXEditor** (its own YAML handling would rewrite
   it); see §9.
 - **Comments** use Lexical's mark nodes, which MDXEditor does not provide as a
@@ -729,6 +731,45 @@ interface of the sketch above, made exact, with a plain text area behind both ed
   `build-editor` action in CI, a stage in the Dockerfile). The bundler's root is the repository's, so it follows the link
   (`next.config.ts`); the standalone server therefore sits under `clients/web/` in its output, and the image runs
   `clients/web/server.js`. Next's own React serves the app router, so the editor does not bring a second copy.
+
+### The document editor, as built (ROADMAP 1b.3)
+
+`DocumentEditor` is MDXEditor (pinned at 4.3.3 and upgraded on purpose: the safety check below depends on what it writes) for
+the documents it can hold, and the note editor's byte-faithful Markdown for the rest. A document's page (`/repo/<connection>/<vault>/<name>.fj.md`)
+reads the file and opens it like a note: the same draft as you type (§11), Save version, upstream changes and delete.
+
+- **The editor is given the body, never the header.** `fjord-core` says where the body starts (`parseDocument`'s byte offset,
+  turned into a place in the text), the app keeps the header in front of whatever the editor says, so a header with keys the
+  app does not know comes back byte for byte (§9, spec §8.2). A header that cannot be read (not closed, not a mapping, not
+  YAML) is not ours to split: the whole file is shown as Markdown.
+- **A document opens in the visual editor only if its meaning survives it.** MDXEditor writes a document in its own style and
+  refuses or normalises what it does not model. On opening, what it would write back must **parse to the same tree** as the
+  text (`mdast`, with GFM tables, task lists and strikethrough) **with each paragraph's text as written, escapes included**, and
+  the text must have **no carriage returns**; otherwise the document is shown in the Markdown editor, byte for byte, with a
+  notice. Restyling (`-` for `*`, `*` for `_`, blank lines between blocks, a table's padding) is not a loss; what is: a
+  tab-indented block turned into a list, two lists joined into one, a loose list made tight, a hard break made soft, a table row
+  padded with a cell it did not have, and anything an extension reads that the editor would escape (`[[wiki links]]`, `[^1]`,
+  `==highlight==`, `#tag`, `$maths$`). Raw HTML, footnotes, reference-style links and CRLF (which the editor would rewrite as LF
+  from the first edit, in every line of the file) therefore open as Markdown. The check is made again whenever the app sets a
+  different text, and once a document is shown as Markdown it stays so until it is opened again.
+- **What the app is told.** Opening tells it nothing: no edit, no draft. An edit is the whole new body, in the editor's
+  style, with the blank lines the body began and ended with (the one after the header, the final line break). An edit **undone** is
+  no edit: the text the app gave comes back byte for byte, so typing and deleting again starts no draft. A person who declined to
+  give a name has made no change: the document goes back to what the app holds.
+- **The house style** until 1b.4 writes it down is what the editor is configured to write: `-` bullets, `*` emphasis and strong,
+  `---` rules, fenced code. An edit restyles the whole document in it (not only the edited paragraph): the cost of the visual
+  editor, and what the first-save preview in 1b.4 is for. Code blocks are edited in CodeMirror, in a short list of languages;
+  a block in another language is kept as it is.
+- **Comments are not built here.** The interface keeps the adapter and "Comment on selection" works for a selection of plain
+  text, found in the Markdown by its text (nothing is anchored for one that crosses formatting or blocks). The marks that follow
+  the document as it is edited, and their panel, are 1d.1 (§13).
+- **The visual editor is loaded when a document first needs it** (`import()`), so a note's page is not slower for it. Its
+  stylesheet is part of the package's (`fjord-editor/styles.css`), with the colour scales it sets on `:root` made local to the
+  editor and its theme variables set from the design system's tokens, in light and dark (checked in a browser). The notices of
+  what the editors are built on (242 packages, all permissive) are written when the package is built and carried by the image
+  (`/usr/share/licenses/fjord-editor/THIRD_PARTY_NOTICES.txt`).
+- **Not yet:** a strict Content-Security-Policy (§15, ROADMAP 1d.5) has to allow what the visual editor does, which is to set
+  `style` attributes on the elements it draws; the document properties panel (1b.5); the house style written down (1b.4).
 
 ### Creating
 
@@ -1241,3 +1282,4 @@ standalone output would otherwise prune it.
 | 2026-10-22 | The landing page is static, server-rendered HTML in `@sovereignfs/ui`'s tokens, with the design system reached through one `"use client"` module, a theme script that follows the system, and a native `<details>` FAQ | A client-rendered page; a bespoke palette; importing the package from Server Components (it fails: the bundle calls `createContext` at module scope) |
 | 2026-10-26 | A repository that is not a Fjord repository is offered the setup of one plaintext vault: a preview, a click, one additive commit of what `fjord init` writes | Never offering (a web-only person is stranded without the CLI); offering encrypted vaults (keys do not belong in the browser) |
 | 2026-10-26 | `packages/fjord-editor` is MPL-2.0 and does not depend on `@sovereignfs/ui` | AGPL with the design system (every client that embeds it, the MPL-2.0 mobile client included, would have to be AGPL) |
+| 2026-10-27 | The visual document editor is used only for a document it can hold without changing what it means, tested on opening; any other (raw HTML, footnotes, maths, CRLF, a loose list…) is shown as Markdown in the byte-faithful editor | Opaque raw blocks inside the visual editor (they need custom Lexical nodes, and the editor normalises silently what it does not refuse) |

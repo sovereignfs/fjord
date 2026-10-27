@@ -14,7 +14,7 @@ export async function workingCopyService(): Promise<WorkingCopyService> {
   return new WorkingCopyService(await getDatabase());
 }
 
-/** Whether `path` of one of the account's repositories is, now, a note in a plaintext vault: what the host says, through the same reading the pages use. */
+/** Whether `path` of one of the account's repositories is, now, a note or a document in a plaintext vault: what the host says, through the same reading the pages use. */
 async function editableNote(accountId: string, id: number, path: string): Promise<"yes" | "no" | "unavailable"> {
   const connection = await (await connectionService()).get(accountId, id);
   if (!connection) return "no";
@@ -23,7 +23,7 @@ async function editableNote(accountId: string, id: number, path: string): Promis
   const found = await locateInRepository(accountId, connection, outcome.read, path.split("/"));
   if (!found.ok) return "unavailable";
   const { location } = found;
-  return location.kind === "file" && location.file.kind === "note" && location.vault.encrypted === false ? "yes" : "no";
+  return location.kind === "file" && (location.file.kind === "note" || location.file.kind === "document") && location.vault.encrypted === false ? "yes" : "no";
 }
 
 /** Make a version of one of the account's drafts: through the connection's own token, on the branch it was connected with. */
