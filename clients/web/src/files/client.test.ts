@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createFrom, deleteFrom, restoreFrom, sendCreate, sendDelete, sendRestore } from "./client";
+import { createFrom, deleteFrom, restoreFrom, sendCreate, sendDelete, sendRestore, sendTitle, titleFrom } from "./client";
 
 describe("createFrom", () => {
   it("is made, with where", () => {
@@ -125,5 +125,36 @@ describe("sendDelete and sendRestore", () => {
     vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("offline"))));
     expect(await sendDelete(7, "Notes", { type: "folder", path: "Notes/P", files: 1 })).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was deleted/i) });
     expect(await sendRestore(7, [1])).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was put back/i) });
+  });
+});
+
+describe("titleFrom", () => {
+  it("is the header the server wrote", () => {
+    expect(titleFrom(200, { header: "---\ntitle: T\n---\n" })).toEqual({ ok: true, header: "---\ntitle: T\n---\n" });
+  });
+
+  it("is not a change for an answer that has no header, and says what the server said or that the person is signed out", () => {
+    expect(titleFrom(200, {})).toMatchObject({ ok: false });
+    expect(titleFrom(422, { error: { message: "This file's header cannot be read." } })).toEqual({ ok: false, message: "This file's header cannot be read." });
+    expect(titleFrom(401, undefined)).toMatchObject({ ok: false, message: expect.stringMatching(/signed out/i) });
+    expect(titleFrom(500, undefined)).toMatchObject({ ok: false, message: expect.stringMatching(/title/i) });
+  });
+});
+
+describe("sendTitle", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("sends the header and the title only, to the connection's own address, and answers the header", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ header: "---\ntitle: T\n---\n" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await sendTitle(3, "---\n---\n", "T")).toEqual({ ok: true, header: "---\ntitle: T\n---\n" });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/connections/3/files/header");
+    expect(JSON.parse(String(init.body))).toEqual({ header: "---\n---\n", title: "T" });
+  });
+
+  it("says the title was not changed when the server cannot be reached", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("offline"))));
+    expect(await sendTitle(3, "---\n---\n", "T")).toMatchObject({ ok: false, message: expect.stringMatching(/not changed/i) });
   });
 });

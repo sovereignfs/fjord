@@ -4,7 +4,7 @@ import { ProviderError } from "../providers/errors";
 import type { Caller } from "../working/http";
 import { type CreateResult, MAX_TITLE_CHARS, type VaultRefusal } from "./create";
 import type { DeleteResult } from "./delete";
-import { type Deps, handleCreate, handleDelete, handleRestore } from "./http";
+import { type Deps, handleCreate, handleDelete, handleHeader, handleRestore } from "./http";
 import type { RestoreResult } from "./restore";
 
 /**
@@ -27,13 +27,18 @@ function stub() {
     result: { ok: true, commit: "d".repeat(40), files: 1, deletions: [7] },
   }));
   const restore = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: RestoreResult }> => ({ found: true, result: { ok: true, commit: "e".repeat(40), paths: ["Notes/Plan.md"] } }));
+  const header = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; header: string } | { ok: false; reason: "unreadable" } }> => ({
+    found: true,
+    result: { ok: true, header: "---\ntitle: New\n---\n" },
+  }));
   const deps: Deps = {
+    header: (accountId, id, input) => header(accountId, id, input),
     create: (accountId, id, input) => create(accountId, id, input),
     delete: (accountId, id, input) => remove(accountId, id, input),
     restore: (accountId, id, input) => restore(accountId, id, input),
     origin: ORIGIN,
   };
-  return { deps, create, remove, restore };
+  return { deps, create, remove, restore, header };
 }
 
 const post = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
@@ -400,5 +405,75 @@ describe("putting back: what may be sent, and what they are told", () => {
     const { deps, restore } = stub();
     restore.mockResolvedValue({ found: true, result: { ok: false, reason: "path_taken", taken: ["Notes/a.md", "Notes/b.md"] } });
     expect((await body(await handleRestore(at("restore", { ids: [7, 8] }), ALICE, deps, "1"))).error.taken).toEqual(["Notes/a.md", "Notes/b.md"]);
+  });
+});
+
+describe("setting a header's title", () => {
+  const sent = { header: "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n---\n", title: "New" };
+  const call = (request: Request, caller: Caller | null, deps: Deps, id = "1") => handleHeader(request, caller, deps, id);
+  const at = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => post(body, init);
+
+  it("answers the header the module wrote, and asks for the caller's own connection with what was sent", async () => {
+    const { deps, header } = stub();
+    const response = await call(at(sent), ALICE, deps);
+    expect(response.status).toBe(200);
+    expect(await body(response)).toEqual({ header: "---\ntitle: New\n---\n" });
+    expect(header).toHaveBeenCalledWith("alice", 1, sent);
+  });
+
+  it("is for someone signed in, from this site, by POST only: nothing is asked otherwise", async () => {
+    const { deps, header } = stub();
+    expect((await call(at(sent), null, deps)).status).toBe(401);
+    for (const origin of [null, "https://evil.example.com", `${ORIGIN}.evil.example.com`]) expect((await call(at(sent, { origin }), ALICE, deps)).status).toBe(403);
+    for (const method of ["GET", "PUT", "DELETE"]) expect((await call(new Request(`${ORIGIN}/x`, { method, headers: { origin: ORIGIN } }), ALICE, deps)).status).toBe(405);
+    expect(header).not.toHaveBeenCalled();
+  });
+
+  it("is a 404 for another's connection or an id that is not one", async () => {
+    const { deps, header } = stub();
+    header.mockResolvedValueOnce({ found: false });
+    expect((await call(at(sent), ALICE, deps)).status).toBe(404);
+    for (const id of ["0", "01", "x", "-1", "1e3", "1".repeat(17)]) expect((await call(at(sent), ALICE, deps, id)).status).toBe(404);
+    expect(header).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["no header", { title: "x" }],
+    ["a header that is not text", { header: 1, title: "x" }],
+    ["no title", { header: "---\n---\n" }],
+    ["a title that is not text", { header: "---\n---\n", title: null }],
+    ["a title of two lines", { header: "---\n---\n", title: "a\nb" }],
+    ["a title with a control character", { header: "---\n---\n", title: "a\u0007" }],
+    ["a title that is too long", { header: "---\n---\n", title: "x".repeat(MAX_TITLE_CHARS + 1) }],
+    ["a title with half a character", { header: "---\n---\n", title: "\ud800" }],
+    ["a header that is too long", { header: "x".repeat(64_001), title: "x" }],
+  ])("refuses %s, and asks nothing", async (_name, sentBody) => {
+    const { deps, header } = stub();
+    expect((await call(at(sentBody), ALICE, deps)).status).toBe(400);
+    expect(header).not.toHaveBeenCalled();
+  });
+
+  it("refuses what is not JSON, and an empty title is fine (it takes the title away)", async () => {
+    const { deps, header } = stub();
+    expect((await call(at(sent, { type: "text/plain" }), ALICE, deps)).status).toBe(415);
+    expect((await call(at("not json"), ALICE, deps)).status).toBe(400);
+    expect((await call(at({ header: "---\n---\n", title: "" }), ALICE, deps)).status).toBe(200);
+    expect(header).toHaveBeenCalledTimes(1);
+  });
+
+  it("says a header that cannot be read is not changed", async () => {
+    const { deps, header } = stub();
+    header.mockResolvedValueOnce({ found: true, result: { ok: false, reason: "unreadable" } });
+    const response = await call(at(sent), ALICE, deps);
+    expect(response.status).toBe(422);
+    expect((await body(response)).error.code).toBe("unreadable_header");
+  });
+
+  it("tells a failure we did not expect plainly, without its message", async () => {
+    const { deps, header } = stub();
+    header.mockRejectedValueOnce(new Error("secret detail"));
+    const response = await call(at(sent), ALICE, deps);
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain("secret detail");
   });
 });

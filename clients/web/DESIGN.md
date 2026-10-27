@@ -620,6 +620,22 @@ editors receive the body only, and the header is shown in a **Document propertie
 panel: `title`, `id` and `created` are editable or shown; keys Fjord does not know
 are shown read-only, so the user can see they are kept.
 
+*As built (ROADMAP 1b.5).* The page asks the module for a note's or a document's header (`src/browse/document.ts`,
+`headerOf`): where the body starts, and the properties. `NoteView` gives the editor the body and keeps the header in front of
+it, so a body edit leaves the header **byte for byte**, comments in it included. The panel (`DocumentProperties`) shows the
+identifier and the day it was made, lets the **title** be set, and lists every other key as written. A title is sent with the
+header alone to `POST /api/connections/<id>/files/header`, and the module rewrites it (`fjord_core::doc::with_title`): that
+is the only edit that has YAML written again, so comments in a header are lost then and not before (spec §8.2 permits it),
+and a title with a colon or a quote reads back as it was. The title is advisory: the file's name does not change (renaming
+is 1b.11). **Promotion:** a file with no header is shown as it is, with a note in the panel that one is added; the first
+edit gives it `id`, `title` (its first heading, else its name without `.md` or `.fj.md`) and `created`, made by the module
+when the page is built, and editing back to what it was takes the header off again, so opening and undoing leave no draft.
+The blank line the module puts between the header and the body is the body's, so a person can select it away. A text with a
+carriage return or a byte order mark is not promoted (its endings would mix, or the mark would leave the first byte); a
+header that cannot be read is not split, rewritten or shown in the panel, and the file is shown whole. Routes by id
+(`/note/<id>`) wait for the index (ROADMAP 1b.6).
+
+
 ## 10. Editors
 
 Both editors live in their own package, **`packages/fjord-editor`**, behind a stable
@@ -769,7 +785,7 @@ reads the file and opens it like a note: the same draft as you type (§11), Save
   what the editors are built on (242 packages, all permissive) are written when the package is built and carried by the image
   (`/usr/share/licenses/fjord-editor/THIRD_PARTY_NOTICES.txt`).
 - **Not yet:** a strict Content-Security-Policy (§15, ROADMAP 1d.5) has to allow what the visual editor does, which is to set
-  `style` attributes on the elements it draws; the document properties panel (1b.5); the house style written down (1b.4).
+  `style` attributes on the elements it draws; the house style written down (1b.4).
 
 ### Creating
 

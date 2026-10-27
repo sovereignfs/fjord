@@ -29,6 +29,32 @@ export async function sendCreate(connectionId: number, input: { vault: string; f
   }
 }
 
+// --- A header's title (ROADMAP 1b.5) -------------------------------------------------------------------------------
+
+export type TitleAttempt = { ok: true; header: string } | { ok: false; message: string };
+
+export function titleFrom(status: number, body: { header?: string; error?: { message?: string } } | undefined): TitleAttempt {
+  if (status === 200 && typeof body?.header === "string") return { ok: true, header: body.header };
+  if (status === 401) return { ok: false, message: "You are signed out, so the title was not changed. Sign in again, then try again." };
+  return { ok: false, message: body?.error?.message ?? "Could not change the title just now. Try again in a moment." };
+}
+
+/** Ask the server to write `title` into a header (the header alone is sent, never the body); the answer is the header to use. */
+export async function sendTitle(connectionId: number, header: string, title: string): Promise<TitleAttempt> {
+  try {
+    const response = await fetch(`/api/connections/${connectionId}/files/header`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ header, title }),
+      credentials: "same-origin",
+    });
+    const parsed = (await response.json().catch(() => undefined)) as Parameters<typeof titleFrom>[1];
+    return titleFrom(response.status, parsed);
+  } catch {
+    return { ok: false, message: "Could not reach this server, so the title was not changed. Try again in a moment." };
+  }
+}
+
 // --- Deleting and putting back (ROADMAP 1b.12) ---------------------------------------------------------------------
 
 export type DeleteAttempt =

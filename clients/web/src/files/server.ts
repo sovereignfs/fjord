@@ -84,6 +84,7 @@ export async function filesAccessFor(): Promise<ReturnType<typeof filesAccess>> 
   const deps: AccessDeps = {
     owns: async (accountId, id) => (await (await connectionService()).get(accountId, id)) !== undefined,
     vaultFor,
+    setTitle: (header, title) => fjord().withTitle(header, title),
     create,
     delete: remove,
     restore,

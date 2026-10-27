@@ -42,6 +42,12 @@ export interface Deps {
   ) => Promise<{ found: false } | { found: true; result: DeleteResult | { ok: false; reason: VaultRefusal } }>;
   /** Put back deletions the caller's repository has records of, at the paths they had or, for one, the one given. */
   restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<{ found: false } | { found: true; result: RestoreResult }>;
+  /**
+   * A header with its `title` set or, if it is empty, taken away (ROADMAP 1b.5), written by `fjord-core`. Nothing is read from
+   * or written to the repository: the page holds the header and gets it back. `found: false` if the connection is not the
+   * caller's.
+   */
+  header: (accountId: string, id: number, input: { header: string; title: string }) => Promise<{ found: false } | { found: true; result: { ok: true; header: string } | { ok: false; reason: "unreadable" } }>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
 }
@@ -95,6 +101,39 @@ export async function handleCreate(request: Request, caller: Caller | null, deps
     if (result.ok) return json(201, { path: result.path, commit: result.commit });
     const refusal = REFUSALS[result.reason];
     return failure(refusal.status, result.reason, refusal.message);
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+const MAX_HEADER_CHARS = 64_000;
+
+/**
+ * `POST` sets (or, with an empty title, takes away) a header's `title`: `{ header, title }` answers `{ header }`, the header
+ * rewritten by the format module with every other key kept (ROADMAP 1b.5). Only the header is sent, never the body.
+ */
+export async function handleHeader(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  if (!caller) return failure(401, "unauthorized", "Sign in first.");
+  if (request.headers.get("origin") !== deps.origin) return failure(403, "forbidden", "This request did not come from this site.");
+  const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
+  if (number === undefined) return notFound();
+
+  try {
+    if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");
+    const text = await request.text();
+    if (text.length > MAX_HEADER_CHARS + MAX_BODY_CHARS) return failure(413, "too_large", "That request is too large.");
+    const body = parse(text);
+    if (!body) return failure(400, "invalid_request", "Send a JSON object.");
+    const { header, title } = body;
+    if (typeof header !== "string" || header.length > MAX_HEADER_CHARS || !header.isWellFormed()) return failure(400, "invalid_request", "Send the header as text.");
+    if (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed()) {
+      return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or empty to take it away.`);
+    }
+    const outcome = await deps.header(caller.accountId, number, { header, title });
+    if (!outcome.found) return notFound();
+    if (outcome.result.ok) return json(200, { header: outcome.result.header });
+    return failure(422, "unreadable_header", "This file's header cannot be read, so its title cannot be changed from here.");
   } catch (error) {
     return fromError(error);
   }

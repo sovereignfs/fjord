@@ -18,6 +18,8 @@ export interface AccessDeps {
   owns: (accountId: string, id: number) => Promise<boolean>;
   /** Whether files may be made in this vault of the connection's repository: `ok`, or why not. */
   vaultFor: (accountId: string, id: number, vault: string) => Promise<"ok" | VaultRefusal | "unavailable">;
+  /** A header with its title set or taken away, by the format module; undefined for a header that cannot be rewritten. */
+  setTitle: (header: string, title: string) => string | undefined;
   /** Make the file, through the connection's own token. Only called for a vault that is `ok` of a connection that is the caller's. */
   create: (
     accountId: string,
@@ -30,8 +32,14 @@ export interface AccessDeps {
   restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<RestoreResult>;
 }
 
-export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "delete" | "restore"> {
+export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "delete" | "restore" | "header"> {
   return {
+    async header(accountId, id, input) {
+      if (!(await deps.owns(accountId, id))) return { found: false };
+      const header = deps.setTitle(input.header, input.title);
+      return { found: true, result: header === undefined ? { ok: false, reason: "unreadable" } : { ok: true, header } };
+    },
+
     async delete(accountId, id, input) {
       if (!(await deps.owns(accountId, id))) return { found: false };
       const vault = await deps.vaultFor(accountId, id, input.vault);

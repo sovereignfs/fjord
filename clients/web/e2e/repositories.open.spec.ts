@@ -13,6 +13,16 @@ const GOOD = "github_pat_e2egoodtoken0123456789abcdefghijklmnopqrstuvwx";
 const READ_ONLY = "github_pat_e2ereadonlytoken0123456789abcdefghijklmnopqrs";
 const BASE = "http://localhost:3201";
 
+/**
+ * A note's text after its first edit here: the first edit of a note with no header gives it one (spec §8.1, ROADMAP 1b.5),
+ * with a new identifier, the title it implies and the time, then a blank line (which is part of the body, so a person can
+ * select it away) and the text as typed.
+ */
+const promoted = (title: string, text: string) => {
+  const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return expect.stringMatching(new RegExp(`^---\\nid: [0-9a-hjkmnp-tv-z]{26}\\ntitle: ${escape(title)}\\ncreated: \\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ\\n---\\n(?:\\n)?${escape(text)}$`));
+};
+
 /** The connect form's own alert, never the route announcer that Next puts outside `<main>`. */
 const connectAlert = (page: Page) => page.getByRole("region", { name: "Connect a repository" }).getByRole("alert");
 
@@ -705,7 +715,7 @@ test("Save version makes one commit of the draft, authored by the person, and th
     expect(await hubs.more.show(head, "%P")).toBe(before);
     expect(await hubs.more.show(head, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
     expect(await hubs.more.show(head, "%B")).toBe("Add a line");
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "# Title\nA new line, saved at once.", "Notes/other.md": "untouched" });
+    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": promoted("Title", "# Title\nA new line, saved at once."), "Notes/other.md": "untouched" });
     await hubs.more.fsck();
 
     // The draft is gone: the note is what the repository has, and nothing says there are unsaved changes.
@@ -849,7 +859,7 @@ test("keeping mine puts the draft on their version, and the next version is on t
     await expect(page.getByText("Version saved")).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(theirs);
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "MINE original\n" });
+    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": promoted("n", "MINE original\n") });
     expect(await hubs.more.filesAt(theirs)).toMatchObject({ "Notes/n.md": "changed elsewhere\n" });
     await hubs.more.fsck();
   } finally {
@@ -877,7 +887,7 @@ test("combining edits in different places keeps both, as a draft, and the versio
     await expect(page.getByText("Version saved")).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(theirs);
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "ZERO one\ntwo\nthree\nfour\nFIVE\n" });
+    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": promoted("n", "ZERO one\ntwo\nthree\nfour\nFIVE\n") });
   } finally {
     await restoreMore();
   }
@@ -914,7 +924,7 @@ test("combining edits of the same line keeps both between markers, which the per
     await expect(page.getByText("Version saved")).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(theirs);
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "a\nmine and theirs\nz\n" });
+    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": promoted("n", "a\nmine and theirs\nz\n") });
   } finally {
     await restoreMore();
   }
@@ -1283,7 +1293,7 @@ test("unsaved changes are saved as a version before a note is deleted, so puttin
     const deleted = (await hubs.more.branchHead()) as string;
     const version = (await hubs.more.show(deleted, "%P")) as string;
     expect(await hubs.more.show(version, "%P")).toBe(before);
-    expect((await hubs.more.filesAt(version))["Notes/n.md"]).toBe("original\ntyped, never saved");
+    expect((await hubs.more.filesAt(version))["Notes/n.md"]).toEqual(promoted("n", "original\ntyped, never saved"));
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("n"); // put back, and the page read again
     await page.goto(`/repo/${id}/Notes/n.md`);
@@ -1577,4 +1587,119 @@ test("the editor wears the design system's tokens, in light and in dark", async 
   expect(dark.editor).toBe(dark.page);
   expect(dark.editor).not.toBe(light.editor);
   expect(dark.text).not.toBe(light.text);
+});
+
+// --- Document properties (ROADMAP 1b.5) ----------------------------------------------------------------------------------
+
+test("the properties panel shows the header, keys Fjord does not know included, and a note's body edit leaves the header byte for byte", async ({ page }) => {
+  try {
+    const header = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n# a comment the writer left\nzeta: 1\ntitle: Weekly\nx-future:\n  - kept\n  - as is\ncreated: 2026-10-16T09:34:00Z\n---\n";
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/weekly.md": `${header}\nThe plan.\n` });
+    await page.goto(`/repo/${id}/Notes/weekly.md`);
+
+    // The header is beside the editor and not in it.
+    const editor = noteEditor(page, "weekly.md");
+    await expect(editor).toContainText("The plan.");
+    await expect(editor).not.toContainText("x-future");
+    const panel = page.getByTestId("document-properties");
+    await panel.getByText("Properties", { exact: true }).click();
+    await expect(panel.getByText("01jagc4k7pt8y3wqnmzv5xrb8j")).toBeVisible();
+    await expect(panel.getByText("2026-10-16T09:34:00Z")).toBeVisible();
+    await expect(panel.getByLabel("Title")).toHaveValue("Weekly");
+    await expect(panel.getByTestId("other-property")).toHaveCount(2);
+    await expect(panel.getByTestId("other-property").first()).toContainText("zeta");
+    await expect(panel.getByTestId("other-property").last()).toContainText('["kept","as is"]');
+    await expect(panel.getByText("no header yet")).toHaveCount(0);
+
+    // Opening it changed nothing: there is no draft, and a body edit keeps the header as written, comment and all.
+    await expect(page.getByText("Your changes were kept")).toHaveCount(0);
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type(" More.");
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/weekly.md"]!;
+    // The header is as written, the comment in it too (only a change to the title has the module write it again); the typing is after the body.
+    expect(saved).toBe(`${header}\nThe plan.\n More.`);
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("the title is changed from the panel: it is the only thing in the header that changes, and the file keeps its name", async ({ page }) => {
+  try {
+    const header = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nzeta: 1\ntitle: Weekly\nx-future:\n  - kept\ncreated: 2026-10-16T09:34:00Z\n---\n";
+    const body = "\nThe plan.\n";
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Weekly.fj.md": header + body });
+    await page.goto(`/repo/${id}/Notes/Weekly.fj.md`);
+
+    const panel = page.getByTestId("document-properties");
+    await panel.getByText("Properties", { exact: true }).click();
+    await panel.getByLabel("Title").fill("Plan: the sequel");
+    await panel.getByRole("button", { name: "Set title" }).click();
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+
+    const head = (await hubs.more.branchHead()) as string;
+    const files = await hubs.more.filesAt(head);
+    expect(Object.keys(files).filter((path) => path.endsWith(".md"))).toEqual(["Notes/Weekly.fj.md"]);
+    const saved = files["Notes/Weekly.fj.md"]!;
+    expect(saved.endsWith(body)).toBe(true);
+    // The module wrote the header: the title as written safely, and every other key where it was.
+    expect(saved).toBe("---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nzeta: 1\ntitle: 'Plan: the sequel'\nx-future:\n- kept\ncreated: 2026-10-16T09:34:00Z\n---\n" + body);
+    await hubs.more.fsck();
+
+    // And the page shows it, after it was read again.
+    await panel.getByText("Properties", { exact: true }).click();
+    await expect(panel.getByLabel("Title")).toHaveValue("Plan: the sequel");
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("the first edit of a note with no header gives it one, and opening it, or editing back to what it was, does not", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/plain.md": "# A plain note\n\nText.\n" });
+    await page.goto(`/repo/${id}/Notes/plain.md`);
+    const editor = noteEditor(page, "plain.md");
+    const panel = page.getByTestId("document-properties");
+    await panel.getByText("Properties", { exact: true }).click();
+    await expect(panel.getByText(/no header yet/i)).toBeVisible();
+    await expect(panel.getByRole("button", { name: "Set title" })).toBeDisabled();
+
+    // Typing and deleting it again: no header, no draft.
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type("x");
+    await expect(panel.getByText(/no header yet/i)).toHaveCount(0);
+    await page.keyboard.press("Backspace");
+    await expect(panel.getByText(/no header yet/i)).toBeVisible();
+
+    await page.keyboard.type(" And more.");
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await expect(panel.getByLabel("Title")).toHaveValue("A plain note");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+
+    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/plain.md"]!;
+    expect(saved).toEqual(promoted("A plain note", "# A plain note\n\nText.\n And more."));
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a note's header that cannot be read is not split or rewritten: it is shown whole, with no properties", async ({ page }) => {
+  try {
+    const text = "---\nid: [\n---\nbody\n";
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/broken.md": text });
+    await page.goto(`/repo/${id}/Notes/broken.md`);
+    await expect(noteEditor(page, "broken.md")).toContainText("id: [");
+    await expect(page.getByTestId("document-properties")).toHaveCount(0);
+  } finally {
+    await restoreMore();
+  }
 });

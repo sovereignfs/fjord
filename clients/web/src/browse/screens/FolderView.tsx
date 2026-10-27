@@ -9,6 +9,7 @@ import { checkVault } from "../../files/create";
 import { DeleteButton } from "./DeleteButton";
 import { NewFile } from "./NewFile";
 import { UndoBanner } from "./UndoBanner";
+import type { HeaderInfo } from "../document";
 import { type DraftOfNote, NoteView } from "./NoteView";
 import { UpstreamChanged } from "./UpstreamChanged";
 
@@ -26,7 +27,7 @@ export function FolderView({
   preview,
   fileBlob,
   folderFiles,
-  bodyStart,
+  header,
 }: {
   connectionId: number;
   repository: string;
@@ -41,8 +42,8 @@ export function FolderView({
   fileBlob?: string | undefined;
   /** For a folder: how many files are anywhere inside it now, which deleting it names. Not known for a repository too large to list. */
   folderFiles?: number | undefined;
-  /** For a document: where its body starts in the text shown, or undefined if its header cannot be read (then it is shown whole, as Markdown). */
-  bodyStart?: number | undefined;
+  /** For a note or a document: where its body starts in the text shown, its properties, and the header it is given on its first edit; undefined if its header cannot be read (then it is shown whole, as Markdown). */
+  header?: HeaderInfo | undefined;
 }) {
   const here = (...segments: string[]) => repositoryHref(connectionId, ...segments);
   const vault = location.vault;
@@ -73,7 +74,7 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} bodyStart={bodyStart}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header}
           remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document") ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -157,7 +158,7 @@ function FileCard({
   draft,
   preview,
   remove,
-  bodyStart,
+  header,
 }: {
   connectionId: number;
   file: ClassifiedFile;
@@ -167,7 +168,7 @@ function FileCard({
   preview: Preview;
   /** Set when the file can be deleted from here: where it is and what the page showed. */
   remove: { vault: string; blob: string; goTo: string[] } | undefined;
-  bodyStart: number | undefined;
+  header: HeaderInfo | undefined;
 }) {
   return (
     <section aria-labelledby="file-title">
@@ -185,7 +186,7 @@ function FileCard({
           ) : (
             <>
               <p className={styles.itemMeta}>Your changes are kept as a draft as you type. Save a version to put them in the repository.</p>
-              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} bodyStart={file.kind === "document" ? bodyStart : undefined} />
+              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} kind={file.kind === "document" ? "document" : "note"} header={header} />
             </>
           )
         ) : (
