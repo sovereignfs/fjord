@@ -40,6 +40,10 @@ design is right.
   change the interface and every client changes with it, so that is a design change (`clients/web/DESIGN.md` §10).
 - **`onChange` is for the person's edits only.** Never for a change the app made by setting `value`, and never when the
   text may only be read. The whole new text, not a delta.
+- **Comment marks are highlights, not nodes.** `src/marks.ts` draws each thread of the app's `CommentsAdapter` over the rendered text with the CSS
+  Custom Highlight API and finds it again from its text-quote anchor whenever the threads or the text change, so a mark is never part of what is
+  edited, saved or compared with the Markdown, and a document that is only read is marked as well as one that is edited. The Markdown fallback is
+  not marked. Colours come from `--fe-mark-*` custom properties (`src/theme.ts`).
 - **Frontmatter is not the editor's.** It is given the body and gives the body back; the app keeps the header
   (`DESIGN.md` §9).
 - **A note's editor is byte-faithful**: an edit changes only what the person changed, and a note the editor did not touch comes

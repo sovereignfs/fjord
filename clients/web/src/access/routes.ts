@@ -44,6 +44,8 @@ export const ROUTES: RouteRule[] = [
   { route: "/doc/[id]", page: owner("read") },
   // A guest edits through a link's cookie, which is sent under `/doc/<id>` and nowhere else (1c.4, 1c.6): the first route a share reaches, so the policy's `edit` is its action.
   { route: "/doc/[id]/draft", methods: { PUT: owner("edit") } },
+  // Comments on a document: read by anyone let in, the rest by what the policy gives each role (1d.1). Each method names the weakest action it may be; the operation inside asks its own.
+  { route: "/doc/[id]/comments", methods: { GET: owner("read"), POST: owner("comment"), PATCH: owner("resolve"), DELETE: owner("delete_own_comment") } },
   { route: "/note/[id]", page: owner("read") },
   { route: "/deleted/[connection]", page: owner("restore") },
 

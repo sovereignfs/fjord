@@ -1415,7 +1415,7 @@ test("a document opens in the visual editor, an edit is kept as a draft, and a v
 
     const editor = noteEditor(page, "Q4 plan.fj.md");
     await expect(editor).toContainText("The quick brown fox.");
-    await expect(page.getByRole("toolbar")).toBeVisible();
+    await expect(page.getByRole("toolbar").filter({ hasText: "Block type" })).toBeVisible(); // the formatting toolbar (the comments have their own)
     // The header is not in the editor: it is kept by the app, whatever the person types.
     await expect(editor).not.toContainText("x-future");
     await expect(page.getByRole("note")).toHaveCount(0);
@@ -1447,7 +1447,7 @@ test("a document the visual editor cannot keep as written is shown as Markdown, 
     await expect(page.getByRole("note")).toContainText("shown as Markdown");
     const editor = noteEditor(page, "Raw.fj.md");
     await expect(editor).toContainText("<details>");
-    await expect(page.getByRole("toolbar")).toHaveCount(0);
+    await expect(page.getByRole("toolbar").filter({ hasText: "Block type" })).toHaveCount(0); // no formatting toolbar (the comments have their own)
 
     await editor.getByText("Some text first.").click();
     await page.keyboard.press("End");
@@ -1470,7 +1470,7 @@ test("a document whose header cannot be read is shown whole as Markdown, because
     await page.goto(`/repo/${id}/Notes/Broken.fj.md`);
     const editor = noteEditor(page, "Broken.fj.md");
     await expect(editor).toContainText("title: never closed"); // the header is in it: it is the file, whole
-    await expect(page.getByRole("toolbar")).toHaveCount(0);
+    await expect(page.getByRole("toolbar").filter({ hasText: "Block type" })).toHaveCount(0); // no formatting toolbar (the comments have their own)
     await editor.getByText("Text.").click();
     await page.keyboard.press("End");
     await page.keyboard.type(" More.");
@@ -2591,6 +2591,199 @@ test("the owner sees and controls every share of a document from its page: peopl
     await expect(reader).toHaveURL(/\/sign-in/);
 
     for (const context of [graceContext, visitorContext, open]) await context.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+// --- Comments (ROADMAP 1d.1) -------------------------------------------------------------------------------------------------
+
+/** Select `text` where it is in the page, as a person dragging across it would. */
+async function selectText(page: import("@playwright/test").Page, text: string) {
+  await page.evaluate((wanted) => {
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = node.textContent?.indexOf(wanted) ?? -1;
+      if (at < 0 || !node.parentElement?.closest('[role="textbox"]')) continue;
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.setEnd(node, at + wanted.length);
+      const selection = document.getSelection()!;
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.dispatchEvent(new Event("selectionchange"));
+      return;
+    }
+    throw new Error(`no text ${wanted}`);
+  }, text);
+}
+
+/** What the page has drawn as marks, by name, as the text each covers. */
+const marks = (page: import("@playwright/test").Page) =>
+  page.evaluate(() => {
+    const out: Record<string, string[]> = {};
+    for (const name of ["fe-thread", "fe-thread-resolved", "fe-thread-active"]) {
+      const highlight = (CSS as unknown as { highlights: Map<string, Set<Range>> }).highlights.get(name);
+      if (highlight) out[name] = [...highlight].map((range) => range.toString());
+    }
+    return out;
+  });
+
+test("threads, replies, resolving, editing and deleting, by role, in the editor and in view mode, with the owner's moderation", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
+    const make = async (role: string) => (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role } })).json()) as { id: number; url: string };
+    const comment = await make("comment");
+    const viewing = await make("view");
+
+    // The owner comments on a selection, in the editor: the thread is in the panel and marked in the text.
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    const panel = page.getByTestId("comments-panel");
+    await expect(panel.getByText("No comments yet.")).toBeVisible();
+    await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan, for reading.");
+    await selectText(page, "plan, for");
+    await page.getByRole("button", { name: "Comment on selection" }).click();
+    await panel.getByLabel("New comment").fill("Is this the plan we agreed?");
+    await panel.getByRole("button", { name: "Comment", exact: true }).click();
+    await expect(panel.getByTestId("comment-thread")).toHaveCount(1);
+    await expect(panel.getByTestId("comment-count")).toHaveText("1 open");
+    await expect.poll(() => marks(page)).toMatchObject({ "fe-thread": ["plan, for"] });
+
+    // Someone with a comment link sees the thread, marked, in a document they cannot change; they are asked for a name once.
+    const guestContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.1" } });
+    const guest = await guestContext.newPage();
+    await guest.goto(comment.url);
+    const guestPanel = guest.getByTestId("comments-panel");
+    await expect(guestPanel.getByTestId("comment-thread")).toHaveCount(1);
+    await expect(guestPanel.getByText("Is this the plan we agreed?")).toBeVisible();
+    await expect(guest.getByRole("textbox", { name: "Q4 plan" })).toHaveAttribute("contenteditable", "false");
+    await expect.poll(() => marks(guest)).toMatchObject({ "fe-thread": ["plan, for"] });
+    await guestPanel.getByRole("button", { name: "Reply" }).click();
+    await guestPanel.getByLabel("Reply").fill("Yes, I think so.");
+    await guestPanel.getByRole("button", { name: "Reply", exact: true }).last().click();
+    await expect(guestPanel.getByLabel("Your name")).toBeVisible();
+    await guestPanel.getByLabel("Your name").fill("Grace Hopper");
+    await guestPanel.getByRole("button", { name: "Continue" }).click();
+    await expect(guestPanel.getByTestId("comment-reply")).toHaveCount(1);
+    await expect(guestPanel.getByTestId("comment-reply")).toContainText("Grace Hopper");
+    await expect(guestPanel.getByTestId("comment-reply")).toContainText("Guest");
+
+    // She starts a thread of her own on other text, without being asked her name again, and resolves the owner's thread.
+    await selectText(guest, "reading");
+    await guest.getByRole("button", { name: "Comment on selection" }).click();
+    await guestPanel.getByLabel("New comment").fill("Reading what, exactly?");
+    await guestPanel.getByRole("button", { name: "Comment", exact: true }).click();
+    await expect(guestPanel.getByTestId("comment-thread")).toHaveCount(2);
+    await expect(guestPanel.getByLabel("Your name")).toHaveCount(0);
+    await guestPanel.getByTestId("comment-thread").first().getByRole("button", { name: "Resolve" }).click();
+    await expect(guestPanel.getByTestId("comment-thread").first()).toContainText("Resolved by Grace Hopper");
+    await expect.poll(() => marks(guest)).toMatchObject({ "fe-thread-resolved": ["plan, for"], "fe-thread": ["reading"] });
+
+    // Choosing a mark in the text finds its thread.
+    const box = await guest.evaluate(() => {
+      const range = [...(CSS as unknown as { highlights: Map<string, Set<Range>> }).highlights.get("fe-thread")!][0]!;
+      const rect = range.getBoundingClientRect();
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    });
+    await guest.mouse.click(box.x, box.y);
+    await expect(guestPanel.getByTestId("comment-thread").nth(1)).toHaveAttribute("data-active", "true");
+
+    // Someone with a view link reads the comments and can do nothing to them.
+    const viewContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.2" } });
+    const viewer = await viewContext.newPage();
+    await viewer.goto(viewing.url);
+    const viewPanel = viewer.getByTestId("comments-panel");
+    await expect(viewPanel.getByTestId("comment-thread")).toHaveCount(2);
+    await expect(viewPanel.getByRole("button", { name: /Reply|Resolve|Reopen|Edit|Delete/ })).toHaveCount(0);
+    await expect(viewer.getByRole("button", { name: "Comment on selection" })).toHaveCount(0);
+    await expect.poll(() => marks(viewer)).toMatchObject({ "fe-thread": ["reading"] });
+
+    // Her own comments she may edit and delete, and the owner's she may not.
+    await guest.reload();
+    const mine = guestPanel.getByTestId("comment-thread").nth(1);
+    await expect(mine.getByRole("button", { name: "Edit" })).toBeVisible();
+    const owners = guestPanel.getByTestId("comment-thread").first();
+    await expect(owners.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
+    await expect(owners.getByRole("button", { name: /^Delete .*comment/ })).toHaveCount(0);
+    await expect(owners.getByRole("button", { name: "Delete your reply" })).toHaveCount(1); // her own reply in it, though
+    await mine.getByRole("button", { name: "Edit" }).click();
+    await mine.getByLabel("Edit comment").fill("Reading what, exactly? The whole thing?");
+    await mine.getByRole("button", { name: "Save" }).click();
+    await expect(mine).toContainText("The whole thing?");
+    await expect(mine).toContainText("edited");
+
+    // The owner sees all of it, may delete anyone's, and closes the comments.
+    await page.reload();
+    await expect(panel.getByTestId("comment-thread")).toHaveCount(2);
+    await expect(panel.getByText("Resolved by Grace Hopper")).toBeVisible();
+    const hers = panel.getByTestId("comment-thread").nth(1);
+    await hers.getByRole("button", { name: /Delete Grace Hopper's comment/ }).click();
+    await hers.getByRole("button", { name: "Yes, delete" }).click();
+    await expect(panel.getByTestId("comment-thread")).toHaveCount(1);
+    await panel.getByRole("button", { name: "Close comments" }).click();
+    await expect(panel.getByText("Comments are closed")).toBeVisible();
+    await guest.reload();
+    await expect(guestPanel.getByText("Comments are closed")).toBeVisible();
+    await expect(guestPanel.getByRole("button", { name: /Reply|Resolve|Reopen/ })).toHaveCount(0);
+    const threadId = ((await (await guestContext.request.get(`/doc/${ID_DOC}/comments`)).json()) as { threads: { id: number }[] }).threads[0]!.id;
+    const refused = await guestContext.request.post(`/doc/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "reply", thread: threadId, body: "late", name: "Grace Hopper", clientId: "abcdefgh12345" } });
+    expect(refused.status()).toBe(409);
+    await panel.getByRole("button", { name: "Open comments" }).click();
+    await expect(panel.getByText("Comments are closed")).toHaveCount(0);
+
+    for (const context of [guestContext, viewContext]) await context.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a named account it is shared with comments as itself, and a revoked link stops commenting", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "a note") });
+    const graceEmail = `grace-${Date.now()}@example.com`;
+    const graceContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.3" } });
+    const grace = await graceContext.newPage();
+    await signUp(grace, graceEmail, "Grace Hopper");
+    await page.request.post(`/api/connections/${id}/shares`, { headers: { origin: BASE }, data: { doc: ID_DOC, email: graceEmail, role: "comment" } });
+
+    // She is signed in, so she is herself: no name is asked, and nothing says guest.
+    await grace.goto(`/doc/${ID_DOC}`);
+    const panel = grace.getByTestId("comments-panel");
+    await expect(grace.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    await selectText(grace, "plan, for");
+    await grace.getByRole("button", { name: "Comment on selection" }).click();
+    await panel.getByLabel("New comment").fill("As myself.");
+    await panel.getByRole("button", { name: "Comment", exact: true }).click();
+    await expect(panel.getByTestId("comment-thread")).toHaveCount(1);
+    await expect(panel.getByLabel("Your name")).toHaveCount(0);
+    await expect(panel.getByTestId("comment-thread")).toContainText("Grace Hopper");
+    await expect(panel.getByTestId("comment-thread")).not.toContainText("Guest");
+
+    // The owner sees it as hers, and a comment cannot be made without access or from elsewhere.
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await expect(page.getByTestId("comments-panel").getByText("As myself.")).toBeVisible();
+    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "comment" } })).json()) as { id: number; url: string };
+    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.4" } });
+    const threadId = ((await (await page.request.get(`/doc/${ID_DOC}/comments`)).json()) as { threads: { id: number }[] }).threads[0]!.id;
+    const post = (request: import("@playwright/test").APIRequestContext, origin: string | null = BASE) =>
+      request.post(`/doc/${ID_DOC}/comments`, { headers: origin === null ? {} : { origin }, data: { op: "reply", thread: threadId, body: "x", name: "Mallory", clientId: "abcdefgh12345" } });
+    expect((await post(stranger.request)).status()).toBe(404);
+    expect((await stranger.request.get(`/doc/${ID_DOC}/comments`)).status()).toBe(404);
+    expect((await post(graceContext.request, "https://evil.example")).status()).toBe(403);
+
+    const guestContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.5" } });
+    const guest = await guestContext.newPage();
+    await guest.goto(link.url);
+    await expect(guest.getByTestId("comments-panel").getByTestId("comment-thread")).toHaveCount(1);
+    expect((await post(guestContext.request)).status()).toBe(201);
+    await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } });
+    expect((await post(guestContext.request)).status()).toBe(404);
+    expect((await guestContext.request.get(`/doc/${ID_DOC}/comments`)).status()).toBe(404);
+
+    // A note has no comments to be had.
+    expect((await stranger.request.get(`/doc/${ID_NOTE}/comments`)).status()).toBe(404);
+    expect((await page.request.get(`/doc/${ID_NOTE}/comments`)).status()).toBe(404);
+    for (const context of [graceContext, stranger, guestContext]) await context.close();
   } finally {
     await restoreMore();
   }

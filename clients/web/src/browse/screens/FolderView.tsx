@@ -217,7 +217,7 @@ function FileCard({
                   Address by id, which does not depend on where the file is: <a href={permalink}>{permalink}</a>
                 </p>
               ) : null}
-              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} kind={file.kind === "document" ? "document" : "note"} header={header} />
+              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} kind={file.kind === "document" ? "document" : "note"} header={header} docId={docId} />
             </>
           )
         ) : (

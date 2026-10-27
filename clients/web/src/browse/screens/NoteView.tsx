@@ -5,6 +5,7 @@ import "fjord-editor/styles.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
+import { useComments } from "../../comments/Comments";
 import { sendTitle } from "../../files/client";
 import { discardDraft, sendDraft, sendVersion } from "../../working/client";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
@@ -44,6 +45,7 @@ export function NoteView({
   draft,
   header,
   kind,
+  docId,
 }: {
   connectionId: number;
   path: string;
@@ -51,11 +53,14 @@ export function NoteView({
   text: string;
   blob: string;
   kind: "note" | "document";
+  /** For a document whose header has an `id`: the key its comments are kept under (ROADMAP 1d.1). */
+  docId?: string | undefined;
   draft: DraftOfNote | null;
   /** For a file with a header that can be read, or none: where its body starts in the text shown (the draft, else the file), and its properties. */
   header?: HeaderInfo | undefined;
 }) {
   const start = draft?.content ?? text;
+  const { adapter, onNeedName, panel } = useComments(kind === "document" ? docId : undefined, { guest: false });
   const bodyStart = header?.bodyStart;
   // The header in front of the body, as it is now: the one the file has, the one it is promoted to, or one with a new title.
   const headerNow = useRef(bodyStart === undefined ? "" : start.slice(0, bodyStart));
@@ -216,10 +221,11 @@ export function NoteView({
       {bodyStart === undefined ? (
         <NoteEditor aria-label={label} value={start} onChange={(next) => saver.change(next)} readOnly={saving} />
       ) : kind === "document" ? (
-        <DocumentEditor aria-label={label} role={saving ? "view" : "edit"} value={start.slice(bodyStart)} onChange={changeBody} />
+        <DocumentEditor aria-label={label} role={saving ? "view" : "edit"} value={start.slice(bodyStart)} onChange={changeBody} comments={adapter} onNeedName={onNeedName} />
       ) : (
         <NoteEditor aria-label={label} value={start.slice(bodyStart)} onChange={changeBody} readOnly={saving} />
       )}
+      {panel}
       <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="draft-status">
         {describe(status, hasDraft)}
       </p>

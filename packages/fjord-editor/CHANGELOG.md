@@ -13,6 +13,13 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
 
 ### Added
 
+- **Marks for comment threads** (ROADMAP 1d.1): `DocumentEditor` draws each thread of the app's `CommentsAdapter` over the text it is about, in a
+  document that is only read as well as one that is edited, and tells the app which thread a click on a mark was on (`open`). The marks are
+  drawn with the browser's CSS Custom Highlight API over ranges of the rendered text (`src/marks.ts`), so they are never part of what is
+  edited, saved or compared with the Markdown, and are found again from each thread's text-quote anchor when the threads or the text change.
+  Open threads, resolved threads and the one the app is showing (`CommentsAdapter.active`, optional) are coloured apart
+  (`--fe-mark-bg`, `--fe-mark-resolved-bg`, `--fe-mark-active-bg`); a thread whose quote is not in the text is left unmarked, and the Markdown
+  fallback is not marked. Where the browser has no such API nothing is drawn.
 - **The document editor on MDXEditor** (ROADMAP 1b.3): `DocumentEditor` is MDXEditor with a Markdown-only toolbar (undo and
   redo, bold, italic, code, block type, lists, link, image by address, table, rule), tables, task lists and code blocks, loaded
   when a document first needs it. It opens a text visually **only if it can hold it without changing what it means**:

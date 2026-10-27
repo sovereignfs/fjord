@@ -43,7 +43,7 @@ export async function IdPage({ route, id, wrong }: { route: "doc" | "note"; id: 
                 Shared with you by a link <Badge>{linked.role === "view" ? "Can view" : linked.role === "comment" ? "Can comment" : "Can edit"}</Badge>
               </p>
               {linked.role === "view" || linked.editable ? null : <p className={styles.itemMeta}>{linked.role === "edit" ? "This document cannot be edited through a link." : "Commenting on a shared document comes later; for now it is shown to read."}</p>}
-              <SharedBody title={linked.title} body={linked.body} docId={id} editable={linked.editable} />
+              <SharedBody title={linked.title} body={linked.body} docId={id} editable={linked.editable} role={linked.role} guest />
             </Card>
           </div>
         </main>
@@ -86,7 +86,7 @@ export async function IdPage({ route, id, wrong }: { route: "doc" | "note"; id: 
             Shared with you{shared.sharedBy ? ` by ${shared.sharedBy}` : ""} <Badge>{shared.role === "view" ? "Can view" : shared.role === "comment" ? "Can comment" : "Can edit"}</Badge>
           </p>
           {shared.role === "view" ? null : <p className={styles.itemMeta}>Commenting and editing a shared document come later; for now it is shown to read.</p>}
-          <SharedBody title={shared.title} body={shared.body} docId={id} editable={false} />
+          <SharedBody title={shared.title} body={shared.body} docId={id} editable={false} role={shared.role} guest={false} />
         </Shell>
       );
     }

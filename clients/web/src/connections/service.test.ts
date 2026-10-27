@@ -14,6 +14,7 @@ import { MemoryProvider } from "../providers/memory";
 import { FakeGitHub } from "../providers/testing/fake-github";
 import { TreeCache } from "../browse/tree-cache";
 import { DocIndex } from "../browse/doc-index";
+import { CommentService } from "../comments/service";
 import { LinkService } from "../sharing/links";
 import { ShareService } from "../sharing/shares";
 import { DeletionService } from "../files/deletions";
@@ -72,6 +73,9 @@ beforeEach(async () => {
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.shareLink : sqliteSchema.shareLink}`);
+  for (const table of database.dialect === "postgres" ? [postgresSchema.commentReply, postgresSchema.commentThread, postgresSchema.commentActivity, postgresSchema.commentClosed] : [sqliteSchema.commentReply, sqliteSchema.commentThread, sqliteSchema.commentActivity, sqliteSchema.commentClosed]) {
+    await dbRun(database, sql`DELETE FROM ${table}`);
+  }
   await fake.commitFiles({ "fjord.json": "{}" }, { replace: true });
 });
 
@@ -367,6 +371,31 @@ describe(`using and removing a connection (${leg})`, () => {
     await s.remove(ALICE, one.id);
     expect(await links.byToken(tokens[0]!)).toBeUndefined();
     expect(await links.byToken(tokens[1]!)).toBeDefined();
+  });
+
+  it("forgets what was said about a repository's documents when it is disconnected, and about no other's", async () => {
+    const memory = new MemoryProvider();
+    for (const name of ["one", "two"]) {
+      memory.createRepository({ owner: "acme", name });
+      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    }
+    const s = new ConnectionService({ database, credentials, github: () => memory });
+    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const comments = new CommentService(database);
+    const anchor = { type: "text-quote" as const, quote: "q", prefix: "", suffix: "", position: 0 };
+    const doc = "01jagc4k7pt8y3wqnmzv5xrb8j";
+    const author = { kind: "account" as const, id: ALICE, name: "Alice" };
+    for (const { id } of [one, two]) {
+      const thread = await comments.createThread(id, doc, anchor, "a comment", author);
+      if (thread.ok) await comments.reply(id, doc, thread.id, "a reply", author);
+      await comments.setClosed(id, doc, true, author);
+    }
+    await s.remove(ALICE, one.id);
+    expect(await comments.list(one.id, doc, undefined)).toEqual({ threads: [], closed: false });
+    expect(await comments.activity(one.id, doc)).toEqual([]);
+    expect((await comments.list(two.id, doc, undefined)).threads).toHaveLength(1);
+    expect((await comments.list(two.id, doc, undefined)).closed).toBe(true);
   });
 
   it("lets two accounts connect the same repository, each with a token of their own", async () => {

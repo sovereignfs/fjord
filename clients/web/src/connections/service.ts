@@ -62,6 +62,7 @@ const drafts = (database: Database) => (database.dialect === "postgres" ? postgr
 const docIndex = (database: Database) => (database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex);
 const userShares = (database: Database) => (database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser);
 const linkShares = (database: Database) => (database.dialect === "postgres" ? postgresSchema.shareLink : sqliteSchema.shareLink);
+const commentTables = (database: Database) => (database.dialect === "postgres" ? [postgresSchema.commentReply, postgresSchema.commentThread, postgresSchema.commentActivity, postgresSchema.commentClosed] : [sqliteSchema.commentReply, sqliteSchema.commentThread, sqliteSchema.commentActivity, sqliteSchema.commentClosed]);
 const deletions = (database: Database) => (database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion);
 const defaults = (database: Database) => (database.dialect === "postgres" ? postgresSchema.accountDefault : sqliteSchema.accountDefault);
 const COLUMNS = sql.raw('id, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", default_vault AS "defaultVault"');
@@ -195,6 +196,8 @@ export class ConnectionService {
     // And what was shared from it: the documents are not reachable any more.
     await dbRun(this.database, sql`DELETE FROM ${userShares(this.database)} WHERE connection_id = ${id}`);
     await dbRun(this.database, sql`DELETE FROM ${linkShares(this.database)} WHERE connection_id = ${id}`);
+    // And what was said about its documents.
+    for (const comments of commentTables(this.database)) await dbRun(this.database, sql`DELETE FROM ${comments} WHERE connection_id = ${id}`);
     await this.credentials.remove(row.credentialId);
     return true;
   }

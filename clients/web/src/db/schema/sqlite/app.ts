@@ -237,3 +237,75 @@ export const shareLink = sqliteTable(
     index("share_link_document_idx").on(table.connectionId, table.docId),
   ],
 );
+
+/**
+ * A comment thread on a document (DESIGN.md §13, ROADMAP 1d.1): the opening comment and the text it is about. A document is its connection and
+ * its Doc `id`, so a thread follows the file when it is renamed or moved. `anchor` is the JSON of the thread's text-quote anchor (a tagged
+ * type, so that phase 3 can add Yjs positions beside it), kept independent of the editor. The author is a signed-in account (`account`, by its id) or
+ * someone who came through a link (`guest`, by the link and a random id their browser made up, which is spoofable by design) and the name
+ * they gave. Comments are on the server, not in the repository. A thread's replies go with it, and a disconnected repository's go with it.
+ */
+export const commentThread = sqliteTable(
+  "comment_thread",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    docId: text("doc_id").notNull(),
+    anchor: text("anchor").notNull(),
+    body: text("body").notNull(),
+    authorKind: text("author_kind").notNull(),
+    authorId: text("author_id").notNull(),
+    authorName: text("author_name").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+    editedAt: epochMs("edited_at"),
+    resolvedAt: epochMs("resolved_at"),
+    resolvedBy: text("resolved_by"),
+  },
+  (table) => [index("comment_thread_document_idx").on(table.connectionId, table.docId)],
+);
+
+/** A reply in a thread (DESIGN.md §13). */
+export const commentReply = sqliteTable(
+  "comment_reply",
+  {
+    id: id64("id"),
+    threadId: ref64("thread_id").notNull(),
+    connectionId: ref64("connection_id").notNull(),
+    docId: text("doc_id").notNull(),
+    body: text("body").notNull(),
+    authorKind: text("author_kind").notNull(),
+    authorId: text("author_id").notNull(),
+    authorName: text("author_name").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+    editedAt: epochMs("edited_at"),
+  },
+  (table) => [index("comment_reply_thread_idx").on(table.threadId), index("comment_reply_document_idx").on(table.connectionId, table.docId)],
+);
+
+/** What happened to a document's comments, kept as a log (DESIGN.md §13): who did what, and when. */
+export const commentActivity = sqliteTable(
+  "comment_activity",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    docId: text("doc_id").notNull(),
+    threadId: ref64("thread_id"),
+    actorKind: text("actor_kind").notNull(),
+    actorName: text("actor_name").notNull(),
+    event: text("event").notNull(),
+    at: epochMs("at").notNull(),
+  },
+  (table) => [index("comment_activity_document_idx").on(table.connectionId, table.docId, table.at)],
+);
+
+/** A document whose comments the owner closed (DESIGN.md §13): there is a row for as long as they are closed. */
+export const commentClosed = sqliteTable(
+  "comment_closed",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    docId: text("doc_id").notNull(),
+    closedAt: epochMs("closed_at").notNull(),
+  },
+  (table) => [uniqueIndex("comment_closed_document_idx").on(table.connectionId, table.docId)],
+);

@@ -5,6 +5,7 @@ import "fjord-editor/styles.css";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, FormField, Input } from "../ui";
 import styles from "../auth/screens/screens.module.css";
+import { useComments } from "../comments/Comments";
 import { DraftSaver, type SaverStatus } from "../working/saver";
 import { MAX_NAME_CHARS, cleanGuestName } from "./guest-name";
 import { NAME_KEY, sendGuestDraft } from "./guest-client";
@@ -20,6 +21,7 @@ export function GuestEditor({ docId, title, body }: { docId: string; title: stri
   const [asking, setAsking] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState<SaverStatus>({ state: "idle" });
+  const { adapter, onNeedName, panel } = useComments(docId, { guest: true });
 
   // The name this browser gave before, if it did.
   useEffect(() => {
@@ -98,12 +100,13 @@ export function GuestEditor({ docId, title, body }: { docId: string; title: stri
           </Button>
         </p>
       ) : null}
-      <DocumentEditor aria-label={title} role={name === undefined ? "view" : "edit"} value={body} onChange={(next) => saver?.change(next)} />
+      <DocumentEditor aria-label={title} role={name === undefined ? "view" : "edit"} value={body} onChange={(next) => saver?.change(next)} comments={adapter} onNeedName={onNeedName} />
       {name !== undefined ? (
         <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="guest-status">
           {describe(status)}
         </p>
       ) : null}
+      {panel}
       {status.state === "refused" || status.state === "stopped" ? (
         <div className={styles.notice}>
           <Alert variant="error" heading="Your changes are not being kept">

@@ -55,6 +55,8 @@ export interface CommentsAdapter {
   create(anchor: Anchor): void;
   /** The person chose a thread's mark in the text. */
   open(threadId: string): void;
+  /** The thread the app is showing now, which is marked more strongly. Optional: without it no thread is. */
+  active?(): string | null;
 }
 
 /** What a client may do to an editor from outside. */

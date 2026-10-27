@@ -5,7 +5,7 @@
 import { type RenderResult, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { $createParagraphNode, $createTextNode, $getRoot } from "lexical";
 import { cloneElement, createRef, useState } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DocumentEditor } from "./DocumentEditor.js";
 import { RichDocument } from "./rich/RichDocument.js";
 import { NoteEditor } from "./NoteEditor.js";
@@ -318,6 +318,84 @@ describe("comments", () => {
     fireEvent.click(button);
     await waitFor(() => expect(app.created).toHaveLength(1));
     expect(app.created[0]).toEqual({ type: "text-quote", quote: "world", prefix: "Hello ", suffix: "", position: 6 });
+  });
+
+  describe("marks in the text", () => {
+    const painted = new Map<string, string[]>();
+    beforeEach(() => {
+      painted.clear();
+      // The test environment has its own `CSS` (with only a getter), so the browser's highlight API is put in its place and taken out after.
+      Object.defineProperty(globalThis, "CSS", { configurable: true, value: { highlights: { set: (name: string, highlight: Range[]) => painted.set(name, highlight.map(String)), delete: (name: string) => painted.delete(name) } } });
+      Object.defineProperty(globalThis, "Highlight", {
+        configurable: true,
+        value: class extends Array<Range> {
+          constructor(...ranges: Range[]) {
+            super();
+            this.push(...ranges);
+          }
+        },
+      });
+    });
+    afterEach(() => {
+      delete (globalThis as Record<string, unknown>).CSS;
+      delete (globalThis as Record<string, unknown>).Highlight;
+    });
+
+    it("draws a thread over its text, in a document that is only read as well as one that is edited", async () => {
+      for (const role of ["view", "comment", "edit"] as const) {
+        const app = adapter([mark("a")]);
+        const { unmount } = documentIn({ role, comments: app.comments });
+        await ready();
+        await waitFor(() => expect(painted.get("fe-thread")).toEqual(["world"]), { timeout: 4000 });
+        unmount();
+        expect(painted.size).toBe(0);
+      }
+    });
+
+    it("draws a resolved thread apart, follows the threads as they change, and draws none for a thread that is outdated", async () => {
+      const app = adapter([mark("a")]);
+      documentIn({ role: "comment", comments: app.comments });
+      await ready();
+      await waitFor(() => expect(painted.get("fe-thread")).toEqual(["world"]));
+      app.set([mark("a", { resolved: true }), mark("b", { outdated: true })]);
+      await waitFor(() => expect(painted.get("fe-thread-resolved")).toEqual(["world"]));
+      expect(painted.has("fe-thread")).toBe(false);
+      app.set([]);
+      await waitFor(() => expect(painted.size).toBe(0));
+    });
+
+    it("marks more strongly the thread the app is showing", async () => {
+      const app = adapter([mark("a")]);
+      documentIn({ role: "comment", comments: { ...app.comments, active: () => "a" } });
+      await ready();
+      await waitFor(() => expect(painted.get("fe-thread-active")).toEqual(["world"]));
+    });
+
+    it("tells the app which thread a click was on, and nothing for a click elsewhere", async () => {
+      const app = adapter([mark("a")]);
+      documentIn({ role: "view", comments: app.comments });
+      const surface = await ready();
+      await waitFor(() => expect(painted.get("fe-thread")).toEqual(["world"]));
+      const text = document.createTreeWalker(surface, NodeFilter.SHOW_TEXT).nextNode()!;
+      const at = (offset: number) => ((document as unknown as { caretPositionFromPoint: unknown }).caretPositionFromPoint = () => ({ offsetNode: text, offset }));
+      document.getSelection()?.removeAllRanges(); // an earlier test's selection is not a drag across this text
+      at(8);
+      fireEvent.click(surface);
+      expect(app.opened).toEqual(["a"]);
+      at(2);
+      fireEvent.click(surface);
+      expect(app.opened).toEqual(["a"]);
+      // A click that ends a drag across text is a selection, not a choice of a mark.
+      at(8);
+      const range = document.createRange();
+      range.setStart(text, 0);
+      range.setEnd(text, 5);
+      document.getSelection()?.addRange(range);
+      fireEvent.click(surface);
+      expect(app.opened).toEqual(["a"]);
+      document.getSelection()?.removeAllRanges();
+      delete (document as unknown as { caretPositionFromPoint?: unknown }).caretPositionFromPoint;
+    });
   });
 
   it("offers nothing to someone who is only viewing, or when there is no adapter", async () => {

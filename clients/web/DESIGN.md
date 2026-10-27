@@ -1122,6 +1122,37 @@ Comments are collaborative in phase 1; editing is not (phase 3).
   [Annotate.js](https://github.com/kasunben/Annotate.js); not its anchoring (XPath
   into a static page, which an edited document breaks).
 
+### Comments, as built (ROADMAP 1d.1)
+
+Threads, replies, resolving, editing, deleting and closing are built; re-anchoring after outside changes (1d.2), live updates (1d.3) and the
+per-user and per-link rate limits (1d.4) are not.
+
+- **Where the comments are:** a panel beside the document, for the owner (on the document's page), for an account it is shared with and for
+  anyone with a link (on `/doc/<id>`). They are kept per connection and Doc `id` (`comment_thread`, `comment_reply`, `comment_activity`,
+  `comment_closed`; migration `0012`), so they follow the file through a rename or a move, and go with a disconnected repository.
+- **The API** is `/doc/<id>/comments`, under `/doc/<id>` because that is where a link's cookie is sent; a session works there too. `GET` lists
+  (`?name=&client=` lets a guest see which are theirs); `POST` `{ op: "thread", anchor, body }` or `{ op: "reply", thread, body }`; `PATCH`
+  `{ op: "resolve", thread, resolved }`, `{ op: "edit", kind, id, body }` or `{ op: "close", closed }`; `DELETE` `{ kind, id }`. Writes come
+  from this site only. A caller who is let in nowhere is told "not found", one who is let in but not to this "forbidden".
+- **By role** (the policy's, `src/access/policy.ts`): `view` reads the threads; `comment` also starts threads, replies, resolves and reopens, and
+  edits and deletes its own; `edit` the same; **the owner** alone deletes anyone's and closes or opens a document's comments (`moderate_comments`,
+  which no share has). Comments are on documents only.
+- **Who wrote a comment:** a signed-in account is itself, by its id and name, even where it came in by a link. Someone with a link only is a
+  **guest**, by the link and an id their browser made up and kept (spoofable by design), with the name they gave (asked for once, before they
+  write, and kept in their browser, the same name as for editing through a link, 1c.6). The listing never carries an id, only the name, whether
+  it was a guest, and `mine`.
+- **Limits:** a comment is 1 to 4000 characters, a document has 500 threads at most and a thread 200 replies, an anchor's quote 2000 characters.
+  While a document's comments are **closed** nothing is added, edited or resolved and deleting goes on; the owner opens them again.
+- **In the text:** each thread is a highlight over the text it is about (`fjord-editor`'s `src/marks.ts`), drawn with the browser's CSS Custom Highlight
+  API over the rendered text, in an editable document and in a document that is only read, open threads and resolved ones apart and the thread
+  being looked at stronger; a click on a mark opens its thread in the panel. **This is not a Lexical node**: a mark in the editor's own document would
+  have to be written out, compared with the Markdown and kept out of the file, and would be lost by an edit; a highlight over ranges found again
+  from each thread's text-quote anchor is never part of what is edited, saved or compared. Where the browser has no such API the thread is in the panel
+  only; a document the visual editor cannot hold (shown as Markdown) is not marked.
+- **The anchor** is the text-quote selector of the design (the quote, up to 32 characters before and after, where it was), as the Markdown body
+  has it for a selection of plain text within a block; a selection across formatting or blocks is not offered a comment. A quote that is no longer in
+  the text is left unmarked; finding it again in a changed text, and marking such a thread outdated, are 1d.2.
+
 ## 14. Data model and database
 
 ### Tables
@@ -1138,8 +1169,8 @@ Roughly, beyond better-auth's own:
 | `deletion` | connection, path, `id`, kind, last blob id, deleting commit, deleted by, timestamp, restored (§8) |
 | `share_user` | connection, Doc `id`, account, role, who shared it, when (§12); unique per document and account |
 | `share_link` | connection, Doc `id`, token hash (never the token), role, expiry, revoked at, who made it, when (§12). a password hash for a link with one, and the failures and wait that rate-limit tries at it (1c.5) |
-| `thread`, `reply` | document, anchor (tagged), body, author (account or anonymous id + name), timestamps, resolved |
-| `activity` | document, actor, event, timestamp |
+| `comment_thread`, `comment_reply` | connection, Doc `id`, anchor (tagged JSON), body, author (kind `account` + id, or `guest` + link and browser id; and name), timestamps, resolved at and by, edited at (§13) |
+| `comment_activity`, `comment_closed` | the log of what happened to a document's comments (who, what, when); a row for each document whose comments are closed (§13) |
 | `event` | cross-process notices (worker → web): kind, subject, timestamp |
 
 A document is identified by connection and `id` (or path, for a note without one).

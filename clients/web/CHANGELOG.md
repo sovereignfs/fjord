@@ -13,6 +13,11 @@ section.
 
 ### Added
 
+- **Comments** (ROADMAP 1d.1): select text in a document and comment on it. Anyone who may comment can start a thread, reply, resolve it or
+  open it again, and edit or delete their own comments; the owner can delete anyone's and close a document's comments. The text a thread
+  is about is highlighted, in a document that is being edited and in one that is only being read, and choosing a highlight opens its thread. A
+  panel beside the document lists the threads, for its owner, for an account it is shared with and for anyone with a link (view links read the
+  comments; comment and edit links also write them, under a name they give once). Comments are kept on the server, not in the repository.
 - **Manage who a document is shared with** (ROADMAP 1c.7): a document's page has a **Sharing** panel for its owner. It lists the people it is
   shared with and the links to it, and lets the owner share with another account's address, change a role, stop sharing, make a link (with a
   role, an expiry and a password if wanted), change a link's role, expiry or password, and revoke it. A link's address is shown once, when it is

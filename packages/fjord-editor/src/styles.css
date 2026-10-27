@@ -278,3 +278,14 @@
 .fe-rich .cm-cursor {
   border-inline-start-color: var(--fe-color-text, #1c1c1e);
 }
+
+/* Comment threads in the text (ROADMAP 1d.1): drawn over the rendered text by the CSS Custom Highlight API (src/marks.ts), never part of it. */
+::highlight(fe-thread) {
+  background-color: var(--fe-mark-bg, rgba(250, 204, 21, 0.4));
+}
+::highlight(fe-thread-resolved) {
+  background-color: var(--fe-mark-resolved-bg, rgba(148, 163, 184, 0.28));
+}
+::highlight(fe-thread-active) {
+  background-color: var(--fe-mark-active-bg, rgba(250, 204, 21, 0.75));
+}

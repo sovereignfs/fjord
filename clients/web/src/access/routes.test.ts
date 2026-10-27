@@ -89,6 +89,8 @@ describe("every route says who may use it", () => {
     };
     const sharing = ROUTES.find((candidate) => candidate.route === "/api/connections/[id]/shares")!;
     expect(Object.values(sharing.methods ?? {}).map((access) => (access.kind === "resource" ? access.action : null))).toEqual(["manage_shares", "manage_shares", "manage_shares"]);
+    const talking = ROUTES.find((candidate) => candidate.route === "/doc/[id]/comments")!;
+    expect(Object.entries(talking.methods ?? {}).map(([method, access]) => [method, access.kind === "resource" ? access.action : null])).toEqual([["GET", "read"], ["POST", "comment"], ["PATCH", "resolve"], ["DELETE", "delete_own_comment"]]);
     const linking = ROUTES.find((candidate) => candidate.route === "/api/connections/[id]/links")!;
     expect(Object.values(linking.methods ?? {}).map((access) => (access.kind === "resource" ? access.action : null))).toEqual(["manage_shares", "manage_shares", "manage_shares", "manage_shares"]);
     for (const [route, action] of Object.entries(named)) {
