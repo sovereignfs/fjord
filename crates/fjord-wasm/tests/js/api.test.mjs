@@ -116,3 +116,19 @@ test("it has no filesystem, no clock and no random source of its own to fall bac
   }
   assert.ok(offered.includes("discover") && offered.includes("newUlid"));
 });
+
+test("two edits of one text merge by lines: apart cleanly, together with both sides kept between markers", () => {
+  const merge = (...args) => JSON.parse(wasm.mergeTexts(...args));
+  assert.deepEqual(merge("one\ntwo\nthree\nfour\nfive\n", "ONE\ntwo\nthree\nfour\nfive\n", "one\ntwo\nthree\nfour\nFIVE\n", "mine", "theirs"), {
+    clean: true,
+    conflicts: 0,
+    text: "ONE\ntwo\nthree\nfour\nFIVE\n",
+  });
+  const conflicted = merge("a\nsame\nz\n", "a\nmine\nz\n", "a\ntheirs\nz\n", "Your changes", "In the repository");
+  assert.equal(conflicted.clean, false);
+  assert.equal(conflicted.conflicts, 1);
+  assert.equal(conflicted.text, "a\n<<<<<<< Your changes\nmine\n=======\ntheirs\n>>>>>>> In the repository\nz\n");
+  // A label cannot break out of its marker line, and non-ASCII text goes through whole.
+  assert.match(merge("x\n", "m\n", "t\n", "a\nb", "é\u0007").text, /^<<<<<<< a b\nm\n=======\nt\n>>>>>>> é\n$/);
+  assert.equal(merge("日本\n", "日本語\n", "日本\n", "m", "t").text, "日本語\n");
+});

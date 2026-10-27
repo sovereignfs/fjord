@@ -20,6 +20,7 @@
 use fjord_core::doc::{self, Parse};
 use fjord_core::listing::{self, FileKind, ListedFile};
 use fjord_core::manifest::{field, Manifest, Vaults};
+use fjord_core::merge;
 use fjord_core::scaffold::{self, FileChange, Origin, Setup};
 use fjord_core::{path, scalar};
 use serde_json::{json, Map, Value};
@@ -339,6 +340,37 @@ pub fn rfc3339_from_unix(seconds: f64) -> Option<String> {
         return None;
     }
     scalar::rfc3339_utc_from_unix(seconds as i64)
+}
+
+// --- Merging --------------------------------------------------------------------------------------------
+
+/// Merge two edits of one text, `ours` and `theirs`, both made from `base` (spec §9.1; `fjord_core::merge::merge3`, the
+/// merge `fjord sync` and the CLI use, so every client merges alike). By lines, as `git merge-file` does.
+///
+/// The answer is JSON: `{"clean": bool, "conflicts": number, "text": string}`. `text` is the merged text when `clean`;
+/// otherwise it is the text with each conflict written between `<<<<<<< ours_label`, `=======` and
+/// `>>>>>>> theirs_label` lines, for a person to settle. Neither side is ever dropped from it. A label is made safe to
+/// put on a marker line (line breaks and control characters become spaces). Nothing is an error: any three texts merge.
+pub fn merge_texts(
+    base: &str,
+    ours: &str,
+    theirs: &str,
+    ours_label: &str,
+    theirs_label: &str,
+) -> String {
+    let merged = merge::merge3(base, ours, theirs);
+    let text = merged
+        .clean_text()
+        .unwrap_or_else(|| merged.with_markers(&label(ours_label), &label(theirs_label)));
+    json!({ "clean": merged.is_clean(), "conflicts": merged.conflicts(), "text": text }).to_string()
+}
+
+fn label(text: &str) -> String {
+    text.chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect::<String>()
+        .trim()
+        .to_string()
 }
 
 // --- Setting up a repository that is not a Fjord repository --------------------------------------------
@@ -790,6 +822,95 @@ mod tests {
                 "{options} {existing} {now}"
             );
         }
+    }
+
+    #[test]
+    fn two_edits_in_different_places_merge_cleanly() {
+        let merged = parsed(&merge_texts(
+            "one\ntwo\nthree\nfour\nfive\n",
+            "ONE\ntwo\nthree\nfour\nfive\n",
+            "one\ntwo\nthree\nfour\nFIVE\n",
+            "mine",
+            "theirs",
+        ));
+        assert_eq!(
+            merged,
+            json!({ "clean": true, "conflicts": 0, "text": "ONE\ntwo\nthree\nfour\nFIVE\n" })
+        );
+    }
+
+    #[test]
+    fn two_edits_of_the_same_line_conflict_and_both_are_kept_between_markers() {
+        let merged = parsed(&merge_texts(
+            "a\nsame\nz\n",
+            "a\nmine\nz\n",
+            "a\ntheirs\nz\n",
+            "Your changes",
+            "In the repository",
+        ));
+        assert_eq!(merged["clean"], json!(false));
+        assert_eq!(merged["conflicts"], json!(1));
+        assert_eq!(
+            merged["text"],
+            json!("a\n<<<<<<< Your changes\nmine\n=======\ntheirs\n>>>>>>> In the repository\nz\n")
+        );
+    }
+
+    #[test]
+    fn a_side_that_changed_nothing_gives_way_to_the_other() {
+        let same = |text: &str| parsed(text)["text"].as_str().map(str::to_string);
+        assert_eq!(
+            same(&merge_texts("b\n", "b\n", "t\n", "m", "t")),
+            Some("t\n".to_string())
+        );
+        assert_eq!(
+            same(&merge_texts("b\n", "m\n", "b\n", "m", "t")),
+            Some("m\n".to_string())
+        );
+        assert_eq!(
+            same(&merge_texts("b\n", "x\n", "x\n", "m", "t")),
+            Some("x\n".to_string())
+        );
+    }
+
+    #[test]
+    fn a_missing_final_newline_and_a_byte_order_mark_are_kept_as_text() {
+        let merged = parsed(&merge_texts(
+            "\u{feff}a\r\nb",
+            "\u{feff}a\r\nb\r\nc",
+            "\u{feff}A\r\nb",
+            "m",
+            "t",
+        ));
+        assert_eq!(
+            merged["clean"],
+            json!(false),
+            "touching changes are one region"
+        );
+        let clean = parsed(&merge_texts(
+            "a\r\nb\r\nc\r\nd",
+            "A\r\nb\r\nc\r\nd",
+            "a\r\nb\r\nc\r\nD",
+            "m",
+            "t",
+        ));
+        assert_eq!(clean["text"], json!("A\r\nb\r\nc\r\nD"));
+    }
+
+    #[test]
+    fn a_label_cannot_break_a_marker_line() {
+        let merged = parsed(&merge_texts(
+            "x\n",
+            "m\n",
+            "t\n",
+            "mine\n=======\nevil",
+            "  th\u{7}eirs ",
+        ));
+        let text = merged["text"].as_str().expect("text");
+        assert!(
+            text.starts_with("<<<<<<< mine ======= evil\nm\n=======\nt\n>>>>>>> th eirs\n"),
+            "{text}"
+        );
     }
 
     #[test]

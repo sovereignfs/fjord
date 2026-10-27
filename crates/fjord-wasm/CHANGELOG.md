@@ -7,6 +7,9 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 
 ### Added
 
+- **`mergeTexts`** (ROADMAP 1b.10): `fjord_core::merge::merge3` for the web client's upstream-change handling, so the web
+  merges a note exactly as the CLI does: `{clean, conflicts, text}`, with both sides kept between conflict markers when
+  the edits overlap. 539,432 bytes, 228,126 gzipped.
 - **`planSetup` and `freeVaultName`** (ROADMAP P6): what to add to a repository that is not a Fjord repository so
   that it is one, from the repository's paths and the text of its `.gitattributes`, with the time and the
   randomness the caller supplies. Held, by Rust and by the JavaScript suite, to a recorded file of cases
