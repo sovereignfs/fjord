@@ -184,6 +184,47 @@ pub fn with_fresh_id(text: &str, id: &str) -> Option<String> {
     Some(format!("{FENCE}\n{yaml}{FENCE}\n{}", &text[body_offset..]))
 }
 
+/// Set a Doc's `title`, or take it away with `None`, preserving every other key and its order. Spec §8.2.
+///
+/// A web client's properties panel edits the title and nothing else: `id` is immutable (§8.2) and `created` is set
+/// once (§8.1), so there is no function here for either. The key keeps its place when it is there; a new one goes at
+/// the end of the mapping, after whatever the file already said.
+///
+/// The header is written again by the YAML writer, so a title with a colon, a quote or a leading `-` cannot make a
+/// file this crate would refuse to read, and the comments in it are lost (§8.2 allows that; keys MUST survive). The body
+/// is not touched: it is the bytes after the closing fence, as they were.
+///
+/// Returns `None` for a file with no frontmatter to rewrite (to give one, [`promote`] it), and for one whose
+/// frontmatter is there but broken, which is not ours to rewrite.
+pub fn with_title(text: &str, title: Option<&str>) -> Option<String> {
+    let (frontmatter, body_offset) = match parse(text) {
+        Parse::Present {
+            frontmatter,
+            body_offset,
+        } => (frontmatter, body_offset),
+        _ => return None,
+    };
+
+    let mut raw = frontmatter.raw().clone();
+    match title {
+        Some(title) => {
+            raw.insert(key::TITLE.to_string(), Value::String(title.to_string()));
+        }
+        // `shift_remove` keeps the order of the keys that are left.
+        None => {
+            raw.shift_remove(key::TITLE);
+        }
+    }
+
+    let yaml = if raw.is_empty() {
+        // `---\n---\n`, which is a mapping with nothing in it (§8.1), not `{}`.
+        String::new()
+    } else {
+        serde_yaml_ng::to_string(&raw).ok()?
+    };
+    Some(format!("{FENCE}\n{yaml}{FENCE}\n{}", &text[body_offset..]))
+}
+
 /// Give a file the frontmatter of a Doc, keeping whatever it already has.
 /// Spec §8.1, §8.2.
 ///
@@ -223,7 +264,7 @@ pub fn promote(text: &str, id: &str, created: &str, title: &str) -> Option<Strin
 }
 
 /// The title a document implies: its first level-one heading, else the file
-/// name without its extension. Spec §8.2.
+/// name without its extension (`.fj.md` for a document, `.md` for a note). Spec §8.2.
 pub fn implied_title(text: &str, file_name: &str) -> String {
     for line in text.lines() {
         if let Some(heading) = line.strip_prefix("# ") {
@@ -233,10 +274,12 @@ pub fn implied_title(text: &str, file_name: &str) -> String {
             }
         }
     }
-    file_name
-        .strip_suffix(".md")
-        .unwrap_or(file_name)
-        .to_string()
+    let stem = if is_document_name(file_name) {
+        file_name.strip_suffix(DOCUMENT_SUFFIX)
+    } else {
+        file_name.strip_suffix(".md")
+    };
+    stem.unwrap_or(file_name).to_string()
 }
 
 /// Advance one line, returning the line without its terminator and the
@@ -569,6 +612,123 @@ mod tests {
         assert_eq!(implied_title("", "report.pdf"), "report.pdf");
         // A heading with nothing after the hash is not a title.
         assert_eq!(implied_title("#\n\nbody\n", "notes.md"), "notes");
+    }
+
+    #[test]
+    fn a_document_is_titled_by_its_name_without_the_whole_suffix() {
+        assert_eq!(implied_title("body\n", "Q4 plan.fj.md"), "Q4 plan");
+        assert_eq!(implied_title("body\n", "a.fj.md"), "a");
+        // `.fj.md` alone is not a document's name (§8.4), so it is a note named `.fj`.
+        assert_eq!(implied_title("body\n", ".fj.md"), ".fj");
+        // A note that has `.fj` in the middle of its name keeps it.
+        assert_eq!(implied_title("body\n", "notes.fj.txt.md"), "notes.fj.txt");
+    }
+
+    #[test]
+    fn a_title_is_set_and_everything_else_stays() {
+        let original = "---\nzeta: 1\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\ntitle: Old\nx-future:\n  - kept\n  - as is\ncreated: 2026-10-16T09:34:00Z\n---\r\n\r\n# Body\r\n\r\nline  \r\n";
+        let rewritten = with_title(original, Some("New title")).expect("a rewrite");
+
+        let frontmatter = frontmatter_of(&rewritten);
+        assert_eq!(frontmatter.title(), Some("New title"));
+        assert_eq!(frontmatter.doc_id(), Some("01jagc4k7pt8y3wqnmzv5xrb7h"));
+        assert_eq!(frontmatter.created(), Some("2026-10-16T09:34:00Z"));
+        // Invariant 3: every key, in its place, and the unknown one's value as it was.
+        assert_eq!(
+            frontmatter.raw().keys().collect::<Vec<&String>>(),
+            vec!["zeta", "id", "title", "x-future", "created"]
+        );
+        assert_eq!(
+            frontmatter.get("x-future"),
+            frontmatter_of(original).get("x-future")
+        );
+        // The body is the bytes after the closing fence, CRLF and trailing spaces included.
+        assert!(rewritten.ends_with("---\n\r\n# Body\r\n\r\nline  \r\n"));
+    }
+
+    #[test]
+    fn a_title_that_is_new_goes_after_what_the_file_said() {
+        let original = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\ntags: [a, b]\n---\nbody\n";
+        let rewritten = with_title(original, Some("Named")).expect("a rewrite");
+        assert_eq!(
+            frontmatter_of(&rewritten)
+                .raw()
+                .keys()
+                .collect::<Vec<&String>>(),
+            vec!["id", "tags", "title"]
+        );
+        assert!(rewritten.ends_with("---\nbody\n"));
+    }
+
+    #[test]
+    fn a_title_is_taken_away_and_the_other_keys_close_up() {
+        let original = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\ntitle: Gone\nzeta: 1\n---\nbody\n";
+        let rewritten = with_title(original, None).expect("a rewrite");
+        let frontmatter = frontmatter_of(&rewritten);
+        assert!(!frontmatter.has("title"));
+        assert_eq!(
+            frontmatter.raw().keys().collect::<Vec<&String>>(),
+            vec!["id", "zeta"]
+        );
+        // Taking away what is not there changes nothing but the writing of the header.
+        let again = with_title(&rewritten, None).expect("a rewrite");
+        assert_eq!(frontmatter_of(&again).raw(), frontmatter.raw());
+    }
+
+    #[test]
+    fn taking_away_the_only_key_leaves_an_empty_block_that_still_parses() {
+        let rewritten = with_title("---\ntitle: Only\n---\nbody\n", None).expect("a rewrite");
+        assert_eq!(rewritten, "---\n---\nbody\n");
+        assert!(frontmatter_of(&rewritten).raw().is_empty());
+    }
+
+    #[test]
+    fn a_title_that_would_break_yaml_is_written_so_that_it_reads_back_as_it_was() {
+        for title in [
+            "Plan: the sequel",
+            "- starts like a list",
+            "\"quoted\" and 'single'",
+            "# not a comment",
+            "line one\nline two",
+            "日本語 💧 ñ",
+            "  leading and trailing  ",
+            "true",
+            "123",
+            "null",
+            "[bracketed]",
+            "{braced}",
+            "key: value # comment",
+            "---",
+        ] {
+            let rewritten = with_title(
+                "---\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\n---\nbody\n",
+                Some(title),
+            )
+            .expect("a rewrite");
+            let frontmatter = frontmatter_of(&rewritten);
+            assert_eq!(
+                frontmatter.title(),
+                Some(title),
+                "{title:?} did not read back"
+            );
+            assert!(
+                rewritten.ends_with("---\nbody\n"),
+                "{title:?} damaged the body"
+            );
+        }
+    }
+
+    #[test]
+    fn a_file_with_no_header_or_a_broken_one_is_not_retitled() {
+        assert_eq!(with_title("just a note\n", Some("T")), None);
+        assert_eq!(with_title("", Some("T")), None);
+        assert_eq!(with_title("---\nnever closed\n", Some("T")), None);
+        assert_eq!(with_title("---\n- a\n- list\n---\nbody\n", Some("T")), None);
+        assert_eq!(
+            with_title("---\nkey: [unclosed\n---\nbody\n", Some("T")),
+            None
+        );
+        assert_eq!(with_title("\n---\nid: x\n---\n", Some("T")), None);
     }
 
     /// Invariant 3, for documents.

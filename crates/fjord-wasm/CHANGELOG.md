@@ -7,6 +7,9 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 
 ### Added
 
+- **`withTitle`** (ROADMAP 1b.5): `fjord_core::doc::with_title`, a document's text with its `title` set or taken away, every other
+  key kept in its place, for the web client's Document properties panel. `impliedTitle` now strips the whole `.fj.md` from a
+  document's name.
 - **`quickNoteName`, `titleFromText`, `freeName`** (ROADMAP 1b.7): `fjord_core::naming`, so a note or a document the web client creates is
   named exactly as one made on a phone or by the CLI. 549,291 bytes, 231,680 gzipped.
 - **`mergeTexts`** (ROADMAP 1b.10): `fjord_core::merge::merge3` for the web client's upstream-change handling, so the web

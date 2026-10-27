@@ -14,6 +14,10 @@ tagging it.
 
 ### Added
 
+- **`fjord-core` can set or take away a document's `title`** (ROADMAP 1b.5): `doc::with_title` rewrites a header's `title`
+  and keeps every other key, in its place; a title that YAML would misread (a colon, a leading `-`, quotes) reads back as
+  it was written. `implied_title` now strips the whole `.fj.md` from a document's name, so `fjord new` and the bulk
+  commands no longer imply `Q4 plan.fj` from `Q4 plan.fj.md`.
 - **`fjord-core` can plan a repository's files without a disk or a clock, and set one up in a repository that
   is not one** (ROADMAP P6): `scaffold` is now in the pure subset (WebAssembly). `plan_with` is `plan` with the
   time and the identifiers given (`Origin`), so the same inputs give the same files; `plan`, which reads the clock,

@@ -117,6 +117,21 @@ test("it has no filesystem, no clock and no random source of its own to fall bac
   assert.ok(offered.includes("discover") && offered.includes("newUlid"));
 });
 
+test("a document's title is set, and taken away, and nothing else of its header or its body changes", () => {
+  const text = "---\nzeta: 1\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\ntitle: Old\nx-future:\n  - kept\n---\r\n\r\n# Body\r\n";
+  const set = wasm.withTitle(text, "  Plan: the sequel  ");
+  const parsed = JSON.parse(wasm.parseDocument(set));
+  assert.equal(parsed.title, "Plan: the sequel");
+  assert.equal(parsed.docId, "01jagc4k7pt8y3wqnmzv5xrb7h");
+  assert.deepEqual(Object.keys(parsed.frontmatter), ["zeta", "id", "title", "x-future"]);
+  assert.deepEqual(parsed.frontmatter["x-future"], ["kept"]);
+  assert.ok(set.endsWith("---\n\r\n# Body\r\n"), "the body is as it was");
+  assert.equal(JSON.parse(wasm.parseDocument(wasm.withTitle(text, ""))).title, null);
+  assert.equal(wasm.withTitle("no header\n", "T"), undefined);
+  assert.equal(wasm.withTitle("---\nnever closed\n", "T"), undefined);
+  assert.equal(wasm.impliedTitle("body\n", "Q4 plan.fj.md"), "Q4 plan");
+});
+
 test("two edits of one text merge by lines: apart cleanly, together with both sides kept between markers", () => {
   const merge = (...args) => JSON.parse(wasm.mergeTexts(...args));
   assert.deepEqual(merge("one\ntwo\nthree\nfour\nfive\n", "ONE\ntwo\nthree\nfour\nfive\n", "one\ntwo\nthree\nfour\nFIVE\n", "mine", "theirs"), {

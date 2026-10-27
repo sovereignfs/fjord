@@ -85,6 +85,11 @@ pub fn promote_document(text: &str, id: &str, created: &str, title: &str) -> Opt
     api::promote_document(text, id, created, title)
 }
 
+#[wasm_bindgen(js_name = withTitle)]
+pub fn with_title(text: &str, title: &str) -> Option<String> {
+    api::with_title(text, title)
+}
+
 #[wasm_bindgen(js_name = impliedTitle)]
 pub fn implied_title(text: &str, file_name: &str) -> String {
     api::implied_title(text, file_name)
