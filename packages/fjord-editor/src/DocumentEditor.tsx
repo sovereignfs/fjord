@@ -2,25 +2,42 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { Suspense, forwardRef, lazy, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { textQuoteAnchor } from "./anchor.js";
 import { useNameGate } from "./name-gate.js";
-import { PlainText, type Selection } from "./PlainText.js";
+import { NoteEditor } from "./NoteEditor.js";
+import { offsetsOfSelectedText } from "./selection.js";
 import type { DocumentEditorProps, EditorHandle, ThreadMark } from "./types.js";
+
+// The visual editor is a large library, and only a document needs it: a page that opens a note never loads it.
+const RichDocument = lazy(() => import("./rich/RichDocument.js").then((module) => ({ default: module.RichDocument })));
 
 /**
  * Edits a document (`*.fj.md`): the Markdown body, with the person's `role` deciding what they may do, comments through
  * the app's adapter, and a display name asked for before an anonymous person's first edit or comment (DESIGN.md §10,
- * §13). The core behind it is a plain text area until ROADMAP 1b.3 puts MDXEditor there.
+ * §13).
+ *
+ * It is a visual editor (MDXEditor) for the Markdown it can hold without changing what it means, and for any other it is
+ * the Markdown itself, in the byte-faithful editor the notes use, with a notice saying so. Which one is decided on opening
+ * the text, and again whenever the app sets a different one (`rich/meaning.ts`): the person never has a document
+ * rewritten into something it was not. The package never touches the header; the app keeps it (DESIGN.md §9).
  */
 export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(function DocumentEditor(
   { value, onChange, role, comments, onNeedName, className, "aria-label": label },
   ref,
 ) {
   const ensureNamed = useNameGate(onNeedName);
-  const selection = useRef<Selection>({ start: 0, end: 0 });
-  const [hasSelection, setHasSelection] = useState(false);
+  const container = useRef<HTMLDivElement>(null);
+  const handle = useRef<EditorHandle>(null);
+  const editable = role === "edit";
+  /** The visual editor could not hold this text, so it is shown as Markdown. */
+  const [asMarkdown, setAsMarkdown] = useState(false);
+  /** Bumped to start the Markdown editor again from what the app holds, when an edit was not taken. */
+  const [restarts, setRestarts] = useState(0);
+  const [selected, setSelected] = useState("");
   const [threads, setThreads] = useState<readonly ThreadMark[]>(() => comments?.threads() ?? []);
+
+  useImperativeHandle(ref, () => ({ focus: () => handle.current?.focus() }), []);
 
   useEffect(() => {
     if (!comments) {
@@ -31,13 +48,35 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
     return comments.subscribe(() => setThreads(comments.threads()));
   }, [comments]);
 
+  // What is selected inside this editor, for "Comment on selection".
+  useEffect(() => {
+    const onSelectionChange = () => {
+      const selection = document.getSelection();
+      const inside = selection !== null && selection.anchorNode !== null && container.current?.contains(selection.anchorNode);
+      setSelected(inside ? selection.toString() : "");
+    };
+    document.addEventListener("selectionchange", onSelectionChange);
+    return () => document.removeEventListener("selectionchange", onSelectionChange);
+  }, []);
+
+  /** An edit by the person: told to the app once they have a name, if they need one. Whether it was taken. */
+  const edit = useCallback(
+    async (text: string) => {
+      if (!(await ensureNamed())) return false;
+      onChange?.(text);
+      return true;
+    },
+    [ensureNamed, onChange],
+  );
+
   const marked = threads.filter((thread) => !thread.outdated).length;
   const canComment = role !== "view" && comments !== undefined;
+  const offsets = offsetsOfSelectedText(value, selected);
 
   async function comment() {
-    if (!comments || !(await ensureNamed())) return;
+    if (!comments || !offsets || !(await ensureNamed())) return;
     try {
-      comments.create(textQuoteAnchor(value, selection.current.start, selection.current.end));
+      comments.create(textQuoteAnchor(value, offsets[0], offsets[1]));
     } catch (error) {
       // Nothing is selected any more: there is nothing to comment on.
       if (!(error instanceof RangeError)) throw error;
@@ -45,29 +84,38 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
   }
 
   return (
-    <div className={["fe-editor", "fe-document", className].filter(Boolean).join(" ")} data-role={role}>
+    <div ref={container} className={["fe-editor", "fe-document", className].filter(Boolean).join(" ")} data-role={role} data-mode={asMarkdown ? "markdown" : "visual"}>
       {canComment ? (
         <div className="fe-toolbar" role="toolbar" aria-label="Comments">
-          <button type="button" className="fe-button" disabled={!hasSelection} onClick={() => void comment()}>
+          <button type="button" className="fe-button" disabled={offsets === null} onClick={() => void comment()}>
             Comment on selection
           </button>
         </div>
       ) : null}
-      <PlainText
-        ref={ref}
-        value={value}
-        editable={role === "edit"}
-        onEdit={(text) => {
-          void (async () => {
-            if (await ensureNamed()) onChange?.(text);
-          })();
-        }}
-        onSelection={(next) => {
-          selection.current = next;
-          setHasSelection(next.end > next.start);
-        }}
-        aria-label={label}
-      />
+      {asMarkdown ? (
+        <>
+          <p className="fe-notice" role="note">
+            This document has Markdown the visual editor cannot keep exactly as written, so it is shown as Markdown.
+          </p>
+          <NoteEditor
+            key={restarts}
+            ref={handle}
+            {...(label !== undefined ? { "aria-label": label } : {})}
+            value={value}
+            readOnly={!editable}
+            onChange={(text) => {
+              void edit(text).then((taken) => {
+                // A person who declined to give a name has not changed the document: start again from what it is.
+                if (!taken) setRestarts((count) => count + 1);
+              });
+            }}
+          />
+        </>
+      ) : (
+        <Suspense fallback={<p className="fe-status">Loading the editor…</p>}>
+          <RichDocument ref={handle} value={value} editable={editable} aria-label={label} onEdit={edit} onUnsafe={() => setAsMarkdown(true)} />
+        </Suspense>
+      )}
       {comments ? (
         <p className="fe-status" aria-live="polite">
           {marked === 1 ? "1 comment thread" : `${marked} comment threads`}

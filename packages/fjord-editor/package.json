@@ -29,7 +29,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && node scripts/copy-styles.mjs",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-styles.mjs && node scripts/notices.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "stories": "ladle serve",
@@ -46,6 +46,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "happy-dom": "^21.0.4",
+    "lexical": "^0.48.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "typescript": "^7.0.2",
@@ -57,6 +58,14 @@
     "@codemirror/language": "^6.13.1",
     "@codemirror/state": "^6.7.6",
     "@codemirror/view": "^6.43.15",
-    "@lezer/highlight": "^1.2.5"
+    "@lezer/highlight": "^1.2.5",
+    "@mdxeditor/editor": "4.3.3",
+    "mdast-util-from-markdown": "^2.1.0",
+    "mdast-util-gfm-strikethrough": "^2.0.1",
+    "mdast-util-gfm-table": "^2.0.0",
+    "mdast-util-gfm-task-list-item": "^2.0.0",
+    "micromark-extension-gfm-strikethrough": "^2.1.0",
+    "micromark-extension-gfm-table": "^2.1.2",
+    "micromark-extension-gfm-task-list-item": "^2.1.0"
   }
 }

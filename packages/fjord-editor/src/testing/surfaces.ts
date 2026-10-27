@@ -2,14 +2,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { fireEvent, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { EditorView } from "@codemirror/view";
+import { $createParagraphNode, $createTextNode, $getRoot, type LexicalEditor } from "lexical";
 import { lineSeparatorOf } from "../note-state.js";
 
 /**
  * The editing surface of an editor, as a test touches it. The contract is written against this, so the same tests hold
- * whatever is behind the interface: the text area that stands in for the document editor now, CodeMirror in the note
- * editor, and MDXEditor in the document editor later. A new core is a new `Surface`, and nothing else in the tests.
+ * whatever is behind the interface: MDXEditor in the document editor, CodeMirror in the note editor and in a document
+ * the visual editor cannot hold. A new core is a new `Surface`, and nothing else in the tests.
  */
 export interface Surface {
   /** The editing surface itself: what a person with a screen reader is told is a text box. */
@@ -27,15 +28,57 @@ export interface Surface {
 export const LABEL = "Editor";
 const byLabel = () => screen.getByRole("textbox", { name: LABEL });
 
-export const textArea: Surface = {
+/** The Lexical editor behind a visual surface: Lexical keeps it on the element it edits. */
+function lexicalOf(element: HTMLElement): LexicalEditor {
+  const editor = (element as unknown as { __lexicalEditor?: LexicalEditor }).__lexicalEditor;
+  if (!editor) throw new Error("this is not a visual editor");
+  return editor;
+}
+
+/**
+ * The visual editor (MDXEditor, on Lexical). Its text is what a person reads, so `text()` is the plain text of a document of
+ * paragraphs, which is what the contract's texts are; `edit` is the person's edit made as Lexical makes one (an update of the
+ * editor's state), which the component sees as it sees a keystroke.
+ */
+export const visual: Surface = {
   element: byLabel,
-  text: () => (byLabel() as HTMLTextAreaElement).value,
-  edit: (text) => void fireEvent.change(byLabel(), { target: { value: text } }),
-  select(start, end) {
-    (byLabel() as HTMLTextAreaElement).setSelectionRange(start, end);
-    fireEvent.select(byLabel());
+  text: () => byLabel().textContent ?? "",
+  edit(text) {
+    const editor = lexicalOf(byLabel());
+    // A person cannot type into what is read-only; an update made in code could, so the surface does not make one.
+    if (!editor.isEditable()) return;
+    editor.update(() => {
+      const root = $getRoot();
+      root.clear();
+      const paragraph = $createParagraphNode();
+      paragraph.append($createTextNode(text));
+      root.append(paragraph);
+    });
   },
-  readOnly: () => byLabel().getAttribute("aria-readonly") === "true",
+  select(start, end) {
+    // Offsets in the text a person reads, which runs across the text nodes of formatting.
+    const at = (offset: number): [Node, number] => {
+      const walker = document.createTreeWalker(byLabel(), NodeFilter.SHOW_TEXT);
+      let left = offset;
+      let last: Node | null = null;
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        last = node;
+        const length = node.textContent?.length ?? 0;
+        if (left <= length) return [node, left];
+        left -= length;
+      }
+      if (!last) throw new Error("there is no text to select in");
+      return [last, last.textContent?.length ?? 0];
+    };
+    const range = document.createRange();
+    range.setStart(...at(start));
+    range.setEnd(...at(end));
+    const selection = document.getSelection();
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    document.dispatchEvent(new Event("selectionchange"));
+  },
+  readOnly: () => byLabel().getAttribute("aria-readonly") === "true" || byLabel().getAttribute("contenteditable") === "false",
 };
 
 /** The editor view behind a CodeMirror surface. */

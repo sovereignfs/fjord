@@ -5,10 +5,11 @@ the desktop app, the editor plugins and the mobile client's WebView are meant to
 [MPL-2.0](LICENSE) and depends on **no client's design system**: React is its only dependency, and a client sets its
 look from outside.
 
-**Status: the note editor is real; the document editor is a text area behind the same interface.** `NoteEditor` is
-CodeMirror 6 with light Markdown styling, and byte-faithful (below). `DocumentEditor` implements the whole interface with
-a plain text area standing in for MDXEditor (ROADMAP 1b.3). The contract tests are what a core must pass, so the swap
-changes nothing for a client. The design is [`clients/web/DESIGN.md`](../../clients/web/DESIGN.md) §10 and §13.
+**Status: both editors are real.** `NoteEditor` is CodeMirror 6 with light Markdown styling, and byte-faithful (below).
+`DocumentEditor` is a visual editor (MDXEditor) for the documents it can hold without changing what they mean, and the
+byte-faithful Markdown editor for any other (below). The contract tests are what a core must pass. The design is
+[`clients/web/DESIGN.md`](../../clients/web/DESIGN.md) §10 and §13. Comments are marked by the app's adapter and by selecting
+text for now; marks that follow the document as it is edited are ROADMAP 1d.1.
 
 ## Using it
 
@@ -26,6 +27,21 @@ import "fjord-editor/styles.css";
 
 <NoteEditor value={text} onChange={setText} readOnly={false} />
 ```
+
+### The document editor changes nothing it cannot keep
+
+The visual editor rewrites a document in its own style (`-` for bullets, `*` for emphasis, a blank line between blocks), and
+it refuses or normalises what it does not model. So `DocumentEditor` opens a text in it only if what it would write back
+parses to **the same tree, with each paragraph's text as it was written**, and has no carriage returns; any other text is
+shown as Markdown, in the editor below, with a notice. That keeps raw HTML, footnotes, maths, reference-style links, loose lists
+and CRLF documents exactly as they were, and lets a plain document be edited visually. It is decided when the text is
+opened, and again when the app sets a different one. Opening a document tells the app nothing; an edit is the whole new body;
+an edit undone gives back the text the app gave, byte for byte; and the blank lines a body begins and ends with are kept. The
+header (`---` … `---`) is not given to the editor: the app keeps it.
+
+The visual editor is a large library, loaded when a document first needs it (`import()`), so a page that opens a note never
+loads it. Its stylesheet is part of `fjord-editor/styles.css`, scoped to the editor and dressed from the custom properties
+below; `dist/THIRD_PARTY_NOTICES.txt` carries the notices of everything the package is built on, for a client's image.
 
 ### The note editor is byte-faithful
 

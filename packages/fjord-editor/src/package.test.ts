@@ -36,8 +36,10 @@ describe("the package", () => {
   });
 
   it("needs React and an editor core's own packages at run time, and never a client's design system", () => {
-    // The cores are CodeMirror's packages (and, with 1b.3, MDXEditor's). Anything else is a decision, so it is listed.
-    const cores = [/^@codemirror\//, /^@lezer\//];
+    // The cores are CodeMirror's packages and MDXEditor's, and the Markdown parser that decides whether a document keeps its
+    // meaning in the visual editor (`mdast-util-from-markdown` and the GFM extensions MDXEditor itself uses). Anything else
+    // is a decision, so it is listed.
+    const cores = [/^@codemirror\//, /^@lezer\//, /^@mdxeditor\//, /^mdast-util-/, /^micromark-extension-/];
     for (const name of Object.keys(manifest.dependencies ?? {})) expect(cores.some((core) => core.test(name)), `${name} is not an editor core's package`).toBe(true);
     expect(Object.keys(manifest.peerDependencies ?? {})).toEqual(["react"]);
     for (const file of sourceFiles(join(root, "src")).concat(sourceFiles(join(root, "stories")))) {
@@ -45,7 +47,7 @@ describe("the package", () => {
       expect(text, file).not.toMatch(/@sovereignfs/);
       for (const [, specifier] of text.matchAll(/from\s+"([^"]+)"/g)) {
         const from = specifier as string;
-        const fine = from.startsWith(".") || from === "react" || from.startsWith("@codemirror/") || from.startsWith("@lezer/") || from.startsWith("vitest") || from.startsWith("@testing-library/") || from.startsWith("node:") || from === "@ladle/react";
+        const fine = from.startsWith(".") || from === "react" || from.startsWith("@codemirror/") || from.startsWith("@lezer/") || from.startsWith("@mdxeditor/") || from.startsWith("mdast-util-") || from.startsWith("micromark-extension-") || from === "lexical" || from.startsWith("vitest") || from.startsWith("@testing-library/") || from.startsWith("node:") || from === "@ladle/react";
         expect(fine, `${file} imports ${from}`).toBe(true);
       }
     }

@@ -15,30 +15,6 @@
   font-family: var(--fe-font-body, system-ui, sans-serif);
 }
 
-.fe-text {
-  box-sizing: border-box;
-  inline-size: 100%;
-  min-block-size: 16rem;
-  padding: var(--fe-space, 0.5rem);
-  border: 1px solid var(--fe-color-border, #c7c7cc);
-  border-radius: var(--fe-radius, 0.375rem);
-  background: var(--fe-color-surface, #ffffff);
-  color: inherit;
-  font: inherit;
-  line-height: 1.5;
-  resize: vertical;
-}
-
-
-.fe-text:focus-visible {
-  outline: 2px solid var(--fe-color-focus, #0a60ff);
-  outline-offset: 1px;
-}
-
-.fe-text[readonly] {
-  background: var(--fe-color-surface, #ffffff);
-  color: var(--fe-color-muted, #636366);
-}
 
 .fe-toolbar {
   display: flex;
@@ -71,7 +47,7 @@
   font-size: 0.875rem;
 }
 
-/* The note editor (CodeMirror): the same surface as the text area, and the Markdown marked up with classes. */
+/* The note editor (CodeMirror), and the document editor when it shows Markdown: the Markdown marked up with classes. */
 
 .fe-note .cm-editor {
   box-sizing: border-box;
@@ -139,4 +115,166 @@
 
 .fe-note .tok-monospace {
   font-family: var(--fe-font-mono, ui-monospace, monospace);
+}
+
+/* The notice above a document shown as Markdown. */
+
+.fe-notice {
+  margin: 0;
+  padding: var(--fe-space, 0.5rem);
+  border: 1px solid var(--fe-color-border, #c7c7cc);
+  border-radius: var(--fe-radius, 0.375rem);
+  background: var(--fe-color-surface, #ffffff);
+  color: var(--fe-color-muted, #636366);
+  font-size: 0.875rem;
+}
+
+/*
+ * The visual document editor (MDXEditor). Its own stylesheet, taken in above, is dressed in its own palette through the
+ * variables below; they are set from the package's custom properties, on the wrapper (where its popups open) and on the
+ * editor's root (which sets them itself). The shades between the surface and the text are mixed, so that a client sets six
+ * colours and not forty.
+ */
+
+.fe-rich,
+.fe-rich .fe-mdx {
+  --basePageBg: var(--fe-color-surface, #ffffff);
+  --baseBase: var(--fe-color-surface, #ffffff);
+  --baseBgSubtle: color-mix(in srgb, var(--fe-color-surface, #ffffff) 96%, var(--fe-color-text, #1c1c1e));
+  --baseBg: color-mix(in srgb, var(--fe-color-surface, #ffffff) 92%, var(--fe-color-text, #1c1c1e));
+  --baseBgHover: color-mix(in srgb, var(--fe-color-surface, #ffffff) 87%, var(--fe-color-text, #1c1c1e));
+  --baseBgActive: color-mix(in srgb, var(--fe-color-surface, #ffffff) 82%, var(--fe-color-text, #1c1c1e));
+  --baseLine: var(--fe-color-border, #c7c7cc);
+  --baseBorder: var(--fe-color-border, #c7c7cc);
+  --baseBorderHover: color-mix(in srgb, var(--fe-color-border, #c7c7cc) 75%, var(--fe-color-text, #1c1c1e));
+  --baseSolid: var(--fe-color-muted, #636366);
+  --baseSolidHover: color-mix(in srgb, var(--fe-color-muted, #636366) 80%, var(--fe-color-text, #1c1c1e));
+  --baseText: var(--fe-color-text, #1c1c1e);
+  --baseTextContrast: var(--fe-color-text, #1c1c1e);
+
+  --accentBase: var(--fe-color-surface, #ffffff);
+  --accentBgSubtle: color-mix(in srgb, var(--fe-color-accent, #0a60ff) 6%, var(--fe-color-surface, #ffffff));
+  --accentBg: color-mix(in srgb, var(--fe-color-accent, #0a60ff) 12%, var(--fe-color-surface, #ffffff));
+  --accentBgHover: color-mix(in srgb, var(--fe-color-accent, #0a60ff) 18%, var(--fe-color-surface, #ffffff));
+  --accentBgActive: color-mix(in srgb, var(--fe-color-accent, #0a60ff) 24%, var(--fe-color-surface, #ffffff));
+  --accentLine: color-mix(in srgb, var(--fe-color-accent, #0a60ff) 35%, var(--fe-color-surface, #ffffff));
+  --accentBorder: color-mix(in srgb, var(--fe-color-accent, #0a60ff) 50%, var(--fe-color-surface, #ffffff));
+  --accentBorderHover: color-mix(in srgb, var(--fe-color-accent, #0a60ff) 65%, var(--fe-color-surface, #ffffff));
+  --accentSolid: var(--fe-color-accent, #0a60ff);
+  --accentSolidHover: color-mix(in srgb, var(--fe-color-accent, #0a60ff) 85%, var(--fe-color-text, #1c1c1e));
+  --accentText: var(--fe-color-accent, #0a60ff);
+  --accentTextContrast: var(--fe-color-accent-text, #ffffff);
+
+  --font-body: var(--fe-font-body, system-ui, sans-serif);
+  --font-mono: var(--fe-font-mono, ui-monospace, monospace);
+}
+
+.fe-rich {
+  position: relative;
+  color: var(--fe-color-text, #1c1c1e);
+  font-family: var(--fe-font-body, system-ui, sans-serif);
+}
+
+.fe-rich .fe-mdx {
+  border: 1px solid var(--fe-color-border, #c7c7cc);
+  border-radius: var(--fe-radius, 0.375rem);
+  background: var(--fe-color-surface, #ffffff);
+}
+
+.fe-rich .fe-mdx:focus-within {
+  outline: 2px solid var(--fe-color-focus, #0a60ff);
+  outline-offset: 1px;
+}
+
+.fe-rich .fe-rich-content {
+  box-sizing: border-box;
+  min-block-size: 16rem;
+  padding: var(--fe-space, 0.5rem);
+  color: var(--fe-color-text, #1c1c1e);
+  font-family: var(--fe-font-body, system-ui, sans-serif);
+  line-height: 1.6;
+  caret-color: var(--fe-color-text, #1c1c1e);
+}
+
+.fe-rich .fe-rich-content ::selection {
+  background: var(--fe-color-selection, #b4d5ff);
+}
+
+.fe-rich .fe-rich-content h1 { font-size: 1.75rem; }
+.fe-rich .fe-rich-content h2 { font-size: 1.4rem; }
+.fe-rich .fe-rich-content h3 { font-size: 1.2rem; }
+
+.fe-rich .fe-rich-content h1,
+.fe-rich .fe-rich-content h2,
+.fe-rich .fe-rich-content h3,
+.fe-rich .fe-rich-content h4,
+.fe-rich .fe-rich-content h5,
+.fe-rich .fe-rich-content h6 {
+  margin: 1.2em 0 0.4em;
+  line-height: 1.25;
+}
+
+.fe-rich .fe-rich-content p,
+.fe-rich .fe-rich-content ul,
+.fe-rich .fe-rich-content ol {
+  margin: 0.5em 0;
+}
+
+.fe-rich .fe-rich-content blockquote {
+  margin: 0.75em 0;
+  padding-inline-start: var(--fe-space, 0.5rem);
+  border-inline-start: 3px solid var(--fe-color-border, #c7c7cc);
+  color: var(--fe-color-muted, #636366);
+}
+
+.fe-rich .fe-rich-content a {
+  color: var(--fe-color-accent, #0a60ff);
+}
+
+.fe-rich .fe-rich-content code {
+  font-family: var(--fe-font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+}
+
+.fe-rich .fe-rich-content hr {
+  border: 0;
+  border-block-start: 1px solid var(--fe-color-border, #c7c7cc);
+}
+
+.fe-rich .fe-rich-content table {
+  border-collapse: collapse;
+}
+
+.fe-rich .fe-rich-content th,
+.fe-rich .fe-rich-content td {
+  padding: calc(var(--fe-space, 0.5rem) / 2) var(--fe-space, 0.5rem);
+  border: 1px solid var(--fe-color-border, #c7c7cc);
+}
+
+/* The toolbar wraps onto more lines in a narrow page instead of being cut off at its edge. */
+
+.fe-rich .fe-mdx [role="toolbar"] {
+  flex-wrap: wrap;
+  block-size: auto;
+  overflow: visible;
+}
+
+/* A code block is edited in CodeMirror, whose own theme is light: it takes the page's surface and text instead. */
+
+.fe-rich .cm-editor,
+.fe-rich .cm-scroller,
+.fe-rich .cm-gutters,
+.fe-rich .cm-gutter,
+.fe-rich .cm-gutterElement {
+  background: var(--fe-color-surface, #ffffff);
+  color: var(--fe-color-text, #1c1c1e);
+}
+
+.fe-rich .cm-gutters {
+  border: 0;
+  color: var(--fe-color-muted, #636366);
+}
+
+.fe-rich .cm-cursor {
+  border-inline-start-color: var(--fe-color-text, #1c1c1e);
 }

@@ -15,6 +15,19 @@ assert.equal(typeof module.textQuoteAnchor, "function");
 
 for (const file of ["dist/index.d.ts", "dist/styles.css", "dist/styles.d.ts"]) assert.ok(statSync(file).size > 0, `${file} is missing`);
 
+// The stylesheet holds MDXEditor's, and it is a guest in other people's pages: it sets nothing for the whole page, and the
+// library's licence travels with it.
+const stylesheet = readFileSync("dist/styles.css", "utf8");
+assert.ok(!/(^|[\s,{}])(:root|html|body)\s*[,{]/.test(stylesheet.replace(/\/\*[\s\S]*?\*\//g, "")), "the stylesheet has a rule for the whole page");
+assert.ok(stylesheet.includes("MDXEditor") && stylesheet.includes("Permission is hereby granted"), "MDXEditor's licence does not travel with its stylesheet");
+assert.ok(stylesheet.includes(".fe-rich"), "the stylesheet does not dress the visual editor");
+
+// The notices of what it is built on travel with it: the visual editor's library and its engine are in them, with their licence texts.
+const notices = readFileSync("dist/THIRD_PARTY_NOTICES.txt", "utf8");
+for (const name of ["@mdxeditor/editor", "lexical", "@codemirror/view", "mdast-util-from-markdown"]) assert.ok(notices.includes(`${name} `), `${name} is not in the notices`);
+assert.ok(notices.includes("Permission is hereby granted"), "the notices carry no licence text");
+assert.ok(/^\d+ packages\.$/m.test(notices) && Number(/^(\d+) packages\.$/m.exec(notices)[1]) > 100, "the notices do not cover the closure of the dependencies");
+
 const walk = (dir) => readdirSync(dir).flatMap((name) => (statSync(join(dir, name)).isDirectory() ? walk(join(dir, name)) : [join(dir, name)]));
 for (const file of walk("dist")) assert.ok(!readFileSync(file, "utf8").includes("@sovereignfs"), `${file} mentions a client's design system`);
 assert.ok(!walk("dist").some((file) => /\.test\./.test(file)), "the build carries its tests");

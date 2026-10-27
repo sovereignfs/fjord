@@ -22,9 +22,11 @@ describe.each([
   });
 
   for (const [name, Story] of all) {
-    it(`renders ${name}`, () => {
+    // The visual editor is loaded when a document first needs it, so a story is waited for.
+    it(`renders ${name}`, async () => {
       const view = render(<Story />);
-      expect(view.getByRole("textbox")).toBeTruthy();
+      // A table in a document is edited cell by cell, each a text box of its own: there is at least one.
+      expect((await view.findAllByRole("textbox")).length).toBeGreaterThanOrEqual(1);
     });
   }
 });
