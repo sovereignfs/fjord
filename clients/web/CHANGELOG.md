@@ -11,6 +11,15 @@ section.
 
 ## [Unreleased]
 
+### Security
+
+- **Every page is sent with a Content-Security-Policy** (ROADMAP 1d.5): scripts run only with a nonce made for that request, nothing third-party loads (images,
+  fonts and requests are this origin's own), nobody may frame a page, and a script, an inline handler or a `javascript:` address put into a page by a comment,
+  a name or a document does not run. Pages are now rendered for each request, the landing page too. Also sent: `X-Content-Type-Options`, `X-Frame-Options`,
+  `Permissions-Policy`, `Cross-Origin-Opener-Policy`, and `Strict-Transport-Security` when the instance's address is https. Images in a document that come
+  from another site no longer load (they would tell that site who read it).
+- The proxy's tests (`proxy.test.ts`) were not part of `pnpm test`, and are now.
+
 ### Added
 
 - **Limits on comments and on editing through a link** (ROADMAP 1d.4): comments can only be written so fast (an account 30 a minute, a guest's browser 20,

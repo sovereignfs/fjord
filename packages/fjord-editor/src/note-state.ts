@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { pageNonce } from "./csp.js";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { syntaxHighlighting } from "@codemirror/language";
@@ -68,6 +69,11 @@ export function labelExtension(label: string | undefined): Extension {
 }
 
 /** A new state for `text`, with everything the editor needs. `isReadOnly` says whether the app may be told of edits at all. */
+function nonceExtension() {
+  const nonce = pageNonce();
+  return nonce === undefined ? [] : [EditorView.cspNonce.of(nonce)];
+}
+
 export function createState(text: string, options: { readOnly: boolean; label: string | undefined; isReadOnly: () => boolean; onEdit: (text: string) => void }): EditorState {
   return EditorState.create({
     doc: text,
@@ -82,6 +88,8 @@ export function createState(text: string, options: { readOnly: boolean; label: s
       // Classes and not colours, so that the stylesheet, and through it the client's theme, decides what they look like.
       syntaxHighlighting(classHighlighter),
       EditorView.lineWrapping,
+      // CodeMirror's own stylesheet is an element made at run time: under a Content-Security-Policy it needs the page's nonce (`csp.ts`).
+      ...nonceExtension(),
       // A text that may only be read does not change, whoever asks: a command, a paste, a script.
       EditorState.changeFilter.of((transaction) => !options.isReadOnly() || !transaction.docChanged || transaction.annotation(External) === true),
       settings.readOnly.of(readOnlyExtension(options.readOnly)),

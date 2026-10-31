@@ -2964,3 +2964,97 @@ test("comments are written only so fast by a browser and by a link, whatever nam
     await restoreMore();
   }
 });
+
+// --- Security (ROADMAP 1d.5) -------------------------------------------------------------------------------------------------
+
+/** Every Content-Security-Policy violation a page reports, across its navigations: the browser says each in its console. */
+const watchViolations = (page: import("@playwright/test").Page): string[] => {
+  const seen: string[] = [];
+  page.on("console", (message) => {
+    if (/Content Security Policy/i.test(message.text())) seen.push(message.text());
+  });
+  return seen;
+};
+
+test("every page is sent with a Content-Security-Policy with a nonce of its own, and the app runs under it without a violation, while a script put in is not run", async ({ page, browser }) => {
+  try {
+    const owners = watchViolations(page);
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note\n" });
+
+    // The policy, and the other headers, on a page and on an API's answer; a new nonce for each page.
+    const first = await page.request.get("/sign-in");
+    const second = await page.request.get("/sign-in");
+    const policy = first.headers()["content-security-policy"]!;
+    expect(policy).toContain("default-src 'self'");
+    expect(policy).toContain("frame-ancestors 'none'");
+    expect(policy).not.toContain("upgrade-insecure-requests"); // this instance is http
+    expect(policy).not.toMatch(/script-src[^;]*unsafe-inline/);
+    const nonceOf = (text: string) => /'nonce-([^']+)'/.exec(text)![1]!;
+    expect(nonceOf(policy)).not.toBe(nonceOf(second.headers()["content-security-policy"]!));
+    // Every script of the page carries that page's nonce, and the nonce is not in the page's address or a header the app sends on.
+    const html = await first.text();
+    for (const tag of html.match(/<script\b[^>]*>/g) ?? []) expect(tag, tag).toContain(`nonce="${nonceOf(policy)}"`);
+    for (const response of [first, await page.request.get("/api/health")]) {
+      const headers = response.headers();
+      expect(headers["x-content-type-options"]).toBe("nosniff");
+      expect(headers["x-frame-options"]).toBe("DENY");
+      expect(headers["referrer-policy"]).toBe("no-referrer");
+      expect(headers["permissions-policy"]).toContain("camera=()");
+      expect(headers["cross-origin-opener-policy"]).toBe("same-origin");
+      expect(headers["strict-transport-security"]).toBeUndefined(); // only over https
+    }
+    expect((await page.request.get("/api/health")).headers()["content-security-policy"]).toBeUndefined();
+
+    // The pages a person uses, with their editors, menus and panels: nothing is blocked.
+    await page.goto("/home");
+    await page.goto(`/repo/${id}/Notes/idea.md`);
+    await expect(noteEditor(page, "idea.md")).toBeVisible();
+    await noteEditor(page, "idea.md").click();
+    await page.keyboard.type(" and more");
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan, for reading.");
+    // The editor's own menus and dialogs: the block type list, a link's dialog, a table's.
+    await page.getByRole("combobox", { name: "Block type" }).click();
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("ControlOrMeta+z");
+    await page.getByRole("button", { name: "Create link" }).click();
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Insert Table" }).click();
+    await page.keyboard.press("Escape");
+    await selectText(page, "plan, for");
+    await page.getByRole("button", { name: "Comment on selection" }).click();
+    await page.getByTestId("comments-panel").getByLabel("New comment").fill("A comment under the policy");
+    await page.getByTestId("comments-panel").getByRole("button", { name: "Comment", exact: true }).click();
+    await expect(page.getByTestId("comment-thread")).toHaveCount(1);
+    await expect.poll(() => marks(page)).toMatchObject({ "fe-thread": ["plan, for"] });
+    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "comment" } })).json()) as { url: string };
+    await page.reload();
+    expect(owners, "the owner's pages").toEqual([]);
+
+    const visitor = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.51" } });
+    const guest = await visitor.newPage();
+    const guests = watchViolations(guest);
+    await guest.goto("/");
+    await guest.goto(link.url);
+    await expect(guest.getByTestId("comment-thread")).toHaveCount(1);
+    await expect.poll(() => marks(guest)).toMatchObject({ "fe-thread": ["plan, for"] });
+    expect(guests, "a guest's pages and the live stream").toEqual([]);
+
+    // Markup that is put in, which is how a script reaches a page through a comment, a name or a document, does not run: an inline handler and a javascript:
+    // address have no nonce. (A script element made by a script that has the nonce is trusted by `strict-dynamic`; that is the page's own code, not content.)
+    const ran = await guest.evaluate(async () => {
+      document.body.insertAdjacentHTML("beforeend", '<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" onload="window.__injected = true" onerror="window.__injected = true">');
+      document.body.insertAdjacentHTML("beforeend", '<a id="evil" href="javascript:window.__injected = true">x</a>');
+      (document.getElementById("evil") as HTMLAnchorElement).click();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      return (window as unknown as { __injected?: boolean }).__injected === true;
+    });
+    expect(ran).toBe(false);
+    expect(guests.some((message) => /inline event handler/i.test(message))).toBe(true);
+    expect(guests.some((message) => /javascript:/i.test(message))).toBe(true);
+    await visitor.close();
+  } finally {
+    await restoreMore();
+  }
+});

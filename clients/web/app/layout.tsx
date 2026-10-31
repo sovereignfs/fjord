@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk } from "next/font/google";
+import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import "@sovereignfs/ui/tokens.css";
 import "./globals.css";
@@ -27,13 +28,15 @@ export const viewport: Viewport = {
   colorScheme: "light dark",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  // The proxy made a nonce for this request and put it in the policy; the theme script is inline and runs only with it (DESIGN.md §15).
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     // `data-theme` is set by the script before first paint, so the server's HTML and the
     // page's attributes differ by design.
     <html lang="en" className={sans.variable} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>{children}</body>
     </html>

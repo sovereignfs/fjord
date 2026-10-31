@@ -11,6 +11,12 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
   the app still gives it the text it started with. It took the unchanged `value` for a text the app had just set, and
   put it back. Only a different `value` is the app setting a text now.
 
+### Fixed
+
+- **The note editor works under a Content-Security-Policy that allows style elements only with the page's nonce** (ROADMAP 1d.5): CodeMirror's stylesheet is made at run
+  time, and without the nonce it was blocked, leaving the editor unstyled (its lines no longer wrapped and its spaces were typed as non-breaking ones). The editor
+  now takes the nonce from the page's own scripts (`src/csp.ts`); a page with no policy has none and gets none.
+
 ### Added
 
 - **Finding a thread's text again after the document changed** (ROADMAP 1d.2): a thread is still on its quote if the quote is there word for
