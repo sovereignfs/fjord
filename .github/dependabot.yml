@@ -45,6 +45,12 @@ updates:
       minor-and-patch:
         update-types: ["minor", "patch"]
         exclude-patterns: ["@sovereignfs/ui"]
+    # @types/node describes the Node the app runs on, which `engines` pins (24). A newer major types APIs the runtime
+    # does not have and compiles code that fails there, so it stays on the runtime's major, which is bumped by hand
+    # with the runtime.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
 
   # The editors' package is its own pnpm project with its own lockfile (packages/fjord-editor), and is built and tested
@@ -56,4 +62,10 @@ updates:
     groups:
       minor-and-patch:
         update-types: ["minor", "patch"]
+    # lexical is moved together with @mdxeditor/editor, which depends on @lexical/* of one minor (pre-1.0, so a minor
+    # can break). A lexical of another minor makes two Lexicals in the package and fails the editors' tests (lexical
+    # 0.52 against MDXEditor 4.3.4 failed 28), so it is bumped by hand when MDXEditor's range moves.
+    ignore:
+      - dependency-name: "lexical"
+        update-types: ["version-update:semver-minor", "version-update:semver-major"]
     open-pull-requests-limit: 5
