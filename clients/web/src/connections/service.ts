@@ -309,6 +309,23 @@ export class ConnectionService {
   }
 
   /**
+   * The GitHub App can no longer reach these repositories (an installation was deleted, or they were taken off it, ROADMAP 1a.6):
+   * every connection **through the App** to one of them, whoever's it is, is disconnected as the person disconnecting it would, with
+   * its drafts, shares and comments. A connection by token to the same repository is not the App's to end. Says how many went.
+   */
+  async accessRemoved(repositories: RepositoryRef[]): Promise<number> {
+    let removed = 0;
+    for (const ref of repositories) {
+      const rows = await dbAll<{ id: number; accountId: string }>(
+        this.database,
+        sql`SELECT id, account_id AS "accountId" FROM ${table(this.database)} WHERE provider = 'github' AND kind = 'app' AND owner = ${ref.owner} AND name = ${ref.name}`,
+      );
+      for (const row of rows) if (await this.remove(row.accountId, Number(row.id))) removed++;
+    }
+    return removed;
+  }
+
+  /**
    * A branch of a repository moved (a `push` webhook, ROADMAP 1a.6): forget the trees kept for every connection to it that follows that
    * branch, whoever's it is, so the next view reads the repository as it now is. Says how many connections it was. A tree is kept by
    * commit and is never stale, so this costs one read and keeps a repository from holding trees for commits that are gone.

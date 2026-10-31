@@ -265,7 +265,7 @@ describe(`the webhook (${leg})`, () => {
   const sign = (body: string, secret = CONFIG.webhookSecret) => `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
   const push = (repository = "acme/notes", ref = "refs/heads/main") => JSON.stringify({ ref, before: "a".repeat(40), after: "b".repeat(40), deleted: false, repository: { full_name: repository } });
   const post = (body: string, headers: Record<string, string> = {}) => new Request(`${ORIGIN}/api/webhooks/github`, { method: "POST", body, headers: { "x-github-event": "push", "x-hub-signature-256": sign(body), ...headers } });
-  const webhook = (pushed = (ref: RepositoryRef, branch: string) => service.pushed(ref, branch), secret: string | null = CONFIG.webhookSecret) => ({ secret: secret ?? undefined, pushed });
+  const webhook = (pushed = (ref: RepositoryRef, branch: string) => service.pushed(ref, branch), secret: string | null = CONFIG.webhookSecret, accessRemoved = (repositories: RepositoryRef[]) => service.accessRemoved(repositories)) => ({ secret: secret ?? undefined, pushed, accessRemoved });
 
   async function connectBoth() {
     await handleCallback(callbackRequest(good), { accountId: ALICE }, deps());
@@ -290,6 +290,47 @@ describe(`the webhook (${leg})`, () => {
     const response = await handleGitHubWebhook(post(push("acme/notes", "refs/heads/feature")), webhook());
     expect(await response.json()).toEqual({ connections: 0 });
     for (const c of all) expect(await cached(Number(c.id))).toBe(true);
+  });
+
+  describe("when the App loses a repository", () => {
+    const removal = (repositories: string[], event = "installation_repositories") => {
+      const body = JSON.stringify(event === "installation" ? { action: "deleted", installation: { id: INSTALLATION }, repositories: repositories.map((full_name) => ({ full_name })) } : { action: "removed", installation: { id: INSTALLATION }, repositories_removed: repositories.map((full_name) => ({ full_name })) });
+      return post(body, { "x-github-event": event, "x-hub-signature-256": sign(body) });
+    };
+
+    it("disconnects it for everyone connected through the App, with its trees, and leaves the rest", async () => {
+      const { all } = await connectBoth();
+      const response = await handleGitHubWebhook(removal(["acme/notes"]), webhook());
+      expect(await response.json()).toEqual({ disconnected: 2 });
+      expect((await connections(ALICE)).map((c) => c.name)).toEqual(["docs"]);
+      expect((await connections(BOB)).map((c) => c.name)).toEqual(["docs"]);
+      const gone = all.filter((c) => c.name === "notes").map((c) => Number(c.id));
+      for (const id of gone) expect(await cached(id)).toBe(false);
+      expect(Number((await dbAll<{ n: number | string }>(database, sql`SELECT COUNT(*) AS n FROM ${credentialTable()}`))[0]!.n)).toBe(2);
+    });
+
+    it("disconnects every repository of a deleted installation", async () => {
+      await connectBoth();
+      const response = await handleGitHubWebhook(removal(["acme/notes", "acme/docs"], "installation"), webhook());
+      expect(await response.json()).toEqual({ disconnected: 4 });
+      expect(await connections(ALICE)).toEqual([]);
+    });
+
+    it("does not end a connection made with a token to the same repository", async () => {
+      await handleCallback(callbackRequest(good), { accountId: ALICE }, deps());
+      await dbRun(database, sql`UPDATE ${connectionTable()} SET kind = 'pat' WHERE name = 'notes'`);
+      const response = await handleGitHubWebhook(removal(["acme/notes", "acme/docs"]), webhook());
+      expect(await response.json()).toEqual({ disconnected: 1 });
+      expect((await connections(ALICE)).map((c) => `${c.kind}:${c.name}`)).toEqual(["pat:notes"]);
+    });
+
+    it("needs the signature like any webhook", async () => {
+      const accessRemoved = vi.fn(async () => 0);
+      const forged = removal(["acme/notes"]);
+      const bad = new Request(forged.url, { method: "POST", body: await forged.text(), headers: { "x-github-event": "installation_repositories", "x-hub-signature-256": sign("other") } });
+      expect((await handleGitHubWebhook(bad, webhook(undefined, CONFIG.webhookSecret, accessRemoved))).status).toBe(401);
+      expect(accessRemoved).not.toHaveBeenCalled();
+    });
   });
 
   it("refuses a request without the right signature, before it is read or the database touched", async () => {

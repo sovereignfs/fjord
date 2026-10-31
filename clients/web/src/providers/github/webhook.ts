@@ -28,13 +28,28 @@ export function verifyGitHubWebhook(request: WebhookRequest, secret: string): We
 
   const event = header(request.headers, "x-github-event") ?? "";
   if (event === "ping") return { kind: "ping" };
-  if (event !== "push") return { kind: "ignored", event };
+  if (event !== "push" && event !== "installation" && event !== "installation_repositories") return { kind: "ignored", event };
 
-  let payload: { ref?: unknown; before?: unknown; after?: unknown; deleted?: unknown; repository?: { full_name?: unknown } };
+  let payload: {
+    ref?: unknown;
+    before?: unknown;
+    after?: unknown;
+    deleted?: unknown;
+    repository?: { full_name?: unknown };
+    action?: unknown;
+    repositories?: unknown;
+    repositories_removed?: unknown;
+  };
   try {
     payload = JSON.parse(body.toString("utf8"));
   } catch {
     throw new ProviderError("invalid_webhook", "the webhook body is not JSON");
+  }
+  if (event !== "push") {
+    // Only the two that take access away: an installation deleted, and repositories removed from one.
+    const listed = event === "installation" ? (payload.action === "deleted" ? payload.repositories : undefined) : payload.action === "removed" ? payload.repositories_removed : undefined;
+    if (!Array.isArray(listed)) return { kind: "ignored", event: `${event} ${typeof payload.action === "string" ? payload.action : ""}`.trim() };
+    return { kind: "access_removed", repositories: listed.flatMap(repositoryOf) };
   }
   const ref = typeof payload.ref === "string" ? payload.ref : "";
   const fullName = typeof payload.repository?.full_name === "string" ? payload.repository.full_name : "";
@@ -49,4 +64,11 @@ export function verifyGitHubWebhook(request: WebhookRequest, secret: string): We
     after: String(payload.after ?? ""),
     deleted: payload.deleted === true,
   };
+}
+
+/** A repository as an `installation` payload lists it: by `full_name`, `owner/name`. Anything else is not one. */
+function repositoryOf(entry: unknown): { owner: string; name: string }[] {
+  const fullName = typeof (entry as { full_name?: unknown } | null)?.full_name === "string" ? (entry as { full_name: string }).full_name : "";
+  const [owner, name, ...rest] = fullName.split("/");
+  return owner && name && rest.length === 0 ? [{ owner, name }] : [];
 }

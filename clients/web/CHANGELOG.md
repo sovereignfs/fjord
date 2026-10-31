@@ -13,6 +13,8 @@ section.
 
 ### Added
 
+- **A repository the GitHub App loses is disconnected** (ROADMAP 1a.6): when GitHub says an installation was deleted or repositories were removed from it, the connections through the App to them end, as if each person had disconnected it. A connection made with a token is left alone.
+
 - **Connect repositories through a GitHub App** (ROADMAP 1a.6): *Install on GitHub* on Repositories, choose the repositories there, and they are connected, with no token to make or keep. Fjord asks GitHub for a short-lived token when it needs one. Only the repositories the signed-in person can reach themselves are connected, shown by their own one-use authorisation, and only by a trip this browser started. The operator registers the App and sets `FJORD_GITHUB_APP_ID`, `_SLUG`, `_CLIENT_ID`, `_CLIENT_SECRET`, `_WEBHOOK_SECRET` and `_PRIVATE_KEY` (all or none; see `deploy/README.md`). A signed `push` webhook at `/api/webhooks/github` forgets the cached trees of the repository. Connecting with a token still works beside it.
 
 - **A draft nobody has edited for five minutes is saved as a version** (ROADMAP 1b.13), by a worker that runs inside the web process once a minute, with the same commit as Save version: on top of the

@@ -96,6 +96,12 @@ export interface CommitResult {
 export type WebhookEvent =
   | { kind: "push"; repository: RepositoryRef; branch: string; before: string; after: string; deleted: boolean }
   | { kind: "ping" }
+  /**
+   * Repositories the credential can no longer reach: some were taken off an installation of the GitHub App
+   * (`installation_repositories`, action `removed`), or the installation was deleted (`installation`, action
+   * `deleted`), which lists them all when GitHub says so.
+   */
+  | { kind: "access_removed"; repositories: RepositoryRef[] }
   /** An event this app does not act on. */
   | { kind: "ignored"; event: string };
 

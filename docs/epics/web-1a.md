@@ -77,7 +77,8 @@ Install, pick repositories, minimal permissions, short-lived tokens, `push` webh
 **Accepts when:** Install, pick two repos, see them; a push invalidates the cached tree.
 
 - **Done as:** `src/github-app/`. The operator registers the App (`deploy/README.md`) and sets `FJORD_GITHUB_APP_*`. A person chooses **Install on GitHub** on `/repositories`, picks the repositories on GitHub, and is sent back to `/api/github-app/callback`, which checks a `state` cookie, trades the `code` for the person's own one-use token, asks which repositories of the installation they can reach, and connects those (each checked for content and for write access) as `kind = app` connections that keep only the installation number, encrypted. Tokens for the installation are asked for as needed (App JWT, RS256) and held in memory. `POST /api/webhooks/github` accepts signed `push` events and forgets the trees cached for the connections to that branch. Tested on all three databases with each safeguard broken to see its test fail.
-- **Left out:** `installation` and `installation_repositories` events (a repository removed on GitHub stays listed until disconnected); making the per-view head request free with the webhook (a head cache needs an expiry of its own; the tree cache is keyed by commit, so it was never stale); a separate `worker` process and Compose service (nothing here needed one); a browser test; and a check against real GitHub, which needs a registered App.
+- **Afterwards:** `installation` and `installation_repositories` events disconnect the repositories the App loses.
+- **Left out:** making the per-view head request free with the webhook (a head cache needs an expiry of its own; the tree cache is keyed by commit, so it was never stale); a separate `worker` process and Compose service (nothing here needed one); a browser test; and a check against real GitHub, which needs a registered App.
 
 ## 1a.7 PAT connection
 

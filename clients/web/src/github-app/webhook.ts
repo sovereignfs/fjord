@@ -6,12 +6,15 @@ import { verifyGitHubWebhook } from "../providers/github/webhook";
  * `POST /api/webhooks/github` (ROADMAP 1a.6): GitHub says a branch moved. Whoever sends it is not signed in, so the only thing that
  * lets a request in is its signature, `X-Hub-Signature-256`, made with the App's webhook secret over the body's exact bytes; a
  * request without a right one is refused before its contents are read, and before the database is touched. A push is then the
- * reason to forget the trees kept for the repository (`ConnectionService.pushed`).
+ * reason to forget the trees kept for the repository (`ConnectionService.pushed`), and the App losing a repository (an installation
+ * deleted, or the repository taken off it) the reason to disconnect it (`ConnectionService.accessRemoved`).
  */
 export interface WebhookDeps {
   /** The App's webhook secret; undefined when this instance has no App (404). */
   secret: string | undefined;
   pushed: (ref: RepositoryRef, branch: string) => Promise<number>;
+  /** Repositories the App can no longer reach: their connections through it end. */
+  accessRemoved: (repositories: RepositoryRef[]) => Promise<number>;
 }
 
 /** GitHub sends up to 25 MB for a very large push; this is more than the part that is read needs, and bounds what is held. */
@@ -31,6 +34,7 @@ export async function handleGitHubWebhook(request: Request, deps: WebhookDeps): 
   try {
     const event = verifyGitHubWebhook({ headers: request.headers, body }, deps.secret);
     if (event.kind === "ping") return json(200, { ok: true });
+    if (event.kind === "access_removed") return json(202, { disconnected: await deps.accessRemoved(event.repositories) });
     if (event.kind !== "push") return json(202, { ignored: true });
     return json(202, { connections: await deps.pushed(event.repository, event.branch) });
   } catch (error) {

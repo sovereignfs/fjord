@@ -27,6 +27,21 @@ describe("a signed webhook", () => {
     expect(event).toMatchObject({ kind: "push", branch: "feature/one", deleted: true });
   });
 
+  it("reports the repositories an installation lost: those removed from it, and all of a deleted one's", () => {
+    const removed = JSON.stringify({ action: "removed", installation: { id: 1 }, repositories_removed: [{ full_name: "acme/notes" }, { full_name: "acme/docs" }, { full_name: "bad" }], repositories_added: [] });
+    expect(verifyGitHubWebhook(signed("installation_repositories", removed), SECRET)).toEqual({ kind: "access_removed", repositories: [{ owner: "acme", name: "notes" }, { owner: "acme", name: "docs" }] });
+    const deleted = JSON.stringify({ action: "deleted", installation: { id: 1 }, repositories: [{ full_name: "acme/notes" }] });
+    expect(verifyGitHubWebhook(signed("installation", deleted), SECRET)).toEqual({ kind: "access_removed", repositories: [{ owner: "acme", name: "notes" }] });
+  });
+
+  it("ignores installation events that take nothing away", () => {
+    expect(verifyGitHubWebhook(signed("installation", JSON.stringify({ action: "created", repositories: [{ full_name: "acme/notes" }] })), SECRET)).toEqual({ kind: "ignored", event: "installation created" });
+    expect(verifyGitHubWebhook(signed("installation", JSON.stringify({ action: "suspend" })), SECRET).kind).toBe("ignored");
+    expect(verifyGitHubWebhook(signed("installation_repositories", JSON.stringify({ action: "added", repositories_added: [{ full_name: "acme/notes" }] })), SECRET).kind).toBe("ignored");
+    // Deleted with no list: nothing is guessed.
+    expect(verifyGitHubWebhook(signed("installation", JSON.stringify({ action: "deleted" })), SECRET).kind).toBe("ignored");
+  });
+
   it("answers a ping", () => {
     expect(verifyGitHubWebhook(signed("ping", JSON.stringify({ zen: "Keep it logically awesome." })), SECRET)).toEqual({ kind: "ping" });
   });
