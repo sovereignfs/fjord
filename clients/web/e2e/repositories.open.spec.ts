@@ -3097,8 +3097,28 @@ test("what other people wrote, in a document, a comment or a name, is shown as t
   }
 });
 
-/** The routes the matrix does not drive: sign-in has its own tests (1a), and the entry of a link is a public GET by design. */
-const NOT_IN_THE_MATRIX = new Set(["/api/auth/[...all]", "/api/health", "/api/links/enter"]);
+/**
+ * The routes the matrix does not drive: sign-in has its own tests (1a), the entry of a link is a public GET by design, and the GitHub App's
+ * (1a.6) are there only on an instance that has an App, which this one does not: they are a 404 to everyone (below), and the webhook is
+ * GitHub's, let in by its signature and not by an `Origin`, so "refused from another site" is not its rule (`src/github-app/flow.test.ts`).
+ */
+const NOT_IN_THE_MATRIX = new Set(["/api/auth/[...all]", "/api/health", "/api/links/enter", "/api/github-app/install", "/api/github-app/callback", "/api/webhooks/github"]);
+
+test("on an instance with no GitHub App, its routes are not there for anyone, and the page offers no way in", async ({ page, browser }) => {
+  const nobody = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.73" } });
+  try {
+    for (const [method, path] of [["GET", "/api/github-app/install"], ["GET", "/api/github-app/callback?code=c&installation_id=1&state=s"], ["POST", "/api/webhooks/github"]] as const) {
+      for (const request of [page.request, nobody.request]) {
+        const response = await request.fetch(path, { method, maxRedirects: 0, failOnStatusCode: false, ...(method === "POST" ? { data: "{}", headers: { "x-github-event": "push", "x-hub-signature-256": "sha256=00" } } : {}) });
+        expect(response.status(), `${method} ${path}`).toBe(404);
+      }
+    }
+    await page.goto("/repositories");
+    await expect(page.getByRole("button", { name: "Install on GitHub" })).toHaveCount(0);
+  } finally {
+    await nobody.close();
+  }
+});
 
 test("every route that changes something refuses another site's request, even from its owner, and every route refuses callers it has no business with, and nothing is changed by trying", async ({ page, browser }) => {
   try {
