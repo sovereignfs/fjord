@@ -39,6 +39,8 @@ export const ROUTES: RouteRule[] = [
   { route: "/home", page: { kind: "account" } },
   { route: "/repositories", page: { kind: "account" } },
   { route: "/account/security", page: { kind: "account" } },
+  // The age identity kept in the browser (2a.1): the page only hosts the component that keeps it; the server holds and is asked for nothing of it.
+  { route: "/account/keys", page: { kind: "account" } },
   // A repository, a folder, a file; a document or note by its id; and what was deleted from it.
   { route: "/repo/[connection]/[[...path]]", page: owner("read") },
   { route: "/doc/[id]", page: owner("read") },

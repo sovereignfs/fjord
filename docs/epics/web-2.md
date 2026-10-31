@@ -49,7 +49,7 @@ Expose to JavaScript: parse an identity and a recipient; `encrypt(bytes, recipie
 
 ### 2a.1 Identities
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** DESIGN §2, §15 (to be written)
 
@@ -57,15 +57,22 @@ Make an age identity, or import one from a file or a pasted `AGE-SECRET-KEY-…`
 
 **Accepts when:** a test reads everything the page sends over the network, every cookie and all storage, and finds no key and no passphrase; a wrong passphrase unlocks nothing; a locked page lists encrypted files but opens none.
 
+- **Done as:** `src/keys/`. `KeyStore` (`store.ts`) makes an identity (`create`) or takes one the person has (`import`: a file's text or the `AGE-SECRET-KEY-1…` line; only the key is kept), seals it with the passphrase (scrypt **2^17**) into IndexedDB beside its public key, and opens it into memory on `unlock`. `lock()` wipes it, so does a quiet fifteen minutes (`onLock` says so), and `with(fn)` lends the secret for one use and counts as use. Making or importing never replaces an identity that is kept (`exists`): it has to be removed first. A passphrase under 10 characters is refused. `/account/keys` (`KeyManager.tsx`) has the forms, shows the public key to add to a vault's recipients, and says that nothing is sent. The module loads from `/fjord-wasm/` the first time (`module.ts`).
+- **2^17, not age's 2^18:** scrypt asks for 128 MB of memory at 2^17 and 256 MB at 2^18, which a phone's browser may refuse, and takes about 1.7 s instead of 3.5. Opening a file made at 2^18 still works.
+- **Tested:** `store.test.ts` (10, with the real module: sealed at the work factor chosen, locked/unlocked, the wipe seen by holding the lent buffer, the idle lock under fake timers, import, refusals; breaking the wipe fails one) and `e2e/keys.open.spec.ts` in Chromium under the real policy: made, reloaded to locked, wrong then right passphrase, the IndexedDB record is `{sealed, recipient, createdAt}` with age's header and no text of the key, no request carries the passphrase or a key, no cookie or web storage does, no policy violation, and removal.
+- **Not done:** the heavy call runs on the page's main thread (about 1.7 s, with a message showing); a Web Worker would keep the page responsive and is later work. Recovery is the person's own copy of the key: there is none to give (the page says so).
+
 ### 2a.2 Content-Security-Policy for WebAssembly
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** DESIGN §15; phase 1's policy (1d.5)
 
 The module needs `'wasm-unsafe-eval'` in `script-src` and nothing broader. Keep every other directive as it is; keep the nonce for scripts.
 
 **Accepts when:** the security headers test names the one added token, and a page loads and runs the module under the policy in a browser test.
+
+- **Done as:** `'wasm-unsafe-eval'` added to `script-src` (`src/security/csp.ts`) and nothing else: the unit test lists the four tokens and that `'unsafe-eval'` is not among them. The browser build of the module is copied to `public/fjord-wasm/` by `pnpm build:wasm` and by the image (Dockerfile), and served from this origin. The browser test above runs the module under the policy with a violation listener, and was seen to fail (the identity is never made) with the token removed.
 
 ## 2b — Read and write
 

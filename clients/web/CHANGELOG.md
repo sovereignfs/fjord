@@ -13,6 +13,8 @@ section.
 
 ### Added
 
+- **An encryption identity kept in your browser** (ROADMAP 2a.1, 2a.2): *Keys* in the header makes an age identity, or takes the one you have, and keeps it sealed with a passphrase in this browser only; nothing about it is sent to the server. It is opened into memory by the passphrase, and locks after fifteen minutes without use. The page may now compile WebAssembly (`'wasm-unsafe-eval'` in the script policy, and nothing broader) to do it: the format module is served from `/fjord-wasm/`. Reading and writing encrypted files comes next.
+
 - **A repository the GitHub App loses is disconnected** (ROADMAP 1a.6): when GitHub says an installation was deleted or repositories were removed from it, the connections through the App to them end, as if each person had disconnected it. A connection made with a token is left alone.
 
 - **Connect repositories through a GitHub App** (ROADMAP 1a.6): *Install on GitHub* on Repositories, choose the repositories there, and they are connected, with no token to make or keep. Fjord asks GitHub for a short-lived token when it needs one. Only the repositories the signed-in person can reach themselves are connected, shown by their own one-use authorisation, and only by a trip this browser started. The operator registers the App and sets `FJORD_GITHUB_APP_ID`, `_SLUG`, `_CLIENT_ID`, `_CLIENT_SECRET`, `_WEBHOOK_SECRET` and `_PRIVATE_KEY` (all or none; see `deploy/README.md`). A signed `push` webhook at `/api/webhooks/github` forgets the cached trees of the repository. Connecting with a token still works beside it.
