@@ -42,7 +42,8 @@ Expose to JavaScript: parse an identity and a recipient; `encrypt(bytes, recipie
 
 - **Done as:** `generateIdentity`, `identityRecipient`, `checkRecipient`, `isWellFormed`, `encrypt`, `decrypt`, `wrapContainer` and `unwrapContainer` (`api.rs`, wrapped in `lib.rs`; `fjord-core` gained `crypto::recipient_of`). Secrets are `Uint8Array`s in and out, and the module wipes what it holds. Tested natively (5 tests) and from Node (`tests/js/crypto.test.mjs`): encrypt here and `age -d` there, and the reverse, binary and armored; an `age-keygen` identity; a wrong identity, no recipients and a secret given as a recipient refused; the container refusing two entries, a path in the name and a directory, built with the system `tar`. 102 JavaScript tests pass.
 - **Size:** the module went from 553 KB (233 KB gzipped) to 961 KB (390 KB gzipped). That is a page load for a browser that does not need it, so 2a.1 loads the module that does the encrypting only when an encrypted vault is opened; the load time in a browser is for 2a.2 to measure.
-- **Not here:** a passphrase-protected identity (age's scrypt): `identity` is an X25519 key as `age-keygen` writes it. That is 2a.1, which needs scrypt in the module and its cost in a browser first; it is the next thing to find out.
+- **Passphrase sealing, added the same day** (`fjord_core::crypto::seal_with_passphrase` / `open_with_passphrase`; `sealWithPassphrase`, `openWithPassphrase`, `passphraseWorkFactor` in the module): `age -p` over bytes, to keep an identity at rest. It is not a vault recipient (spec §6.2 still forbids that; a test says a recipients file cannot name one). A sealed file names its own work factor, so opening refuses more than 2^20 (age's default is 2^18) instead of holding a page for minutes; age 0.12's own message for that case overflows in a debug build, so it is replaced by ours.
+- **Measured:** scrypt at age's default work factor (2^18) takes **about 3.5 s to seal and 3.5 s to open** in Node's WebAssembly, on this machine; a browser is of the same order. That is the cost of unlocking an identity once per session. 2a.1 decides between 2^18 and 2^17 (about 1.7 s, half the guessing cost for an attacker with a copy of the sealed file): the module takes the work factor as an argument, and opens a file made at either.
 
 ## 2a — Keys in the browser
 
@@ -52,7 +53,7 @@ Expose to JavaScript: parse an identity and a recipient; `encrypt(bytes, recipie
 
 **Design:** DESIGN §2, §15 (to be written)
 
-Make an age identity, or import one from a file or a pasted `AGE-SECRET-KEY-…`, in the browser. It is kept in IndexedDB only as an age **passphrase-encrypted** file (scrypt), never as the bare key; the page unlocks it for the session (memory only, locked again on sign-out, on closing the tab and after a quiet period). The recipient (public key) is shown for adding to a vault by the CLI.
+Make an age identity, or import one from a file or a pasted `AGE-SECRET-KEY-…`, in the browser. It is kept in IndexedDB only as an age **passphrase-encrypted** file (scrypt, P8's `sealWithPassphrase`: about 3.5 s at age's default work factor, measured), never as the bare key; the page unlocks it for the session (memory only, locked again on sign-out, on closing the tab and after a quiet period). The recipient (public key) is shown for adding to a vault by the CLI.
 
 **Accepts when:** a test reads everything the page sends over the network, every cookie and all storage, and finds no key and no passphrase; a wrong passphrase unlocks nothing; a locked page lists encrypted files but opens none.
 

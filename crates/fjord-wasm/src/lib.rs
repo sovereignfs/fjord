@@ -198,6 +198,27 @@ pub fn decrypt(ciphertext: &[u8], identity: &[u8]) -> Result<Vec<u8>, JsError> {
     api::decrypt(ciphertext, identity).map_err(thrown)
 }
 
+/// scrypt's `log2(N)` to seal with unless there is a reason not to.
+#[wasm_bindgen(js_name = passphraseWorkFactor)]
+pub fn passphrase_work_factor() -> u8 {
+    api::passphrase_work_factor()
+}
+
+/// Seal bytes with a passphrase (both bytes, so a page can wipe them). Slow on purpose: it is the passphrase's whole defence.
+#[wasm_bindgen(js_name = sealWithPassphrase)]
+pub fn seal_with_passphrase(
+    plaintext: &[u8],
+    passphrase: &[u8],
+    log_n: u8,
+) -> Result<Vec<u8>, JsError> {
+    api::seal_with_passphrase(plaintext, passphrase, log_n).map_err(thrown)
+}
+
+#[wasm_bindgen(js_name = openWithPassphrase)]
+pub fn open_with_passphrase(sealed: &[u8], passphrase: &[u8]) -> Result<Vec<u8>, JsError> {
+    api::open_with_passphrase(sealed, passphrase).map_err(thrown)
+}
+
 #[wasm_bindgen(js_name = wrapContainer)]
 pub fn wrap_container(name: &str, contents: &[u8]) -> Result<Vec<u8>, JsError> {
     api::wrap_container(name, contents).map_err(thrown)

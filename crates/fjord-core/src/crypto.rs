@@ -341,6 +341,77 @@ pub fn decrypt(ciphertext: &[u8], identities: &Identities) -> Result<Zeroizing<V
     Ok(plaintext)
 }
 
+/// age's own default work factor for a passphrase (scrypt's `log2(N)`): about a second on a desktop.
+pub const PASSPHRASE_WORK_FACTOR: u8 = 18;
+
+/// The highest work factor [`open_with_passphrase`] will do. A sealed file names its own, and one that asked for 2^30 would hold a page
+/// for minutes; this is four times age's default.
+pub const MAX_PASSPHRASE_WORK_FACTOR: u8 = 20;
+
+/// Encrypt `plaintext` to a **passphrase**, as `age -p` does, for a client that keeps one secret (an age identity) at rest and
+/// unlocks it with something the person types.
+///
+/// This is not a vault recipient: spec §6.2 forbids a passphrase there, and [`encrypt`] does not accept one. `log_n` is scrypt's
+/// work factor ([`PASSPHRASE_WORK_FACTOR`] for real use; a test may pass less).
+pub fn seal_with_passphrase(
+    plaintext: &[u8],
+    passphrase: &str,
+    log_n: u8,
+) -> Result<Vec<u8>, Error> {
+    if passphrase.is_empty() {
+        return Err(Error::Encrypt("the passphrase is empty".to_string()));
+    }
+    if !(1..=MAX_PASSPHRASE_WORK_FACTOR).contains(&log_n) {
+        return Err(Error::Encrypt(format!(
+            "the work factor must be from 1 to {MAX_PASSPHRASE_WORK_FACTOR}"
+        )));
+    }
+    let mut recipient =
+        age::scrypt::Recipient::new(age::secrecy::SecretString::from(passphrase.to_string()));
+    recipient.set_work_factor(log_n);
+    let encryptor =
+        age::Encryptor::with_recipients(std::iter::once(&recipient as &dyn age::Recipient))
+            .map_err(|err| Error::Encrypt(err.to_string()))?;
+    let mut output = Vec::new();
+    let mut writer = encryptor
+        .wrap_output(&mut output)
+        .map_err(|err| Error::Encrypt(err.to_string()))?;
+    writer.write_all(plaintext)?;
+    writer
+        .finish()
+        .map_err(|err| Error::Encrypt(err.to_string()))?;
+    Ok(output)
+}
+
+/// The reverse of [`seal_with_passphrase`]: refuses a wrong passphrase, and a file that asks for more than
+/// [`MAX_PASSPHRASE_WORK_FACTOR`]. The plaintext is wiped on drop.
+pub fn open_with_passphrase(sealed: &[u8], passphrase: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
+    open_with_limit(sealed, passphrase, MAX_PASSPHRASE_WORK_FACTOR)
+}
+
+fn open_with_limit(
+    sealed: &[u8],
+    passphrase: &str,
+    max_log_n: u8,
+) -> Result<Zeroizing<Vec<u8>>, Error> {
+    let decryptor = age::Decryptor::new(sealed).map_err(|err| Error::Decrypt(err.to_string()))?;
+    let mut identity =
+        age::scrypt::Identity::new(age::secrecy::SecretString::from(passphrase.to_string()));
+    identity.set_max_work_factor(max_log_n);
+    let mut reader = decryptor
+        .decrypt(std::iter::once(&identity as &dyn age::Identity))
+        .map_err(|err| match err {
+            // Not `to_string()`: age 0.12 subtracts two `u8`s to write that message and overflows (a panic in a debug build).
+            age::DecryptError::ExcessiveWork { .. } => {
+                Error::Decrypt("the file asks for more work to open than is allowed".to_string())
+            }
+            other => Error::Decrypt(other.to_string()),
+        })?;
+    let mut plaintext = Zeroizing::new(Vec::new());
+    reader.read_to_end(&mut plaintext)?;
+    Ok(plaintext)
+}
+
 /// Whether `bytes` begin a well-formed age payload. Spec §6.1.
 ///
 /// Parses the header only, which needs no identity — so `fjord verify` can
@@ -406,6 +477,42 @@ pub fn identity_file_contents(identity: &GeneratedIdentity, created_at: &str) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_secret_sealed_with_a_passphrase_opens_with_it_and_only_it() {
+        let secret = generate_identity().secret;
+        let sealed = seal_with_passphrase(secret.as_bytes(), "correct horse", 10).unwrap();
+        assert!(!sealed
+            .windows(16)
+            .any(|window| window == &secret.as_bytes()[..16]));
+        assert_eq!(
+            &**open_with_passphrase(&sealed, "correct horse").unwrap(),
+            secret.as_bytes()
+        );
+        assert!(open_with_passphrase(&sealed, "wrong horse").is_err());
+        assert!(open_with_passphrase(&sealed, "").is_err());
+        assert!(open_with_passphrase(b"not age", "correct horse").is_err());
+    }
+
+    #[test]
+    fn a_passphrase_is_not_a_way_into_a_vault() {
+        // `encrypt` takes recipients; a sealed file's header is a scrypt stanza, which a recipients file may not name (spec 6.2).
+        let sealed = seal_with_passphrase(b"x", "pw", 10).unwrap();
+        assert!(is_well_formed(&sealed));
+        assert!(parse_recipients("scrypt\n").is_err());
+    }
+
+    #[test]
+    fn the_work_factor_is_bounded_both_ways() {
+        assert!(seal_with_passphrase(b"x", "pw", 0).is_err());
+        assert!(seal_with_passphrase(b"x", "pw", MAX_PASSPHRASE_WORK_FACTOR + 1).is_err());
+        assert!(seal_with_passphrase(b"x", "", 10).is_err());
+        // A file that asks for more than the limit opens to nothing, however right the passphrase (a small limit here, since a
+        // file at the real one takes minutes to make in a debug build).
+        let sealed = seal_with_passphrase(b"x", "pw", 12).unwrap();
+        assert!(open_with_limit(&sealed, "pw", 11).is_err());
+        assert_eq!(&**open_with_limit(&sealed, "pw", 12).unwrap(), b"x");
+    }
 
     fn round_trip(armor: bool) {
         let identity = generate_identity();

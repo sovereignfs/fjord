@@ -105,3 +105,23 @@ test("the container refuses what spec §6.4 says to: more than one entry, a path
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("an identity is sealed with a passphrase and opened with it, and the cost of the real work factor in this runtime is recorded", () => {
+  const identity = wasm.generateIdentity();
+  const passphrase = bytes("correct horse battery staple");
+  const quick = wasm.sealWithPassphrase(identity, passphrase, 10);
+  assert.ok(wasm.isWellFormed(quick));
+  assert.deepEqual(wasm.openWithPassphrase(quick, passphrase), identity);
+  assert.throws(() => wasm.openWithPassphrase(quick, bytes("battery horse")), /./);
+  assert.throws(() => wasm.sealWithPassphrase(identity, new Uint8Array(0), 10), /./);
+  assert.throws(() => wasm.sealWithPassphrase(identity, passphrase, 21), /work factor/);
+
+  const factor = wasm.passphraseWorkFactor();
+  assert.equal(factor, 18);
+  const started = performance.now();
+  const sealed = wasm.sealWithPassphrase(identity, passphrase, factor);
+  const sealMs = performance.now() - started;
+  const opened = performance.now();
+  assert.deepEqual(wasm.openWithPassphrase(sealed, passphrase), identity);
+  console.log(`# scrypt log2(N)=${factor} in this runtime: seal ${Math.round(sealMs)} ms, open ${Math.round(performance.now() - opened)} ms`);
+});

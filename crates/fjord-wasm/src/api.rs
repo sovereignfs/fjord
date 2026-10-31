@@ -597,6 +597,37 @@ pub fn decrypt(ciphertext: &[u8], identity: &[u8]) -> Result<Vec<u8>, String> {
     Ok(plaintext.to_vec())
 }
 
+/// scrypt's `log2(N)` for sealing a secret with a passphrase: what a page passes unless it has a reason not to.
+pub fn passphrase_work_factor() -> u8 {
+    crypto::PASSPHRASE_WORK_FACTOR
+}
+
+/// Seal bytes (an identity) with a passphrase, as `age -p` would, to keep it at rest. Not a vault recipient (spec §6.2).
+pub fn seal_with_passphrase(
+    plaintext: &[u8],
+    passphrase: &[u8],
+    log_n: u8,
+) -> Result<Vec<u8>, String> {
+    let passphrase = zeroize::Zeroizing::new(
+        std::str::from_utf8(passphrase)
+            .map_err(|_| "the passphrase is not text".to_string())?
+            .to_string(),
+    );
+    crypto::seal_with_passphrase(plaintext, &passphrase, log_n).map_err(|error| error.to_string())
+}
+
+/// Open what [`seal_with_passphrase`] made. A wrong passphrase, and a file that asks for too much work, are refused.
+pub fn open_with_passphrase(sealed: &[u8], passphrase: &[u8]) -> Result<Vec<u8>, String> {
+    let passphrase = zeroize::Zeroizing::new(
+        std::str::from_utf8(passphrase)
+            .map_err(|_| "the passphrase is not text".to_string())?
+            .to_string(),
+    );
+    let opened =
+        crypto::open_with_passphrase(sealed, &passphrase).map_err(|error| error.to_string())?;
+    Ok(opened.to_vec())
+}
+
 /// Pack one file in the single-entry tar container of an `id`-named vault (spec §6.4).
 pub fn wrap_container(name: &str, contents: &[u8]) -> Result<Vec<u8>, String> {
     container::wrap(name, contents).map_err(|error| error.to_string())
@@ -1194,6 +1225,22 @@ mod tests {
         let secret = String::from_utf8(generate_identity()).unwrap();
         assert!(check_recipient(&secret).unwrap().contains("secret key"));
         assert!(check_recipient("# comment").is_some());
+    }
+
+    #[test]
+    fn an_identity_is_sealed_with_a_passphrase_and_opened_with_it() {
+        let identity = generate_identity();
+        let sealed = seal_with_passphrase(&identity, "a long passphrase".as_bytes(), 10).unwrap();
+        assert_eq!(
+            open_with_passphrase(&sealed, b"a long passphrase").unwrap(),
+            identity
+        );
+        assert!(open_with_passphrase(&sealed, b"another one").is_err());
+        assert!(seal_with_passphrase(&identity, b"", 10).is_err());
+        assert!(open_with_passphrase(&sealed, &[0xff])
+            .unwrap_err()
+            .contains("not text"));
+        assert_eq!(passphrase_work_factor(), 18);
     }
 
     #[test]
