@@ -361,7 +361,7 @@ browser.
 - **A PAT still works beside it.** Both kinds are listed together; disconnecting an App connection stops Fjord using it and leaves the App installed.
 - **Tested** (`src/github-app/*.test.ts`) on all three databases against a git host in memory and a stand-in `fetch` for the two calls that are GitHub's own, with the state check and the person's-own-repositories check each switched off to see the tests fail. **Not yet tested against real GitHub**: a first real installation is the check of the App's settings (the callback URL, that user authorisation during installation is on, Contents: write) and of the exact shape of GitHub's answers.
 - **When the App loses a repository** (an installation deleted, or repositories removed from it) GitHub sends `installation` or `installation_repositories`, which an App always receives; the same signed webhook disconnects every connection **through the App** to those repositories (`ConnectionService.accessRemoved`: drafts, shares, comments and trees go as when a person disconnects), and leaves a token's connection to the same repository alone. Suspending an installation changes nothing here: its connections fail with a message until it is unsuspended.
-- **Not done:** connecting an installation by its owner's request after approval needs them to come back; a separate `worker` process.
+- **Not done:** connecting an installation by its owner's request after approval needs them to come back. **Decided not to build a separate `worker` process** (2026-10-31): idle versions and the webhook run inside the web process, which is what a single container wants, and a second entry point needs a bundle of its own in the image (the app is a Next standalone server) for no behaviour; it is built the day an instance needs the two scaled apart.
 
 ### Credentials at rest, as built (ROADMAP 1a.8)
 
@@ -965,7 +965,7 @@ A draft nobody has edited for the quiet period becomes a version without anyone 
   reached for, is tried again after fifteen minutes or when it is edited again, not every minute; the delay is kept in memory, so a restart tries once more. At most 50 versions are made in a pass.
 - **Logged** as a count, and an unexpected failure by its name only, never a message (it may carry a path or a host's words).
 - **Not done:** a tab that was left open does not hear that its draft became a version. Typing in it again starts a new draft on the old base, which the note's page then offers to combine (1b.10);
-  nothing is lost. Telling the page through the `event` table is later work.
+  nothing is lost. **Decided not to tell the page** (2026-10-31): that would be a stream per open editor to save a click in a case that already keeps every word, and Phase 3's shared document (§11) removes the case.
 
 ### Upstream changes, as built (ROADMAP 1b.10)
 

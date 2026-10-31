@@ -11,10 +11,6 @@ section.
 
 ## [Unreleased]
 
-### Changed
-
-- **Looking at a repository again costs the git host no rate limit while nothing is pushed**: the head is asked for with the last `ETag`, and a `304` is the commit seen before. It is still asked at every view, so a push shows at the next look whether or not a webhook came.
-
 ### Added
 
 - **A repository the GitHub App loses is disconnected** (ROADMAP 1a.6): when GitHub says an installation was deleted or repositories were removed from it, the connections through the App to them end, as if each person had disconnected it. A connection made with a token is left alone.
@@ -32,6 +28,7 @@ section.
 
 ### Changed
 
+- **Looking at a repository again costs the git host no rate limit while nothing is pushed**: the head is asked for with the last `ETag`, and a `304` is the commit seen before. It is still asked at every view, so a push shows at the next look whether or not a webhook came.
 - The landing page's link to the specification points at its new place, `docs/specs/Fjord.spec.md` (the spec's licence is now stated in the file itself).
 
 ### Security
