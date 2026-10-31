@@ -48,6 +48,21 @@ frontmatter keys and their order survive a round trip), which is a change
 worth making deliberately and not in passing. Tracked in ROADMAP.md.
 """ },
 
+  { id = "RUSTSEC-2026-0387", reason = """
+`crypto-bigint` 0.5.5 has operations meant to be constant-time that can branch on secret data, depending on the compiler and CPU. The fix is 0.7.6, and
+there is no way to take it from here: the only path to it is `age` -> `p256` / `hpke` -> `elliptic-curve` 0.13, which `age` 0.12 pins. It waits for `age`
+to move (the same lockfile entry is in `crates/fjord-wasm/Cargo.lock`, which the audit checks under this same policy).
+
+What is reached, checked with `cargo tree -i crypto-bigint`: only `p256`, which `age` uses for its P-256 (`tag`) recipient types and HPKE. Fjord never
+encrypts to one: a recipients file is accepted only if each line parses as an X25519 `age::x25519::Recipient` (`manifest::classify_recipient`, spec 6.2),
+and an identity the browser keeps is checked to be an X25519 secret key before it is sealed. The arithmetic on secrets for X25519 is `curve25519-dalek`'s,
+and for a passphrase `scrypt`'s, neither of which depends on this crate. So the timing leak would need a P-256 secret in this process, which nothing here
+makes or accepts.
+
+Issued 2026-10-23, after the last time this tree changed. Revisit when `age` releases on `elliptic-curve` 0.14 / `crypto-bigint` 0.7, or if a P-256 or
+HPKE recipient or identity is ever accepted (and then this entry is wrong, not just old).
+""" },
+
   { id = "RUSTSEC-2026-0374", reason = """
 `basic-toml` is unmaintained, with no safe upgrade. It is reached only through
 `i18n-config`, which `age` uses (via `i18n-embed`) for its error messages.
