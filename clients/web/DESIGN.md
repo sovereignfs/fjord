@@ -1563,6 +1563,8 @@ standalone output would otherwise prune it.
 | 10 | Path route for notes without an id: `/repo/<connection>/<path>` | As written |
 | 11 | Restore window for deleted files | 30 days, per instance |
 | 12 | Converting a document to a note or back (changing the extension) | Not in phase 1; rename keeps the extension |
+| 13 | Sealed shares of encrypted documents: link key in the `#fragment` only, or also a password-derived one? Do comments on a sealed copy stay sealed? | Both; comments sealed to the same key (`web-2.md` 2c.1) |
+| 14 | Where the age identity lives in the browser: IndexedDB as a passphrase-encrypted age file, unlocked per session; or never stored and imported at each session | Stored, passphrase-encrypted (`web-2.md` 2a.1) |
 
 ## 20. Decision log
 

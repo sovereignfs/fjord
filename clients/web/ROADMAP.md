@@ -1,6 +1,6 @@
 # Fjord Web — roadmap
 
-**Status:** phase 1 is done except a real-GitHub check of the PAT connection (1a.7) and the App (1a.6), and house style (1b.4); phases 2 and 3 are outlines, with tasks to be written when they start. The design is
+**Status:** phase 1 is done except a real-GitHub check of the PAT connection (1a.7) and the App (1a.6), and house style (1b.4); phase 2 is planned (tasks, not built) and phase 3 is an outline. The design is
 [`DESIGN.md`](DESIGN.md); this file is the order of work, and the detail of each task is in [`docs/epics/`](../../docs/epics/). Section numbers (§) refer to `DESIGN.md` unless they say "spec".
 
 | | |
@@ -93,18 +93,22 @@ P4 is the longest pole; 1a needs P3–P5, 1b needs P1, P2 and P4; 1a.10 needs P6
 
 ## Phase 2 — encrypted files
 
-In outline; tasks are written when phase 1 is done.
+Planned on 2026-10-31; nothing built. What it promises and what it does not is in [`web-2.md`](../../docs/epics/web-2.md). The prerequisites need a Rust toolchain.
 
-- `fjord-core` to WASM, the rest: age encryption and the tar container in the
-  browser, identities that never leave it (passphrase-protected, unlocked per
-  session).
-- Browse encrypted vaults (names in `plain` naming; ids in `id` naming), open,
-  edit, and commit ciphertext only. Drafts of encrypted files kept encrypted.
-- Rename, move and delete in encrypted vaults, and moving files in and out of
-  them (encrypting or decrypting on the way); in `id` naming a rename rewrites the
-  name inside the container (spec §6.4, §7.2).
-- Sealed shares of encrypted documents: copy and comments encrypted with a link key
-  in the `#fragment`, or a key derived from a password.
+| # | Task | Status |
+| --- | --- | --- |
+| [P7](../../docs/epics/web-2.md#p7-fjord-core-age-and-the-tar-container-in-the-pure-subset) | `fjord-core`: age and the tar container in the pure subset | 📋 Planned |
+| [P8](../../docs/epics/web-2.md#p8-fjord-wasm-encrypt-decrypt-pack-and-unpack) | `fjord-wasm`: encrypt, decrypt, pack and unpack | 📋 Planned |
+| [2a.1](../../docs/epics/web-2.md#2a1-identities) | Identities | 📋 Planned (§19 #14) |
+| [2a.2](../../docs/epics/web-2.md#2a2-content-security-policy-for-webassembly) | Content-Security-Policy for WebAssembly | 📋 Planned |
+| [2b.1](../../docs/epics/web-2.md#2b1-browse-encrypted-vaults) | Browse encrypted vaults | 📋 Planned |
+| [2b.2](../../docs/epics/web-2.md#2b2-open) | Open | 📋 Planned |
+| [2b.3](../../docs/epics/web-2.md#2b3-edit-and-drafts) | Edit and drafts | 📋 Planned |
+| [2b.4](../../docs/epics/web-2.md#2b4-create-in-encrypted-vaults) | Create in encrypted vaults | 📋 Planned |
+| [2b.5](../../docs/epics/web-2.md#2b5-rename-move-and-delete) | Rename, move and delete | 📋 Planned |
+| [2b.6](../../docs/epics/web-2.md#2b6-moving-files-in-and-out-of-vaults) | Moving files in and out of vaults | 📋 Planned |
+| [2c.1](../../docs/epics/web-2.md#2c1-sealed-link-shares) | Sealed link shares | 📋 Planned (§19 #13) |
+| [2c.2](../../docs/epics/web-2.md#2c2-security-review-of-phase-2) | Security review of phase 2 | 📋 Planned |
 
 ## Phase 3 — collaborative editing
 
