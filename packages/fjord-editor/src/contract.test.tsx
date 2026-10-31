@@ -10,7 +10,7 @@ import { DocumentEditor } from "./DocumentEditor.js";
 import { RichDocument } from "./rich/RichDocument.js";
 import { NoteEditor } from "./NoteEditor.js";
 import { LABEL, type Surface, codeMirror, visual } from "./testing/surfaces.js";
-import type { Anchor, CommentsAdapter, DocumentEditorProps, EditorHandle, NoteEditorProps, ThreadMark } from "./types.js";
+import type { Anchor, AnchorReport, CommentsAdapter, DocumentEditorProps, EditorHandle, NoteEditorProps, ThreadMark } from "./types.js";
 
 /**
  * What an editor in this package does, whatever is behind it. These are the tests that CodeMirror (ROADMAP 1b.2) and
@@ -369,6 +369,19 @@ describe("comments", () => {
       documentIn({ role: "comment", comments: { ...app.comments, active: () => "a" } });
       await ready();
       await waitFor(() => expect(painted.get("fe-thread-active")).toEqual(["world"]));
+    });
+
+    it("tells the app what became of each thread in the text, and the anchor to keep for one whose text was edited (ROADMAP 1d.2)", async () => {
+      const reports: AnchorReport[] = [];
+      const app = adapter([mark("kept"), mark("edited", { anchor: { type: "text-quote", quote: "the rest of this sentence reads as it did", prefix: "", suffix: "", position: 0 } }), mark("gone", { anchor: { type: "text-quote", quote: "zzzz qqqq xxxx wwww vvvv", prefix: "", suffix: "", position: 0 } })]);
+      documentIn({ role: "view", comments: { ...app.comments, anchored: (report) => void reports.push(report) } }, "Hello world, and the rest of this sentence reads as before.\n");
+      await ready();
+      await waitFor(() => expect(reports.length).toBeGreaterThan(0));
+      const last = reports[reports.length - 1]!;
+      expect(Object.fromEntries(last.fates)).toEqual({ kept: "intact", edited: "edited", gone: "outdated" });
+      expect(last.reanchored).toHaveLength(1);
+      expect(last.reanchored[0]).toMatchObject({ id: "edited", to: { quote: "the rest of this sentence reads as before", position: 17 } });
+      expect(painted.get("fe-thread")).toEqual(["world", "the rest of this sentence reads as before"]);
     });
 
     it("tells the app which thread a click was on, and nothing for a click elsewhere", async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Anchor, CommentsAdapter, ThreadMark } from "fjord-editor";
+import type { Anchor, AnchorReport, CommentsAdapter, ThreadMark } from "fjord-editor";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Badge, Button, FormField, Input } from "../ui";
 import styles from "../auth/screens/screens.module.css";
@@ -17,6 +17,7 @@ import {
   givenName,
   keepName,
   loadComments,
+  moveThread,
   setClosed,
   setResolved,
   startThread,
@@ -32,6 +33,9 @@ import { MAX_COMMENT_CHARS } from "./limits";
  * name, kept in their browser, and sends it with the id their browser made up. What they may do is the server's too (`viewer` in the listing):
  * the panel offers what it is told they may.
  */
+/** How long the text of a thread must have stayed found in its new place before the server is told (a person typing inside it changes it at every key). */
+const MOVE_AFTER_MS = 1500;
+
 export function useComments(docId: string | undefined, options: { guest: boolean }): { adapter: CommentsAdapter | undefined; onNeedName: () => Promise<boolean>; panel: ReactNode } {
   const { guest } = options;
   const [listing, setListing] = useState<Listing | null>(null);
@@ -43,6 +47,10 @@ export function useComments(docId: string | undefined, options: { guest: boolean
   const listeners = useRef(new Set<() => void>());
   const threadsRef = useRef<ThreadView[]>([]);
   const activeRef = useRef<number | null>(null);
+  /** What became of each thread in the text, as the editor last said (ROADMAP 1d.2); a thread it did not look for is not here. */
+  const [fates, setFates] = useState<ReadonlyMap<number, "intact" | "edited" | "outdated">>(new Map());
+  const listingRef = useRef<Listing | null>(null);
+  const moving = useRef<{ timer: ReturnType<typeof setTimeout> | undefined; wanted: AnchorReport["reanchored"]; tried: Set<string> }>({ timer: undefined, wanted: [], tried: new Set() });
 
   const claim = useCallback((): Claim => {
     if (!guest) return {};
@@ -60,6 +68,7 @@ export function useComments(docId: string | undefined, options: { guest: boolean
     if (!done.ok) return setProblem(done.message);
     setProblem(null);
     setListing(done.listing);
+    listingRef.current = done.listing;
     threadsRef.current = done.listing.threads;
     notify();
   }, [docId, guest, claim, notify]);
@@ -90,8 +99,44 @@ export function useComments(docId: string | undefined, options: { guest: boolean
         document.getElementById(`comment-thread-${id}`)?.scrollIntoView?.({ block: "nearest" });
       },
       active: () => (activeRef.current === null ? null : String(activeRef.current)),
+      anchored: (report) => {
+        const next = new Map<number, "intact" | "edited" | "outdated">();
+        for (const [id, fate] of report.fates) next.set(Number(id), fate);
+        setFates((before) => (before.size === next.size && [...next].every(([id, fate]) => before.get(id) === fate) ? before : next));
+        keepMoving(report.reanchored);
+      },
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `keepMoving` reads refs only
   }, [docId, notify]);
+
+  /**
+   * A thread whose text was edited has been found again, and the anchor that is true now is the editor's to hand over. Once it has stayed so for a
+   * moment and the person may comment, the server is asked to keep it (from the anchor it has), so that the next change is compared with the words
+   * as they are now. Once a move has been tried it is not tried again (a refusal means someone else moved it, or it is not for this person).
+   */
+  function keepMoving(wanted: AnchorReport["reanchored"]) {
+    const state = moving.current;
+    state.wanted = wanted;
+    if (state.timer) clearTimeout(state.timer);
+    if (wanted.length === 0 || !docId) return;
+    state.timer = setTimeout(async () => {
+      state.timer = undefined;
+      if (!listingRef.current?.viewer.canComment) return;
+      for (const move of state.wanted) {
+        const key = `${move.id}:${JSON.stringify(move.to)}`;
+        if (state.tried.has(key)) continue;
+        state.tried.add(key);
+        const done = await moveThread(docId, Number(move.id), move.from, move.to, claim());
+        if (done.ok) {
+          // Hold the thread where it is now, without a round trip: the editor finds it intact, and says nothing more of it.
+          threadsRef.current = threadsRef.current.map((thread) => (thread.id === Number(move.id) ? { ...thread, anchor: move.to } : thread));
+          notify();
+        }
+      }
+    }, MOVE_AFTER_MS);
+  }
+
+  useEffect(() => () => clearTimeout(moving.current.timer), []);
 
   /** For a guest, before they write: the name they gave, or ask for it. Resolves whether there is one. */
   const onNeedName = useCallback(async (): Promise<boolean> => {
@@ -116,6 +161,7 @@ export function useComments(docId: string | undefined, options: { guest: boolean
       listing={listing}
       problem={problem}
       active={active}
+      fates={fates}
       composing={composing}
       asking={asking}
       claim={claim}
@@ -138,6 +184,7 @@ interface PanelProps {
   listing: Listing | null;
   problem: string | null;
   active: number | null;
+  fates: ReadonlyMap<number, "intact" | "edited" | "outdated">;
   composing: Anchor | null;
   asking: boolean;
   claim: () => Claim;
@@ -304,6 +351,12 @@ function ThreadItem(props: PanelProps & { thread: ThreadView; viewer: Listing["v
         <blockquote className={styles.itemMeta}>“{thread.anchor.quote.length > 140 ? `${thread.anchor.quote.slice(0, 140)}…` : thread.anchor.quote}”</blockquote>
         <Who name={thread.authorName} kind={thread.authorKind} createdAt={thread.createdAt} editedAt={thread.editedAt} />{" "}
         {thread.resolved ? <Badge>Resolved{thread.resolvedBy ? ` by ${thread.resolvedBy}` : ""}</Badge> : null}
+        {props.fates.get(thread.id) === "outdated" ? (
+          <span data-testid="comment-outdated" title="The text this was about has been changed or removed, so it is not marked in the document. The comment is kept.">
+            {" "}
+            <Badge>Outdated</Badge>
+          </span>
+        ) : null}
         {editing ? (
           <Composer
             label="Edit comment"

@@ -99,6 +99,12 @@ describe("what is asked", () => {
     expect(gone.run.mock.calls[0]![0]).toMatchObject({ operation: { op: "delete", target: { kind: "thread", id: 4 } } });
   });
 
+  it("moves a thread onto the words its text was edited into, from one anchor to another, keeping only what an anchor is", async () => {
+    const { response, run } = await ask("PATCH", { op: "reanchor", thread: 4, from: { ...ANCHOR, extra: 1 }, to: { ...ANCHOR, quote: "worlds" } });
+    expect(response.status).toBe(200);
+    expect(run.mock.calls[0]![0]).toMatchObject({ operation: { op: "reanchor", thread: 4, from: ANCHOR, to: { ...ANCHOR, quote: "worlds" } } });
+  });
+
   it.each([
     ["POST", "no operation", {}],
     ["POST", "an operation of another method", { op: "resolve", thread: 1, resolved: true }],
@@ -112,6 +118,9 @@ describe("what is asked", () => {
     ["PATCH", "an edit of a kind that is not one", { op: "edit", kind: "comment", id: 1, body: "x" }],
     ["PATCH", "an edit with no text", { op: "edit", kind: "thread", id: 1 }],
     ["PATCH", "a close with no state", { op: "close" }],
+    ["PATCH", "a move with no anchor to move to", { op: "reanchor", thread: 1, from: ANCHOR }],
+    ["PATCH", "a move from an anchor that is not one", { op: "reanchor", thread: 1, from: { ...ANCHOR, quote: "" }, to: ANCHOR }],
+    ["PATCH", "a move of a thread that is not a number", { op: "reanchor", thread: "1", from: ANCHOR, to: ANCHOR }],
     ["PATCH", "an operation that is not one", { op: "delete" }],
     ["DELETE", "a delete with no kind", { id: 1 }],
     ["DELETE", "a delete of a number that is not a whole one", { kind: "reply", id: 1.5 }],
@@ -131,6 +140,8 @@ describe("what they are told when it is refused", () => {
     ["not_found", 404, "no_such_comment"],
     ["too_many", 422, "too_many"],
     ["bad_comment", 400, "bad_comment"],
+    ["bad_anchor", 422, "bad_anchor"],
+    ["stale", 409, "stale"],
   ])("%s is %i %s, in words", async (reason, status, code) => {
     const { deps } = stub({ ok: false, reason });
     for (const [method, sent] of [["GET", undefined], ["POST", { op: "reply", thread: 1, body: "x" }]] as const) {

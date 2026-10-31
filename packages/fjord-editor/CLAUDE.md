@@ -43,7 +43,9 @@ design is right.
 - **Comment marks are highlights, not nodes.** `src/marks.ts` draws each thread of the app's `CommentsAdapter` over the rendered text with the CSS
   Custom Highlight API and finds it again from its text-quote anchor whenever the threads or the text change, so a mark is never part of what is
   edited, saved or compared with the Markdown, and a document that is only read is marked as well as one that is edited. The Markdown fallback is
-  not marked. Colours come from `--fe-mark-*` custom properties (`src/theme.ts`).
+  not marked. Colours come from `--fe-mark-*` custom properties (`src/theme.ts`). Finding a thread's text again after the document changed is
+  `src/reanchor.ts` (word for word, else within 30% of the quote different, else outdated: ROADMAP 1d.2); it is pure, given a text and an anchor, and
+  the app is told what it found through `CommentsAdapter.anchored`.
 - **Frontmatter is not the editor's.** It is given the body and gives the body back; the app keeps the header
   (`DESIGN.md` §9).
 - **A note's editor is byte-faithful**: an edit changes only what the person changed, and a note the editor did not touch comes

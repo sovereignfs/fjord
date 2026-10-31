@@ -2788,3 +2788,75 @@ test("a named account it is shared with comments as itself, and a revoked link s
     await restoreMore();
   }
 });
+
+// --- Anchors (ROADMAP 1d.2) --------------------------------------------------------------------------------------------------
+
+const ANCHOR_DOC = (body: string) => `---\nid: ${ID_DOC}\ntitle: Q4 plan\n---\n\n# Q4 plan\n\n${body}\n`;
+
+test("when a document is changed elsewhere, a thread follows the words around which, or in which, it was changed, and one whose words are gone is kept and said to be outdated", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, {
+      "Notes/fjord.vault.json": VAULT_MANIFEST,
+      "Notes/Plan.fj.md": ANCHOR_DOC("The plan covers the first quarter of the year in some detail.\n\nWe will hire two engineers before the summer starts, if the budget allows it.\n\nNothing in this paragraph is expected to change at all, ever."),
+    });
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    const panel = page.getByTestId("comments-panel");
+    await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan covers");
+    const comment = async (text: string, said: string) => {
+      await selectText(page, text);
+      await page.getByRole("button", { name: "Comment on selection" }).click();
+      await panel.getByLabel("New comment").fill(said);
+      await panel.getByRole("button", { name: "Comment", exact: true }).click();
+      await expect(panel.getByText(said)).toBeVisible();
+    };
+    await comment("the first quarter of the year", "Around: text is added before and after this");
+    await comment("hire two engineers before the summer", "Inside: a word of this is changed");
+    await comment("Nothing in this paragraph is expected to change", "Over: this is rewritten altogether");
+    await expect(panel.getByTestId("comment-thread")).toHaveCount(3);
+    await expect(panel.getByTestId("comment-outdated")).toHaveCount(0);
+
+    // Somebody else changes the document in the repository: new text before and after the first, a word of the second, all of the third.
+    await hubs.more.commitFiles({
+      "Notes/Plan.fj.md": ANCHOR_DOC(
+        "A new opening paragraph, added by somebody else.\n\nThe plan covers the first quarter of the year in some detail. It has a closing sentence now.\n\nWe will hire three engineers before the summer starts, if the budget allows it.\n\nThis paragraph was rewritten completely: hiring and offices are discussed in another document.",
+      ),
+    });
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await expect(noteEditor(page, "Plan.fj.md")).toContainText("A new opening paragraph");
+
+    // The first is where it was in its words; the second is on the words as they read now; the third is not marked, and is kept, said to be outdated.
+    await expect.poll(() => marks(page)).toEqual({ "fe-thread": ["the first quarter of the year", "hire three engineers before the summer"] });
+    await expect(panel.getByTestId("comment-thread")).toHaveCount(3);
+    await expect(panel.getByTestId("comment-outdated")).toHaveCount(1);
+    await expect(panel.getByTestId("comment-thread").nth(2)).toContainText("Over: this is rewritten altogether");
+    await expect(panel.getByTestId("comment-thread").nth(2).getByTestId("comment-outdated")).toBeVisible();
+    await expect(panel.getByTestId("comment-thread").nth(1).getByTestId("comment-outdated")).toHaveCount(0);
+
+    // The server keeps the words the second thread is on now, so that the next change is compared with those.
+    const stored = async () => {
+      const listing = (await (await page.request.get(`/doc/${ID_DOC}/comments`)).json()) as { threads: { body: string; anchor: { quote: string } }[] };
+      return Object.fromEntries(listing.threads.map((thread) => [thread.body.split(":")[0], thread.anchor.quote]));
+    };
+    await expect.poll(stored, { timeout: 10_000 }).toEqual({
+      Around: "the first quarter of the year",
+      Inside: "hire three engineers before the summer",
+      Over: "Nothing in this paragraph is expected to change",
+    });
+
+    // And it holds: the page read again finds all that the same way, and the outdated thread is still there.
+    await page.reload();
+    await expect(noteEditor(page, "Plan.fj.md")).toContainText("A new opening paragraph");
+    await expect.poll(() => marks(page)).toEqual({ "fe-thread": ["the first quarter of the year", "hire three engineers before the summer"] });
+    await expect(panel.getByTestId("comment-outdated")).toHaveCount(1);
+
+    // The words come back (the change is undone elsewhere): the thread that was outdated is marked again, from the anchor it always had.
+    await hubs.more.commitFiles({
+      "Notes/Plan.fj.md": ANCHOR_DOC("The plan covers the first quarter of the year in some detail.\n\nWe will hire three engineers before the summer starts, if the budget allows it.\n\nNothing in this paragraph is expected to change at all, ever."),
+    });
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await expect.poll(() => marks(page)).toEqual({ "fe-thread": ["the first quarter of the year", "hire three engineers before the summer", "Nothing in this paragraph is expected to change"] });
+    await expect(panel.getByTestId("comment-outdated")).toHaveCount(0);
+  } finally {
+    await restoreMore();
+  }
+});

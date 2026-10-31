@@ -13,6 +13,9 @@ section.
 
 ### Added
 
+- **Comments follow the text when the document is changed elsewhere** (ROADMAP 1d.2): a thread stays on its words when text is added around
+  them, follows them when a word of them is changed (the server then keeps the new words as the thread's place), and when its words are gone
+  is not dropped but kept in the panel with an **Outdated** mark, and marked in the text again if the words come back.
 - **Comments** (ROADMAP 1d.1): select text in a document and comment on it. Anyone who may comment can start a thread, reply, resolve it or
   open it again, and edit or delete their own comments; the owner can delete anyone's and close a document's comments. The text a thread
   is about is highlighted, in a document that is being edited and in one that is only being read, and choosing a highlight opens its thread. A

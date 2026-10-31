@@ -7,7 +7,7 @@ import { type Author, type CommentService, type Done, type Thread, type TextQuot
  * each operation asks `decide` for its action, so a role means the same here as everywhere, and the answer is the policy's: `hidden` (not
  * let in at all, or no document to be let into) is told as "not found", `forbidden` (let in, but not to this) as such.
  *
- *  - **View** may read the threads. **Comment** may also start a thread, reply, resolve and open again, edit or delete its own.
+ *  - **View** may read the threads. (Moving a thread onto the words its text was edited into, ROADMAP 1d.2, is for those who may comment.) **Comment** may also start a thread, reply, resolve and open again, edit or delete its own.
  *    **Edit** may all of that. **The owner** may also delete anyone's and close a document's comments. (A share never moderates.)
  *  - **Whose a comment is** is the author's: an account by its id, a guest by the link and the id their browser made up, with the name
  *    they gave. A signed-in account is itself even when it came in by a link. A guest must give a name and a browser id to write.
@@ -29,6 +29,7 @@ export type Operation =
   | { op: "resolve"; thread: number; resolved: boolean }
   | { op: "edit"; target: { kind: "thread" | "reply"; id: number }; body: string }
   | { op: "delete"; target: { kind: "thread" | "reply"; id: number } }
+  | { op: "reanchor"; thread: number; from: TextQuoteAnchor; to: TextQuoteAnchor }
   | { op: "close"; closed: boolean };
 
 /** Who is asking, as the request says: the name and the browser's id of someone with no account. */
@@ -39,12 +40,12 @@ export interface Claimed {
 
 export type Outcome =
   | { ok: true; id?: number; threads?: Thread[]; closed?: boolean; viewer?: { role: "owner" | Role; canComment: boolean; canModerate: boolean; name: string | null } }
-  | { ok: false; reason: "hidden" | "forbidden" | "need_name" | "closed" | "not_found" | "too_many" | "bad_comment" };
+  | { ok: false; reason: "hidden" | "forbidden" | "need_name" | "closed" | "not_found" | "too_many" | "bad_comment" | "bad_anchor" | "stale" };
 
 export interface AccessDeps {
   /** Who this is, for this document: their grants and where it is; undefined if they are let in nowhere. */
   viewer: (input: { docId: string; account: { id: string; name: string } | undefined; cookie: string | undefined }) => Promise<Viewer | undefined>;
-  comments: Pick<CommentService, "list" | "createThread" | "reply" | "setResolved" | "edit" | "remove" | "setClosed">;
+  comments: Pick<CommentService, "list" | "createThread" | "reply" | "setResolved" | "edit" | "remove" | "setClosed" | "reanchor">;
   now?: () => number;
 }
 
@@ -61,7 +62,7 @@ export function commentsAccess(deps: AccessDeps) {
 
     const action: Action =
       operation.op === "list" ? "read"
-      : operation.op === "thread" ? "comment"
+      : operation.op === "thread" || operation.op === "reanchor" ? "comment"
       : operation.op === "reply" ? "reply"
       : operation.op === "resolve" ? "resolve"
       : operation.op === "edit" ? "edit_own_comment"
@@ -87,6 +88,11 @@ export function commentsAccess(deps: AccessDeps) {
           name: asked.author?.name ?? null,
         },
       };
+    }
+    // Moving a thread onto the words its text was edited into is mechanical, not something a person wrote: it needs the right to comment but no name.
+    if (operation.op === "reanchor") {
+      const done = await deps.comments.reanchor(viewer.connectionId, input.docId, operation.thread, operation.from, operation.to);
+      return done.ok ? { ok: true } : { ok: false, reason: done.reason };
     }
     if (!asked.author) return { ok: false, reason: "need_name" };
     const { author } = asked;

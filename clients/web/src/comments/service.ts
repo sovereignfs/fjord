@@ -4,6 +4,7 @@ import { dbAll, dbGet, dbRun } from "../db/exec";
 import * as postgresSchema from "../db/schema/postgres";
 import * as sqliteSchema from "../db/schema/sqlite";
 import { MAX_COMMENT_CHARS } from "./limits";
+import { isLike } from "./similar";
 
 /**
  * A document's comments (DESIGN.md §13, ROADMAP 1d.1): threads on a selection, replies, resolving, editing and deleting, and the owner's
@@ -16,7 +17,10 @@ import { MAX_COMMENT_CHARS } from "./limits";
  *  - **Limits:** a comment is 1 to 4000 characters, a document has at most 500 threads and a thread at most 200 replies, an anchor's quote at
  *    most 2000 characters. Further limits, per user and per link, come with ROADMAP 1d.4.
  *  - **Closed:** while a document's comments are closed, nothing is added, edited or resolved; deleting goes on.
- *  - **Nothing is dropped:** an anchor is kept as it was made. Finding it again in a changed text is the app's (ROADMAP 1d.2).
+ *  - **Nothing is dropped:** an anchor is kept as it was made, and a thread whose text is gone is kept with it. Finding the text again after a
+ *    change is the browser's, which sees the text (`fjord-editor`'s `reanchor.ts`, ROADMAP 1d.2); what it asks of the server is `reanchor`: to move a
+ *    thread's anchor onto the edited words, only from the anchor it was found with (so a page that is out of date cannot undo a newer move), and
+ *    only onto words like the old ones.
  */
 export type Author = { kind: "account" | "guest"; id: string; name: string };
 
@@ -52,7 +56,7 @@ export const MAX_CONTEXT_CHARS = 200;
 export const MAX_THREADS_PER_DOCUMENT = 500;
 export const MAX_REPLIES_PER_THREAD = 200;
 
-export type Refusal = "not_found" | "closed" | "forbidden" | "too_many" | "bad_comment";
+export type Refusal = "not_found" | "closed" | "forbidden" | "too_many" | "bad_comment" | "bad_anchor" | "stale";
 export type Done<T = object> = ({ ok: true } & T) | { ok: false; reason: Refusal };
 
 const tables = (database: Database) =>
@@ -200,6 +204,24 @@ export class CommentService {
     );
     await this.log(connectionId, docId, threadId, author, "reply_added");
     return { ok: true, id: Number(made[0]!.id) };
+  }
+
+  /**
+   * Move a thread onto the words its text was edited into (ROADMAP 1d.2). Only if the thread's anchor is still `from`, the one the browser found
+   * it with: a page that has not seen a newer move changes nothing. And only if `to` is like `from`: the server cannot see the text, but it will
+   * not move a thread onto unrelated words in one step. Not a comment, so it works while the comments are closed and is not the person's act:
+   * it is not in the log.
+   */
+  async reanchor(connectionId: number, docId: string, threadId: number, from: TextQuoteAnchor, to: TextQuoteAnchor): Promise<Done> {
+    if (!(await this.thread(connectionId, docId, threadId))) return { ok: false, reason: "not_found" };
+    if (!isLike(from.quote, to.quote)) return { ok: false, reason: "bad_anchor" };
+    const moved = await dbAll<{ id: number | string }>(
+      this.database,
+      sql`UPDATE ${this.t().thread} SET anchor = ${JSON.stringify(to)}
+          WHERE id = ${threadId} AND connection_id = ${connectionId} AND doc_id = ${docId} AND anchor = ${JSON.stringify(from)}
+          RETURNING id`,
+    );
+    return moved.length > 0 ? { ok: true } : { ok: false, reason: "stale" };
   }
 
   /** Resolve a thread, or open it again. Anyone who may comment may; the actor is named on it. */

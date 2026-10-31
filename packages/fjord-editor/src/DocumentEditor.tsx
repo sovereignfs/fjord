@@ -94,6 +94,7 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
       const painted = paintMarks(surface, open, comments.active?.() ?? null);
       ranges.current = painted.ranges;
       clear = painted.clear;
+      comments.anchored?.({ fates: painted.fates, reanchored: painted.reanchored });
     };
     const schedule = () => {
       if (frame === 0) frame = requestAnimationFrame(paint);

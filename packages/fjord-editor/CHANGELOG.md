@@ -13,6 +13,11 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
 
 ### Added
 
+- **Finding a thread's text again after the document changed** (ROADMAP 1d.2): a thread is still on its quote if the quote is there word for
+  word (`intact`, wherever the text around it went); else on the nearest place whose text is within 30% of the quote's characters different
+  (`edited`: a quote of 12 characters or more is searched for like this, a large document near where the quote was); else it is `outdated`, and
+  not marked. `CommentsAdapter.anchored` (optional) tells the app each thread's fate and, for an edited one, the anchor that is true now
+  (`AnchorReport`). `src/reanchor.ts`.
 - **Marks for comment threads** (ROADMAP 1d.1): `DocumentEditor` draws each thread of the app's `CommentsAdapter` over the text it is about, in a
   document that is only read as well as one that is edited, and tells the app which thread a click on a mark was on (`open`). The marks are
   drawn with the browser's CSS Custom Highlight API over ranges of the rendered text (`src/marks.ts`), so they are never part of what is

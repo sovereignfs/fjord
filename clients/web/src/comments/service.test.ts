@@ -236,6 +236,59 @@ describe(`the log of what happened (${leg})`, () => {
   });
 });
 
+describe(`moving a thread onto the words its text was edited into (${leg})`, () => {
+  const EDITED: TextQuoteAnchor = { type: "text-quote", quote: "worlds", prefix: "Hello ", suffix: "!", position: 6 };
+  const anchorOf = async (id: number) => (await comments.list(1, DOC, ALICE)).threads.find((thread) => thread.id === id)!.anchor;
+
+  it("keeps the new anchor in place of the old, and leaves the comment, the replies and the resolving as they were", async () => {
+    const id = await made();
+    await comments.reply(1, DOC, id, "yes", BOB);
+    await comments.setResolved(1, DOC, id, true, BOB);
+    expect(await comments.reanchor(1, DOC, id, ANCHOR, EDITED)).toEqual({ ok: true });
+    const thread = (await comments.list(1, DOC, ALICE)).threads[0]!;
+    expect(thread).toMatchObject({ anchor: EDITED, body: "A thought", resolved: true, editedAt: null });
+    expect(thread.replies).toHaveLength(1);
+  });
+
+  it("goes on being followed: the next move is from the one before", async () => {
+    const id = await made();
+    expect((await comments.reanchor(1, DOC, id, ANCHOR, EDITED)).ok).toBe(true);
+    expect((await comments.reanchor(1, DOC, id, EDITED, { ...EDITED, quote: "worlds!" })).ok).toBe(true);
+    expect((await anchorOf(id)).quote).toBe("worlds!");
+  });
+
+  it("is refused for a page that has not seen a move since: the anchor is not what it was found with, and nothing changes", async () => {
+    const id = await made();
+    await comments.reanchor(1, DOC, id, ANCHOR, EDITED);
+    expect(await comments.reanchor(1, DOC, id, ANCHOR, { ...ANCHOR, quote: "wor1d" })).toEqual({ ok: false, reason: "stale" });
+    expect(await anchorOf(id)).toEqual(EDITED);
+  });
+
+  it("is refused for words that are not like the old ones, and nothing changes", async () => {
+    const id = await made(ALICE, "A thought");
+    const long: TextQuoteAnchor = { ...ANCHOR, quote: "The quick brown fox jumps over the lazy dog." };
+    await dbRun(database, sql`UPDATE ${schema().commentThread} SET anchor = ${JSON.stringify(long)} WHERE id = ${id}`);
+    expect(await comments.reanchor(1, DOC, id, long, { ...long, quote: "Something else altogether, about boats." })).toEqual({ ok: false, reason: "bad_anchor" });
+    expect(await anchorOf(id)).toEqual(long);
+  });
+
+  it("is of that document's thread only", async () => {
+    const id = await made();
+    expect(await comments.reanchor(1, OTHER, id, ANCHOR, EDITED)).toEqual({ ok: false, reason: "not_found" });
+    expect(await comments.reanchor(2, DOC, id, ANCHOR, EDITED)).toEqual({ ok: false, reason: "not_found" });
+    expect(await comments.reanchor(1, DOC, id + 100, ANCHOR, EDITED)).toEqual({ ok: false, reason: "not_found" });
+    expect(await anchorOf(id)).toEqual(ANCHOR);
+  });
+
+  it("works while the comments are closed, and is not in the log", async () => {
+    const id = await made();
+    await comments.setClosed(1, DOC, true, ALICE);
+    const before = (await comments.activity(1, DOC)).length;
+    expect((await comments.reanchor(1, DOC, id, ANCHOR, EDITED)).ok).toBe(true);
+    expect((await comments.activity(1, DOC)).length).toBe(before);
+  });
+});
+
 describe(`forgetting a connection (${leg})`, () => {
   it("takes its comments, replies, log and closing, and no other connection's", async () => {
     const one = await made(ALICE, "one", 1);

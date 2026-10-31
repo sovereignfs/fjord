@@ -38,7 +38,7 @@ export interface ThreadMark {
   id: string;
   anchor: Anchor;
   resolved: boolean;
-  /** The thread could not be found in the text any more. It is kept by the app, and not marked. */
+  /** The app knows the thread is outdated already, and does not want it looked for. (`CommentsAdapter.anchored` is how the editor says it is.) */
   outdated: boolean;
 }
 
@@ -57,6 +57,19 @@ export interface CommentsAdapter {
   open(threadId: string): void;
   /** The thread the app is showing now, which is marked more strongly. Optional: without it no thread is. */
   active?(): string | null;
+  /**
+   * What became of each thread in the text as it is now (ROADMAP 1d.2), told whenever the editor has looked: `intact` (its quote is still
+   * there word for word), `edited` (the text it was about changed and was found again; `reanchored` has the anchor that is true now, for
+   * the app to keep) or `outdated` (the text is gone: the app keeps the thread and says so). Not told for a document shown as
+   * Markdown, which is not marked. Optional.
+   */
+  anchored?(report: AnchorReport): void;
+}
+
+/** What the editor found of the threads it was given. A thread not in `fates` was not looked for. */
+export interface AnchorReport {
+  fates: ReadonlyMap<string, "intact" | "edited" | "outdated">;
+  reanchored: readonly { id: string; from: Anchor; to: Anchor }[];
 }
 
 /** What a client may do to an editor from outside. */

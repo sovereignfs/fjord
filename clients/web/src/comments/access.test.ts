@@ -20,6 +20,7 @@ function setup(viewer: Viewer | undefined) {
     edit: vi.fn(async (..._args: unknown[]) => ({ ok: true as const })),
     remove: vi.fn(async (..._args: unknown[]) => ({ ok: true as const })),
     setClosed: vi.fn(async (..._args: unknown[]) => undefined),
+    reanchor: vi.fn(async (..._args: unknown[]) => ({ ok: true as const })),
   };
   const deps: AccessDeps = { viewer: async () => viewer, comments, now: () => NOW };
   return { run: commentsAccess(deps), comments };
@@ -37,6 +38,7 @@ const OPERATIONS: Record<string, Operation> = {
   resolve: { op: "resolve", thread: 5, resolved: true },
   edit: { op: "edit", target: { kind: "thread", id: 5 }, body: "better" },
   delete: { op: "delete", target: { kind: "thread", id: 5 } },
+  reanchor: { op: "reanchor", thread: 5, from: ANCHOR, to: { ...ANCHOR, quote: "an edited quote" } },
   close: { op: "close", closed: true },
 };
 const call = (viewer: Viewer | undefined, operation: Operation, claimed: object = as, account = viewer?.account) => {
@@ -47,9 +49,9 @@ const call = (viewer: Viewer | undefined, operation: Operation, claimed: object 
 /** Written out from §12 and §13, by role: which operations each way in allows. */
 const ALLOWED: Record<string, string[]> = {
   view: ["list"],
-  comment: ["list", "thread", "reply", "resolve", "edit", "delete"],
-  edit: ["list", "thread", "reply", "resolve", "edit", "delete"],
-  owner: ["list", "thread", "reply", "resolve", "edit", "delete", "close"],
+  comment: ["list", "thread", "reply", "resolve", "edit", "delete", "reanchor"],
+  edit: ["list", "thread", "reply", "resolve", "edit", "delete", "reanchor"],
+  owner: ["list", "thread", "reply", "resolve", "edit", "delete", "reanchor", "close"],
 };
 
 describe.each([
@@ -128,6 +130,12 @@ describe("who a comment is written as", () => {
     }
   });
 
+  it("needs no name to move a thread onto the words its text was edited into: that is the page keeping up, not something written", async () => {
+    const { outcome, comments } = await call(link("comment"), OPERATIONS.reanchor!, {}, undefined);
+    expect(outcome).toEqual({ ok: true });
+    expect(comments.reanchor).toHaveBeenCalledWith(1, DOC, 5, ANCHOR, { ...ANCHOR, quote: "an edited quote" });
+  });
+
   it("needs no name to read", async () => {
     expect((await call(link("view"), OPERATIONS.list!, {}, undefined)).outcome.ok).toBe(true);
   });
@@ -163,7 +171,7 @@ describe("what listing says", () => {
 
 describe("what the service says", () => {
   it("is handed on: closed, not found, too many, a comment that is not one", async () => {
-    for (const reason of ["closed", "not_found", "too_many", "bad_comment", "forbidden"] as const) {
+    for (const reason of ["closed", "not_found", "too_many", "bad_comment", "forbidden", "bad_anchor", "stale"] as const) {
       const { run, comments } = setup(owner);
       comments.reply.mockResolvedValue({ ok: false, reason } as never);
       expect(await run({ docId: DOC, account: ALICE, cookie: undefined, claimed: {}, operation: OPERATIONS.reply! })).toEqual({ ok: false, reason });

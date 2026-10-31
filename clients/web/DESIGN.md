@@ -1124,8 +1124,8 @@ Comments are collaborative in phase 1; editing is not (phase 3).
 
 ### Comments, as built (ROADMAP 1d.1)
 
-Threads, replies, resolving, editing, deleting and closing are built; re-anchoring after outside changes (1d.2), live updates (1d.3) and the
-per-user and per-link rate limits (1d.4) are not.
+Threads, replies, resolving, editing, deleting and closing are built, and so is re-anchoring after outside changes (1d.2, below); live updates
+(1d.3) and the per-user and per-link rate limits (1d.4) are not.
 
 - **Where the comments are:** a panel beside the document, for the owner (on the document's page), for an account it is shared with and for
   anyone with a link (on `/doc/<id>`). They are kept per connection and Doc `id` (`comment_thread`, `comment_reply`, `comment_activity`,
@@ -1151,7 +1151,30 @@ per-user and per-link rate limits (1d.4) are not.
   only; a document the visual editor cannot hold (shown as Markdown) is not marked.
 - **The anchor** is the text-quote selector of the design (the quote, up to 32 characters before and after, where it was), as the Markdown body
   has it for a selection of plain text within a block; a selection across formatting or blocks is not offered a comment. A quote that is no longer in
-  the text is left unmarked; finding it again in a changed text, and marking such a thread outdated, are 1d.2.
+  the text is looked for as below.
+
+### Anchors after a change, as built (ROADMAP 1d.2)
+
+The text-quote selector is used as the design said, in the browser, which is where the text is seen (`fjord-editor`'s `src/reanchor.ts`, over the
+same plain text of the rendered document that the marks are drawn on). Whenever the threads or the text change, each thread is looked for:
+
+- **`intact`:** the quote is in the text word for word. If it is there more than once, the place whose surroundings are most like the anchor's,
+  the nearest the old position on a tie. Text added or removed before, after or around the quote changes nothing.
+- **`edited`:** it is not word for word, but a place is like it: the nearest by edit distance, if no more than 30% of the quote's characters differ
+  (a changed word, a few words added or taken out), and of equal places the one as long as the quote and then the nearest the old position. Only for a quote
+  of 12 characters or more (a few characters are alike too many places to mean anything). In a document too large to search whole, only near where the quote
+  was. The thread follows the edit, and the anchor that is true now is kept (below).
+- **`outdated`:** neither. The thread is not marked and is **kept**, with its replies, in the panel under an **Outdated** mark; it is never dropped, never
+  moved onto text it was not about, and found again by the same anchor if the words come back.
+
+The editor tells the app each thread's fate (`CommentsAdapter.anchored`). For an `edited` thread the app, once the new place has stayed for a moment (a
+person typing inside the text changes it at every key), asks the server to keep it: `PATCH /doc/<id>/comments` `{ op: "reanchor", thread, from, to }`, so
+that the next change is compared with the words as they are now and not with the words from long ago. The server does what it can check without the text:
+it moves a thread only **from the anchor it was found with** (a page that did not see an earlier move changes nothing, `409 stale`) and only onto a quote **like
+the old one** (within 40%, `422 bad_anchor`), so that one request cannot move a thread onto unrelated text. It needs the right to comment but no name (the
+page keeping up is not something a person wrote), works while a document's comments are closed, and is not in the activity log. Someone who may only read
+re-finds the threads on each visit and keeps nothing. A thread can be walked away from its text by many small moves by someone who may comment; that is
+no more than what they can do to the thread by resolving or deleting it, and is for the phase-1 security review (1d.5).
 
 ## 14. Data model and database
 

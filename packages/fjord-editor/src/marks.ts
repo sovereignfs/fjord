@@ -2,7 +2,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { type Fate, anchorAt, findAnchor, locate } from "./reanchor.js";
 import type { TextQuoteAnchor } from "./types.js";
+
+export { locate };
 
 /**
  * Marking comment threads in the text (ROADMAP 1d.1, clients/web/DESIGN.md §13). A thread is shown as a highlight over the text it is
@@ -54,43 +57,29 @@ function blockOf(node: Node, root: Node): Element | null {
   return null;
 }
 
-/** How many characters at the end of `a` equal those at the end of `b`. */
-function commonSuffix(a: string, b: string): number {
-  let n = 0;
-  while (n < a.length && n < b.length && a[a.length - 1 - n] === b[b.length - 1 - n]) n++;
-  return n;
+/** A thread whose text changed and was found again: its anchor as the app has it, and as it should be now. */
+export interface Reanchor {
+  id: string;
+  from: TextQuoteAnchor;
+  to: TextQuoteAnchor;
 }
 
-/** How many characters at the start of `a` equal those at the start of `b`. */
-function commonPrefix(a: string, b: string): number {
-  let n = 0;
-  while (n < a.length && n < b.length && a[n] === b[n]) n++;
-  return n;
+/** What was found of each thread in a page. `fates` has no entry for a thread that was not looked for (the search was too large to spend more on). */
+export interface Marking {
+  ranges: Map<string, Range>;
+  fates: Map<string, Fate>;
+  reanchored: Reanchor[];
 }
 
 /**
- * Where a thread's quote is in `text`: the place whose surroundings are most like the anchor's, nearest the hint on a tie, or `undefined`
- * if the quote is not there at all. (A text that has changed under a thread is the app's to re-anchor, ROADMAP 1d.2; this only finds
- * what is still there, exactly.)
+ * The range of text each thread marks in `root`, what became of each (ROADMAP 1d.2: `intact` if its quote is still there word for word,
+ * `edited` if the text it was about was changed and has been found again, `outdated` if it is gone), and for the edited ones the anchor
+ * that is true now, for the app to keep.
  */
-export function locate(text: string, anchor: TextQuoteAnchor): number | undefined {
-  if (anchor.quote === "") return undefined;
-  let best: { at: number; score: number; distance: number } | undefined;
-  for (let at = text.indexOf(anchor.quote); at !== -1; at = text.indexOf(anchor.quote, at + 1)) {
-    const before = text.slice(Math.max(0, at - anchor.prefix.length), at);
-    const after = text.slice(at + anchor.quote.length, at + anchor.quote.length + anchor.suffix.length);
-    const score = commonSuffix(before, anchor.prefix) + commonPrefix(after, anchor.suffix);
-    const distance = Math.abs(at - anchor.position);
-    if (!best || score > best.score || (score === best.score && distance < best.distance)) best = { at, score, distance };
-  }
-  return best?.at;
-}
-
-/** The range of text a thread marks in `root`, for each thread whose quote is found. */
-export function rangesFor(root: Node, threads: readonly MarkedThread[]): Map<string, Range> {
+export function analyse(root: Node, threads: readonly MarkedThread[]): Marking {
   const { text, segments } = flatten(root);
-  const out = new Map<string, Range>();
-  if (segments.length === 0) return out;
+  const marking: Marking = { ranges: new Map(), fates: new Map(), reanchored: [] };
+  if (segments.length === 0) return marking;
   const position = (offset: number, preferEnd: boolean): [Text, number] => {
     for (let i = segments.length - 1; i >= 0; i--) {
       const segment = segments[i]!;
@@ -100,18 +89,29 @@ export function rangesFor(root: Node, threads: readonly MarkedThread[]): Map<str
     const last = segments[segments.length - 1]!;
     return [last.node, last.node.data.length];
   };
+  const spent: { cells: number; skipped?: boolean } = { cells: 0 };
   for (const thread of threads) {
-    const at = locate(text, thread.anchor);
-    if (at === undefined) continue;
+    spent.skipped = false;
+    const found = findAnchor(text, thread.anchor, spent);
+    if (!found) {
+      // Gone, unless it was not looked for (the pass had spent what it may): then nothing is said of it.
+      if (!spent.skipped && thread.anchor.quote !== "") marking.fates.set(thread.id, "outdated");
+      continue;
+    }
     const range = root.ownerDocument!.createRange();
-    const [startNode, startOffset] = position(at, false);
-    const [endNode, endOffset] = position(at + thread.anchor.quote.length, true);
+    const [startNode, startOffset] = position(found.start, false);
+    const [endNode, endOffset] = position(found.end, true);
     range.setStart(startNode, startOffset);
     range.setEnd(endNode, endOffset);
-    out.set(thread.id, range);
+    marking.ranges.set(thread.id, range);
+    marking.fates.set(thread.id, found.fate);
+    if (found.fate === "edited") marking.reanchored.push({ id: thread.id, from: thread.anchor, to: anchorAt(text, found.start, found.end) });
   }
-  return out;
+  return marking;
 }
+
+/** The range of text a thread marks in `root`, for each thread whose text is found. */
+export const rangesFor = (root: Node, threads: readonly MarkedThread[]): Map<string, Range> => analyse(root, threads).ranges;
 
 /** What the browser offers for drawing highlights: a registry by name, and a way to make one from ranges. */
 export interface HighlightApi {
@@ -129,14 +129,15 @@ export function browserHighlights(): HighlightApi | undefined {
 
 /**
  * Draw the threads' marks: the open ones, the resolved ones more faintly, and the one being looked at over both. Returns how to take them
- * off, and the ranges that were found (by thread), for finding which one a click was on.
+ * off, the ranges that were found (by thread), for finding which one a click was on, and what became of each thread (`analyse`).
  */
-export function paintMarks(root: Node, threads: readonly MarkedThread[], activeId: string | null, api: HighlightApi | undefined = browserHighlights()): { ranges: Map<string, Range>; clear: () => void } {
-  const ranges = rangesFor(root, threads);
+export function paintMarks(root: Node, threads: readonly MarkedThread[], activeId: string | null, api: HighlightApi | undefined = browserHighlights()): Marking & { clear: () => void } {
+  const marking = analyse(root, threads);
+  const { ranges } = marking;
   const clear = () => {
     for (const name of Object.values(HIGHLIGHTS)) api?.registry.delete(name);
   };
-  if (!api) return { ranges, clear };
+  if (!api) return { ...marking, clear };
   clear();
   const open = threads.filter((thread) => !thread.resolved && ranges.has(thread.id)).map((thread) => ranges.get(thread.id)!);
   const resolved = threads.filter((thread) => thread.resolved && ranges.has(thread.id)).map((thread) => ranges.get(thread.id)!);
@@ -144,7 +145,7 @@ export function paintMarks(root: Node, threads: readonly MarkedThread[], activeI
   if (open.length > 0) api.registry.set(HIGHLIGHTS.open, api.make(...open));
   if (resolved.length > 0) api.registry.set(HIGHLIGHTS.resolved, api.make(...resolved));
   if (active.length > 0) api.registry.set(HIGHLIGHTS.active, api.make(...active));
-  return { ranges, clear };
+  return { ...marking, clear };
 }
 
 /** The thread whose mark holds this place in the text, the innermost if marks overlap; `undefined` if none does. */

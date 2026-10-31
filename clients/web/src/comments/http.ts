@@ -14,7 +14,7 @@ import { cleanAnchor } from "./service";
  *  - A write must come from this instance's own pages (`Origin`). What is sent is a place and a text; who wrote it is never sent, but found:
  *    an account is itself, and someone with a link is a guest by the name they give and the id their browser made up.
  *  - `GET` lists; `POST` makes a thread (`op: "thread"`) or a reply (`"reply"`); `PATCH` resolves or opens a thread (`"resolve"`), edits a
- *    comment of one's own (`"edit"`) or closes or opens the document's comments (`"close"`, the owner's); `DELETE` deletes one.
+ *    comment of one's own (`"edit"`) or closes or opens the document's comments (`"close"`, the owner's) or moves a thread onto the words its text was edited into (`"reanchor"`, ROADMAP 1d.2); `DELETE` deletes one.
  */
 export interface Deps {
   run: (input: { docId: string; account: { id: string; name: string } | undefined; cookie: string | undefined; claimed: { name?: unknown; clientId?: unknown }; operation: Operation }) => Promise<Outcome>;
@@ -42,6 +42,8 @@ const REFUSALS = {
   not_found: { status: 404, code: "no_such_comment", message: "There is no such comment." },
   too_many: { status: 422, code: "too_many", message: "There are as many comments there as there can be." },
   bad_comment: { status: 400, code: "bad_comment", message: "A comment is text of one to 4000 characters." },
+  bad_anchor: { status: 422, code: "bad_anchor", message: "That is not where the thread's text went: it is not like the words it was about." },
+  stale: { status: 409, code: "stale", message: "The thread was moved already, or is not where you saw it." },
 } as const;
 
 const isId = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value > 0;
@@ -110,6 +112,11 @@ function operationOf(method: string, body: Record<string, unknown>): Operation |
   if (method === "PATCH") {
     if (body.op === "resolve") return isId(body.thread) && typeof body.resolved === "boolean" ? { op: "resolve", thread: body.thread, resolved: body.resolved } : undefined;
     if (body.op === "edit") return isKind(body.kind) && isId(body.id) && typeof body.body === "string" ? { op: "edit", target: { kind: body.kind, id: body.id }, body: body.body } : undefined;
+    if (body.op === "reanchor") {
+      const from = cleanAnchor(body.from);
+      const to = cleanAnchor(body.to);
+      return isId(body.thread) && from && to ? { op: "reanchor", thread: body.thread, from, to } : undefined;
+    }
     if (body.op === "close") return typeof body.closed === "boolean" ? { op: "close", closed: body.closed } : undefined;
     return undefined;
   }

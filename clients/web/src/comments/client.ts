@@ -142,6 +142,12 @@ export async function deleteComment(docId: string, kind: "thread" | "reply", id:
   return answer ? madeFrom(answer.status, answer.body) : unreachable;
 }
 
+/** Move a thread onto the words its text was edited into (ROADMAP 1d.2): from the anchor it was found with, to the one it has now. */
+export async function moveThread(docId: string, thread: number, from: TextQuoteAnchor, to: TextQuoteAnchor, claim: Claim) {
+  const answer = await call("PATCH", docId, { op: "reanchor", thread, from, to, ...claim });
+  return answer ? madeFrom(answer.status, answer.body) : unreachable;
+}
+
 export async function setClosed(docId: string, closed: boolean) {
   const answer = await call("PATCH", docId, { op: "close", closed });
   return answer ? madeFrom(answer.status, answer.body) : unreachable;
