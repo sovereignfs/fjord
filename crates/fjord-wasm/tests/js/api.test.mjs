@@ -108,13 +108,15 @@ test("a malformed call throws, and says what was wrong", () => {
   assert.throws(() => wasm.manifestPaths("nope"), /not JSON/);
 });
 
-test("it has no filesystem, no clock and no random source of its own to fall back on", () => {
-  // What the module offers is what the pure subset has; nothing here reads a disk or makes a time up.
+test("it has no filesystem and no clock, and a time or an identifier is the caller's to supply", () => {
+  // What the module offers is the pure subset and encryption over bytes (P8); nothing here reads a disk or makes a time up.
+  // Encryption draws its own randomness through the host's `crypto.getRandomValues`, which is the one thing it does not take as an argument.
   const offered = Object.keys(wasm).filter((name) => typeof wasm[name] === "function").sort();
-  for (const forbidden of ["now", "readDirectory", "verify", "encrypt", "decrypt", "newUlidNow"]) {
+  for (const forbidden of ["now", "readDirectory", "verify", "newUlidNow", "readFile", "writeFile"]) {
     assert.ok(!offered.includes(forbidden), forbidden);
   }
   assert.ok(offered.includes("discover") && offered.includes("newUlid"));
+  assert.ok(offered.includes("encrypt") && offered.includes("decrypt") && offered.includes("wrapContainer"));
 });
 
 test("a document's title is set, and taken away, and nothing else of its header or its body changes", () => {

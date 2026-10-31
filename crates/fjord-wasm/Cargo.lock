@@ -445,6 +445,7 @@ dependencies = [
  "getrandom",
  "serde_json",
  "wasm-bindgen",
+ "zeroize",
 ]
 
 [[package]]

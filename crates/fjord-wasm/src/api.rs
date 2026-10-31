@@ -15,8 +15,12 @@
 //! list of files that is not JSON): the programmer's mistake, thrown on the JavaScript side.
 //!
 //! No clock and no random source: a caller that makes an identifier or a timestamp supplies the
-//! time and the randomness (`crypto.getRandomValues`, `Date.now()`).
+//! time and the randomness (`crypto.getRandomValues`, `Date.now()`). The one exception is `age`, which draws
+//! its own (the module's `getrandom` is the browser's or Node's `crypto.getRandomValues`): encrypting and
+//! generating an identity.
 
+use fjord_core::container;
+use fjord_core::crypto;
 use fjord_core::doc::{self, Parse};
 use fjord_core::listing::{self, FileKind, ListedFile};
 use fjord_core::manifest::{field, Manifest, Vaults};
@@ -549,6 +553,61 @@ fn existing(json: &str) -> Result<(Vec<String>, Option<String>), String> {
     Ok((paths, gitattributes))
 }
 
+// --- Encryption (ROADMAP web P8) -------------------------------------------
+//
+// Secrets are bytes, not strings, so that the page can wipe them (`fill(0)`) when it is done. The module wipes what it
+// holds (`Zeroizing`); what it hands back is the caller's to wipe.
+
+/// A new X25519 identity: its `AGE-SECRET-KEY-1…` line, as bytes.
+pub fn generate_identity() -> Vec<u8> {
+    crypto::generate_identity().secret.as_bytes().to_vec()
+}
+
+/// The `age1…` public key for the identity (a secret-key line, or an identity file's text), as bytes the caller owns.
+pub fn identity_recipient(identity: &[u8]) -> Result<String, String> {
+    let text = std::str::from_utf8(identity).map_err(|_| "the identity is not text".to_string())?;
+    crypto::recipient_of(text).map_err(|error| error.to_string())
+}
+
+/// Why a recipient line cannot be used, or `None` if it can. The reasons are for a person.
+pub fn check_recipient(text: &str) -> Option<String> {
+    crypto::check_recipient(text).err()
+}
+
+/// Whether the bytes begin a well-formed age payload (binary or armored); needs no key.
+pub fn is_well_formed(bytes: &[u8]) -> bool {
+    crypto::is_well_formed(bytes)
+}
+
+/// Encrypt to every recipient in a recipients file's text. A file with none is refused, never encrypted to nobody.
+pub fn encrypt(plaintext: &[u8], recipients: &str, armor: bool) -> Result<Vec<u8>, String> {
+    let recipients = crypto::parse_recipients(recipients).map_err(|error| error.to_string())?;
+    crypto::encrypt(plaintext, &recipients, armor).map_err(|error| error.to_string())
+}
+
+/// Decrypt a payload (binary or armored) with an identity: a secret-key line, or an identity file's text.
+pub fn decrypt(ciphertext: &[u8], identity: &[u8]) -> Result<Vec<u8>, String> {
+    let text = zeroize::Zeroizing::new(
+        std::str::from_utf8(identity)
+            .map_err(|_| "the identity is not text".to_string())?
+            .to_string(),
+    );
+    let identities = crypto::parse_identities(&text).map_err(|error| error.to_string())?;
+    let plaintext = crypto::decrypt(ciphertext, &identities).map_err(|error| error.to_string())?;
+    Ok(plaintext.to_vec())
+}
+
+/// Pack one file in the single-entry tar container of an `id`-named vault (spec §6.4).
+pub fn wrap_container(name: &str, contents: &[u8]) -> Result<Vec<u8>, String> {
+    container::wrap(name, contents).map_err(|error| error.to_string())
+}
+
+/// Read a container, refusing everything spec §6.4 says to: not one regular file, a name with a path.
+pub fn unwrap_container(archive: &[u8]) -> Result<(String, Vec<u8>), String> {
+    let unwrapped = container::unwrap(archive).map_err(|error| error.to_string())?;
+    Ok((unwrapped.name, unwrapped.contents))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1071,5 +1130,84 @@ mod tests {
             "Public 2"
         );
         assert!(free_vault_name("Public", "nope").is_err());
+    }
+
+    // --- Encryption ---
+
+    #[test]
+    fn an_identity_encrypts_and_decrypts_and_names_its_recipient() {
+        let identity = generate_identity();
+        assert!(identity.starts_with(b"AGE-SECRET-KEY-1"));
+        let recipient = identity_recipient(&identity).unwrap();
+        assert!(recipient.starts_with("age1"));
+        assert_eq!(check_recipient(&recipient), None);
+
+        let sealed = encrypt(
+            b"hello \xf0\x9f\x92\xa7",
+            &format!("# a comment\n{recipient}\n"),
+            false,
+        )
+        .unwrap();
+        assert!(is_well_formed(&sealed));
+        assert!(!sealed.windows(5).any(|window| window == b"hello"));
+        assert_eq!(
+            decrypt(&sealed, &identity).unwrap(),
+            "hello \u{1f4a7}".as_bytes()
+        );
+
+        let armored = encrypt(b"x", &recipient, true).unwrap();
+        assert!(armored.starts_with(b"-----BEGIN AGE ENCRYPTED FILE-----"));
+        assert_eq!(decrypt(&armored, &identity).unwrap(), b"x");
+    }
+
+    #[test]
+    fn an_identity_file_with_comments_works_as_the_secret() {
+        let identity = generate_identity();
+        let recipient = identity_recipient(&identity).unwrap();
+        let file = format!(
+            "# created: now\n# public key: {recipient}\n{}\n",
+            std::str::from_utf8(&identity).unwrap()
+        );
+        assert_eq!(identity_recipient(file.as_bytes()).unwrap(), recipient);
+        let sealed = encrypt(b"x", &recipient, false).unwrap();
+        assert_eq!(decrypt(&sealed, file.as_bytes()).unwrap(), b"x");
+    }
+
+    #[test]
+    fn the_wrong_identity_and_no_recipients_are_refused() {
+        let (mine, theirs) = (generate_identity(), generate_identity());
+        let sealed = encrypt(b"secret", &identity_recipient(&mine).unwrap(), false).unwrap();
+        assert!(decrypt(&sealed, &theirs).is_err());
+        assert!(decrypt(&sealed, b"not an identity").is_err());
+        assert!(decrypt(&sealed, &[0xff, 0xfe])
+            .unwrap_err()
+            .contains("not text"));
+        assert!(encrypt(b"x", "# only a comment\n", false).is_err());
+        assert!(!is_well_formed(b"plain text"));
+    }
+
+    #[test]
+    fn a_recipient_that_cannot_be_used_says_why() {
+        assert!(check_recipient("age1nope")
+            .unwrap()
+            .contains("age public key"));
+        let secret = String::from_utf8(generate_identity()).unwrap();
+        assert!(check_recipient(&secret).unwrap().contains("secret key"));
+        assert!(check_recipient("# comment").is_some());
+    }
+
+    #[test]
+    fn the_container_round_trips_and_refuses_a_name_with_a_path() {
+        let archive = wrap_container("01j8z3k9t2v4w5x6y7z8a9b0c1.md", b"# Title\n").unwrap();
+        assert_eq!(
+            unwrap_container(&archive).unwrap(),
+            (
+                "01j8z3k9t2v4w5x6y7z8a9b0c1.md".to_string(),
+                b"# Title\n".to_vec()
+            )
+        );
+        assert!(wrap_container("dir/name.md", b"x").is_err());
+        assert!(wrap_container("../name.md", b"x").is_err());
+        assert!(unwrap_container(b"not a tar").is_err());
     }
 }

@@ -6,8 +6,8 @@
 //! read a repository's shape and work on its documents. See [`api`] for what each function takes and
 //! returns; this file only makes each one callable from JavaScript, so the logic is tested natively.
 //!
-//! Not here, on purpose: reading a directory, `age` encryption and `tar` containers, and the system
-//! clock and a random source (a page supplies `Date.now()` and `crypto.getRandomValues`).
+//! Not here, on purpose: reading a directory, and the system clock (a page supplies `Date.now()`). Randomness
+//! is a page's too (`crypto.getRandomValues`) except for `age`, which draws its own through the same source.
 
 #![forbid(unsafe_code)]
 
@@ -162,4 +162,69 @@ pub fn is_rfc3339_utc(text: &str) -> bool {
 #[wasm_bindgen(js_name = rfc3339FromUnix)]
 pub fn rfc3339_from_unix(seconds: f64) -> Option<String> {
     api::rfc3339_from_unix(seconds)
+}
+
+// --- Encryption (ROADMAP web P8) ---------------------------------------------------------------------------------------
+// Secrets travel as `Uint8Array`s so that a page can wipe them; nothing here logs or keeps one.
+
+#[wasm_bindgen(js_name = generateIdentity)]
+pub fn generate_identity() -> Vec<u8> {
+    api::generate_identity()
+}
+
+#[wasm_bindgen(js_name = identityRecipient)]
+pub fn identity_recipient(identity: &[u8]) -> Result<String, JsError> {
+    api::identity_recipient(identity).map_err(thrown)
+}
+
+/// Why a recipient line cannot be used (for a person), or `undefined` if it can.
+#[wasm_bindgen(js_name = checkRecipient)]
+pub fn check_recipient(text: &str) -> Option<String> {
+    api::check_recipient(text)
+}
+
+#[wasm_bindgen(js_name = isWellFormed)]
+pub fn is_well_formed(bytes: &[u8]) -> bool {
+    api::is_well_formed(bytes)
+}
+
+#[wasm_bindgen]
+pub fn encrypt(plaintext: &[u8], recipients: &str, armor: bool) -> Result<Vec<u8>, JsError> {
+    api::encrypt(plaintext, recipients, armor).map_err(thrown)
+}
+
+#[wasm_bindgen]
+pub fn decrypt(ciphertext: &[u8], identity: &[u8]) -> Result<Vec<u8>, JsError> {
+    api::decrypt(ciphertext, identity).map_err(thrown)
+}
+
+#[wasm_bindgen(js_name = wrapContainer)]
+pub fn wrap_container(name: &str, contents: &[u8]) -> Result<Vec<u8>, JsError> {
+    api::wrap_container(name, contents).map_err(thrown)
+}
+
+/// What a container held: the document's real file name and its bytes.
+#[wasm_bindgen]
+pub struct Unwrapped {
+    name: String,
+    contents: Vec<u8>,
+}
+
+#[wasm_bindgen]
+impl Unwrapped {
+    #[wasm_bindgen(getter)]
+    pub fn name(&self) -> String {
+        self.name.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn contents(&self) -> Vec<u8> {
+        self.contents.clone()
+    }
+}
+
+#[wasm_bindgen(js_name = unwrapContainer)]
+pub fn unwrap_container(archive: &[u8]) -> Result<Unwrapped, JsError> {
+    let (name, contents) = api::unwrap_container(archive).map_err(thrown)?;
+    Ok(Unwrapped { name, contents })
 }

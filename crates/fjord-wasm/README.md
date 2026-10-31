@@ -25,10 +25,14 @@ malformed *call* throws. [`src/api.rs`](src/api.rs) documents every shape.
 | `mergeTexts(base, ours, theirs, oursLabel, theirsLabel)` | Three-way merge of two edits of one text, by lines (`fjord_core::merge::merge3`, the merge the CLI's `sync` uses). Answers `{clean, conflicts, text}`: the merged text when clean, else the text with each conflict between `<<<<<<<`, `=======` and `>>>>>>>` lines, so neither side is dropped. A label is made safe for a marker line. Nothing is an error. |
 | `planSetup(options, existing, nowMs, random)`, `freeVaultName(preferred, existing)` | What to add to a repository that is **not** a Fjord repository so that it is one: a `fjord.json` and one plaintext vault, and nothing else but the one line spec §9 requires of `.gitattributes`. Nothing is changed or removed; the time and 80 random bytes are the caller's, so the same call gives the same answer. A finding (already a Fjord repository, a vault name that is taken or cannot be one) is data. Held to `tests/fixtures/setup.json`. |
 | `newUlid(ms, random)`, `isUlid`, `isRfc3339Utc`, `rfc3339FromUnix`, `formatVersion` | Identifiers and timestamps from a **clock and random source the caller supplies** (`Date.now()`, `crypto.getRandomValues`): the module has none of its own (the system clock panics on `wasm32-unknown-unknown`). |
+| `generateIdentity()`, `identityRecipient(identity)`, `checkRecipient(text)` | An X25519 identity as its `AGE-SECRET-KEY-1…` line **as bytes** (so the page can `fill(0)` it), the `age1…` key that goes with an identity or an identity file's text, and why a recipient line cannot be used (a secret key given as one, a typo, an SSH or passphrase recipient), or `undefined`. |
+| `encrypt(plaintext, recipients, armor)`, `decrypt(ciphertext, identity)`, `isWellFormed(bytes)` | `age` over bytes (`fjord_core::crypto`): to every recipient of a recipients file's text, never to nobody; a payload binary or armored, with an identity. `isWellFormed` reads the header only and needs no key. Checked against the real `age` binary both ways (`tests/js/crypto.test.mjs`). |
+| `wrapContainer(name, contents)`, `unwrapContainer(archive)` | The single-entry `tar` container of an `id`-named vault (spec §6.4): `unwrapContainer` gives `{name, contents}` and refuses what the spec says to (more than one entry, a path in the name, anything but a regular file). |
 
-Not here, on purpose: reading a directory (`verify`, `ls`), `age` encryption, `tar` containers. They need a
-real machine, and are `fjord-core`'s `native` feature. This crate depends on it with
-`default-features = false`.
+Not here, on purpose: reading a directory (`verify`, `ls`) and the system clock. They need a real machine, and are
+`fjord-core`'s `native` feature. This crate depends on `fjord-core` with `default-features = false` and the `crypto` feature
+(`age`, `tar`): the module is about 960 KB, 390 KB gzipped (it was 550 and 230 before `age`), which the web client loads
+only where it decrypts. Encryption draws its randomness through `getrandom`'s `js` source, the host's `crypto.getRandomValues`.
 
 ## Build and test
 

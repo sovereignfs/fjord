@@ -373,6 +373,21 @@ pub fn generate_identity() -> GeneratedIdentity {
     GeneratedIdentity { secret, recipient }
 }
 
+/// The `age1…` public key of the first secret key in an identity file's text, or an error saying there is none.
+///
+/// For a client that holds a secret and must show, or add to a vault, the key that goes with it.
+pub fn recipient_of(identity_text: &str) -> Result<String, Error> {
+    let line = identity_text
+        .lines()
+        .map(str::trim)
+        .find(|line| is_secret_key(line))
+        .ok_or(Error::NoIdentities)?;
+    let identity = line
+        .parse::<age::x25519::Identity>()
+        .map_err(|err| Error::Identity(err.to_string()))?;
+    Ok(identity.to_public().to_string())
+}
+
 /// The file an identity is conventionally written to, as `age-keygen`
 /// writes it: a comment header, then the key on its own line.
 pub fn identity_file_contents(identity: &GeneratedIdentity, created_at: &str) -> Zeroizing<String> {

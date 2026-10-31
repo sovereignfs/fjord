@@ -32,13 +32,17 @@ Today `age`, `tar` and the identity types are behind the `native` feature (root 
 
 ### P8 `fjord-wasm`: encrypt, decrypt, pack and unpack
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** DESIGN §2
 
 Expose to JavaScript: parse an identity and a recipient; `encrypt(bytes, recipients)`; `decrypt(bytes, identity)`; the container's `pack(name, bytes)` and `unpack(bytes)` with every rejection of spec §6.4; generate an identity from supplied randomness. Secrets are `Uint8Array`s that are zeroed after use (the crate's `zeroize`), not strings that linger.
 
 **Accepts when:** a file encrypted in Node through the module decrypts with the real `age` binary and the reverse; the §6.4 malformed-archive fixtures are all refused; the module's size and load time are recorded in the epic (it is built into the browser bundle).
+
+- **Done as:** `generateIdentity`, `identityRecipient`, `checkRecipient`, `isWellFormed`, `encrypt`, `decrypt`, `wrapContainer` and `unwrapContainer` (`api.rs`, wrapped in `lib.rs`; `fjord-core` gained `crypto::recipient_of`). Secrets are `Uint8Array`s in and out, and the module wipes what it holds. Tested natively (5 tests) and from Node (`tests/js/crypto.test.mjs`): encrypt here and `age -d` there, and the reverse, binary and armored; an `age-keygen` identity; a wrong identity, no recipients and a secret given as a recipient refused; the container refusing two entries, a path in the name and a directory, built with the system `tar`. 102 JavaScript tests pass.
+- **Size:** the module went from 553 KB (233 KB gzipped) to 961 KB (390 KB gzipped). That is a page load for a browser that does not need it, so 2a.1 loads the module that does the encrypting only when an encrypted vault is opened; the load time in a browser is for 2a.2 to measure.
+- **Not here:** a passphrase-protected identity (age's scrypt): `identity` is an X25519 key as `age-keygen` writes it. That is 2a.1, which needs scrypt in the module and its cost in a browser first; it is the next thing to find out.
 
 ## 2a — Keys in the browser
 

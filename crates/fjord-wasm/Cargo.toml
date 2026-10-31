@@ -25,6 +25,7 @@ crate-type = ["cdylib", "rlib"]
 # against the `fjord-core` next to it (the path), whatever that version is.
 fjord-core = { path = "../fjord-core", version = ">=0.3.1", default-features = false, features = ["crypto"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
+zeroize = "1"
 # Pinned exactly. The `wasm-bindgen` command line tool that makes the JavaScript glue must be the same
 # version as this crate, or it refuses the module: build.sh checks.
 wasm-bindgen = "=0.2.129"
