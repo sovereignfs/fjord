@@ -16,6 +16,7 @@ import { WorkingCopyService } from "../working/service";
 import { LinkService } from "./links";
 import { linksAccess } from "./links-access";
 import { readRepository } from "../browse/repository";
+import { heads } from "../browse/head-cache";
 import { TreeCache } from "../browse/tree-cache";
 import { describeProblem } from "../browse/problems";
 
@@ -100,7 +101,7 @@ async function sourceOfOwner() {
     const used = await service.providerForShare(connectionId);
     if (!used) return undefined;
     try {
-      const read = await readRepository({ provider: used.provider, cache: new TreeCache(database), format: fjord() }, { id: used.id, ref: used.ref, branch: used.branch });
+      const read = await readRepository({ provider: used.provider, cache: new TreeCache(database), format: fjord(), heads }, { id: used.id, ref: used.ref, branch: used.branch });
       return { connectionId, ref: used.ref, read, provider: used.provider };
     } catch (error) {
       // The host cannot be reached, or the repository is gone: the share finds nothing, as if it were not there.

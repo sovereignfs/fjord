@@ -11,6 +11,7 @@ import { type Location, locate } from "./location";
 import { type RepositoryRead, readRepository } from "./repository";
 import { type NoteText, readNoteText } from "./note";
 import { type Assessment, applySetup, assessSetup, isNotFjord } from "./setup";
+import { heads } from "./head-cache";
 import { TreeCache } from "./tree-cache";
 
 /**
@@ -24,7 +25,7 @@ export async function readConnection(accountId: string, connection: ConnectionIn
     const used = await (await connectionService()).provider(accountId, connection.id);
     if (!used) return { ok: false, problem: { code: "not_found", message: "That repository is not connected." } };
     const read = await readRepository(
-      { provider: used.provider, cache: new TreeCache(await getDatabase()), format: fjord() },
+      { provider: used.provider, cache: new TreeCache(await getDatabase()), format: fjord(), heads },
       { id: connection.id, ref: { owner: connection.owner, name: connection.name }, branch: connection.branch },
     );
     return { ok: true, read };

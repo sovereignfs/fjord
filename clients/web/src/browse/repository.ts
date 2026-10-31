@@ -1,3 +1,4 @@
+import { type HeadCache } from "./head-cache";
 import type { Discovery, ListedFile, RepositoryManifest } from "../format/types";
 import type { Fjord } from "../format/wasm";
 import { mapLimit } from "../providers/concurrency";
@@ -37,6 +38,8 @@ export interface RepositoryDeps {
   provider: Provider;
   cache: TreeCache;
   format: Fjord;
+  /** The heads seen before, so that the host can answer "not moved" for free. Without it every view reads the head whole. */
+  heads?: HeadCache;
   /** For tests. */
   now?: () => number;
 }
@@ -47,11 +50,24 @@ const DIRECTORIES_AT_ONCE = 6;
 const ROOT_MANIFEST = "fjord.json";
 const VAULT_MANIFEST = "fjord.vault.json";
 
+/**
+ * The commit a branch is at now. The host is asked at every view; if this process has seen the branch before it sends the `ETag` it was
+ * given, and a `304` (not moved, and free of the host's rate limit) is answered with the commit seen then.
+ */
+export async function headCommit(provider: Provider, heads: HeadCache | undefined, connection: { id: number; ref: RepositoryRef; branch: string }): Promise<string> {
+  const known = heads?.get(connection.id, connection.ref, connection.branch);
+  const head = await provider.getHead(connection.ref, connection.branch, known ? { etag: known.etag } : {});
+  if (head.changed) {
+    if (heads && head.head.etag) heads.put(connection.id, connection.ref, connection.branch, { etag: head.head.etag, commit: head.head.commit });
+    return head.head.commit;
+  }
+  if (!known) throw new Error("the host answered a head request with no etag as unchanged");
+  return known.commit;
+}
+
 export async function readRepository(deps: RepositoryDeps, connection: { id: number; ref: RepositoryRef; branch: string }): Promise<RepositoryRead> {
   const { provider, cache, format } = deps;
-  const head = await provider.getHead(connection.ref, connection.branch);
-  if (!head.changed) throw new Error("the host answered a head request with no etag as unchanged");
-  const commit = head.head.commit;
+  const commit = await headCommit(provider, deps.heads, connection);
 
   let tree = await cache.get(connection.id, commit);
   if (!tree) {
