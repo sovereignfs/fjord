@@ -7,8 +7,8 @@ disagrees with this file, this file is stale and should be corrected. The detail
 
 _Status key: ✅ Done · ⏳ In progress · 📋 Planned · 🚧 Open (waits on a decision) · ❌ Out of scope_
 
-State as of 2026-10-31: the CLI's milestones are all done and `fjord-cli` 0.3.x is released (all 40 diagnostics are implemented); **Fjord Web's phase 1 is done**
-(sign in, connect a repository, browse, write and version, share, comment); mobile and the MCP server are designs; encrypted files in the browser are next for web.
+State as of 2026-10-31: the CLI's milestones are all done and `fjord-cli` 0.3.x is released (all 40 diagnostics are implemented); **Fjord Web's phase 1 is done** bar the GitHub App, house style and a real-token check
+(sign in, connect a repository, browse, write and version, share, comment; idle versions included); mobile and the MCP server are designs; encrypted files in the browser are next for web.
 
 ## Components
 

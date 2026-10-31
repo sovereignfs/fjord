@@ -36,6 +36,8 @@ export async function registerNode(): Promise<void> {
     const status = await prepareCredentials(database, keyring);
     if (status.rewrapped > 0) console.info(`[fjord] credentials: wrapped ${status.rewrapped} under the current key; the previous key can now be removed`);
     else if (keyring && keyring.previousIds.length > 0) console.info("[fjord] credentials: nothing is under a previous key any more; FJORD_ENCRYPTION_KEY_PREVIOUS can be removed");
+    // Only with a key: without one no repository can be connected, so there is no token to make a version with.
+    if (keyring) (await import("./src/worker/server")).startWorker();
   } catch (error) {
     if (process.env.NODE_ENV !== "production") throw error;
     console.error("[fjord] cannot start:", error instanceof Error ? error.message : error);

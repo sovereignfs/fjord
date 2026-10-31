@@ -668,7 +668,7 @@ repository, and so in the index, from the version after.
 been read, its `id` (or that it has none) and the blob it was read at. It is **filled on read** (opening a file notes it) and
 by a **bounded search**: a lookup that finds nothing reads, up to 300 at a time, the files it has not read or that changed
 (files with no `id` are recorded too, so they are read once), so repeating a lookup goes further. That search is what the
-worker's background pass (1b.13) will do ahead of time; until the worker exists, the first lookup does a share of it. It is
+worker's background pass will do ahead of time (not built: the worker so far only makes idle versions); until then, the first lookup does a share of it. It is
 **believed only where it is still true**: a row counts only if the repository now has that blob at that path; a file edited
 elsewhere is read again, one moved is found by the search and its old row forgotten, one deleted is not found. Encrypted
 vaults are never read, a file that is not text or is over 1 MB is recorded as having no `id`, and a repository whose listing the
@@ -911,7 +911,7 @@ What is built is the first bullet above, the draft; versions are 1b.9 and the up
 
 ### Versions, as built (ROADMAP 1b.9)
 
-**Save version** is built: one commit from the draft. The quiet-period commits by the worker are 1b.13, since there is no worker yet (§19 #5 stays at five minutes until then).
+**Save version** is built: one commit from the draft. The quiet-period commits by the worker are 1b.13, below.
 
 - **API.** `POST /api/connections/<id>/working-copy/version` with `{ path, message? }` under §12's rules (signed in, this
   site's `Origin`, own repositories only; another's is a 404). It answers `201 { commit }`, or refuses with a code and words
@@ -931,6 +931,24 @@ What is built is the first bullet above, the draft; versions are 1b.9 and the up
 - **The draft ends with the version**, unless something was typed meanwhile (compare-and-delete on the time of the last
   edit): that is not in the version and is kept. The page makes the editor read-only while it commits, keeps what is on screen
   first (`flush`), and reads the page again after, saying "Version saved" once.
+
+### Idle versions, as built (ROADMAP 1b.13)
+
+A draft nobody has edited for the quiet period becomes a version without anyone choosing Save version, so work left in an abandoned tab is in the repository.
+
+- **Where it runs.** The worker starts inside the web process (`src/worker/server.ts`, from `instrumentation-node.ts`), once a minute, one pass at a time, when the instance has an
+  encryption key. It is not a process of its own yet: that comes with the GitHub App's webhooks (1a.6), which need one. With several web processes on one database, set
+  `FJORD_WORKER=off` on all but one; a second would find the work done (below) and only ask the git host for nothing.
+- **The quiet period** is `FJORD_IDLE_VERSION_MINUTES`: whole minutes from 1 to 1440, default 5 (§19 #5); `0` turns idle versions off. A version can be up to a minute later than that.
+- **The same commit as Save version** (`saveVersion`, 1b.9): only on top of the draft's base, never forced, the default message `Edit <name>`, and the draft ends with its version unless something
+  was typed meanwhile. A draft is therefore made a version once: if two passes race, the second finds the file changed or the draft gone, and writes nothing.
+- **Who is credited.** Nobody saved, so the author is the connection's owner when they are among those who edited the draft (the commit is made through their token), otherwise the first
+  editor who can still be found (an account, or a person at a link by the name they gave); everyone else is a `Co-authored-by:` trailer, as in 1b.9. A draft none of whose editors can be found is left.
+- **Left for a person:** a draft with a combine's conflict markers in it, and one whose file changed upstream (1b.10 asks them to choose). A draft the host would not take, or could not be
+  reached for, is tried again after fifteen minutes or when it is edited again, not every minute; the delay is kept in memory, so a restart tries once more. At most 50 versions are made in a pass.
+- **Logged** as a count, and an unexpected failure by its name only, never a message (it may carry a path or a host's words).
+- **Not done:** a tab that was left open does not hear that its draft became a version. Typing in it again starts a new draft on the old base, which the note's page then offers to combine (1b.10);
+  nothing is lost. Telling the page through the `event` table is later work.
 
 ### Upstream changes, as built (ROADMAP 1b.10)
 
@@ -1496,8 +1514,7 @@ The offer of §7, as it works (`src/browse/setup.ts`, `src/browse/screens/SetupO
 - **Checked by CI** (job `image`): `scripts/deploy-check.sh` builds nothing and, given the image, brings each setup up
   from nothing, checks the database and the format module through `/api/health`, makes an account, takes the stack
   down keeping its volumes and up again, signs in, and checks that sign-in without a secret stops the container and names it.
-- **Not built yet:** the `worker` (nothing to run until idle commits, 1b.13, and webhooks, 1a.6, exist; it will be another
-  command of the same image), and publishing the image to a registry (a release step, with the `web-vX.Y.Z` tag).
+- **Not built yet:** the `worker` as a process of its own (idle commits, 1b.13, run inside the web process; a command of the same image for webhooks, 1a.6, comes with them), and publishing the image to a registry (a release step, with the `web-vX.Y.Z` tag).
   Continuous backups and a staging instance are the operator's.
 
 ## 18. Licence
