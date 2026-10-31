@@ -26,6 +26,9 @@ export async function registerNode(): Promise<void> {
     console.info(`[fjord] auth: ${describeAuth(authConfig())}`);
     const { resolveGitHubApiUrl } = await import("./src/connections/config");
     resolveGitHubApiUrl(process.env);
+    const { githubAppConfig } = await import("./src/github-app/config");
+    const app = githubAppConfig();
+    console.info(`[fjord] github app: ${app ? `${app.slug} (id ${app.appId})` : "not set up; repositories are connected with a token"}`);
     const { describeEncryption } = await import("./src/crypto/config");
     const { encryptionKeyring } = await import("./src/crypto/server");
     const { prepareCredentials } = await import("./src/crypto/store");

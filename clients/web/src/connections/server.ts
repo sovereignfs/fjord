@@ -2,6 +2,7 @@ import { credentialStore } from "../crypto/server";
 import { getDatabase } from "../db/boot";
 import { GitHubProvider } from "../providers/github/provider";
 import { resolveGitHubApiUrl } from "./config";
+import { gitHubApp, installationProvider } from "../github-app/server";
 import { ConnectionService } from "./service";
 
 /**
@@ -16,5 +17,6 @@ export async function connectionService(): Promise<ConnectionService> {
     database: await getDatabase(),
     credentials,
     github: (token) => new GitHubProvider({ apiUrl, token: async () => token, scope: "user" }),
+    ...(gitHubApp() ? { githubApp: installationProvider } : {}),
   });
 }

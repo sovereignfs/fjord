@@ -56,8 +56,9 @@ Everything is an environment variable, put in `.env` next to the Compose files (
   web processes on one database, set it on all but one.
 - A secret can come from a file instead (`FJORD_AUTH_SECRET_FILE`, `FJORD_ENCRYPTION_KEY_FILE`, ...), which is how
   Docker or Kubernetes secrets are passed.
-- **Each instance registers its own GitHub App** (ROADMAP 1a.6); until that is built, a repository is connected with a
-  fine-grained personal access token.
+- **Each instance registers its own GitHub App** (ROADMAP 1a.6), which is how people connect repositories without handling a
+  token. Without one, a repository is connected with a fine-grained personal access token, and that stays available beside it.
+  See [Registering the GitHub App](#registering-the-github-app).
 
 The server **refuses to start on a setting that is wrong** and says which: the container exits, and
 `docker compose logs web` ends with `[fjord] cannot start: …`. It does not start and then fail every request.
@@ -138,6 +139,38 @@ docker compose $P start web
 ```
 
 or whatever your usual PostgreSQL backup process is, if the server is yours.
+
+## Registering the GitHub App
+
+On GitHub: Settings, Developer settings, GitHub Apps, **New GitHub App** (for an organisation, the same under its settings). The
+App is private to your instance, so nothing of it is shared with anyone else's.
+
+| Setting | Value |
+| --- | --- |
+| Homepage URL | your `FJORD_URL` |
+| **Callback URL** | `<FJORD_URL>/api/github-app/callback` |
+| **Request user authorization (OAuth) during installation** | **on**. This is how Fjord learns which of an installation's repositories the person can reach themselves; without it nobody can connect |
+| Setup URL | `<FJORD_URL>/api/github-app/callback`, and **Redirect on update** on, so that adding repositories later connects them |
+| Webhook | active, URL `<FJORD_URL>/api/webhooks/github`, with a secret of your own (16 characters or more) |
+| Repository permissions | **Contents: Read and write**, and Metadata: Read-only (always on). Nothing else |
+| Subscribe to events | **Push** |
+| Where can it be installed | Any account, if others than you are to use the instance; otherwise Only on this account |
+
+Then, from the App's page: note the **App ID**, the **name** in its address (`github.com/apps/<name>`) and the **Client ID**, make a
+**client secret**, and **generate a private key** (a `.pem` file). Set, all of them or none (the server refuses to start on some):
+
+- **`FJORD_GITHUB_APP_ID`**, **`FJORD_GITHUB_APP_SLUG`**, **`FJORD_GITHUB_APP_CLIENT_ID`**.
+- **`FJORD_GITHUB_APP_CLIENT_SECRET`**, **`FJORD_GITHUB_APP_WEBHOOK_SECRET`** and **`FJORD_GITHUB_APP_PRIVATE_KEY`** (the PEM, with its
+  line breaks, or written with `\n`). Each can be a `_FILE` instead, which is how Docker or Kubernetes secrets are passed.
+
+The webhook must be reachable from the internet; GitHub's *Recent Deliveries* on the App's page shows whether it answers. An instance
+that is only on a private network works without it (every page asks GitHub for the head anyway); the webhook only saves work.
+
+With an Enterprise Server, set `FJORD_GITHUB_API_URL` to its API (`https://host/api/v3`); the sign-in and install pages are on the same host.
+
+**What people do:** on *Repositories*, **Install on GitHub**, choose the repositories on GitHub, and come back to find them connected.
+Doing it again adds the ones chosen since. Fjord keeps no token: it keeps which installation a repository came through, and asks GitHub
+for a token that lasts an hour when it needs one. Removing the App on GitHub ends access at once.
 
 ## Updating
 
