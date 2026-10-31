@@ -43,6 +43,8 @@ const REFUSALS = {
   too_many: { status: 422, code: "too_many", message: "There are as many comments there as there can be." },
   bad_comment: { status: 400, code: "bad_comment", message: "A comment is text of one to 4000 characters." },
   bad_anchor: { status: 422, code: "bad_anchor", message: "That is not where the thread's text went: it is not like the words it was about." },
+  own_limit: { status: 422, code: "own_limit", message: "You have written as many comments here as one person can. Resolve or delete some, or ask the owner." },
+  rate_limited: { status: 429, code: "rate_limited", message: "You are commenting faster than anyone could write. Wait a moment, then try again." },
   stale: { status: 409, code: "stale", message: "The thread was moved already, or is not where you saw it." },
 } as const;
 
@@ -71,7 +73,7 @@ export async function handleComments(request: Request, caller: Caller | null, de
     if (method === "GET") {
       const url = new URL(request.url);
       const outcome = await deps.run({ docId, account, cookie, claimed: { name: url.searchParams.get("name") ?? undefined, clientId: url.searchParams.get("client") ?? undefined }, operation: { op: "list" } });
-      if (!outcome.ok) return refusal(outcome.reason);
+      if (!outcome.ok) return refusal(outcome);
       return json(200, { threads: outcome.threads, closed: outcome.closed, version: outcome.version, viewer: outcome.viewer });
     }
 
@@ -84,7 +86,7 @@ export async function handleComments(request: Request, caller: Caller | null, de
     if (!operation) return failure(400, "invalid_request", "Say what to do, and to which comment.");
 
     const outcome = await deps.run({ docId, account, cookie, claimed: { name: body.name, clientId: body.clientId }, operation });
-    if (!outcome.ok) return refusal(outcome.reason);
+    if (!outcome.ok) return refusal(outcome);
     return json(method === "POST" ? 201 : 200, outcome.id === undefined ? { ok: true } : { ok: true, id: outcome.id });
   } catch (error) {
     if (isCredentialError(error, "no_key")) return failure(503, "not_configured", "This instance cannot read repositories yet: its administrator needs to set FJORD_ENCRYPTION_KEY.");
@@ -94,9 +96,11 @@ export async function handleComments(request: Request, caller: Caller | null, de
   }
 }
 
-function refusal(reason: Extract<Outcome, { ok: false }>["reason"]): Response {
-  const { status, code, message } = REFUSALS[reason];
-  return failure(status, code, message);
+function refusal(outcome: Extract<Outcome, { ok: false }>): Response {
+  const { status, code, message } = REFUSALS[outcome.reason];
+  const response = failure(status, code, message);
+  if (outcome.reason === "rate_limited") response.headers.set("retry-after", String(Math.max(1, Math.ceil((outcome.retryAfterMs ?? 1000) / 1000))));
+  return response;
 }
 
 /** What the request asks, or undefined if it asks nothing that makes sense for its method. */

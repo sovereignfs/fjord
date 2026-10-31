@@ -10,6 +10,7 @@ import { ShareService } from "./shares";
 import { type SharedDocument, asksForPassword, openByLink, openShared } from "./open";
 import { authConfig } from "../auth/server";
 import { type UnlockResult, tryUnlock } from "./unlock";
+import { RateLimiter } from "../limits/rate";
 import { type GuestSave, saveGuestDraft } from "./guest";
 import { WorkingCopyService } from "../working/service";
 import { LinkService } from "./links";
@@ -121,7 +122,7 @@ export async function linksAccessFor(): Promise<ReturnType<typeof linksAccess>> 
 export async function saveGuestDraftFor(input: { cookie: string | undefined; docId: string; name: unknown; body: string }): Promise<GuestSave> {
   const database = await getDatabase();
   return saveGuestDraft(
-    { links: new LinkService(database), secret: secretOf(), sourceOf: await sourceOfOwner(), index: new DocIndex(database), format: fjord(), drafts: new WorkingCopyService(database) },
+    { links: new LinkService(database), secret: secretOf(), sourceOf: await sourceOfOwner(), index: new DocIndex(database), format: fjord(), drafts: new WorkingCopyService(database), limiter: new RateLimiter(database) },
     input,
   );
 }

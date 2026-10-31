@@ -6,7 +6,7 @@ import { runMigrations } from "../db/migrate";
 import * as postgresSchema from "../db/schema/postgres";
 import * as sqliteSchema from "../db/schema/sqlite";
 import { freshDatabase, testTarget } from "../db/test-support";
-import { type Author, CommentService, MAX_COMMENT_CHARS, MAX_REPLIES_PER_THREAD, MAX_THREADS_PER_DOCUMENT, type TextQuoteAnchor, cleanAnchor, cleanBody } from "./service";
+import { type Author, CommentService, MAX_COMMENT_CHARS, MAX_REPLIES_PER_AUTHOR, MAX_REPLIES_PER_THREAD, MAX_THREADS_PER_AUTHOR, MAX_THREADS_PER_DOCUMENT, MAX_THREADS_PER_LINK, type TextQuoteAnchor, cleanAnchor, cleanBody } from "./service";
 
 /** A document's comments, over the real databases (ROADMAP 1d.1). */
 const { leg } = testTarget();
@@ -106,14 +106,41 @@ describe(`threads and replies (${leg})`, () => {
   });
 
   it("allows only so many threads in a document, and so many replies in a thread", async () => {
-    for (let i = 0; i < MAX_THREADS_PER_DOCUMENT; i++) await made(ALICE, `t${i}`);
+    // By many authors, so that it is the document's limit that is met and not one author's share of it.
+    for (let i = 0; i < MAX_THREADS_PER_DOCUMENT; i++) await made({ kind: "account", id: `author-${i}`, name: "A" }, `t${i}`);
     expect(await comments.createThread(1, DOC, ANCHOR, "one more", ALICE)).toEqual({ ok: false, reason: "too_many" });
     expect((await comments.createThread(1, OTHER, ANCHOR, "elsewhere", ALICE)).ok).toBe(true);
     await dbRun(database, sql`DELETE FROM ${schema().commentThread}`);
     const thread = await made();
-    for (let i = 0; i < MAX_REPLIES_PER_THREAD; i++) await comments.reply(1, DOC, thread, `r${i}`, BOB);
+    for (let i = 0; i < MAX_REPLIES_PER_THREAD; i++) await comments.reply(1, DOC, thread, `r${i}`, { kind: "account", id: `replier-${i}`, name: "R" });
     expect(await comments.reply(1, DOC, thread, "one more", BOB)).toEqual({ ok: false, reason: "too_many" });
   }, 120_000);
+
+  it("keeps one person from taking more than their share: of the threads, of a thread's replies, and a link's guests together", async () => {
+    for (let i = 0; i < MAX_THREADS_PER_AUTHOR; i++) await made(ALICE, `a${i}`);
+    expect(await comments.createThread(1, DOC, ANCHOR, "one more", ALICE)).toEqual({ ok: false, reason: "own_limit" });
+    expect((await comments.createThread(1, DOC, ANCHOR, "someone else", BOB)).ok, "others still can").toBe(true);
+    expect((await comments.createThread(1, OTHER, ANCHOR, "elsewhere", ALICE)).ok, "another document").toBe(true);
+    expect((await comments.createThread(2, DOC, ANCHOR, "elsewhere", ALICE)).ok, "another connection").toBe(true);
+    // Deleting makes room again.
+    const first = (await comments.list(1, DOC, ALICE)).threads.find((thread) => thread.mine)!;
+    await comments.remove(1, DOC, { kind: "thread", id: first.id }, ALICE, false);
+    expect((await comments.createThread(1, DOC, ANCHOR, "room again", ALICE)).ok).toBe(true);
+
+    const thread = await made(BOB, "a thread to answer");
+    for (let i = 0; i < MAX_REPLIES_PER_AUTHOR; i++) expect((await comments.reply(1, DOC, thread, `r${i}`, ALICE)).ok, `reply ${i}`).toBe(true);
+    expect(await comments.reply(1, DOC, thread, "one more", ALICE)).toEqual({ ok: false, reason: "own_limit" });
+    expect((await comments.reply(1, DOC, thread, "mine", BOB)).ok, "another may still").toBe(true);
+  }, 60_000);
+
+  it("keeps a link's guests, whatever browser ids they make up, to the link's share of the threads", async () => {
+    await dbRun(database, sql`DELETE FROM ${schema().commentThread}`);
+    for (let i = 0; i < MAX_THREADS_PER_LINK; i++) expect((await comments.createThread(1, DOC, ANCHOR, `g${i}`, { kind: "guest", id: `3:browser-${i}`, name: "Guest" })).ok, `thread ${i}`).toBe(true);
+    expect(await comments.createThread(1, DOC, ANCHOR, "a new browser", { kind: "guest", id: "3:browser-new", name: "Guest" })).toEqual({ ok: false, reason: "own_limit" });
+    expect((await comments.createThread(1, DOC, ANCHOR, "another link", { kind: "guest", id: "4:browser-new", name: "Guest" })).ok, "another link").toBe(true);
+    expect((await comments.createThread(1, DOC, ANCHOR, "an account", ALICE)).ok, "an account").toBe(true);
+    expect((await comments.createThread(1, DOC, ANCHOR, "link 33 is not link 3", { kind: "guest", id: "33:browser-x", name: "Guest" })).ok, "a link whose number begins with this one's").toBe(true);
+  }, 60_000);
 });
 
 describe(`resolving (${leg})`, () => {

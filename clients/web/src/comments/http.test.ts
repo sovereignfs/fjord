@@ -142,6 +142,8 @@ describe("what they are told when it is refused", () => {
     ["bad_comment", 400, "bad_comment"],
     ["bad_anchor", 422, "bad_anchor"],
     ["stale", 409, "stale"],
+    ["own_limit", 422, "own_limit"],
+    ["rate_limited", 429, "rate_limited"],
   ])("%s is %i %s, in words", async (reason, status, code) => {
     const { deps } = stub({ ok: false, reason });
     for (const [method, sent] of [["GET", undefined], ["POST", { op: "reply", thread: 1, body: "x" }]] as const) {
@@ -150,6 +152,15 @@ describe("what they are told when it is refused", () => {
       const error = (await body(response)).error;
       expect(error.code).toBe(code);
       expect(error.message.length).toBeGreaterThan(15);
+    }
+  });
+
+  it("says how long to wait when it is too fast, in whole seconds, rounded up and at least one", async () => {
+    for (const [ms, seconds] of [[12_500, "13"], [1, "1"], [60_000, "60"], [undefined, "1"]] as const) {
+      const { deps } = stub({ ok: false, reason: "rate_limited", ...(ms === undefined ? {} : { retryAfterMs: ms }) });
+      const response = await handleComments(req("POST", { op: "reply", thread: 1, body: "x" }), ALICE, deps, DOC);
+      expect(response.status).toBe(429);
+      expect(response.headers.get("retry-after")).toBe(seconds);
     }
   });
 

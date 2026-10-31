@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CredentialError } from "../crypto/errors";
-import { type EventDeps, MAX_STREAMS, type Watch, handleEvents, streamsOpen } from "./events";
+import { type EventDeps, MAX_STREAMS, MAX_STREAMS_PER_ACCOUNT, MAX_STREAMS_PER_LINK, type Watch, handleEvents, streamsOpen } from "./events";
 
 /**
  * The live stream of a document's comments (ROADMAP 1d.3): who may open it, what it says (that comments changed, never what they are), and that it ends
@@ -11,11 +11,12 @@ const ORIGIN = "https://fjord.example.com";
 const COOKIE = `fjord_share=${"T".repeat(43)}`;
 const ALICE = { accountId: "alice", name: "Alice" };
 
-function controllable(initial = 5) {
+function controllable(initial = 5, holder = "account:alice") {
   let version = initial;
   let allowed = true;
   const listeners = new Set<() => void>();
   const watch: Watch = {
+    holder,
     version: vi.fn(async () => version),
     allowed: vi.fn(async () => allowed),
     subscribe: (listener) => {
@@ -113,16 +114,37 @@ describe("opening the stream", () => {
     logged.mockRestore();
   });
 
+  it("holds only so many for one account's tabs, and for one link's readers, and gives them back, while others are let in", async () => {
+    const opened: AbortController[] = [];
+    const openOne = async (holder: string) => {
+      const controller = new AbortController();
+      opened.push(controller);
+      return handleEvents(get(controller.signal), ALICE, depsFor(controllable(5, holder).watch, { pollMs: 60_000 }), DOC);
+    };
+    for (let i = 0; i < MAX_STREAMS_PER_ACCOUNT; i++) expect((await openOne("account:alice")).status).toBe(200);
+    const refused = await openOne("account:alice");
+    expect(refused.status).toBe(429);
+    expect(refused.headers.get("retry-after")).toBeTruthy();
+    expect((await openOne("account:bob")).status, "another account is not held back").toBe(200);
+    for (let i = 0; i < MAX_STREAMS_PER_LINK; i++) expect((await openOne("link:7")).status).toBe(200);
+    expect((await openOne("link:7")).status).toBe(429);
+    expect((await openOne("link:8")).status, "another link is not held back").toBe(200);
+    opened[0]!.abort();
+    await vi.waitFor(async () => expect((await openOne("account:alice")).status).toBe(200));
+    for (const controller of opened) controller.abort();
+  });
+
   it("holds only so many streams, then says to try later, and takes one back when a stream ends", async () => {
     const { watch } = controllable();
     const controllers: AbortController[] = [];
+    // Each from a holder of its own, so that it is the process's limit that is met and not the holder's.
     for (let i = 0; i < MAX_STREAMS; i++) {
       const controller = new AbortController();
       controllers.push(controller);
-      expect((await handleEvents(get(controller.signal), ALICE, depsFor(watch, { pollMs: 60_000 }), DOC)).status).toBe(200);
+      expect((await handleEvents(get(controller.signal), ALICE, depsFor(controllable(5, `account:u${i}`).watch, { pollMs: 60_000 }), DOC)).status).toBe(200);
     }
     expect(streamsOpen()).toBe(MAX_STREAMS);
-    const refused = await handleEvents(get(), ALICE, depsFor(watch), DOC);
+    const refused = await handleEvents(get(), ALICE, depsFor(controllable(5, "account:late").watch), DOC);
     expect(refused.status).toBe(503);
     expect(refused.headers.get("retry-after")).toBeTruthy();
     for (const controller of controllers) controller.abort();

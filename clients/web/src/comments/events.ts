@@ -18,6 +18,8 @@ import type { Caller } from "./http";
  *  - **How many:** a process holds at most `MAX_STREAMS`; one more is told to try later, so that open pages cannot hold the server's memory.
  */
 export interface Watch {
+  /** Who is watching, for the limit on how many streams one holder may have: `account:<id>` or `link:<id>`. */
+  holder: string;
   /** Where the document's comments are up to. */
   version: () => Promise<number>;
   /** Whether the watcher may still read them. */
@@ -36,7 +38,12 @@ export interface EventDeps {
 }
 
 export const MAX_STREAMS = 300;
+/** One account's tabs, and one link's readers, may hold no more than this many of the process's streams (ROADMAP 1d.4). */
+export const MAX_STREAMS_PER_ACCOUNT = 20;
+export const MAX_STREAMS_PER_LINK = 100;
 let open = 0;
+const held = new Map<string, number>();
+const limitOf = (holder: string) => (holder.startsWith("account:") ? MAX_STREAMS_PER_ACCOUNT : MAX_STREAMS_PER_LINK);
 /** How many streams are open in this process, for tests. */
 export const streamsOpen = () => open;
 
@@ -73,6 +80,7 @@ export async function handleEvents(request: Request, caller: Caller | null, deps
   }
   if (!opened.ok) return opened.reason === "hidden" ? plain(404, "not_found", "There is no such document.") : plain(403, "forbidden", "You may not watch this document's comments.");
   const { watch } = opened;
+  if ((held.get(watch.holder) ?? 0) >= limitOf(watch.holder)) return plain(429, "too_many_streams", "This is open in too many places at once. Close some, or reload this page.", { "retry-after": "30" });
 
   const pollMs = deps.pollMs ?? POLL_MS;
   const recheckMs = deps.recheckMs ?? RECHECK_MS;
@@ -80,6 +88,7 @@ export async function handleEvents(request: Request, caller: Caller | null, deps
   const quietMs = deps.quietMs ?? QUIET_MS;
   const encoder = new TextEncoder();
   open++;
+  held.set(watch.holder, (held.get(watch.holder) ?? 0) + 1);
   let cleanup = () => {};
 
   const stream = new ReadableStream<Uint8Array>({
@@ -110,6 +119,9 @@ export async function handleEvents(request: Request, caller: Caller | null, deps
         unsubscribe();
         request.signal.removeEventListener("abort", finish);
         open--;
+        const rest = (held.get(watch.holder) ?? 1) - 1;
+        if (rest <= 0) held.delete(watch.holder);
+        else held.set(watch.holder, rest);
         try {
           controller.close();
         } catch {

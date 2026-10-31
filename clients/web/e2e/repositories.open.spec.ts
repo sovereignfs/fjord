@@ -2922,3 +2922,45 @@ test("comments, replies, resolving and closing reach another browser without it 
     await restoreMore();
   }
 });
+
+// --- Limits and abuse (ROADMAP 1d.4) -----------------------------------------------------------------------------------------
+
+test("comments are written only so fast by a browser and by a link, whatever names its guests give, and the owner is not held back by a link's guests", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
+    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "comment" } })).json()) as { id: number; url: string };
+    const context = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.41" } });
+    const guest = await context.newPage();
+    await guest.goto(link.url);
+    await expect(guest.getByTestId("comments-panel")).toBeVisible();
+    const anchor = { type: "text-quote", quote: "plan", prefix: "The ", suffix: ", for reading.", position: 4 };
+    const write = (browserId: string, n: number) =>
+      context.request.post(`/doc/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor, body: `thread ${browserId} ${n}`, name: "Someone", clientId: browserId } });
+
+    // One browser: twenty a minute, then it is told to wait, and how long.
+    for (let n = 0; n < 20; n++) expect((await write("browser-aaaaaaaa", n)).status(), `write ${n}`).toBe(201);
+    const slow = await write("browser-aaaaaaaa", 20);
+    expect(slow.status()).toBe(429);
+    expect(Number(slow.headers()["retry-after"])).toBeGreaterThan(0);
+    expect((await slow.json()).error.code).toBe("rate_limited");
+
+    // Another browser id on the same link has its own twenty, but the link has sixty for all of its guests together, so a new name is no way round.
+    for (let n = 0; n < 20; n++) expect((await write("browser-bbbbbbbb", n)).status()).toBe(201);
+    for (let n = 0; n < 20; n++) expect((await write("browser-cccccccc", n)).status()).toBe(201);
+    expect((await write("browser-dddddddd", 0)).status()).toBe(429);
+
+    // What was refused was not written; what was let through was.
+    const listing = (await (await context.request.get(`/doc/${ID_DOC}/comments`)).json()) as { threads: { body: string }[] };
+    expect(listing.threads).toHaveLength(60);
+    expect(listing.threads.some((thread) => thread.body === "thread browser-aaaaaaaa 20")).toBe(false);
+
+    // The owner has an account's own count, and comments as itself, whatever the link's guests have used.
+    const mine = await page.request.post(`/doc/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor, body: "from the owner" } });
+    expect(mine.status()).toBe(201);
+    // Reading is not held back.
+    expect((await context.request.get(`/doc/${ID_DOC}/comments`)).status()).toBe(200);
+    await context.close();
+  } finally {
+    await restoreMore();
+  }
+});

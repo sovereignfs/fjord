@@ -89,6 +89,15 @@ describe("what they are told", () => {
     expect(error.message.length).toBeGreaterThan(15);
   });
 
+  it("says how long to wait when the link is used faster than anyone types", async () => {
+    const { deps, save } = stub();
+    save.mockResolvedValueOnce({ ok: false, reason: "rate_limited", retryAfterMs: 12_500 } as never);
+    const response = await handleGuestDraft(put(good), deps, DOC);
+    expect(response.status).toBe(429);
+    expect(response.headers.get("retry-after")).toBe("13");
+    expect((await text(response)).error.code).toBe("rate_limited");
+  });
+
   it("says when the instance cannot read repositories, when the host is limiting, and answers the unexpected plainly without the cookie", async () => {
     const { deps, save } = stub();
     save.mockRejectedValueOnce(new CredentialError("no_key", "no key"));

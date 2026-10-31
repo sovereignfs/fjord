@@ -1125,7 +1125,7 @@ Comments are collaborative in phase 1; editing is not (phase 3).
 ### Comments, as built (ROADMAP 1d.1)
 
 Threads, replies, resolving, editing, deleting and closing are built, and so is re-anchoring after outside changes (1d.2, below); live updates
-(1d.3, below) too; the per-user and per-link rate limits (1d.4) are not.
+(1d.3) and the limits (1d.4), below.
 
 - **Where the comments are:** a panel beside the document, for the owner (on the document's page), for an account it is shared with and for
   anyone with a link (on `/doc/<id>`). They are kept per connection and Doc `id` (`comment_thread`, `comment_reply`, `comment_activity`,
@@ -1201,6 +1201,37 @@ resolving, editing, deleting and closing without reloading.
   proxy that buffers responses anyway turns it into a slow poll (the browser reads again every five minutes at worst, and on every visit).
 
 
+### Limits and abuse, as built (ROADMAP 1d.4)
+
+Size limits were 1d.1's (a comment 1 to 4000 characters, an anchor's quote 2000, 500 threads in a document, 200 replies in a thread, 50 links to a document,
+50 editors of a draft, 1 MiB of draft). These are the rest. A refusal always says in words what was met, and for a rate how long to wait (`429` with
+`Retry-After`); a limit is meant to be met only by something that is not a person.
+
+- **How fast comments are written** (`src/comments/rates.ts`, counted in the `rate_bucket` table so that it holds across processes and replicas; fixed windows, so up
+  to twice the limit across the edge of two): a thread, a reply, an edit or a resolving is counted against the person **and the link** it came through; reading,
+  deleting and closing are not (clearing up after oneself is not the abuse, and a flood of reads is the reverse proxy's to meet).
+
+  | holder | a minute | an hour |
+  | --- | --- | --- |
+  | an account | 30 | 600 |
+  | a guest (the link and the browser's id) | 20 | 200 |
+  | a link, all of its guests together | 60 | 600 |
+
+  The link's count is the one that cannot be got round: a guest's browser id and name are anything the browser says, and a new one is free. It is counted before the
+  request is looked at, so a flood of bad requests is a flood, and a request refused is still counted, so asking again at once is no nearer. Moving threads onto
+  edited words (1d.2) has 120 a minute for an account or a link.
+- **No one takes the whole document:** one author may start 100 threads in a document and write 50 replies in a thread, and the guests of one link together 200 threads
+  (so a hostile guest cannot fill the document's 500 with new browser ids and shut everyone else out). Deleting makes room again.
+- **Editing through a link** (`GUEST_EDIT_RATES`): 240 saves a minute and 3000 an hour for a link and all of its editors together (a person typing keeps a draft a second or
+  so behind them, so several people fit well within it); other things a link can do are bounded by the draft's own limits (1 MiB, 50 editors, 500 drafts a repository).
+- **Watching** (§13, 1d.3): 20 live streams for one account, 100 for one link, 300 for a process.
+- **What the owner can do** is unchanged and is the remedy: close a document's comments, delete anyone's, revoke a link (which ends its sessions at once, the streams
+  within fifteen seconds), and stop sharing.
+- **Not built:** limits by network address. They depend on a proxy that sets the client's address (§15, sign-in), which this does not assume; the per-link and per-account
+  limits do not. The numbers are constants, not yet settings (§17 lists limits among the configuration, which is still to come). Rows of `rate_bucket` older than a day
+  are swept up as limits are counted.
+
+
 ## 14. Data model and database
 
 ### Tables
@@ -1219,6 +1250,7 @@ Roughly, beyond better-auth's own:
 | `share_link` | connection, Doc `id`, token hash (never the token), role, expiry, revoked at, who made it, when (§12). a password hash for a link with one, and the failures and wait that rate-limit tries at it (1c.5) |
 | `comment_thread`, `comment_reply` | connection, Doc `id`, anchor (tagged JSON), body, author (kind `account` + id, or `guest` + link and browser id; and name), timestamps, resolved at and by, edited at (§13) |
 | `comment_activity`, `comment_closed` | the log of what happened to a document's comments (who, what, when); a row for each document whose comments are closed (§13) |
+| `rate_bucket` | how much each holder (an account, a link, a browser) has done in the current window, per limit: a key, when the window began, a count (§13, §15) |
 | `event` | cross-process notices (worker → web): kind, subject, timestamp |
 
 A document is identified by connection and `id` (or path, for a note without one).

@@ -61,6 +61,11 @@ export async function handleGuestDraft(request: Request, deps: Deps, docId: stri
         return failure(404, "not_found", "There is no such document.");
       case "forbidden":
         return failure(403, "read_only", "This link lets you read the document, not change it.");
+      case "rate_limited": {
+        const response = failure(429, "rate_limited", "Changes are coming in through this link faster than anyone types. Wait a moment, then carry on.");
+        response.headers.set("retry-after", String(Math.max(1, Math.ceil(result.retryAfterMs / 1000))));
+        return response;
+      }
       case "bad_name":
         return failure(400, "bad_name", `Give a name of one line, up to ${MAX_NAME_CHARS} characters, without < or >.`);
       case "not_editable":

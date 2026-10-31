@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { type Grant, ROLES, type Role } from "../access/policy";
+import type { Limiter, Rule } from "../limits/rate";
 import { type AccessDeps, CLIENT_ID, type Operation, type Viewer, commentsAccess, commentsWatch } from "./access";
 
 /**
@@ -212,11 +213,17 @@ describe("who may watch a document's comments (ROADMAP 1d.3)", () => {
     const { open, version, subscribe } = watching(owner);
     const opened = await open(ask);
     if (!opened.ok) throw new Error("not opened");
+    expect(opened.watch.holder).toBe("account:alice");
     expect(await opened.watch.version()).toBe(12);
     expect(version).toHaveBeenCalledWith(1, DOC);
     const listener = () => undefined;
     opened.watch.subscribe(listener);
     expect(subscribe).toHaveBeenCalledWith(1, DOC, listener);
+  });
+
+  it("is held to its account's streams, or its link's", async () => {
+    const holders = await Promise.all([owner, link("view")].map(async (viewer) => (await watching(viewer).open(ask)) as { ok: true; watch: { holder: string } }));
+    expect(holders.map((opened) => opened.watch.holder)).toEqual(["account:alice", "link:3"]);
   });
 
   it("asks again, each time it is asked whether the watcher may still: a link revoked since is no longer let in", async () => {
@@ -228,5 +235,88 @@ describe("who may watch a document's comments (ROADMAP 1d.3)", () => {
     expect(await opened.watch.allowed()).toBe(false);
     current.viewer = undefined;
     expect(await opened.watch.allowed()).toBe(false);
+  });
+});
+
+describe("how fast comments are written (ROADMAP 1d.4)", () => {
+  /** A limiter that counts what it is asked, and refuses the keys it is told to. */
+  function limited(viewer: Viewer, refuse: (key: string) => boolean = () => false) {
+    const asked: { key: string; rule: Rule }[] = [];
+    const limiter: Limiter = {
+      take: async (key, rule) => {
+        asked.push({ key, rule });
+        return refuse(key) ? { ok: false, retryAfterMs: 12_500 } : { ok: true };
+      },
+    };
+    const { comments } = setup(viewer);
+    const run = commentsAccess({ viewer: async () => viewer, comments, limiter, now: () => NOW });
+    return { run, comments, asked };
+  }
+  const go = (run: ReturnType<typeof limited>["run"], operation: Operation, viewer: Viewer, claimed: object = as) => run({ docId: DOC, account: viewer.account, cookie: undefined, claimed, operation });
+
+  it("counts a thread, a reply, an edit and a resolving, against the person and the link", async () => {
+    for (const name of ["thread", "reply", "edit", "resolve"]) {
+      const viewer = link("comment");
+      const { run, asked } = limited(viewer);
+      expect((await go(run, OPERATIONS[name]!, viewer)).ok, name).toBe(true);
+      expect(asked.map((entry) => entry.key), name).toEqual([`comment:guest:3:${BROWSER}:60000`, `comment:guest:3:${BROWSER}:3600000`, "comment:link:3:60000", "comment:link:3:3600000"]);
+    }
+    const viewer = named("comment");
+    const { run, asked } = limited(viewer);
+    await go(run, OPERATIONS.thread!, viewer);
+    expect(asked.map((entry) => entry.key)).toEqual(["comment:account:bob:60000", "comment:account:bob:3600000"]);
+  });
+
+  it("counts neither reading, nor deleting, nor closing", async () => {
+    for (const name of ["list", "delete", "close"]) {
+      const { run, asked } = limited(owner);
+      await go(run, OPERATIONS[name]!, owner);
+      expect(asked, name).toEqual([]);
+    }
+  });
+
+  it("refuses with how long to wait when any one of them says no, and the service is not touched", async () => {
+    for (const refuse of [(key: string) => key === "comment:link:3:60000", (key: string) => key.startsWith("comment:guest:"), (key: string) => key.endsWith(":3600000")]) {
+      const viewer = link("comment");
+      const { run, comments, asked } = limited(viewer, refuse);
+      expect(await go(run, OPERATIONS.reply!, viewer)).toEqual({ ok: false, reason: "rate_limited", retryAfterMs: 12_500 });
+      expect(comments.reply).not.toHaveBeenCalled();
+      expect(asked.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("counts a request that turns out to be nothing, too: a flood of bad ones is a flood", async () => {
+    const viewer = link("comment");
+    const { run, comments, asked } = limited(viewer, () => true);
+    expect((await go(run, { op: "thread", anchor: ANCHOR, body: "" }, viewer)).ok).toBe(false);
+    expect(asked.length).toBeGreaterThan(0);
+    expect(comments.createThread).not.toHaveBeenCalled();
+  });
+
+  it("does not count what the policy refuses, or a guest who has not given a name", async () => {
+    const viewing = link("view");
+    const first = limited(viewing);
+    expect(await go(first.run, OPERATIONS.thread!, viewing)).toEqual({ ok: false, reason: "forbidden" });
+    expect(first.asked).toEqual([]);
+    const commenting = link("comment");
+    const second = limited(commenting);
+    expect(await go(second.run, OPERATIONS.thread!, commenting, {})).toEqual({ ok: false, reason: "need_name" });
+    expect(second.asked).toEqual([]);
+  });
+
+  it("counts moving a thread onto edited words, by its own rule, with no name needed", async () => {
+    const viewer = link("comment");
+    const { run, asked, comments } = limited(viewer);
+    expect(await go(run, OPERATIONS.reanchor!, viewer, {})).toEqual({ ok: true });
+    expect(asked).toEqual([{ key: "comment:reanchor:link:3", rule: { limit: 120, windowMs: 60_000 } }]);
+    const slow = limited(viewer, () => true);
+    expect(await go(slow.run, OPERATIONS.reanchor!, viewer, {})).toMatchObject({ ok: false, reason: "rate_limited" });
+    expect(slow.comments.reanchor).not.toHaveBeenCalled();
+    expect(comments.reanchor).toHaveBeenCalledTimes(1);
+  });
+
+  it("is no limit where there is no limiter", async () => {
+    const { run } = setup(link("comment"));
+    for (let i = 0; i < 100; i++) expect((await run({ docId: DOC, account: undefined, cookie: undefined, claimed: as, operation: OPERATIONS.thread! })).ok).toBe(true);
   });
 });

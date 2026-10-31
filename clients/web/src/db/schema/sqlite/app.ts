@@ -309,3 +309,18 @@ export const commentClosed = sqliteTable(
   },
   (table) => [uniqueIndex("comment_closed_document_idx").on(table.connectionId, table.docId)],
 );
+
+/**
+ * How much each holder (an account, a link, a browser) has done in the current window, for the rate limits (DESIGN.md §13, §15, ROADMAP 1d.4). One row per
+ * limit and holder, counted in the database so that the limit holds across every process; a row is reset when its window has passed, and old ones are swept.
+ */
+export const rateBucket = sqliteTable(
+  "rate_bucket",
+  {
+    id: id64("id"),
+    key: text("key").notNull(),
+    windowStart: epochMs("window_start").notNull(),
+    count: integer("count", { mode: "number" }).notNull(),
+  },
+  (table) => [uniqueIndex("rate_bucket_key_idx").on(table.key), index("rate_bucket_window_idx").on(table.windowStart)],
+);

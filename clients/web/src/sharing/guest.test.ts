@@ -14,7 +14,8 @@ import { fjord, wasmAvailable, wasmDirectory } from "../format/wasm";
 import { MemoryProvider } from "../providers/memory";
 import type { RepositoryRef } from "../providers/types";
 import { WorkingCopyService } from "../working/service";
-import { type GuestDeps, saveGuestDraft } from "./guest";
+import { RateLimiter } from "../limits/rate";
+import { GUEST_EDIT_RATES, type GuestDeps, saveGuestDraft } from "./guest";
 import { LinkService } from "./links";
 import { hashPassword, unlockProof } from "./password";
 
@@ -227,5 +228,38 @@ describe.skipIf(!available)(`editing through a link (${leg})`, () => {
     for (let i = 0; i < 50; i++) expect((await saveGuestDraft(deps, edit(cookie, `\nedit ${i}\n`, `Guest ${i}`))).ok).toBe(true);
     expect(await saveGuestDraft(deps, edit(cookie, "\nmore\n", "One too many"))).toEqual({ ok: false, reason: "too_many_editors" });
     expect((await saveGuestDraft(deps, edit(cookie, "\nmore\n", "Guest 3"))).ok).toBe(true);
+  });
+});
+
+describe.skipIf(!available)(`how fast a link may be used to edit (${leg})`, () => {
+  it("lets a person type, and refuses what comes in faster than anyone does, saying when to try again, for the whole link whatever the names", async () => {
+    const { deps, host } = setup();
+    const limited: GuestDeps = { ...deps, limiter: new RateLimiter(database, () => clock) };
+    const { cookie } = await link("edit");
+    const perMinute = GUEST_EDIT_RATES[0]!.limit;
+    for (let i = 0; i < perMinute; i++) expect((await saveGuestDraft(limited, edit(cookie, `\n# Q4 plan\n\nline ${i}\n`, `Guest ${i % 7}`))).ok, `save ${i}`).toBe(true);
+    const refused = await saveGuestDraft(limited, edit(cookie, "\n# Q4 plan\n\none more\n", "Yet Another Name"));
+    expect(refused).toMatchObject({ ok: false, reason: "rate_limited", retryAfterMs: expect.any(Number) });
+    expect((await drafts.get(1, PATH))!.content).not.toContain("one more");
+    clock += 61_000;
+    expect((await saveGuestDraft(limited, edit(cookie, "\n# Q4 plan\n\nlater\n"))).ok).toBe(true);
+    // Another link has a count of its own.
+    const other = await link("edit");
+    expect((await saveGuestDraft(limited, edit(other.cookie, "\n# Q4 plan\n\nby the other link\n"))).ok).toBe(true);
+    expect(await host.getHead(REF, "main")).toBeTruthy();
+  }, 60_000);
+
+  it("does not count what is refused before it is looked at: a link that cannot edit, a cookie that is nothing, a name that is not one", async () => {
+    const { deps } = setup();
+    const limiter = new RateLimiter(database, () => clock);
+    const limited: GuestDeps = { ...deps, limiter };
+    const before = await limiter.rows();
+    const viewing = await link("view");
+    await saveGuestDraft(limited, edit(viewing.cookie, "x"));
+    await saveGuestDraft(limited, edit("not-a-token", "x"));
+    await saveGuestDraft(limited, edit(undefined, "x"));
+    const editing = await link("edit");
+    await saveGuestDraft(limited, edit(editing.cookie, "x", "<b>"));
+    expect(await limiter.rows()).toBe(before);
   });
 });

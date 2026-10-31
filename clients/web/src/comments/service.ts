@@ -55,8 +55,12 @@ export const MAX_QUOTE_CHARS = 2000;
 export const MAX_CONTEXT_CHARS = 200;
 export const MAX_THREADS_PER_DOCUMENT = 500;
 export const MAX_REPLIES_PER_THREAD = 200;
+/** No one person takes more than their share: of a document's threads, of a thread's replies, and (a link's guests together) of the threads (ROADMAP 1d.4). */
+export const MAX_THREADS_PER_AUTHOR = 100;
+export const MAX_THREADS_PER_LINK = 200;
+export const MAX_REPLIES_PER_AUTHOR = 50;
 
-export type Refusal = "not_found" | "closed" | "forbidden" | "too_many" | "bad_comment" | "bad_anchor" | "stale";
+export type Refusal = "not_found" | "closed" | "forbidden" | "too_many" | "bad_comment" | "bad_anchor" | "stale" | "own_limit";
 export type Done<T = object> = ({ ok: true } & T) | { ok: false; reason: Refusal };
 
 const tables = (database: Database) =>
@@ -192,6 +196,8 @@ export class CommentService {
     const t = this.t();
     const count = await dbGet<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${t.thread} WHERE connection_id = ${connectionId} AND doc_id = ${docId}`);
     if (Number(count?.n ?? 0) >= MAX_THREADS_PER_DOCUMENT) return { ok: false, reason: "too_many" };
+    if ((await this.threadsBy(connectionId, docId, author)) >= MAX_THREADS_PER_AUTHOR) return { ok: false, reason: "own_limit" };
+    if (author.kind === "guest" && (await this.threadsByLink(connectionId, docId, author)) >= MAX_THREADS_PER_LINK) return { ok: false, reason: "own_limit" };
     const made = await dbAll<{ id: number | string }>(
       this.database,
       sql`INSERT INTO ${t.thread} (connection_id, doc_id, anchor, body, author_kind, author_id, author_name, created_at)
@@ -200,6 +206,25 @@ export class CommentService {
     const id = Number(made[0]!.id);
     await this.log(connectionId, docId, id, author, "thread_created");
     return { ok: true, id };
+  }
+
+  /** How many threads of the document this author started. */
+  private async threadsBy(connectionId: number, docId: string, author: Author): Promise<number> {
+    const row = await dbGet<{ n: number | string }>(
+      this.database,
+      sql`SELECT COUNT(*) AS n FROM ${this.t().thread} WHERE connection_id = ${connectionId} AND doc_id = ${docId} AND author_kind = ${author.kind} AND author_id = ${author.id}`,
+    );
+    return Number(row?.n ?? 0);
+  }
+
+  /** How many threads of the document were started by guests of the link this guest came through (a guest's id is the link's number, a colon, then the browser's). */
+  private async threadsByLink(connectionId: number, docId: string, author: Author): Promise<number> {
+    const link = author.id.split(":")[0] ?? "";
+    const row = await dbGet<{ n: number | string }>(
+      this.database,
+      sql`SELECT COUNT(*) AS n FROM ${this.t().thread} WHERE connection_id = ${connectionId} AND doc_id = ${docId} AND author_kind = 'guest' AND author_id LIKE ${`${link}:%`}`,
+    );
+    return Number(row?.n ?? 0);
   }
 
   private async thread(connectionId: number, docId: string, id: number): Promise<{ id: number; authorKind: string; authorId: string } | undefined> {
@@ -218,6 +243,8 @@ export class CommentService {
     const t = this.t();
     const count = await dbGet<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${t.reply} WHERE thread_id = ${threadId}`);
     if (Number(count?.n ?? 0) >= MAX_REPLIES_PER_THREAD) return { ok: false, reason: "too_many" };
+    const own = await dbGet<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${t.reply} WHERE thread_id = ${threadId} AND author_kind = ${author.kind} AND author_id = ${author.id}`);
+    if (Number(own?.n ?? 0) >= MAX_REPLIES_PER_AUTHOR) return { ok: false, reason: "own_limit" };
     const made = await dbAll<{ id: number | string }>(
       this.database,
       sql`INSERT INTO ${t.reply} (thread_id, connection_id, doc_id, body, author_kind, author_id, author_name, created_at)

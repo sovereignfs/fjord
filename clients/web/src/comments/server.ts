@@ -2,6 +2,7 @@ import { authConfig, getSession } from "../auth/server";
 import { DocIndex } from "../browse/doc-index";
 import { connectionService } from "../connections/server";
 import { getDatabase } from "../db/boot";
+import { RateLimiter } from "../limits/rate";
 import type { Grant } from "../access/policy";
 import { proofIsRight } from "../sharing/password";
 import { LinkService } from "../sharing/links";
@@ -52,7 +53,8 @@ export async function commentsContext(): Promise<{ caller: Caller | null; deps: 
   const config = authConfig();
   if (!config.enabled) return null;
   const session = await getSession();
-  const deps: AccessDeps = { viewer: viewerOf, comments: commentService(await getDatabase()) };
+  const database = await getDatabase();
+  const deps: AccessDeps = { viewer: viewerOf, comments: commentService(database), limiter: new RateLimiter(database) };
   return { caller: session ? { accountId: session.user.id, name: session.user.name } : null, deps: { origin: config.url, run: commentsAccess(deps) } };
 }
 

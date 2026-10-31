@@ -13,6 +13,11 @@ section.
 
 ### Added
 
+- **Limits on comments and on editing through a link** (ROADMAP 1d.4): comments can only be written so fast (an account 30 a minute, a guest's browser 20,
+  and all of one link's guests together 60, with larger hourly limits), so a link cannot be used to flood a document whatever names its guests give; one person,
+  or one link's guests together, cannot take all of a document's thread slots; edits through a link are limited for the link; and an account or a link can only
+  keep so many live streams open. A refusal says what was met and for how long to wait. Counted in the database, so the limits hold across several server
+  processes (new table `rate_bucket`).
 - **Live updates for comments** (ROADMAP 1d.3): a new comment, reply, resolving, edit, deletion or closing appears for everyone looking at the
   document, without reloading. A page is told that the comments changed (never what they are, so that what a person may read is still decided
   each time they are read) and reads them again; a person who loses access (a link revoked, a share ended) stops being told within a quarter of

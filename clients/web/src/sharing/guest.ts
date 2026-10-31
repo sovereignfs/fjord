@@ -4,6 +4,7 @@ import type { DocIndex } from "../browse/doc-index";
 import { type Source, resolveDocId } from "../browse/ids";
 import { readTextBlob } from "../browse/note";
 import type { Fjord } from "../format/wasm";
+import { type Limiter, type Rule, takeAll } from "../limits/rate";
 import type { WorkingCopyService } from "../working/service";
 import type { LinkService } from "./links";
 import { proofIsRight } from "./password";
@@ -35,8 +36,16 @@ export interface GuestDeps {
   index: DocIndex;
   format: Pick<Fjord, "parseDocument">;
   drafts: Pick<WorkingCopyService, "get" | "save">;
+  /** Counts how fast a link is used to edit; without one there is no limit (ROADMAP 1d.4). */
+  limiter?: Limiter;
   now?: () => number;
 }
+
+/**
+ * How fast a link may be used to edit (ROADMAP 1d.4): all of its editors together, because a name is anything a guest says it is. A person typing keeps
+ * a draft a second or so behind them, so several at once fit well inside this; what does not is something sending text as fast as it can.
+ */
+export const GUEST_EDIT_RATES: Rule[] = [{ limit: 240, windowMs: 60_000 }, { limit: 3000, windowMs: 3_600_000 }];
 
 export { MAX_NAME_CHARS, cleanGuestName };
 
@@ -47,6 +56,8 @@ export type GuestSave =
   /** A link that is good, but whose role may not edit. */
   | { ok: false; reason: "forbidden" }
   | { ok: false; reason: "bad_name" }
+  /** Edits through this link are coming faster than anyone types; when to try again, in milliseconds. */
+  | { ok: false; reason: "rate_limited"; retryAfterMs: number }
   | { ok: false; reason: "not_editable" | "too_many_drafts" | "too_many_editors" | "unavailable" }
   | { ok: false; reason: "unstorable"; message: string };
 
@@ -64,6 +75,9 @@ export async function saveGuestDraft(deps: GuestDeps, input: { cookie: string | 
 
   const name = cleanGuestName(input.name);
   if (name === undefined) return { ok: false, reason: "bad_name" };
+
+  const slow = await takeAll(deps.limiter, GUEST_EDIT_RATES.map((rule) => ({ key: `guest-edit:link:${link.id}:${rule.windowMs}`, rule })));
+  if (!slow.ok) return { ok: false, reason: "rate_limited", retryAfterMs: slow.retryAfterMs };
 
   const source = await deps.sourceOf(link.connectionId);
   if (!source) return { ok: false, reason: "unavailable" };

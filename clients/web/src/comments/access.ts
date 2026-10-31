@@ -1,6 +1,8 @@
 import { type Action, type Grant, type Role, decide, effectiveRole } from "../access/policy";
+import { type Limiter, takeAll } from "../limits/rate";
 import { cleanGuestName } from "../sharing/guest-name";
 import type { Watch } from "./events";
+import { reanchorRates, writeRates } from "./rates";
 import { type Author, type CommentService, type Done, type Thread, type TextQuoteAnchor } from "./service";
 
 /**
@@ -8,7 +10,9 @@ import { type Author, type CommentService, type Done, type Thread, type TextQuot
  * each operation asks `decide` for its action, so a role means the same here as everywhere, and the answer is the policy's: `hidden` (not
  * let in at all, or no document to be let into) is told as "not found", `forbidden` (let in, but not to this) as such.
  *
- *  - **View** may read the threads. (Moving a thread onto the words its text was edited into, ROADMAP 1d.2, is for those who may comment.) **Comment** may also start a thread, reply, resolve and open again, edit or delete its own.
+ *  - **View** may read the threads. (Moving a thread onto the words its text was edited into, ROADMAP 1d.2, is for those who may comment.)
+ *  - **Rate and share:** writing is counted against the person and the link (`rates.ts`) and refused with how long to wait; no one person takes more than
+ *    their share of a document's threads, nor a link's guests more than theirs (the service, ROADMAP 1d.4). **Comment** may also start a thread, reply, resolve and open again, edit or delete its own.
  *    **Edit** may all of that. **The owner** may also delete anyone's and close a document's comments. (A share never moderates.)
  *  - **Whose a comment is** is the author's: an account by its id, a guest by the link and the id their browser made up, with the name
  *    they gave. A signed-in account is itself even when it came in by a link. A guest must give a name and a browser id to write.
@@ -41,12 +45,14 @@ export interface Claimed {
 
 export type Outcome =
   | { ok: true; id?: number; threads?: Thread[]; closed?: boolean; version?: number; viewer?: { role: "owner" | Role; canComment: boolean; canModerate: boolean; name: string | null } }
-  | { ok: false; reason: "hidden" | "forbidden" | "need_name" | "closed" | "not_found" | "too_many" | "bad_comment" | "bad_anchor" | "stale" };
+  | { ok: false; reason: "hidden" | "forbidden" | "need_name" | "closed" | "not_found" | "too_many" | "bad_comment" | "bad_anchor" | "stale" | "own_limit" | "rate_limited"; retryAfterMs?: number };
 
 export interface AccessDeps {
   /** Who this is, for this document: their grants and where it is; undefined if they are let in nowhere. */
   viewer: (input: { docId: string; account: { id: string; name: string } | undefined; cookie: string | undefined }) => Promise<Viewer | undefined>;
   comments: Pick<CommentService, "list" | "createThread" | "reply" | "setResolved" | "edit" | "remove" | "setClosed" | "reanchor">;
+  /** Counts how fast comments are written; without one there is no limit (ROADMAP 1d.4). */
+  limiter?: Limiter;
   now?: () => number;
 }
 
@@ -93,11 +99,18 @@ export function commentsAccess(deps: AccessDeps) {
     }
     // Moving a thread onto the words its text was edited into is mechanical, not something a person wrote: it needs the right to comment but no name.
     if (operation.op === "reanchor") {
+      const slow = await takeAll(deps.limiter, reanchorRates(viewer));
+      if (!slow.ok) return { ok: false, reason: "rate_limited", retryAfterMs: slow.retryAfterMs };
       const done = await deps.comments.reanchor(viewer.connectionId, input.docId, operation.thread, operation.from, operation.to);
       return done.ok ? { ok: true } : { ok: false, reason: done.reason };
     }
     if (!asked.author) return { ok: false, reason: "need_name" };
     const { author } = asked;
+    // What is written is counted against the person and the link, before anything is looked at: a flood of bad requests is a flood too.
+    if (operation.op === "thread" || operation.op === "reply" || operation.op === "edit" || operation.op === "resolve") {
+      const slow = await takeAll(deps.limiter, writeRates(viewer, author));
+      if (!slow.ok) return { ok: false, reason: "rate_limited", retryAfterMs: slow.retryAfterMs };
+    }
 
     const finish = (done: Done<{ id?: number }>): Outcome => (done.ok ? { ok: true, ...(done.id === undefined ? {} : { id: done.id }) } : { ok: false, reason: done.reason });
     switch (operation.op) {
@@ -145,6 +158,7 @@ export function commentsWatch(deps: AccessDeps & { comments: Pick<CommentService
     return {
       ok: true,
       watch: {
+        holder: first.viewer.account ? `account:${first.viewer.account.id}` : `link:${first.viewer.linkId ?? 0}`,
         version: () => deps.comments.version(connectionId, input.docId),
         allowed: async () => "viewer" in (await allowed()),
         subscribe: (listener) => deps.subscribe(connectionId, input.docId, listener),
