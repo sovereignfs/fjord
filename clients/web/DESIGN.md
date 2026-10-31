@@ -56,7 +56,7 @@ Phase 1 ships in slices (§16), each usable on its own.
    in a file manager. The user switches repository from the header.
 5. **Browsing** shows names, paths and sizes only, nothing downloaded (§8).
    Documents and notes are clearly openable; other files are shown greyed out.
-   Encrypted vaults show a lock and are not openable yet (phase 2).
+   Encrypted vaults show a lock; a file in one opens in the browser with the person's own age identity, read-only so far (phase 2).
 6. **Opening** a document (`name.fj.md`) goes to `/doc/<id>` and the document editor;
    opening a note (any other `.md`) goes to `/note/<id>` and the note editor (§9, §10).
 7. **Editing** saves continuously to a working copy on the server; a version (a git
@@ -795,7 +795,7 @@ interface of the sketch above, made exact, with a plain text area behind both ed
   UTF-8 with any byte order mark kept, to at most 1 MB, and shows it in the editor. What is typed is kept as a draft
   (§11, ROADMAP 1b.8); making it a version in the repository is 1b.9. A file that is not UTF-8, or is larger than 1 MB, says
   so and is not shown as a note. A document (`*.fj.md`) waits for its own editor (1b.3); an
-  encrypted file stays locked.
+  encrypted file is opened by the browser, read-only, with the identity it keeps (§2, `web-2.md` 2b.2), and cannot be edited yet.
 - **Dressed in the design system's tokens.** The package knows only its own `--fe-*` custom properties; `app/globals.css`
   maps the `--sv-*` tokens onto them, so light, dark and any theme follow the page (checked in a browser in both).
 - **How the package is consumed** (settled here, since this is the first page that renders it): it is a `link:` dependency

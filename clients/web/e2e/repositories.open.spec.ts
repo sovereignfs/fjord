@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
+import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { ROUTES } from "../src/access/routes";
 import { alertOn, expect, signUp, test } from "./helpers";
+import { wasmDirectory } from "../src/format/wasm";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
 /**
@@ -366,7 +369,7 @@ test("who may choose a repository's vault, and which", async ({ page, browser })
   await stranger.close();
 });
 
-test("an encrypted vault's files are shown by name and locked", async ({ page }) => {
+test("an encrypted vault's files are shown by name, with a lock, and open to an identity", async ({ page }) => {
   await signUp(page);
   await page.goto("/repositories");
   await connect(page, "acme/notes");
@@ -375,10 +378,9 @@ test("an encrypted vault's files are shown by name and locked", async ({ page })
   await page.goto("/");
   await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Private" }).click();
   const contents = page.getByRole("list", { name: "Folder contents" });
-  // The name without the `.age` it is stored under, and no way in.
-  await expect(contents.getByText("secret.md")).toBeVisible();
-  await expect(contents.getByRole("link", { name: "secret.md" })).toHaveCount(0);
-  await expect(contents.getByLabel("Locked")).toBeVisible();
+  // The name without the `.age` it is stored under, a lock, and a way to its page, which asks for the identity that opens it (2b.2).
+  await expect(contents.getByRole("link", { name: "secret.md" })).toBeVisible();
+  await expect(contents.getByLabel("Encrypted")).toBeVisible();
 });
 
 test("browsing reads no tree and no file from the host, and a path that is not there is a 404", async ({ page }) => {
@@ -3221,4 +3223,112 @@ test("the git host's token and the instance's secrets are in nothing that reache
   } finally {
     await restoreMore();
   }
+});
+
+// --- Encrypted files, opened in the browser (ROADMAP 2b.2) ---
+
+/** The format module as Node loads it, to make the files the CLI would: encrypted to an identity, in both namings. */
+const wasm = createRequire(join(process.cwd(), "package.json"))(join(wasmDirectory(), "fjord_wasm.js")) as {
+  generateIdentity(): Uint8Array;
+  identityRecipient(identity: Uint8Array): string;
+  encrypt(plaintext: Uint8Array, recipients: string, armor: boolean): Uint8Array;
+  wrapContainer(name: string, contents: Uint8Array): Uint8Array;
+};
+const bytes = (text: string) => new TextEncoder().encode(text);
+
+test("an encrypted file is decrypted in the browser, in both namings, and nothing readable or secret passes the server", async ({ page }) => {
+  // Each page load is locked, and unlocking is scrypt (about two seconds here): this opens four files across loads.
+  test.setTimeout(240_000);
+  const secret = wasm.generateIdentity();
+  const recipient = wasm.identityRecipient(secret);
+  const stranger = wasm.identityRecipient(wasm.generateIdentity());
+  const sealedName = "01jagc4k7pr9tbm3ykwx6zq2hz";
+  const PLAIN = "# Plain-named secret\n\nonly ever readable in the browser";
+  const SEALED = "# Id-named secret\n\nits real name is inside the container";
+  const vault = (id: string, naming: string, container: string) =>
+    JSON.stringify({ fjord: 1, id, name: id, createdAt: "2026-10-16T09:34:00Z", encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container, armor: false }, fileNaming: naming });
+  const id = await repositoryWith(page, {
+    "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3me", name: "Secrets", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Open", id: "01jagc4k7pr9tbm3ykwx6zq2hx" }, { path: "Sealed", id: "01jagc4k7pr9tbm3ykwx6zq2hy" }] }),
+    "Open/fjord.vault.json": vault("01jagc4k7pr9tbm3ykwx6zq2hx", "plain", "none"),
+    "Open/recipients.txt": `${recipient}\n`,
+    "Open/note.md.age": wasm.encrypt(bytes(PLAIN), recipient, false),
+    "Open/not-yours.md.age": wasm.encrypt(bytes("not for this identity"), stranger, false),
+    "Sealed/fjord.vault.json": vault("01jagc4k7pr9tbm3ykwx6zq2hy", "id", "tar"),
+    "Sealed/recipients.txt": `${recipient}\n`,
+    [`Sealed/${sealedName}.age`]: wasm.encrypt(wasm.wrapContainer("Plan.md", bytes(SEALED)), recipient, false),
+  });
+
+  await page.addInitScript(() => {
+    (window as unknown as { __violations: string[] }).__violations = [];
+    document.addEventListener("securitypolicyviolation", (event) => (window as unknown as { __violations: string[] }).__violations.push(`${event.violatedDirective} ${event.blockedURI}`));
+  });
+  const answers: string[] = [];
+  const sent: string[] = [];
+  page.on("request", (request) => sent.push(`${request.method()} ${request.url()} ${request.postData() ?? ""}`));
+  page.on("response", async (response) => {
+    if (response.url().includes("/api/")) answers.push(`${response.url()} ${(await response.body().catch(() => Buffer.alloc(0))).toString("latin1")}`);
+  });
+
+  // Without an identity the page says what to do, and shows nothing.
+  await page.goto(`/repo/${id}/Open/note.md.age`);
+  await expect(page.getByText("No identity in this browser")).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "note.md" })).toHaveCount(0);
+
+  // Bring the identity (a file's text), sealed with a passphrase.
+  const PASSPHRASE = "a passphrase of some length";
+  await page.goto("/account/keys");
+  await page.getByRole("button", { name: "I already have one" }).click();
+  await page.getByLabel("Your secret key").fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
+  await page.getByLabel("Passphrase").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Keep this identity" }).click();
+  await expect(page.getByTestId("recipient")).toHaveText(recipient, { timeout: 60_000 });
+
+  // A new page load is locked: the file asks for the passphrase, then opens.
+  await page.goto(`/repo/${id}/Open/note.md.age`);
+  await page.getByLabel("Passphrase").fill("not the passphrase");
+  await page.getByRole("button", { name: "Unlock and open" }).click();
+  await expect(page.getByText("That passphrase does not open the identity.")).toBeVisible({ timeout: 60_000 });
+  await page.getByLabel("Passphrase").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Unlock and open" }).click();
+  const plain = page.getByRole("textbox", { name: "note.md", exact: true });
+  await expect(plain).toContainText("# Plain-named secret", { timeout: 60_000 });
+  await expect(plain).toHaveAttribute("contenteditable", "false");
+
+  // Hidden on request, and opened again.
+  await page.getByRole("button", { name: "Hide" }).click();
+  await expect(plain).toHaveCount(0);
+  await page.getByRole("button", { name: "Open" }).click();
+  await expect(page.getByRole("textbox", { name: "note.md", exact: true })).toContainText("only ever readable in the browser");
+
+  // The id-named vault: the real name is inside the container and is what the page shows.
+  await page.goto(`/repo/${id}/Sealed`);
+  await expect(page.getByRole("list", { name: "Folder contents" })).toContainText(sealedName);
+  await page.getByRole("link", { name: sealedName }).click();
+  // The link is a navigation inside the same page load, which is locked (the load before it was the vault's list): unlocked here, it stays so for the next.
+  await page.getByLabel("Passphrase").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Unlock and open" }).click();
+  await expect(page.getByRole("textbox", { name: "Plan.md", exact: true })).toContainText("its real name is inside the container", { timeout: 60_000 });
+
+  // A file for someone else's key is refused in words, and shows nothing.
+  await page.goto(`/repo/${id}/Open/not-yours.md.age`);
+  await page.getByLabel("Passphrase").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Unlock and open" }).click();
+  await expect(page.getByText("This identity cannot open the file")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText("not for this identity")).toHaveCount(0);
+
+  // Nothing the server saw or said holds a plaintext, the passphrase or the key; the policy was kept.
+  // (The check looks at what was said: the ciphertext itself was among it, so an empty record would not pass.)
+  expect(answers.filter((answer) => answer.includes("/ciphertext?") && answer.includes("age-encryption.org/v1")).length).toBeGreaterThanOrEqual(3);
+  const everything = [...sent, ...answers].join("\n");
+  for (const forbidden of [PLAIN.slice(2, 20), SEALED.slice(2, 18), "Plan.md", "not for this identity", PASSPHRASE, new TextDecoder().decode(secret).slice(0, 24)]) {
+    expect(everything, forbidden).not.toContain(forbidden);
+  }
+  expect(await page.evaluate(() => (window as unknown as { __violations: string[] }).__violations)).toEqual([]);
+
+  // Only the signed-in owner is handed the bytes.
+  const anonymous = await page.context().browser()!.newContext({ baseURL: BASE });
+  expect((await anonymous.request.get(`/api/connections/${id}/ciphertext?path=Open/note.md.age`, { failOnStatusCode: false })).status()).toBe(401);
+  await anonymous.close();
+  expect((await page.request.get(`/api/connections/${id}/ciphertext?path=Open/recipients.txt`, { failOnStatusCode: false })).status()).toBe(404);
+  expect((await page.request.get(`/api/connections/${id}/ciphertext?path=Open/note.md.age`)).status()).toBe(200);
 });

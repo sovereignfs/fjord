@@ -14,11 +14,12 @@ import { UndoBanner } from "./UndoBanner";
 import type { HeaderInfo } from "../document";
 import { type DraftOfNote, NoteView } from "./NoteView";
 import { UpstreamChanged } from "./UpstreamChanged";
+import { EncryptedFile } from "../../keys/screens/EncryptedFile";
 
 /**
  * A folder of a vault, or one file of it, as a list (DESIGN.md §8). What can be opened is decided from the name alone,
  * so nothing is downloaded to draw it: a document (`*.fj.md`) and a note (any other `.md`) are links; any other file is
- * greyed out; and everything in an encrypted vault is locked, with its name and no way in (phase 2).
+ * greyed out; and an encrypted file is a link with a lock, opened in the browser with the identity kept there (phase 2).
  */
 export function FolderView({
   connectionId,
@@ -85,7 +86,7 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []}
           remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document") ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -145,6 +146,8 @@ const KIND_LABEL: Record<FileKind, string> = {
 };
 
 const openable = (kind: FileKind) => kind === "document" || kind === "note";
+/** An encrypted file is a link too (ROADMAP 2b.2): its page asks for the identity that opens it. */
+const decryptable = (kind: FileKind) => kind === "payload";
 const leaf = (relative: string) => relative.slice(relative.lastIndexOf("/") + 1);
 
 function FileRow({ connectionId, vault, file }: { connectionId: number; vault: string; file: ClassifiedFile }) {
@@ -159,11 +162,18 @@ function FileRow({ connectionId, vault, file }: { connectionId: number; vault: s
       </span>
     );
   }
-  // Greyed out, not linked: nothing opens it in this version. An encrypted vault's files are locked besides.
-  const locked = file.kind === "payload";
+  if (decryptable(file.kind)) {
+    return (
+      <span>
+        <Icon name="lock" aria-label="Encrypted" /> <a href={repositoryHref(connectionId, vault, ...file.relative.split("/"))}>{name}</a> <Badge>{KIND_LABEL[file.kind]}</Badge>
+        {size}
+      </span>
+    );
+  }
+  // Greyed out, not linked: nothing opens it in this version.
   return (
-    <span aria-disabled="true" style={{ opacity: 0.6 }} title={locked ? "Encrypted: files in encrypted vaults cannot be opened in this version" : "This kind of file cannot be opened in this version"}>
-      <Icon name={locked ? "lock" : "file"} aria-label={locked ? "Locked" : "Not openable"} /> {name}
+    <span aria-disabled="true" style={{ opacity: 0.6 }} title="This kind of file cannot be opened in this version">
+      <Icon name="file" aria-label="Not openable" /> {name}
       {KIND_LABEL[file.kind] !== "" ? <span className={styles.itemMeta}> · {KIND_LABEL[file.kind]}</span> : null}
       {size}
     </span>
@@ -174,6 +184,7 @@ function FileCard({
   connectionId,
   file,
   encrypted,
+  naming,
   note,
   draft,
   preview,
@@ -186,6 +197,8 @@ function FileCard({
   connectionId: number;
   file: ClassifiedFile;
   encrypted: boolean;
+  /** How the vault names its files: an `id`-named vault holds its files in containers (spec 6.4). */
+  naming: "plain" | "id";
   note: NoteText | { ok: false; reason: "problem"; message: string } | undefined;
   draft: DraftOfNote | null;
   preview: Preview;
@@ -229,8 +242,10 @@ function FileCard({
         <Alert variant="info" heading="Not opened">
           This {file.kind === "document" ? "document" : "note"} could not be read just now. Try again in a moment.
         </Alert>
+      ) : file.kind === "payload" ? (
+        <EncryptedFile connectionId={connectionId} path={file.path} naming={naming} logical={file.logical} />
       ) : encrypted ? (
-        <Alert variant="info" heading="Locked">Files in an encrypted vault cannot be opened in this version.</Alert>
+        <Alert variant="info" heading="Locked">This file is in an encrypted vault but is not an encrypted file, so it cannot be opened.</Alert>
       ) : (
         <Alert variant="info" heading="Not openable">This kind of file cannot be opened in this version; it is kept in the repository as it is.</Alert>
       )}

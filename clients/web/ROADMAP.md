@@ -93,7 +93,7 @@ P4 is the longest pole; 1a needs P3–P5, 1b needs P1, P2 and P4; 1a.10 needs P6
 
 ## Phase 2 — encrypted files
 
-Planned on 2026-10-31; the prerequisites (P7, P8) and the keys in the browser (2a) are built, the reading and writing of encrypted files (2b) and sealed shares (2c) are not. What it promises and what it does not is in [`web-2.md`](../../docs/epics/web-2.md). The prerequisites need a Rust toolchain.
+Planned on 2026-10-31; the prerequisites (P7, P8) and the keys in the browser (2a) and opening encrypted files (2b.1, 2b.2) are built; writing them (2b.3 to 2b.6) and sealed shares (2c) are not. What it promises and what it does not is in [`web-2.md`](../../docs/epics/web-2.md). The prerequisites need a Rust toolchain.
 
 | # | Task | Status |
 | --- | --- | --- |
@@ -101,8 +101,8 @@ Planned on 2026-10-31; the prerequisites (P7, P8) and the keys in the browser (2
 | [P8](../../docs/epics/web-2.md#p8-fjord-wasm-encrypt-decrypt-pack-and-unpack) | `fjord-wasm`: encrypt, decrypt, pack and unpack | ✅ Done |
 | [2a.1](../../docs/epics/web-2.md#2a1-identities) | Identities | ✅ Done |
 | [2a.2](../../docs/epics/web-2.md#2a2-content-security-policy-for-webassembly) | Content-Security-Policy for WebAssembly | ✅ Done |
-| [2b.1](../../docs/epics/web-2.md#2b1-browse-encrypted-vaults) | Browse encrypted vaults | 📋 Planned |
-| [2b.2](../../docs/epics/web-2.md#2b2-open) | Open | 📋 Planned |
+| [2b.1](../../docs/epics/web-2.md#2b1-browse-encrypted-vaults) | Browse encrypted vaults | ✅ Done |
+| [2b.2](../../docs/epics/web-2.md#2b2-open) | Open | ✅ Done |
 | [2b.3](../../docs/epics/web-2.md#2b3-edit-and-drafts) | Edit and drafts | 📋 Planned |
 | [2b.4](../../docs/epics/web-2.md#2b4-create-in-encrypted-vaults) | Create in encrypted vaults | 📋 Planned |
 | [2b.5](../../docs/epics/web-2.md#2b5-rename-move-and-delete) | Rename, move and delete | 📋 Planned |

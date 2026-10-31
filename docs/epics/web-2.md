@@ -78,7 +78,7 @@ The module needs `'wasm-unsafe-eval'` in `script-src` and nothing broader. Keep 
 
 ### 2b.1 Browse encrypted vaults
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** DESIGN §8; spec §6.2, §6.4
 
@@ -86,15 +86,21 @@ Today an encrypted vault is listed with a lock and nothing opens (1a.11). Show i
 
 **Accepts when:** both namings are listed correctly against the conformance fixtures; nothing is decrypted before the person asks to open a file.
 
+- **Done as:** the listing was already there from 1a.11 (`discovery.json` holds both namings and the reading is held to it, `repository.test.ts`): a `plain` vault's files by their names without the suffix, an `id` vault's by their ids, all from the tree and none read. What changed is that each encrypted file is now a link, with a lock (`FolderView.tsx`), to the page that opens it (2b.2). In an `id` vault the list shows the id, not the name: the name is inside the container, and decrypting every file to draw a folder is not done (the page of a file shows the real name once it is opened).
+
 ### 2b.2 Open
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** DESIGN §9, §10
 
 The server returns the ciphertext (the blob, by the existing read); the browser decrypts it with the unlocked identity, unpacks a container, and gives the plaintext to the same editors as phase 1. A file the identity is not a recipient of says so, and shows nothing.
 
 **Accepts when:** a document encrypted by the CLI opens, in both namings; a file for another recipient is refused with that reason; the server's logs and responses hold no plaintext (a test greps them).
+
+- **Done as:** `GET /api/connections/<id>/ciphertext?path=` (`src/encrypted/`) hands the owner one encrypted payload of an encrypted vault, as stored (no key, nothing decrypted, `no-store`, at most 25 MB); a note in a plaintext vault, a file that is not there and another account's connection are the same 404, and the path is validated before anything is read. The file's page (`EncryptedFile.tsx`, in the file view of `/repo/…`) fetches it, decrypts it with the identity kept in the browser (`KeyStore.with`: the secret is lent for the call), unpacks the container of an `id` vault, and shows the text read-only in the note editor under the file's real name, or says that it is not text. A locked identity asks for its passphrase on the page; none sends the person to the Keys page; a file for another key is refused in words and shows nothing. **Hide** drops the text; the plaintext bytes are wiped as soon as they are a string; locking by itself (the quiet period) hides it too.
+- **Tested:** `src/encrypted/http.test.ts` (26: who may ask, what may be asked, each refusal; the sign-in and path rules switched off to see their tests fail) and, in Chromium, a file encrypted in Node by the same module the CLI's format shares: a `plain` file and an `id` file in a container (its name read from inside), a wrong passphrase, a file for another key, hide and open again, and the server's requests and answers searched for the plaintext, the file name, the passphrase and the key (none), the ciphertext seen among them, no policy violation, and the route's 401 and 404.
+- **Not here:** editing (2b.3); documents shown in the visual editor (they are shown as Markdown, read-only, in the note editor); a file shared to someone else (a sealed share is 2c.1); opening with the CLI-made fixtures of `tests/fixtures/` rather than ones made by the module (the module is held to the real `age` both ways in P8).
 
 ### 2b.3 Edit and drafts
 
