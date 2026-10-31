@@ -17,9 +17,13 @@ repository.workspace = true
 # discovery from a list of paths, identifiers and timestamps from a clock and a random source the
 # caller supplies. That is what compiles to WebAssembly (`crates/fjord-wasm`), where there is no
 # filesystem, no system clock (it panics) and no random source the crate may assume.
+#
+# `crypto` is the part of that which needs no machine: `age` and the `tar` container over bytes in memory, with no
+# disk, no clock and no terminal. `native` is `crypto` and the rest. The browser build takes `crypto` alone.
 [features]
 default = ["native"]
-native = ["dep:age", "dep:tar", "dep:zeroize", "ulid/std"]
+native = ["crypto", "ulid/std"]
+crypto = ["dep:age", "dep:tar", "dep:zeroize"]
 
 [dependencies]
 serde.workspace = true

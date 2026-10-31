@@ -45,11 +45,11 @@ pub mod path;
 pub mod scaffold;
 pub mod scalar;
 
-// What needs a real machine: a disk, `age`, `tar`. Not in the pure subset, which is what compiles to
-// WebAssembly (see this crate's `Cargo.toml`).
-#[cfg(feature = "native")]
+// What needs a real machine (a disk) is `native`; `age` and `tar` over bytes in memory are `crypto`, which the pure subset
+// can take too (see this crate's `Cargo.toml`).
+#[cfg(feature = "crypto")]
 pub mod container;
-#[cfg(feature = "native")]
+#[cfg(feature = "crypto")]
 pub mod crypto;
 #[cfg(feature = "native")]
 pub mod repair;

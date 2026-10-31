@@ -250,7 +250,7 @@ pub fn object_has(map: &Map<String, Value>, key: &str) -> bool {
 // --- Recipients ----------------------------------------------------------
 
 /// What one line of a recipients file declares. Spec §6.2.
-#[cfg(feature = "native")]
+#[cfg(feature = "crypto")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RecipientKind {
     /// An `age1…` X25519 recipient: the form §6.2 requires.
@@ -264,7 +264,7 @@ pub enum RecipientKind {
 }
 
 /// One significant line of a recipients file.
-#[cfg(feature = "native")]
+#[cfg(feature = "crypto")]
 #[derive(Debug, Clone)]
 pub struct RecipientLine {
     /// 1-based, so it can be reported to a user as an editor would show it.
@@ -274,19 +274,19 @@ pub struct RecipientLine {
 }
 
 /// bech32's character set, which excludes `1`, `b`, `i` and `o`.
-#[cfg(feature = "native")]
+#[cfg(feature = "crypto")]
 const BECH32: &[u8] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 
 /// Total length of an `age1…` X25519 recipient: `age1` plus 58 data
 /// characters.
-#[cfg(feature = "native")]
+#[cfg(feature = "crypto")]
 const X25519_LENGTH: usize = 62;
 
 /// Classify one line. `None` for a blank line or a comment, both of which
 /// §6.2 says MUST be ignored.
 ///
 /// Needs `age` to check a key's checksum, so it is not in the pure subset.
-#[cfg(feature = "native")]
+#[cfg(feature = "crypto")]
 pub fn classify_recipient(line: &str) -> Option<RecipientKind> {
     let trimmed = line.trim();
     if trimmed.is_empty() || trimmed.starts_with('#') {
@@ -329,7 +329,7 @@ pub fn classify_recipient(line: &str) -> Option<RecipientKind> {
 }
 
 /// Classify every significant line of a recipients file. Spec §6.2.
-#[cfg(feature = "native")]
+#[cfg(feature = "crypto")]
 pub fn parse_recipients(text: &str) -> Vec<RecipientLine> {
     text.lines()
         .enumerate()
@@ -448,14 +448,14 @@ mod tests {
         assert!(!absent.has(field::ENCRYPTION));
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "crypto")]
     #[test]
     fn comments_and_blank_lines_are_ignored() {
         let file = "# a comment\n\n   \n  # indented comment\n";
         assert!(parse_recipients(file).is_empty());
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "crypto")]
     #[test]
     fn classifies_an_x25519_recipient() {
         let key = crate::crypto::generate_identity().recipient;
@@ -463,7 +463,7 @@ mod tests {
         assert_eq!(classify_recipient(&key), Some(RecipientKind::X25519));
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "crypto")]
     #[test]
     fn a_key_with_the_right_shape_but_a_bad_checksum_is_malformed() {
         // Right prefix, right length, right alphabet — and not a key. This
@@ -479,7 +479,7 @@ mod tests {
         assert_eq!(classify_recipient(&typo), Some(RecipientKind::Malformed));
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "crypto")]
     #[test]
     fn rejects_an_age_recipient_of_the_wrong_shape() {
         // Right prefix, too short.
@@ -492,7 +492,7 @@ mod tests {
         assert_eq!(classify_recipient(&bad), Some(RecipientKind::Malformed));
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "crypto")]
     #[test]
     fn classifies_ssh_and_passphrase_recipients() {
         assert_eq!(
@@ -517,7 +517,7 @@ mod tests {
         );
     }
 
-    #[cfg(feature = "native")]
+    #[cfg(feature = "crypto")]
     #[test]
     fn line_numbers_are_one_based_and_skip_comments() {
         let file = "# comment\nage1bad\n\nssh-rsa AAAA\n";

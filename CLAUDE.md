@@ -159,8 +159,11 @@ fjord/
 
 **`fjord-core` must stay portable.** It is compiled into the Tauri
 desktop app, iOS/Android via FFI, and the web client via WASM
-(`crates/fjord-wasm`). It has two builds: the default `native` feature is
-everything, and without it (`default-features = false`) it is the **pure
+(`crates/fjord-wasm`). It has three builds: the default `native` feature is
+everything (it includes `crypto`), `crypto` is `age` and the `tar` container over
+bytes in memory (the browser takes it, with `getrandom`'s `js` source chosen in
+`crates/fjord-wasm` and not here), and without either (`default-features = false`)
+it is the **pure
 subset** (manifests, documents, path rules, discovery from a listing,
 identifiers from a supplied clock and randomness) that compiles to
 `wasm32-unknown-unknown`. Anything that reads a disk or needs `age` or `tar`

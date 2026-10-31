@@ -17,16 +17,21 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-# The pure subset: no filesystem, no `age`, no `tar`, no clock and no random source of its own.
+# The pure subset (no filesystem, no clock and no random source of its own) and `crypto`: `age` and the `tar` container over
+# bytes in memory (ROADMAP web P7).
 #
 # `>=` and not an exact version: the CLI's release bumps `fjord-core`, and this crate has its own
 # lockfile and no part in that script, so a pin here would break the release PR's CI. It always builds
 # against the `fjord-core` next to it (the path), whatever that version is.
-fjord-core = { path = "../fjord-core", version = ">=0.3.1", default-features = false }
+fjord-core = { path = "../fjord-core", version = ">=0.3.1", default-features = false, features = ["crypto"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 # Pinned exactly. The `wasm-bindgen` command line tool that makes the JavaScript glue must be the same
 # version as this crate, or it refuses the module: build.sh checks.
 wasm-bindgen = "=0.2.129"
+# `age` draws its randomness from `getrandom`, which on wasm32-unknown-unknown has no source of its own: `js` makes it the
+# browser's (and Node's) `crypto.getRandomValues`. Here and not in `fjord-core`, so the CLI's lockfile and audit stay free of
+# `wasm-bindgen`. The pure subset still takes its clock and randomness as arguments; only `age` reaches for its own.
+getrandom = { version = "0.2", features = ["js"] }
 
 [profile.release]
 # A page downloads this: size over speed.

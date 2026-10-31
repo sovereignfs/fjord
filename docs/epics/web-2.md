@@ -19,13 +19,16 @@ The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients
 
 ### P7 `fjord-core`: age and the tar container in the pure subset
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** DESIGN §2; spec §6
 
 Today `age`, `tar` and the identity types are behind the `native` feature (root `CLAUDE.md`, Architecture). Give them a feature of their own that builds for `wasm32-unknown-unknown`: no `std::fs`, randomness and the clock passed in (as `new_ulid_from` does), `getrandom` with its JS source only in the wasm build. scrypt (a passphrase-protected identity) is slow: check its cost in the browser before relying on it.
 
 **Accepts when:** `cargo build --target wasm32-unknown-unknown` passes with the feature on; the existing tests and the `age` cross-validation job pass unchanged; the pure subset still builds without it.
+
+- **Done as:** a `crypto` feature (`age`, `tar`, `zeroize`) that `native` includes, gating `crypto`, `container` and the recipients' parser in `manifest` (which uses `age` to check a key's checksum). `crypto.rs` and `container.rs` were already over bytes in memory, so nothing in them changed. `fjord-wasm` takes `crypto` and chooses `getrandom` 0.2's `js` source (the browser's and Node's `crypto.getRandomValues`) in its own Cargo.toml, so the CLI's lockfile and `cargo deny` stay free of `wasm-bindgen`. Checked: the three builds (`native`, `crypto` alone, neither) on the host, and `fjord-wasm` for `wasm32-unknown-unknown`; fmt, clippy and the 258 core tests pass.
+- **Not as planned:** randomness is not supplied by the caller for encryption: `age` 0.12 draws its own file key and ephemeral secret, so the wasm build needs `getrandom` there. The rest of the pure subset still takes its clock and randomness as arguments.
 
 ### P8 `fjord-wasm`: encrypt, decrypt, pack and unpack
 

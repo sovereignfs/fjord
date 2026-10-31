@@ -97,7 +97,7 @@ Planned on 2026-10-31; nothing built. What it promises and what it does not is i
 
 | # | Task | Status |
 | --- | --- | --- |
-| [P7](../../docs/epics/web-2.md#p7-fjord-core-age-and-the-tar-container-in-the-pure-subset) | `fjord-core`: age and the tar container in the pure subset | 📋 Planned |
+| [P7](../../docs/epics/web-2.md#p7-fjord-core-age-and-the-tar-container-in-the-pure-subset) | `fjord-core`: age and the tar container in the pure subset | ✅ Done |
 | [P8](../../docs/epics/web-2.md#p8-fjord-wasm-encrypt-decrypt-pack-and-unpack) | `fjord-wasm`: encrypt, decrypt, pack and unpack | 📋 Planned |
 | [2a.1](../../docs/epics/web-2.md#2a1-identities) | Identities | 📋 Planned (§19 #14) |
 | [2a.2](../../docs/epics/web-2.md#2a2-content-security-policy-for-webassembly) | Content-Security-Policy for WebAssembly | 📋 Planned |
