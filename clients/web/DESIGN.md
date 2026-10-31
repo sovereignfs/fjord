@@ -348,6 +348,20 @@ browser.
   its own head is accepted when the token can write and refused (403) when it cannot, which a first
   real connection confirms.
 
+### Connecting through the GitHub App, as built (ROADMAP 1a.6)
+
+- **Set up by the operator** (`FJORD_GITHUB_APP_*`, `src/github-app/config.ts`; all or none, and the server will not start on some). `deploy/README.md` says how to register the App. Nothing of it is in the code.
+- **What a person does:** on `/repositories`, **Install on GitHub**; on GitHub they install the App and **choose the repositories**; they are sent back and find those connected. Doing it again connects the ones added since.
+- **The way back is checked twice** (`src/github-app/install.ts`, `http.ts`), because an installation's number in an address proves nothing:
+  1. **`state`**: a random value set in an `HttpOnly`, `SameSite=Lax` cookie when they leave and compared when they return. A link someone else made, or a browser that did not start the trip, connects nothing.
+  2. **Whose installation it is**: the App asks for the person's authorisation as they install, and the `code` GitHub returns is traded for a token **of that person**, used once to ask which repositories of *that installation* **they** can reach (`/user/installations/<id>/repositories`). Only those are connected. An installation that is not theirs is a 404 to them, and nothing is connected; a member of an organisation reaches through the App only what GitHub lets them reach themselves. Their token is never stored, and the client secret is used only for that exchange.
+- **No token is kept.** A connection has `kind = app`, and the credential store holds only **which installation** it came through (encrypted, with the connection's lifetime; no migration was needed). `InstallationTokens` (`tokens.ts`) signs a JWT with the App's key (RS256, issued a minute ago, nine minutes long) and asks GitHub for a token for the installation, which lasts an hour; it is kept in memory until five minutes before it expires, asked for once when many requests need it at once, and in no log or error. A removed or suspended installation is `unauthorized` or `forbidden` to the app, which is what a revoked token is.
+- **Each repository is checked as a token's is** (`ConnectionService.addFromInstallation`): it has something in it, and the App can write to it (by trying, `canWrite`). One that fails is left out and counted, and the rest go on; one already connected is counted, and never twice. At most 100 at a time.
+- **The webhook** (`POST /api/webhooks/github`, `webhook.ts`) is let in by its signature alone (`X-Hub-Signature-256`, constant-time, over the exact bytes), refused before it is read otherwise, capped at 5 MB, and never says what failed inside. A `push` forgets the cached trees of every connection that follows that branch of that repository (`ConnectionService.pushed`). Since a tree is cached by commit and never stale, this is hygiene, not correctness; **what the webhook was meant to make free, the head check at every view, is not done**: views still ask GitHub for the head, because a missed delivery would otherwise show a stale repository, and trusting the webhook would need a head cache with its own expiry (later).
+- **A PAT still works beside it.** Both kinds are listed together; disconnecting an App connection stops Fjord using it and leaves the App installed.
+- **Tested** (`src/github-app/*.test.ts`) on all three databases against a git host in memory and a stand-in `fetch` for the two calls that are GitHub's own, with the state check and the person's-own-repositories check each switched off to see the tests fail. **Not yet tested against real GitHub**: a first real installation is the check of the App's settings (the callback URL, that user authorisation during installation is on, Contents: write) and of the exact shape of GitHub's answers.
+- **Not done:** hearing `installation` and `installation_repositories` events, so a repository removed from the App on GitHub stays listed (and fails with a message to reconnect) until disconnected; connecting an installation by its owner's request after approval needs them to come back; a separate `worker` process.
+
 ### Credentials at rest, as built (ROADMAP 1a.8)
 
 - **Envelope encryption** (`src/crypto/`): a credential is encrypted in AES-256-GCM with a random
@@ -471,8 +485,8 @@ repository's default vault.
 - **Cached by commit** (`tree_cache`, both dialects): a commit's tree never changes, so a cached tree is never
   stale; a new head is a new row. The host's answer is kept as it came, `complete` included, and only the latest
   three commits of a connection are kept; disconnecting forgets them. A manifest's text is cached by blob id in
-  memory (bounded). The head is asked for at each view, which is what makes a push show; the webhook that makes
-  that free is 1a.6.
+  memory (bounded). The head is asked for at each view, which is what makes a push show. The `push` webhook (1a.6) forgets the
+  connection's trees but does not yet make that request free (see §7).
 - **What a file is comes from its name** (spec §2, §6.3, §8.4): a document (`*.fj.md`), a note (any other `.md`),
   another file (greyed, phase 1), an encrypted payload, or plaintext where there must be none. The page lists
   each vault with its counts and a lock for an encrypted one. Whether a document or a note is a Fjord Doc at all
@@ -959,7 +973,7 @@ When the file at the branch's head is not the blob a draft started from, the not
 - **Take theirs** throws the draft away (the same call as Discard).
 - **The server decides, not the browser.** The request names the choice and the blob the person was shown, never a text; the merge is made from the blobs. A choice is refused, changing nothing, if the file changed again since (`upstream_moved`), if the draft was typed into meanwhile (`draft_changed`, compare-and-swap on its last edit), or if it is no longer different (`up_to_date`); each makes the page look again. A version that cannot be read as UTF-8 text, or a merge that cannot be kept as a draft (a NUL from the repository, over 1 MB), cannot be combined and the page offers the other two.
 - **Conflicts left in the text.** A text that still has marker lines is a draft like any other, with a warning above it, and its button reads **Save version anyway**: the person is asked, not stopped, since a note may say such lines for its own reasons.
-- **When it is found.** When the page is opened, and when a version is saved: that leads to the same page, with nothing written. The `push` webhook that would flag it while the person is editing needs the GitHub App (ROADMAP 1a.6).
+- **When it is found.** When the page is opened, and when a version is saved: that leads to the same page, with nothing written. The `push` webhook (1a.6) does not yet flag it while the person is editing: it forgets cached trees only.
 - **A note deleted upstream** keeps its draft: the page shows the unsaved text, read-only so that it can be copied out, and Discard. Making a note again from it comes with creating notes (1b.7).
 
 ## 12. Sharing and permissions
@@ -1554,6 +1568,7 @@ standalone output would otherwise prune it.
 | 2026-10-22 | An account-based app at `fjord.sovereign.fs`, landing page for visitors, the default repository for users | The anonymous "scratchpad" playground (abandoned) |
 | 2026-10-22 | Auth: better-auth, local (password + passkeys + TOTP) and/or Sovereign OIDC, by environment | — |
 | 2026-10-22 | GitHub App, with a fine-grained PAT fallback; provider interface for other hosts | OAuth App (scope reaches every private repo); PAT only |
+| 2026-10-31 | An App installation is connected only for the repositories the signed-in person can reach themselves, shown by their own one-use token from the App's user authorisation, behind a `state` cookie; the connection keeps which installation, never a token | Trusting the installation id in the address (any account could connect any installation); a picker inside Fjord (GitHub already has one) |
 | 2026-10-22 | Documents are `*.fj.md`, notes any other `.md` | A new `.fjmd` extension (not rendered by GitHub, hidden by Obsidian); a frontmatter field (needs every file read to tell) |
 | 2026-10-22 | Routes `/doc/<id>` and `/note/<id>`; path route until a note has an id | — |
 | 2026-10-26 | The routes are spelled out: `/doc/<id>`, `/note/<id>` and `/repo/<connection>/<path>` | Single letters (`/d/`, `/n/`, `/p/`): shorter, but not readable in a link someone shares |

@@ -13,6 +13,8 @@ export interface ConnectionRow {
   branch: string;
   createdAt: number;
   isDefault: boolean;
+  /** `app`: through the GitHub App. Absent or `pat`: through an access token. */
+  kind?: "pat" | "app";
 }
 
 /** The repositories this account has connected, each with a way to disconnect it. */
@@ -22,7 +24,7 @@ export function ConnectionList({ connections }: { connections: ConnectionRow[] }
 
   async function onDisconnect(connection: ConnectionRow) {
     const label = `${connection.owner}/${connection.name}`;
-    if (!window.confirm(`Disconnect ${label}? Fjord will forget its access token. Nothing in the repository changes.`)) return;
+    if (!window.confirm(`Disconnect ${label}? ${connection.kind === "app" ? "Fjord will stop using the GitHub App for it; the App stays installed on GitHub until you remove it there." : "Fjord will forget its access token."} Nothing in the repository changes.`)) return;
     setError(null);
     const response = await fetch(`/api/connections/${connection.id}`, { method: "DELETE" });
     if (!response.ok && response.status !== 404) {

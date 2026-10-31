@@ -13,6 +13,8 @@ section.
 
 ### Added
 
+- **Connect repositories through a GitHub App** (ROADMAP 1a.6): *Install on GitHub* on Repositories, choose the repositories there, and they are connected, with no token to make or keep. Fjord asks GitHub for a short-lived token when it needs one. Only the repositories the signed-in person can reach themselves are connected, shown by their own one-use authorisation, and only by a trip this browser started. The operator registers the App and sets `FJORD_GITHUB_APP_ID`, `_SLUG`, `_CLIENT_ID`, `_CLIENT_SECRET`, `_WEBHOOK_SECRET` and `_PRIVATE_KEY` (all or none; see `deploy/README.md`). A signed `push` webhook at `/api/webhooks/github` forgets the cached trees of the repository. Connecting with a token still works beside it.
+
 - **A draft nobody has edited for five minutes is saved as a version** (ROADMAP 1b.13), by a worker that runs inside the web process once a minute, with the same commit as Save version: on top of the
   draft's base only, never forced. The author is the repository's owner if they edited the draft, else the first editor, and the others are `Co-authored-by:`. Conflict markers and a file changed upstream
   are left to the person. `FJORD_IDLE_VERSION_MINUTES` sets the quiet period (1 to 1440, default 5; `0` turns it off); `FJORD_WORKER=off` keeps a process from running the worker.

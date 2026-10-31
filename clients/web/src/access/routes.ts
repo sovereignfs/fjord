@@ -56,6 +56,10 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/auth/[...all]", methods: { GET: { kind: "public" }, POST: { kind: "public" } } },
   // Entering by a share link: the proxy sends `/doc/<id>?token=` here for the cookie and the redirect (1c.4); a token that works is the only way in.
   { route: "/api/links/enter", methods: { GET: { kind: "public" } } },
+  // Installing the GitHub App (1a.6): a signed-in person leaves for GitHub and comes back, with a `state` this browser was given. The webhook is GitHub's, not a person's: it is let in by its signature alone.
+  { route: "/api/github-app/install", methods: { GET: { kind: "account" } } },
+  { route: "/api/github-app/callback", methods: { GET: { kind: "account" } } },
+  { route: "/api/webhooks/github", methods: { POST: { kind: "public" } } },
   { route: "/api/connections", methods: { GET: { kind: "account" }, POST: { kind: "account" } } },
   { route: "/api/connections/[id]", methods: { DELETE: { kind: "account" } } },
   { route: "/api/connections/[id]/default", methods: { POST: { kind: "account" } } },

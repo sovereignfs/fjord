@@ -23,7 +23,8 @@ import { parseRepository } from "./repository-url";
 export interface ConnectionInfo {
   id: number;
   provider: "github";
-  kind: "pat";
+  /** `pat`: a personal access token the person gave. `app`: an installation of the instance's GitHub App (ROADMAP 1a.6). */
+  kind: "pat" | "app";
   owner: string;
   name: string;
   branch: string;
@@ -44,16 +45,29 @@ export interface Added {
   warnings: string[];
 }
 
+/** What came of connecting the repositories an installation reaches. */
+export interface InstallationResult {
+  added: ConnectionInfo[];
+  /** Connected before by this account. */
+  already: RepositoryRef[];
+  /** Left out, and why: `empty` (nothing in it yet), `read_only` (the App was not given Contents: write), `unavailable`. */
+  skipped: { ref: RepositoryRef; reason: "empty" | "read_only" | "unavailable" }[];
+}
+
 export interface ConnectionServiceOptions {
   database: Database;
   credentials: CredentialStore;
   /** A provider for GitHub with this personal access token. */
   github: (token: string) => Provider;
+  /** A provider for one installation of the instance's GitHub App, which renews its own short-lived tokens. Absent when there is no App. */
+  githubApp?: (installationId: number) => Provider;
   /** For tests. */
   now?: () => number;
 }
 
 const PURPOSE = "github-pat";
+/** What the credential store holds for an App connection: not a secret, but the installation to ask GitHub for tokens for, kept apart from the repository and with the same lifetime. */
+const INSTALLATION_PURPOSE = "github-app-installation";
 const MAX_TOKEN_LENGTH = 1000;
 
 const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.connection : sqliteSchema.connection);
@@ -65,10 +79,11 @@ const linkShares = (database: Database) => (database.dialect === "postgres" ? po
 const commentTables = (database: Database) => (database.dialect === "postgres" ? [postgresSchema.commentReply, postgresSchema.commentThread, postgresSchema.commentActivity, postgresSchema.commentClosed] : [sqliteSchema.commentReply, sqliteSchema.commentThread, sqliteSchema.commentActivity, sqliteSchema.commentClosed]);
 const deletions = (database: Database) => (database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion);
 const defaults = (database: Database) => (database.dialect === "postgres" ? postgresSchema.accountDefault : sqliteSchema.accountDefault);
-const COLUMNS = sql.raw('id, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", default_vault AS "defaultVault"');
+const COLUMNS = sql.raw('id, kind, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", default_vault AS "defaultVault"');
 
 interface Row {
   id: number;
+  kind: string;
   owner: string;
   name: string;
   branch: string;
@@ -80,7 +95,7 @@ interface Row {
 const toInfo = (row: Row, isDefault: boolean): ConnectionInfo => ({
   id: Number(row.id),
   provider: "github",
-  kind: "pat",
+  kind: row.kind === "app" ? "app" : "pat",
   owner: row.owner,
   name: row.name,
   branch: row.branch,
@@ -93,12 +108,14 @@ export class ConnectionService {
   private readonly database: Database;
   private readonly credentials: CredentialStore;
   private readonly github: (token: string) => Provider;
+  private readonly githubApp: ((installationId: number) => Provider) | undefined;
   private readonly now: () => number;
 
   constructor(options: ConnectionServiceOptions) {
     this.database = options.database;
     this.credentials = options.credentials;
     this.github = options.github;
+    this.githubApp = options.githubApp;
     this.now = options.now ?? Date.now;
   }
 
@@ -210,8 +227,7 @@ export class ConnectionService {
     const connection = await this.get(accountId, id);
     if (!connection) return undefined;
     const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
-    const { secret } = await this.credentials.get((row as Row).credentialId);
-    return { provider: this.github(secret), connection };
+    return { provider: await this.providerOf(row as Row), connection };
   }
 
   /**
@@ -222,8 +238,88 @@ export class ConnectionService {
   async providerForShare(id: number): Promise<{ provider: Provider; id: number; ref: { owner: string; name: string }; branch: string; ownerId: string } | undefined> {
     const row = await dbGet<Row & { accountId: string }>(this.database, sql`SELECT ${COLUMNS}, account_id AS "accountId" FROM ${table(this.database)} WHERE id = ${id}`);
     if (!row) return undefined;
+    return { provider: await this.providerOf(row), id, ref: { owner: row.owner, name: row.name }, branch: row.branch, ownerId: row.accountId };
+  }
+
+  /** The provider a connection is used through: its token, or its installation's tokens. */
+  private async providerOf(row: Row): Promise<Provider> {
     const { secret } = await this.credentials.get(row.credentialId);
-    return { provider: this.github(secret), id, ref: { owner: row.owner, name: row.name }, branch: row.branch, ownerId: row.accountId };
+    if (row.kind !== "app") return this.github(secret);
+    if (!this.githubApp) throw new ConnectionError("not_configured", "This repository is connected through a GitHub App, which this instance is no longer set up with.");
+    return this.githubApp(Number(secret));
+  }
+
+  /**
+   * Connect repositories that an installation of the GitHub App reaches (ROADMAP 1a.6), for an account that has been shown to be
+   * able to reach them (`src/github-app/install.ts` does that before this is called). Each one is checked as a token's repository is:
+   * it must have something in it and the App must be able to write to it. One that fails is left out and said so; the rest go on.
+   * No token is kept, only which installation: tokens are asked for when they are needed.
+   */
+  async addFromInstallation(accountId: string, installationId: number, provider: Provider, repositories: RepositoryRef[]): Promise<InstallationResult> {
+    const result: InstallationResult = { added: [], already: [], skipped: [] };
+    for (const wanted of repositories) {
+      if (await this.find(accountId, wanted)) {
+        result.already.push(wanted);
+        continue;
+      }
+      let ref = wanted;
+      let branch: string;
+      try {
+        const repository = await provider.getRepository(wanted);
+        ref = repository.ref;
+        branch = repository.defaultBranch;
+        try {
+          await provider.getHead(ref, branch);
+        } catch (error) {
+          if (isProviderError(error, "not_found")) {
+            result.skipped.push({ ref, reason: "empty" });
+            continue;
+          }
+          throw error;
+        }
+        if (!(await provider.canWrite(ref, branch))) {
+          result.skipped.push({ ref, reason: "read_only" });
+          continue;
+        }
+      } catch (error) {
+        // The whole installation is refused, or limited: that is not one repository's trouble.
+        if (isProviderError(error, "unauthorized") || isProviderError(error, "rate_limited")) throw explain(error, wanted);
+        result.skipped.push({ ref, reason: "unavailable" });
+        continue;
+      }
+
+      const credentialId = await this.credentials.put(INSTALLATION_PURPOSE, String(installationId), this.now());
+      try {
+        const rows = await dbAll<Row>(
+          this.database,
+          sql`INSERT INTO ${table(this.database)} (account_id, provider, kind, owner, name, branch, credential_id, created_at)
+              VALUES (${accountId}, 'github', 'app', ${ref.owner}, ${ref.name}, ${branch}, ${credentialId}, ${this.now()})
+              RETURNING ${COLUMNS}`,
+        );
+        const row = rows[0] as Row;
+        result.added.push(toInfo(row, await this.defaultIfNone(accountId, Number(row.id))));
+      } catch (error) {
+        await this.credentials.remove(credentialId);
+        // Connected a moment ago by another request of this account: the same as before.
+        if (await this.find(accountId, ref)) result.already.push(ref);
+        else throw error;
+      }
+    }
+    return result;
+  }
+
+  /**
+   * A branch of a repository moved (a `push` webhook, ROADMAP 1a.6): forget the trees kept for every connection to it that follows that
+   * branch, whoever's it is, so the next view reads the repository as it now is. Says how many connections it was. A tree is kept by
+   * commit and is never stale, so this costs one read and keeps a repository from holding trees for commits that are gone.
+   */
+  async pushed(ref: RepositoryRef, branch: string): Promise<number> {
+    const rows = await dbAll<{ id: number }>(
+      this.database,
+      sql`SELECT id FROM ${table(this.database)} WHERE provider = 'github' AND owner = ${ref.owner} AND name = ${ref.name} AND branch = ${branch}`,
+    );
+    for (const row of rows) await dbRun(this.database, sql`DELETE FROM ${trees(this.database)} WHERE connection_id = ${Number(row.id)}`);
+    return rows.length;
   }
 
   private async storedDefault(accountId: string): Promise<number | undefined> {
