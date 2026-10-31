@@ -325,6 +325,11 @@ jobs:
       # The pages under test render the editors, which are the package's, built.
       - uses: ./.github/actions/build-editor
 
+      # A page decrypts with the browser build of the module, which the app serves from public/fjord-wasm
+      # (what `pnpm build:wasm` does after build.sh, and the image does in its own way): the keys tests load it.
+      - name: Put the browser build of the module where the app serves it
+        run: node scripts/copy-wasm-web.mjs
+
       # The browser build has to match the Playwright version in the lockfile, so it is
       # fetched here and not baked into anything. `--with-deps` adds the system libraries
       # Chromium needs on a bare runner.
