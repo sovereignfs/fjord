@@ -12,4 +12,4 @@ comes next.
   the decisions behind them.
 - [`ROADMAP.md`](ROADMAP.md): the phases, the tasks, and how each is known to be done.
 
-The format every Fjord client follows is [`spec/SPEC.md`](../../spec/SPEC.md).
+The format every Fjord client follows is [`docs/specs/Fjord.spec.md`](../../docs/specs/Fjord.spec.md).

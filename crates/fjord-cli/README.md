@@ -1,6 +1,6 @@
 # fjord
 
-The reference toolchain for the [Fjord](https://github.com/sovereignfs/fjord/blob/main/spec/SPEC.md) repository
+The reference toolchain for the [Fjord](https://github.com/sovereignfs/fjord/blob/main/docs/specs/Fjord.spec.md) repository
 format — a way to keep your documents in a Git repository you control, with
 optional end-to-end encryption using [age](https://age-encryption.org/v1).
 
@@ -874,6 +874,6 @@ That bargain applies to everyone equally, including the authors: there is
 no contributor licence agreement and no commercial exception, so nobody
 holds rights here that you do not.
 
-**The specification itself remains [CC0](https://github.com/sovereignfs/fjord/blob/main/spec/LICENSE)** — public domain,
+**The specification itself remains [CC0](https://github.com/sovereignfs/fjord/blob/main/docs/specs/Fjord.spec.md#licence)** — public domain,
 deliberately. The format is meant to outlive this implementation, and
 anyone should be able to write another one without asking.

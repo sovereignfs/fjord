@@ -1,8 +1,11 @@
+<!-- SPDX-License-Identifier: CC0-1.0 -->
+
 # The Fjord Repository Format
 
 **Version:** 1 (draft)
 **Status:** Draft. Not yet stable; breaking changes possible until declared stable.
 **Date:** 2026-10-23
+**Licence:** [CC0 1.0](#licence) (public domain)
 
 ---
 
@@ -591,3 +594,23 @@ Reserved, with no defined layout or behaviour yet:
 
 A later version may define these. Version 1 clients MUST ignore, and
 preserve, anything they encounter under `/.fjord/`.
+
+---
+
+## Licence
+
+This specification is dedicated to the public domain under the Creative Commons
+CC0 1.0 Universal Public Domain Dedication.
+
+To the extent possible under law, the authors have waived all copyright and
+related or neighbouring rights to this specification. You can copy, modify,
+distribute and implement it, even for commercial purposes, without asking
+permission.
+
+The full legal text of the dedication is at
+<https://creativecommons.org/publicdomain/zero/1.0/legalcode>.
+
+The rest of this repository, including the reference implementation, is
+licensed under the Mozilla Public License 2.0; see the `LICENSE` file at the
+repository root. The licence of this document is the one stated here, and it
+travels with the document if it is copied or moved.

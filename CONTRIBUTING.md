@@ -85,7 +85,7 @@ affected:
 
 | You changed | What runs |
 | --- | --- |
-| Documentation only: READMEs, CHANGELOGs, `spec/`, the roadmap, `.github` templates | Nothing beyond that first job, a few seconds |
+| Documentation only: READMEs, CHANGELOGs, `docs/`, the roadmaps, `.github` templates | Nothing beyond that first job, a few seconds |
 | `scripts/` only | shellcheck, and the classifier's tests |
 | `crates/` (except a crate's own `README.md` and `CHANGELOG.md`), `schema/`, `tests/`, `Cargo.toml`, `Cargo.lock`, or the workflow itself | The full Rust jobs |
 | `clients/web/` (except its own `README.md`, `CHANGELOG.md`, `CLAUDE.md`, `DESIGN.md`, `ROADMAP.md` and `LICENSE`), or its workflow | Fjord Web's jobs: type-check and build, the tests against sqld, a SQLite file and PostgreSQL, and the browser tests |
@@ -103,7 +103,7 @@ the **`skip-ci`** label. Marking the PR ready runs it.
 
 ## Changing the format
 
-The specification is [`spec/SPEC.md`](spec/SPEC.md) and it is canonical here.
+The specification is [`docs/specs/Fjord.spec.md`](docs/specs/Fjord.spec.md) and it is canonical here.
 A change to the format is one PR that changes the spec, adds or updates a
 fixture under `tests/fixtures/` (every diagnostic has one that triggers exactly
 it), and changes the code. A client that reads Fjord repositories is expected to
@@ -119,7 +119,7 @@ it merges. Contributors do not need to do anything for one.
 
 The reference implementation is licensed under the
 [Mozilla Public License 2.0](LICENSE), the specification is dedicated to the
-public domain under CC0 ([`spec/LICENSE`](spec/LICENSE)), and Fjord Web is
+public domain under CC0 ([the licence section of the spec](docs/specs/Fjord.spec.md#licence)), and Fjord Web is
 licensed under the AGPL-3.0-or-later ([`clients/web/LICENSE`](clients/web/LICENSE)).
 By contributing you agree that your contribution is licensed under the same terms
 as the part of the repository it changes.

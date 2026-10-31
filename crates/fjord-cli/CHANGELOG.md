@@ -125,7 +125,7 @@ already use keep working.
 - **Releases are titled `fjord-cli 0.3.0`,** the component and the version,
   without the date (the date is in this file). Earlier releases keep the
   titles they have.
-- **The specification is no longer described as vendored.** `spec/SPEC.md` is
+- **The specification is no longer described as vendored.** `docs/specs/Fjord.spec.md` is
   the canonical copy.
 
 ## [0.2.0] - 2026-10-21

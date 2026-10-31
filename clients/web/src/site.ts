@@ -7,7 +7,7 @@ export const site = {
   description:
     "Write, share and comment on documents in your browser. Every file is plain Markdown in a Git repository you control, readable without Fjord, with optional end-to-end encryption.",
   repository: "https://github.com/sovereignfs/fjord",
-  specification: "https://github.com/sovereignfs/fjord/blob/main/spec/SPEC.md",
+  specification: "https://github.com/sovereignfs/fjord/blob/main/docs/specs/Fjord.spec.md",
   licence: "AGPL-3.0-or-later",
 } as const;
 

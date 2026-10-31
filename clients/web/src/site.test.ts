@@ -10,7 +10,7 @@ describe("site", () => {
 
   it("links to the source and the specification on GitHub", () => {
     expect(site.repository).toMatch(/^https:\/\/github\.com\/sovereignfs\/fjord$/);
-    expect(site.specification).toBe(`${site.repository}/blob/main/spec/SPEC.md`);
+    expect(site.specification).toBe(`${site.repository}/blob/main/docs/specs/Fjord.spec.md`);
   });
 
   it("sends visitors to two different pages", () => {

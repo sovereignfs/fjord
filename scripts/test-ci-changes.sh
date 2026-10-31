@@ -44,12 +44,13 @@ expect "no changes at all" "$NONE"
 expect "the CLI's changelog" "$NONE" crates/fjord-cli/CHANGELOG.md
 expect "the CLI's README" "$NONE" crates/fjord-cli/README.md
 expect "the root README and the roadmap" "$NONE" README.md ROADMAP.md CLAUDE.md RELEASING.md CONTRIBUTING.md
-expect "the specification alone" "$NONE" spec/SPEC.md spec/LICENSE
+expect "the specification alone" "$NONE" docs/specs/Fjord.spec.md
+expect "the rest of the documentation folder" "$NONE" docs/epics/web-1a.md docs/security-review-phase-1.md docs/README.md
 expect "the PR template and other .github files" "$NONE" .github/PULL_REQUEST_TEMPLATE.md .github/dependabot.yml .github/workflows/audit.yml
 expect "the licence" "$NONE" LICENSE
 expect "deny.toml, which the Audit workflow owns" "$NONE" deny.toml
 expect "dist's config, which its own plan job checks" "$NONE" dist-workspace.toml
-expect "several documents together" "$NONE" ROADMAP.md crates/fjord-cli/CHANGELOG.md spec/SPEC.md
+expect "several documents together" "$NONE" ROADMAP.md crates/fjord-cli/CHANGELOG.md docs/specs/Fjord.spec.md
 expect "Fjord Web's documents" "$NONE" clients/web/README.md clients/web/CHANGELOG.md clients/web/CLAUDE.md clients/web/DESIGN.md clients/web/ROADMAP.md clients/web/LICENSE
 expect "the other clients' plans, which have no code yet" "$NONE" clients/mobile/DESIGN.md clients/mobile/ROADMAP.md clients/mcp/DESIGN.md clients/mcp/ROADMAP.md
 expect "the editors' documents" "$NONE" packages/fjord-editor/README.md packages/fjord-editor/CHANGELOG.md packages/fjord-editor/CLAUDE.md packages/fjord-editor/LICENSE

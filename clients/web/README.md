@@ -12,7 +12,7 @@ the page is a placeholder. The design and the plan are:
 - [`ROADMAP.md`](ROADMAP.md): the phases, the tasks, and how each is known to be done.
 - [`CLAUDE.md`](CLAUDE.md): the conventions for whoever builds it, human or model.
 
-The format every Fjord client follows is [`spec/SPEC.md`](../../spec/SPEC.md).
+The format every Fjord client follows is [`docs/specs/Fjord.spec.md`](../../docs/specs/Fjord.spec.md).
 
 ## Developing
 

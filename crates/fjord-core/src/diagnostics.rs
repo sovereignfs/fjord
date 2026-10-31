@@ -12,7 +12,7 @@
 //! change: add new codes, never renumber or repurpose existing ones. A code
 //! that is withdrawn stays reserved and is never reused.
 //!
-//! Each variant cites the section of `SPEC.md` it enforces, so that a change
+//! Each variant cites the section of `docs/specs/Fjord.spec.md` it enforces, so that a change
 //! to the specification can be traced to the checks it affects.
 //!
 //! # Reserved numbers

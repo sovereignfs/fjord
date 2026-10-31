@@ -16,6 +16,10 @@ section.
 - **`next dev` no longer warns "A Node.js API is used (process.exit)" at every request.** The start-up code that stops a server with a wrong setting is now in
   `instrumentation-node.ts`, which only the Node.js runtime imports, instead of in the file the Edge build also compiles.
 
+### Changed
+
+- The landing page's link to the specification points at its new place, `docs/specs/Fjord.spec.md` (the spec's licence is now stated in the file itself).
+
 ### Security
 
 - **Every page is sent with a Content-Security-Policy** (ROADMAP 1d.5): scripts run only with a nonce made for that request, nothing third-party loads (images,

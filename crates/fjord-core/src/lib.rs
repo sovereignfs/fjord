@@ -4,7 +4,7 @@
 
 //! The Fjord repository format.
 //!
-//! This crate implements the format described in `spec/SPEC.md`: manifests,
+//! This crate implements the format described in `docs/specs/Fjord.spec.md`: manifests,
 //! documents, path rules, `age` encryption, and the conformance checks that
 //! back `fjord verify`.
 //!

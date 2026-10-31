@@ -2,7 +2,7 @@
 
 **Status:** draft, written during the brainstorming and documentation phase
 (2026-10-22). Nothing here is implemented. Where this file and
-[`spec/SPEC.md`](../../spec/SPEC.md) disagree, the spec wins: this is the design
+[`docs/specs/Fjord.spec.md`](../../docs/specs/Fjord.spec.md) disagree, the spec wins: this is the design
 of one client, and the spec is the format every client follows.
 
 [`ROADMAP.md`](ROADMAP.md) turns this into phases and tasks. Much of it mirrors

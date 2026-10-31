@@ -2,7 +2,7 @@
 
 Keep your documents as plain files in a Git repository you control, with
 optional end-to-end encryption using [age](https://age-encryption.org/v1).
-Fjord is a **format**, written down in [`spec/SPEC.md`](spec/SPEC.md), and the
+Fjord is a **format**, written down in [`docs/specs/Fjord.spec.md`](docs/specs/Fjord.spec.md), and the
 tools that read and write it. Anything that follows the specification can open
 a Fjord repository, and a repository stays readable without any of them: the
 files are plain files, and an encrypted one is recovered with `age -d` alone.
@@ -15,10 +15,10 @@ code that implements it is one commit.
 
 | Component | What it is | Status | Install |
 | --- | --- | --- | --- |
-| [`spec/`](spec/SPEC.md) | The repository format. Canonical; CC0. | Draft | — |
+| [`docs/specs/`](docs/specs/Fjord.spec.md) | The repository format. Canonical; CC0. | Draft | — |
 | [`crates/fjord-core`](crates/fjord-core) | The format as a library: manifests, paths, Docs, encryption, `verify`. Built to run anywhere (desktop, mobile, WASM). | Released with the CLI | — |
 | [`crates/fjord-cli`](crates/fjord-cli) | **`fjord`**, the command-line tool. | Released | [Install](crates/fjord-cli/README.md#install) |
-| [`clients/web`](clients/web) | The hosted web client: browse, edit, share and comment on documents. | Building: a placeholder app ([plan](clients/web/ROADMAP.md)) | — |
+| [`clients/web`](clients/web) | The hosted web client: browse, edit, share and comment on documents. | Phase 1 built; encrypted files next ([plan](clients/web/ROADMAP.md)) | — |
 | [`clients/mobile`](clients/mobile) | The iOS and Android client: browse, edit and capture quick notes, offline. | Design ([plan](clients/mobile/ROADMAP.md)) | — |
 | [`clients/mcp`](clients/mcp) | **`fjord-mcp`**: Claude (and later ChatGPT) saves and manages documents in your repository. | Design ([plan](clients/mcp/ROADMAP.md)) | — |
 | `clients/desktop` | The desktop app. | Planned | — |
@@ -58,7 +58,7 @@ cargo fmt --check
 
 Rust 1.88 or newer. [`CLAUDE.md`](CLAUDE.md) is the build brief: the
 invariants nothing may break, the architecture, and what a new component owes
-the rest. [`ROADMAP.md`](ROADMAP.md) records what is done, what is not, and why.
+the rest. [`ROADMAP.md`](ROADMAP.md) records what is done and what is not, and [`docs/`](docs/) holds the specification, the detail of every task and the security reviews.
 [`RELEASING.md`](RELEASING.md) explains how each component is released.
 
 ## Contributing
@@ -71,7 +71,7 @@ rebase and merge. [`CONTRIBUTING.md`](CONTRIBUTING.md) has the rules and
 
 The reference implementation is licensed under the
 [Mozilla Public License 2.0](LICENSE). The specification is dedicated to the
-public domain under [CC0](spec/LICENSE), so that anyone can implement it. Fjord Web
+public domain under [CC0](docs/specs/Fjord.spec.md#licence), so that anyone can implement it. Fjord Web
 ([`clients/web`](clients/web)) is licensed under the
 [AGPL-3.0-or-later](clients/web/LICENSE), because it bundles `@sovereignfs/ui`. The editor
 that Fjord Web and the other clients share (`packages/fjord-editor`, not yet created) is

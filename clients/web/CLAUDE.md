@@ -6,9 +6,10 @@ branch, one draft PR; commits explain why; docs are part of the change; nothing
 goes to `main` directly.
 
 [`DESIGN.md`](DESIGN.md) is the design and [`ROADMAP.md`](ROADMAP.md) the order of
-work. Where this file and the design disagree, the design is right and this file
-should be fixed; where either disagrees with [`spec/SPEC.md`](../../spec/SPEC.md),
-the spec is. Build the roadmap's tasks in order, and check each one's "Accepts when".
+work, as a table; each task's detail (what it is, "Accepts when", and once done how it was done) is in
+[`docs/epics/web-*.md`](../../docs/epics/), which is where a finished task is written up. Where this file and the design disagree, the design is right and this file
+should be fixed; where either disagrees with [`docs/specs/Fjord.spec.md`](../../docs/specs/Fjord.spec.md),
+the spec is. Build the roadmap's tasks in order, and check each one's "Accepts when" (in its epic).
 
 [`AGENTS.md`](AGENTS.md) is written by `next dev` and says this is not the Next.js you
 know: read the guide in `node_modules/next/dist/docs/` before writing Next code. Other
@@ -115,8 +116,8 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
   compatible with AGPL-3.0-or-later, and nothing here is imported by the MPL-2.0
   parts of the repository.
 - **A change to behaviour adds a line under `## [Unreleased]`** in `CHANGELOG.md`.
-  A statement in `README.md`, `DESIGN.md` or `ROADMAP.md` that the change makes
-  false is fixed in the same PR.
+  A statement in `README.md`, `DESIGN.md`, `ROADMAP.md` or the task's epic that the change makes
+  false is fixed in the same PR, and a finished task is marked done in `ROADMAP.md` and written up in its epic.
 
 ## Where things go
 

@@ -1,19 +1,18 @@
 # Fjord Mobile — roadmap
 
-**Status:** planning. Nothing is implemented yet. The design is
-[`DESIGN.md`](DESIGN.md); this file is the order of work and how each piece is
-known to be done. Section numbers (§) refer to `DESIGN.md` unless they say "spec"
+**Status:** design only; no app code yet. The design is
+[`DESIGN.md`](DESIGN.md); this file is the order of work, and the detail of each task is in [`docs/epics/`](../../docs/epics/). Section numbers (§) refer to `DESIGN.md` unless they say "spec"
 or "web".
 
 | | |
 | --- | --- |
-| `done` | Implemented, tested, released. |
-| `next` | Ready to start: its prerequisites are done. |
-| `todo` | Not started. |
-| `open` | Waits on a decision in `DESIGN.md` §18. |
+| ✅ Done | Implemented, tested, released. |
+| ⏳ In progress | Started. |
+| 📋 Planned | Not started (*Next*: its prerequisites are done). |
+| 🚧 Open | Waits on a decision in `DESIGN.md` §N. |
 
 Every task is one branch and one draft PR (root `CLAUDE.md`, Working conventions).
-"Accepts when" is what review checks.
+Each row links to its task in [`docs/epics/`](../../docs/epics/), where it says what the task is, what "accepts when" review checks, and how it was done.
 
 ---
 
@@ -27,14 +26,14 @@ P1 (the spec says `*.fj.md` names a document) and P3 (vault discovery from a
 listing). The part of P4 that injects time and randomness into `fjord-core` is
 needed here too; its WASM build is not.
 
-| # | Task | Accepts when | Status |
-| --- | --- | --- | --- |
-| MP1 | **`fjord-core`: three-way text merge and conflict copies.** A pure-Rust merge of base, ours and theirs (spec §9.1), and the CLI's conflict-copy naming and fresh-id rewrite moved into `fjord-core`, so every client produces the same result without `git merge-file`. Web 1b.10's *combine* can offer it too. | Agrees with `git merge-file` over a corpus of clean and conflicting merges; a conflict copy verifies with the CLI and has a fresh id. Whether `fjord sync` switches to it is §18 #10. **Also the add/add rule** (§12): two different files added at one path are both kept, upstream's in place and ours moved to the next free number, with no conflict; one `id` twice is merged from an empty base. Done as: `fjord_core::merge` (`merge3`, `conflict_copy_path`, `conflict_copy_text`, `add_add`), pure and in the WebAssembly subset; held to the real `git merge-file` by `crates/fjord-cli/tests/merge_agreement.rs` (every one of 2,000 generated merges and 26 written out agree on clean or conflicted and on the text; 3.6% of merges of very repetitive text differ, none losing a change, because git and `fjord-core` may pick different shortest comparisons); `fjord sync` now names its conflict copies through it, and a conflicted `.fj.md` document's copy stays a document. `fjord sync` still merges with `git merge-file` (§18 #10). Not yet exported through `fjord-wasm`. | `done` |
-| MP2 | **`fjord-core`: a note's name from its text** (§9): markers stripped, NFC, 60 characters on a word boundary, spec §5 rules, the date-time fallback, and a free name given the folder's existing names. | Property test: every output passes the path rules and never collides, case-insensitively, with the names it was given. Done as: `fjord_core::naming` (`quick_note_name`, `title_from_text`, `free_name`, `date_time_stem`), pure and in the WebAssembly subset; the caller supplies the local time and the names in the folder. Held by a 20,000-case property test, and each rule seen to fail with it switched off. Not yet exported through `fjord-wasm`: the web client's 1b.7 will need that. | `done` |
-| MP3 | **The engine workspace** (§5): `clients/engine/` with `fjord-client` and `fjord-ffi`, its own lockfile and CI, depending on `crates/fjord-core` by path. | Builds and tests on Linux; the root workspace's lockfile is unchanged. | `open` (§18 #4) |
-| MP4 | **Spike: Expo and uniffi on both platforms.** A throwaway Expo development build calling one `fjord-ffi` function (parse a manifest) through uniffi-bindgen-react-native, on an iOS simulator and an Android emulator. | It runs on both; the cost of each binding approach is written down, and the choice (§5) is confirmed or switched to the native-module fallback. | `todo` |
-| MP5 | **`fjord-client` foundations**: the provider interface, the local store's schema and migrations, and the credential callback (§5, §11, §13). Dependency choices recorded in the root `CLAUDE.md` table. | A fake provider and an empty store pass the engine's contract tests; no token reaches the store or a log line. | `open` (§18 #5) |
-| MP6 | **Component scaffolding**: `clients/mobile` (Expo app, development build, `README.md`, `CHANGELOG.md`, `LICENSE`), its CI workflow with a `changes` job, `scripts/release/mobile.sh`, root layout tables updated. | CI runs only for mobile and engine changes; a placeholder build installs on both platforms; the release component dry-runs. | `todo` |
+| # | Task | Status |
+| --- | --- | --- |
+| [MP1](../../docs/epics/mobile-prerequisites.md#mp1-fjord-core-three-way-text-merge-and-conflict-copies) | `fjord-core`: three-way text merge and conflict copies | ✅ Done |
+| [MP2](../../docs/epics/mobile-prerequisites.md#mp2-fjord-core-a-notes-name-from-its-text) | `fjord-core`: a note's name from its text | ✅ Done |
+| [MP3](../../docs/epics/mobile-prerequisites.md#mp3-the-engine-workspace) | The engine workspace | 🚧 Open (§18 #4) |
+| [MP4](../../docs/epics/mobile-prerequisites.md#mp4-spike-expo-and-uniffi-on-both-platforms) | Spike: Expo and uniffi on both platforms | 📋 Planned |
+| [MP5](../../docs/epics/mobile-prerequisites.md#mp5-fjord-client-foundations) | `fjord-client` foundations | 🚧 Open (§18 #5) |
+| [MP6](../../docs/epics/mobile-prerequisites.md#mp6-component-scaffolding) | Component scaffolding | 📋 Planned |
 
 MP4 comes first: it decides whether the stack in §5 holds before anything is built
 on it. MP1, MP2, MP3, MP5 and 1a.1 are shared with `fjord-mcp`
@@ -45,57 +44,57 @@ MP3–MP6 and P3; 1b needs MP1 and P1; 1c needs MP2.
 
 ### 1a — Connect and browse
 
-| # | Task | Accepts when | Status |
-| --- | --- | --- | --- |
-| 1a.1 | **GitHub provider in the engine** (§6): repositories, head, tree, blob, multi-file commit without force, conditional head checks. | Contract tests pass against recorded GitHub responses and the fake provider; a moved head refuses the branch update. | `todo` |
-| 1a.2 | **The Fjord GitHub App and device flow** (§6): App registered by the owner; sign-in by code; installation page in the system browser; token expiry and refresh settled. | Sign in on both platforms, choose two repositories, see them; how an expired token is handled is written into §6 and tested. | `todo` |
-| 1a.3 | **PAT connection** (§6): URL and fine-grained token; permissions checked on add. | A read-only token is refused with a clear message; a correct one works. | `todo` |
-| 1a.4 | **Tokens in the keystore** (§13). | Tokens survive a restart, are gone on removing the connection, and are not in the app's files or logs. | `todo` |
-| 1a.5 | **First run and defaults** (§3, §6): prompt to add a repository; default repository; default vault per repository; switcher. | A fresh install is prompted; the next launch opens the default repository and vault. | `todo` |
-| 1a.6 | **Not a Fjord repository** (§6): shown as such, read-only, capture unavailable. | A repository without `fjord.json` is shown as such, read-only, with capture unavailable; no offer to set it up in phase 1 (the web offers it, web §19 #3). | `todo` |
-| 1a.7 | **Local store and tree cache** (§7, §11): listings by commit, blob cache, head checks on foreground, refresh and every minute. | Browsing a cached repository in airplane mode works; an unchanged head costs no rate limit (conditional request seen). | `todo` |
-| 1a.8 | **File browser** (§7): vaults from the listing (P3), documents and notes openable, others greyed, encrypted vaults locked, cached files marked, large repositories listed per directory. | Matches `fjord ls` on the fixtures; nothing downloaded to draw it. | `todo` |
-| 1a.9 | **App lock** (§13), optional. | With it on, nothing is shown before Face ID, Touch ID or the device credential; the app switcher shows a blank. | `todo` |
+| # | Task | Status |
+| --- | --- | --- |
+| [1a.1](../../docs/epics/mobile-1a.md#1a1-github-provider-in-the-engine) | GitHub provider in the engine | 📋 Planned |
+| [1a.2](../../docs/epics/mobile-1a.md#1a2-the-fjord-github-app-and-device-flow) | The Fjord GitHub App and device flow | 📋 Planned |
+| [1a.3](../../docs/epics/mobile-1a.md#1a3-pat-connection) | PAT connection | 📋 Planned |
+| [1a.4](../../docs/epics/mobile-1a.md#1a4-tokens-in-the-keystore) | Tokens in the keystore | 📋 Planned |
+| [1a.5](../../docs/epics/mobile-1a.md#1a5-first-run-and-defaults) | First run and defaults | 📋 Planned |
+| [1a.6](../../docs/epics/mobile-1a.md#1a6-not-a-fjord-repository) | Not a Fjord repository | 📋 Planned |
+| [1a.7](../../docs/epics/mobile-1a.md#1a7-local-store-and-tree-cache) | Local store and tree cache | 📋 Planned |
+| [1a.8](../../docs/epics/mobile-1a.md#1a8-file-browser) | File browser | 📋 Planned |
+| [1a.9](../../docs/epics/mobile-1a.md#1a9-app-lock) | App lock | 📋 Planned |
 
 ### 1b — Read, write, sync
 
-| # | Task | Accepts when | Status |
-| --- | --- | --- | --- |
-| 1b.1 | **Viewer** (§8): rendered Markdown, sanitised, raw HTML as text, remote images on tap, task boxes toggle one character. | Every file in a rendering corpus displays; a toggled box changes one byte in the saved file. | `todo` |
-| 1b.2 | **Basic editor** (§8): source text input, keyboard row, continuous drafts. | Round-trip corpus: open, edit one word, save, the diff is that word; opening and leaving makes no draft. | `todo` |
-| 1b.3 | **Frontmatter and Info** (§8): header through `fjord-core`; Info sheet; a note without a header left without one. | A header with keys Fjord does not know round-trips byte for byte; a header-less note gets none. | `open` (§18 #2) |
-| 1b.4 | **Create** (§8): documents and notes, vault and folder chosen. | Created files verify with the CLI. | `todo` |
-| 1b.5 | **Sync queue and push** (§12): when it runs, one commit per sync, messages, author, retry on a moved head, background tasks. | Five offline edits become one commit with the right author and message; a concurrent push in between is retried, never forced. | `todo` |
-| 1b.6 | **Pull and merge** (§12): every row of the table in §12; conflict copies (MP1). | A test per row, against a real repository with fabricated upstream commits; an unmergeable edit leaves both versions in the pushed commit and a badge. | `todo` |
-| 1b.7 | **Sync status** (§12): drafts waiting, last sync, rate-limit pause. | Shown on both platforms; a rate limit reached loses nothing and resumes. | `todo` |
-| 1b.8 | **Drafts are durable** (§11). | Killing the app mid-edit, rebooting, and revoking the token each keep every draft; a draft goes only when its commit is pushed. | `todo` |
+| # | Task | Status |
+| --- | --- | --- |
+| [1b.1](../../docs/epics/mobile-1b.md#1b1-viewer) | Viewer | 📋 Planned |
+| [1b.2](../../docs/epics/mobile-1b.md#1b2-basic-editor) | Basic editor | 📋 Planned |
+| [1b.3](../../docs/epics/mobile-1b.md#1b3-frontmatter-and-info) | Frontmatter and Info | 🚧 Open (§18 #2) |
+| [1b.4](../../docs/epics/mobile-1b.md#1b4-create) | Create | 📋 Planned |
+| [1b.5](../../docs/epics/mobile-1b.md#1b5-sync-queue-and-push) | Sync queue and push | 📋 Planned |
+| [1b.6](../../docs/epics/mobile-1b.md#1b6-pull-and-merge) | Pull and merge | 📋 Planned |
+| [1b.7](../../docs/epics/mobile-1b.md#1b7-sync-status) | Sync status | 📋 Planned |
+| [1b.8](../../docs/epics/mobile-1b.md#1b8-drafts-are-durable) | Drafts are durable | 📋 Planned |
 
 ### 1c — Quick capture
 
-| # | Task | Accepts when | Status |
-| --- | --- | --- | --- |
-| 1c.1 | **Capture screen** (§9): from the main screen, keyboard up, saved as typed, empty capture leaves nothing. | From a cold start to typing is measured and recorded; a killed app keeps what was typed. | `todo` |
-| 1c.2 | **App-icon quick action** (§9): **New note**, on both platforms. | Long-press, New note, typing. | `todo` |
-| 1c.3 | **Inbox and naming** (§9, MP2): `Inbox/` created when missing; name fixed when queued; header written. | Notes captured offline sync with the expected names; a name clash in `Inbox/` gets a suffix; every quick note verifies with the CLI. | `todo` |
+| # | Task | Status |
+| --- | --- | --- |
+| [1c.1](../../docs/epics/mobile-1c.md#1c1-capture-screen) | Capture screen | 📋 Planned |
+| [1c.2](../../docs/epics/mobile-1c.md#1c2-app-icon-quick-action) | App-icon quick action | 📋 Planned |
+| [1c.3](../../docs/epics/mobile-1c.md#1c3-inbox-and-naming) | Inbox and naming | 📋 Planned |
 
 ### 1d — Organise
 
-| # | Task | Accepts when | Status |
-| --- | --- | --- | --- |
-| 1d.1 | **Rename and move** (§10): files and folders in plaintext vaults; names by `fjord-core`; extension kept; into an encrypted vault refused; offline as drafts. | One commit per action, or one line in a batched sync; a case-only clash and an encrypted destination are refused; the CLI verifies the result. | `todo` |
-| 1d.2 | **Delete, Undo, Recently deleted** (§10): confirmation; Undo before push; the local deletion record; restore to the old or a chosen path. | Restoring onto a taken path never overwrites; the record survives a restart; an entry past the window is gone. | `todo` (§18 #11) |
-| 1d.3 | **Organising against upstream changes** (§12): the rename, move and delete rows of the merge table. | A test per row; no upstream edit is lost to a local delete or move. | `todo` |
-| 1d.4 | **Security review of phase 1** (§13): tokens, storage protection, rendering, app lock, logs. | Findings fixed or recorded before the first store release. | `todo` |
-| 1d.5 | **First store release** (§16): listings, privacy declarations ("collects nothing"), `mobile-v1.0.0` (or a 0.x first) through the release flow. | Live on the App Store and Google Play; the tag is not *Latest*. | `todo` (§18 #7) |
+| # | Task | Status |
+| --- | --- | --- |
+| [1d.1](../../docs/epics/mobile-1d.md#1d1-rename-and-move) | Rename and move | 📋 Planned |
+| [1d.2](../../docs/epics/mobile-1d.md#1d2-delete-undo-recently-deleted) | Delete, Undo, Recently deleted | 📋 Planned (§18 #11) |
+| [1d.3](../../docs/epics/mobile-1d.md#1d3-organising-against-upstream-changes) | Organising against upstream changes | 📋 Planned |
+| [1d.4](../../docs/epics/mobile-1d.md#1d4-security-review-of-phase-1) | Security review of phase 1 | 📋 Planned |
+| [1d.5](../../docs/epics/mobile-1d.md#1d5-first-store-release) | First store release | 📋 Planned (§18 #7) |
 
 ### 1e — Capture without opening the app
 
-| # | Task | Accepts when | Status |
-| --- | --- | --- | --- |
-| 1e.1 | **Share sheet** (§9): text and links shared from other apps become a quick note. | Sharing from a browser and a messaging app lands a note in `Inbox/`, offline too. | `todo` |
-| 1e.2 | **Home-screen widget** (§9): one tap to capture; on iOS WidgetKit, on Android a Glance or AppWidget. | Tapping it opens the capture screen ready to type. | `todo` |
-| 1e.3 | **App Intents and Shortcuts** (iOS) (§9): "New Fjord note" with text, usable from Siri and Shortcuts. | A Shortcut creates a note without opening the app. | `todo` |
-| 1e.4 | **Quick-settings tile** (Android) (§9). | Tapping it opens the capture screen. | `todo` |
+| # | Task | Status |
+| --- | --- | --- |
+| [1e.1](../../docs/epics/mobile-1e.md#1e1-share-sheet) | Share sheet | 📋 Planned |
+| [1e.2](../../docs/epics/mobile-1e.md#1e2-home-screen-widget) | Home-screen widget | 📋 Planned |
+| [1e.3](../../docs/epics/mobile-1e.md#1e3-app-intents-and-shortcuts) | App Intents and Shortcuts | 📋 Planned |
+| [1e.4](../../docs/epics/mobile-1e.md#1e4-quick-settings-tile) | Quick-settings tile | 📋 Planned |
 
 ## Phase 2 — encrypted vaults
 

@@ -14,7 +14,7 @@ the rest. Everything from "Non-negotiable invariants" down is the brief for
 
 ## Prime directive
 
-**`SPEC.md` is authoritative. This file is not.** Where they disagree, the
+**`docs/specs/Fjord.spec.md` is authoritative. This file is not.** Where they disagree, the
 spec wins and this file is wrong and should be fixed. Where the spec is
 silent, prefer the option that keeps a repository readable without Fjord.
 
@@ -22,7 +22,7 @@ The CLI is the *reference implementation* of a published format. Its job is
 to be correct and boring, not clever. A behaviour that makes the tool nicer
 at the format's expense is a bug.
 
-The spec is `spec/SPEC.md`, in this repository, and it is edited here: there is
+The spec is `docs/specs/Fjord.spec.md`, in this repository, and it is edited here: there is
 no other copy. A change to the format lands in the same commit as the code
 that needs it, and every client reads the same file.
 
@@ -51,10 +51,11 @@ with short-lived branches, and `CONTRIBUTING.md` is the same rules for people.
   reviewed commit lands on `main` verbatim. Fix commit messages *before*
   merging; never rewrite `main`. **Never merge a PR automatically**: wait to be
   told, or ask.
-- **Docs are part of the change.** A change to the format updates `spec/SPEC.md`,
+- **Docs are part of the change.** A change to the format updates `docs/specs/Fjord.spec.md`,
   the fixtures under `tests/fixtures/` and the code in the same PR. A change to
   behaviour adds a line under `## [Unreleased]` in the component's CHANGELOG.
-  A README or ROADMAP statement that the change makes false is fixed in it.
+  A README or ROADMAP statement that the change makes false is fixed in it. A finished task is marked done in its roadmap row
+  and its epic under `docs/epics/` says how it was done (what, where, what was left out).
 - **Verify before claiming done.** Run `cargo fmt --check`,
   `cargo clippy --workspace --all-targets -- -D warnings` and
   `cargo test --workspace`, and show the output. A regression test is trusted
@@ -83,12 +84,12 @@ Where this differs from `sovereign`, on purpose:
 
 | Path | What | Licence | Released as |
 | --- | --- | --- | --- |
-| `spec/` | The format. Canonical. | CC0 (`spec/LICENSE`) | with whatever needs it |
+| `docs/` | `specs/Fjord.spec.md`, the format, canonical (CC0, the licence is in the file itself); `epics/`, the detail of every task of every roadmap; the security reviews | CC0 for the spec, MPL-2.0 for the rest | with whatever needs it |
 | `schema/`, `tests/fixtures/` | The `verify --json` schema, and the conformance fixtures **every** client must pass | MPL-2.0 | — |
 | `crates/fjord-core/` | The format as a library | MPL-2.0 | with the CLI |
 | `crates/fjord-cli/` | The CLI: package `fjord-cli`, binary `fjord` | MPL-2.0 | `fjord-cli-vX.Y.Z` |
 | `crates/fjord-wasm/` | `fjord-core`'s pure subset for WebAssembly (`wasm-bindgen`): vault discovery from a listing, manifests, path rules, frontmatter, identifiers from a supplied clock and randomness. Its own workspace and lockfile, built into the web client and not released on its own. See its [`README.md`](crates/fjord-wasm/README.md) | MPL-2.0 | — |
-| `clients/web` | The hosted web client (Next.js, pnpm). **A placeholder app so far:** [`DESIGN.md`](clients/web/DESIGN.md), [`ROADMAP.md`](clients/web/ROADMAP.md), and its own [`CLAUDE.md`](clients/web/CLAUDE.md) | AGPL-3.0-or-later (it bundles `@sovereignfs/ui`) | `web-vX.Y.Z` |
+| `clients/web` | The hosted web client (Next.js, pnpm). **Phase 1 is built (sign in, browse, write, share, comment):** [`DESIGN.md`](clients/web/DESIGN.md), [`ROADMAP.md`](clients/web/ROADMAP.md), and its own [`CLAUDE.md`](clients/web/CLAUDE.md) | AGPL-3.0-or-later (it bundles `@sovereignfs/ui`) | `web-vX.Y.Z` |
 | `packages/fjord-editor` | The document and note editors, shared by the clients: the interface, the note editor (CodeMirror) and a text area behind the document editor so far (`clients/web/DESIGN.md` §10; its own [`CLAUDE.md`](packages/fjord-editor/CLAUDE.md)). Its own pnpm project, built and tested alone | MPL-2.0, and independent of `@sovereignfs/ui` (`clients/web/DESIGN.md` §18) | with its users |
 | `clients/mobile` | The iOS and Android client (Expo). **Design only so far:** [`DESIGN.md`](clients/mobile/DESIGN.md), [`ROADMAP.md`](clients/mobile/ROADMAP.md) | MPL-2.0 | `mobile-vX.Y.Z` |
 | `clients/engine` | The Rust engine for the native clients (`fjord-client`, `fjord-ffi`) and the `fjord-mcp` binary, its own Cargo workspace. Not created yet | MPL-2.0 | with its users |
@@ -151,7 +152,7 @@ fjord/
 ├── crates/
 │   ├── fjord-core/            the format. no IO beyond std::fs.
 │   └── fjord-cli/             the binary. clap, terminal, git.
-├── spec/SPEC.md               the format. canonical, edited here
+├── docs/specs/Fjord.spec.md   the format. canonical, edited here
 ├── schema/  tests/fixtures/   shared by every component
 └── clients/  plugins/         when they exist; see Repository layout
 ```
