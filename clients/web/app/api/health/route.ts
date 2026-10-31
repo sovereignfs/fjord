@@ -24,8 +24,8 @@ export async function GET(): Promise<Response> {
       format: formatState(),
     });
   } catch (error) {
-    // The message may name a host; it goes to the log, not to whoever asked.
-    console.error("[fjord] health check failed:", error);
+    // Not the error itself: its message may name a host or carry a connection string, and a log is read by more people than the settings are.
+    console.error(`[fjord] health check failed: ${error instanceof Error ? error.name : "failure"}`);
     return Response.json({ status: "error" }, { status: 503 });
   }
 }

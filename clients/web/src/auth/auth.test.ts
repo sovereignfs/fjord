@@ -467,6 +467,43 @@ describe(`local sign-in with email (${leg})`, () => {
       expect((await elsewhere.get("/api/auth/get-session")).body).toBeNull();
     });
 
+    it("never sends a person to an address of someone else's choosing: a reset or a sign-up with a redirect to another site is refused, and mails nothing (ROADMAP 1d.5)", async () => {
+      const { email } = await verifiedPerson();
+      const before = t.mailer!.sent?.length ?? 0;
+      for (const redirectTo of ["https://evil.example/reset", "//evil.example/reset", "http://localhost.evil.example/", "javascript:alert(1)"]) {
+        const asked = await visitor(t).post("/api/auth/request-password-reset", { email, redirectTo });
+        expect(asked.status, redirectTo).toBeGreaterThanOrEqual(400);
+        expect(asked.status, redirectTo).toBeLessThan(500);
+      }
+      const hostile = await visitor(t).post("/api/auth/sign-up/email", { name: "Mallory", email: newEmail(), password: PASSWORD, callbackURL: "https://evil.example/" });
+      expect(hostile.status).toBeGreaterThanOrEqual(400);
+      expect(hostile.status).toBeLessThan(500);
+      expect(t.mailer!.sent?.length ?? 0).toBe(before);
+    });
+
+    it("is followed by a password change that signs out every other session, as the security page asks (ROADMAP 1d.5)", async () => {
+      const { email, client: here } = await verifiedPerson();
+      expect((await here.post("/api/auth/sign-in/email", { email, password: PASSWORD })).status).toBe(200);
+      const elsewhere = visitor(t);
+      expect((await elsewhere.post("/api/auth/sign-in/email", { email, password: PASSWORD })).status).toBe(200);
+      expect((await elsewhere.get("/api/auth/get-session")).body.user).toBeTruthy();
+
+      const NEW = "a changed passphrase here";
+      // What `PasswordSection` sends.
+      expect((await here.post("/api/auth/change-password", { currentPassword: PASSWORD, newPassword: NEW, revokeOtherSessions: true })).status).toBe(200);
+      expect((await elsewhere.get("/api/auth/get-session")).body, "the other session is gone").toBeNull();
+      expect((await here.get("/api/auth/get-session")).body.user, "this one carries on").toBeTruthy();
+      expect((await visitor(t).post("/api/auth/sign-in/email", { email, password: PASSWORD })).status).toBe(401);
+      expect((await visitor(t).post("/api/auth/sign-in/email", { email, password: NEW })).status).toBe(200);
+    });
+
+    it("needs the current password to change it, and a wrong one changes nothing", async () => {
+      const { email, client: here } = await verifiedPerson();
+      expect((await here.post("/api/auth/sign-in/email", { email, password: PASSWORD })).status).toBe(200);
+      expect((await here.post("/api/auth/change-password", { currentPassword: "not the password", newPassword: "something else entirely", revokeOtherSessions: true })).status).toBe(400);
+      expect((await visitor(t).post("/api/auth/sign-in/email", { email, password: PASSWORD })).status).toBe(200);
+    });
+
     it("gives the same answer for an address that has no account, and sends nothing", async () => {
       const sentBefore = t.mailer!.sent.length;
       const known = await signUp(visitor(t));

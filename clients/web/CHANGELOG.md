@@ -19,6 +19,9 @@ section.
   `Permissions-Policy`, `Cross-Origin-Opener-Policy`, and `Strict-Transport-Security` when the instance's address is https. Images in a document that come
   from another site no longer load (they would tell that site who read it).
 - The proxy's tests (`proxy.test.ts`) were not part of `pnpm test`, and are now.
+- The health check no longer logs the whole error it caught (which may carry a host or connection string), only its name.
+- Tested, and found to hold: every route refuses another site's request and callers with no business there; the git host's token and the instance's secrets
+  reach no browser; content written by others is only text; a password change ends other sessions; sign-in endpoints refuse a redirect to another site.
 
 ### Added
 

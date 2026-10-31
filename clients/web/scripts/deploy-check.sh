@@ -72,6 +72,10 @@ for setup in $setups; do
   case "$health" in *"\"dialect\":\"$dialect\""*) ;; *) fail "$setup: expected $dialect, got $health" ;; esac
   case "$health" in *'"format":"ok"'*) ;; *) fail "$setup: the format module did not load: $health" ;; esac
   [ "$(curl -sS -o /dev/null -w '%{http_code}' "http://localhost:$port/sign-in")" = 200 ] || fail "$setup: /sign-in is not served"
+  # The image's own server sends the Content-Security-Policy, with a nonce on the page's scripts (DESIGN.md §15).
+  headers="$(curl -sS -D - -o /tmp/fjord-signin.html "http://localhost:$port/sign-in")"
+  case "$headers" in *[Cc]ontent-[Ss]ecurity-[Pp]olicy:*"script-src 'self' 'nonce-"*) ;; *) fail "$setup: /sign-in is sent without a Content-Security-Policy with a nonce" ;; esac
+  grep -q '<script[^>]* nonce=' /tmp/fjord-signin.html || fail "$setup: the scripts of /sign-in carry no nonce"
 
   status="$(post /api/auth/sign-up/email "{\"name\":\"Check\",\"email\":\"$account\",\"password\":\"$account_password\"}")"
   [ "$status" = 200 ] || fail "$setup: the first account was not made (HTTP $status)"

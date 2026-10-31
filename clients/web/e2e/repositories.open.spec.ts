@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Page } from "@playwright/test";
+import { ROUTES } from "../src/access/routes";
 import { alertOn, expect, signUp, test } from "./helpers";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
@@ -3054,6 +3055,149 @@ test("every page is sent with a Content-Security-Policy with a nonce of its own,
     expect(guests.some((message) => /inline event handler/i.test(message))).toBe(true);
     expect(guests.some((message) => /javascript:/i.test(message))).toBe(true);
     await visitor.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+const HOSTILE_DOC = `---\nid: ${ID_DOC}\ntitle: Hostile\n---\n\n# Hostile\n\n<script>window.__pwned = 1</script>\n\n<img src="https://evil.example/pixel.png" onerror="window.__pwned = 1">\n\n[click me](javascript:window.__pwned=1)\n\n![tracker](https://evil.example/tracker.png)\n\n<iframe src="https://evil.example/frame"></iframe>\n\nPlain text after.\n`;
+
+test("what other people wrote, in a document, a comment or a name, is shown as text and does nothing: no script, no handler, no request to another site", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": HOSTILE_DOC });
+    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "comment" } })).json()) as { url: string };
+    const payload = `<img src="https://evil.example/c.png" onerror="window.__pwned = 1"><script>window.__pwned = 1</script> [x](javascript:window.__pwned=1)`;
+
+    const visitor = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.61" } });
+    const guest = await visitor.newPage();
+    const requested: string[] = [];
+    for (const target of [page, guest]) target.on("request", (request) => void (new URL(request.url()).origin !== BASE && requested.push(request.url())));
+
+    // A guest writes the payload as a comment (a name with markup in it is refused), and the owner reads it, as text.
+    await guest.goto(link.url);
+    expect((await guest.context().request.post(`/doc/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor: { type: "text-quote", quote: "Plain text", prefix: "", suffix: "", position: 0 }, body: payload, name: "<img src=x onerror=alert(1)>", clientId: "browser-hostile1" } })).status()).toBe(400);
+    expect((await guest.context().request.post(`/doc/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor: { type: "text-quote", quote: "Plain text", prefix: "", suffix: "", position: 0 }, body: payload, name: "Mallory", clientId: "browser-hostile1" } })).status()).toBe(201);
+
+    for (const [who, target, address] of [["the owner", page, `/repo/${id}/Notes/Plan.fj.md`], ["a guest", guest, link.url]] as const) {
+      await target.goto(address);
+      await expect(target.getByTestId("comments-panel").getByTestId("comment-thread")).toHaveCount(1);
+      // The comment is its own words, character for character, and made no element.
+      await expect(target.getByTestId("comments-panel").getByTestId("comment-thread")).toContainText(payload);
+      await expect(target.locator("main img[onerror], main script, main iframe, main a[href^='javascript']"), `${who}: nothing in the page that runs`).toHaveCount(0);
+      // The document says what it says, as text in the editor, and none of it ran or loaded.
+      await expect(target.locator("main")).toContainText("Plain text after.");
+      await expect(target.locator("main img[src*='evil'], main iframe, main script:not([nonce])"), `${who}: the document's markup`).toHaveCount(0);
+      await expect(target.locator("main a[href^='javascript']")).toHaveCount(0);
+      expect(await target.evaluate(() => (window as unknown as { __pwned?: number }).__pwned), `${who}: nothing ran`).toBeUndefined();
+    }
+    expect(requested, "nothing was asked of another site").toEqual([]);
+    await visitor.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+/** The routes the matrix does not drive: sign-in has its own tests (1a), and the entry of a link is a public GET by design. */
+const NOT_IN_THE_MATRIX = new Set(["/api/auth/[...all]", "/api/health", "/api/links/enter"]);
+
+test("every route that changes something refuses another site's request, even from its owner, and every route refuses callers it has no business with, and nothing is changed by trying", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
+    const before = await hubs.more.branchHead();
+    const strangers = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.71" } });
+    const mallory = await strangers.newPage();
+    await signUp(mallory, `mallory-${Date.now()}@example.com`, "Mallory");
+    const nobody = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.72" } });
+
+    const address = (route: string) => route.replace("/api/connections/[id]", `/api/connections/${id}`).replace("/doc/[id]", `/doc/${ID_DOC}`).replace("/note/[id]", `/note/${ID_DOC}`);
+    const sent = async (request: import("@playwright/test").APIRequestContext, method: string, route: string, origin: string | null) => {
+      const response = await request.fetch(address(route), { method, ...(origin === null ? {} : { headers: { origin, "content-type": "application/json" } }), ...(method === "GET" ? {} : { data: {} }), maxRedirects: 0, failOnStatusCode: false });
+      return response.status();
+    };
+    const tried: string[] = [];
+    const wrong: string[] = [];
+    for (const rule of ROUTES) {
+      if (NOT_IN_THE_MATRIX.has(rule.route) || rule.methods === undefined) continue;
+      for (const [method, access] of Object.entries(rule.methods)) {
+        const name = `${method} ${rule.route}`;
+        tried.push(name);
+        // Someone with no account, and another account that owns nothing here: told no (not signed in, not allowed, not found, or that what was sent is not
+        // a request; the body here is empty, and a route may look at it first, which tells a stranger nothing about what is there), never let in and never an
+        // error. An account's own list is the one thing an account may ask for, and a stranger's is empty.
+        for (const [who, request] of [["nobody", nobody.request], ["a stranger", mallory.request]] as const) {
+          const status = await sent(request, method, rule.route, BASE);
+          if (access.kind === "account" && method === "GET" && who === "a stranger") {
+            if (status !== 200 || JSON.stringify(await (await request.get(address(rule.route))).json()).includes("acme")) wrong.push(`${name} by ${who}: ${status}`);
+          } else if (![400, 401, 403, 404].includes(status)) wrong.push(`${name} by ${who}: ${status}`);
+        }
+        // The owner, from another site or with no origin at all: a request that changes something is refused.
+        if (method !== "GET") {
+          for (const origin of ["https://evil.example", "null", null]) {
+            const status = await sent(page.request, method, rule.route, origin);
+            if (status !== 403) wrong.push(`${name} by the owner from ${origin ?? "no origin"}: ${status}`);
+          }
+        }
+      }
+    }
+    expect(wrong).toEqual([]);
+    expect(tried.length, "the registry was walked").toBeGreaterThan(20);
+    // Nothing was changed by any of it.
+    expect(await hubs.more.branchHead()).toBe(before);
+    const listing = (await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).json()) as { links?: unknown[] };
+    expect(listing.links ?? []).toEqual([]);
+    await strangers.close();
+    await nobody.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("the git host's token and the instance's secrets are in nothing that reaches a browser: no page, answer, script, cookie or storage, the owner's or a guest's", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note\n" });
+    const secrets = [GOOD, "ZTJlLW9ubHkta2V5LW5vdC1mb3ItYW55dGhpbmchISE=", "e2e-only-secret-not-for-anything-real-0123456789", Buffer.from("ZTJlLW9ubHkta2V5LW5vdC1mb3ItYW55dGhpbmchISE=", "base64").toString()];
+    const leaks: string[] = [];
+    let inspected = 0;
+    const watch = (target: import("@playwright/test").Page, who: string) =>
+      target.on("response", async (response) => {
+        if (new URL(response.url()).origin !== BASE) return;
+        const text = await response.text().catch(() => "");
+        if (text !== "") inspected++;
+        const headers = JSON.stringify(response.headers());
+        for (const secret of secrets) if (text.includes(secret) || headers.includes(secret)) leaks.push(`${who}: ${response.url()}`);
+      });
+    watch(page, "owner");
+
+    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "edit" } })).json()) as { url: string };
+    for (const address of ["/", "/home", "/repositories", "/account/security", `/repo/${id}`, `/repo/${id}/Notes`, `/repo/${id}/Notes/idea.md`, `/repo/${id}/Notes/Plan.fj.md`, `/doc/${ID_DOC}`, `/deleted/${id}`]) {
+      await page.goto(address);
+      await page.waitForLoadState("networkidle");
+    }
+    for (const address of ["/api/connections", `/api/connections/${id}/links?doc=${ID_DOC}`, `/api/connections/${id}/shares?doc=${ID_DOC}`, `/doc/${ID_DOC}/comments`, "/api/health"]) {
+      const response = await page.request.get(address);
+      const body = await response.text();
+      const headers = JSON.stringify(response.headers());
+      for (const secret of secrets) if (body.includes(secret) || headers.includes(secret)) leaks.push(`owner: ${address}`);
+    }
+    // What the page keeps in the browser.
+    const kept = await page.evaluate(() => JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage), document.cookie]));
+    const cookies = JSON.stringify(await page.context().cookies());
+    for (const secret of secrets) {
+      expect(kept.includes(secret), "storage").toBe(false);
+      expect(cookies.includes(secret), "cookies").toBe(false);
+    }
+
+    const visitor = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.81" } });
+    const guest = await visitor.newPage();
+    watch(guest, "guest");
+    await guest.goto(link.url);
+    await expect(guest.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    await guest.waitForLoadState("networkidle");
+    expect(JSON.stringify(await visitor.cookies()).includes(GOOD)).toBe(false);
+    await visitor.close();
+
+    expect(inspected, "pages, scripts and answers were looked through").toBeGreaterThan(40);
+    expect(leaks).toEqual([]);
   } finally {
     await restoreMore();
   }
