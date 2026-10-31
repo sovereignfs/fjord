@@ -12,3 +12,6 @@ coverage
 /data
 /test-results
 /playwright-report
+
+# The browser build of the format module, copied by `pnpm build:wasm` (scripts/copy-wasm-web.mjs).
+/public/fjord-wasm

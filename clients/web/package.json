@@ -19,7 +19,7 @@
     "boot-check": "node scripts/boot-check.mjs",
     "db:dev": "node scripts/dev-db.mjs",
     "e2e": "playwright test",
-    "build:wasm": "bash ../../crates/fjord-wasm/build.sh",
+    "build:wasm": "bash ../../crates/fjord-wasm/build.sh && node scripts/copy-wasm-web.mjs",
     "build:editor": "pnpm --dir ../../packages/fjord-editor install --frozen-lockfile && pnpm --dir ../../packages/fjord-editor build"
   },
   "dependencies": {

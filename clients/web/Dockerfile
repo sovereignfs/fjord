@@ -80,6 +80,8 @@ COPY --from=app /build/clients/web/.next/static ./clients/web/.next/static
 # Read at start-up from the working directory (src/db/migrate.ts), so they are files, not part of the bundle.
 COPY --from=app /build/clients/web/migrations ./clients/web/migrations
 COPY --from=wasm /build/crates/fjord-wasm/pkg/node ./wasm
+# The browser build of the same module, served at /fjord-wasm/ (the page decrypts with it; src/keys/module.ts).
+COPY --from=wasm /build/crates/fjord-wasm/pkg/web/fjord_wasm.js /build/crates/fjord-wasm/pkg/web/fjord_wasm_bg.wasm ./clients/web/public/fjord-wasm/
 # The module is CommonJS and this app's package.json says `"type": "module"`, which would make Node read it as ESM.
 RUN echo '{"type":"commonjs"}' > ./wasm/package.json
 

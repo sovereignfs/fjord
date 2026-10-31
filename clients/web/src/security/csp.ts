@@ -6,6 +6,8 @@
  *
  *  - **Scripts** run only with this request's nonce, or when a script that has it loads them (`'strict-dynamic'`): the bundles Next adds, and the theme
  *    script in the layout. No inline handler, no `javascript:` address, no `eval` (but in development, where React wants it).
+ *    **`'wasm-unsafe-eval'`** is the one addition for phase 2 (ROADMAP 2a.2): a page may compile WebAssembly (the format module, which decrypts in the browser)
+ *    and nothing broader; it does not allow `eval`, `new Function` or an inline script. The module itself is a file of this origin (`/fjord-wasm/`).
  *  - **Style *elements*** carry the nonce as well (CodeMirror is given it, `fjord-editor`'s `csp.ts`), but for two the document editor's select menu makes and cannot
  *    be given one, which are allowed by their hash (`LIBRARY_STYLE_HASHES`). **Style *attributes* are allowed**: the document editor (Radix and Lexical position menus and
  *    carets with them) and React's server-rendered `style` props need them, and an attribute can change how something looks but cannot run anything.
@@ -37,7 +39,7 @@ export function contentSecurityPolicy({ nonce, secure, development }: PolicyOpti
   const hashes = LIBRARY_STYLE_HASHES.map((hash) => `'${hash}'`).join(" ");
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${development ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${development ? " 'unsafe-eval'" : ""}`,
     `style-src 'self' 'nonce-${nonce}' ${hashes}`,
     `style-src-elem 'self' 'nonce-${nonce}' ${hashes}`,
     "style-src-attr 'unsafe-inline'",

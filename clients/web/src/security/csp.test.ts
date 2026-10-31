@@ -8,13 +8,19 @@ const directive = (text: string, name: string) => text.split("; ").find((part) =
 describe("scripts", () => {
   it("run only with the request's nonce, or when a script with it loads them: no inline script, no inline handler, no javascript: address, no eval", () => {
     const script = directive(policy(), "script-src")!;
-    expect(script).toBe("script-src 'self' 'nonce-NONCE123' 'strict-dynamic'");
-    expect(script).not.toMatch(/unsafe-inline|unsafe-eval|https?:|\*/);
+    expect(script).toBe("script-src 'self' 'nonce-NONCE123' 'strict-dynamic' 'wasm-unsafe-eval'");
+    expect(script).not.toMatch(/unsafe-inline|'unsafe-eval'|https?:|\*/);
+  });
+
+  it("may compile WebAssembly, and that is the only thing added: 'wasm-unsafe-eval' is not 'unsafe-eval' (ROADMAP 2a.2)", () => {
+    const tokens = directive(policy(), "script-src")!.split(" ").slice(1);
+    expect(tokens).toEqual(["'self'", "'nonce-NONCE123'", "'strict-dynamic'", "'wasm-unsafe-eval'"]);
+    expect(tokens).not.toContain("'unsafe-eval'");
   });
 
   it("may use eval in development only, where React asks for it", () => {
     expect(directive(policy({ development: true }), "script-src")).toContain("'unsafe-eval'");
-    expect(policy()).not.toContain("unsafe-eval");
+    expect(policy()).not.toMatch(/(?<!wasm-)unsafe-eval/);
   });
 });
 
