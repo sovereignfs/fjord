@@ -30,7 +30,7 @@ The acceptance criteria of each milestone are in [`CLAUDE.md`](CLAUDE.md), under
 
 | # | Milestone | Status | Detail |
 | --- | --- | --- | --- |
-| M0 | Groundwork: CI, the MSRV, age cross-validation, the fixture harness | ✅ Done (M0.5, the generated diagnostics table, is 📋 planned) | [Detail](docs/epics/cli.md#groundwork--m0) |
+| M0 | Groundwork: CI, the MSRV, age cross-validation, the fixture harness | ✅ Done | [Detail](docs/epics/cli.md#groundwork--m0) |
 | M1 | `fjord verify`, read-only, no crypto | ✅ Done | [Detail](docs/epics/cli.md#m1-breakdown) |
 | M2 | `fjord init` | ✅ Done | [Detail](docs/epics/cli.md#m2-notes) |
 | M3 | Keys, encrypt, decrypt | ✅ Done | [Detail](docs/epics/cli.md#m3-notes) |
@@ -55,7 +55,7 @@ The acceptance criteria of each milestone are in [`CLAUDE.md`](CLAUDE.md), under
 | One repository, several components | ✅ Done | [Detail](docs/epics/cli.md#one-repository-several-components) |
 | A development flow | ✅ Done | [Detail](docs/epics/cli.md#a-development-flow) |
 | Homebrew tap | ✅ Done | [Detail](docs/epics/cli.md#homebrew) |
-| M0.5: generate the README diagnostics table from `diagnostics::Code` | 📋 Planned | [Detail](docs/epics/cli.md#groundwork--m0) |
+| M0.5: hold the README diagnostics tables to `diagnostics::Code` (checked by a test, not generated) | ✅ Done | [Detail](docs/epics/cli.md#groundwork--m0) |
 | Replace `unsafe-libyaml` as the frontmatter parser | 📋 Planned | [Detail](docs/epics/cli.md#beyond-the-milestones) |
 | Publish to crates.io | 📋 Planned (not advertised until it exists) | [Detail](docs/epics/cli.md#beyond-the-milestones) |
 | Frontmatter comment preservation | ❌ Out of scope for v1 (needs an AST-level YAML parser) | [Detail](docs/epics/cli.md#out-of-scope) |

@@ -73,7 +73,9 @@ disagreement late.
 | M0.2 | CI: `build`, `test`, `clippy -- -D warnings`, `fmt --check` on Linux and macOS | `done` |
 | M0.3 | CI job installing the Go `age` binary for cross-validation | `done` — its own job, run first |
 | M0.4 | Fixture harness | `done` — synthesised fixtures build in a tempdir, and `verify_mutates_nothing` hashes the committed tree before and after |
-| M0.5 | Generate the README diagnostics table from `diagnostics::Code`, as CLAUDE.md claims happens | `todo` |
+| M0.5 | Hold the README diagnostics tables to `diagnostics::Code`, as CLAUDE.md claims | `done` — checked, not generated; see below |
+
+**M0.5 was done differently than planned, on purpose.** The README's meanings are longer than `Code::message` and some carry advice (E301, E303), so generating the tables would have made them worse or put README prose into the library. Instead `tests/readme_diagnostics.rs` holds them to `Code::all()`: every code has exactly one row, under the heading of its prefix, a warning is under the warnings, and a gap in the numbers is either a code or one the README names reserved. Each of the three ways to break it was tried and fails with the code named.
 
 **M0.1 was done differently than planned, and the plan was wrong.** A
 `rust-toolchain.toml` pinning the MSRV would make everyday development and
@@ -568,7 +570,7 @@ change their names on disk, which is `fjord encrypt`'s job, not this one's.
 | | `fjord export` / `fjord import` | `done` |
 | | `cargo deny` in CI, with a dependency policy | `done` |
 | | Replace `unsafe-libyaml` as the frontmatter parser | `todo` — see below |
-| | M0.5: generate the README diagnostics table from `diagnostics::Code` | `todo` |
+| | M0.5: hold the README diagnostics tables to `diagnostics::Code` | `done` |
 | | Release machinery: `dist`, installers, archives | `done` — see below |
 | | Cut the first release | `done` — `v0.1.0`, after two failed attempts; see below |
 | | Homebrew tap | `done` — `brew install sovereignfs/tap/fjord`, published by `fjord-cli-v0.3.1`; see "Homebrew" below |

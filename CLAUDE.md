@@ -237,7 +237,8 @@ worth the complexity yet. Document the limitation in the README.
 - **Every diagnostic has a stable code.** They are published API — once
   released, a code's meaning never changes. Add new ones; never renumber.
   The enum in `fjord-core/src/diagnostics.rs` is the single source of truth,
-  and the README table is generated from it.
+  and the README's tables are held to it by `crates/fjord-cli/tests/readme_diagnostics.rs`
+  (a code without a row, a row without a code, a wrong heading or an unexplained gap fails).
 - **Exit codes:** `0` success or conforming, `1` problems found, `2` usage
   error, `3` IO or git failure.
 - **Interactive on a TTY, scriptable otherwise.** `std::io::IsTerminal`.
