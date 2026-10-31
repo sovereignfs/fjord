@@ -1,6 +1,6 @@
 # Fjord Web — roadmap
 
-**Status:** phase 1 is done (1a to 1d); phases 2 and 3 are outlines, with tasks to be written when they start. The design is
+**Status:** phase 1 is done except the GitHub App (1a.6), a real-token check of the PAT connection (1a.7) and house style (1b.4); phases 2 and 3 are outlines, with tasks to be written when they start. The design is
 [`DESIGN.md`](DESIGN.md); this file is the order of work, and the detail of each task is in [`docs/epics/`](../../docs/epics/). Section numbers (§) refer to `DESIGN.md` unless they say "spec".
 
 | | |
@@ -67,7 +67,7 @@ P4 is the longest pole; 1a needs P3–P5, 1b needs P1, P2 and P4; 1a.10 needs P6
 | [1b.10](../../docs/epics/web-1b.md#1b10-upstream-changes) | Upstream changes | ✅ Done |
 | [1b.11](../../docs/epics/web-1b.md#1b11-rename-and-move) | Rename and move | ✅ Done |
 | [1b.12](../../docs/epics/web-1b.md#1b12-delete-and-restore) | Delete and restore | ✅ Done |
-| [1b.13](../../docs/epics/web-1b.md#1b13-idle-versions) | Idle versions | 📋 Planned (§19 #5) |
+| [1b.13](../../docs/epics/web-1b.md#1b13-idle-versions) | Idle versions | ✅ Done |
 
 ### 1c — Share
 

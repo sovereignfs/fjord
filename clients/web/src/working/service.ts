@@ -195,6 +195,19 @@ export class WorkingCopyService {
     return rows.length > 0;
   }
 
+  /**
+   * The drafts nobody has edited since `before` (ROADMAP 1b.13), the longest-idle first: the worker's to turn into versions.
+   * Only where they are, never what they say.
+   */
+  async idle(before: number, limit: number): Promise<{ connectionId: number; path: string; lastEdit: number }[]> {
+    const rows = await dbAll<{ connectionId: number | string; path: string; lastEdit: number | string }>(
+      this.database,
+      sql`SELECT connection_id AS "connectionId", path, last_edit AS "lastEdit" FROM ${table(this.database)}
+          WHERE last_edit <= ${before} ORDER BY last_edit ASC LIMIT ${limit}`,
+    );
+    return rows.map((row) => ({ connectionId: Number(row.connectionId), path: row.path, lastEdit: Number(row.lastEdit) }));
+  }
+
   /** Every draft of a connection goes with it (it is disconnected). */
   async forget(connectionId: number): Promise<void> {
     await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);

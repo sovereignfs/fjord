@@ -51,6 +51,9 @@ Everything is an environment variable, put in `.env` next to the Compose files (
   Rotating it is `FJORD_ENCRYPTION_KEY_PREVIOUS` for as long as anything is still under the old one (the log says when).
 - **`FJORD_RESTORE_WINDOW_DAYS`** (optional, 1 to 3650, default 30) is how long a deleted file is offered for putting back
   under Recently deleted. The file is in the repository's history for good; this is how long the app lists it.
+- **`FJORD_IDLE_VERSION_MINUTES`** (optional, 1 to 1440, default 5; `0` turns it off) is how long a draft goes without an edit
+  before the app saves it to the repository as a version. **`FJORD_WORKER=off`** keeps a process from doing it: with several
+  web processes on one database, set it on all but one.
 - A secret can come from a file instead (`FJORD_AUTH_SECRET_FILE`, `FJORD_ENCRYPTION_KEY_FILE`, ...), which is how
   Docker or Kubernetes secrets are passed.
 - **Each instance registers its own GitHub App** (ROADMAP 1a.6); until that is built, a repository is connected with a
@@ -148,10 +151,9 @@ older version, restore a backup taken before the update.
 
 ## What is not here yet
 
-- **The worker.** The design runs the image as `web` and as `worker` (idle commits, webhooks), and the single-container
-  setup runs both in one process. There is no worker to run until idle versions (ROADMAP 1b.13) and the
-  GitHub App's webhooks (1a.6) are built (Save version, 1b.9, is made by the web process); it will be another command of this same image, and the Compose files will gain
-  it then.
+- **The worker as a process of its own.** The design runs the image as `web` and as `worker` (idle commits, webhooks), and the
+  single-container setup runs both in one process. Idle versions (ROADMAP 1b.13) run inside the web process; a `worker` command
+  of this same image, and a Compose service for it, come with the GitHub App's webhooks (1a.6).
 - **Continuous backups and a staging instance** are the operator's to set up; this directory does not provide them.
 
 ## Checked by CI

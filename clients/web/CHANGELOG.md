@@ -11,6 +11,12 @@ section.
 
 ## [Unreleased]
 
+### Added
+
+- **A draft nobody has edited for five minutes is saved as a version** (ROADMAP 1b.13), by a worker that runs inside the web process once a minute, with the same commit as Save version: on top of the
+  draft's base only, never forced. The author is the repository's owner if they edited the draft, else the first editor, and the others are `Co-authored-by:`. Conflict markers and a file changed upstream
+  are left to the person. `FJORD_IDLE_VERSION_MINUTES` sets the quiet period (1 to 1440, default 5; `0` turns it off); `FJORD_WORKER=off` keeps a process from running the worker.
+
 ### Fixed
 
 - **`next dev` no longer warns "A Node.js API is used (process.exit)" at every request.** The start-up code that stops a server with a wrong setting is now in
