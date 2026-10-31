@@ -22,11 +22,12 @@ describe.each([
   });
 
   for (const [name, Story] of all) {
-    // The visual editor is loaded when a document first needs it, so a story is waited for.
+    // The visual editor is loaded when a document first needs it, so a story is waited for. The wait is generous: the first load
+    // took 1.1 to 1.3 s on a busy machine, over Testing Library's default of 1 s, which failed a run that was otherwise right.
     it(`renders ${name}`, async () => {
       const view = render(<Story />);
       // A table in a document is edited cell by cell, each a text box of its own: there is at least one.
-      expect((await view.findAllByRole("textbox")).length).toBeGreaterThanOrEqual(1);
+      expect((await view.findAllByRole("textbox", {}, { timeout: 10_000 })).length).toBeGreaterThanOrEqual(1);
     });
   }
 });
