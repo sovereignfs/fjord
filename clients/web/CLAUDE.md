@@ -145,7 +145,7 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | `src/providers/` | The git host interface (`types.ts`), GitHub's implementation (`github/`), an in-memory one (`memory.ts`), and the contract and the git-backed fake they are tested with (`testing/`) |
 | `src/db/` | The database layer: configuration, the two clients, the schemas (`schema/{sqlite,postgres}`), portable queries, migrations at start-up |
 | `migrations/` | The generated SQL, `sqlite/` and `postgres/` for the app's store and `auth/` for better-auth's, committed and reviewed |
-| `instrumentation.ts` | Runs once at server start: puts the log redactor over the console (`src/sharing/redact.ts`: a share token is never printed), then brings the database up, so a server that cannot reach or migrate it does not start |
+| `instrumentation.ts`, `instrumentation-node.ts` | `instrumentation.ts` only hands over to the Node file (Next compiles it for Edge too, and `process.exit` and the database client must not be seen there). `instrumentation-node.ts` runs once at server start: puts the log redactor over the console (`src/sharing/redact.ts`: a share token is never printed), then brings the database up, so a server that cannot reach or migrate it does not start |
 | `scripts/` | Small Node scripts: `db-generate`, `db-dev`, `boot-check`, `record-github-fixtures`, `record-sovereign-discovery` |
 | `DESIGN.md`, `ROADMAP.md` | The design and the plan |
 
