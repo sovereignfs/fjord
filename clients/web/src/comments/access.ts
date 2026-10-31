@@ -1,5 +1,6 @@
 import { type Action, type Grant, type Role, decide, effectiveRole } from "../access/policy";
 import { cleanGuestName } from "../sharing/guest-name";
+import type { Watch } from "./events";
 import { type Author, type CommentService, type Done, type Thread, type TextQuoteAnchor } from "./service";
 
 /**
@@ -39,7 +40,7 @@ export interface Claimed {
 }
 
 export type Outcome =
-  | { ok: true; id?: number; threads?: Thread[]; closed?: boolean; viewer?: { role: "owner" | Role; canComment: boolean; canModerate: boolean; name: string | null } }
+  | { ok: true; id?: number; threads?: Thread[]; closed?: boolean; version?: number; viewer?: { role: "owner" | Role; canComment: boolean; canModerate: boolean; name: string | null } }
   | { ok: false; reason: "hidden" | "forbidden" | "need_name" | "closed" | "not_found" | "too_many" | "bad_comment" | "bad_anchor" | "stale" };
 
 export interface AccessDeps {
@@ -76,11 +77,12 @@ export function commentsAccess(deps: AccessDeps) {
     const asked = authorOf(viewer, input.claimed);
     // Reading needs no name. Writing as a guest does: it is the credit, and what tells their own comments apart.
     if (operation.op === "list") {
-      const { threads, closed } = await deps.comments.list(viewer.connectionId, input.docId, asked.author);
+      const { threads, closed, version } = await deps.comments.list(viewer.connectionId, input.docId, asked.author);
       return {
         ok: true,
         threads,
         closed,
+        version,
         viewer: {
           role,
           canComment: decide(viewer.grants, "comment", DOCUMENT, now) === "allow",
@@ -123,4 +125,30 @@ function authorOf(viewer: Viewer, claimed: Claimed): { author: Author | undefine
   const name = cleanGuestName(claimed.name);
   if (name === undefined || typeof claimed.clientId !== "string" || !CLIENT_ID.test(claimed.clientId) || viewer.linkId === undefined) return { author: undefined };
   return { author: { kind: "guest", id: `${viewer.linkId}:${claimed.clientId}`, name } };
+}
+
+/**
+ * Who may watch a document's comments (ROADMAP 1d.3): who may read them. The answer is a `Watch` that asks the same thing again whenever it is
+ * asked whether the watcher may still, so a link that has been revoked or has expired stops being listened for.
+ */
+export function commentsWatch(deps: AccessDeps & { comments: Pick<CommentService, "version">; subscribe: (connectionId: number, docId: string, listener: () => void) => () => void }) {
+  return async function open(input: { docId: string; account: { id: string; name: string } | undefined; cookie: string | undefined }): Promise<{ ok: true; watch: Watch } | { ok: false; reason: "hidden" | "forbidden" }> {
+    const allowed = async (): Promise<{ viewer: Viewer } | { reason: "hidden" | "forbidden" }> => {
+      const viewer = await deps.viewer(input);
+      if (!viewer) return { reason: "hidden" };
+      const decision = decide(viewer.grants, "read", DOCUMENT, deps.now?.() ?? Date.now());
+      return decision === "allow" ? { viewer } : { reason: decision };
+    };
+    const first = await allowed();
+    if (!("viewer" in first)) return { ok: false, reason: first.reason };
+    const { connectionId } = first.viewer;
+    return {
+      ok: true,
+      watch: {
+        version: () => deps.comments.version(connectionId, input.docId),
+        allowed: async () => "viewer" in (await allowed()),
+        subscribe: (listener) => deps.subscribe(connectionId, input.docId, listener),
+      },
+    };
+  };
 }

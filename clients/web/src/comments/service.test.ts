@@ -280,12 +280,63 @@ describe(`moving a thread onto the words its text was edited into (${leg})`, () 
     expect(await anchorOf(id)).toEqual(ANCHOR);
   });
 
-  it("works while the comments are closed, and is not in the log", async () => {
+  it("works while the comments are closed, and is in the log as the page's doing, not a person's", async () => {
     const id = await made();
     await comments.setClosed(1, DOC, true, ALICE);
-    const before = (await comments.activity(1, DOC)).length;
     expect((await comments.reanchor(1, DOC, id, ANCHOR, EDITED)).ok).toBe(true);
-    expect((await comments.activity(1, DOC)).length).toBe(before);
+    expect((await comments.activity(1, DOC))[0]).toMatchObject({ threadId: id, actorKind: "page", event: "reanchored" });
+  });
+});
+
+describe(`where a document's comments are up to (${leg})`, () => {
+  it("is 0 before anything, and goes up with every kind of change, to every document's own count", async () => {
+    expect(await comments.version(1, DOC)).toBe(0);
+    const seen: number[] = [];
+    const note = async () => void seen.push(await comments.version(1, DOC));
+    const id = await made();
+    await note();
+    const reply = await comments.reply(1, DOC, id, "yes", BOB);
+    await note();
+    await comments.setResolved(1, DOC, id, true, BOB);
+    await note();
+    await comments.edit(1, DOC, { kind: "thread", id }, "better", ALICE);
+    await note();
+    await comments.reanchor(1, DOC, id, ANCHOR, { ...ANCHOR, quote: "worlds" });
+    await note();
+    await comments.setClosed(1, DOC, true, ALICE);
+    await note();
+    await comments.remove(1, DOC, { kind: "reply", id: reply.ok ? reply.id : 0 }, BOB, true);
+    await note();
+    for (let i = 1; i < seen.length; i++) expect(seen[i]!, `step ${i}`).toBeGreaterThan(seen[i - 1]!);
+    expect(await comments.version(1, OTHER)).toBe(0);
+    expect(await comments.version(2, DOC)).toBe(0);
+  });
+
+  it("does not move for what changes nothing: a refused change, and reading", async () => {
+    const id = await made();
+    const before = await comments.version(1, DOC);
+    await comments.list(1, DOC, ALICE);
+    await comments.reply(1, DOC, id, "   ", BOB); // not a comment
+    await comments.edit(1, DOC, { kind: "thread", id }, "hijack", BOB); // not theirs
+    await comments.reanchor(1, DOC, id, { ...ANCHOR, quote: "stale" }, ANCHOR); // not where it was
+    expect(await comments.version(1, DOC)).toBe(before);
+  });
+
+  it("is what a listing says it was read at, and is read before the comments, so that a change while reading is seen", async () => {
+    await made();
+    const listed = await comments.list(1, DOC, ALICE);
+    expect(listed.version).toBe(await comments.version(1, DOC));
+  });
+
+  it("tells the process of every change, and of no refused one", async () => {
+    const told: [number, string][] = [];
+    const watched = new CommentService(database, () => clock++, (connection, doc) => void told.push([connection, doc]));
+    const made2 = await watched.createThread(1, DOC, ANCHOR, "hi", ALICE);
+    if (!made2.ok) throw new Error("not made");
+    await watched.reply(1, DOC, made2.id, "re", BOB);
+    await watched.reply(1, DOC, made2.id, "  ", BOB);
+    await watched.edit(1, DOC, { kind: "thread", id: made2.id }, "x", BOB);
+    expect(told).toEqual([[1, DOC], [1, DOC]]);
   });
 });
 

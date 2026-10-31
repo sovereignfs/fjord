@@ -33,6 +33,8 @@ export interface ReplyView {
 export interface Listing {
   threads: ThreadView[];
   closed: boolean;
+  /** Where the comments were up to when they were read (ROADMAP 1d.3): the live stream says when it is no longer this. */
+  version: number;
   viewer: { role: "owner" | "view" | "comment" | "edit"; canComment: boolean; canModerate: boolean; name: string | null };
 }
 
@@ -89,6 +91,20 @@ export function keepName(name: string): void {
 }
 
 const address = (docId: string) => `/doc/${docId}/comments`;
+
+/** Where the live stream of a document's comments is (ROADMAP 1d.3). */
+export const eventsAddress = (docId: string) => `${address(docId)}/events`;
+
+/** What a message of the live stream says: the version the comments are at now, or nothing if it does not say. */
+export function versionFrom(data: unknown): number | undefined {
+  try {
+    const parsed: unknown = JSON.parse(String(data));
+    const version = typeof parsed === "object" && parsed !== null ? (parsed as { version?: unknown }).version : undefined;
+    return typeof version === "number" && Number.isSafeInteger(version) && version >= 0 ? version : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 async function call(method: string, docId: string, data?: unknown, query = ""): Promise<{ status: number; body: Body | undefined } | undefined> {
   try {

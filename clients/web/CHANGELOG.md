@@ -13,6 +13,10 @@ section.
 
 ### Added
 
+- **Live updates for comments** (ROADMAP 1d.3): a new comment, reply, resolving, edit, deletion or closing appears for everyone looking at the
+  document, without reloading. A page is told that the comments changed (never what they are, so that what a person may read is still decided
+  each time they are read) and reads them again; a person who loses access (a link revoked, a share ended) stops being told within a quarter of
+  a minute. Works across several server processes.
 - **Comments follow the text when the document is changed elsewhere** (ROADMAP 1d.2): a thread stays on its words when text is added around
   them, follows them when a word of them is changed (the server then keeps the new words as the thread's place), and when its words are gone
   is not dropped but kept in the panel with an **Outdated** mark, and marked in the text again if the words come back.

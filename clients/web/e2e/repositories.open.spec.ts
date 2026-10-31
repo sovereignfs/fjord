@@ -2860,3 +2860,65 @@ test("when a document is changed elsewhere, a thread follows the words around wh
     await restoreMore();
   }
 });
+
+// --- Live updates (ROADMAP 1d.3) ---------------------------------------------------------------------------------------------
+
+test("comments, replies, resolving and closing reach another browser without it reloading", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
+    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "comment" } })).json()) as { id: number; url: string };
+    const ownerPanel = page.getByTestId("comments-panel");
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await expect(ownerPanel.getByText("No comments yet.")).toBeVisible();
+    await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan, for reading.");
+
+    const guestContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.31" } });
+    const guest = await guestContext.newPage();
+    await guest.goto(link.url);
+    const guestPanel = guest.getByTestId("comments-panel");
+    await expect(guestPanel.getByText("No comments yet.")).toBeVisible();
+    await expect(guest.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    // Neither page is loaded again from here on: whatever arrives, arrives through the stream.
+    const loads = (target: typeof page) => target.evaluate(() => performance.getEntriesByType("navigation").length + (window as unknown as { __loaded?: number }).__loaded!);
+    for (const target of [page, guest]) await target.evaluate(() => void ((window as unknown as { __loaded: number }).__loaded = 1));
+    const before = [await loads(page), await loads(guest)];
+
+    // The guest starts a thread (giving a name): it appears for the owner, in the panel and as a mark in the text.
+    await selectText(guest, "plan, for");
+    await guest.getByRole("button", { name: "Comment on selection" }).click();
+    await guestPanel.getByLabel("Your name").fill("Grace Hopper");
+    await guestPanel.getByRole("button", { name: "Continue" }).click();
+    await guestPanel.getByLabel("New comment").fill("Is this the plan we agreed?");
+    await guestPanel.getByRole("button", { name: "Comment", exact: true }).click();
+    await expect(guestPanel.getByTestId("comment-thread")).toHaveCount(1);
+    await expect(ownerPanel.getByTestId("comment-thread")).toHaveCount(1);
+    await expect(ownerPanel.getByText("Is this the plan we agreed?")).toBeVisible();
+    await expect(ownerPanel.getByTestId("comment-count")).toHaveText("1 open");
+    await expect.poll(() => marks(page)).toMatchObject({ "fe-thread": ["plan, for"] });
+
+    // The owner replies, and the guest sees it; the owner resolves it, and the guest sees that, and the mark is drawn as a resolved one.
+    await ownerPanel.getByRole("button", { name: "Reply" }).click();
+    await ownerPanel.getByLabel("Reply").fill("Yes, it is.");
+    await ownerPanel.getByRole("button", { name: "Reply", exact: true }).last().click();
+    await expect(guestPanel.getByTestId("comment-reply")).toHaveCount(1);
+    await expect(guestPanel.getByTestId("comment-reply")).toContainText("Yes, it is.");
+    await ownerPanel.getByRole("button", { name: "Resolve" }).click();
+    await expect(guestPanel.getByTestId("comment-thread")).toHaveAttribute("data-resolved", "true");
+    await expect.poll(() => marks(guest)).toMatchObject({ "fe-thread-resolved": ["plan, for"] });
+
+    // The owner closes the comments: the guest is told so. And deletes the thread: it goes from the guest's panel and text.
+    await ownerPanel.getByRole("button", { name: "Close comments" }).click();
+    await expect(guestPanel.getByText("Comments are closed")).toBeVisible();
+    await ownerPanel.getByRole("button", { name: "Open comments" }).click();
+    await expect(guestPanel.getByText("Comments are closed")).toHaveCount(0);
+    await ownerPanel.getByRole("button", { name: /Delete Grace Hopper's comment/ }).click();
+    await ownerPanel.getByRole("button", { name: "Yes, delete" }).click();
+    await expect(guestPanel.getByTestId("comment-thread")).toHaveCount(0);
+    await expect.poll(() => marks(guest)).toEqual({});
+
+    expect([await loads(page), await loads(guest)]).toEqual(before);
+    await guestContext.close();
+  } finally {
+    await restoreMore();
+  }
+});

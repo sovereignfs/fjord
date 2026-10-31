@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { addReply, deleteComment, editComment, failureFrom, listingFrom, loadComments, madeFrom, setClosed, setResolved, startThread } from "./client";
+import { addReply, deleteComment, editComment, eventsAddress, failureFrom, listingFrom, loadComments, madeFrom, setClosed, setResolved, startThread, versionFrom } from "./client";
 
 /** What the comments panel sends, and what each answer means to it (ROADMAP 1d.1). */
 const DOC = "01jagc4k7pt8y3wqnmzv5xrb8j";
@@ -23,6 +23,18 @@ describe("what an answer means", () => {
     expect(failureFrom(409, { error: { code: "closed", message: "Comments on this document are closed." } })).toEqual({ ok: false, code: "closed", message: "Comments on this document are closed." });
     expect(failureFrom(404, { error: { code: "not_found" } })).toMatchObject({ code: "not_found", message: expect.stringMatching(/no longer have access/) });
     expect(failureFrom(500, undefined).message).toMatch(/Nothing was changed/);
+  });
+});
+
+describe("the live stream", () => {
+  it("is under the document's comments, where a link's cookie is sent", () => {
+    expect(eventsAddress(DOC)).toBe(`/doc/${DOC}/comments/events`);
+  });
+
+  it("says a version, or nothing for what does not say one", () => {
+    expect(versionFrom('{"version":12}')).toBe(12);
+    expect(versionFrom('{"version":0}')).toBe(0);
+    for (const bad of ["{}", "{nope", '{"version":"12"}', '{"version":-1}', '{"version":1.5}', "null", "[]", undefined]) expect(versionFrom(bad), String(bad)).toBeUndefined();
   });
 });
 

@@ -7,7 +7,9 @@ import { proofIsRight } from "../sharing/password";
 import { LinkService } from "../sharing/links";
 import { ShareService } from "../sharing/shares";
 import { parseShareCookie } from "../sharing/unlock";
-import { type AccessDeps, type Viewer, commentsAccess } from "./access";
+import { type AccessDeps, type Viewer, commentsAccess, commentsWatch } from "./access";
+import { commentBus } from "./bus";
+import type { EventDeps } from "./events";
 import type { Caller, Deps } from "./http";
 import { CommentService } from "./service";
 
@@ -50,6 +52,18 @@ export async function commentsContext(): Promise<{ caller: Caller | null; deps: 
   const config = authConfig();
   if (!config.enabled) return null;
   const session = await getSession();
-  const deps: AccessDeps = { viewer: viewerOf, comments: new CommentService(await getDatabase()) };
+  const deps: AccessDeps = { viewer: viewerOf, comments: commentService(await getDatabase()) };
   return { caller: session ? { accountId: session.user.id, name: session.user.name } : null, deps: { origin: config.url, run: commentsAccess(deps) } };
+}
+
+/** The service, which tells the live streams of this process when it changes something (ROADMAP 1d.3). */
+const commentService = (database: Awaited<ReturnType<typeof getDatabase>>) => new CommentService(database, Date.now, (connectionId, docId) => commentBus().publish(connectionId, docId));
+
+/** The same, for the live stream of a document's comments (ROADMAP 1d.3). */
+export async function eventsContext(): Promise<{ caller: Caller | null; deps: EventDeps } | null> {
+  const config = authConfig();
+  if (!config.enabled) return null;
+  const session = await getSession();
+  const comments = commentService(await getDatabase());
+  return { caller: session ? { accountId: session.user.id, name: session.user.name } : null, deps: { open: commentsWatch({ viewer: viewerOf, comments, subscribe: (connectionId, docId, listener) => commentBus().subscribe(connectionId, docId, listener) }) } };
 }

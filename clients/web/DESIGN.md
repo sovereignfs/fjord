@@ -1125,7 +1125,7 @@ Comments are collaborative in phase 1; editing is not (phase 3).
 ### Comments, as built (ROADMAP 1d.1)
 
 Threads, replies, resolving, editing, deleting and closing are built, and so is re-anchoring after outside changes (1d.2, below); live updates
-(1d.3) and the per-user and per-link rate limits (1d.4) are not.
+(1d.3, below) too; the per-user and per-link rate limits (1d.4) are not.
 
 - **Where the comments are:** a panel beside the document, for the owner (on the document's page), for an account it is shared with and for
   anyone with a link (on `/doc/<id>`). They are kept per connection and Doc `id` (`comment_thread`, `comment_reply`, `comment_activity`,
@@ -1172,9 +1172,34 @@ person typing inside the text changes it at every key), asks the server to keep 
 that the next change is compared with the words as they are now and not with the words from long ago. The server does what it can check without the text:
 it moves a thread only **from the anchor it was found with** (a page that did not see an earlier move changes nothing, `409 stale`) and only onto a quote **like
 the old one** (within 40%, `422 bad_anchor`), so that one request cannot move a thread onto unrelated text. It needs the right to comment but no name (the
-page keeping up is not something a person wrote), works while a document's comments are closed, and is not in the activity log. Someone who may only read
+page keeping up is not something a person wrote), works while a document's comments are closed, and is in the activity log as the page's doing and not a person's (so that everyone watching finds out where the thread is now, below). Someone who may only read
 re-finds the threads on each visit and keeps nothing. A thread can be walked away from its text by many small moves by someone who may comment; that is
 no more than what they can do to the thread by resolving or deleting it, and is for the phase-1 security review (1d.5).
+
+### Live updates, as built (ROADMAP 1d.3)
+
+A page showing a document's comments is told when they change, and reads them again; two people looking at one document see each other's comments, replies,
+resolving, editing, deleting and closing without reloading.
+
+- **The stream** is `GET /doc/<id>/comments/events`, server-sent events (under `/doc/<id>` for a link's cookie, like the comments). It says *that*
+  something changed and never *what*: `version` first (where the comments are up to), `changed` with the new number whenever it moves, `gone` once when the
+  watcher may no longer read them, and a comment line every 20 seconds so nothing in between closes an idle connection. A page that holds the number it was given
+  with its comments reads them again, through the ordinary route (which checks who is asking each time), only when the number is not that one. The stream
+  therefore carries nothing a person who lost access could learn but a number going up.
+- **The version** is the number of the last entry in the document's activity log (`comment_activity`, which only grows and has an entry for every change,
+  including the page moving a thread onto edited words). It is the same in every process and costs one `MAX` to ask; a listing carries the version it was
+  read at, read first, so that a change made while it was being read is a later version and is seen.
+- **How it knows:** in this process at once (`bus.ts`: the service tells the streams of the document it just changed), and from the database every 4 seconds,
+  which is how a change made by another replica arrives. PostgreSQL's `LISTEN`/`NOTIFY` is not used (SQLite has no such thing, §14); the `event` table is the
+  worker's, and the log serves the same purpose here, read from the last number seen.
+- **Who may watch** is who may read the comments (`read`), checked when the stream opens (not found or forbidden, as the comments are) and again every 15 seconds:
+  a link revoked or expired, or a share ended, is told `gone` and the stream ends, and the page reads once more and is told it no longer has access. A stream lasts
+  five minutes at most; the browser opens a new one, which checks everything again.
+- **How many:** a process holds 300 streams at most and answers one more `503` with `Retry-After`; a page without a stream still has its comments, reading them
+  on loading and whenever the tab becomes visible. (Per-user and per-link limits, and what a hostile client can hold open, are 1d.4.)
+- **Behind a proxy** the stream is sent with `Cache-Control: no-store, no-transform` and `X-Accel-Buffering: no`, so that nothing compresses or holds it back; a
+  proxy that buffers responses anyway turns it into a slow poll (the browser reads again every five minutes at worst, and on every visit).
+
 
 ## 14. Data model and database
 

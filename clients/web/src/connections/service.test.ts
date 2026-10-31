@@ -392,7 +392,7 @@ describe(`using and removing a connection (${leg})`, () => {
       await comments.setClosed(id, doc, true, author);
     }
     await s.remove(ALICE, one.id);
-    expect(await comments.list(one.id, doc, undefined)).toEqual({ threads: [], closed: false });
+    expect(await comments.list(one.id, doc, undefined)).toEqual({ threads: [], closed: false, version: 0 });
     expect(await comments.activity(one.id, doc)).toEqual([]);
     expect((await comments.list(two.id, doc, undefined)).threads).toHaveLength(1);
     expect((await comments.list(two.id, doc, undefined)).closed).toBe(true);

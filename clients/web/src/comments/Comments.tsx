@@ -13,6 +13,7 @@ import {
   addReply,
   clientId,
   deleteComment,
+  eventsAddress,
   editComment,
   givenName,
   keepName,
@@ -21,6 +22,7 @@ import {
   setClosed,
   setResolved,
   startThread,
+  versionFrom,
 } from "./client";
 import { MAX_COMMENT_CHARS } from "./limits";
 
@@ -72,6 +74,24 @@ export function useComments(docId: string | undefined, options: { guest: boolean
     threadsRef.current = done.listing.threads;
     notify();
   }, [docId, guest, claim, notify]);
+
+  // Live updates (ROADMAP 1d.3): the server says when the comments have moved on from the version this page read, and they are read again. The stream
+  // carries no comment; a browser without it, or a stream that cannot be opened, leaves the page as it was, reading on its own visits.
+  useEffect(() => {
+    if (!docId || typeof EventSource === "undefined") return;
+    const source = new EventSource(eventsAddress(docId));
+    const moved = (event: MessageEvent) => {
+      const version = versionFrom(event.data);
+      if (version === undefined || version !== listingRef.current?.version) void reload();
+    };
+    source.addEventListener("version", moved);
+    source.addEventListener("changed", moved);
+    source.addEventListener("gone", () => {
+      source.close();
+      void reload();
+    });
+    return () => source.close();
+  }, [docId, reload]);
 
   useEffect(() => {
     void reload();

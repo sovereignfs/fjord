@@ -109,9 +109,14 @@ export function cleanAnchor(value: unknown): TextQuoteAnchor | undefined {
 }
 
 export class CommentService {
+  /**
+   * `onChange` is told after every change to a document's comments (which connection, which document): the live updates' way of knowing at once, in
+   * this process (ROADMAP 1d.3). Other processes find out from `version`.
+   */
   constructor(
     private readonly database: Database,
     private readonly now: () => number = Date.now,
+    private readonly onChange: (connectionId: number, docId: string) => void = () => undefined,
   ) {}
 
   private t() {
@@ -123,8 +128,22 @@ export class CommentService {
     return row !== undefined;
   }
 
-  /** The document's threads with their replies, oldest first, and whether its comments are closed; `viewer` is who is asking, for `mine`. */
-  async list(connectionId: number, docId: string, viewer: Author | undefined): Promise<{ threads: Thread[]; closed: boolean }> {
+  /**
+   * Where a document's comments are up to: the number of the last thing that happened to them (every change is in the log, which only grows), 0
+   * if nothing has. Cheap, and the same in every process, so a page that holds the number it was given with its comments knows by comparing it
+   * whether they have changed (ROADMAP 1d.3).
+   */
+  async version(connectionId: number, docId: string): Promise<number> {
+    const row = await dbGet<{ latest: number | string | null }>(this.database, sql`SELECT MAX(id) AS latest FROM ${this.t().activity} WHERE connection_id = ${connectionId} AND doc_id = ${docId}`);
+    return Number(row?.latest ?? 0);
+  }
+
+  /**
+   * The document's threads with their replies, oldest first, whether its comments are closed, and the `version` they were read at (read first, so
+   * that a change made while they were being read is a later version and is seen); `viewer` is who is asking, for `mine`.
+   */
+  async list(connectionId: number, docId: string, viewer: Author | undefined): Promise<{ threads: Thread[]; closed: boolean; version: number }> {
+    const version = await this.version(connectionId, docId);
     const t = this.t();
     const threads = await dbAll<ThreadRow>(
       this.database,
@@ -143,6 +162,7 @@ export class CommentService {
       byThread.set(Number(reply.threadId), list);
     }
     return {
+      version,
       closed: await this.isClosed(connectionId, docId),
       threads: threads.map((row) => ({
         id: Number(row.id),
@@ -162,6 +182,7 @@ export class CommentService {
 
   private async log(connectionId: number, docId: string, threadId: number | null, actor: { kind: string; name: string }, event: string): Promise<void> {
     await dbRun(this.database, sql`INSERT INTO ${this.t().activity} (connection_id, doc_id, thread_id, actor_kind, actor_name, event, at) VALUES (${connectionId}, ${docId}, ${threadId}, ${actor.kind}, ${actor.name}, ${event}, ${this.now()})`);
+    this.onChange(connectionId, docId);
   }
 
   async createThread(connectionId: number, docId: string, anchor: TextQuoteAnchor, rawBody: unknown, author: Author): Promise<Done<{ id: number }>> {
@@ -209,8 +230,8 @@ export class CommentService {
   /**
    * Move a thread onto the words its text was edited into (ROADMAP 1d.2). Only if the thread's anchor is still `from`, the one the browser found
    * it with: a page that has not seen a newer move changes nothing. And only if `to` is like `from`: the server cannot see the text, but it will
-   * not move a thread onto unrelated words in one step. Not a comment, so it works while the comments are closed and is not the person's act:
-   * it is not in the log.
+   * not move a thread onto unrelated words in one step. Not a comment, so it works while the comments are closed, and not a person's act: it is in the log as the page's, so that
+   * everyone looking at the document finds out where the thread is now (ROADMAP 1d.3).
    */
   async reanchor(connectionId: number, docId: string, threadId: number, from: TextQuoteAnchor, to: TextQuoteAnchor): Promise<Done> {
     if (!(await this.thread(connectionId, docId, threadId))) return { ok: false, reason: "not_found" };
@@ -221,7 +242,9 @@ export class CommentService {
           WHERE id = ${threadId} AND connection_id = ${connectionId} AND doc_id = ${docId} AND anchor = ${JSON.stringify(from)}
           RETURNING id`,
     );
-    return moved.length > 0 ? { ok: true } : { ok: false, reason: "stale" };
+    if (moved.length === 0) return { ok: false, reason: "stale" };
+    await this.log(connectionId, docId, threadId, { kind: "page", name: "" }, "reanchored");
+    return { ok: true };
   }
 
   /** Resolve a thread, or open it again. Anyone who may comment may; the actor is named on it. */

@@ -72,7 +72,7 @@ export async function handleComments(request: Request, caller: Caller | null, de
       const url = new URL(request.url);
       const outcome = await deps.run({ docId, account, cookie, claimed: { name: url.searchParams.get("name") ?? undefined, clientId: url.searchParams.get("client") ?? undefined }, operation: { op: "list" } });
       if (!outcome.ok) return refusal(outcome.reason);
-      return json(200, { threads: outcome.threads, closed: outcome.closed, viewer: outcome.viewer });
+      return json(200, { threads: outcome.threads, closed: outcome.closed, version: outcome.version, viewer: outcome.viewer });
     }
 
     if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");

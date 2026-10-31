@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { type Grant, ROLES, type Role } from "../access/policy";
-import { type AccessDeps, CLIENT_ID, type Operation, type Viewer, commentsAccess } from "./access";
+import { type AccessDeps, CLIENT_ID, type Operation, type Viewer, commentsAccess, commentsWatch } from "./access";
 
 /**
  * Who may do what to a document's comments (ROADMAP 1d.1): the policy's decision for each operation, by role and by way in, the author a
@@ -13,7 +13,7 @@ const BROWSER = "browser-0001";
 
 function setup(viewer: Viewer | undefined) {
   const comments = {
-    list: vi.fn(async (..._args: unknown[]) => ({ threads: [], closed: false })),
+    list: vi.fn(async (..._args: unknown[]) => ({ threads: [], closed: false, version: 0 })),
     createThread: vi.fn(async (..._args: unknown[]) => ({ ok: true as const, id: 11 })),
     reply: vi.fn(async (..._args: unknown[]) => ({ ok: true as const, id: 12 })),
     setResolved: vi.fn(async (..._args: unknown[]) => ({ ok: true as const })),
@@ -149,8 +149,8 @@ describe("who a comment is written as", () => {
 describe("what listing says", () => {
   it("gives the threads, whether comments are closed, what the viewer may do, and the name they write as", async () => {
     const { run, comments } = setup(owner);
-    comments.list.mockResolvedValue({ threads: [{ id: 1 } as never], closed: true });
-    expect(await run({ docId: DOC, account: ALICE, cookie: undefined, claimed: {}, operation: { op: "list" } })).toEqual({ ok: true, threads: [{ id: 1 }], closed: true, viewer: { role: "owner", canComment: true, canModerate: true, name: "Alice" } });
+    comments.list.mockResolvedValue({ threads: [{ id: 1 } as never], closed: true, version: 7 });
+    expect(await run({ docId: DOC, account: ALICE, cookie: undefined, claimed: {}, operation: { op: "list" } })).toEqual({ ok: true, threads: [{ id: 1 }], closed: true, version: 7, viewer: { role: "owner", canComment: true, canModerate: true, name: "Alice" } });
     expect(comments.list).toHaveBeenCalledWith(1, DOC, { kind: "account", id: "alice", name: "Alice" });
   });
 
@@ -184,3 +184,49 @@ describe("what the service says", () => {
   });
 });
 
+describe("who may watch a document's comments (ROADMAP 1d.3)", () => {
+  const watching = (viewer: Viewer | undefined) => {
+    const version = vi.fn(async (..._args: unknown[]) => 12);
+    const subscribe = vi.fn((..._args: unknown[]) => () => undefined);
+    const current = { viewer };
+    const open = commentsWatch({ viewer: async () => current.viewer, comments: { version } as never, subscribe: (c: number, d: string, l: () => void) => subscribe(c, d, l) as () => void, now: () => NOW } as never);
+    return { open, version, subscribe, current };
+  };
+  const ask = { docId: DOC, account: undefined, cookie: undefined };
+
+  it("is whoever may read the comments, by every way in and every role: view too", async () => {
+    for (const viewer of [owner, named("view"), named("comment"), named("edit"), link("view"), link("comment"), link("edit")]) {
+      const { open } = watching(viewer);
+      expect((await open(ask)).ok, JSON.stringify(viewer.grants)).toBe(true);
+    }
+  });
+
+  it("is nothing for someone let in nowhere, nor for a link that has expired or been revoked, and nothing is listened to", async () => {
+    const { open, subscribe } = watching(undefined);
+    expect(await open(ask)).toEqual({ ok: false, reason: "hidden" });
+    for (const dead of [link("edit", { expiresAt: NOW }), link("edit", { revoked: true })]) expect(await watching(dead).open(ask)).toEqual({ ok: false, reason: "hidden" });
+    expect(subscribe).not.toHaveBeenCalled();
+  });
+
+  it("watches the document's own comments, under the connection it found them in", async () => {
+    const { open, version, subscribe } = watching(owner);
+    const opened = await open(ask);
+    if (!opened.ok) throw new Error("not opened");
+    expect(await opened.watch.version()).toBe(12);
+    expect(version).toHaveBeenCalledWith(1, DOC);
+    const listener = () => undefined;
+    opened.watch.subscribe(listener);
+    expect(subscribe).toHaveBeenCalledWith(1, DOC, listener);
+  });
+
+  it("asks again, each time it is asked whether the watcher may still: a link revoked since is no longer let in", async () => {
+    const { open, current } = watching(link("comment"));
+    const opened = await open(ask);
+    if (!opened.ok) throw new Error("not opened");
+    expect(await opened.watch.allowed()).toBe(true);
+    current.viewer = link("comment", { revoked: true });
+    expect(await opened.watch.allowed()).toBe(false);
+    current.viewer = undefined;
+    expect(await opened.watch.allowed()).toBe(false);
+  });
+});

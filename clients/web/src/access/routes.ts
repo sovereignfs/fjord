@@ -46,6 +46,8 @@ export const ROUTES: RouteRule[] = [
   { route: "/doc/[id]/draft", methods: { PUT: owner("edit") } },
   // Comments on a document: read by anyone let in, the rest by what the policy gives each role (1d.1). Each method names the weakest action it may be; the operation inside asks its own.
   { route: "/doc/[id]/comments", methods: { GET: owner("read"), POST: owner("comment"), PATCH: owner("resolve"), DELETE: owner("delete_own_comment") } },
+  // The live stream of a document's comments: says that they changed, never what they are; who may watch is who may read them (1d.3).
+  { route: "/doc/[id]/comments/events", methods: { GET: owner("read") } },
   { route: "/note/[id]", page: owner("read") },
   { route: "/deleted/[connection]", page: owner("restore") },
 
