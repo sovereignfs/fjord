@@ -11,6 +11,8 @@ section.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-01
+
 ### Security
 
 - **The frontmatter parser is safe Rust** (the format module): the library behind it was replaced, so a document header from outside is read by code that forbids `unsafe` and limits what an alias can expand to. A header that cannot be kept exactly (a key given twice, a YAML tag, a whole number too large to be one) is shown as the file it is and is not rewritten. The headers the page writes now quote text and timestamps (`created: "2026-10-16T09:34:00Z"`), so the first title change or promotion of a file re-quotes those lines; nothing else about them changes. The module is 1.3 MB (495 KB compressed), up from 980 KB.
@@ -317,4 +319,5 @@ section.
   tests and builds in CI. Nothing in it is usable yet; the work is planned in
   [`ROADMAP.md`](ROADMAP.md).
 
-[Unreleased]: https://github.com/sovereignfs/fjord/commits/main/clients/web
+[Unreleased]: https://github.com/sovereignfs/fjord/compare/web-v0.1.0...HEAD
+[0.1.0]: https://github.com/sovereignfs/fjord/releases/tag/web-v0.1.0
