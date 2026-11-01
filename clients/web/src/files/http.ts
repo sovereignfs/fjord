@@ -6,6 +6,7 @@ import { type Caller, isRepositoryPath } from "../working/http";
 import { MAX_CIPHERTEXT_BYTES, fromBase64, whyNotCiphertext } from "../working/ciphertext";
 import type { CreateResult, FileKind, VaultRefusal } from "./create";
 import type { CreateEncryptedResult, EncryptedVaultRefusal } from "./create-encrypted";
+import type { TransferResult } from "./transfer";
 import { MAX_TITLE_CHARS } from "./create";
 import type { DeleteResult, DeleteTarget } from "./delete";
 import type { MoveResult } from "./move";
@@ -62,6 +63,15 @@ export interface Deps {
     id: number,
     input: { vault: string; target: DeleteTarget; destination: string; author: Identity },
   ) => Promise<{ found: false } | { found: true; result: MoveResult | { ok: false; reason: VaultRefusal; where: "source" | "destination" } }>;
+  /**
+   * Move one file between a plaintext and an encrypted vault, or between two encrypted ones (ROADMAP 2b.6), with the bytes the browser made for the destination.
+   * `found: false` if it is not the caller's.
+   */
+  transfer: (
+    accountId: string,
+    id: number,
+    input: { path: string; blob: string; destination: string; content: Uint8Array; author: Identity },
+  ) => Promise<{ found: false } | { found: true; result: TransferResult | { ok: false; reason: VaultRefusal | "no_encryption"; where: "source" | "destination" } }>;
   /** Put back deletions the caller's repository has records of, at the paths they had or, for one, the one given. */
   restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<{ found: false } | { found: true; result: RestoreResult }>;
   /**
@@ -356,6 +366,69 @@ export async function handleMove(request: Request, caller: Caller | null, deps: 
   }
 }
 
+/** A transfer carries a whole file, which can be a megabyte of text. */
+const MAX_TRANSFER_BODY_CHARS = Math.ceil(((1024 * 1024 + 64 * 1024) * 4) / 3) + 8_000;
+
+/**
+ * `POST` moves one file between vaults when one of them is encrypted, `{ path, blob, destination, content }` (ROADMAP 2b.6): the browser decrypted or encrypted the file on the way, and
+ * `content` (base64) is what belongs at `destination`. One commit takes the source away and adds the destination. The server has no key, so it checks what it can: the
+ * source is still the blob that was shown, the bytes are the form the destination vault holds (age in an encrypted one, text in a plaintext one), the name is valid, and
+ * nothing is put over anything.
+ */
+export async function handleTransfer(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  if (!caller) return failure(401, "unauthorized", "Sign in first.");
+  if (request.headers.get("origin") !== deps.origin) return failure(403, "forbidden", "This request did not come from this site.");
+  const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
+  if (number === undefined) return notFound();
+
+  try {
+    if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");
+    const text = await request.text();
+    if (text.length > MAX_TRANSFER_BODY_CHARS) return failure(413, "too_large", "That request is too large.");
+    const body = parse(text);
+    if (!body) return failure(400, "invalid_request", "Send a JSON object.");
+    const { path, blob, destination, content } = body;
+    if (!isRepositoryPath(path)) return failure(400, "invalid_request", "Say what to move, by its path in the repository.");
+    if (typeof blob !== "string" || !OBJECT_ID.test(blob)) return failure(400, "invalid_request", "Say which version of the file you were shown, by its git object id.");
+    if (!isRepositoryPath(destination) || destination.length > MAX_PATH_CHARS || !destination.isWellFormed() || CONTROL.test(destination)) {
+      return failure(400, "invalid_request", "Say where it goes, by a path in the repository.");
+    }
+    if (typeof content !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(content)) return failure(400, "invalid_request", "Send the file as base64 text.");
+    const bytes = new Uint8Array(Buffer.from(content, "base64"));
+    if (bytes.length > 1024 * 1024 + 64 * 1024) return failure(413, "too_large", "That file is too large to move from here.");
+
+    const outcome = await deps.transfer(caller.accountId, number, { path, blob, destination, content: bytes, author: { name: caller.name, email: caller.email } });
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (result.ok) return json(200, { commit: result.commit, path: result.path });
+    if (result.reason === "no_encryption") return failure(422, "no_encryption", "Neither vault is encrypted: move it the ordinary way.");
+    if (result.reason === "unknown_vault" || result.reason === "encrypted_vault" || result.reason === "unsupported_vault") {
+      const refusal = MOVE_DESTINATION_REFUSALS[result.reason];
+      return failure(refusal.status, result.reason, "where" in result && result.where === "source" ? REFUSALS[result.reason].message : refusal.message);
+    }
+    const refusal = TRANSFER_REFUSALS[result.reason];
+    return failure(refusal.status, result.reason, refusal.message, "taken" in result && result.taken ? { taken: result.taken } : {});
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+const TRANSFER_REFUSALS: Record<Extract<TransferResult, { ok: false }>["reason"], { status: number; message: string }> = {
+  gone: { status: 409, message: "That is no longer in the repository. Nothing was moved." },
+  upstream_changed: { status: 409, message: "That file changed in the repository after you looked at it, so it was not moved. Look at it again." },
+  has_drafts: { status: 409, message: "This file, or a place it is going to, has unsaved changes. Save a version of them, or discard them, first. Nothing was moved." },
+  bad_path: { status: 422, message: "That is not a name or a place a file can have there. Names cannot hold characters such as : ? * or /, end in a space or a dot, or be one Windows reserves; a plaintext vault takes .md and .fj.md files." },
+  protected: { status: 422, message: "A vault, its manifest and the repository's own files cannot be moved from here." },
+  wrong_form: { status: 422, message: "What was sent is not the form the vault it goes to holds: an encrypted vault takes only encrypted files, and a plaintext one only text. Nothing was moved." },
+  path_taken: { status: 409, message: "Something is at that name already, or has a name like it that differs only by letter case. Nothing was moved and nothing was replaced. Choose another name." },
+  same_vault: { status: 422, message: "That is the same vault: use Move." },
+  head_moved: { status: 409, message: "The repository kept changing while this was being moved. Nothing was moved. Try again." },
+  read_only: { status: 422, message: "That token can read this repository but not write to it, so nothing was moved. Create the token with the repository permission “Contents: Read and write”, and connect the repository again." },
+  bad_token: { status: 422, message: "The git host did not accept this repository's token. Connect the repository again with a new one." },
+  unavailable: { status: 502, message: "Could not reach the git host just now. Nothing was moved. Try again in a moment." },
+};
+
 /** `POST` puts back what was deleted, `{ ids: [deletion ids], path? }`: one commit, never over anything. */
 export async function handleRestore(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
   const gate = await gateway(request, caller, deps, id);
@@ -421,7 +494,7 @@ const MOVE_REFUSALS: Record<Extract<MoveResult, { ok: false }>["reason"], { stat
   bad_path: { status: 422, message: () => "That is not a name or a place a file can have here. Names cannot hold characters such as : ? * or /, end in a space or a dot, or be one Windows reserves." },
   extension_changed: { status: 422, message: () => "A rename keeps the file's kind: a document stays a .fj.md and a note stays a .md (and an encrypted file keeps its .age)." },
   id_named: { status: 422, message: () => "This vault names its files by identifier, which never changes. A file in it is renamed by changing the name kept inside it, which only your browser can do, with your identity." },
-  other_vault: { status: 422, message: () => "A file of an encrypted vault stays in it: moving it to another vault would need your browser to decrypt or encrypt it, which comes later." },
+  other_vault: { status: 422, message: () => "A file does not leave an encrypted vault this way: it has to be decrypted first. Use Move to another vault on the file's page, which does that in your browser." },
   into_itself: { status: 422, message: () => "A folder cannot be moved into itself." },
   unchanged: { status: 422, message: () => "That is where it is already." },
   path_taken: { status: 409, message: () => "Something is at that name already, or has a name like it that differs only by letter case. Nothing was moved and nothing was replaced. Choose another name." },
@@ -434,7 +507,7 @@ const MOVE_REFUSALS: Record<Extract<MoveResult, { ok: false }>["reason"], { stat
 /** The vault something is going to, when that is what is wrong. */
 const MOVE_DESTINATION_REFUSALS: Record<VaultRefusal, { status: number; message: string }> = {
   unknown_vault: { status: 422, message: "This repository has no such vault to move it to." },
-  encrypted_vault: { status: 422, message: "Nothing can be moved into an encrypted vault from here: it would put plaintext in it. Encrypting on the way in comes later." },
+  encrypted_vault: { status: 422, message: "A file does not move into an encrypted vault this way: it would put plaintext in it. Use Move to another vault on the file's page, which encrypts it in your browser first." },
   unsupported_vault: { status: 422, message: "That vault's manifest cannot be read, or it does not use plain file names, so nothing can be moved into it from here." },
 };
 

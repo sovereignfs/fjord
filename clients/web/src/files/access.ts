@@ -2,6 +2,7 @@ import type { LocalMinute } from "../format/types";
 import type { Identity } from "../providers/types";
 import type { CreateResult, FileKind, VaultRefusal } from "./create";
 import type { CreateEncryptedResult, EncryptedTarget, EncryptedVaultRefusal } from "./create-encrypted";
+import type { TransferResult, VaultForm } from "./transfer";
 import type { DeleteResult, DeleteTarget } from "./delete";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
@@ -40,6 +41,12 @@ export interface AccessDeps {
   delete: (accountId: string, id: number, input: { vault: string; target: DeleteTarget; author: Identity }) => Promise<DeleteResult>;
   /** Rename or move, through the connection's own token. Only called for two vaults that are `ok` of a connection that is the caller's. */
   move: (accountId: string, id: number, input: { vault: string; target: DeleteTarget; destination: string; author: Identity; encrypted?: { idNamed: boolean } }) => Promise<MoveResult>;
+  /** Move one file between vaults, one of them encrypted, through the connection's own token. Only called for two vaults that are `ok` of a connection that is the caller's. */
+  transfer: (
+    accountId: string,
+    id: number,
+    input: { path: string; blob: string; destination: string; content: Uint8Array; author: Identity; source: VaultForm; target: VaultForm },
+  ) => Promise<TransferResult>;
   /** Put back, through the connection's own token. Only called for a connection that is the caller's; its records are checked there. */
   restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<RestoreResult>;
 }
@@ -57,8 +64,21 @@ async function changeable(deps: AccessDeps, accountId: string, id: number, vault
   return { ok: true, encrypted: { idNamed: encrypted.target.naming === "id" } };
 }
 
-export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncrypted" | "delete" | "restore" | "header" | "move"> {
+export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncrypted" | "transfer" | "delete" | "restore" | "header" | "move"> {
+  const formOf = (vault: { encrypted: { idNamed: boolean } | undefined }): VaultForm => (vault.encrypted ? { form: "encrypted", naming: vault.encrypted.idNamed ? "id" : "plain" } : { form: "plaintext" });
   return {
+    async transfer(accountId, id, input) {
+      if (!(await deps.owns(accountId, id))) return { found: false };
+      const from = await changeable(deps, accountId, id, input.path.split("/")[0] as string);
+      if (!from.ok) return { found: true, result: { ok: false, reason: from.reason, where: "source" } };
+      const to = await changeable(deps, accountId, id, input.destination.split("/")[0] as string);
+      if (!to.ok) return { found: true, result: { ok: false, reason: to.reason, where: "destination" } };
+      // Between two plaintext vaults there is nothing to encrypt or decrypt, and nothing for the browser to do: that is Move.
+      if (!from.encrypted && !to.encrypted) return { found: true, result: { ok: false, reason: "no_encryption", where: "destination" } };
+      const { path, blob, destination, content, author } = input;
+      return { found: true, result: await deps.transfer(accountId, id, { path, blob, destination, content, author, source: formOf(from), target: formOf(to) }) };
+    },
+
     async createEncrypted(accountId, id, input) {
       if (!(await deps.owns(accountId, id))) return { found: false };
       const vault = await deps.encryptedVaultFor(accountId, id, input.vault);

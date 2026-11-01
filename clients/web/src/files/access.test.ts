@@ -15,7 +15,9 @@ function setup(over: { owns?: boolean; encrypted?: Awaited<ReturnType<AccessDeps
   const move = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "f".repeat(40), files: 1, moved: [{ from: "Notes/a.md", to: "Other/a.md" }] }));
   const encryptedVaultFor = vi.fn(async (..._args: unknown[]): Promise<{ ok: true; target: { naming: "plain" | "id"; suffix: string } } | { ok: false; reason: "unknown_vault" | "not_encrypted" | "unsupported_vault" | "unavailable" }> => over.encrypted ?? { ok: true, target: { naming: "plain", suffix: ".age" } });
   const createEncrypted = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, path: "Secret/Plan.md.age", commit: "c".repeat(40) }));
+  const transfer = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "c".repeat(40), path: "Locked/Plan.md.age" }));
   const access = filesAccess({
+    transfer: (a, i, x) => transfer(a, i, x),
     encryptedVaultFor: (a, i, v) => encryptedVaultFor(a, i, v),
     createEncrypted: (a, i, x) => createEncrypted(a, i, x),
     owns: (a, i) => owns(a, i),
@@ -26,7 +28,7 @@ function setup(over: { owns?: boolean; encrypted?: Awaited<ReturnType<AccessDeps
     restore: (a, i, x) => restore(a, i, x),
     move: (a, i, x) => move(a, i, x),
   });
-  return { access, owns, vaultFor, create, remove, restore, setTitle, move, encryptedVaultFor, createEncrypted };
+  return { access, owns, vaultFor, create, remove, restore, setTitle, move, encryptedVaultFor, createEncrypted, transfer };
 }
 
 describe("making a file", () => {
@@ -202,5 +204,39 @@ describe("making a file in an encrypted vault (ROADMAP 2b.4)", () => {
     const { access, create } = setup({ vault: "encrypted_vault" });
     expect(await access.create("alice", 1, { ...input, vault: "Secret" })).toEqual({ found: true, result: { ok: false, reason: "encrypted_vault" } });
     expect(create).not.toHaveBeenCalled();
+  });
+});
+
+describe("moving a file between vaults, one of them encrypted (ROADMAP 2b.6)", () => {
+  const input = { path: "Notes/Plan.md", blob: "a".repeat(40), destination: "Locked/Plan.md.age", content: new Uint8Array([1]), author: { name: "Alice", email: "alice@example.com" } };
+
+  it("is for the caller's own connection only: another's is not found, and nothing is read or moved", async () => {
+    const { access, vaultFor, transfer } = setup({ owns: false });
+    expect(await access.transfer("mallory", 1, input)).toEqual({ found: false });
+    expect(vaultFor).not.toHaveBeenCalled();
+    expect(transfer).not.toHaveBeenCalled();
+  });
+
+  it("tells the move the form of each vault from the repository, not the request: plaintext to plain-named, and to id-named", async () => {
+    for (const naming of ["plain", "id"] as const) {
+      const { access, transfer } = setup({ vaults: { Notes: "ok", Locked: "encrypted_vault" }, encrypted: { ok: true, target: { naming, suffix: ".age" } } });
+      expect((await access.transfer("alice", 1, input)).found).toBe(true);
+      expect(transfer).toHaveBeenCalledWith("alice", 1, { ...input, source: { form: "plaintext" }, target: { form: "encrypted", naming } });
+    }
+  });
+
+  it("is not for two plaintext vaults, which need no browser", async () => {
+    const { access, transfer } = setup();
+    expect(await access.transfer("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "no_encryption", where: "destination" } });
+    expect(transfer).not.toHaveBeenCalled();
+  });
+
+  it("says which vault is refused, and moves nothing", async () => {
+    const source = setup({ vaults: { Notes: "unsupported_vault" } });
+    expect(await source.access.transfer("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unsupported_vault", where: "source" } });
+    const destination = setup({ vaults: { Locked: "unknown_vault" } });
+    expect(await destination.access.transfer("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unknown_vault", where: "destination" } });
+    expect(source.transfer).not.toHaveBeenCalled();
+    expect(destination.transfer).not.toHaveBeenCalled();
   });
 });

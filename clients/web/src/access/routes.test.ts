@@ -83,6 +83,7 @@ describe("every route says who may use it", () => {
       "/api/connections/[id]/files/encrypted": "create",
       "/api/connections/[id]/files/delete": "delete",
       "/api/connections/[id]/files/move": "move",
+      "/api/connections/[id]/files/transfer": "move",
       "/api/connections/[id]/files/restore": "restore",
       "/api/connections/[id]/working-copy/version": "save_version",
       "/deleted/[connection]": "restore",

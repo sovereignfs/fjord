@@ -18,6 +18,7 @@ export async function filesContext(): Promise<{ caller: Caller | null; deps: Dep
       origin: config.url,
       header: (accountId, id, input) => (access as NonNullable<typeof access>).header(accountId, id, input),
       create: (accountId, id, input) => (access as NonNullable<typeof access>).create(accountId, id, input),
+      transfer: (accountId, id, input) => (access as NonNullable<typeof access>).transfer(accountId, id, input),
       createEncrypted: (accountId, id, input) => (access as NonNullable<typeof access>).createEncrypted(accountId, id, input),
       move: (accountId, id, input) => (access as NonNullable<typeof access>).move(accountId, id, input),
       delete: (accountId, id, input) => (access as NonNullable<typeof access>).delete(accountId, id, input),

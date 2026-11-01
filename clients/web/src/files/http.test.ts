@@ -4,7 +4,7 @@ import { ProviderError } from "../providers/errors";
 import type { Caller } from "../working/http";
 import { type CreateResult, MAX_TITLE_CHARS, type VaultRefusal } from "./create";
 import type { DeleteResult } from "./delete";
-import { type Deps, handleCreate, handleCreateEncrypted, handleDelete, handleHeader, handleMove, handleRestore } from "./http";
+import { type Deps, handleCreate, handleCreateEncrypted, handleDelete, handleTransfer, handleHeader, handleMove, handleRestore } from "./http";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 
@@ -40,7 +40,12 @@ function stub() {
     found: true,
     result: { ok: true, path: "Secret/Plan.md.age", commit: "c".repeat(40) },
   }));
+  const transfer = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; commit: string; path: string } | { ok: false; reason: string } }> => ({
+    found: true,
+    result: { ok: true, commit: "c".repeat(40), path: "Locked/Plan.md.age" },
+  }));
   const deps: Deps = {
+    transfer: (accountId, id, input) => transfer(accountId, id, input) as ReturnType<Deps["transfer"]>,
     createEncrypted: (accountId, id, input) => createEncrypted(accountId, id, input) as ReturnType<Deps["createEncrypted"]>,
     header: (accountId, id, input) => header(accountId, id, input),
     move: (accountId, id, input) => move(accountId, id, input),
@@ -49,7 +54,7 @@ function stub() {
     restore: (accountId, id, input) => restore(accountId, id, input),
     origin: ORIGIN,
   };
-  return { deps, create, createEncrypted, remove, restore, header, move };
+  return { deps, create, createEncrypted, transfer, remove, restore, header, move };
 }
 
 const post = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
@@ -658,6 +663,77 @@ describe("making a file in an encrypted vault (ROADMAP 2b.4)", () => {
     const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
     createEncrypted.mockRejectedValueOnce(new Error(`could not write ${AGE}`));
     const response = await handleCreateEncrypted(send(secret), ALICE, deps, "1");
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain(AGE);
+    expect(JSON.stringify(logged.mock.calls)).not.toContain(AGE);
+    logged.mockRestore();
+  });
+});
+
+describe("moving a file between vaults, one of them encrypted (ROADMAP 2b.6)", () => {
+  const BLOB = "a".repeat(40);
+  const AGE = Buffer.from("age-encryption.org/v1\n-> X25519 abc\nbody").toString("base64");
+  const valid = { path: "Notes/Plan.md", blob: BLOB, destination: "Locked/Plan.md.age", content: AGE };
+  const send = (body: unknown, init?: Parameters<typeof post>[1]) => {
+    const request = post(body, init);
+    return new Request(request.url.replace("/files", "/files/transfer"), { method: "POST", headers: request.headers, body: typeof body === "string" ? body : JSON.stringify(body) });
+  };
+
+  it("hands the repository's rules the path, the blob shown, the destination and the decoded bytes, with the caller", async () => {
+    const { deps, transfer } = stub();
+    const response = await handleTransfer(send(valid), ALICE, deps, "1");
+    expect(response.status).toBe(200);
+    expect(await body(response)).toEqual({ commit: "c".repeat(40), path: "Locked/Plan.md.age" });
+    const given = transfer.mock.calls[0]![2] as { content: Uint8Array; path: string; blob: string; destination: string };
+    expect([given.path, given.blob, given.destination]).toEqual(["Notes/Plan.md", BLOB, "Locked/Plan.md.age"]);
+    expect(Buffer.from(given.content).toString()).toContain("age-encryption.org/v1");
+  });
+
+  it("is for nobody signed out, nor from another site, nor a connection that is not a number, and asks nothing", async () => {
+    const { deps, transfer } = stub();
+    expect((await handleTransfer(send(valid), null, deps, "1")).status).toBe(401);
+    for (const origin of ["https://evil.example", "null", null]) expect((await handleTransfer(send(valid, { origin }), ALICE, deps, "1")).status).toBe(403);
+    expect((await handleTransfer(send(valid, { type: "text/plain" }), ALICE, deps, "1")).status).toBe(415);
+    expect((await handleTransfer(send(valid), ALICE, deps, "1/../2")).status).toBe(404);
+    expect((await handleTransfer(new Request(`${ORIGIN}/x`, { method: "GET" }), ALICE, deps, "1")).status).toBe(405);
+    expect(transfer).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["no path", { path: undefined }],
+    ["a way up in the path", { path: "../x.md" }],
+    ["a blob that is not an object id", { blob: "main" }],
+    ["a destination with a way up", { destination: "Locked/../x.age" }],
+    ["a destination with a control character", { destination: "Locked/a\u0001.age" }],
+    ["content that is not base64", { content: "not base64!" }],
+    ["content that is not text", { content: 5 }],
+  ])("refuses %s", async (_name, over) => {
+    const { deps, transfer } = stub();
+    expect((await handleTransfer(send({ ...valid, ...over }), ALICE, deps, "1")).status).toBe(400);
+    expect(transfer).not.toHaveBeenCalled();
+  });
+
+  it("says why, in words, with the right status", async () => {
+    for (const [reason, status] of [["wrong_form", 422], ["path_taken", 409], ["upstream_changed", 409], ["has_drafts", 409], ["same_vault", 422], ["no_encryption", 422], ["unsupported_vault", 422], ["unavailable", 502]] as const) {
+      const { deps, transfer } = stub();
+      transfer.mockResolvedValueOnce({ found: true, result: { ok: false, reason } });
+      const response = await handleTransfer(send(valid), ALICE, deps, "1");
+      expect([response.status, (await body(response)).error.code]).toEqual([status, reason]);
+    }
+  });
+
+  it("is a 404, saying nothing else, for a connection that is not the caller's", async () => {
+    const { deps, transfer } = stub();
+    transfer.mockResolvedValueOnce({ found: false });
+    const response = await handleTransfer(send(valid), ALICE, deps, "1");
+    expect([response.status, (await body(response)).error.code]).toEqual([404, "not_found"]);
+  });
+
+  it("does not put the file in what it answers or logs when it fails unexpectedly", async () => {
+    const { deps, transfer } = stub();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    transfer.mockRejectedValueOnce(new Error(`could not write ${AGE}`));
+    const response = await handleTransfer(send(valid), ALICE, deps, "1");
     expect(response.status).toBe(500);
     expect(await response.text()).not.toContain(AGE);
     expect(JSON.stringify(logged.mock.calls)).not.toContain(AGE);

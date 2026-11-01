@@ -14,6 +14,7 @@ import { type CreateEncryptedResult, type EncryptedTarget, checkEncryptedVault, 
 import { type DeleteResult, type DeleteTarget, deletePath } from "./delete";
 import { DeletionService } from "./deletions";
 import { type MoveResult, movePath } from "./move";
+import { type TransferResult, type VaultForm, transferFile } from "./transfer";
 import { type RestoreResult, restoreDeleted } from "./restore";
 
 /** Whether files may be made in a vault of one of the account's repositories, as the repository is now. */
@@ -103,6 +104,20 @@ async function move(accountId: string, id: number, input: { vault: string; targe
   return result;
 }
 
+/** Move a file between vaults, one of them encrypted, with the bytes the browser made for the destination: through the connection's own token, on its branch. */
+async function transfer(
+  accountId: string,
+  id: number,
+  input: { path: string; blob: string; destination: string; content: Uint8Array; author: Identity; source: VaultForm; target: VaultForm },
+): Promise<TransferResult> {
+  const used = await (await connectionService()).provider(accountId, id);
+  if (!used) return { ok: false, reason: "unavailable" };
+  return transferFile(
+    { provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord(), drafts: new WorkingCopyService(await getDatabase()) },
+    { connectionId: id, source: { path: input.path, blob: input.blob, form: input.source }, destination: { path: input.destination, form: input.target }, content: input.content, author: input.author },
+  );
+}
+
 /** Put back deletions of one of the account's repositories, into the vaults it can still write to. */
 async function restore(accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }): Promise<RestoreResult> {
   const used = await (await connectionService()).provider(accountId, id);
@@ -142,6 +157,7 @@ export async function filesAccessFor(): Promise<ReturnType<typeof filesAccess>> 
     vaultFor,
     setTitle: (header, title) => fjord().withTitle(header, title),
     create,
+    transfer,
     encryptedVaultFor,
     createEncrypted,
     delete: remove,
