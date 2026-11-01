@@ -75,11 +75,19 @@ c_check_plan() {
 # a bad patch can be rolled back without restoring a backup. Only checked when the
 # previous release is there to compare with.
 c_check_patch_policy() {
-  local v=$1 cur prev_tag changed
-  cur=$(c_current_version)
-  [ "${cur%.*}" = "${v%.*}" ] || return 0
-  prev_tag=$(previous_tag "$cur")
-  git rev-parse -q --verify "refs/tags/$prev_tag" >/dev/null || return 0
+  local v=$1 minor patch prev_tag changed best=-1 candidate n
+  minor=${v%.*}
+  patch=${v##*.}
+  [ "$patch" -gt 0 ] || return 0
+  # The newest release of this minor before $v. This runs after the version was bumped, so
+  # the current version cannot be used: the tags say what was released.
+  for candidate in $(git tag --list "${C_TAG_PREFIX}${minor}.*"); do
+    n=${candidate##*.}
+    case $n in '' | *[!0-9]*) continue ;; esac
+    if [ "$n" -lt "$patch" ] && [ "$n" -gt "$best" ]; then best=$n; fi
+  done
+  [ "$best" -ge 0 ] || return 0
+  prev_tag="${C_TAG_PREFIX}${minor}.${best}"
   changed=$(git diff --name-only "$prev_tag" HEAD -- clients/web/migrations)
   if [ -n "$changed" ]; then
     printf '%s\n' "$changed" | sed 's/^/        /' >&2
