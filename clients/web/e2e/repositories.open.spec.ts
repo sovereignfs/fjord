@@ -735,6 +735,86 @@ test("taking the repository's version drops an encrypted draft", async ({ page }
   }
 });
 
+// --- Creating files in encrypted vaults (ROADMAP 2b.4) ---
+
+test("a note and a document are made in an encrypted vault, encrypted in the browser, in both namings, and the server is sent no plaintext", async ({ page }) => {
+  test.setTimeout(300_000);
+  try {
+    const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({ "Open/seed.md.age": wasm.encrypt(bytes("seed"), recipient, false), "Sealed/01jagc4k7pr9tbm3ykwx6zq2hz.age": wasm.encrypt(wasm.wrapContainer("Seed.md", bytes("seed")), recipient, false) }));
+    const before = await hubs.more.branchHead();
+
+    // A plain-named vault: the title names the file (that is public), and the text is encrypted before it is sent.
+    await page.goto(`/repo/${id}/Open`);
+    await page.getByRole("button", { name: "New note" }).click();
+    await expect(page.getByText("Its name is public")).toBeVisible();
+    await page.getByLabel("Title").fill("Plain titled");
+    await page.getByRole("button", { name: "Create note" }).click();
+    await expect(page).toHaveURL(new RegExp("/Open/Plain%20titled\\.md\\.age$"), { timeout: 30_000 });
+    const afterNote = (await hubs.more.branchHead())!;
+    expect(await hubs.more.show(afterNote, "%P")).toBe(before);
+    expect(await hubs.more.show(afterNote, "%B")).toBe("Create Plain titled");
+    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(afterNote, "Open/Plain titled.md.age")))).toBe("# Plain titled\n");
+
+    // It opens like any encrypted file (the identity is locked on this page load).
+    await page.getByLabel("Passphrase").fill(PASSPHRASE);
+    await page.getByRole("button", { name: "Unlock and open" }).click();
+    await expect(noteEditor(page, "Plain titled.md")).toContainText("Plain titled", { timeout: 60_000 });
+
+    // A document, made with the identity locked: encrypting needs only the recipients' public keys.
+    await page.goto(`/repo/${id}/Open`);
+    await page.getByRole("button", { name: "New document" }).click();
+    await page.getByLabel("Title").fill("Q4 plan");
+    await page.getByRole("button", { name: "Create document" }).click();
+    await expect(page).toHaveURL(new RegExp("/Open/Q4%20plan\\.fj\\.md\\.age$"), { timeout: 30_000 });
+    const afterDocument = (await hubs.more.branchHead())!;
+    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(afterDocument, "Open/Q4 plan.fj.md.age")))).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\n/);
+
+    // An id-named vault: the file is a new identifier, its real name is inside, and nothing of it is sent.
+    await page.goto(`/repo/${id}/Sealed`);
+    await page.getByRole("button", { name: "New document" }).click();
+    await expect(page.getByText("Its name is kept inside it")).toBeVisible();
+    await page.getByLabel("Title").fill("Hidden budget");
+    await page.getByRole("button", { name: "Create document" }).click();
+    await expect(page).toHaveURL(new RegExp("/Sealed/[0-9a-hjkmnp-tv-z]{26}\\.age$"), { timeout: 30_000 });
+    const afterSealed = (await hubs.more.branchHead())!;
+    expect(await hubs.more.show(afterSealed, "%B")).toBe("Create an encrypted file");
+    const created = Object.keys(await hubs.more.filesAt(afterSealed)).filter((path) => path.startsWith("Sealed/") && !path.includes("0000") && path.endsWith(".age") && !path.includes("01jagc4k7pr9tbm3ykwx6zq2hz"));
+    expect(created).toHaveLength(1);
+    const unwrapped = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(afterSealed, created[0]!)));
+    expect(unwrapped.name).toBe("Hidden budget.fj.md");
+    expect(textOf(unwrapped.contents)).toContain("title: Hidden budget");
+    await hubs.more.fsck();
+
+    // The server was sent ciphertext only: what the id-named vault's file says of itself is in no request, and no text is in any.
+    const sent = record.filter((line) => line.startsWith("POST ") && line.includes("/files/encrypted"));
+    expect(sent).toHaveLength(3);
+    for (const line of sent) {
+      expect(line).toContain("YWdlLWVuY3J5cHRpb24ub3JnL3Yx");
+      expect(line).not.toContain("# Plain titled");
+      expect(line).not.toContain("title: Q4 plan");
+    }
+    expect(sent[2]).not.toContain("Hidden budget");
+    expect(record.join("\n")).not.toContain("Hidden budget");
+
+    // Anything but ciphertext is refused by the server, and a plaintext vault's way still refuses an encrypted vault.
+    const refused = await page.request.post(`/api/connections/${id}/files/encrypted`, {
+      headers: { origin: BASE },
+      data: { vault: "Open", folder: "", kind: "note", title: "Sneaky", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 }, ciphertext: Buffer.from("# plain").toString("base64") },
+      failOnStatusCode: false,
+    });
+    expect(refused.status()).toBe(422);
+    const plainWay = await page.request.post(`/api/connections/${id}/files`, {
+      headers: { origin: BASE },
+      data: { vault: "Open", folder: "", kind: "note", title: "Sneaky", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 } },
+      failOnStatusCode: false,
+    });
+    expect(plainWay.status()).toBe(422);
+    expect(await hubs.more.branchHead()).toBe(afterSealed);
+  } finally {
+    await restoreMore();
+  }
+});
+
 // --- A note in the note editor (ROADMAP 1b.2) -----------------------------------------------------------------
 
 /** `acme/more` holding these files, connected by a new account. */
@@ -1265,12 +1345,14 @@ test("a document needs a title, and says so, and nothing is made", async ({ page
   }
 });
 
-test("nothing is offered in an encrypted vault, and it is refused if asked for", async ({ page }) => {
+test("an encrypted vault is offered the encrypted way only, and the plaintext way refuses it if asked", async ({ page }) => {
   try {
     const id = await repositoryWith(page, { "Secret/fjord.vault.json": ENCRYPTED_MANIFEST, "Secret/recipients.txt": RECIPIENTS, "Secret/x.md.age": "age-encryption.org/v1", "Notes/fjord.vault.json": VAULT_MANIFEST });
     await page.goto(`/repo/${id}/Secret`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expect(page.getByRole("button", { name: "New note" })).toHaveCount(0);
+    // Offered, but it encrypts in the browser: the form says so.
+    await page.getByRole("button", { name: "New note" }).click();
+    await expect(page.getByText("The file is encrypted here, in this browser.")).toBeVisible();
     await page.goto(`/repo/${id}/Notes`);
     await expect(page.getByRole("button", { name: "New note" })).toBeVisible();
 

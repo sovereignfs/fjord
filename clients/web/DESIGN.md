@@ -56,7 +56,7 @@ Phase 1 ships in slices (§16), each usable on its own.
    in a file manager. The user switches repository from the header.
 5. **Browsing** shows names, paths and sizes only, nothing downloaded (§8).
    Documents and notes are clearly openable; other files are shown greyed out.
-   Encrypted vaults show a lock; a file in one opens in the browser with the person's own age identity, read-only so far (phase 2).
+   Encrypted vaults show a lock; a file in one opens and is edited in the browser with the person's own age identity, and new files are made there (phase 2).
 6. **Opening** a document (`name.fj.md`) goes to `/doc/<id>` and the document editor;
    opening a note (any other `.md`) goes to `/note/<id>` and the note editor (§9, §10).
 7. **Editing** saves continuously to a working copy on the server; a version (a git
@@ -867,7 +867,18 @@ title and no more: the name and, for a document, the header are `fjord-core`'s, 
   name is taken; the other file is untouched. A head that keeps moving is `head_moved`, and nothing is made.
 - **Where.** Only into a folder that is there (git has no empty folders, so one with nothing in it is not one; making folders
   is not part of this), of a vault that is plaintext, has a manifest that can be read and plain file names. An encrypted vault
-  is refused (and not offered): files cannot be made there in this version.
+  is refused on this route, which has no way to encrypt; it has its own (below).
+- **In an encrypted vault** (ROADMAP 2b.4) the browser writes the file and encrypts it to the vault's recipients, and
+  `POST /api/connections/<id>/files/encrypted` commits those bytes as one new file. The note's text and a document's header are
+  the format module's, as for a plaintext vault, run in the browser. In a `plain`-named vault the file's name is public, so the
+  title is sent and the server names it exactly as it names a plaintext file, with the suffix (`Plan.md.age`, numbered past the
+  files' real names, case aside). In an `id`-named vault the file is a new identifier and the suffix, the real name is inside the
+  container, and **no title is sent** (the route refuses one) and the commit message does not name the file. The server
+  accepts only a base64 payload that begins as an age file does (invariant 1), at most 64 kB, and only a vault whose manifest it
+  can write correctly: age, binary payloads, and the container the naming needs (none for `plain`, tar for `id`, spec §6.4, §7.2).
+  Sealing needs only public keys, so a file can be made with the identity locked; the vault's recipients file is read by the
+  page and handed over. The plaintext route still refuses an encrypted vault. Inside an `id`-named vault the real name is not
+  numbered past the others, which are secret to the page.
 - **Held to the CLI.** The acceptance is that created files verify: `src/files/cli.test.ts` checks out the repository the
   files were made in and runs the real `fjord verify --strict` over it (titled, untitled, numbered, Unicode, long, reserved,
   nested, documents), and sees a broken header reported. CI builds the CLI for one leg.

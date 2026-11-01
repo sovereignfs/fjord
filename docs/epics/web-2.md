@@ -119,13 +119,17 @@ A draft of an encrypted file is **kept encrypted to the vault's recipients**: th
 
 ### 2b.4 Create in encrypted vaults
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** DESIGN §9; spec §6
 
 New notes and documents in an encrypted vault: the file name in `plain` naming, a generated id in `id` naming (a container inside), the recipients read from the vault's manifest.
 
 **Accepts when:** `fjord verify` passes on what is created, in both namings.
+
+- **Done as:** `POST /api/connections/<id>/files/encrypted` (`handleCreateEncrypted`, `src/files/create-encrypted.ts`; `owner("create")` in the route registry). The browser (`newEncryptedFile` in `src/keys/files.ts`, called by `NewFile` when the page gives it the vault's naming and recipients) makes the text with the format module's own naming and header, seals it (`sealText`: container for `id`, `encrypt` to the recipients file), and sends the base64. The server checks the vault (`checkEncryptedVault`: age, `armor: false`, container `none` for `plain` and `tar` for `id`; otherwise `unsupported_vault`), that the bytes begin as age does and are at most 64 kB, and, for an `id`-named vault, that no title came; it then commits one new file on top of the head, never forced. `plain`: named from the title as for a plaintext file, with the suffix, numbered past the real names (the suffix off, case aside). `id`: a new identifier and the suffix; the message is `Create an encrypted file`. The new file opens by client navigation. A warning shows if the person's key is not among the recipients. The plaintext route is unchanged and still refuses an encrypted vault.
+- **Tested:** `create-encrypted.test.ts` (against a real git repository with the format module: one new file, the bytes as made, the name, numbering, the folder, the commit message, `fjord-core` classifies it as a payload, no plaintext anywhere; the vault rules), `http.test.ts` and `access.test.ts` (who may, from where, what is sent; plain text, non-base64 and oversized refused; a title for an `id`-named vault refused; each rule seen to fail a test with it off), `keys/files.test.ts` (the browser's files with the real module), and `files/cli.test.ts` with `FJORD_CLI`: the real `fjord verify --strict` accepts a repository with notes and documents made in a `plain` and an `id` encrypted vault. In Chromium: a note and a document in a `plain` vault and a document in an `id` vault, created with the identity locked, the committed bytes decrypted in Node to the right text and container name, and no request holding a word of the text or, for the `id` vault, the title.
+- **Not here:** a note's name in an `id`-named vault is not made unique among the secret ones; a folder is not made; the 2b.5 operations on encrypted files.
 
 ### 2b.5 Rename, move and delete
 
