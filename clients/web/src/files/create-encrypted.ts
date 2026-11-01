@@ -45,7 +45,8 @@ export function checkEncryptedVault(vaults: VaultListing[], manifests: Record<st
   if (vault.manifestError !== null) return { ok: false, reason: "unsupported_vault" };
   if (vault.encrypted !== true) return { ok: false, reason: "not_encrypted" };
   const naming = vault.fileNaming;
-  if ((naming !== "plain" && naming !== "id") || typeof vault.suffix !== "string" || vault.suffix === "") return { ok: false, reason: "unsupported_vault" };
+  // `.age` is what the rules for names after it (renaming keeps it, a rename never makes a payload of something else) are written for.
+  if ((naming !== "plain" && naming !== "id") || vault.suffix !== ".age") return { ok: false, reason: "unsupported_vault" };
   let encryption: { tool?: unknown; container?: unknown; armor?: unknown } | undefined;
   try {
     encryption = (JSON.parse(manifests[`${directory}/fjord.vault.json`] ?? "null") as { encryption?: typeof encryption } | null)?.encryption;
@@ -53,7 +54,7 @@ export function checkEncryptedVault(vaults: VaultListing[], manifests: Record<st
     return { ok: false, reason: "unsupported_vault" };
   }
   if (!encryption || encryption.tool !== "age" || encryption.armor !== false || encryption.container !== (naming === "id" ? "tar" : "none")) return { ok: false, reason: "unsupported_vault" };
-  return { ok: true, target: { naming, suffix: vault.suffix } };
+  return { ok: true, target: { naming, suffix: ".age" } };
 }
 
 export type CreateEncryptedResult =

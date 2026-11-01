@@ -39,9 +39,22 @@ export interface AccessDeps {
   /** Delete, through the connection's own token. Only called for a vault that is `ok` of a connection that is the caller's. */
   delete: (accountId: string, id: number, input: { vault: string; target: DeleteTarget; author: Identity }) => Promise<DeleteResult>;
   /** Rename or move, through the connection's own token. Only called for two vaults that are `ok` of a connection that is the caller's. */
-  move: (accountId: string, id: number, input: { vault: string; target: DeleteTarget; destination: string; author: Identity }) => Promise<MoveResult>;
+  move: (accountId: string, id: number, input: { vault: string; target: DeleteTarget; destination: string; author: Identity; encrypted?: { idNamed: boolean } }) => Promise<MoveResult>;
   /** Put back, through the connection's own token. Only called for a connection that is the caller's; its records are checked there. */
   restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<RestoreResult>;
+}
+
+/**
+ * What a vault can be changed as (ROADMAP 2b.5): a plaintext vault with plain names, or an encrypted vault this version writes (`checkEncryptedVault`), whose
+ * files are renamed, moved and deleted as the bytes they are: the server needs no key for any of it.
+ */
+async function changeable(deps: AccessDeps, accountId: string, id: number, vault: string): Promise<{ ok: true; encrypted: { idNamed: boolean } | undefined } | { ok: false; reason: VaultRefusal | "unavailable" }> {
+  const plain = await deps.vaultFor(accountId, id, vault);
+  if (plain === "ok") return { ok: true, encrypted: undefined };
+  if (plain !== "encrypted_vault") return { ok: false, reason: plain };
+  const encrypted = await deps.encryptedVaultFor(accountId, id, vault);
+  if (!encrypted.ok) return { ok: false, reason: encrypted.reason === "unavailable" ? "unavailable" : "unsupported_vault" };
+  return { ok: true, encrypted: { idNamed: encrypted.target.naming === "id" } };
 }
 
 export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncrypted" | "delete" | "restore" | "header" | "move"> {
@@ -63,20 +76,24 @@ export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncr
 
     async delete(accountId, id, input) {
       if (!(await deps.owns(accountId, id))) return { found: false };
-      const vault = await deps.vaultFor(accountId, id, input.vault);
-      if (vault !== "ok") return { found: true, result: { ok: false, reason: vault } };
+      const vault = await changeable(deps, accountId, id, input.vault);
+      if (!vault.ok) return { found: true, result: { ok: false, reason: vault.reason } };
       return { found: true, result: await deps.delete(accountId, id, input) };
     },
 
     async move(accountId, id, input) {
       if (!(await deps.owns(accountId, id))) return { found: false };
-      const from = await deps.vaultFor(accountId, id, input.vault);
-      if (from !== "ok") return { found: true, result: { ok: false, reason: from, where: "source" } };
-      // Where it goes: the first step of the new path is its vault, which is asked of the repository as it is now.
+      const from = await changeable(deps, accountId, id, input.vault);
+      if (!from.ok) return { found: true, result: { ok: false, reason: from.reason, where: "source" } };
+      // Where it goes: the first step of the new path is its vault, which is asked of the repository as it is now. Out of an encrypted vault, or into one
+      // from another, is the browser's to do (ROADMAP 2b.6): here it would need a key, or would put plaintext where there must be none.
       const to = input.destination.split("/")[0] as string;
-      const destination = to === input.vault ? "ok" : await deps.vaultFor(accountId, id, to);
-      if (destination !== "ok") return { found: true, result: { ok: false, reason: destination, where: "destination" } };
-      return { found: true, result: await deps.move(accountId, id, input) };
+      if (to !== input.vault) {
+        if (from.encrypted) return { found: true, result: { ok: false, reason: "other_vault", where: "destination" } };
+        const destination = await deps.vaultFor(accountId, id, to);
+        if (destination !== "ok") return { found: true, result: { ok: false, reason: destination, where: "destination" } };
+      }
+      return { found: true, result: await deps.move(accountId, id, { ...input, ...(from.encrypted ? { encrypted: from.encrypted } : {}) }) };
     },
 
     async restore(accountId, id, input) {

@@ -68,10 +68,22 @@ describe("deleting", () => {
     expect(remove).toHaveBeenCalledWith("alice", 7, input);
   });
 
-  it.each(["unknown_vault", "encrypted_vault", "unsupported_vault", "unavailable"] as const)("is not done in a vault that is %s, and the reason is told", async (vault) => {
+  it.each(["unknown_vault", "unsupported_vault", "unavailable"] as const)("is not done in a vault that is %s, and the reason is told", async (vault) => {
     const { access, remove } = setup({ vault });
     expect(await access.delete("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: vault } });
     expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("is done in an encrypted vault this version writes (ROADMAP 2b.5), and not in one it does not", async () => {
+    const written = setup({ vault: "encrypted_vault" });
+    expect((await written.access.delete("alice", 1, input)).found).toBe(true);
+    expect(written.remove).toHaveBeenCalledOnce();
+    const unsupported = setup({ vault: "encrypted_vault", encrypted: { ok: false, reason: "unsupported_vault" } });
+    expect(await unsupported.access.delete("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unsupported_vault" } });
+    const away = setup({ vault: "encrypted_vault", encrypted: { ok: false, reason: "unavailable" } });
+    expect(await away.access.delete("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unavailable" } });
+    expect(unsupported.remove).not.toHaveBeenCalled();
+    expect(away.remove).not.toHaveBeenCalled();
   });
 });
 
@@ -112,6 +124,27 @@ describe("renaming and moving", () => {
     const { access, vaultFor, move } = setup({ owns: false });
     expect(await access.move("mallory", 1, input)).toEqual({ found: false });
     expect(vaultFor).not.toHaveBeenCalled();
+    expect(move).not.toHaveBeenCalled();
+  });
+
+  it("keeps a file of an encrypted vault in it: another vault is not a place for it, and nothing is asked or moved", async () => {
+    const { access, vaultFor, move } = setup({ vaults: { Notes: "encrypted_vault" }, encrypted: { ok: true, target: { naming: "id", suffix: ".age" } } });
+    expect(await access.move("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "other_vault", where: "destination" } });
+    expect(vaultFor).toHaveBeenCalledTimes(1);
+    expect(move).not.toHaveBeenCalled();
+  });
+
+  it("moves within an encrypted vault, telling the move how the vault names its files and that it is encrypted", async () => {
+    for (const naming of ["plain", "id"] as const) {
+      const { access, move } = setup({ vaults: { Notes: "encrypted_vault" }, encrypted: { ok: true, target: { naming, suffix: ".age" } } });
+      await access.move("alice", 1, { ...input, destination: "Notes/Sub/a.md" });
+      expect(move).toHaveBeenCalledWith("alice", 1, { ...input, destination: "Notes/Sub/a.md", encrypted: { idNamed: naming === "id" } });
+    }
+  });
+
+  it("never moves a plaintext file into an encrypted vault", async () => {
+    const { access, move } = setup({ vaults: { Other: "encrypted_vault" } });
+    expect(await access.move("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "encrypted_vault", where: "destination" } });
     expect(move).not.toHaveBeenCalled();
   });
 

@@ -35,8 +35,10 @@ export interface RestoreDeps {
    * Optional so that a caller with no index restores as it did; the web always gives it.
    */
   idsInUse?: (docIds: string[]) => Promise<Record<string, string[]>>;
-  /** Whether files may be put in this vault of the repository now (it is there, plaintext, plain names). */
+  /** Whether files may be put in this vault of the repository now (it is there, and plaintext with plain names, or encrypted as ROADMAP 2b.4 writes). */
   vaultOk: (vault: string) => boolean;
+  /** Whether the vault names its files by id: a file there keeps its name when it is put back, since its name is its identifier (spec §7.2). */
+  idNamed?: (vault: string) => boolean;
   /** How long after it a deletion is offered, in milliseconds. */
   windowMs: number;
   /** For tests. */
@@ -54,12 +56,16 @@ export type RestoreResult =
 
 const ATTEMPTS = 2;
 
-/** What makes a file what it is: `.fj.md`, else its extension. */
+/**
+ * What makes a file what it is: `.fj.md`, else its extension. An encrypted payload is its real file's kind with the `.age` after it
+ * (`Plan.md.age`, `Plan.fj.md.age`), so a note never becomes a document, nor either something else, by a rename.
+ */
 export function suffix(path: string): string {
   const name = path.slice(path.lastIndexOf("/") + 1);
-  if (/\.fj\.md$/i.test(name)) return ".fj.md";
-  const dot = name.lastIndexOf(".");
-  return dot > 0 ? name.slice(dot).toLowerCase() : "";
+  const payload = /\.age$/i.test(name) && name.length > 4;
+  const real = payload ? name.slice(0, -4) : name;
+  const kind = /\.fj\.md$/i.test(real) ? ".fj.md" : real.lastIndexOf(".") > 0 ? real.slice(real.lastIndexOf(".")).toLowerCase() : "";
+  return payload ? `${kind}.age` : kind;
 }
 
 export async function restoreDeleted(deps: RestoreDeps, input: { connectionId: number; ids: number[]; path?: string | undefined; author: Identity }): Promise<RestoreResult> {
@@ -73,6 +79,10 @@ export async function restoreDeleted(deps: RestoreDeps, input: { connectionId: n
   const targets = targetsOf(deps, records, input.path);
   if (typeof targets === "string") return { ok: false, reason: targets };
   if (!targets.every((target) => deps.vaultOk(target.path.split("/")[0] as string))) return { ok: false, reason: "vault_unavailable" };
+  // A file of an id-named vault is its identifier: it goes back under that name, in any folder of its vault.
+  if (targets.some((target) => deps.idNamed?.(target.path.split("/")[0] as string) && (target.path.slice(target.path.lastIndexOf("/") + 1) !== target.record.path.slice(target.record.path.lastIndexOf("/") + 1) || target.path.split("/")[0] !== target.record.path.split("/")[0]))) {
+    return { ok: false, reason: "bad_path" };
+  }
 
   // The id of a document is its own: another file with it would make two Docs of one (spec E401).
   const wanted = [...new Set(records.flatMap((record) => (record.docId === null ? [] : [record.docId])))];

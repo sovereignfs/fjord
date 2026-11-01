@@ -52,6 +52,8 @@ export type MoveResult =
         | "protected"
         | "bad_path"
         | "extension_changed"
+        | "id_named"
+        | "other_vault"
         | "into_itself"
         | "unchanged"
         | "path_taken"
@@ -94,7 +96,7 @@ export function moveMessage(source: string, destination: string, files: number, 
 
 export async function movePath(
   deps: MoveDeps,
-  input: { connectionId: number; vault: string; target: DeleteTarget; destination: string; author: Identity },
+  input: { connectionId: number; vault: string; target: DeleteTarget; destination: string; author: Identity; encrypted?: { idNamed: boolean } },
 ): Promise<MoveResult> {
   const { target, destination } = input;
   const source = target.path;
@@ -107,6 +109,10 @@ export async function movePath(
   if (destination === source) return { ok: false, reason: "unchanged" };
   if (destination.startsWith(`${source}/`)) return { ok: false, reason: "into_itself" };
   if (target.type === "file" && suffix(destination) !== suffix(source)) return { ok: false, reason: "extension_changed" };
+  // A file of an id-named vault is called by its identifier, which never changes (spec §7.2): it can go to another folder, not be renamed.
+  if (input.encrypted?.idNamed && target.type === "file" && leaf(destination) !== leaf(source)) return { ok: false, reason: "id_named" };
+  // Between vaults, one of them encrypted, would be plaintext in an encrypted vault or ciphertext in a plain one; the browser alone could do that (ROADMAP 2b.6).
+  if (destination.split("/")[0] !== input.vault && input.encrypted) return { ok: false, reason: "other_vault" };
 
   // Unsaved changes first: they become a version, which changes the file, so what the page showed no longer applies.
   let expectedBlob: string | undefined = target.type === "file" ? target.blob : undefined;

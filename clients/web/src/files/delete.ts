@@ -53,7 +53,7 @@ const leaf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 
 /** The name a person knows a deleted path by: a file without its extension, a folder as it is. */
 export function deletedName(path: string): string {
-  return leaf(path).replace(/\.fj\.md$/i, "").replace(/\.md$/i, "");
+  return leaf(path).replace(/\.age$/i, "").replace(/\.fj\.md$/i, "").replace(/\.md$/i, "");
 }
 
 export async function deletePath(

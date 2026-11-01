@@ -110,6 +110,7 @@ async function restore(accountId: string, id: number, input: { ids: number[]; pa
   const outcome = await readConnection(accountId, used.connection);
   if (!outcome.ok) return { ok: false, reason: "unavailable" };
   const vaults = outcome.read.discovery.vaults;
+  const encryptedAt = (vault: string) => checkEncryptedVault(vaults, outcome.read.manifests, vault);
   return restoreDeleted(
     {
       provider: used.provider,
@@ -117,7 +118,11 @@ async function restore(accountId: string, id: number, input: { ids: number[]; pa
       branch: used.connection.branch,
       format: fjord(),
       deletions: new DeletionService(await getDatabase()),
-      vaultOk: (vault) => checkVault(vaults, vault) === "ok",
+      vaultOk: (vault) => checkVault(vaults, vault) === "ok" || encryptedAt(vault).ok,
+      idNamed: (vault) => {
+        const found = encryptedAt(vault);
+        return found.ok && found.target.naming === "id";
+      },
       idsInUse: async (docIds) => {
         const source = { connectionId: id, ref: { owner: used.connection.owner, name: used.connection.name }, read: outcome.read, provider: used.provider };
         const index = new DocIndex(await getDatabase());
