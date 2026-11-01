@@ -1,5 +1,6 @@
 import { isCredentialError } from "../crypto/errors";
 import { type ConnectionError, type ConnectionErrorCode, isConnectionError } from "./errors";
+import type { VaultOptions } from "../format/types";
 import type { ConnectionService } from "./service";
 
 /**
@@ -33,12 +34,20 @@ export interface Deps {
    * says only the name; what is written is decided by the server, on the repository as it is.
    */
   setUp: (accountId: string, id: number, vault: string) => Promise<{ found: false } | { found: true; commit: string }>;
+  /**
+   * Add a vault, plaintext or encrypted, to one of the caller's Fjord repositories (ROADMAP 2d.1): one commit, or a
+   * `ConnectionError` saying why not. `found: false` if it is not the caller's (or not there). The browser says only what it
+   * wants; what is written is decided by the server, on the repository as it is.
+   */
+  addVault: (accountId: string, id: number, options: VaultOptions) => Promise<{ found: false } | { found: true; commit: string; vaultId: string }>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
 }
 
 const MAX_BODY_BYTES = 8_000;
 const MAX_VAULT_LENGTH = 255;
+const MAX_RECIPIENTS = 64;
+const MAX_KEY_LENGTH = 512;
 
 const STATUS: Record<ConnectionErrorCode, number> = {
   invalid_repository: 422,
@@ -60,6 +69,9 @@ const STATUS: Record<ConnectionErrorCode, number> = {
   gitattributes_unreadable: 422,
   invalid_vault_name: 422,
   vault_name_taken: 422,
+  manifest_unusable: 409,
+  newer_version: 422,
+  invalid_vault_options: 422,
 };
 
 const NOT_CONFIGURED = "This instance cannot store repository tokens yet: its administrator needs to set FJORD_ENCRYPTION_KEY.";
@@ -187,6 +199,41 @@ export async function handleSetup(request: Request, caller: Caller | null, deps:
     }
     const done = await deps.setUp((caller as Caller).accountId, number, vault);
     return done.found ? json(201, { commit: done.commit }) : failure(404, "not_found", "There is no such connection.");
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+/**
+ * `POST` adds a vault to one of the caller's Fjord repositories, `{ "name", "encrypted", "idNaming", "recipients": ["age1…"] }`: one
+ * commit. A key is checked by the format module, not here; this checks only that the body is the right shape and not enormous.
+ */
+export async function handleAddVault(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  const denied = unsignedIn(caller) ?? crossOrigin(request, deps);
+  if (denied) return denied;
+  const number = /^[1-9][0-9]{0,15}$/.test(id) ? Number(id) : undefined;
+  if (number === undefined) return failure(404, "not_found", "There is no such connection.");
+
+  try {
+    if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) {
+      return failure(415, "unsupported_media_type", "Send JSON.");
+    }
+    const body = await readJson(request);
+    if (body instanceof Response) return body;
+    const invalid = () => failure(400, "invalid_request", "Send the vault's name as text, whether it is encrypted, and its recipients as a list of keys.");
+    const { name, encrypted, idNaming, recipients } = body;
+    if (typeof name !== "string" || name === "" || name.length > MAX_VAULT_LENGTH) return invalid();
+    if (encrypted !== undefined && typeof encrypted !== "boolean") return invalid();
+    if (idNaming !== undefined && typeof idNaming !== "boolean") return invalid();
+    if (recipients !== undefined && (!Array.isArray(recipients) || recipients.length > MAX_RECIPIENTS || recipients.some((key) => typeof key !== "string" || key.length > MAX_KEY_LENGTH))) return invalid();
+    const done = await deps.addVault((caller as Caller).accountId, number, {
+      name,
+      encrypted: encrypted === true,
+      idNaming: idNaming === true,
+      recipients: (recipients as string[] | undefined) ?? [],
+    });
+    return done.found ? json(201, { commit: done.commit, vaultId: done.vaultId }) : failure(404, "not_found", "There is no such connection.");
   } catch (error) {
     return fromError(error);
   }

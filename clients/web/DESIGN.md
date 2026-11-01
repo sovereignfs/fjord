@@ -251,6 +251,8 @@ assumption:
 - commit several file changes atomically on top of a known head;
 - receive change notifications (webhooks), or poll where a host has none.
 
+**Adding a vault** (ROADMAP 2d.1). A Fjord repository's page offers *Add a vault*: a name, plaintext or encrypted, and for an encrypted one the naming (by name or by id) and its public keys, the browser's own filled in. The browser sends only those choices; the server reads `fjord.json` strictly, the root listing and (for an encrypted vault) `.gitattributes`, asks `fjord-core`'s `plan_vault` what to write (the planner `fjord vault add` writes from, so the two make the same bytes), and commits it once on the head it read, never forced. An encrypted vault is added only with a key, so that it can be written to at once.
+
 **GitHub, two ways in:**
 
 1. **The GitHub App** (preferred). The user installs it and picks repositories;

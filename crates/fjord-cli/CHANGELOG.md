@@ -12,6 +12,10 @@ tagging it.
 
 ## [Unreleased]
 
+### Changed
+
+- **`fjord vault add --encrypted` adds the merge guard** (`*.age binary -diff -merge`, spec §9) to `.gitattributes` when the repository lacks it, and `--commit` commits that file with the vault. The command now asks the same planner (`fjord_core::scaffold::plan_vault`) as the web client's *Add a vault*, so the two make the same files; its flags and messages are unchanged. `--json` lists the files outside the vault it changed under `changed`.
+
 ### Added
 
 - **`fjord-core` and `fjord-cli` are on crates.io** (from 0.4.0): `cargo install fjord-cli` builds the `fjord` command, and `fjord-core` can be used as a library (`fjord-core = "0.4"`).

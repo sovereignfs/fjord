@@ -66,6 +66,40 @@ export interface SetupExisting {
   gitattributes: string | null;
 }
 
+/** A vault to add to a Fjord repository (`fjord-core`'s `scaffold::plan_vault`). */
+export interface VaultOptions {
+  /** The vault's directory at the root, which is also its display name. */
+  name: string;
+  encrypted: boolean;
+  /** Name the files by identifier (spec §7.2): encrypted vaults only. */
+  idNaming: boolean;
+  /** The `age1…` keys the vault is encrypted to. */
+  recipients: string[];
+}
+
+export type VaultRefusalCode =
+  | "manifest_unusable"
+  | "newer_version"
+  | "invalid_name"
+  | "name_taken"
+  | "recipients_need_encryption"
+  | "id_naming_needs_encryption"
+  | "bad_recipient"
+  | "recipients_unsupported"
+  | "gitattributes_not_read";
+
+export type VaultResult =
+  | {
+      ok: true;
+      /** `create`, or `append` for a file that was there (`fjord.json`, `.gitattributes`): its `contents` are the whole new file. */
+      files: { path: string; contents: string; change: "create" | "append" }[];
+      vaultId: string;
+      createdAt: string;
+      /** The recipients registered, checked and without repeats. */
+      recipients: string[];
+    }
+  | { ok: false; error: { code: VaultRefusalCode; message: string } };
+
 export type SetupRefusalCode = "already_fjord" | "invalid_vault_name" | "vault_name_taken" | "gitattributes_not_read";
 
 export type SetupResult =

@@ -1,6 +1,7 @@
 import { AccountHeader } from "../../auth/screens/AccountHeader";
 import type { ReactNode } from "react";
 import { chosenVault } from "../../browse/screens/Landing";
+import { AddVault } from "../../browse/screens/AddVault";
 import { SetupOffer } from "../../browse/screens/SetupOffer";
 import type { Assessment } from "../../browse/setup";
 import { VaultList } from "../../browse/screens/VaultList";
@@ -67,6 +68,7 @@ export function RepositoryView({
                 </div>
               ) : null}
               <VaultList read={outcome.read} connectionId={current.id} opensOn={chosenVault(current, outcome)} />
+              {outcome.read.manifest?.ok ? <AddVault connectionId={current.id} existing={outcome.read.discovery.vaults.map((vault) => vault.directory)} /> : null}
               {landing}
             </>
           ) : (

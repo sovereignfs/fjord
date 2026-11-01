@@ -3,6 +3,7 @@ import { connectionService } from "../connections/server";
 import type { ConnectionInfo } from "../connections/service";
 import { getDatabase } from "../db/boot";
 import { fjord } from "../format/wasm";
+import type { VaultOptions } from "../format/types";
 import type { ClassifiedFile } from "../format/types";
 import { DocIndex } from "./doc-index";
 import { type Resolution, type Source, recordRead, resolveDocId } from "./ids";
@@ -10,6 +11,7 @@ import { type Problem, describeProblem } from "./problems";
 import { type Location, locate } from "./location";
 import { type RepositoryRead, readRepository } from "./repository";
 import { type NoteText, readNoteText } from "./note";
+import { addVault } from "./add-vault";
 import { type Assessment, applySetup, assessSetup, isNotFjord } from "./setup";
 import { heads } from "./head-cache";
 import { TreeCache } from "./tree-cache";
@@ -100,6 +102,31 @@ export async function setUpRepository(accountId: string, id: number, vault: stri
       vault,
     );
     return { found: true, commit: done.commit };
+  } catch (error) {
+    if (error instanceof ConnectionError) throw error;
+    const problem = describeProblem(error);
+    if (problem?.code === "setup") console.error(`[fjord] ${error instanceof Error ? error.message : "the format module is not available"}`);
+    if (problem) throw new ConnectionError(PROBLEM_CODES[problem.code], problem.message);
+    throw error;
+  }
+}
+
+/**
+ * Add a vault, plaintext or encrypted, to one of the account's Fjord repositories: one commit. `found: false` if it is not theirs.
+ * Everything that can go wrong comes back as a `ConnectionError` with words for the person.
+ */
+export async function addVaultToRepository(accountId: string, id: number, options: VaultOptions): Promise<{ found: false } | { found: true; commit: string; vaultId: string }> {
+  const connection = await (await connectionService()).get(accountId, id);
+  if (!connection) return { found: false };
+  try {
+    const used = await (await connectionService()).provider(accountId, id);
+    if (!used) return { found: false };
+    const done = await addVault(
+      { provider: used.provider, cache: new TreeCache(await getDatabase()), format: fjord() },
+      { id, ref: { owner: connection.owner, name: connection.name }, branch: connection.branch },
+      options,
+    );
+    return { found: true, ...done };
   } catch (error) {
     if (error instanceof ConnectionError) throw error;
     const problem = describeProblem(error);

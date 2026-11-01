@@ -82,7 +82,7 @@ async function gather(deps: SetupDeps, target: SetupTarget, commit: string): Pro
  * written back whole with a line added, and a lossy reading would change bytes it was only meant to leave alone. A
  * byte order mark is kept.
  */
-async function strictText(provider: Provider, ref: RepositoryRef, blob: string): Promise<string> {
+export async function strictText(provider: Provider, ref: RepositoryRef, blob: string): Promise<string> {
   try {
     const bytes = await provider.readBlob(ref, blob, { maxBytes: MAX_GITATTRIBUTES_BYTES });
     return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);

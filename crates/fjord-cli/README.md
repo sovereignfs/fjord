@@ -559,15 +559,18 @@ fjord vault add Secret --encrypted                       # encrypted, no keys ye
 A vault is a directory at the repository root; its directory name is its
 address. `add` writes the vault's manifest, its recipients file and its
 plaintext guard, and adds it to `fjord.json` — preserving every other field
-in that file, including ones this build does not understand.
+in that file, including ones this build does not understand. An encrypted
+vault also brings spec §9's `*.age binary -diff -merge` line to `.gitattributes`
+if the repository lacks it. The web client's *Add a vault* asks the same planner
+(`fjord_core::scaffold::plan_vault`), so it writes the same files.
 
 | Flag | Effect |
 | --- | --- |
 | `--encrypted` | Encrypt the vault with age. |
 | `--id-naming` | Name files by ULID. Requires `--encrypted`. |
 | `--recipient <key>` | Register an age **public** key, so the vault is writable immediately. Repeat for several. Requires `--encrypted`. |
-| `--commit` | Commit the new vault, and only the new vault. |
-| `--json` | Machine-readable output: the vault's id, its settings, the recipients registered, whether it was committed, and the files written. |
+| `--commit` | Commit the new vault, and only what adding it changed (`fjord.json`, and `.gitattributes` if it gained the guard). |
+| `--json` | Machine-readable output: the vault's id, its settings, the recipients registered, whether it was committed, the files written in the vault (`files`) and the ones it changed outside it (`changed`). |
 
 **Without `--recipient`, an encrypted vault is created unwritable.** Spec
 §6.2 makes a vault with no recipients valid but unwritable, and `fjord

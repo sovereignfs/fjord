@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Discovery, ListedFile, LocalMinute, MergeResult, RepositoryManifest, SetupExisting, SetupOptions, SetupResult } from "./types";
+import type { Discovery, ListedFile, LocalMinute, MergeResult, RepositoryManifest, SetupExisting, SetupOptions, SetupResult, VaultOptions, VaultResult } from "./types";
 
 /**
  * `fjord-core` as WebAssembly, in Node (DESIGN.md §2: the server reads the format, the browser never does in
@@ -21,6 +21,7 @@ interface Module {
   discover(filesJson: string, manifestsJson: string): string;
   describeRepositoryManifest(text: string): string;
   planSetup(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
+  planVault(optionsJson: string, manifest: string, existingJson: string, nowMs: number, random: Uint8Array): string;
   freeVaultName(preferred: string, existingJson: string): string;
   mergeTexts(base: string, ours: string, theirs: string, oursLabel: string, theirsLabel: string): string;
   quickNoteName(text: string, existingJson: string, year: number, month: number, day: number, hour: number, minute: number): string;
@@ -131,6 +132,16 @@ export class Fjord {
    */
   planSetup(options: SetupOptions, existing: SetupExisting, nowMs: number, random: Uint8Array): SetupResult {
     return JSON.parse(this.module.planSetup(JSON.stringify(options), JSON.stringify(existing), nowMs, random)) as SetupResult;
+  }
+
+  /**
+   * What to add to a Fjord repository for a new vault, plaintext or encrypted: its own files, `fjord.json` with the vault listed
+   * (every other field kept) and, for an encrypted vault, the `.gitattributes` merge guard where it is missing. The CLI's
+   * `fjord vault add` is the same planner. Pure: the time and at least 16 random bytes are given. A finding (the name is taken,
+   * a key that is not one) is `ok: false`; a malformed call throws.
+   */
+  planVault(options: VaultOptions, manifest: string, existing: SetupExisting, nowMs: number, random: Uint8Array): VaultResult {
+    return JSON.parse(this.module.planVault(JSON.stringify(options), manifest, JSON.stringify(existing), nowMs, random)) as VaultResult;
   }
 
   /**

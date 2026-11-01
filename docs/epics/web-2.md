@@ -192,7 +192,7 @@ As 1d.5 was for phase 1: what each role and each process can see, written down a
 
 ### 2d.1 Add a vault
 
-**Status:** ⏳ In progress
+**Status:** ✅ Done
 
 **Design:** DESIGN §7; spec §2.3, §4, §6, §7.2
 
@@ -204,4 +204,8 @@ Add a vault to a Fjord repository, plaintext or encrypted, from the web client a
 - **In the CLI** `fjord vault add` keeps its flags and its messages and now asks the same planner.
 
 **Accepts when:** the web client adds a plaintext and an encrypted vault (both namings) to a Fjord repository in one commit each, and `fjord verify --strict` accepts the result; the CLI and the web client make byte-identical files for the same input; every refusal above is a test; and an encrypted vault made in the browser can be written to at once (2b.4).
+
+- **Done as:** `fjord_core::scaffold::plan_vault` (`VaultSetup` in, `VaultPlan` or a coded `VaultError` out; pure, the identifier and the time are the caller's) is the one place the rules live. `fjord vault add` was refactored onto it and keeps its flags, its messages and its tests (a refusal is still `usage`, and the words for `--recipient` and `--id-naming` are the command line's, mapped from the planner's findings). The module `fjord-wasm` offers it as `planVault`, held to a recorded file of sixteen cases (`tests/fixtures/vault.json`) by Rust and by the JavaScript suite. The web client has `src/browse/add-vault.ts` (`addVault`: reads the head, `fjord.json` strictly, the root listing and, for an encrypted vault only, `.gitattributes`; plans; commits once on the head it read, never forced), `POST /api/connections/<id>/vaults` (`handleAddVault`, in the route registry, so the matrix walks it) and *Add a vault* on the repository page (`AddVault.tsx`: name, plaintext or encrypted, naming, public keys with the browser's own put in, the list of files, a taken name said before the button). Tests: the planner (46 in `scaffold`, each rule mutated and seen to fail), the CLI (a repository without the guard gains it in the commit), the module, `add-vault.test.ts` (15, on three database legs), the handler, a browser test (`e2e`), and `add-vault.cli.test.ts`, which runs the real `fjord verify --strict` over what the browser made and compares its files to `fjord vault add`'s byte for byte once the identifier and the time are put alike.
+- **Also changed:** `fjord vault add --encrypted` now adds spec §9's `*.age binary -diff -merge` line to `.gitattributes` where the repository lacks it (a repository made by `fjord init` has it), and `--commit` includes that file. Before, such a repository failed `fjord verify` (E109) until the line was added by hand.
+- **Left out:** removing or renaming a vault, and changing a vault's recipients from the repository page (the Keys page and `fjord key` do that); an encrypted vault with no key is made by the CLI only, because the web client would leave a vault nobody can write to.
 

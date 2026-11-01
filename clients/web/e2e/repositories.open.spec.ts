@@ -514,6 +514,137 @@ test("a name that is taken or cannot be a directory is refused, with the reason,
   }
 });
 
+/** `acme/more` as somebody's Fjord repository, with one plaintext vault, connected by a new account, whose page is open. Put back by `restoreMore`. */
+const FJORD_FILES = {
+  "fjord.json": `${JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3md", name: "more", createdAt: "2026-10-16T09:34:00Z", "x-custom": { keep: true }, vaults: [{ path: "Public", id: "01jagc4k7pr9tbm3ykwx6zq2hv" }] }, null, 2)}\n`,
+  "Public/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "Public", createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" }),
+  "Public/hello.md": "# Hello\n",
+  ".gitattributes": "*.age binary -diff -merge\n",
+};
+const A_KEY = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p";
+
+async function fjordRepository(page: import("@playwright/test").Page): Promise<{ id: number; before: string }> {
+  const before = await hubs.more.commitFiles(FJORD_FILES, { replace: true });
+  await signUp(page);
+  await page.goto("/repositories");
+  await connect(page, "acme/more");
+  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/more");
+  const id = (await (await page.request.get("/api/connections")).json()).connections[0].id as number;
+  await page.goto(`/repo/${id}`);
+  return { id, before };
+}
+
+test("a plaintext vault is added from the page in one commit, listed in fjord.json, and nothing else is changed", async ({ page }) => {
+  try {
+    const { before } = await fjordRepository(page);
+    await expect(page.getByRole("list", { name: "Vaults" })).toContainText("Public");
+
+    await page.getByRole("button", { name: "Add a vault" }).click();
+    await page.getByLabel("Vault name").fill("Journal");
+    const files = page.getByRole("list", { name: "What would be written" });
+    await expect(files.getByRole("listitem")).toHaveCount(2);
+    await expect(files).toContainText("Journal/fjord.vault.json");
+    // Looking is not writing.
+    expect(await hubs.more.branchHead()).toBe(before);
+
+    await page.getByRole("button", { name: "Add vault" }).click();
+    await expect(page.getByRole("list", { name: "Vaults" })).toContainText("Journal");
+
+    const after = (await hubs.more.branchHead()) as string;
+    expect(await hubs.more.show(after, "%P")).toBe(before);
+    expect(await hubs.more.show(after, "%B")).toContain('Add vault "Journal"');
+    const written = await hubs.more.filesAt(after);
+    expect(Object.keys(written).sort()).toEqual([".gitattributes", "Journal/fjord.vault.json", "Public/fjord.vault.json", "Public/hello.md", "fjord.json"]);
+    expect(written[".gitattributes"]).toBe(FJORD_FILES[".gitattributes"]);
+    expect(written["Public/hello.md"]).toBe(FJORD_FILES["Public/hello.md"]);
+    const manifest = JSON.parse(written["fjord.json"] as string);
+    expect(manifest["x-custom"]).toEqual({ keep: true });
+    expect(manifest.vaults.map((vault: { path: string }) => vault.path)).toEqual(["Public", "Journal"]);
+    expect(JSON.parse(written["Journal/fjord.vault.json"] as string)).toMatchObject({ name: "Journal", encryption: null, fileNaming: "plain" });
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("an encrypted vault is added with its keys, shows as encrypted, and the recipients file is written", async ({ page }) => {
+  try {
+    await fjordRepository(page);
+    await page.getByRole("button", { name: "Add a vault" }).click();
+    await page.getByLabel("Vault name").fill("Secret");
+    await page.getByLabel(/Only the people whose keys you list/).check();
+    await page.getByLabel(/Hide file names too/).check();
+
+    // The files follow the choice, and without a key there is nothing to press.
+    const files = page.getByRole("list", { name: "What would be written" });
+    await expect(files).toContainText("Secret/recipients.txt");
+    await expect(files).toContainText("Secret/.gitignore");
+    await expect(page.getByRole("button", { name: "Add vault" })).toBeDisabled();
+
+    await page.getByLabel(/Public keys/).fill(`${A_KEY}\n${A_KEY}`);
+    await page.getByRole("button", { name: "Add vault" }).click();
+    const vaults = page.getByRole("list", { name: "Vaults" });
+    await expect(vaults.getByRole("listitem").filter({ hasText: "Secret" })).toContainText("Encrypted");
+
+    const after = (await hubs.more.branchHead()) as string;
+    const written = await hubs.more.filesAt(after);
+    expect(written["Secret/recipients.txt"]?.match(new RegExp(A_KEY, "g"))).toHaveLength(1);
+    expect(JSON.parse(written["Secret/fjord.vault.json"] as string).encryption).toMatchObject({ tool: "age", container: "tar" });
+    expect(written["Secret/.gitignore"]).toContain("!*.age");
+    expect(written[".gitattributes"], "the repository had the guard").toBe(FJORD_FILES[".gitattributes"]);
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a vault that cannot be added is refused with the reason, from the page and the API, and nothing is written", async ({ page }) => {
+  try {
+    const { id, before } = await fjordRepository(page);
+    const post = (data: object) => page.request.post(`/api/connections/${id}/vaults`, { headers: { origin: BASE }, data });
+    const refused = async (data: object, code: string) => {
+      const response = await post(data);
+      expect(response.status(), JSON.stringify(data)).toBe(422);
+      expect((await response.json()).error.code).toBe(code);
+    };
+    await refused({ name: "public" }, "vault_name_taken");
+    await refused({ name: ".hidden" }, "invalid_vault_name");
+    await refused({ name: "Notes", recipients: [A_KEY] }, "invalid_vault_options");
+    await refused({ name: "Notes", idNaming: true }, "invalid_vault_options");
+    await refused({ name: "Secret", encrypted: true, recipients: ["not a key"] }, "invalid_vault_options");
+    await refused({ name: "Secret", encrypted: true, recipients: [] }, "invalid_vault_options");
+    expect(await hubs.more.branchHead()).toBe(before);
+
+    // A name that is taken is said before the button.
+    await page.getByRole("button", { name: "Add a vault" }).click();
+    await page.getByLabel("Vault name").fill("PUBLIC");
+    await expect(page.getByText("already has that name")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Add vault" })).toBeDisabled();
+
+    // A key that is not one is refused by the server, in words.
+    await page.getByLabel("Vault name").fill("Secret");
+    await page.getByLabel(/Only the people whose keys you list/).check();
+    await page.getByLabel(/Public keys/).fill("age1notakey");
+    await page.getByRole("button", { name: "Add vault" }).click();
+    await expect(alertOn(page).filter({ hasText: "Nothing was written" })).toBeVisible();
+    expect(await hubs.more.branchHead()).toBe(before);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("adding a vault is for a signed-in person, from this site, and not to a repository that is not Fjord's", async ({ page, request }) => {
+  try {
+    const { id } = await fjordRepository(page);
+    const body = { name: "Journal" };
+    expect((await request.post(`/api/connections/${id}/vaults`, { headers: { origin: BASE }, data: body })).status(), "signed out").toBe(401);
+    expect((await page.request.post(`/api/connections/${id}/vaults`, { headers: { origin: "https://evil.example" }, data: body })).status(), "another site").toBe(403);
+    expect((await page.request.post(`/api/connections/${id + 1000}/vaults`, { headers: { origin: BASE }, data: body })).status(), "not theirs").toBe(404);
+  } finally {
+    await restoreMore();
+  }
+});
+
 test("when the repository changes while the person looks, nothing is written, and looking again works", async ({ page }) => {
   try {
     await plainRepository(page);

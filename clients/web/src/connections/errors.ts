@@ -21,6 +21,9 @@
  *   gitattributes_unreadable  its .gitattributes is not text, or too large to add a line to
  *   invalid_vault_name   the name cannot be a directory a vault lives in
  *   vault_name_taken     something at the root already has that name, case aside
+ *   manifest_unusable    fjord.json is not there or cannot be read, so it is not ours to rewrite
+ *   newer_version        the repository declares a newer format than this client implements: read only
+ *   invalid_vault_options  the choices for a new vault do not go together (a key on a plaintext vault, a key that is not one)
  */
 export type ConnectionErrorCode =
   | "invalid_repository"
@@ -41,7 +44,10 @@ export type ConnectionErrorCode =
   | "head_moved"
   | "gitattributes_unreadable"
   | "invalid_vault_name"
-  | "vault_name_taken";
+  | "vault_name_taken"
+  | "manifest_unusable"
+  | "newer_version"
+  | "invalid_vault_options";
 
 export class ConnectionError extends Error {
   override name = "ConnectionError";
