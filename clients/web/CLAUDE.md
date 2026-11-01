@@ -115,6 +115,8 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
   pinned to an exact version; upgrade it on purpose. A dependency's licence must be
   compatible with AGPL-3.0-or-later, and nothing here is imported by the MPL-2.0
   parts of the repository.
+- **A released migration is never edited, and a patch release has none.** A fix to a migration that has shipped is a new migration; `scripts/release.sh` refuses a patch release if `migrations/` changed since the last one (`RELEASING.md` § Fjord Web versions). A change to a setting's name or meaning is marked **breaking** in the changelog.
+- **A release of a dependency younger than pnpm's minimum age** (`pnpm-workspace.yaml`) is installed only by being listed in `minimumReleaseAgeExclude`: do that for `@sovereignfs/ui`, which is ours and exact-pinned, in the commit that bumps it, and argue any other.
 - **A change to behaviour adds a line under `## [Unreleased]`** in `CHANGELOG.md`.
   A statement in `README.md`, `DESIGN.md`, `ROADMAP.md` or the task's epic that the change makes
   false is fixed in the same PR, and a finished task is marked done in `ROADMAP.md` and written up in its epic.

@@ -43,14 +43,70 @@ own tests, `scripts/test-release.sh`, run against throwaway repositories.
 | Component | Tag | Notes live in | Released by | Marked *Latest* |
 | --- | --- | --- | --- | --- |
 | `cli` (`fjord-cli`, with `fjord-core`) | `fjord-cli-vX.Y.Z` | `crates/fjord-cli/CHANGELOG.md` | `dist`, from `.github/workflows/fjord-cli-release.yml` | **yes** |
-| `web` (`fjord-web`) | `web-vX.Y.Z` | `clients/web/CHANGELOG.md` | `.github/workflows/web-release.yml`, written by hand | no |
+| `web` (`fjord-web`) | `web-vX.Y.Z` | `clients/web/CHANGELOG.md` | `.github/workflows/web-release.yml`, written by hand | no (the image's `latest` tag is its own) |
 
-Fjord Web's release publishes the notes and nothing else for now; its container
-image joins it with `clients/web/ROADMAP.md` 1a.12. Its version lives in
-`clients/web/package.json` (the lockfile does not record it), and the component
-needs Node and pnpm, not Rust. A component that has never been released is at
-`0.0.0`, and its first version's changelog link points at the release page,
-since there is nothing to compare with.
+Fjord Web's real artifact is its container image, and its release is the image and the notes.
+Its version lives in `clients/web/package.json` (the lockfile does not record it), and the
+component needs Node and pnpm, not Rust. A component that has never been released is at
+`0.0.0`, and its first version's changelog link points at the release page, since there is
+nothing to compare with.
+
+### What a Fjord Web tag does
+
+`web-release.yml`, in this order, and a failure at any step publishes nothing after it:
+
+1. **Checks the app** at the tag: the tag names the version in `package.json`, and install,
+   typecheck, tests and build pass.
+2. **Builds the image** (`clients/web/Dockerfile`) for `linux/amd64` and `linux/arm64`, each on a
+   runner of its own kind (the app has native modules, and arm64 under emulation would take most
+   of an hour). Each is pushed by digest only, with no tag, so a half-published release cannot be
+   pulled.
+3. **Joins them** as `ghcr.io/<owner>/fjord-web:X.Y.Z`, `:X.Y` and `:latest`, checks both
+   platforms are in it, and **attests its build provenance** (a signed statement of the commit
+   and workflow that built it; `gh attestation verify oci://ghcr.io/<owner>/fjord-web:X.Y.Z
+   --owner <owner>`).
+4. **Pulls the published image by digest and brings it up** with `deploy-check.sh file`, as an
+   operator would: healthy, the first account, a restart, signing in again.
+5. **Publishes the GitHub release page**, whose notes are the changelog's section and the image's
+   name. This is last, so a release page means an image that was pulled and run.
+
+Run by hand from the Actions tab (*Web release*, on a branch) it does steps 1 and 2 and throws the
+images away: that is how a change to the workflow or the Dockerfile is tried before a tag exists.
+
+`scripts/release.sh web verify X.Y.Z` also looks at the registry (both platforms) and warns if it
+cannot. **The first time**, GitHub creates the package private: open it (the organisation's
+*Packages*, `fjord-web`, *Package settings*) and make it public, or nobody but the organisation
+can pull it. That is the one step no workflow can do.
+
+### Fjord Web versions
+
+Fjord Web is `0.x` and follows [Semantic Versioning](https://semver.org/) as the CLI does, with
+what that means for an application that has a database and settings:
+
+| Release | May contain | Never contains |
+| --- | --- | --- |
+| **Patch** `X.Y.Z+1` | Fixes. | A migration, or a setting added, renamed or removed. `release.sh` refuses a patch release if anything under `clients/web/migrations/` changed since the previous release of that minor. |
+| **Minor** `X.Y+1.0` | Features; migrations (forward-only, applied at start-up); new settings. While the major is `0` also changes that break (a setting renamed, behaviour changed), each marked **breaking** in the changelog. | A migration or a setting change that is not in the changelog. |
+| **Major** `X+1.0.0` (from 1.0) | Breaking changes. | — |
+
+What follows for someone running it (`clients/web/deploy/README.md` § Updating): a patch release can
+be installed and, if it is bad, put back, without touching the database. A minor release changes the
+database when it starts, and **going back means restoring the backup taken before**: migrations only
+go forward, and the changelog says which release has one. A migration that has been released is
+never edited; a fix is a new migration.
+
+The format module and the editors are inside the image, so there is nothing else to upgrade. The
+image reads and writes the format version `fjord-core` implements (`fjord verify` names it); a
+repository that declares a newer one is opened read-only, never written to.
+
+### Dependencies that are newer than the registry's age limit
+
+`clients/web/pnpm-workspace.yaml` makes pnpm refuse a release younger than a minimum age. The
+design system, `@sovereignfs/ui`, is ours and is exact-pinned and upgraded on purpose, so a fresh
+release of it is added to `minimumReleaseAgeExclude` in the same change as the bump (pnpm writes
+the entry). An entry is not removed when the release ages: it names one exact version and does no
+harm. Anything else that needs one has to be argued in the PR, because the limit is there to stop
+a freshly published, hijacked package from being installed.
 
 Releases up to 0.2.0 were tagged `vX.Y.Z`, before there was more than one
 component. They are finished and stay as they are; the script finds them when

@@ -39,8 +39,13 @@ configuration, a reverse proxy, backups and updating.
 
 ```bash
 cd deploy && cp .env.example .env     # edit it
-docker compose up -d --build
+docker compose up -d --build          # from this checkout
 ```
+
+Each release also publishes the image, for `linux/amd64` and `linux/arm64`: `ghcr.io/sovereignfs/fjord-web:X.Y.Z`, with
+its build provenance attested. Set `FJORD_IMAGE` to it in `.env` and `docker compose pull && docker compose up -d`
+instead of building. What an update does to the database, and how to go back, is in
+[`deploy/README.md`](deploy/README.md#updating).
 
 ### The database
 

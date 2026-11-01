@@ -1571,7 +1571,10 @@ Each slice ends usable, tested and released. The tasks are in
 - **Releases** follow the monorepo's flow: a `web` component in `scripts/release/`,
   tagged `web-vX.Y.Z`, never marked *Latest* on GitHub (the CLI's install URLs depend
   on that slot), with its own CI workflow that runs only for changes that can affect
-  it.
+  it. A tag publishes the image to `ghcr.io/<owner>/fjord-web` (`linux/amd64` and `linux/arm64`; `X.Y.Z`, `X.Y`, `latest`;
+  build provenance attested), brings the published image up as an operator would, and only then publishes the release page.
+  Patch releases carry no migration and no setting changes; a minor may, and going back is restoring the backup taken before
+  it (`RELEASING.md` § Fjord Web versions; `deploy/README.md` § Updating).
 
 ### Setting up a repository, as built (ROADMAP 1a.10)
 

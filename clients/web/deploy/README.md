@@ -174,13 +174,54 @@ for a token that lasts an hour when it needs one. Removing the App on GitHub end
 
 ## Updating
 
+Each release publishes the image for `linux/amd64` and `linux/arm64`, with its build provenance attested:
+
 ```bash
-git pull
-docker compose up -d --build        # with the same -f arguments as before
+docker pull ghcr.io/sovereignfs/fjord-web:0.1.0
+gh attestation verify oci://ghcr.io/sovereignfs/fjord-web:0.1.0 --owner sovereignfs    # optional
 ```
 
-The new version applies its migrations when it starts, before it serves. Migrations only go forward: to go back to an
-older version, restore a backup taken before the update.
+The tags are `X.Y.Z` (never moves), `X.Y` (the newest patch of that minor) and `latest`. **Pin one in production**: `latest`
+is what a restart at the wrong moment would upgrade you to. Set `FJORD_IMAGE=ghcr.io/sovereignfs/fjord-web:0.1.0` in `.env`
+and the compose files use it instead of building (building from a checkout, as above, still works and is what you do for
+a version that is not released).
+
+Before updating:
+
+1. **Read the changelog** between your version and the new one ([`CHANGELOG.md`](../CHANGELOG.md), or the release page).
+   Anything marked **breaking** is a setting or a behaviour you must act on; a migration is listed under *Changed* or
+   *Added*.
+2. **Back up the database** ([above](#backups)). Keep the encryption key where it is, apart from the backup.
+
+Then:
+
+```bash
+# in .env: FJORD_IMAGE=ghcr.io/sovereignfs/fjord-web:0.2.0
+docker compose pull                  # with the same -f arguments as before
+docker compose up -d                 # the web service is recreated; sqld or PostgreSQL is left running
+curl -fsS http://127.0.0.1:3000/api/health      # {"status":"ok", ...}
+```
+
+(If you build from a checkout instead: `git pull`, then `docker compose up -d --build`.)
+
+What happens when the new version starts:
+
+- **It applies its migrations before it serves anything.** Several instances starting together are safe (PostgreSQL takes
+  an advisory lock; SQLite fails cleanly and retries). If a migration cannot be applied the server exits, naming the
+  migration, and does not serve a half-migrated database.
+- **Run one version at a time.** Migrations may remove or change what the old version reads. Stop the old instances
+  before starting the new ones, or accept a short outage; do not run old and new side by side on one database.
+- **A patch release (`0.1.0` to `0.1.1`) never has a migration**, so you can move between patch releases of a minor in either
+  direction without touching the database.
+- **A minor release may.** Migrations only go forward. To go back to an older minor, stop the new version, **restore the
+  backup taken before the update**, and start the old image; whatever was written since the backup is lost. There is no
+  down-migration, on purpose.
+- **Nothing else needs upgrading.** The format module (WebAssembly) and the editors are inside the image. A repository
+  whose `fjord.json` declares a newer format version than the image implements is opened read-only and never written to; the
+  page says so.
+
+To see which version is running, `docker image inspect ghcr.io/sovereignfs/fjord-web:0.2.0 --format '{{ index .Config.Labels "org.opencontainers.image.version" }}'`
+(the page and `/api/health` deliberately say nothing about it).
 
 ## What is not here yet
 
