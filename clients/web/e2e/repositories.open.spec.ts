@@ -815,6 +815,128 @@ test("a note and a document are made in an encrypted vault, encrypted in the bro
   }
 });
 
+// --- Renaming, moving and deleting in encrypted vaults (ROADMAP 2b.5) ---
+
+test("encrypted files are renamed, moved, deleted and put back as the bytes they are, in a plain-named vault, and the server needs no key", async ({ page }) => {
+  test.setTimeout(300_000);
+  try {
+    const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({
+      "Open/note.md.age": wasm.encrypt(bytes("SECRET PLAINTEXT a note"), recipient, false),
+      "Open/Sub/other.md.age": wasm.encrypt(bytes("SECRET PLAINTEXT other"), recipient, false),
+    }));
+    const blobAt = async (commit: string, path: string) => (await hubs.more.fileBytesAt(commit, path)).join(",");
+    const original = await blobAt((await hubs.more.branchHead())!, "Open/note.md.age");
+
+    // Rename: the name before .md.age changes, and the same ciphertext is at the new name.
+    await page.goto(`/repo/${id}/Open/note.md.age`);
+    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await expect(page.getByText("It stays .md.age.")).toBeVisible();
+    await page.getByLabel("New name").fill("Renamed");
+    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp("/Open/Renamed\\.md\\.age$"), { timeout: 30_000 });
+    let head = (await hubs.more.branchHead())!;
+    expect(await hubs.more.show(head, "%B")).toBe("Rename note to Renamed");
+    expect(await blobAt(head, "Open/Renamed.md.age")).toBe(original);
+    expect(Object.keys(await hubs.more.filesAt(head))).not.toContain("Open/note.md.age");
+
+    // Move into a folder of the same vault (only that vault's folders are offered).
+    await page.getByRole("button", { name: "Move", exact: true }).click();
+    const places = await page.getByLabel("Move to").locator("option").allTextContents();
+    expect(places.every((place) => place === "Open" || place.startsWith("Open/"))).toBe(true);
+    await page.getByLabel("Move to").selectOption("Open/Sub");
+    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp("/Open/Sub/Renamed\\.md\\.age$"), { timeout: 30_000 });
+    head = (await hubs.more.branchHead())!;
+    expect(await blobAt(head, "Open/Sub/Renamed.md.age")).toBe(original);
+
+    // Delete, then Undo: the same bytes come back.
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await expect(page.getByText("Deleted “Renamed”")).toBeVisible({ timeout: 30_000 });
+    expect(Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!))).not.toContain("Open/Sub/Renamed.md.age");
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(page.getByRole("link", { name: "Renamed.md" })).toBeVisible({ timeout: 30_000 });
+    head = (await hubs.more.branchHead())!;
+    expect(await blobAt(head, "Open/Sub/Renamed.md.age")).toBe(original);
+    await hubs.more.fsck();
+
+    // A folder is renamed with its files as they are.
+    await page.goto(`/repo/${id}/Open/Sub`);
+    await page.getByRole("button", { name: "Rename folder" }).click();
+    await page.getByLabel("New name").fill("Archive");
+    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp("/Open/Archive$"), { timeout: 30_000 });
+    expect(Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!)).filter((path) => path.startsWith("Open/Archive/")).sort()).toEqual(["Open/Archive/Renamed.md.age", "Open/Archive/other.md.age"]);
+
+    // The server was never sent a key or a word of the text, and it opens with the identity as before.
+    expect(record.join("\n")).not.toContain("SECRET PLAINTEXT");
+    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt((await hubs.more.branchHead())!, "Open/Archive/other.md.age")))).toBe("SECRET PLAINTEXT other");
+
+    // Out of its vault, and a kind changed, are refused by the server whatever the page says.
+    const moveVia = (destination: string, path = "Open/Archive/other.md.age") =>
+      page.request.post(`/api/connections/${id}/files/move`, { headers: { origin: BASE }, data: { vault: "Open", type: "file", path, blob: "0".repeat(40), destination }, failOnStatusCode: false });
+    expect((await moveVia("Sealed/other.md.age")).status()).toBe(422);
+    expect((await (await moveVia("Open/other.fj.md.age")).json()).error.code).toBe("extension_changed");
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a file of an id-named encrypted vault is renamed by the name inside it, keeping its identifier, and moved by its identifier", async ({ page }) => {
+  test.setTimeout(300_000);
+  const name = "01jagc4k7pr9tbm3ykwx6zq2hz";
+  try {
+    const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({
+      [`Sealed/${name}.age`]: wasm.encrypt(wasm.wrapContainer("Plan.md", bytes("# Plan\n\nSECRET PLAINTEXT")), recipient, false),
+      "Sealed/Sub/01jagc4k7pr9tbm3ykwx6zq2h0.age": wasm.encrypt(wasm.wrapContainer("Other.md", bytes("o")), recipient, false),
+    }));
+    const before = (await hubs.more.branchHead())!;
+
+    // The page offers no rename by path (the name is the identifier), and the server would refuse one.
+    await page.goto(`/repo/${id}/Sealed/${name}.age`);
+    await expect(page.getByRole("button", { name: "Move", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Rename", exact: true })).toHaveCount(0); // not until it is opened: the real name is inside
+    const refused = await page.request.post(`/api/connections/${id}/files/move`, {
+      headers: { origin: BASE },
+      data: { vault: "Sealed", type: "file", path: `Sealed/${name}.age`, blob: "0".repeat(40), destination: "Sealed/Plan.age" },
+      failOnStatusCode: false,
+    });
+    expect((await refused.json()).error.code).toBe("id_named");
+
+    // Opened, it can be renamed: the container is rewritten, the file keeps its identifier, and the new name is inside.
+    await page.getByLabel("Passphrase").fill(PASSPHRASE);
+    await page.getByRole("button", { name: "Unlock and open" }).click();
+    await expect(noteEditor(page, "Plan.md")).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await page.getByLabel("New name").fill("Roadmap");
+    await page.getByRole("form", { name: "Rename" }).getByRole("button", { name: "Rename", exact: true }).click();
+    await expect(page.getByText("Version saved")).toBeVisible({ timeout: 30_000 });
+    const head = (await hubs.more.branchHead())!;
+    expect(head).not.toBe(before);
+    expect(await hubs.more.show(head, "%P")).toBe(before);
+    expect(await hubs.more.show(head, "%B")).toBe("Rename an encrypted file");
+    expect(Object.keys(await hubs.more.filesAt(head)).filter((path) => path.endsWith(".age")).sort()).toEqual([`Sealed/${name}.age`, "Sealed/Sub/01jagc4k7pr9tbm3ykwx6zq2h0.age"]);
+    const unwrapped = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(head, `Sealed/${name}.age`)));
+    expect(unwrapped.name).toBe("Roadmap.md");
+    expect(textOf(unwrapped.contents)).toBe("# Plan\n\nSECRET PLAINTEXT");
+    await hubs.more.fsck();
+
+    // Moved to a folder: the identifier and the bytes are the same.
+    await page.goto(`/repo/${id}/Sealed/${name}.age`);
+    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await page.getByLabel("Move to").selectOption("Sealed/Sub");
+    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/Sealed/Sub/${name}\\.age$`), { timeout: 30_000 });
+    const moved = (await hubs.more.branchHead())!;
+    expect(textOf(wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(moved, `Sealed/Sub/${name}.age`))).contents)).toBe("# Plan\n\nSECRET PLAINTEXT");
+
+    // Nothing the server saw holds the old or the new name, or the text.
+    for (const forbidden of ["SECRET PLAINTEXT", "Roadmap", "Plan.md"]) expect(record.join("\n"), forbidden).not.toContain(forbidden);
+  } finally {
+    await restoreMore();
+  }
+});
+
 // --- A note in the note editor (ROADMAP 1b.2) -----------------------------------------------------------------
 
 /** `acme/more` holding these files, connected by a new account. */
@@ -1609,7 +1731,8 @@ test("who may delete and put back: a signed-in person, from this site, in their 
     expect((await page.request.get(del)).status()).toBe(405);
     expect(((await (await post(del, { vault: "Notes", type: "file", path: "Notes/fjord.vault.json", blob })).json()).error.code)).toBe("upstream_changed"); // not its blob
     expect(((await (await post(del, { vault: "Notes", type: "folder", path: "Notes", files: 2 })).json()).error.code)).toBe("protected");
-    expect(((await (await post(del, { vault: "Secret", type: "file", path: "Secret/x.md.age", blob })).json()).error.code)).toBe("encrypted_vault");
+    // An encrypted vault this version writes is deleted from like any other (ROADMAP 2b.5): the blob given is not that file's.
+    expect(((await (await post(del, { vault: "Secret", type: "file", path: "Secret/x.md.age", blob })).json()).error.code)).toBe("upstream_changed");
     expect(((await (await post(res, { ids: [999] })).json()).error.code)).toBe("not_found");
 
     const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.14" } });

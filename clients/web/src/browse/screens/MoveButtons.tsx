@@ -20,6 +20,7 @@ export function MoveButtons({
   target,
   suffix,
   destinations,
+  canRename = true,
 }: {
   connectionId: number;
   vault: string;
@@ -28,6 +29,8 @@ export function MoveButtons({
   suffix: string;
   /** Folders of plaintext vaults, repository-relative (a vault's own directory is its top), that it can be moved to. */
   destinations: string[];
+  /** False for a file whose name is its identifier (a vault that names its files by id): it is moved, and renamed by the name inside it. */
+  canRename?: boolean;
 }) {
   const [mode, setMode] = useState<"rename" | "move" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -118,9 +121,11 @@ export function MoveButtons({
         </form>
       ) : (
         <p>
-          <Button variant="secondary" size="sm" onClick={() => setMode("rename")}>
-            {target.type === "folder" ? "Rename folder" : "Rename"}
-          </Button>{" "}
+          {canRename ? (
+            <Button variant="secondary" size="sm" onClick={() => setMode("rename")}>
+              {target.type === "folder" ? "Rename folder" : "Rename"}
+            </Button>
+          ) : null}{" "}
           {places.length > 0 ? (
             <Button variant="secondary" size="sm" onClick={() => setMode("move")}>
               {target.type === "folder" ? "Move folder" : "Move"}

@@ -14,6 +14,7 @@ import { docIdOf } from "../ids";
 import type { RepositoryRead } from "../repository";
 import { fjord } from "../../format/wasm";
 import { DeletedUpstream } from "../screens/DeletedUpstream";
+import { checkEncryptedVault } from "../../files/create-encrypted";
 import type { EncryptedCreate } from "../screens/NewFile";
 import { editingFor, recipientsFor } from "../../encrypted/server";
 
@@ -72,12 +73,16 @@ export async function RepositoryScreen({ connection, path }: { connection: strin
         vaultHere?.encrypted === true && vaultHere.manifestError === null && naming !== undefined
           ? { naming, recipients: await recipientsFor(user.id, current, outcome.read, vaultHere.directory) }
           : undefined;
+      // An encrypted vault this version writes is renamed in, moved in and deleted from as the bytes it holds (ROADMAP 2b.5), but only within itself.
+      const vaultOf = found.location.kind === "folder" || found.location.kind === "file" ? found.location.vault : undefined;
+      const writtenAs = vaultOf?.encrypted === true ? checkEncryptedVault(outcome.read.discovery.vaults, outcome.read.manifests, vaultOf.directory) : undefined;
+      const encryptedNaming = writtenAs?.ok ? writtenAs.target.naming : undefined;
       const prefix = `${segments.join("/")}/`;
       const folderFiles = found.location.kind === "folder" && !outcome.read.partial ? [...outcome.read.blobs.keys()].filter((path) => path.startsWith(prefix)).length : undefined;
       // A note or a document is a header and a body, and its editor is given the body: where that starts in the text shown, what
       // the header says, and the header a file with none is given on its first edit (ROADMAP 1b.3, 1b.5).
       const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
-      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} encryptedCreate={encryptedCreate} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "document" ? (docId ?? undefined) : undefined} destinations={moveDestinations(outcome.read)} />;
+      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} encryptedCreate={encryptedCreate} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "document" ? (docId ?? undefined) : undefined} destinations={moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined)} encryptedNaming={encryptedNaming} />;
     }
   }
 
@@ -90,11 +95,12 @@ export async function RepositoryScreen({ connection, path }: { connection: strin
  * folder in them, repository-relative. A repository too large to list names no folders, so none is offered there; the top
  * of each vault still is. At most 300, the vault tops first.
  */
-function moveDestinations(read: RepositoryRead): string[] {
+function moveDestinations(read: RepositoryRead, only?: string): string[] {
   const tops: string[] = [];
   const folders = new Set<string>();
   for (const vault of read.discovery.vaults) {
-    if (vault.manifestError !== null || vault.encrypted !== false || vault.fileNaming !== "plain") continue;
+    // A file of an encrypted vault stays in it: its own folders are all it can go to.
+    if (only !== undefined ? vault.directory !== only : vault.manifestError !== null || vault.encrypted !== false || vault.fileNaming !== "plain") continue;
     tops.push(vault.directory);
     for (const file of vault.files) {
       const segments = file.path.split("/").slice(0, -1);

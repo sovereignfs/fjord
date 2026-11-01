@@ -133,13 +133,17 @@ New notes and documents in an encrypted vault: the file name in `plain` naming, 
 
 ### 2b.5 Rename, move and delete
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** DESIGN §8; spec §6.4, §7.2
 
 In `plain` naming the same one-commit operations as phase 1 (the name is public). In `id` naming a rename **rewrites the container** (the name is inside it), so it decrypts, repacks and encrypts again. Undo and Recently deleted restore a ciphertext blob as they restore a plaintext one.
 
 **Accepts when:** each operation in each naming leaves a repository that verifies and that `age -d` still recovers.
+
+- **Done as:** the access rules (`files/access.ts`, `changeable`) treat a vault as changeable if it is plaintext with plain names or an encrypted vault `checkEncryptedVault` accepts (now also only with the suffix `.age`); the page offers Rename, Move, Delete and folder operations there (`FolderView`, `MoveButtons`, `DeleteButton`; destinations are the vault's own folders). **Plain naming:** the existing one-commit blob move; `suffix()` (`files/restore.ts`) now reads a payload as its real kind before `.age`, so `Plan.md.age` can only be renamed to another `….md.age`, and restore keeps a deleted file's kind; messages say `Rename Plan to Plan 2`, not `.md.age`. **`id` naming:** a file moves between folders by its identifier but is refused a rename by path (`id_named`; `restoreDeleted` likewise puts it back only under the same name); renaming is `EncryptedEditor`'s: with the file open and no draft, it repacks under the new name (`sealText`), keeps that as a draft and makes a version (`Rename an encrypted file`), reloading to the page. **Between vaults:** refused either way (`other_vault` out of an encrypted vault, `encrypted_vault` into one), for 2b.6. Delete reads nothing of an encrypted file and records no `id`.
+- **Tested:** `encrypted-changes.test.ts` (against a real git repository: the same ciphertext blob at the new place, the kinds held, never over a name or a name like it, `id_named`, a folder with its identifiers, delete reads nothing and Undo restores the bytes, an id-named restore only under its identifier; `suffix` and the messages; each rule seen to fail a test with it off), `access.test.ts`, and `cli.test.ts` (`FJORD_CLI` and the real `age`): a repository with notes and documents made, renamed, moved, deleted and restored in a `plain` and an `id` encrypted vault passes `fjord verify --strict`, `age -d` opens each file, and `age -d | tar` gives an id-named file's real name. Web CI installs `age` on the leg that builds the CLI. In Chromium: rename, move, delete with Undo and a folder rename in a plain-named vault (same bytes at every step, no plaintext in any request, the server refuses another vault and a changed kind), and in an id-named vault the refusal by path, the rename inside the container, and a move by identifier.
+- **Not here:** renaming with unsaved changes in an id-named vault (save or discard first); moving between vaults (2b.6); the real name of an id-named file in the confirmation of its deletion, which shows the identifier.
 
 ### 2b.6 Moving files in and out of vaults
 

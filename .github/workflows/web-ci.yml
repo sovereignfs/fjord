@@ -291,6 +291,14 @@ jobs:
           cargo build --locked -p fjord-cli
           echo "FJORD_CLI=$GITHUB_WORKSPACE/target/debug/fjord" >> "$GITHUB_ENV"
 
+      # The reference `age`, for the check that what the web renames, moves and restores in an encrypted vault is still opened by it
+      # (cli.test.ts, ROADMAP 2b.5); the test is skipped without it, so only this leg installs it.
+      - name: Install age
+        if: matrix.database == 'file'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends age
+
       - run: pnpm test
 
   e2e:

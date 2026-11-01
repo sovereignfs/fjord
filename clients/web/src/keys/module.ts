@@ -22,6 +22,7 @@ export interface CryptoModule {
   titleFromText(text: string): string | undefined;
   freeName(stem: string, extension: string, existingJson: string): string;
   newDocument(id: string, title: string, created: string): string;
+  checkName(component: string): string;
   newUlid(timestampMs: number, random: Uint8Array): string;
   rfc3339FromUnix(seconds: number): string | undefined;
 }

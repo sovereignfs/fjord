@@ -70,6 +70,12 @@ export function EncryptedEditor({
   const [confirming, setConfirming] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [discardFailed, setDiscardFailed] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [newStem, setNewStem] = useState("");
+  const [renameError, setRenameError] = useState<string | null>(null);
+  // What stays of the name when it is renamed: a document stays a `.fj.md` and a note a `.md`, as for any file.
+  const extension = /\.fj\.md$/i.test(name) ? ".fj.md" : name.lastIndexOf(".") > 0 ? name.slice(name.lastIndexOf(".")) : "";
+  const stem = name.slice(0, name.length - extension.length);
 
   useEffect(() => {
     const stop = saver.subscribe((next) => {
@@ -139,6 +145,51 @@ export function EncryptedEditor({
     window.location.reload();
   }
 
+  /**
+   * Rename a file of an id-named vault (ROADMAP 2b.5): its name is inside the container, so the file is opened (it is, here), repacked under the new name,
+   * encrypted again and committed in place; the file on disk keeps its identifier. It goes through the draft and a version, which the server already does with
+   * no key. Only with no draft: what is waiting would be part of the version.
+   */
+  async function rename() {
+    setRenameError(null);
+    const next = `${newStem.trim()}${extension}`;
+    setSaving(true);
+    try {
+      const module = await loadModule();
+      if (newStem.trim() === "" || JSON.parse(module.checkName(next)).length > 0) {
+        setRenameError("That is not a name a file can have here. Names cannot hold characters such as : ? * or /, end in a space or a dot, or be one Windows reserves.");
+        return;
+      }
+      if (next === name) {
+        setRenameError("That is its name already.");
+        return;
+      }
+      const sealed = sealText(module, { text: saver.text, name: next, naming, recipients });
+      const kept = await sendDraft(connectionId, path, base, toBase64(sealed), true);
+      if (kept.kind !== "kept") {
+        setRenameError(kept.kind === "refused" ? kept.message : "Could not keep the new name just now. Nothing was changed. Try again in a moment.");
+        return;
+      }
+      const made = await sendVersion(connectionId, path, "Rename an encrypted file");
+      if (!made.ok) {
+        setRenameError(`${made.message} The new name is kept as a draft; save a version to finish the rename, or discard the changes.`);
+        setHasDraft(true);
+        return;
+      }
+      saver.dispose();
+      try {
+        window.sessionStorage.setItem(savedKey(connectionId, path), made.commit);
+      } catch {
+        // Not remembering it only means the page does not say so.
+      }
+      window.location.reload();
+    } catch {
+      setRenameError("The file could not be renamed here, so nothing was changed.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div data-testid="encrypted-editor">
       <NoteEditor
@@ -184,6 +235,53 @@ export function EncryptedEditor({
             </Button>
           </div>
         </form>
+      ) : null}
+      {naming === "id" && !readOnly ? (
+        <div>
+          {renaming ? (
+            <form
+              className={styles.form}
+              aria-label="Rename"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void rename();
+              }}
+            >
+              <FormField label="New name" hint={`The name is kept inside the encrypted file; the file in the repository keeps its identifier.${extension === "" ? "" : ` It stays ${extension}.`}`}>
+                {(field) => <Input {...field} name="name" autoComplete="off" maxLength={200} value={newStem} onChange={(e) => setNewStem(e.target.value)} disabled={saving} />}
+              </FormField>
+              {renameError ? (
+                <div className={styles.notice}>
+                  <Alert variant="error" heading="The file was not renamed">
+                    {renameError}
+                  </Alert>
+                </div>
+              ) : null}
+              <div className={styles.actions}>
+                <Button type="submit" size="sm" loading={saving} disabled={newStem.trim() === "" || newStem.trim() === stem}>
+                  Rename
+                </Button>{" "}
+                <Button type="button" variant="secondary" size="sm" onClick={() => setRenaming(false)} disabled={saving}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          ) : hasDraft ? (
+            <p className={styles.itemMeta}>To rename this file, save a version of your changes or discard them first.</p>
+          ) : (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setNewStem(stem);
+                setRenameError(null);
+                setRenaming(true);
+              }}
+            >
+              Rename
+            </Button>
+          )}
+        </div>
       ) : null}
       {hasDraft ? (
         <div>

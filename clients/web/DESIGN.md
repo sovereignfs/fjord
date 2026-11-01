@@ -562,6 +562,17 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
   repository. Into an encrypted vault is refused: it would put plaintext in the
   vault (CLI invariant 1), and moving in means encrypting, which is phase 2.
   Between repositories is not a move (ids are unique only within one, spec E401).
+- **In an encrypted vault** (ROADMAP 2b.5) a file is renamed, moved, deleted and put back as the bytes it is, within its own vault,
+  with no key on the server, for a vault this version writes (age, `.age`, binary, the container its naming needs). A rename
+  keeps what the file is: `Plan.md.age` stays `.md.age`, and a document stays `.fj.md.age`. Moving to or from another vault
+  waits for 2b.6, which decrypts or encrypts in the browser on the way; until then the server refuses both. In an `id`-named
+  vault the on-disk name is the identifier and never changes (spec §7.2), so the server refuses a rename by path (`id_named`)
+  and a file there is **renamed by the name inside the container**: the browser has the file open, repacks it under the new
+  name, encrypts it again, and has the server keep that as a draft and commit a version in place, with the message `Rename an
+  encrypted file` (so the commit says nothing of either name). That is offered with no unsaved changes only, as the version
+  would otherwise carry them. A folder's name is plaintext in both namings and is renamed or moved like any. Deleting an
+  encrypted file reads nothing of it (no `id` to record), and Undo and Recently deleted put the same ciphertext blob back; in an
+  `id`-named vault only under the same identifier.
 - **A folder** is renamed, moved or deleted with everything in it, in one commit.
   Vault directories themselves, `fjord.vault.json` and `fjord.json` are not
   touched by these actions in phase 1; they belong to the CLI.
@@ -579,7 +590,7 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
   file's *own* only by case is allowed. A folder is never moved onto a folder that is there (that would be a merge), nor into
   itself; the extension must stay; a vault, its manifest, `fjord.json` and anything git stores as a link are not touched.
   Moving to another vault is allowed when both are plaintext with plain names; **into an encrypted vault is refused** (says
-  why), as is a vault the page cannot read. As for deleting, the move is on top of the head that was read, never forced, and
+  why), as is a vault the page cannot read. An encrypted vault is the exception below (ROADMAP 2b.5). As for deleting, the move is on top of the head that was read, never forced, and
   stops if the file or folder is not what was shown. A file with unsaved changes has them saved as a version first; a folder
   with any, or a place that has a draft of its own, is refused. The page offers *Rename* (the name before the extension) and
   *Move* (a folder from the plaintext vaults the repository lists, up to 300) beside Delete. The id index is moved with the

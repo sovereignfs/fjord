@@ -36,6 +36,7 @@ export function FolderView({
   permalink,
   docId,
   destinations,
+  encryptedNaming,
 }: {
   connectionId: number;
   repository: string;
@@ -62,12 +63,15 @@ export function FolderView({
   docId?: string | undefined;
   /** The folders of plaintext vaults a file or folder can be moved to, repository-relative; none for a repository too large to list. */
   destinations?: string[] | undefined;
+  /** Set for an encrypted vault this version writes: how it names its files. Its files are renamed, moved and deleted as the bytes they are (ROADMAP 2b.5). */
+  encryptedNaming?: "plain" | "id" | undefined;
 }) {
   const here = (...segments: string[]) => repositoryHref(connectionId, ...segments);
   const vault = location.vault;
   const inside = location.kind === "folder" ? location.path : location.kind === "file" ? location.file.relative.split("/").slice(0, -1).join("/") : "";
   const folders = inside === "" ? [] : inside.split("/");
-  const writable = checkVault([vault], vault.directory) === "ok";
+  const plainWritable = checkVault([vault], vault.directory) === "ok";
+  const writable = plainWritable || encryptedNaming !== undefined;
 
   return (
     <>
@@ -92,12 +96,12 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing}
-          remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document") ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing}
+          remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
         <>
-          {writable ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} /> : null}
+          {plainWritable ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} /> : null}
           {encryptedCreate ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} encrypted={encryptedCreate} /> : null}
           {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
             <MoveButtons
@@ -202,6 +206,7 @@ function FileCard({
   destinations,
   blob,
   encryptedEditing,
+  encryptedChange,
 }: {
   connectionId: number;
   file: ClassifiedFile;
@@ -218,6 +223,8 @@ function FileCard({
   docId: string | undefined;
   destinations: string[];
   blob: string | undefined;
+  /** For a file of an encrypted vault this version writes: how the vault names its files. */
+  encryptedChange: "plain" | "id" | undefined;
   encryptedEditing: { draft: EncryptedDraft | null; recipients: { ok: true; text: string } | { ok: false; message: string } } | undefined;
 }) {
   return (
@@ -262,7 +269,7 @@ function FileCard({
       )}
       {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} /> : null}
       {remove ? (
-        <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={file.path.match(/\.fj\.md$|\.md$/i)?.[0] ?? ""} destinations={destinations} />
+        <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.fj\.md|\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.fj\.md$|\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
       ) : null}
       {remove ? (
         <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.fj\.md$/i, "").replace(/\.md$/i, "")} goTo={remove.goTo} />

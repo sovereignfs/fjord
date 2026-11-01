@@ -7,7 +7,13 @@ import { fjord, wasmAvailable } from "../format/wasm";
 import type { FakeGitHub } from "../providers/testing/fake-github";
 import { githubHarness } from "../providers/testing/harnesses";
 import { newRecipients } from "../working/test-ciphertext";
+import { runMigrations } from "../db/migrate";
+import { freshDatabase } from "../db/test-support";
+import { WorkingCopyService } from "../working/service";
 import { createFile } from "./create";
+import { deletePath } from "./delete";
+import { DeletionService } from "./deletions";
+import { restoreDeleted } from "./restore";
 import { createEncryptedFile } from "./create-encrypted";
 import { newEncryptedFile } from "../keys/files";
 import type { CryptoModule } from "../keys/module";
@@ -175,5 +181,74 @@ describe.skipIf(!enabled)("what the web creates in an encrypted vault, as the CL
     expect(made.every((result) => result.ok), JSON.stringify(made.filter((result) => !result.ok))).toBe(true);
     const { status, report } = await verify();
     expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
+  });
+});
+
+const haveAge = !spawnSync("age-keygen", ["--help"]).error; // the real age, which CI installs for the cross-checks
+
+describe.skipIf(!enabled || !haveAge)("what the web renames, moves, deletes and restores in an encrypted vault, as the CLI and age see it (ROADMAP 2b.5)", () => {
+  /** A real age identity: the file it is in, and its public key. */
+  function identity() {
+    const file = join(directory, "identity.txt");
+    const made = spawnSync("age-keygen", ["-o", file], { encoding: "utf8" });
+    const recipient = /public key: (age1\w+)/i.exec(`${made.stdout}${made.stderr}`)![1]!;
+    return { file, recipient: `${recipient}\n` };
+  }
+  const deps = () => ({ provider: h.provider, ref: h.repo, branch: "main", format: fjord() });
+  const make = async (vault: "Locked" | "Sealed", recipients: string, input: { kind: "note" | "document"; title: string; folder?: string }) => {
+    const naming = vault === "Locked" ? "plain" : "id";
+    const sealed = newEncryptedFile(module!, { ...input, naming, recipients, when: WHEN, now: 1_800_000_000_000, random: crypto.getRandomValues(new Uint8Array(16)) });
+    if (!sealed.ok) throw new Error("bad title");
+    const made = await createEncryptedFile(deps(), { vault, folder: input.folder ?? "", target: { naming, suffix: ".age" }, kind: input.kind, title: naming === "plain" ? input.title : "", localMinute: WHEN, ciphertext: Uint8Array.from(Buffer.from(sealed.ciphertext, "base64")), author: AUTHOR });
+    if (!made.ok) throw new Error(`could not make: ${made.reason}`);
+    return made.path;
+  };
+  const target = async (path: string) => ({ type: "file" as const, path, blob: (await h.provider.listDirectory(h.repo, (await fake.branchHead())!, path.slice(0, path.lastIndexOf("/")))).find((entry) => entry.path === path)!.id });
+  const move = async (vault: string, path: string, destination: string, idNamed: boolean) => {
+    const result = await movePath({ ...deps(), drafts: { paths: async () => [] as string[] }, saveDraft: async () => ({ ok: false as const, reason: "unavailable" as const }) }, { connectionId: 1, vault, target: await target(path), destination, author: AUTHOR, encrypted: { idNamed } });
+    if (!result.ok) throw new Error(`could not move: ${result.reason}`);
+  };
+  const decrypt = async (key: string, path: string) => {
+    const file = join(directory, `payload-${Math.random().toString(36).slice(2)}.age`);
+    writeFileSync(file, await fake.fileBytesAt((await fake.branchHead())!, path));
+    const run = spawnSync("age", ["-d", "-i", key, file]);
+    expect(run.status, `age -d ${path}: ${run.stderr}`).toBe(0);
+    return run.stdout;
+  };
+
+  it("leaves a repository that verifies, and whose files the real age still opens, in both namings", async () => {
+    const { file: key, recipient } = identity();
+    const note = await make("Locked", recipient, { kind: "note", title: "Plan" });
+    const doc = await make("Locked", recipient, { kind: "document", title: "Budget" });
+    const sealed = await make("Sealed", recipient, { kind: "document", title: "Hidden plan" });
+    const other = await make("Sealed", recipient, { kind: "note", title: "Other" });
+
+    await move("Locked", note, "Locked/Plan v2.md.age", false); // a rename
+    await move("Locked", doc, "Locked/Archive/Budget.fj.md.age", false); // a move into a new folder
+    await move("Sealed", sealed, `Sealed/Archive/${sealed.split("/").pop()}`, true); // an id-named file moves by its identifier
+    // A delete and an Undo, of an id-named vault's file: the same bytes come back under the same identifier.
+    const { database } = await freshDatabase();
+    try {
+      await runMigrations(database);
+      const deletions = new DeletionService(database);
+      const gone = await deletePath({ ...deps(), deletions, drafts: new WorkingCopyService(database), saveDraft: async () => ({ ok: false as const, reason: "unavailable" as const }) }, { connectionId: 1, accountId: "ada", vault: "Sealed", target: await target(other), kindOf: () => "other", author: AUTHOR });
+      if (!gone.ok) throw new Error(`could not delete: ${gone.reason}`);
+      expect(Object.keys(await fake.filesAt((await fake.branchHead())!))).not.toContain(other);
+      const back = await restoreDeleted({ ...deps(), deletions, vaultOk: (vault) => vault === "Sealed", idNamed: () => true, windowMs: 1e12 }, { connectionId: 1, ids: gone.deletions, path: undefined, author: AUTHOR });
+      expect(back.ok, JSON.stringify(back)).toBe(true);
+    } finally {
+      await database.close();
+    }
+
+    const { status, report } = await verify();
+    expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
+
+    // age -d recovers each file, with no help from fjord.
+    expect(new TextDecoder().decode(await decrypt(key, "Locked/Plan v2.md.age"))).toBe("# Plan\n");
+    expect(new TextDecoder().decode(await decrypt(key, "Locked/Archive/Budget.fj.md.age"))).toContain("title: Budget");
+    const container = await decrypt(key, `Sealed/Archive/${sealed.split("/").pop()}`);
+    const names = spawnSync("tar", ["-tf", "-"], { input: container, encoding: "utf8", env: { ...process.env, COPYFILE_DISABLE: "1" } });
+    expect(names.stdout.trim()).toBe("Hidden plan.fj.md"); // `age -d | tar -x` gives the real name
+    expect(new TextDecoder().decode(spawnSync("tar", ["-xOf", "-"], { input: await decrypt(key, other), env: { ...process.env, COPYFILE_DISABLE: "1" } }).stdout)).toBe("# Other\n");
   });
 });
