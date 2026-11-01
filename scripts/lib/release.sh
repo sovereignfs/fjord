@@ -207,8 +207,11 @@ section_body() {
     f' "$C_CHANGELOG"
 }
 
+# Reads all of its input. `grep -q` would stop at the first line with content, and a writer
+# still sending (a long changelog section) would then die of SIGPIPE, which `pipefail` turns
+# into "no notes": the release of a changelog with a lot in it was refused for that.
 has_content() {
-  grep -q '[^[:space:]]'
+  grep '[^[:space:]]' >/dev/null
 }
 
 # What the changelog holds for $1: `section` (a filled-in section), `empty`

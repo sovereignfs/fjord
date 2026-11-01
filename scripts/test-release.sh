@@ -842,6 +842,13 @@ refuses "web: a released migration that was removed" "A released migration is ne
 relw web8 prepare 0.2.0 --skip-gates
 accepts "web: ...but a new migration beside the released ones is fine in a minor release"
 
+# A long changelog section is notes all the same (a pipe that closes early must not read as none).
+freshw web9 0.0.0
+notesw web9
+(cd "$T/web9" && awk '{ print } /^## \[Unreleased\]/ && !d { print ""; print "### Added"; print ""; for (i = 0; i < 20000; i++) print "- note " i; d = 1 }' "$WL" >"$WL.new" && mv "$WL.new" "$WL")
+relw web9 check "$rel_web_next"
+accepts "web: a changelog section too long to be read in one go"
+
 # --- The full gates, once ---------------------------------------------------------------
 
 if [ "$FULL" = yes ]; then
