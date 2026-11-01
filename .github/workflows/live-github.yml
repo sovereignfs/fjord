@@ -1,0 +1,51 @@
+# The one check that GitHub itself says what the fake of GitHub says (ROADMAP 1a.7): connecting a repository with a fine-grained personal access
+# token, a read-only one refused and a read-and-write one accepted. See clients/web/src/connections/live-github.test.ts for what it asserts.
+#
+# Run by hand and by nothing else: `workflow_dispatch` only, so no pull request, fork or push can reach the secrets it uses. It writes nothing to the
+# repository it checks (the "write" it tries moves a branch to where it already is). The tokens are the repository secrets FJORD_LIVE_TOKEN_RW
+# (Contents: Read and write) and FJORD_LIVE_TOKEN_RO (Contents: Read-only), both fine-grained, for the repository named below.
+name: Live GitHub check
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: "owner/name of the repository both tokens are for (default: this one)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    name: fine-grained token against the real GitHub
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: clients/web
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: clients/web/package.json
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            clients/web/pnpm-lock.yaml
+            packages/fjord-editor/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+
+      # The test reads the tokens from its environment and never prints one (its failures name the step); GitHub also masks them in the log.
+      - name: Connect with each token
+        env:
+          FJORD_LIVE_REPO: ${{ inputs.repository != '' && inputs.repository || github.repository }}
+          FJORD_LIVE_TOKEN_RW: ${{ secrets.FJORD_LIVE_TOKEN_RW }}
+          FJORD_LIVE_TOKEN_RO: ${{ secrets.FJORD_LIVE_TOKEN_RO }}
+        run: pnpm exec vitest run src/connections/live-github.test.ts --reporter=verbose
