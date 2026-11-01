@@ -174,8 +174,8 @@ tested against a local origin and a stand-in for `gh`, but the first real
 
 ## Publishing to crates.io
 
-`fjord-core` and `fjord-cli` are meant to be on [crates.io](https://crates.io) (`cargo install fjord-cli` gives the `fjord` command); they are not yet. A dry run of both passes
-(`cargo publish --workspace --dry-run`, from a clean tree), and the checks it stands for are kept true by the workspace itself:
+`fjord-core` and `fjord-cli` are on [crates.io](https://crates.io) (`cargo install fjord-cli` gives the `fjord` command), first published as **0.4.0** (2026-11-01). Before each publish run
+`cargo publish --workspace --dry-run` from a clean tree; the checks it stands for are kept true by the workspace itself:
 
 - **The names are free** (`fjord-core`, `fjord-cli`, checked 2026-11-01). A different crate called `fjord` exists (a stranger's, v0.4.12): the command is `fjord`, the package is `fjord-cli`,
   and the README says `cargo install fjord-cli`, so a bare `cargo install fjord` would install the wrong thing.
@@ -195,3 +195,13 @@ cargo publish --workspace                # fjord-core first, then fjord-cli, in 
 ```
 
 The first publish of each name makes its publisher the crate's owner; add the other owners with `cargo owner --add`.
+
+Things the first release taught:
+
+- **crates.io wants a verified email** on the account (<https://crates.io/settings/profile>) before it accepts a publish; without one the first upload is refused with a 400, and nothing is uploaded.
+- **Publish the tagged commit.** `0.3.1` was released as binaries before the crates were ready, and `main` had moved 128 commits on; publishing it would have put different code on crates.io under a
+  version the binaries already used. `0.4.0` was cut for this, and a version is never reused.
+- **A release can fail on the runner, not the code.** The 0.4.0 run's macOS 14 job was cancelled in a second by a GitHub brownout (the image retires on 2026-11-02); the Apple-silicon build is now pinned
+  to `macos-15` in `dist-workspace.toml`, and the tag was moved onto that commit before anything was published. If a release run fails before `host`, nothing is public and the tag can be moved; once a
+  release exists, cut the next version instead.
+- **`cargo publish --workspace`** publishes `fjord-core` first, waits for it to be available, then `fjord-cli`.

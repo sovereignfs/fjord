@@ -28,7 +28,10 @@ curl --proto '=https' --tlsv1.2 -LsSf \
 # Windows
 powershell -c "irm https://github.com/sovereignfs/fjord/releases/latest/download/fjord-cli-installer.ps1 | iex"
 
-# From source, without waiting for a release
+# From source, from crates.io (the command is `fjord`; the package is `fjord-cli`)
+cargo install fjord-cli
+
+# From source, from the repository's latest commit
 cargo install --git https://github.com/sovereignfs/fjord fjord-cli
 ```
 
@@ -55,9 +58,8 @@ running it.
 Building from source needs Rust 1.89 or newer. That is not a style
 preference: `time`, `ignore`, `age`'s own dependencies and the YAML library require it.
 
-There is no crates.io release yet, so a bare `cargo install fjord-cli` will not
-work; use the `--git` form above. It is worth having, and not worth advertising
-before it exists.
+`cargo install fjord-cli` builds the release published on [crates.io](https://crates.io/crates/fjord-cli) (from 0.4.0). Mind the name: a
+different crate called `fjord` exists, and `cargo install fjord` would install that one.
 
 **You do not need `age` installed.** Fjord links the age implementation
 directly. Install the `age` CLI only if you want to decrypt files by hand —

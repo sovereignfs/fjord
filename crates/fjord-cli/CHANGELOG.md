@@ -12,6 +12,10 @@ tagging it.
 
 ## [Unreleased]
 
+### Added
+
+- **`fjord-core` and `fjord-cli` are on crates.io** (from 0.4.0): `cargo install fjord-cli` builds the `fjord` command, and `fjord-core` can be used as a library (`fjord-core = "0.4"`).
+
 ## [0.4.0] - 2026-11-01
 
 ### Security
