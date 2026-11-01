@@ -3,7 +3,7 @@ members = ["crates/fjord-core", "crates/fjord-cli"]
 resolver = "2"
 
 [workspace.package]
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 # The lowest toolchain that builds this workspace, verified by the `msrv`
 # job in CI rather than asserted here. 1.82 was declared originally and was

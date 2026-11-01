@@ -25,7 +25,7 @@ formula = "fjord"
 # The version is required as well as the path: `cargo publish` refuses a
 # path dependency without one, and the README advertises
 # `cargo install fjord-cli`.
-fjord-core = { path = "../fjord-core", version = "0.3.1" }
+fjord-core = { path = "../fjord-core", version = "0.4.0" }
 clap.workspace = true
 owo-colors.workspace = true
 anyhow.workspace = true
