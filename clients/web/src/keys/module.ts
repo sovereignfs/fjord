@@ -17,6 +17,13 @@ export interface CryptoModule {
   passphraseWorkFactor(): number;
   wrapContainer(name: string, contents: Uint8Array): Uint8Array;
   unwrapContainer(archive: Uint8Array): { name: string; contents: Uint8Array };
+  // The format's own naming and headers (the same module the server uses), for writing a new file here where the text is not the server's to see.
+  quickNoteName(text: string, existingJson: string, year: number, month: number, day: number, hour: number, minute: number): string;
+  titleFromText(text: string): string | undefined;
+  freeName(stem: string, extension: string, existingJson: string): string;
+  newDocument(id: string, title: string, created: string): string;
+  newUlid(timestampMs: number, random: Uint8Array): string;
+  rfc3339FromUnix(seconds: number): string | undefined;
 }
 
 let loading: Promise<CryptoModule> | undefined;

@@ -5,7 +5,7 @@ import { type AccessDeps, filesAccess } from "./access";
 const WHEN = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
 const input = { vault: "Notes", folder: "", kind: "note" as const, title: "Plan", localMinute: WHEN, author: { name: "Alice", email: "alice@example.com" } };
 
-function setup(over: { owns?: boolean; vault?: Awaited<ReturnType<AccessDeps["vaultFor"]>>; vaults?: Record<string, Awaited<ReturnType<AccessDeps["vaultFor"]>>> } = {}) {
+function setup(over: { owns?: boolean; encrypted?: Awaited<ReturnType<AccessDeps["encryptedVaultFor"]>>; vault?: Awaited<ReturnType<AccessDeps["vaultFor"]>>; vaults?: Record<string, Awaited<ReturnType<AccessDeps["vaultFor"]>>> } = {}) {
   const owns = vi.fn(async (..._args: unknown[]) => over.owns ?? true);
   const vaultFor = vi.fn(async (_a: string, _i: number, vault: string) => over.vaults?.[vault] ?? over.vault ?? ("ok" as const));
   const create = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, path: "Notes/Plan.md", commit: "c".repeat(40) }));
@@ -13,7 +13,11 @@ function setup(over: { owns?: boolean; vault?: Awaited<ReturnType<AccessDeps["va
   const restore = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "e".repeat(40), paths: ["Notes/Plan.md"] }));
   const setTitle = vi.fn((header: string, title: string): string | undefined => (header.includes("broken") ? undefined : `${header}title: ${title}\n`));
   const move = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "f".repeat(40), files: 1, moved: [{ from: "Notes/a.md", to: "Other/a.md" }] }));
+  const encryptedVaultFor = vi.fn(async (..._args: unknown[]): Promise<{ ok: true; target: { naming: "plain" | "id"; suffix: string } } | { ok: false; reason: "unknown_vault" | "not_encrypted" | "unsupported_vault" | "unavailable" }> => over.encrypted ?? { ok: true, target: { naming: "plain", suffix: ".age" } });
+  const createEncrypted = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, path: "Secret/Plan.md.age", commit: "c".repeat(40) }));
   const access = filesAccess({
+    encryptedVaultFor: (a, i, v) => encryptedVaultFor(a, i, v),
+    createEncrypted: (a, i, x) => createEncrypted(a, i, x),
     owns: (a, i) => owns(a, i),
     setTitle: (header, title) => setTitle(header, title),
     vaultFor: (a, i, v) => vaultFor(a, i, v),
@@ -22,7 +26,7 @@ function setup(over: { owns?: boolean; vault?: Awaited<ReturnType<AccessDeps["va
     restore: (a, i, x) => restore(a, i, x),
     move: (a, i, x) => move(a, i, x),
   });
-  return { access, owns, vaultFor, create, remove, restore, setTitle, move };
+  return { access, owns, vaultFor, create, remove, restore, setTitle, move, encryptedVaultFor, createEncrypted };
 }
 
 describe("making a file", () => {
@@ -129,5 +133,41 @@ describe("renaming and moving", () => {
     vaultFor.mockClear();
     await access.move("alice", 1, { ...input, destination: "Notes/Sub/a.md" });
     expect(vaultFor).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("making a file in an encrypted vault (ROADMAP 2b.4)", () => {
+  const secret = { ...input, vault: "Secret", ciphertext: new Uint8Array([1, 2, 3]) };
+
+  it("is for the caller's own connection only: another's is not found, and nothing is read or made", async () => {
+    const { access, encryptedVaultFor, createEncrypted } = setup({ owns: false });
+    expect(await access.createEncrypted("mallory", 1, secret)).toEqual({ found: false });
+    expect(encryptedVaultFor).not.toHaveBeenCalled();
+    expect(createEncrypted).not.toHaveBeenCalled();
+  });
+
+  it("is made with the vault's own naming and suffix, which the repository decides and not the caller", async () => {
+    const { access, createEncrypted } = setup({ encrypted: { ok: true, target: { naming: "plain", suffix: ".age" } } });
+    expect(await access.createEncrypted("alice", 7, secret)).toMatchObject({ found: true, result: { ok: true } });
+    expect(createEncrypted).toHaveBeenCalledWith("alice", 7, { ...secret, target: { naming: "plain", suffix: ".age" } });
+  });
+
+  it.each(["unknown_vault", "not_encrypted", "unsupported_vault", "unavailable"] as const)("is not made in a vault that is %s, and the reason is told", async (reason) => {
+    const { access, createEncrypted } = setup({ encrypted: { ok: false, reason } });
+    expect(await access.createEncrypted("alice", 1, secret)).toEqual({ found: true, result: { ok: false, reason } });
+    expect(createEncrypted).not.toHaveBeenCalled();
+  });
+
+  it("is refused if a title came for a vault that keeps its names secret, so it never reaches the commit", async () => {
+    const { access, createEncrypted } = setup({ encrypted: { ok: true, target: { naming: "id", suffix: ".age" } } });
+    expect(await access.createEncrypted("alice", 1, secret)).toEqual({ found: true, result: { ok: false, reason: "wrong_shape" } });
+    expect(await access.createEncrypted("alice", 1, { ...secret, title: "  " })).toMatchObject({ found: true, result: { ok: true } });
+    expect(createEncrypted).toHaveBeenCalledOnce();
+  });
+
+  it("is never made through the way a plaintext vault is, which still refuses an encrypted one", async () => {
+    const { access, create } = setup({ vault: "encrypted_vault" });
+    expect(await access.create("alice", 1, { ...input, vault: "Secret" })).toEqual({ found: true, result: { ok: false, reason: "encrypted_vault" } });
+    expect(create).not.toHaveBeenCalled();
   });
 });

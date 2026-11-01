@@ -80,6 +80,7 @@ describe("every route says who may use it", () => {
   it("asks the action a route is named for: what deletes asks to delete, and so on", () => {
     const named: Record<string, string> = {
       "/api/connections/[id]/files": "create",
+      "/api/connections/[id]/files/encrypted": "create",
       "/api/connections/[id]/files/delete": "delete",
       "/api/connections/[id]/files/move": "move",
       "/api/connections/[id]/files/restore": "restore",

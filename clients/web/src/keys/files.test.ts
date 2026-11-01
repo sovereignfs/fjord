@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { wasmAvailable, wasmDirectory } from "../format/wasm";
 import { whyNotCiphertext } from "../working/ciphertext";
-import { fromBase64, openCiphertext, sealText, toBase64 } from "./files";
+import { fromBase64, newEncryptedFile, openCiphertext, sealText, toBase64 } from "./files";
 import type { CryptoModule } from "./module";
 import { KeyError } from "./store";
 
@@ -58,5 +58,42 @@ describe.runIf(available)("an encrypted file's text", () => {
   it("round-trips base64 for large bytes", () => {
     const bytes = new Uint8Array(100_000).map((_, at) => at % 251);
     expect([...fromBase64(toBase64(bytes))]).toEqual([...bytes]);
+  });
+});
+
+describe.runIf(available)("a new file for an encrypted vault", () => {
+  const when = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
+  const make = (over: Partial<Parameters<typeof newEncryptedFile>[1]> = {}) => {
+    const { module, recipient, keys } = person();
+    const made = newEncryptedFile(module, { kind: "note", title: "", naming: "plain", recipients: recipient, when, now: 1_800_000_000_000, random: new Uint8Array(16).fill(7), ...over });
+    return { module, keys, made };
+  };
+
+  it("is a note that is its title as a heading, or empty, and the server accepts it as ciphertext", () => {
+    const { module, keys, made } = make({ title: "  Plan  " });
+    expect(made).toMatchObject({ ok: true });
+    const ciphertext = (made as { ciphertext: string }).ciphertext;
+    expect(whyNotCiphertext(ciphertext)).toBeUndefined();
+    expect(openCiphertext(module, keys, fromBase64(ciphertext), "plain", "Plan.md")).toEqual({ kind: "text", name: "Plan.md", text: "# Plan\n" });
+    const empty = make();
+    expect(openCiphertext(empty.module, empty.keys, fromBase64((empty.made as { ciphertext: string }).ciphertext), "plain", "x.md")).toMatchObject({ text: "" });
+  });
+
+  it("is a document with the format's own header, its title and a heading", () => {
+    const { module, keys, made } = make({ kind: "document", title: "Q4: plan" });
+    const shown = openCiphertext(module, keys, fromBase64((made as { ciphertext: string }).ciphertext), "plain", "x.fj.md") as { text: string };
+    expect(shown.text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: ["']?Q4: plan["']?\ncreated: 2027-01-15T08:00:00Z\n---\n/);
+    expect(shown.text).toContain("# Q4: plan");
+  });
+
+  it("is refused for a document with nothing to name it by", () => {
+    expect(make({ kind: "document", title: "?!" }).made).toEqual({ ok: false, reason: "bad_title" });
+  });
+
+  it("keeps the real name inside the container in an id-named vault: from the title, else the date and time", () => {
+    const named = make({ kind: "document", title: "Q4 plan", naming: "id" });
+    expect(openCiphertext(named.module, named.keys, fromBase64((named.made as { ciphertext: string }).ciphertext), "id", "01j.age")).toMatchObject({ name: "Q4 plan.fj.md" });
+    const dated = make({ naming: "id" });
+    expect(openCiphertext(dated.module, dated.keys, fromBase64((dated.made as { ciphertext: string }).ciphertext), "id", "01j.age")).toMatchObject({ name: "2026-10-22 1430.md" });
   });
 });

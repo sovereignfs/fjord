@@ -29,6 +29,29 @@ export async function sendCreate(connectionId: number, input: { vault: string; f
   }
 }
 
+/** Make a note or a document in an encrypted vault (ROADMAP 2b.4) from the ciphertext this browser made. `title` is sent only for a vault that names its files by their names. */
+export async function sendCreateEncrypted(
+  connectionId: number,
+  input: { vault: string; folder: string; kind: "note" | "document"; title: string; ciphertext: string },
+  now: Date = new Date(),
+): Promise<CreateAttempt> {
+  try {
+    const response = await fetch(`/api/connections/${connectionId}/files/encrypted`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...input,
+        localMinute: { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate(), hour: now.getHours(), minute: now.getMinutes() },
+      }),
+      credentials: "same-origin",
+    });
+    const parsed = (await response.json().catch(() => undefined)) as { path?: string; error?: { message?: string } } | undefined;
+    return createFrom(response.status, parsed);
+  } catch {
+    return { ok: false, message: "Could not reach this server, so nothing was made. Try again in a moment." };
+  }
+}
+
 // --- A header's title (ROADMAP 1b.5) -------------------------------------------------------------------------------
 
 export type TitleAttempt = { ok: true; header: string } | { ok: false; message: string };

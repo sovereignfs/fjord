@@ -9,7 +9,7 @@ import { checkVault } from "../../files/create";
 import { DeleteButton } from "./DeleteButton";
 import { MoveButtons } from "./MoveButtons";
 import { SharePanel } from "../../sharing/SharePanel";
-import { NewFile } from "./NewFile";
+import { NewFile, type EncryptedCreate } from "./NewFile";
 import { UndoBanner } from "./UndoBanner";
 import type { HeaderInfo } from "../document";
 import { type DraftOfNote, NoteView } from "./NoteView";
@@ -30,6 +30,7 @@ export function FolderView({
   preview,
   fileBlob,
   encryptedEditing,
+  encryptedCreate,
   folderFiles,
   header,
   permalink,
@@ -49,6 +50,8 @@ export function FolderView({
   fileBlob?: string | undefined;
   /** For an encrypted file: its draft (ciphertext) if there is one, and the vault's recipients, which what is typed is encrypted to (ROADMAP 2b.3). */
   encryptedEditing?: { draft: EncryptedDraft | null; recipients: { ok: true; text: string } | { ok: false; message: string } } | undefined;
+  /** For a folder of an encrypted vault: what a new file there is made with (ROADMAP 2b.4). */
+  encryptedCreate?: EncryptedCreate | undefined;
   /** For a folder: how many files are anywhere inside it now, which deleting it names. Not known for a repository too large to list. */
   folderFiles?: number | undefined;
   /** For a note or a document: where its body starts in the text shown, its properties, and the header it is given on its first edit; undefined if its header cannot be read (then it is shown whole, as Markdown). */
@@ -95,6 +98,7 @@ export function FolderView({
       {location.kind === "folder" ? (
         <>
           {writable ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} /> : null}
+          {encryptedCreate ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} encrypted={encryptedCreate} /> : null}
           {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
             <MoveButtons
               connectionId={connectionId}

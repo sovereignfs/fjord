@@ -3,7 +3,9 @@ import type { LocalMinute } from "../format/types";
 import { isProviderError } from "../providers/errors";
 import type { Identity } from "../providers/types";
 import { type Caller, isRepositoryPath } from "../working/http";
+import { MAX_CIPHERTEXT_BYTES, fromBase64, whyNotCiphertext } from "../working/ciphertext";
 import type { CreateResult, FileKind, VaultRefusal } from "./create";
+import type { CreateEncryptedResult, EncryptedVaultRefusal } from "./create-encrypted";
 import { MAX_TITLE_CHARS } from "./create";
 import type { DeleteResult, DeleteTarget } from "./delete";
 import type { MoveResult } from "./move";
@@ -32,6 +34,15 @@ export interface Deps {
     id: number,
     input: { vault: string; folder: string; kind: FileKind; title: string; localMinute: LocalMinute; author: Identity },
   ) => Promise<{ found: false } | { found: true; result: CreateResult | { ok: false; reason: VaultRefusal } }>;
+  /**
+   * Make a file in an encrypted vault of one of the caller's repositories (ROADMAP 2b.4) from ciphertext the browser made. `title` is empty
+   * for a vault that names its files by id. `found: false` if it is not the caller's (or not there).
+   */
+  createEncrypted: (
+    accountId: string,
+    id: number,
+    input: { vault: string; folder: string; kind: FileKind; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
+  ) => Promise<{ found: false } | { found: true; result: CreateEncryptedResult | { ok: false; reason: EncryptedVaultRefusal | "wrong_shape" } }>;
   /**
    * Delete a note, a document or a folder of one of the caller's repositories (ROADMAP 1b.12). `found: false` if it is not the
    * caller's (or not there).
@@ -118,6 +129,65 @@ export async function handleCreate(request: Request, caller: Caller | null, deps
   }
 }
 
+/** A new file is a title and a header: its ciphertext is small, and a larger one is not a new file. */
+const MAX_NEW_CIPHERTEXT_BYTES = 64 * 1024;
+const MAX_ENCRYPTED_BODY_CHARS = Math.ceil((MAX_NEW_CIPHERTEXT_BYTES * 4) / 3) + MAX_BODY_CHARS;
+
+/**
+ * `POST` makes a note or a document in an **encrypted** vault, `{ vault, folder, kind, title?, localMinute, ciphertext }` (ROADMAP 2b.4): the browser wrote the
+ * file and encrypted it to the vault's recipients, and this commits those bytes as one new file. The server has no key. `ciphertext` is base64 and must begin
+ * as an age file does; plain text is refused. A vault that names its files by id is sent no title (the name is inside the container; `wrong_shape` if it is), and one that names them
+ * by their names is sent the title they are named by.
+ */
+export async function handleCreateEncrypted(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  if (!caller) return failure(401, "unauthorized", "Sign in first.");
+  if (request.headers.get("origin") !== deps.origin) return failure(403, "forbidden", "This request did not come from this site.");
+  const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
+  if (number === undefined) return notFound();
+
+  try {
+    if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");
+    const text = await request.text();
+    if (text.length > MAX_ENCRYPTED_BODY_CHARS) return failure(413, "too_large", "That request is too large.");
+    const body = parse(text);
+    if (!body) return failure(400, "invalid_request", "Send a JSON object.");
+
+    const { vault, folder, kind, title, localMinute, ciphertext } = body;
+    if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+    if (typeof folder !== "string" || (folder !== "" && !isRepositoryPath(folder))) return failure(400, "invalid_request", "Say which folder of the vault, by its path, or \"\" for its top.");
+    if (kind !== "note" && kind !== "document") return failure(400, "invalid_request", "Say whether to make a note or a document.");
+    if (title !== undefined && title !== null && (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed())) {
+      return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or leave it out.`);
+    }
+    const minute = readMinute(localMinute);
+    if (!minute) return failure(400, "invalid_request", "Send the local date and time as whole numbers: year, month, day, hour and minute.");
+    if (typeof ciphertext !== "string") return failure(400, "invalid_request", "Send the encrypted file as base64 text.");
+    const why = whyNotCiphertext(ciphertext);
+    const bytes = why === undefined ? fromBase64(ciphertext) : undefined;
+    if (bytes === undefined || bytes.length > MAX_NEW_CIPHERTEXT_BYTES || bytes.length > MAX_CIPHERTEXT_BYTES) {
+      return failure(422, "not_ciphertext", `${why ?? "It is larger than a new file can be."} Only an encrypted file is put into an encrypted vault.`);
+    }
+
+    const outcome = await deps.createEncrypted(caller.accountId, number, {
+      vault,
+      folder,
+      kind,
+      title: typeof title === "string" ? title : "",
+      localMinute: minute,
+      ciphertext: bytes,
+      author: { name: caller.name, email: caller.email },
+    });
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (result.ok) return json(201, { path: result.path, commit: result.commit });
+    const refusal = ENCRYPTED_REFUSALS[result.reason];
+    return failure(refusal.status, result.reason, refusal.message);
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
 const MAX_HEADER_CHARS = 64_000;
 
 /**
@@ -181,6 +251,13 @@ const REFUSALS: Record<Extract<CreateResult, { ok: false }>["reason"] | VaultRef
   read_only: { status: 422, message: "That token can read this repository but not write to it, so nothing was made. Create the token with the repository permission “Contents: Read and write”, and connect the repository again." },
   bad_token: { status: 422, message: "The git host did not accept this repository's token. Connect the repository again with a new one." },
   unavailable: { status: 502, message: "Could not reach the git host just now. Nothing was made. Try again in a moment." },
+};
+
+const ENCRYPTED_REFUSALS: Record<Extract<CreateEncryptedResult, { ok: false }>["reason"] | EncryptedVaultRefusal | "wrong_shape", { status: number; message: string }> = {
+  ...REFUSALS,
+  not_encrypted: { status: 422, message: "That vault is not encrypted. Files are made in it the ordinary way." },
+  unsupported_vault: { status: 422, message: "This vault's manifest cannot be read, or it does not use age with binary files in the container its file names need, so files cannot be made in it from here." },
+  wrong_shape: { status: 422, message: "A vault that names its files by id must not be sent the title: the name is kept inside the encrypted file." },
 };
 
 /** What a person is told. An error we did not expect is logged by name, never by message, and answered plainly. */

@@ -10,6 +10,7 @@ import { WorkingCopyService } from "../working/service";
 import { type AccessDeps, filesAccess } from "./access";
 import { restoreWindowMs } from "./config";
 import { type CreateResult, type FileKind, checkVault, createFile } from "./create";
+import { type CreateEncryptedResult, type EncryptedTarget, checkEncryptedVault, createEncryptedFile } from "./create-encrypted";
 import { type DeleteResult, type DeleteTarget, deletePath } from "./delete";
 import { DeletionService } from "./deletions";
 import { type MoveResult, movePath } from "./move";
@@ -21,6 +22,25 @@ async function vaultFor(accountId: string, id: number, vault: string): Promise<"
   if (!connection) return "unavailable";
   const outcome = await readConnection(accountId, connection);
   return outcome.ok ? checkVault(outcome.read.discovery.vaults, vault) : "unavailable";
+}
+
+/** Whether files may be made in an encrypted vault of one of the account's repositories, as the repository is now, and how it names them. */
+async function encryptedVaultFor(accountId: string, id: number, vault: string) {
+  const connection = await (await connectionService()).get(accountId, id);
+  if (!connection) return { ok: false, reason: "unavailable" } as const;
+  const outcome = await readConnection(accountId, connection);
+  return outcome.ok ? checkEncryptedVault(outcome.read.discovery.vaults, outcome.read.manifests, vault) : ({ ok: false, reason: "unavailable" } as const);
+}
+
+/** Make a file in an encrypted vault from ciphertext the browser made: through the connection's own token, on its branch. */
+async function createEncrypted(
+  accountId: string,
+  id: number,
+  input: { vault: string; folder: string; target: EncryptedTarget; kind: FileKind; title: string; localMinute: { year: number; month: number; day: number; hour: number; minute: number }; ciphertext: Uint8Array; author: Identity },
+): Promise<CreateEncryptedResult> {
+  const used = await (await connectionService()).provider(accountId, id);
+  if (!used) return { ok: false, reason: "unavailable" };
+  return createEncryptedFile({ provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord() }, input);
 }
 
 /** Make a file in one of the account's repositories: through the connection's own token, on the branch it was connected with. */
@@ -117,6 +137,8 @@ export async function filesAccessFor(): Promise<ReturnType<typeof filesAccess>> 
     vaultFor,
     setTitle: (header, title) => fjord().withTitle(header, title),
     create,
+    encryptedVaultFor,
+    createEncrypted,
     delete: remove,
     move,
     restore,

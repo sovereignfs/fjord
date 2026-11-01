@@ -6,7 +6,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { fjord, wasmAvailable } from "../format/wasm";
 import type { FakeGitHub } from "../providers/testing/fake-github";
 import { githubHarness } from "../providers/testing/harnesses";
+import { newRecipients } from "../working/test-ciphertext";
 import { createFile } from "./create";
+import { createEncryptedFile } from "./create-encrypted";
+import { newEncryptedFile } from "../keys/files";
+import type { CryptoModule } from "../keys/module";
+import { createRequire } from "node:module";
+import { wasmDirectory } from "../format/wasm";
 import { movePath } from "./move";
 
 /**
@@ -24,8 +30,18 @@ const enabled = Boolean(cli) && wasmAvailable();
 
 const WHEN = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
 const AUTHOR = { name: "Ada Lovelace", email: "ada@example.com" };
+const GUARD = "*\n!*/\n!*.age\n!fjord.vault.json\n!recipients.txt\n!.gitignore\n";
+const RECIPIENTS = enabled ? newRecipients() : "";
+const secretVault = (id: string, name: string, naming: "plain" | "id") =>
+  JSON.stringify({ fjord: 1, id, name, createdAt: "2026-10-16T09:34:00Z", encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container: naming === "id" ? "tar" : "none", armor: false }, fileNaming: naming });
 const BASE_FILES = {
-  "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3md", name: "Notes", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Notes", id: "01jagc4k7pr9tbm3ykwx6zq2hv" }] }),
+  "Locked/fjord.vault.json": secretVault("01jagc4k7pr9tbm3ykwx6zq2hw", "Locked", "plain"),
+  "Locked/recipients.txt": RECIPIENTS,
+  "Locked/.gitignore": GUARD,
+  "Sealed/fjord.vault.json": secretVault("01jagc4k7pr9tbm3ykwx6zq2hy", "Sealed", "id"),
+  "Sealed/recipients.txt": RECIPIENTS,
+  "Sealed/.gitignore": GUARD,
+  "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3md", name: "Notes", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Notes", id: "01jagc4k7pr9tbm3ykwx6zq2hv" }, { path: "Locked", id: "01jagc4k7pr9tbm3ykwx6zq2hw" }, { path: "Sealed", id: "01jagc4k7pr9tbm3ykwx6zq2hy" }] }),
   ".gitattributes": "*.age -merge\n",
   "Notes/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "Notes", createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" }),
   "Notes/existing.md": "# Existing\n",
@@ -48,12 +64,16 @@ afterEach(async () => {
   await h?.close();
 });
 
+/** The documents the CLI counted in the plaintext vault (the encrypted ones are not readable to it). */
+const notesDocs = (report: { vaults: { name?: string; path?: string; directory?: string; docs: number }[] }) => report.vaults.find((vault) => [vault.name, vault.path, vault.directory].includes("Notes"))!.docs;
+
 /** The repository as it is on the branch, checked out, and what `fjord verify` says about it. */
-async function verify(): Promise<{ status: number | null; report: { counts: { errors: number; warnings: number }; diagnostics: { code: string; path: string }[]; vaults: { docs: number }[] } }> {
+async function verify(): Promise<{ status: number | null; report: { counts: { errors: number; warnings: number }; diagnostics: { code: string; path: string }[]; vaults: { name?: string; path?: string; directory?: string; docs: number }[] } }> {
   const root = join(directory, `checkout-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  for (const [path, content] of Object.entries(await fake.filesAt((await fake.branchHead())!))) {
+  const head = (await fake.branchHead())!;
+  for (const path of Object.keys(await fake.filesAt(head))) {
     mkdirSync(dirname(join(root, path)), { recursive: true });
-    writeFileSync(join(root, path), content);
+    writeFileSync(join(root, path), await fake.fileBytesAt(head, path)); // bytes: an encrypted file is not text
   }
   const run = spawnSync(cli as string, ["verify", "--json", "--strict", "--no-input", "-C", root], { encoding: "utf8" });
   return { status: run.status, report: JSON.parse(run.stdout) };
@@ -69,7 +89,7 @@ describe.skipIf(!enabled)("what the web creates, as the CLI sees it", () => {
   });
 
   it("accepts every kind of note and document it makes: titled, untitled, numbered, Unicode, long, nested", async () => {
-    const before = (await verify()).report.vaults[0]!.docs;
+    const before = notesDocs((await verify()).report);
     const made = [
       await make({ title: "Weekly review: what went well?" }),
       await make({ title: "" }),
@@ -91,11 +111,11 @@ describe.skipIf(!enabled)("what the web creates, as the CLI sees it", () => {
     const { status, report } = await verify();
     expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
     // The CLI counted the documents it found (a note with no header is not one); the web's own are among them.
-    expect(report.vaults[0]!.docs).toBe(before + made.filter((result) => result.ok && result.path.endsWith(".fj.md")).length);
+    expect(notesDocs(report)).toBe(before + made.filter((result) => result.ok && result.path.endsWith(".fj.md")).length);
   });
 
   it("accepts what renaming and moving leave: the same documents with the same ids, in their new places", async () => {
-    const before = (await verify()).report.vaults[0]!.docs;
+    const before = notesDocs((await verify()).report);
     const common = { provider: h.provider, ref: h.repo, branch: "main", format: fjord(), drafts: { paths: async () => [] as string[] }, saveDraft: async () => ({ ok: false as const, reason: "unavailable" as const }) };
     const author = { name: "Ada Lovelace", email: "ada@example.com" };
     const files = await fake.filesAt((await fake.branchHead())!);
@@ -108,7 +128,7 @@ describe.skipIf(!enabled)("what the web creates, as the CLI sees it", () => {
 
     const { status, report } = await verify();
     expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
-    expect(report.vaults[0]!.docs).toBe(before);
+    expect(notesDocs(report)).toBe(before);
     expect((await fake.filesAt((await fake.branchHead())!))["Notes/Archive/Old projects/2026/plan.fj.md"]).toBe(files["Notes/Projects/2026/plan.fj.md"]);
   });
 
@@ -117,5 +137,43 @@ describe.skipIf(!enabled)("what the web creates, as the CLI sees it", () => {
     const { status, report } = await verify();
     expect(status).not.toBe(0);
     expect(report.diagnostics.some((diagnostic) => diagnostic.path === "Notes/Bad.fj.md")).toBe(true);
+  });
+});
+
+const module = enabled ? (createRequire(import.meta.url)(`${wasmDirectory()}/fjord_wasm.js`) as CryptoModule) : undefined;
+
+describe.skipIf(!enabled)("what the web creates in an encrypted vault, as the CLI sees it (ROADMAP 2b.4)", () => {
+  /** What the browser would send: the file written and encrypted to the vault's recipients, then committed by the server's rules. */
+  async function makeSecret(naming: "plain" | "id", input: { kind?: "note" | "document"; title?: string; folder?: string }) {
+    const kind = input.kind ?? "note";
+    const title = input.title ?? "";
+    const sealed = newEncryptedFile(module!, { kind, title, naming, recipients: RECIPIENTS, when: WHEN, now: 1_800_000_000_000, random: crypto.getRandomValues(new Uint8Array(16)) });
+    if (!sealed.ok) throw new Error("the title could not name a file");
+    return createEncryptedFile(
+      { provider: h.provider, ref: h.repo, branch: "main", format: fjord() },
+      { vault: naming === "plain" ? "Locked" : "Sealed", folder: input.folder ?? "", target: { naming, suffix: ".age" }, kind, title: naming === "plain" ? title : "", localMinute: WHEN, ciphertext: Uint8Array.from(Buffer.from(sealed.ciphertext, "base64")), author: AUTHOR },
+    );
+  }
+
+  it("starts from a repository with two encrypted vaults the CLI accepts", async () => {
+    const { status, report } = await verify();
+    expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
+  });
+
+  it("accepts every note and document it makes in a plain-named vault, and in an id-named one", async () => {
+    const made = [
+      await makeSecret("plain", { title: "Weekly review: what went well?" }),
+      await makeSecret("plain", { title: "" }),
+      await makeSecret("plain", { title: "" }),
+      await makeSecret("plain", { kind: "document", title: "Q4: plan \"final\"" }),
+      await makeSecret("plain", { kind: "document", title: "Q4: plan \"final\"" }),
+      await makeSecret("plain", { title: "日本語のノート — 🌊" }),
+      await makeSecret("id", { title: "" }),
+      await makeSecret("id", { kind: "document", title: "Q4 plan" }),
+      await makeSecret("id", { kind: "document", title: "Q4 plan" }),
+    ];
+    expect(made.every((result) => result.ok), JSON.stringify(made.filter((result) => !result.ok))).toBe(true);
+    const { status, report } = await verify();
+    expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
   });
 });

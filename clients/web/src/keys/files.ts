@@ -73,3 +73,41 @@ export function fromBase64(text: string): Uint8Array {
   for (let at = 0; at < binary.length; at++) bytes[at] = binary.charCodeAt(at);
   return bytes;
 }
+
+/** A moment in the writer's own time zone, to the minute: what a note with nothing to name it by is named after. */
+export interface LocalMinute {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+}
+
+export type NewFile = { ok: true; ciphertext: string } | { ok: false; reason: "bad_title" };
+
+/**
+ * A new note or document in an encrypted vault (ROADMAP 2b.4), written and encrypted here: the server is only given the ciphertext (and, for a vault whose file
+ * names are public, the title they are made from). The text and the header are the format module's, as the server's are for a plaintext vault: a note is its title
+ * as a heading, or empty; a document has an `id`, a `title` and `created`. In an `id`-named vault the file's real name goes inside the container, made as the
+ * format names a file (from the title, else the date and time); it is not numbered, since the folder's other names are secret to this page.
+ */
+export function newEncryptedFile(
+  module: CryptoModule,
+  input: { kind: "note" | "document"; title: string; naming: Naming; recipients: string; when: LocalMinute; now: number; random: Uint8Array },
+): NewFile {
+  const title = input.title.trim();
+  const stem = input.kind === "document" ? module.titleFromText(title) : undefined;
+  if (input.kind === "document" && !stem) return { ok: false, reason: "bad_title" };
+  let text: string;
+  let name: string;
+  if (input.kind === "note") {
+    text = title === "" ? "" : `# ${title}\n`;
+    name = module.quickNoteName(text, "[]", input.when.year, input.when.month, input.when.day, input.when.hour, input.when.minute);
+  } else {
+    const created = module.rfc3339FromUnix(Math.floor(input.now / 1000));
+    if (created === undefined) throw new Error("that time cannot be written as a date");
+    text = module.newDocument(module.newUlid(input.now, input.random), title, created);
+    name = module.freeName(stem as string, ".fj.md", "[]");
+  }
+  return { ok: true, ciphertext: toBase64(sealText(module, { text, name, naming: input.naming, recipients: input.recipients })) };
+}

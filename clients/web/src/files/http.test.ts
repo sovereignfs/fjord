@@ -4,7 +4,7 @@ import { ProviderError } from "../providers/errors";
 import type { Caller } from "../working/http";
 import { type CreateResult, MAX_TITLE_CHARS, type VaultRefusal } from "./create";
 import type { DeleteResult } from "./delete";
-import { type Deps, handleCreate, handleDelete, handleHeader, handleMove, handleRestore } from "./http";
+import { type Deps, handleCreate, handleCreateEncrypted, handleDelete, handleHeader, handleMove, handleRestore } from "./http";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 
@@ -36,7 +36,12 @@ function stub() {
     found: true,
     result: { ok: true, header: "---\ntitle: New\n---\n" },
   }));
+  const createEncrypted = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; path: string; commit: string } | { ok: false; reason: string } }> => ({
+    found: true,
+    result: { ok: true, path: "Secret/Plan.md.age", commit: "c".repeat(40) },
+  }));
   const deps: Deps = {
+    createEncrypted: (accountId, id, input) => createEncrypted(accountId, id, input) as ReturnType<Deps["createEncrypted"]>,
     header: (accountId, id, input) => header(accountId, id, input),
     move: (accountId, id, input) => move(accountId, id, input),
     create: (accountId, id, input) => create(accountId, id, input),
@@ -44,7 +49,7 @@ function stub() {
     restore: (accountId, id, input) => restore(accountId, id, input),
     origin: ORIGIN,
   };
-  return { deps, create, remove, restore, header, move };
+  return { deps, create, createEncrypted, remove, restore, header, move };
 }
 
 const post = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
@@ -569,5 +574,93 @@ describe("moving: what may be sent, and what they are told", () => {
     const error = (await body(response)).error;
     expect(error.code).toBe(reason);
     if (where === "destination" && reason === "encrypted_vault") expect(error.message).toMatch(/into an encrypted vault/);
+  });
+});
+
+describe("making a file in an encrypted vault (ROADMAP 2b.4)", () => {
+  const AGE = Buffer.from("age-encryption.org/v1\n-> X25519 abc\nbody").toString("base64");
+  const secret = { vault: "Secret", folder: "", kind: "note", title: "Plan", localMinute: WHEN, ciphertext: AGE };
+  const send = (body: unknown, init?: Parameters<typeof post>[1]) => {
+    const request = post(body, init);
+    return new Request(request.url.replace("/files", "/files/encrypted"), { method: "POST", headers: request.headers, body: typeof body === "string" ? body : JSON.stringify(body) });
+  };
+
+  it("hands the bytes to the repository's rules, decoded, with the title and the caller", async () => {
+    const { deps, createEncrypted } = stub();
+    const response = await handleCreateEncrypted(send(secret), ALICE, deps, "1");
+    expect(response.status).toBe(201);
+    expect(await body(response)).toEqual({ path: "Secret/Plan.md.age", commit: "c".repeat(40) });
+    const given = createEncrypted.mock.calls[0]![2] as { ciphertext: Uint8Array; title: string; author: unknown };
+    expect(Buffer.from(given.ciphertext).toString()).toContain("age-encryption.org/v1");
+    expect(given.title).toBe("Plan");
+    expect(given.author).toEqual({ name: "Alice Example", email: "alice@example.com" });
+  });
+
+  it("is for nobody signed out, nor from another site, and asks nothing of the repository", async () => {
+    const { deps, createEncrypted } = stub();
+    expect((await handleCreateEncrypted(send(secret), null, deps, "1")).status).toBe(401);
+    for (const origin of ["https://evil.example", "null", null]) expect((await handleCreateEncrypted(send(secret, { origin }), ALICE, deps, "1")).status).toBe(403);
+    expect((await handleCreateEncrypted(send(secret, { type: "text/plain" }), ALICE, deps, "1")).status).toBe(415);
+    expect(createEncrypted).not.toHaveBeenCalled();
+  });
+
+  it("is POST only, and for a connection that is a number", async () => {
+    const { deps } = stub();
+    expect((await handleCreateEncrypted(new Request(`${ORIGIN}/x`, { method: "GET" }), ALICE, deps, "1")).status).toBe(405);
+    expect((await handleCreateEncrypted(send(secret), ALICE, deps, "1/../2")).status).toBe(404);
+  });
+
+  it.each([
+    ["plain text", Buffer.from("# My secret\n").toString("base64")],
+    ["text that is not base64", "# My secret"],
+    ["nothing", ""],
+    ["a number", 5],
+    ["a file larger than a new one can be", Buffer.from(`age-encryption.org/v1\n${"x".repeat(70_000)}`).toString("base64")],
+  ])("never commits %s as the file, and says that only an encrypted file goes in", async (_name, ciphertext) => {
+    const { deps, createEncrypted } = stub();
+    const response = await handleCreateEncrypted(send({ ...secret, ciphertext }), ALICE, deps, "1");
+    expect(response.status).toBe(typeof ciphertext === "number" ? 400 : 422);
+    expect(createEncrypted).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["no vault", { vault: undefined }],
+    ["a vault with a slash", { vault: "a/b" }],
+    ["a way up in the folder", { folder: "../x" }],
+    ["a kind that is neither", { kind: "folder" }],
+    ["a title with a line break", { title: "a\nb" }],
+    ["a title too long", { title: "x".repeat(MAX_TITLE_CHARS + 1) }],
+    ["no date", { localMinute: undefined }],
+  ])("refuses %s", async (_name, over) => {
+    const { deps, createEncrypted } = stub();
+    expect((await handleCreateEncrypted(send({ ...secret, ...over }), ALICE, deps, "1")).status).toBe(400);
+    expect(createEncrypted).not.toHaveBeenCalled();
+  });
+
+  it("says why a vault was refused, in words, as 422", async () => {
+    for (const reason of ["unknown_vault", "not_encrypted", "unsupported_vault", "wrong_shape", "folder_gone"]) {
+      const { deps, createEncrypted } = stub();
+      createEncrypted.mockResolvedValueOnce({ found: true, result: { ok: false, reason } });
+      const response = await handleCreateEncrypted(send(secret), ALICE, deps, "1");
+      expect([response.status, (await body(response)).error.code]).toEqual([reason === "folder_gone" ? 409 : 422, reason]);
+    }
+  });
+
+  it("is a 404, saying nothing else, for a connection that is not the caller's", async () => {
+    const { deps, createEncrypted } = stub();
+    createEncrypted.mockResolvedValueOnce({ found: false });
+    const response = await handleCreateEncrypted(send(secret), ALICE, deps, "1");
+    expect([response.status, (await body(response)).error.code]).toEqual([404, "not_found"]);
+  });
+
+  it("never puts the file's contents or name in what it answers or logs when it fails unexpectedly", async () => {
+    const { deps, createEncrypted } = stub();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    createEncrypted.mockRejectedValueOnce(new Error(`could not write ${AGE}`));
+    const response = await handleCreateEncrypted(send(secret), ALICE, deps, "1");
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain(AGE);
+    expect(JSON.stringify(logged.mock.calls)).not.toContain(AGE);
+    logged.mockRestore();
   });
 });

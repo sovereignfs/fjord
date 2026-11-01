@@ -41,6 +41,11 @@ export const readCiphertext: Deps["read"] = async (accountId, id, path) => {
  * What the page of an encrypted file needs to edit it (ROADMAP 2b.3): the draft of it, if there is one (ciphertext, as stored), and the vault's recipients, which
  * the browser encrypts to. Neither is secret from the server: it holds the one and reads the other from the repository.
  */
+export async function recipientsFor(accountId: string, connection: ConnectionInfo, read: RepositoryRead, vaultDirectory: string): Promise<Recipients> {
+  const used = await (await connectionService()).provider(accountId, connection.id);
+  return used ? readRecipients(used.provider, { owner: connection.owner, name: connection.name }, read, vaultDirectory) : { ok: false, message: "That repository is not connected." };
+}
+
 export async function editingFor(accountId: string, connection: ConnectionInfo, read: RepositoryRead, vaultDirectory: string, path: string) {
   const kept = await (await workingCopyService()).get(connection.id, path);
   const draft = kept?.encrypted ? { content: kept.content, baseBlob: kept.baseBlob } : null;

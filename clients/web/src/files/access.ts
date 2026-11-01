@@ -1,6 +1,7 @@
 import type { LocalMinute } from "../format/types";
 import type { Identity } from "../providers/types";
 import type { CreateResult, FileKind, VaultRefusal } from "./create";
+import type { CreateEncryptedResult, EncryptedTarget, EncryptedVaultRefusal } from "./create-encrypted";
 import type { DeleteResult, DeleteTarget } from "./delete";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
@@ -19,6 +20,14 @@ export interface AccessDeps {
   owns: (accountId: string, id: number) => Promise<boolean>;
   /** Whether files may be made in this vault of the connection's repository: `ok`, or why not. */
   vaultFor: (accountId: string, id: number, vault: string) => Promise<"ok" | VaultRefusal | "unavailable">;
+  /** Whether files may be made in this encrypted vault (ROADMAP 2b.4), and how it names them: or why not. */
+  encryptedVaultFor: (accountId: string, id: number, vault: string) => Promise<{ ok: true; target: EncryptedTarget } | { ok: false; reason: EncryptedVaultRefusal | "unavailable" }>;
+  /** Make the file from the ciphertext, through the connection's own token. Only called for an encrypted vault that is `ok` of a connection that is the caller's. */
+  createEncrypted: (
+    accountId: string,
+    id: number,
+    input: { vault: string; folder: string; target: EncryptedTarget; kind: FileKind; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
+  ) => Promise<CreateEncryptedResult>;
   /** A header with its title set or taken away, by the format module; undefined for a header that cannot be rewritten. */
   setTitle: (header: string, title: string) => string | undefined;
   /** Make the file, through the connection's own token. Only called for a vault that is `ok` of a connection that is the caller's. */
@@ -35,8 +44,17 @@ export interface AccessDeps {
   restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<RestoreResult>;
 }
 
-export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "delete" | "restore" | "header" | "move"> {
+export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncrypted" | "delete" | "restore" | "header" | "move"> {
   return {
+    async createEncrypted(accountId, id, input) {
+      if (!(await deps.owns(accountId, id))) return { found: false };
+      const vault = await deps.encryptedVaultFor(accountId, id, input.vault);
+      if (!vault.ok) return { found: true, result: { ok: false, reason: vault.reason } };
+      // A title is sent for the name of a file in a plain-named vault. In an id-named vault the name is a secret, so sending it is a mistake of the page, not leaked on.
+      if (vault.target.naming === "id" && input.title.trim() !== "") return { found: true, result: { ok: false, reason: "wrong_shape" } };
+      return { found: true, result: await deps.createEncrypted(accountId, id, { ...input, target: vault.target }) };
+    },
+
     async header(accountId, id, input) {
       if (!(await deps.owns(accountId, id))) return { found: false };
       const header = deps.setTitle(input.header, input.title);
