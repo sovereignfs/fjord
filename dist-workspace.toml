@@ -47,3 +47,9 @@ tag-namespace = "fjord-cli"
 # release script checks for it before it tags.
 tap = "sovereignfs/homebrew-tap"
 publish-jobs = ["homebrew"]
+
+# GitHub retires the macOS 14 runner image on 2026-11-02 and fails jobs on it in scheduled brownouts before that (the 0.4.0 release's
+# aarch64-apple-darwin build was cancelled by one in a second). dist's default for this target is `macos-14`, so it is named: `macos-15` is
+# an Apple-silicon image too, so the binary is the same target. The workflow is generated from this (`dist generate`), not edited.
+[dist.github-custom-runners]
+aarch64-apple-darwin = "macos-15"
