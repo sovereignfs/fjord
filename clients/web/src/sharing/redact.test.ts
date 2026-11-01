@@ -68,3 +68,21 @@ describe("the console", () => {
     expect(calls.log![0]).toEqual(["?token=[redacted]"]);
   });
 });
+
+describe("redacting a sealed share's token (ROADMAP 2c.1)", () => {
+  it("finds it in the page's address and the API's, and leaves the fragment out of it, since no request carries one", () => {
+    for (const line of [`GET /s/${TOKEN} 200`, `GET https://fjord.example.com/s/${TOKEN}`, `GET /api/sealed/${TOKEN} 404`, `Error: fetch failed for /api/sealed/${TOKEN}\n    at x (y.js:1:1)`]) {
+      const out = redactTokens(line);
+      expect(out, line).not.toContain(TOKEN);
+      expect(out, line).toContain("[redacted]");
+    }
+    expect(redactTokens(`GET /s/${TOKEN}?x=1 200`)).toBe("GET /s/[redacted]?x=1 200");
+  });
+
+  it("leaves other addresses alone, and a path of the same length that is not a sealed share's", () => {
+    expect(redactTokens(`GET /doc/${DOC} 200`)).toBe(`GET /doc/${DOC} 200`);
+    expect(redactTokens(`GET /repo/1/${"A".repeat(43)} 200`)).toBe(`GET /repo/1/${"A".repeat(43)} 200`);
+    expect(redactTokens("GET /s/short 200")).toBe("GET /s/short 200");
+  });
+});
+

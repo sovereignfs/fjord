@@ -14,6 +14,8 @@ const PATTERNS: [RegExp, string][] = [
   [/([?&]token=)[^&\s"'#<>]+/gi, "$1[redacted]"],
   [new RegExp(`((?:${SHARE_COOKIE}|${PENDING_COOKIE})=)[^;\\s"'<>]+`, "g"), "$1[redacted]"],
   [/("token"\s*:\s*")[^"]+/gi, "$1[redacted]"],
+  // A sealed share's address carries its token in the path (ROADMAP 2c.1): `/s/<token>`, `/api/sealed/<token>`. Its key is in the fragment, which no request carries and so no log can.
+  [/(\/(?:s|api\/sealed)\/)[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/g, "$1[redacted]"],
 ];
 
 export function redactTokens(text: string): string {

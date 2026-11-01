@@ -304,3 +304,27 @@ export const rateBucket = app.table(
   },
   (table) => [uniqueIndex("rate_bucket_key_idx").on(table.key), index("rate_bucket_window_idx").on(table.windowStart)],
 );
+
+/**
+ * A **sealed** copy of an encrypted file, shared by a link (DESIGN.md §12, ROADMAP 2c.1). The server has no key, so the sharer's browser makes the copy: the
+ * file's text encrypted either to a one-use age key that lives only in the link's `#fragment` (`mode` `key`), or to a password (`password`, age's scrypt). `ciphertext`
+ * is those bytes as base64, which is all the server holds or serves; it cannot read it and is not told how to. Only the SHA-256 of the link's token is kept. A
+ * sealed share is of a connection and the file's repository path (a snapshot: it does not follow the file), and **revoking it deletes the row**, so the copy is
+ * gone and not merely hidden. A disconnected repository's go with it.
+ */
+export const sealedShare = app.table(
+  "sealed_share",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    /** The file it is a copy of, repository-relative, as it was when the copy was made. */
+    path: text("path").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    /** `key`: the key is in the link's fragment. `password`: the copy is sealed to a password. */
+    mode: text("mode").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("sealed_share_token_hash_idx").on(table.tokenHash), index("sealed_share_file_idx").on(table.connectionId, table.path)],
+);
