@@ -23,6 +23,12 @@ afterEach(cleanup);
 /** The visual editor is loaded when it is first needed: a test waits for the editing surface before it touches it. */
 const ready = () => screen.findByRole("textbox", { name: LABEL });
 
+/** A document that is not in the house style asks, before it can be edited, whether to be reformatted (ROADMAP 1b.4): say yes. */
+const agreeToReformat = async () => {
+  fireEvent.click(await screen.findByRole("button", { name: "Reformat and edit here" }));
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Reformat and edit here" })).toBeNull());
+};
+
 /**
  * A text the visual editor cannot hold: a block of raw HTML, which it has no way to show or to write back exactly. It is
  * how the document editor comes to be showing Markdown.
@@ -521,6 +527,7 @@ describe("the visual editor, inside", () => {
     const told: string[] = [];
     documentIn({ role: "edit", onChange: (text) => told.push(text) }, original);
     const element = await ready();
+    await agreeToReformat();
     const editor = (element as unknown as { __lexicalEditor: { update: (fn: () => void) => void } }).__lexicalEditor;
     const set = (to: string) =>
       editor.update(() => {
@@ -576,6 +583,7 @@ describe("the visual editor, inside", () => {
       expect(found.textContent).toContain("star");
       return found;
     });
+    await agreeToReformat();
     const editor = (element as unknown as { __lexicalEditor: { update: (fn: () => void) => void } }).__lexicalEditor;
     const set = (to: string) => editor.update(() => void $getRoot().getAllTextNodes().find((node) => node.getTextContent().startsWith("star"))?.setTextContent(to));
     set("starx");

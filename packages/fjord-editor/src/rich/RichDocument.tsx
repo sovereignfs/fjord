@@ -31,6 +31,8 @@ import {
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { EditorHandle } from "../types.js";
 import { keepsLineEndings, sameMeaning, withEdgesLike } from "./meaning.js";
+import { type RestylePreview, describeRestyle } from "./restyle.js";
+import { HOUSE_STYLE, withReadableDelimiters } from "./style.js";
 
 /**
  * The visual core of the document editor (ROADMAP 1b.3): MDXEditor with the Markdown it can write and nothing else, and the
@@ -45,8 +47,9 @@ import { keepsLineEndings, sameMeaning, withEdgesLike } from "./meaning.js";
  *    changed the document); if it did not, the editor goes back to what the app holds.
  *  - **Markdown only**: the toolbar has what Markdown can say. No underline, colour or highlight; no JSX.
  *
- * The style it writes is chosen here, and is the house style until ROADMAP 1b.4 writes it down: `-` for bullets, `*` for
- * emphasis and strong, `---` for rules, fenced code.
+ * The style it writes is the house style (`style.ts`, ROADMAP 1b.4). A text that is not in it is restyled when it is edited, which is not an
+ * edit the person made, so the editor says what would change as soon as it has read the text (`onRestyle`) and the app decides whether
+ * to let it be edited here.
  */
 export interface RichDocumentProps {
   /** The Markdown body the app holds. */
@@ -58,12 +61,14 @@ export interface RichDocumentProps {
   onEdit: (text: string) => Promise<boolean>;
   /** The text cannot be held by the visual editor without a change of meaning. */
   onUnsafe: () => void;
+  /** What editing this text here would restyle, once the editor has read it; `null` when it would restyle nothing. */
+  onRestyle?: ((preview: RestylePreview | null) => void) | undefined;
 }
 
 /** The languages a code block can be given in the toolbar-less editor; a block in another language is kept as it is. */
 const CODE_LANGUAGES = { "": "Plain text", txt: "Plain text", sh: "Shell", bash: "Shell", js: "JavaScript", ts: "TypeScript", tsx: "TSX", jsx: "JSX", json: "JSON", css: "CSS", html: "HTML", md: "Markdown", py: "Python", rust: "Rust", go: "Go", yaml: "YAML", sql: "SQL" };
 
-const TO_MARKDOWN = { bullet: "-", emphasis: "*", strong: "*", rule: "-", listItemIndent: "one" } as const;
+const TO_MARKDOWN = HOUSE_STYLE.toMarkdown;
 
 const toolbar = () => (
   <>
@@ -82,7 +87,7 @@ const toolbar = () => (
   </>
 );
 
-export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function RichDocument({ value, editable, "aria-label": label, className, onEdit, onUnsafe }, ref) {
+export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function RichDocument({ value, editable, "aria-label": label, className, onEdit, onUnsafe, onRestyle }, ref) {
   const editor = useRef<MDXEditorMethods>(null);
   /** The text the app holds, which is what the editor is to show. */
   const held = useRef(value);
@@ -130,7 +135,7 @@ export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function
       listsPlugin(),
       quotePlugin(),
       thematicBreakPlugin(),
-      tablePlugin(),
+      tablePlugin(HOUSE_STYLE.table),
       linkPlugin(),
       linkDialogPlugin(),
       imagePlugin(),
@@ -164,11 +169,13 @@ export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function
           // (Nothing is said when it would write the same text, which is nothing to check. Until it has said, it has not read:
           // asking it for its text at the moment it is made gives back the text it was made with.)
           if (initialNormalize) {
-            if (!sameMeaning(held.current, withEdgesLike(held.current, markdown))) unsafe();
+            const restyled = withEdgesLike(held.current, withReadableDelimiters(markdown));
+            if (!sameMeaning(held.current, restyled)) unsafe();
+            else onRestyle?.(restyled === held.current ? null : describeRestyle(held.current, restyled));
             return;
           }
           if (!editable) return;
-          const written = withEdgesLike(held.current, markdown);
+          const written = withEdgesLike(held.current, withReadableDelimiters(markdown));
           // An edit undone is no edit: the text the app gave comes back as it was written, not as the editor would write it.
           const next = sameMeaning(written, baseline.current) ? baseline.current : written;
           // A change of style alone is not a change. What it is compared with is the latest text the app has been told, which

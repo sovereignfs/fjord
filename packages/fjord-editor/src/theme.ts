@@ -19,6 +19,8 @@ export const themeTokens = [
   "--fe-mark-bg",
   "--fe-mark-resolved-bg",
   "--fe-mark-active-bg",
+  "--fe-restyle-removed-bg",
+  "--fe-restyle-added-bg",
   "--fe-font-body",
   "--fe-font-mono",
   "--fe-radius",

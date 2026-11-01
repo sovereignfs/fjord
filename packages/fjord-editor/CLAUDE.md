@@ -27,6 +27,9 @@ design is right.
   and the blank lines a body begins and ends with are kept. `src/document-corpus.test.tsx` says which editor each corpus file
   opens in (`corpus/` and `corpus/documents/`), so that a change in MDXEditor, which is pinned to an exact version and
   upgraded on purpose, is seen.
+- **The visual document editor writes one documented style** (`src/rich/style.ts`, `HOUSE_STYLE`, ROADMAP 1b.4: `-`, `*`, `---`, `1.` on every item, fences, compact tables with three-dash delimiter rows), and a document written another way is
+  **never restyled unannounced**: `DocumentEditor` lists the lines that would change and keeps the editor read-only until the person chooses. `src/house-style.test.tsx` and `corpus/house-style/` hold the style to its decisions; change one
+  and the other fails. A test that edits a document not in the style agrees to the reformat first.
 - **The header is not the editor's.** The editor is given the body; the app keeps the header (`clients/web/DESIGN.md` §9).
 - **MDXEditor's stylesheet is taken in at build time and scoped** (`scripts/copy-styles.mjs`): it sets its colour scales on
   `:root`, for the whole page, and the build makes them local to the editor and fails if a rule for the page is left. Its

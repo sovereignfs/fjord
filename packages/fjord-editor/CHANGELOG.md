@@ -5,6 +5,13 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
 
 ## [Unreleased]
 
+### Added
+
+- **The house style, and a preview of what an edit would restyle** (ROADMAP 1b.4): the visual document editor writes `-` bullets, `*` emphasis and strong, `---` rules, `1.` on every numbered item,
+  fences and compact tables with three-dash delimiter rows (`src/rich/style.ts`); a document already written so comes back byte for byte. For one written another way,
+  `DocumentEditor` says which lines would change (`src/rich/restyle.ts`) and waits, read-only, until the person chooses to reformat or to edit it as Markdown. `RestylePreview` is exported.
+  New theme tokens: `--fe-restyle-removed-bg` and `--fe-restyle-added-bg`.
+
 ### Fixed
 
 - **`NoteEditor` no longer reverts the person's typing when it is switched between reading and editing, or renamed**, if

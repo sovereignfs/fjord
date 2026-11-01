@@ -58,4 +58,6 @@ summary:focus-visible {
   --fe-font-mono: var(--sv-font-family-mono);
   --fe-radius: var(--sv-radius-md);
   --fe-space: var(--sv-space-3);
+  --fe-restyle-removed-bg: var(--sv-color-error-surface);
+  --fe-restyle-added-bg: var(--sv-color-success-surface);
 }

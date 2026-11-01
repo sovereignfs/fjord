@@ -1,6 +1,6 @@
 # Fjord Web — roadmap
 
-**Status:** phase 1 is done except a real-GitHub check of the App (1a.6) and house style (1b.4); phase 2 is planned (tasks, not built) and phase 3 is an outline. The design is
+**Status:** phase 1 is done except a real-GitHub check of the App (1a.6); phase 2 is planned (tasks, not built) and phase 3 is an outline. The design is
 [`DESIGN.md`](DESIGN.md); this file is the order of work, and the detail of each task is in [`docs/epics/`](../../docs/epics/). Section numbers (§) refer to `DESIGN.md` unless they say "spec".
 
 | | |
@@ -58,7 +58,7 @@ P4 is the longest pole; 1a needs P3–P5, 1b needs P1, P2 and P4; 1a.10 needs P6
 | [1b.1](../../docs/epics/web-1b.md#1b1-editor-package-interface) | Editor package interface | ✅ Done |
 | [1b.2](../../docs/epics/web-1b.md#1b2-note-editor) | Note editor | ✅ Done |
 | [1b.3](../../docs/epics/web-1b.md#1b3-document-editor) | Document editor | ✅ Done |
-| [1b.4](../../docs/epics/web-1b.md#1b4-house-style) | House style | 📋 Planned (§19 #7) |
+| [1b.4](../../docs/epics/web-1b.md#1b4-house-style) | House style | ✅ Done |
 | [1b.5](../../docs/epics/web-1b.md#1b5-frontmatter) | Frontmatter | ✅ Done |
 | [1b.6](../../docs/epics/web-1b.md#1b6-routes-and-the-id-index) | Routes and the id index | ✅ Done |
 | [1b.7](../../docs/epics/web-1b.md#1b7-create) | Create | ✅ Done |

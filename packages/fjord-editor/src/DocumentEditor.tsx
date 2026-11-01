@@ -8,6 +8,7 @@ import { type MarkedThread, caretAt, paintMarks, threadAt } from "./marks.js";
 import { useNameGate } from "./name-gate.js";
 import { NoteEditor } from "./NoteEditor.js";
 import { offsetsOfSelectedText } from "./selection.js";
+import type { RestylePreview } from "./rich/restyle.js";
 import type { DocumentEditorProps, EditorHandle, ThreadMark } from "./types.js";
 
 // The visual editor is a large library, and only a document needs it: a page that opens a note never loads it.
@@ -33,6 +34,12 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
   const editable = role === "edit";
   /** The visual editor could not hold this text, so it is shown as Markdown. */
   const [asMarkdown, setAsMarkdown] = useState(false);
+  /** The person chose Markdown for a text the visual editor could hold but would restyle (ROADMAP 1b.4). */
+  const [chosenMarkdown, setChosenMarkdown] = useState(false);
+  /** What editing the text here would restyle, as the visual editor reported it. */
+  const [restyle, setRestyle] = useState<RestylePreview | null>(null);
+  /** The text the person agreed to have restyled. Agreement is for that text: another document, or the app setting another, asks again. */
+  const [agreedTo, setAgreedTo] = useState<string | null>(null);
   /** Bumped to start the Markdown editor again from what the app holds, when an edit was not taken. */
   const [restarts, setRestarts] = useState(0);
   const [selected, setSelected] = useState("");
@@ -119,6 +126,8 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
     if (id !== undefined) comments.open(id);
   }
 
+  // The notice is for a text that is held as it was written: one the app set since is not what was reported on.
+  const pendingRestyle = role === "edit" && !asMarkdown && restyle !== null && restyle.before === value && agreedTo !== value ? restyle : null;
   const marked = threads.filter((thread) => !thread.outdated).length;
   const canComment = role !== "view" && comments !== undefined;
   const offsets = offsetsOfSelectedText(value, selected);
@@ -142,10 +151,45 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
           </button>
         </div>
       ) : null}
+      {pendingRestyle ? (
+        <section className="fe-notice fe-restyle" aria-label="Reformatting">
+          <p>
+            This document is not written the way Fjord writes Markdown. Editing it here will reformat it: {changes(pendingRestyle)}. Nothing is changed until you choose.
+          </p>
+          <details>
+            <summary>See what would change</summary>
+            <pre className="fe-restyle-lines" aria-label="Lines that would change">
+              {pendingRestyle.lines.map((line, index) => (
+                <span key={`${line.kind}${line.line}-${index}`} className={`fe-restyle-${line.kind}`}>
+                  {line.kind === "removed" ? "- " : "+ "}
+                  {line.text}
+                  {"\n"}
+                </span>
+              ))}
+              {pendingRestyle.truncated ? "…and more\n" : ""}
+            </pre>
+          </details>
+          <div className="fe-restyle-actions">
+            <button type="button" className="fe-button" onClick={() => setAgreedTo(pendingRestyle.before)}>
+              Reformat and edit here
+            </button>{" "}
+            <button
+              type="button"
+              className="fe-button"
+              onClick={() => {
+                setChosenMarkdown(true);
+                setAsMarkdown(true);
+              }}
+            >
+              Edit as Markdown, unchanged
+            </button>
+          </div>
+        </section>
+      ) : null}
       {asMarkdown ? (
         <>
           <p className="fe-notice" role="note">
-            This document has Markdown the visual editor cannot keep exactly as written, so it is shown as Markdown.
+            {chosenMarkdown ? "You chose to edit this document as Markdown, so it is shown exactly as written." : "This document has Markdown the visual editor cannot keep exactly as written, so it is shown as Markdown."}
           </p>
           <NoteEditor
             key={restarts}
@@ -163,7 +207,7 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
         </>
       ) : (
         <Suspense fallback={<p className="fe-status">Loading the editor…</p>}>
-          <RichDocument ref={handle} value={value} editable={editable} aria-label={label} onEdit={edit} onUnsafe={() => setAsMarkdown(true)} />
+          <RichDocument ref={handle} value={value} editable={editable && pendingRestyle === null} aria-label={label} onEdit={edit} onUnsafe={() => setAsMarkdown(true)} onRestyle={setRestyle} />
         </Suspense>
       )}
       {comments ? (
@@ -174,3 +218,10 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
     </div>
   );
 });
+
+/** "3 lines would change", "1 line would go and 2 would come": what a restyle does, in words. */
+function changes(preview: RestylePreview): string {
+  const lines = (count: number) => (count === 1 ? "1 line" : `${count} lines`);
+  if (preview.removed === preview.added) return `${lines(preview.removed)} would change`;
+  return `${lines(preview.removed)} would go and ${lines(preview.added)} would come`;
+}

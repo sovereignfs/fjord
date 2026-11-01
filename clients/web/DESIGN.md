@@ -755,6 +755,28 @@ Markdown in, Markdown out, compared.
   the editor does not model is never dropped: **as built (1b.3), a document the visual
   editor cannot hold without changing what it means is opened as Markdown instead**
   (below), rather than with opaque raw blocks inside the visual editor.
+
+*As built (ROADMAP 1b.4): the house style.* It is written down in one place, `packages/fjord-editor/src/rich/style.ts` (`HOUSE_STYLE`), and is what the visual editor writes:
+
+| | |
+| --- | --- |
+| Bullets | `-` |
+| Emphasis and strong | `*italic*`, `**bold**` |
+| Rules | `---` |
+| Numbered lists | `1.` on every item, so that adding an item renumbers nothing and a diff shows one line |
+| Headings | `#`, never underlined |
+| Code | fenced with backticks, never indented |
+| Tables | `\| a \| b \|`, a space inside each pipe, columns **not** padded to line up (so changing a cell changes one line), and a delimiter row of at least three dashes (`\| --- \| --- \|`, with `:` for alignment) |
+| Line breaks | as written: a paragraph is never re-wrapped |
+| Blocks | one blank line between them |
+
+A document already written this way comes back **byte for byte** (`src/house-style.test.tsx` holds a corpus file written in it to that: an edit of a word changes that
+word and no other line). A document written another way (Obsidian's `*` bullets, `_italic_`, underlined headings, a table lined up with spaces, `1. 2. 3.`) is restyled
+**whole** when it is edited, which is the cost of the visual editor, so the editor does not do it unannounced: as soon as it has read the text it says which lines would
+change (`DocumentEditor` shows a notice with the count, and the lines that go and come, `- ` and `+ `, from `rich/restyle.ts`), and **waits**: nothing can be typed, and
+nothing is kept as a draft, until the person chooses *Reformat and edit here* or *Edit as Markdown, unchanged* (the byte-faithful editor, as for a document the visual one cannot
+hold). A document already in the style is not asked about, nor is a person who may only read. The choice is for that text: a text the app sets afterwards that is not in the
+style asks again. Changing any of this later is a change to `HOUSE_STYLE` and to the corpus, which fails until both agree.
 - **Frontmatter is not given to MDXEditor** (its own YAML handling would rewrite
   it); see §9.
 - **Comments** use Lexical's mark nodes, which MDXEditor does not provide as a
@@ -852,9 +874,8 @@ reads the file and opens it like a note: the same draft as you type (§11), Save
   style, with the blank lines the body began and ended with (the one after the header, the final line break). An edit **undone** is
   no edit: the text the app gave comes back byte for byte, so typing and deleting again starts no draft. A person who declined to
   give a name has made no change: the document goes back to what the app holds.
-- **The house style** until 1b.4 writes it down is what the editor is configured to write: `-` bullets, `*` emphasis and strong,
-  `---` rules, fenced code. An edit restyles the whole document in it (not only the edited paragraph): the cost of the visual
-  editor, and what the first-save preview in 1b.4 is for. Code blocks are edited in CodeMirror, in a short list of languages;
+- **The house style** is written down and previewed (ROADMAP 1b.4, §10 above). An edit restyles the whole document in it (not only the edited paragraph): the cost of the visual
+  editor, and what the notice before the first edit is for. Code blocks are edited in CodeMirror, in a short list of languages;
   a block in another language is kept as it is.
 - **Comments are not built here.** The interface keeps the adapter and "Comment on selection" works for a selection of plain
   text, found in the Markdown by its text (nothing is anchored for one that crosses formatting or blocks). The marks that follow
@@ -865,7 +886,7 @@ reads the file and opens it like a note: the same draft as you type (§11), Save
   what the editors are built on (242 packages, all permissive) are written when the package is built and carried by the image
   (`/usr/share/licenses/fjord-editor/THIRD_PARTY_NOTICES.txt`).
 - **Not yet:** a strict Content-Security-Policy (§15, ROADMAP 1d.5) has to allow what the visual editor does, which is to set
-  `style` attributes on the elements it draws; the house style written down (1b.4).
+  `style` attributes on the elements it draws.
 
 ### Creating
 
@@ -1626,7 +1647,7 @@ standalone output would otherwise prune it.
 | 4 | ~~Licence of `packages/fjord-editor`: AGPL with the design system, or MPL-2.0 without it?~~ **Decided (2026-10-26):** MPL-2.0, with no dependency on `@sovereignfs/ui` (§18) | — |
 | 5 | Idle-commit interval | Five minutes |
 | 6 | Branch: always the default branch, or choosable per connection? | Default branch; choosable later |
-| 7 | House style for documents: exact list and emphasis markers, table layout | Write it down in 1b, with the round-trip corpus |
+| 7 | House style for documents: exact list and emphasis markers, table layout | **Decided and built (2026-11-01):** `-`, `*`, `---`, `1.` on every item, compact tables, fences; the first edit of a document written another way is previewed and waits for a choice (`web-1b.md` 1b.4). Changeable: it is one constant and one corpus |
 | 8 | Can an editor (not only the owner) share further? | Owner only in phase 1 |
 | 9 | Notes in phase 1: sharing and comments? | Neither |
 | 10 | Path route for notes without an id: `/repo/<connection>/<path>` | As written |

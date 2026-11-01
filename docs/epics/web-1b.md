@@ -41,13 +41,17 @@ MDXEditor; Markdown-only toolbar; tables; images by URL; raw blocks preserved.
 
 ## 1b.4 House style
 
-**Status:** 📋 Planned (§19 #7)
+**Status:** ✅ Done
 
 **Design:** §10
 
 Documented, applied on save, first-save preview for documents written elsewhere.
 
 **Accepts when:** The style is written down; the preview lists what changes.
+
+- **Done as:** `packages/fjord-editor/src/rich/style.ts` is the style (`HOUSE_STYLE`: `-` bullets, `*` emphasis and strong, `---` rules, `1.` on every numbered item, fences, compact tables) and `RichDocument` passes it to MDXEditor; `withReadableDelimiters` gives the delimiter rows the library writes with one dash (`| - | - |`) three (`| --- | --- |`), leaving fenced code alone. `rich/restyle.ts` finds, line by line, what editing a text would change besides the edit (`describeRestyle`: the lines that go and come, at most 40 listed and all counted, and a size past which a stretch counts as all changed), and `DocumentEditor` shows it once the editor has read the text: a notice with the count, a list of the lines, and two buttons. **It waits**: until the person chooses *Reformat and edit here* or *Edit as Markdown, unchanged*, the visual editor is read-only and nothing is told to the app. A text already in the style asks nothing; neither does a person who may only read; the choice is for that text and a different one asks again. The app needed no change (the diff colours are the design system's error and success surfaces, mapped in `globals.css`). Decided with the owner on 2026-11-01 (§19 #7): the editor's own markers, a counted numbered list is restyled to `1.`, compact tables, and the preview blocks only for a text that would change.
+- **Tested:** `house-style.test.tsx` (the style as decisions; a corpus file written in it (`corpus/house-style/everything.md`) opens without a question, and an edit of a word in each kind of block changes that word byte for byte; seven other styles each list the right lines; each choice does what it says; the question is not asked of a reader, and is asked again of another text), `rich/restyle.test.ts`, `rich/style.test.ts`, the existing document corpus (which now agrees to a reformat where it asks), and a browser test: a document in the style is edited and the version differs by the edited line alone; one with `*` bullets, an underlined heading and `1. 2.` lists the lines, cannot be typed in, and after *Reformat* saves a restyled file. Each of the style's decisions and the gate was seen to fail the suite when switched off.
+- **Not here:** remembering a choice across visits (the question is asked each time a document not in the style is opened to edit); a preference to skip it; making a document's style a setting of the vault. Both can be added without changing the style.
 
 ## 1b.5 Frontmatter
 

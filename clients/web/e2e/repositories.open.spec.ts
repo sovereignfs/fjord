@@ -2149,6 +2149,50 @@ test("a document opens in the visual editor, an edit is kept as a draft, and a v
   }
 });
 
+test("the house style: a document written the same way is edited line for line, and one written another way says which lines would change and waits for the person to choose", async ({ page }) => {
+  try {
+    const styled = "\n# Plan\n\nThe quick brown fox.\n\n- one\n- two\n\n1. first\n1. second\n";
+    const elsewhere = "\nPlan\n====\n\nThe quick brown fox.\n\n* one\n* two\n\n1. first\n2. second\n";
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Styled.fj.md": DOC_HEADER + styled, "Notes/Elsewhere.fj.md": DOC_HEADER + elsewhere });
+
+    // In the house style: nothing is asked, and the version differs from the file in the edited line alone.
+    await page.goto(`/repo/${id}/Notes/Styled.fj.md`);
+    const editor = noteEditor(page, "Styled.fj.md");
+    await expect(editor).toContainText("The quick brown fox.");
+    await page.waitForTimeout(800);
+    await expect(page.getByRole("region", { name: "Reformatting" })).toHaveCount(0);
+    await typeAtEndOf(page, editor.locator("p", { hasText: "The quick brown fox." }), " Jumps higher.");
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Styled.fj.md"]).toBe(DOC_HEADER + styled.replace("fox.", "fox. Jumps higher."));
+
+    // Written another way: the lines are listed, nothing can be typed, and nothing is kept until the person chooses.
+    await page.goto(`/repo/${id}/Notes/Elsewhere.fj.md`);
+    const notice = page.getByRole("region", { name: "Reformatting" });
+    await expect(notice).toBeVisible({ timeout: 30_000 });
+    await expect(notice).toContainText("Editing it here will reformat it");
+    await notice.getByText("See what would change").click();
+    const lines = notice.getByLabel("Lines that would change");
+    for (const line of ["- Plan", "- ====", "+ # Plan", "- * one", "+ - one", "- 2. second", "+ 1. second"]) await expect(lines).toContainText(line);
+    await expect(page.getByRole("textbox", { name: "Elsewhere.fj.md", exact: true })).toHaveAttribute("contenteditable", "false");
+    await expect(status(page)).not.toHaveText("Changes kept as a draft.");
+
+    await notice.getByRole("button", { name: "Reformat and edit here" }).click();
+    await expect(notice).toHaveCount(0);
+    const other = noteEditor(page, "Elsewhere.fj.md");
+    await expect(other).toHaveAttribute("contenteditable", "true");
+    await typeAtEndOf(page, other.locator("p", { hasText: "The quick brown fox." }), " Jumps higher.");
+    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible();
+    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Elsewhere.fj.md"]).toBe(DOC_HEADER + styled.replace("fox.", "fox. Jumps higher."));
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
 test("a document the visual editor cannot keep as written is shown as Markdown, and edited byte for byte", async ({ page }) => {
   try {
     const body = "\nSome text first.\n\n<details>\n<summary>Raw HTML</summary>\n\nInside.\n\n</details>\n\nA footnote[^1] too.\n\n[^1]: The note.\n";

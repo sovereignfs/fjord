@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { $getRoot } from "lexical";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -88,6 +88,14 @@ async function open(text: string) {
   return told;
 }
 
+/** A document not written in the house style asks, before it can be edited, whether to be reformatted (ROADMAP 1b.4): agree, if it asked. */
+async function agreeIfAsked() {
+  const button = screen.queryByRole("button", { name: "Reformat and edit here" });
+  if (button === null) return;
+  fireEvent.click(button);
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Reformat and edit here" })).toBeNull());
+}
+
 /** Wait until the document editor has decided, and has settled on it. */
 async function settled(expected: Mode) {
   // A slow machine takes longer to read the text than a fast one; waiting for the answer is not waiting for a time.
@@ -152,6 +160,7 @@ describe.each(files)("$name", ({ name, path }) => {
     it("is changed by an edit of one word to a text that means the original with that word changed, and ends as it did", async () => {
       const told = await open(text);
       await settled("visual");
+      await agreeIfAsked();
       const editor = (screen.getAllByRole("textbox", { name: LABEL })[0] as unknown as { __lexicalEditor: { update: (fn: () => void) => void } }).__lexicalEditor;
       let edited = false;
       editor.update(() => {

@@ -119,6 +119,33 @@
 
 /* The notice above a document shown as Markdown. */
 
+.fe-restyle-lines {
+  margin: var(--fe-space, 0.5rem) 0 0;
+  padding: var(--fe-space, 0.5rem);
+  max-height: 16rem;
+  overflow: auto;
+  border: 1px solid var(--fe-color-border, #c7c7cc);
+  border-radius: var(--fe-radius, 0.375rem);
+  font-family: var(--fe-font-mono, ui-monospace, monospace);
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  color: var(--fe-color-text, #1c1c1e);
+}
+
+.fe-restyle-removed {
+  display: block;
+  background: var(--fe-restyle-removed-bg, #fbe4e6);
+}
+
+.fe-restyle-added {
+  display: block;
+  background: var(--fe-restyle-added-bg, #e2f4e6);
+}
+
+.fe-restyle-actions {
+  margin-top: var(--fe-space, 0.5rem);
+}
+
 .fe-notice {
   margin: 0;
   padding: var(--fe-space, 0.5rem);

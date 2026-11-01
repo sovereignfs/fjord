@@ -7,3 +7,4 @@ export { DocumentEditor } from "./DocumentEditor.js";
 export { NoteEditor } from "./NoteEditor.js";
 export { type ThemeToken, themeTokens } from "./theme.js";
 export type { Anchor, AnchorReport, CommentsAdapter, DocumentEditorProps, EditorHandle, NoteEditorProps, Role, TextQuoteAnchor, ThreadMark } from "./types.js";
+export type { RestylePreview } from "./rich/restyle.js";
