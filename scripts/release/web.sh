@@ -67,7 +67,36 @@ c_check_plan() {
   section_body "$v" | has_content ||
     die "$C_CHANGELOG has no notes for $v, so the release page would be empty"
   ok "$C_CHANGELOG has notes for $v"
+  c_check_migrations_kept "$v"
   c_check_patch_policy "$v"
+}
+
+# A migration that has been released is never edited or removed (RELEASING.md § Fjord Web
+# versions): a database that applied it would no longer match the file that says what it did.
+# Adding one is what a change to the schema is. Compared with the newest release before $v.
+c_check_migrations_kept() {
+  local v=$1 prev_tag changed
+  prev_tag=$(c_previous_release "$v") || return 0
+  changed=$(git diff --name-status --no-renames "$prev_tag" HEAD -- clients/web/migrations | awk '$1 != "A" { print $2 }')
+  if [ -n "$changed" ]; then
+    printf '%s\n' "$changed" | sed 's/^/        /' >&2
+    die "migrations that were released in $prev_tag were edited or removed (above). A released migration is never changed: put the fix in a new one"
+  fi
+  ok "no migration released in $prev_tag was edited or removed"
+}
+
+# The newest web release before $1, from the tags (the plan is checked after the bump, so the
+# version in package.json is already the new one). Fails if there is none.
+c_previous_release() {
+  local v=$1 candidate cand_v best=""
+  for candidate in $(git tag --list "${C_TAG_PREFIX}[0-9]*.[0-9]*.[0-9]*"); do
+    cand_v=${candidate#"$C_TAG_PREFIX"}
+    valid_version "$cand_v" || continue
+    version_gt "$v" "$cand_v" || continue
+    if [ -z "$best" ] || version_gt "$cand_v" "$best"; then best=$cand_v; fi
+  done
+  [ -n "$best" ] || return 1
+  echo "${C_TAG_PREFIX}$best"
 }
 
 # RELEASING.md § Fjord Web versions: a patch release (X.Y.Z to X.Y.Z+1) carries no
@@ -75,19 +104,11 @@ c_check_plan() {
 # a bad patch can be rolled back without restoring a backup. Only checked when the
 # previous release is there to compare with.
 c_check_patch_policy() {
-  local v=$1 minor patch prev_tag changed best=-1 candidate n
-  minor=${v%.*}
-  patch=${v##*.}
-  [ "$patch" -gt 0 ] || return 0
-  # The newest release of this minor before $v. This runs after the version was bumped, so
-  # the current version cannot be used: the tags say what was released.
-  for candidate in $(git tag --list "${C_TAG_PREFIX}${minor}.*"); do
-    n=${candidate##*.}
-    case $n in '' | *[!0-9]*) continue ;; esac
-    if [ "$n" -lt "$patch" ] && [ "$n" -gt "$best" ]; then best=$n; fi
-  done
-  [ "$best" -ge 0 ] || return 0
-  prev_tag="${C_TAG_PREFIX}${minor}.${best}"
+  local v=$1 prev_tag prev_v changed
+  prev_tag=$(c_previous_release "$v") || return 0
+  prev_v=${prev_tag#"$C_TAG_PREFIX"}
+  # Only a patch release of the same minor: 0.1.0 to 0.2.0 may carry migrations.
+  [ "${prev_v%.*}" = "${v%.*}" ] || return 0
   changed=$(git diff --name-only "$prev_tag" HEAD -- clients/web/migrations)
   if [ -n "$changed" ]; then
     printf '%s\n' "$changed" | sed 's/^/        /' >&2

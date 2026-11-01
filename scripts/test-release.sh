@@ -818,6 +818,30 @@ notesw web7
 relw web7 prepare 0.1.1 --skip-gates
 accepts "web: a patch release with no migration since the last release"
 
+# A migration that was released is never edited or removed, in any kind of release.
+freshw web8 0.1.0
+(
+  cd "$T/web8" || exit 1
+  mkdir -p clients/web/migrations/sqlite
+  echo "CREATE TABLE a (x);" >clients/web/migrations/sqlite/9998_released.sql
+  git add -A
+  git commit -q -m "scratch: a migration, released"
+  git push -q origin main
+  git tag web-v0.1.0
+  echo "CREATE TABLE a (x, y);" >clients/web/migrations/sqlite/9998_released.sql
+  git commit -q -am "scratch: the released migration, edited"
+  git push -q origin main
+)
+notesw web8
+relw web8 prepare 0.2.0 --skip-gates
+refuses "web: a released migration that was edited" "A released migration is never changed"
+(cd "$T/web8" && git rm -q clients/web/migrations/sqlite/9998_released.sql && git commit -q -m "scratch: the released migration, removed" && git push -q origin main)
+relw web8 prepare 0.2.0 --skip-gates
+refuses "web: a released migration that was removed" "A released migration is never changed"
+(cd "$T/web8" && git checkout -q web-v0.1.0 -- clients/web/migrations/sqlite/9998_released.sql && echo "CREATE TABLE b (z);" >clients/web/migrations/sqlite/9999_new.sql && git add -A && git commit -q -m "scratch: restored, and a new one" && git push -q origin main)
+relw web8 prepare 0.2.0 --skip-gates
+accepts "web: ...but a new migration beside the released ones is fine in a minor release"
+
 # --- The full gates, once ---------------------------------------------------------------
 
 if [ "$FULL" = yes ]; then
