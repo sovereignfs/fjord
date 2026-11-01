@@ -14,7 +14,7 @@ import { UndoBanner } from "./UndoBanner";
 import type { HeaderInfo } from "../document";
 import { type DraftOfNote, NoteView } from "./NoteView";
 import { UpstreamChanged } from "./UpstreamChanged";
-import { EncryptedFile } from "../../keys/screens/EncryptedFile";
+import { EncryptedFile, type EncryptedDraft } from "../../keys/screens/EncryptedFile";
 
 /**
  * A folder of a vault, or one file of it, as a list (DESIGN.md §8). What can be opened is decided from the name alone,
@@ -29,6 +29,7 @@ export function FolderView({
   draft,
   preview,
   fileBlob,
+  encryptedEditing,
   folderFiles,
   header,
   permalink,
@@ -46,6 +47,8 @@ export function FolderView({
   preview?: Preview | undefined;
   /** For a file: its blob in the repository now, which deleting it names (ROADMAP 1b.12). Not known for a repository too large to list. */
   fileBlob?: string | undefined;
+  /** For an encrypted file: its draft (ciphertext) if there is one, and the vault's recipients, which what is typed is encrypted to (ROADMAP 2b.3). */
+  encryptedEditing?: { draft: EncryptedDraft | null; recipients: { ok: true; text: string } | { ok: false; message: string } } | undefined;
   /** For a folder: how many files are anywhere inside it now, which deleting it names. Not known for a repository too large to list. */
   folderFiles?: number | undefined;
   /** For a note or a document: where its body starts in the text shown, its properties, and the header it is given on its first edit; undefined if its header cannot be read (then it is shown whole, as Markdown). */
@@ -86,7 +89,7 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing}
           remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document") ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -193,6 +196,8 @@ function FileCard({
   permalink,
   docId,
   destinations,
+  blob,
+  encryptedEditing,
 }: {
   connectionId: number;
   file: ClassifiedFile;
@@ -208,6 +213,8 @@ function FileCard({
   permalink: string | undefined;
   docId: string | undefined;
   destinations: string[];
+  blob: string | undefined;
+  encryptedEditing: { draft: EncryptedDraft | null; recipients: { ok: true; text: string } | { ok: false; message: string } } | undefined;
 }) {
   return (
     <section aria-labelledby="file-title">
@@ -243,7 +250,7 @@ function FileCard({
           This {file.kind === "document" ? "document" : "note"} could not be read just now. Try again in a moment.
         </Alert>
       ) : file.kind === "payload" ? (
-        <EncryptedFile connectionId={connectionId} path={file.path} naming={naming} logical={file.logical} />
+        <EncryptedFile connectionId={connectionId} path={file.path} naming={naming} logical={file.logical} blob={blob} draft={encryptedEditing?.draft ?? null} recipients={encryptedEditing?.recipients ?? { ok: false, message: "This file cannot be edited just now." }} />
       ) : encrypted ? (
         <Alert variant="info" heading="Locked">This file is in an encrypted vault but is not an encrypted file, so it cannot be opened.</Alert>
       ) : (

@@ -1,7 +1,11 @@
+import type { RepositoryRead } from "../browse/repository";
 import { locateInRepository, readConnection } from "../browse/server";
+import type { ConnectionInfo } from "../connections/service";
 import { connectionService } from "../connections/server";
 import { isProviderError } from "../providers/errors";
+import { workingCopyService } from "../working/server";
 import { type Deps, MAX_CIPHERTEXT_BYTES } from "./http";
+import { type Recipients, readRecipients } from "./recipients";
 
 /**
  * The server's side of `/api/connections/<id>/ciphertext`: the connection must be the caller's, and the path must lead, in the repository as it is now, to an
@@ -32,3 +36,15 @@ export const readCiphertext: Deps["read"] = async (accountId, id, path) => {
     throw error;
   }
 };
+
+/**
+ * What the page of an encrypted file needs to edit it (ROADMAP 2b.3): the draft of it, if there is one (ciphertext, as stored), and the vault's recipients, which
+ * the browser encrypts to. Neither is secret from the server: it holds the one and reads the other from the repository.
+ */
+export async function editingFor(accountId: string, connection: ConnectionInfo, read: RepositoryRead, vaultDirectory: string, path: string) {
+  const kept = await (await workingCopyService()).get(connection.id, path);
+  const draft = kept?.encrypted ? { content: kept.content, baseBlob: kept.baseBlob } : null;
+  const used = await (await connectionService()).provider(accountId, connection.id);
+  const recipients: Recipients = used ? await readRecipients(used.provider, { owner: connection.owner, name: connection.name }, read, vaultDirectory) : { ok: false, message: "That repository is not connected." };
+  return { draft, recipients };
+}

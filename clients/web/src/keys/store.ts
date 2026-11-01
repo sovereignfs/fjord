@@ -163,6 +163,11 @@ export class KeyStore {
     return use(this.secret);
   }
 
+  /** Count as use without the secret, such as typing into a file it opened: a person at work is not a quiet period. Nothing if it is locked. */
+  touch(): void {
+    if (this.secret) this.arm();
+  }
+
   private unlocked(secret: Uint8Array, recipient: string): void {
     this.secret?.fill(0);
     this.secret = secret;

@@ -140,6 +140,11 @@ export class FakeGitHub {
     return files;
   }
 
+  /** One file at a commit, as the bytes git holds (`filesAt` reads text; an encrypted file is not). */
+  async fileBytesAt(commit: string, path: string): Promise<Uint8Array> {
+    return new Uint8Array(await this.git(["cat-file", "blob", `${commit}:${path}`]));
+  }
+
   // --- HTTP --------------------------------------------------------------------------------
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {

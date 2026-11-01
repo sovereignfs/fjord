@@ -795,7 +795,7 @@ interface of the sketch above, made exact, with a plain text area behind both ed
   UTF-8 with any byte order mark kept, to at most 1 MB, and shows it in the editor. What is typed is kept as a draft
   (§11, ROADMAP 1b.8); making it a version in the repository is 1b.9. A file that is not UTF-8, or is larger than 1 MB, says
   so and is not shown as a note. A document (`*.fj.md`) waits for its own editor (1b.3); an
-  encrypted file is opened by the browser, read-only, with the identity it keeps (§2, `web-2.md` 2b.2), and cannot be edited yet.
+  encrypted file is opened and edited by the browser, with the identity it keeps (§2, §11, `web-2.md` 2b.2, 2b.3).
 - **Dressed in the design system's tokens.** The package knows only its own `--fe-*` custom properties; `app/globals.css`
   maps the `--sv-*` tokens onto them, so light, dark and any theme follow the page (checked in a browser in both).
 - **How the package is consumed** (settled here, since this is the first page that renders it): it is a `link:` dependency
@@ -893,6 +893,16 @@ title and no more: the name and, for a document, the header are `fjord-core`'s, 
   on top), take theirs (discard the working copy), or combine by hand. This is the
   CLI's rule that a conflicting version is never destroyed (spec §9.1), applied to
   a web editor.
+- **An encrypted file's working copy is ciphertext** (ROADMAP 2b.3). The browser decrypts the file (or the draft), edits the
+  text, and encrypts it to the vault's recipients, read from its recipients file and handed to the page, **before each send**;
+  the row holds the age bytes as base64 and a flag (`working_copy.encrypted`). The server therefore never holds the text, in the
+  database or in a request, and it needs no key for any of the rest: a version commits those bytes as they are, and the idle
+  worker is the same code. Sealing needs only public keys, so what is waiting is still sent as the identity locks or the page is
+  left. Two rules keep plaintext out of an encrypted vault (invariant 1): the server keeps an encrypted draft only if it is base64
+  that begins as an age file does, and refuses plain text for such a file and ciphertext for a plain one (it asks the host what the
+  path is once, when the draft starts); and a version re-checks the bytes it is about to commit. Because the server cannot read
+  either side, **combining is not offered** for an encrypted file that changed upstream: the person keeps theirs (the ciphertext is
+  moved onto the file as it is, and theirs stays in the history) or takes theirs (the draft is dropped).
 - **Phase 3** carries real-time collaboration on this same working copy (a shared
   Yjs document per open file), which is why it exists now rather than later.
 

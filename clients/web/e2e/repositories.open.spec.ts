@@ -558,6 +558,183 @@ test("who may set a repository up: a signed-in person, from this site, for their
   }
 });
 
+// --- Encrypted files, edited in the browser (ROADMAP 2b.3) ---
+
+const PASSPHRASE = "a passphrase of some length";
+const vaultManifest = (id: string, naming: string, container: string) =>
+  JSON.stringify({ fjord: 1, id, name: id, createdAt: "2026-10-16T09:34:00Z", encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container, armor: false }, fileNaming: naming });
+
+/** A repository with a plain-named and an id-named encrypted vault, an identity brought into the browser, and a record of everything sent and said. */
+async function encryptedWorkbench(page: Page, files: (recipient: string) => Record<string, string | Uint8Array>) {
+  const secret = wasm.generateIdentity();
+  const recipient = wasm.identityRecipient(secret);
+  const id = await repositoryWith(page, {
+    "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3me", name: "Secrets", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Open", id: "01jagc4k7pr9tbm3ykwx6zq2hx" }, { path: "Sealed", id: "01jagc4k7pr9tbm3ykwx6zq2hy" }] }),
+    "Open/fjord.vault.json": vaultManifest("01jagc4k7pr9tbm3ykwx6zq2hx", "plain", "none"),
+    "Open/recipients.txt": `${recipient}\n`,
+    "Sealed/fjord.vault.json": vaultManifest("01jagc4k7pr9tbm3ykwx6zq2hy", "id", "tar"),
+    "Sealed/recipients.txt": `${recipient}\n`,
+    ...files(recipient),
+  });
+  const record: string[] = [];
+  page.on("request", (request) => record.push(`${request.method()} ${request.url()} ${request.postData() ?? ""}`));
+  page.on("response", async (response) => {
+    if (response.url().includes("/api/")) record.push(`${response.url()} ${(await response.body().catch(() => Buffer.alloc(0))).toString("latin1")}`);
+  });
+  await page.addInitScript(() => {
+    (window as unknown as { __violations: string[] }).__violations = [];
+    document.addEventListener("securitypolicyviolation", (event) => (window as unknown as { __violations: string[] }).__violations.push(`${event.violatedDirective} ${event.blockedURI}`));
+  });
+  await page.goto("/account/keys");
+  await page.getByRole("button", { name: "I already have one" }).click();
+  await page.getByLabel("Your secret key").fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
+  await page.getByLabel("Passphrase").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Keep this identity" }).click();
+  await expect(page.getByTestId("recipient")).toHaveText(recipient, { timeout: 60_000 });
+  return { id, secret, recipient, record };
+}
+
+/** Open an encrypted file and unlock the identity (each page load starts locked). */
+async function openEncrypted(page: Page, path: string, name: string) {
+  await page.goto(path);
+  await page.getByLabel("Passphrase").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Unlock and open" }).click();
+  const editor = noteEditor(page, name);
+  await expect(editor).toBeVisible({ timeout: 60_000 });
+  return editor;
+}
+
+const decryptedAt = (secret: Uint8Array, bytes: Uint8Array) => wasm.decrypt(bytes, secret);
+const textOf = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
+
+test("an encrypted file is edited in the browser: the draft is ciphertext, the version is committed with no key, and it opens again", async ({ page }) => {
+  test.setTimeout(300_000);
+  const PLAIN = "# Plain-named secret\n\nstarts like this";
+  const TYPED = " AND THEN TYPED SECRET WORDS";
+  try {
+    const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({ "Open/note.md.age": wasm.encrypt(bytes(PLAIN), recipient, false) }));
+    const before = await hubs.more.branchHead();
+
+    const editor = await openEncrypted(page, `/repo/${id}/Open/note.md.age`, "note.md");
+    await expect(editor).toHaveAttribute("contenteditable", "true");
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type(TYPED);
+    await expect(status(page)).toHaveText("Changes kept as an encrypted draft.", { timeout: 30_000 });
+
+    // What the server was sent is ciphertext, flagged: it begins as an age file does, and holds no word that was typed.
+    const drafts = record.filter((line) => line.startsWith("PUT ") && line.includes("/working-copy"));
+    expect(drafts.length).toBeGreaterThan(0);
+    for (const draft of drafts) {
+      expect(draft).toContain('"encrypted":true');
+      expect(draft).toContain("YWdlLWVuY3J5cHRpb24ub3JnL3Yx"); // base64 of "age-encryption.org/v1"
+      expect(draft).not.toContain("SECRET WORDS");
+    }
+    // Typing is not a commit.
+    expect(await hubs.more.branchHead()).toBe(before);
+
+    // Opened again: locked, it says there are changes; unlocked, they are there, decrypted from the draft.
+    await page.goto(`/repo/${id}/Open/note.md.age`);
+    await expect(page.getByText("Changes you made earlier are kept on this server as an encrypted draft")).toBeVisible();
+    await page.getByLabel("Passphrase").fill(PASSPHRASE);
+    await page.getByRole("button", { name: "Unlock and open" }).click();
+    await expect(noteEditor(page, "note.md")).toContainText("TYPED SECRET WORDS", { timeout: 60_000 });
+
+    // Hidden and opened again within the page: what was typed is still what comes back.
+    await page.getByRole("button", { name: "Hide" }).click();
+    await expect(noteEditor(page, "note.md")).toHaveCount(0);
+    await page.getByRole("button", { name: "Open" }).click();
+    await expect(noteEditor(page, "note.md")).toContainText("TYPED SECRET WORDS");
+
+    // A version: the draft's bytes, committed.
+    await page.getByLabel("Message").fill("Reword the secret");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible({ timeout: 30_000 });
+    const head = (await hubs.more.branchHead())!;
+    expect(head).not.toBe(before);
+    expect(await hubs.more.show(head, "%P")).toBe(before);
+    expect(await hubs.more.show(head, "%B")).toBe("Reword the secret");
+    const stored = await hubs.more.fileBytesAt(head, "Open/note.md.age");
+    expect(textOf(decryptedAt(secret, stored))).toBe(PLAIN + TYPED);
+    expect(Buffer.from(stored).toString("latin1")).not.toContain("TYPED SECRET");
+    expect(Object.keys(await hubs.more.filesAt(head)).sort()).toEqual(["Open/fjord.vault.json", "Open/note.md.age", "Open/recipients.txt", "Sealed/fjord.vault.json", "Sealed/recipients.txt", "fjord.json"]);
+    await hubs.more.fsck();
+
+    // And the page now shows the saved file, not a draft.
+    await expect(page.getByText("Changes you made earlier")).toHaveCount(0);
+    expect(await page.evaluate(() => (window as unknown as { __violations: string[] }).__violations)).toEqual([]);
+    for (const forbidden of ["TYPED SECRET", "starts like this", PASSPHRASE, textOf(secret).slice(0, 24)]) expect(record.join("\n"), forbidden).not.toContain(forbidden);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("an id-named encrypted file keeps its name inside the container when edited, and a change from elsewhere is chosen about, never combined", async ({ page }) => {
+  test.setTimeout(300_000);
+  const name = "01jagc4k7pr9tbm3ykwx6zq2hz";
+  const path = `Sealed/${name}.age`;
+  const MINE = " MINE, TYPED HERE";
+  try {
+    const { id, secret, recipient } = await encryptedWorkbench(page, (recipient) => ({ [path]: wasm.encrypt(wasm.wrapContainer("Plan.md", bytes("# Plan\n\nfirst")), recipient, false) }));
+
+    const editor = await openEncrypted(page, `/repo/${id}/${path}`, "Plan.md");
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type(MINE);
+    await expect(status(page)).toHaveText("Changes kept as an encrypted draft.", { timeout: 30_000 });
+
+    // Someone saves another version from elsewhere (the CLI, say): the draft's base is no longer the file.
+    const theirs = await hubs.more.commitFiles({ [path]: wasm.encrypt(wasm.wrapContainer("Plan.md", bytes("# Plan\n\nsecond, from elsewhere")), recipient, false) });
+    await openEncrypted(page, `/repo/${id}/${path}`, "Plan.md");
+    await expect(page.getByText("This file changed in the repository after you started")).toBeVisible();
+    await expect(noteEditor(page, "Plan.md")).toHaveAttribute("contenteditable", "false");
+    await expect(page.getByRole("button", { name: "Combine" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Save version" })).toHaveCount(0);
+
+    // Keep mine: the draft moves onto the file as it is. Nothing is written to the repository by that.
+    await page.getByRole("button", { name: "Keep mine" }).click();
+    await expect(page.getByText("This file changed in the repository after you started")).toHaveCount(0, { timeout: 30_000 });
+    expect(await hubs.more.branchHead()).toBe(theirs);
+    await openEncrypted(page, `/repo/${id}/${path}`, "Plan.md");
+    await expect(noteEditor(page, "Plan.md")).toContainText("MINE, TYPED HERE");
+    await page.getByRole("button", { name: "Save version" }).click();
+    await expect(page.getByText("Version saved")).toBeVisible({ timeout: 30_000 });
+
+    // The version is on top of theirs, which stays in the history; its container still holds the name, and its text is ours.
+    const head = (await hubs.more.branchHead())!;
+    expect(await hubs.more.show(head, "%P")).toBe(theirs);
+    const unwrapped = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(head, path)));
+    expect(unwrapped.name).toBe("Plan.md");
+    expect(textOf(unwrapped.contents)).toBe(`# Plan\n\nfirst${MINE}`);
+    expect(textOf(wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(theirs, path))).contents)).toContain("second, from elsewhere");
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("taking the repository's version drops an encrypted draft", async ({ page }) => {
+  test.setTimeout(300_000);
+  try {
+    const { id, recipient } = await encryptedWorkbench(page, (recipient) => ({ "Open/note.md.age": wasm.encrypt(bytes("original"), recipient, false) }));
+    const editor = await openEncrypted(page, `/repo/${id}/Open/note.md.age`, "note.md");
+    await editor.click();
+    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.type(" draft words");
+    await expect(status(page)).toHaveText("Changes kept as an encrypted draft.", { timeout: 30_000 });
+
+    await hubs.more.commitFiles({ "Open/note.md.age": wasm.encrypt(bytes("changed elsewhere"), recipient, false) });
+    await openEncrypted(page, `/repo/${id}/Open/note.md.age`, "note.md");
+    await page.getByRole("button", { name: "Take theirs" }).click();
+    await expect(page.getByText("This file changed in the repository after you started")).toHaveCount(0, { timeout: 30_000 });
+    await openEncrypted(page, `/repo/${id}/Open/note.md.age`, "note.md");
+    await expect(noteEditor(page, "note.md")).toContainText("changed elsewhere");
+    await expect(noteEditor(page, "note.md")).not.toContainText("draft words");
+  } finally {
+    await restoreMore();
+  }
+});
+
 // --- A note in the note editor (ROADMAP 1b.2) -----------------------------------------------------------------
 
 /** `acme/more` holding these files, connected by a new account. */
@@ -1375,10 +1552,10 @@ test("who may delete and put back: a signed-in person, from this site, in their 
   }
 });
 
-test("an encrypted file stays locked, and a document opens in its editor", async ({ page }) => {
+test("an encrypted file asks for an identity, and a document opens in its editor", async ({ page }) => {
   const id = await connected(page);
   await page.goto(`/repo/${id}/Private/secret.md.age`);
-  await expect(page.getByText("Files in an encrypted vault cannot be opened in this version.")).toBeVisible();
+  await expect(page.getByText("No identity in this browser")).toBeVisible();
   await expect(page.getByRole("textbox")).toHaveCount(0);
   await page.goto(`/repo/${id}/Public/plan.fj.md`);
   await expect(noteEditor(page, "plan.fj.md")).toContainText("Plan");
@@ -3232,7 +3409,9 @@ const wasm = createRequire(join(process.cwd(), "package.json"))(join(wasmDirecto
   generateIdentity(): Uint8Array;
   identityRecipient(identity: Uint8Array): string;
   encrypt(plaintext: Uint8Array, recipients: string, armor: boolean): Uint8Array;
+  decrypt(ciphertext: Uint8Array, identity: Uint8Array): Uint8Array;
   wrapContainer(name: string, contents: Uint8Array): Uint8Array;
+  unwrapContainer(archive: Uint8Array): { name: string; contents: Uint8Array };
 };
 const bytes = (text: string) => new TextEncoder().encode(text);
 
@@ -3292,7 +3471,7 @@ test("an encrypted file is decrypted in the browser, in both namings, and nothin
   await page.getByRole("button", { name: "Unlock and open" }).click();
   const plain = page.getByRole("textbox", { name: "note.md", exact: true });
   await expect(plain).toContainText("# Plain-named secret", { timeout: 60_000 });
-  await expect(plain).toHaveAttribute("contenteditable", "false");
+  await expect(plain).toHaveAttribute("contenteditable", "true");
 
   // Hidden on request, and opened again.
   await page.getByRole("button", { name: "Hide" }).click();

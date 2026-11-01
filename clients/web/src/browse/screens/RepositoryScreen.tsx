@@ -14,6 +14,7 @@ import { docIdOf } from "../ids";
 import type { RepositoryRead } from "../repository";
 import { fjord } from "../../format/wasm";
 import { DeletedUpstream } from "../screens/DeletedUpstream";
+import { editingFor } from "../../encrypted/server";
 
 /**
  * One of the account's own repositories (`/repo/<connection>`), and a place inside it: `/repo/<connection>/<vault>/<folders…>`
@@ -61,12 +62,14 @@ export async function RepositoryScreen({ connection, path }: { connection: strin
       const preview = kept && note?.ok && kept.baseBlob !== note.blob ? await previewCombineFor(user.id, current.id, kept, note.text) : undefined;
       // What deleting names, as the page shows it now (ROADMAP 1b.12): the file's blob, and how many files are inside a folder.
       const fileBlob = file ? outcome.read.blobs.get(file.path) : undefined;
+      // An encrypted file is edited in the browser: its draft is ciphertext, and the browser encrypts to the vault's recipients (ROADMAP 2b.3).
+      const encryptedEditing = file?.kind === "payload" && found.location.kind === "file" && found.location.vault.encrypted === true ? await editingFor(user.id, current, outcome.read, found.location.vault.directory, file.path) : undefined;
       const prefix = `${segments.join("/")}/`;
       const folderFiles = found.location.kind === "folder" && !outcome.read.partial ? [...outcome.read.blobs.keys()].filter((path) => path.startsWith(prefix)).length : undefined;
       // A note or a document is a header and a body, and its editor is given the body: where that starts in the text shown, what
       // the header says, and the header a file with none is given on its first edit (ROADMAP 1b.3, 1b.5).
       const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
-      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "document" ? (docId ?? undefined) : undefined} destinations={moveDestinations(outcome.read)} />;
+      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "document" ? (docId ?? undefined) : undefined} destinations={moveDestinations(outcome.read)} />;
     }
   }
 
