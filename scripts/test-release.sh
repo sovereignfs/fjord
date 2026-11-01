@@ -805,15 +805,17 @@ freshw web6 0.1.0
   git push -q origin main
 )
 notesw web6
-relw web6 check 0.1.1
+relw web6 prepare 0.1.1 --skip-gates
 refuses "web: a patch release with a migration since the last release" "a patch release carries none"
-relw web6 check 0.2.0
+check_in web6 "web: ...and prepare put everything back" \
+  '[ "$(git branch --show-current)" = main ] && [ -z "$(git status --short | grep -v CHANGELOG)" ]'
+relw web6 prepare 0.2.0 --skip-gates
 accepts "web: ...but the same changes are fine in a minor release"
 
 freshw web7 0.1.0
 (cd "$T/web7" && git tag web-v0.1.0)
 notesw web7
-relw web7 check 0.1.1
+relw web7 prepare 0.1.1 --skip-gates
 accepts "web: a patch release with no migration since the last release"
 
 # --- The full gates, once ---------------------------------------------------------------
