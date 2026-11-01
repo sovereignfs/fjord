@@ -13,6 +13,8 @@ section.
 
 ### Added
 
+- **Share an encrypted file by a sealed link** (ROADMAP 2c.1): on an open encrypted file, *Make a sealed link* encrypts a copy in your browser, either to a key that lives only in the link (after the `#`, which is never sent to a server) or to a password you tell the reader. The server keeps the sealed copy and serves it to the link, and cannot read it; the link opens in any browser, read-only, with no account. Revoking a link deletes its copy. A sealed link is a snapshot of the file as it was, and has no comments yet.
+
 - **Move a file into, out of and between encrypted vaults** (ROADMAP 2b.6): *Move to another vault* on a file's page. Into an encrypted vault the file is encrypted in your browser to that vault's recipients; out of one it is decrypted in your browser, after the page tells you it will be committed as plain text; between two it is decrypted and encrypted again. The server, which has no key, takes the old file away and adds the bytes your browser made in one commit, and refuses plain text for an encrypted vault. The plain text of a file moved in stays in the repository's earlier commits. Text files only for now.
 
 - **Rename, move and delete in encrypted vaults** (ROADMAP 2b.5): files and folders of an encrypted vault are renamed, moved and deleted, and Undo and *Recently deleted* put them back, all with no key on the server, which moves the encrypted bytes as they are. A rename keeps what a file is (`Plan.md.age` stays a note). In a vault that names its files by id, a file keeps its identifier and is renamed by the name kept inside it, from its own page once it is open. Between vaults is not possible yet.

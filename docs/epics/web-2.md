@@ -163,13 +163,17 @@ Between a plaintext and an encrypted vault the file is encrypted or decrypted in
 
 ### 2c.1 Sealed link shares
 
-**Status:** 📋 Planned (§19 #13)
+**Status:** ✅ Done (§19 #13; comments on a copy are not)
 
 **Design:** DESIGN §12
 
 A share of an encrypted document cannot be read by the server, which has no key. A sealed share is a **link whose key is in the `#fragment`** (never sent to the server), or derived from a password by a slow hash: the sharer's browser re-encrypts a copy of the document, and later comments, to that key, and the server stores and serves only that ciphertext. Revoking deletes the copy.
 
 **Accepts when:** a test of the server's stored copy, requests and logs finds neither the key nor the plaintext; a link opened in a private window reads the document; revoking ends it.
+
+- **Done as:** `src/sealed/`. `seal.ts` (`sealShare`, `openShare`, with the identity's module): the payload is `{ v: 1, name, text }`, sealed to a fresh age key whose secret goes in the link's fragment (`#key=`), or to a password with `sealWithPassphrase` at the identity's work factor. `SealedSharePanel` (in the open encrypted file's page) makes a link, shows it once, lists the file's links and revokes. `service.ts` keeps `sealed_share` (migration `0015`, both dialects): the base64 copy, the mode, the file's path, and the token's SHA-256 only; the cap is 20 a file and 200 a repository; **revoke is a `DELETE` of the row**; disconnecting deletes them. `http.ts`: the owner's `…/sealed-shares` (`GET ?path=`, `POST`, `DELETE ?share=`; `owner("manage_shares")`, the `Origin` checked on a write, another account's connection a 404, an encrypted payload of an encrypted vault only, and only age bytes) and the link's `GET /api/sealed/<token>` (public: the token alone, one 404 for a wrong, unknown or revoked one, `no-store`). `/s/<token>` (`SealedView`) fetches with `credentials: "omit"`, opens in the browser and shows the text read-only; `robots` is `noindex`. `redact.ts` also masks `/s/<token>` and `/api/sealed/<token>`.
+- **Tested:** `service.test.ts` on the real databases (only the hash is kept, a token opens its copy and nothing else, revoking leaves no row, one connection cannot revoke another's, the bounds); `http.test.ts` (who may, from where, what is kept; plain text, non-base64 and a bad mode refused; nothing of the copy in an error); `seal.test.ts` with the real module (opened by its key or password and by nothing else, a new key every time, the server's check accepts it as ciphertext, no plaintext in it); `redact.test.ts`; each rule seen to fail a test with it off. In Chromium: a key link and a password link made from an open file; a private window with no cookies opens the key link, and neither it nor the server's requests or answers hold the key, the password or a word of the text; the same link without its fragment says the key is missing; a wrong password is told so; revoking turns the link into the 404 page and the API's 404; strangers and the plain-text routes are refused.
+- **Not here:** comments on a sealed copy (§19 #13 said they would be sealed to the same key; that needs a store of sealed comments, and is left); an expiry; an edit or comment role; updating a copy in place (the key is not kept, so a newer version is a new link); the server's own logs are held to the redactor by unit tests, not by reading a running instance's output.
 
 ### 2c.2 Security review of phase 2
 

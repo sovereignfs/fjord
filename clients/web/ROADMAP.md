@@ -107,7 +107,7 @@ Planned on 2026-10-31; the prerequisites (P7, P8) and the keys in the browser (2
 | [2b.4](../../docs/epics/web-2.md#2b4-create-in-encrypted-vaults) | Create in encrypted vaults | ✅ Done |
 | [2b.5](../../docs/epics/web-2.md#2b5-rename-move-and-delete) | Rename, move and delete | ✅ Done |
 | [2b.6](../../docs/epics/web-2.md#2b6-moving-files-in-and-out-of-vaults) | Moving files in and out of vaults | ✅ Done |
-| [2c.1](../../docs/epics/web-2.md#2c1-sealed-link-shares) | Sealed link shares | 📋 Planned (§19 #13) |
+| [2c.1](../../docs/epics/web-2.md#2c1-sealed-link-shares) | Sealed link shares | ✅ Done |
 | [2c.2](../../docs/epics/web-2.md#2c2-security-review-of-phase-2) | Security review of phase 2 | 📋 Planned |
 
 ## Phase 3 — collaborative editing

@@ -1036,6 +1036,97 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
   }
 });
 
+// --- Sealed link shares of encrypted files (ROADMAP 2c.1) ---
+
+test("an encrypted file is shared by a sealed link: the server holds a copy it cannot read, a private window opens it, and revoking ends it", async ({ page, browser }) => {
+  test.setTimeout(300_000);
+  const TEXT = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\ntitle: Budget\n---\n\n# Budget\n\nSECRET PLAINTEXT of the budget\n";
+  const SHARE_PASSWORD = "a password for sharing";
+  try {
+    const { id, record } = await encryptedWorkbench(page, (recipient) => ({ "Open/Budget.fj.md.age": wasm.encrypt(bytes(TEXT), recipient, false) }));
+    await openEncrypted(page, `/repo/${id}/Open/Budget.fj.md.age`, "Budget.fj.md");
+    const panel = page.getByTestId("sealed-shares");
+
+    // A link with the key in it.
+    await panel.getByRole("button", { name: "Make a sealed link" }).click();
+    await panel.getByRole("button", { name: "Make link" }).click();
+    const keyLink = (await panel.getByTestId("sealed-link").textContent())!;
+    expect(keyLink).toMatch(/^http:\/\/localhost:3201\/s\/[A-Za-z0-9_-]{43}#key=AGE-SECRET-KEY-1[A-Z0-9]+$/);
+    const [keyAddress, key] = keyLink.split("#key=") as [string, string];
+    const token = keyAddress.split("/s/")[1]!;
+
+    // A private window reads it: no account, no cookies, and nothing it sent or was sent holds the key or the text.
+    const visitor = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.91" } });
+    const guest = await visitor.newPage();
+    const seen: string[] = [];
+    guest.on("request", (request) => seen.push(`${request.method()} ${request.url()} ${JSON.stringify(request.headers())} ${request.postData() ?? ""}`));
+    guest.on("response", async (response) => seen.push(`${response.url()} ${(await response.body().catch(() => Buffer.alloc(0))).toString("latin1")}`));
+    await guest.goto(keyLink);
+    await expect(noteEditor(guest, "Budget.fj.md")).toContainText("SECRET PLAINTEXT of the budget", { timeout: 60_000 });
+    await guest.waitForLoadState("networkidle");
+    expect(seen.some((line) => line.includes(`/api/sealed/${token}`))).toBe(true);
+    for (const forbidden of [key, key.slice(0, 20), "SECRET PLAINTEXT"]) expect(seen.join("\n"), forbidden).not.toContain(forbidden);
+    expect(JSON.stringify(await visitor.cookies())).not.toContain(token);
+
+    // What the server was sent and says: the copy, sealed, and neither the key nor the text.
+    const made = record.filter((line) => line.startsWith("POST ") && line.includes("/sealed-shares"));
+    expect(made).toHaveLength(1);
+    expect(made[0]).toContain("YWdlLWVuY3J5cHRpb24ub3JnL3Yx");
+    for (const forbidden of [key, "SECRET PLAINTEXT", PASSPHRASE]) expect(record.join("\n"), forbidden).not.toContain(forbidden);
+    const served = await visitor.request.get(`/api/sealed/${token}`);
+    expect(served.status()).toBe(200);
+    expect(JSON.stringify(await served.json())).not.toContain("SECRET PLAINTEXT");
+
+    // The link without its key says so; a made-up token is the same 404 as a revoked one.
+    const incomplete = await visitor.newPage();
+    await incomplete.goto(keyAddress);
+    await expect(incomplete.getByText("the key that opens the copy is missing")).toBeVisible({ timeout: 30_000 });
+    expect((await visitor.request.get(`/api/sealed/${"A".repeat(43)}`, { failOnStatusCode: false })).status()).toBe(404);
+
+    // A link with a password: the password is not in the link, and is typed by the viewer.
+    await panel.getByRole("button", { name: "Make a sealed link" }).click();
+    await panel.getByLabel("A password opens it").check();
+    await panel.getByRole("textbox", { name: "Password" }).fill(SHARE_PASSWORD);
+    await panel.getByRole("button", { name: "Make link" }).click();
+    await expect(panel.getByTestId("sealed-link")).toHaveText(/^http:\/\/localhost:3201\/s\/[A-Za-z0-9_-]{43}$/, { timeout: 60_000 });
+    const passwordLink = (await panel.getByTestId("sealed-link").textContent())!;
+    const secondVisitor = await visitor.newPage();
+    await secondVisitor.goto(passwordLink);
+    await secondVisitor.getByLabel("Password").fill("not the password at all");
+    await secondVisitor.getByRole("button", { name: "Open" }).click();
+    await expect(secondVisitor.getByText("That password does not open it.")).toBeVisible({ timeout: 60_000 });
+    await secondVisitor.getByLabel("Password").fill(SHARE_PASSWORD);
+    await secondVisitor.getByRole("button", { name: "Open" }).click();
+    await expect(noteEditor(secondVisitor, "Budget.fj.md")).toContainText("SECRET PLAINTEXT of the budget", { timeout: 60_000 });
+    expect(record.join("\n")).not.toContain(SHARE_PASSWORD);
+
+    // Revoking deletes the copy: the link stops working, and the list says there is one less.
+    await expect(panel.getByRole("list", { name: "Sealed links" }).getByRole("listitem")).toHaveCount(2);
+    await panel.getByRole("listitem").filter({ hasText: "Key in the link" }).getByRole("button", { name: "Revoke" }).click();
+    await expect(panel.getByRole("list", { name: "Sealed links" }).getByRole("listitem")).toHaveCount(1, { timeout: 30_000 });
+    expect((await visitor.request.get(`/api/sealed/${token}`, { failOnStatusCode: false })).status()).toBe(404);
+    const again = await visitor.newPage();
+    await again.goto(keyLink);
+    await expect(again.getByText("This link does not work")).toBeVisible({ timeout: 30_000 });
+    await visitor.close();
+
+    // Only the owner makes or revokes a share; the plain file of a plaintext vault is not shared this way.
+    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.92" } });
+    expect((await stranger.request.get(`/api/connections/${id}/sealed-shares?path=Open/Budget.fj.md.age`, { failOnStatusCode: false })).status()).toBe(401);
+    expect((await stranger.request.post(`/api/connections/${id}/sealed-shares`, { headers: { origin: BASE }, data: {}, failOnStatusCode: false })).status()).toBe(401);
+    await stranger.close();
+    const plainFile = await page.request.post(`/api/connections/${id}/sealed-shares`, {
+      headers: { origin: BASE },
+      data: { path: "Open/recipients.txt", mode: "key", ciphertext: Buffer.from("age-encryption.org/v1\n-> X25519 x\nbody").toString("base64") },
+      failOnStatusCode: false,
+    });
+    expect(plainFile.status()).toBe(422);
+    expect((await page.request.post(`/api/connections/${id}/sealed-shares`, { headers: { origin: BASE }, data: { path: "Open/Budget.fj.md.age", mode: "key", ciphertext: Buffer.from("# plain").toString("base64") }, failOnStatusCode: false })).status()).toBe(422);
+  } finally {
+    await restoreMore();
+  }
+});
+
 // --- A note in the note editor (ROADMAP 1b.2) -----------------------------------------------------------------
 
 /** `acme/more` holding these files, connected by a new account. */

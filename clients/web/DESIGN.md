@@ -1171,9 +1171,25 @@ stays): a later expiry revives a link that had expired, a new password forgets t
 it (the proof in a cookie is bound to the password's hash), and a role change is in force on the next request. Notes, and anything in an
 encrypted vault, have no panel. Not here: a list of what has been shared *with* you, and changing the address a person was shared with.
 
-**Encrypted documents** are shared in phase 2, as sealed copies: the copy and its
-comments encrypted in the browser with a key carried in the link's `#fragment` (or
-derived from a password), so the server never sees the content.
+**Encrypted documents** are shared in phase 2, as sealed copies: the copy encrypted in the
+browser with a key carried in the link's `#fragment` (or derived from a password), so the
+server never sees the content. Comments on a sealed copy are not built (see below).
+
+*As built (ROADMAP 2c.1).* On the page of an encrypted file that is open, *Make a sealed link* has this browser make a **snapshot** of the
+file: a small JSON document, `{ v, name, text }`, sealed either to a **one-use age key** made for the share, whose secret is returned to
+the page and put in the link's fragment (`/s/<token>#key=AGE-SECRET-KEY-1…`) and **kept nowhere else**, or to a **password** (age's scrypt,
+at the identity's work factor, 2^17, so guessing is slow; at least ten characters; the link has no fragment and the password is told
+separately). `POST /api/connections/<id>/sealed-shares` keeps the sealed bytes as base64 under the **SHA-256 of a 256-bit token**, which
+the answer holds once (`sealed_share`, migration `0015`); it refuses anything that does not begin as an age file, so no plain text is
+kept, and a path that is not an encrypted payload of an encrypted vault. `GET /api/sealed/<token>` (no session, no cookie, `no-store`)
+serves the copy and its mode to whoever holds the token, and a token that is wrong, never was or was revoked is one 404. `/s/<token>`
+is the page: it fetches the copy without credentials, reads the key from `location.hash`, which no request carries, and shows the
+document read-only. **Revoking deletes the row**, so the copy is gone, not hidden; so does disconnecting the repository. The log
+redactor also covers `/s/<token>` and `/api/sealed/<token>`. A link is read-only and lasts until revoked; a share does not follow the
+file (it is a snapshot: to share a newer version, make a new link and revoke the old, since the key was never kept to re-seal under).
+**Not here:** comments on a sealed copy (they would need a store of sealed comments under the same key), an expiry, and role
+choices beyond reading. A password link hands its ciphertext to anyone with the token, who can try passwords offline at the cost of
+one scrypt each; the length rule and the work factor are the defence.
 
 ## 13. Comments
 
@@ -1608,7 +1624,7 @@ standalone output would otherwise prune it.
 | 10 | Path route for notes without an id: `/repo/<connection>/<path>` | As written |
 | 11 | Restore window for deleted files | 30 days, per instance |
 | 12 | Converting a document to a note or back (changing the extension) | Not in phase 1; rename keeps the extension |
-| 13 | Sealed shares of encrypted documents: link key in the `#fragment` only, or also a password-derived one? Do comments on a sealed copy stay sealed? | Both; comments sealed to the same key (`web-2.md` 2c.1) |
+| 13 | Sealed shares of encrypted documents: link key in the `#fragment` only, or also a password-derived one? Do comments on a sealed copy stay sealed? | **Both built (2026-11-01):** key in the fragment, or a password (`web-2.md` 2c.1). Comments on a sealed copy are not built: they would need sealed comments under the same key — later |
 | 14 | ~~Where the age identity lives in the browser~~ **Decided and built (2026-11-01):** IndexedDB, as a passphrase-sealed age file (scrypt 2^17), unlocked into memory per page, locked after fifteen quiet minutes (`web-2.md` 2a.1) | — |
 
 ## 20. Decision log
