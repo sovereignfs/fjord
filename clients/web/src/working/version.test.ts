@@ -9,7 +9,9 @@ import { freshDatabase, testTarget } from "../db/test-support";
 import type { Identity, Provider } from "../providers/types";
 import type { FakeGitHub } from "../providers/testing/fake-github";
 import { githubHarness } from "../providers/testing/harnesses";
+import { wasmAvailable } from "../format/wasm";
 import { type Editor, WorkingCopyService } from "./service";
+import { encryptedDraft } from "./test-ciphertext";
 import { composeMessage, defaultMessage, formatIdentity, guestIdentity, saveVersion } from "./version";
 
 /**
@@ -337,5 +339,35 @@ describe(`a version from a draft (${leg})`, () => {
       const result = await saveVersion({ ...deps(), drafts: broken }, { connectionId: 1, path: "n.md", author: ADA, authorId: "ada" });
       expect(result.ok).toBe(true);
     });
+  });
+});
+
+describe(`a version from an encrypted draft (${leg})`, () => {
+  const available = wasmAvailable();
+
+  it.runIf(available)("commits the ciphertext's bytes as they are, with no key, and the repository holds no plaintext", async () => {
+    await h.seed({ "Secret/n.age": "old ciphertext", "README.md": "r" });
+    const { content, bytes } = encryptedDraft("SECRET PLAINTEXT of the note");
+    await drafts.save(1, "Secret/n.age", { baseBlob: await blobOf("Secret/n.age"), content, encrypted: true }, ed("ada"));
+
+    const result = await version("Secret/n.age");
+    expect(result).toEqual({ ok: true, commit: expect.stringMatching(/^[0-9a-f]{40}$/) });
+    const stored = await h.provider.readBlob(h.repo, await blobOf("Secret/n.age"));
+    expect([...stored]).toEqual([...bytes]);
+    expect(Buffer.from(stored).toString("latin1")).not.toContain("SECRET PLAINTEXT");
+    expect(await drafts.get(1, "Secret/n.age")).toBeUndefined();
+    await fake.fsck();
+  });
+
+  it("refuses a draft that is not ciphertext, whatever row it came from, and writes nothing", async () => {
+    await h.seed({ "Secret/n.age": "old ciphertext" });
+    const before = await fake.branchHead();
+    await drafts.save(1, "Secret/n.age", { baseBlob: await blobOf("Secret/n.age"), content: "x" }, ed("ada"));
+    // A row that says it is encrypted and holds plain text: not made by the service, which would not have kept it.
+    await dbRun(database, sql`UPDATE ${table()} SET encrypted = 1, content = ${Buffer.from("# PLAIN").toString("base64")}`);
+
+    expect(await version("Secret/n.age")).toEqual({ ok: false, reason: "not_ciphertext" });
+    expect(await fake.branchHead()).toBe(before);
+    expect(await drafts.get(1, "Secret/n.age")).toBeDefined();
   });
 });

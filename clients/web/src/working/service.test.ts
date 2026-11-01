@@ -6,6 +6,8 @@ import { runMigrations } from "../db/migrate";
 import * as postgresSchema from "../db/schema/postgres";
 import * as sqliteSchema from "../db/schema/sqlite";
 import { freshDatabase, testTarget } from "../db/test-support";
+import { wasmAvailable } from "../format/wasm";
+import { encryptedDraft } from "./test-ciphertext";
 import { type Editor, MAX_CONTENT_BYTES, MAX_DRAFTS_PER_CONNECTION, MAX_EDITORS, type WorkingCopy, WorkingCopyService, whyUnstorable } from "./service";
 
 /**
@@ -49,7 +51,7 @@ describe(`drafts (${leg})`, () => {
   it("keeps what was typed, byte for byte, with who typed it and when", async () => {
     const content = "# Title\r\n\r\nlines  \r\nwith trailing space \t\r\n\r\n   ünï 💧 \n\n";
     const copy = await saved(service.save(1, "Notes/a.md", { baseBlob: "blob-1", content }, ALICE));
-    expect(copy).toEqual({ path: "Notes/a.md", baseBlob: "blob-1", content, editors: [ALICE], createdAt: clock, lastEdit: clock });
+    expect(copy).toEqual({ path: "Notes/a.md", baseBlob: "blob-1", content, encrypted: false, editors: [ALICE], createdAt: clock, lastEdit: clock });
     expect(await service.get(1, "Notes/a.md")).toEqual(copy);
   });
 
@@ -222,7 +224,7 @@ describe(`drafts (${leg})`, () => {
       const before = await start();
       clock += 5_000;
       const result = await service.rebase(1, "a.md", { fromBase: "old", toBase: "new", content: "merged", lastEdit: before.lastEdit }, BOB);
-      expect(result).toEqual({ ok: true, workingCopy: { path: "a.md", baseBlob: "new", content: "merged", editors: [ALICE, BOB], createdAt: before.createdAt, lastEdit: clock } });
+      expect(result).toEqual({ ok: true, workingCopy: { path: "a.md", baseBlob: "new", content: "merged", encrypted: false, editors: [ALICE, BOB], createdAt: before.createdAt, lastEdit: clock } });
       expect(await service.get(1, "a.md")).toEqual((result as { workingCopy: WorkingCopy }).workingCopy);
     });
 
@@ -276,5 +278,45 @@ describe(`drafts (${leg})`, () => {
     expect(await service.count(1)).toBe(0);
     expect(await service.count(2)).toBe(1);
     expect(await dbAll(database, sql`SELECT id FROM ${table()}`)).toHaveLength(1);
+  });
+});
+
+
+describe(`encrypted drafts (${leg})`, () => {
+  const cipher = (text = "SECRET PLAINTEXT") => encryptedDraft(text).content;
+  const available = wasmAvailable();
+
+  it.runIf(available)("keeps the ciphertext as it was sent, flagged, and a dump of the table holds no plaintext", async () => {
+    const content = cipher("SECRET PLAINTEXT, nowhere in the database");
+    const draft = await saved(service.save(1, "V/n.age", { baseBlob: "blob-1", content, encrypted: true }, ALICE));
+    expect(draft).toMatchObject({ content, encrypted: true });
+    expect(await service.get(1, "V/n.age")).toEqual(draft);
+
+    const dump = JSON.stringify(await dbAll(database, sql`SELECT * FROM ${table()}`));
+    expect(dump).toContain(content);
+    expect(dump).not.toContain("SECRET PLAINTEXT");
+  });
+
+  it("refuses text that is not ciphertext for an encrypted draft, and keeps nothing", async () => {
+    for (const content of ["# plain\n", Buffer.from("# plain\n").toString("base64"), ""]) {
+      const result = await service.save(1, "V/n.age", { baseBlob: "blob-1", content, encrypted: true }, ALICE);
+      expect(result).toMatchObject({ ok: false, reason: "unstorable" });
+    }
+    expect(await service.count(1)).toBe(0);
+  });
+
+  it.runIf(available)("never turns a draft from one kind into the other", async () => {
+    await saved(service.save(1, "V/n.age", { baseBlob: "blob-1", content: cipher(), encrypted: true }, ALICE));
+    expect(await service.save(1, "V/n.age", { baseBlob: "blob-1", content: "plain text" }, ALICE)).toEqual({ ok: false, reason: "encryption_mismatch" });
+    await saved(service.save(1, "p.md", { baseBlob: "blob-2", content: "plain text" }, ALICE));
+    expect(await service.save(1, "p.md", { baseBlob: "blob-2", content: cipher(), encrypted: true }, ALICE)).toEqual({ ok: false, reason: "encryption_mismatch" });
+    expect((await service.get(1, "p.md"))?.content).toBe("plain text");
+  });
+
+  it.runIf(available)("stays encrypted when it is moved onto a new version of the file", async () => {
+    const first = await saved(service.save(1, "V/n.age", { baseBlob: "old", content: cipher(), encrypted: true }, ALICE));
+    const moved = await service.rebase(1, "V/n.age", { fromBase: "old", toBase: "new", content: first.content, lastEdit: first.lastEdit }, ALICE);
+    expect(moved).toMatchObject({ ok: true, workingCopy: { baseBlob: "new", encrypted: true } });
+    expect(await service.rebase(1, "V/n.age", { fromBase: "new", toBase: "newer", content: "plain", lastEdit: 0 }, ALICE)).toMatchObject({ ok: false });
   });
 });

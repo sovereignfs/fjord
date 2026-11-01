@@ -14,8 +14,8 @@ export async function workingCopyService(): Promise<WorkingCopyService> {
   return new WorkingCopyService(await getDatabase());
 }
 
-/** Whether `path` of one of the account's repositories is, now, a note or a document in a plaintext vault: what the host says, through the same reading the pages use. */
-async function editableNote(accountId: string, id: number, path: string): Promise<"yes" | "no" | "unavailable"> {
+/** What `path` of one of the account's repositories is, now, to edit: what the host says, through the same reading the pages use. */
+async function editableNote(accountId: string, id: number, path: string): Promise<"yes" | "encrypted" | "no" | "unavailable"> {
   const connection = await (await connectionService()).get(accountId, id);
   if (!connection) return "no";
   const outcome = await readConnection(accountId, connection);
@@ -23,7 +23,10 @@ async function editableNote(accountId: string, id: number, path: string): Promis
   const found = await locateInRepository(accountId, connection, outcome.read, path.split("/"));
   if (!found.ok) return "unavailable";
   const { location } = found;
-  return location.kind === "file" && (location.file.kind === "note" || location.file.kind === "document") && location.vault.encrypted === false ? "yes" : "no";
+  if (location.kind !== "file") return "no";
+  if ((location.file.kind === "note" || location.file.kind === "document") && location.vault.encrypted === false) return "yes";
+  // An encrypted file of an encrypted vault is edited as ciphertext (ROADMAP 2b.3).
+  return location.file.kind === "payload" && location.vault.encrypted === true ? "encrypted" : "no";
 }
 
 /** Make a version of one of the account's drafts: through the connection's own token, on the branch it was connected with. */

@@ -12,6 +12,7 @@ import type { FakeGitHub } from "../providers/testing/fake-github";
 import { githubHarness } from "../providers/testing/harnesses";
 import { OURS_LABEL, THEIRS_LABEL, previewCombine, resolveUpstream } from "./resolve";
 import { type Editor, WorkingCopyService } from "./service";
+import { encryptedDraft } from "./test-ciphertext";
 import { saveVersion } from "./version";
 
 /**
@@ -203,5 +204,35 @@ describe.skipIf(!available)(`going on after the file changed (${leg})`, () => {
       const draft = (await drafts.get(1, "n.md"))!;
       expect(await previewCombine(h.provider, h.repo, fjord(), { ...draft, baseBlob: "e".repeat(40) }, "theirs\n")).toEqual({ state: "unavailable" });
     });
+  });
+});
+
+describe.skipIf(!available)(`going on after an encrypted file changed (${leg})`, () => {
+  async function divergeEncrypted() {
+    await h.seed({ "Secret/n.age": "old ciphertext" });
+    const baseBlob = await blobOf("Secret/n.age");
+    const mine = encryptedDraft("SECRET PLAINTEXT mine");
+    await drafts.save(1, "Secret/n.age", { baseBlob, content: mine.content, encrypted: true }, ADA);
+    const commit = await fake.commitFiles({ "Secret/n.age": "theirs ciphertext" });
+    return { baseBlob, commit, mine, theirsBlob: await blobOf("Secret/n.age") };
+  }
+
+  it("keeps mine by moving the ciphertext onto the file as it is, still encrypted, and writes nothing", async () => {
+    const { commit, mine, theirsBlob } = await divergeEncrypted();
+    expect(await resolve("mine", { path: "Secret/n.age" })).toEqual({ ok: true, conflicts: 0 });
+    expect(await drafts.get(1, "Secret/n.age")).toMatchObject({ baseBlob: theirsBlob, content: mine.content, encrypted: true });
+    expect(await fake.branchHead()).toBe(commit);
+  });
+
+  it("does not combine, as the server has no key to read either side, and changes nothing", async () => {
+    const { baseBlob, mine } = await divergeEncrypted();
+    expect(await resolve("combine", { path: "Secret/n.age" })).toEqual({ ok: false, reason: "encrypted" });
+    expect(await drafts.get(1, "Secret/n.age")).toMatchObject({ baseBlob, content: mine.content });
+  });
+
+  it("offers no preview of a combination", async () => {
+    await divergeEncrypted();
+    const draft = (await drafts.get(1, "Secret/n.age"))!;
+    expect(await previewCombine(h.provider, h.repo, fjord(), draft, "anything")).toEqual({ state: "unavailable" });
   });
 });

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { isProviderError } from "../providers/errors";
 import type { Identity, Provider, RepositoryRef } from "../providers/types";
+import { fromBase64, looksEncrypted } from "./ciphertext";
 import type { Editor, WorkingCopyService } from "./service";
 
 /**
@@ -13,6 +14,9 @@ import type { Editor, WorkingCopyService } from "./service";
  *    file is no reason to refuse: it is read again, once, and the commit goes on top of the new head. It is never forced.
  *  - **The saver is the author**; everyone else who edited since the last version is credited with a `Co-authored-by:`
  *    trailer, as an account that no longer exists is not.
+ *  - **An encrypted draft is committed as it is** (ROADMAP 2b.3): its content is the file's ciphertext as base64, made in the browser, and the
+ *    commit holds those bytes. No key is needed or used. Anything that does not begin as an age file is refused, never committed: plaintext
+ *    does not go into an encrypted vault (invariant 1).
  *  - **The draft ends with the version**, unless something was typed into it while the commit was being made: that is
  *    not in the version, and is not thrown away.
  */
@@ -27,7 +31,7 @@ export interface VersionDeps {
 
 export type VersionResult =
   | { ok: true; commit: string }
-  | { ok: false; reason: "no_draft" | "nothing_to_save" | "upstream_changed" | "gone" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
+  | { ok: false; reason: "no_draft" | "nothing_to_save" | "upstream_changed" | "gone" | "head_moved" | "read_only" | "bad_token" | "unavailable" | "not_ciphertext" };
 
 export { MAX_MESSAGE_CHARS } from "./limits";
 /** A head that moved is read again this many times before giving up. */
@@ -81,6 +85,15 @@ export async function saveVersion(deps: VersionDeps, input: { connectionId: numb
   const draft = await deps.drafts.get(input.connectionId, input.path);
   if (!draft) return { ok: false, reason: "no_draft" };
 
+  let bytes: Uint8Array;
+  if (draft.encrypted) {
+    const decoded = fromBase64(draft.content);
+    if (decoded === undefined || !looksEncrypted(decoded)) return { ok: false, reason: "not_ciphertext" };
+    bytes = decoded;
+  } else {
+    bytes = new TextEncoder().encode(draft.content);
+  }
+
   const author = formatIdentity(input.author);
   const coAuthors: Identity[] = [];
   for (const editor of draft.editors) {
@@ -109,7 +122,7 @@ export async function saveVersion(deps: VersionDeps, input: { connectionId: numb
           expectedHead,
           message,
           author,
-          changes: [{ path: input.path, content: new TextEncoder().encode(draft.content) }],
+          changes: [{ path: input.path, content: bytes }],
         });
         // The version exists whatever happens to the draft: if it cannot be removed it stays, the same text as the file.
         await deps.drafts.discardUnchanged(input.connectionId, input.path, draft.lastEdit).catch(() => console.error("[fjord] versions: a draft could not be removed after its version was made"));

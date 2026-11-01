@@ -21,6 +21,8 @@ export function attemptFrom(status: number, body: { error?: { code?: string; mes
     case "too_large":
     case "too_many_drafts":
       return { kind: "refused", stop: false, message: message ?? "This text cannot be kept as a draft." };
+    case "encryption_mismatch":
+      return { kind: "refused", stop: true, message: "This draft is kept in another way than this page keeps it. Reload the page; nothing you typed was lost on the server." };
     case "not_editable":
       return { kind: "refused", stop: true, message: message ?? "This file cannot be edited here." };
   }
@@ -30,8 +32,9 @@ export function attemptFrom(status: number, body: { error?: { code?: string; mes
   return { kind: "failed" };
 }
 
-export async function sendDraft(connectionId: number, path: string, baseBlob: string, content: string): Promise<Attempt> {
-  const body = JSON.stringify({ path, baseBlob, content });
+/** `encrypted` is for the draft of an encrypted vault's file: `content` is then its ciphertext as base64 (ROADMAP 2b.3), made here. */
+export async function sendDraft(connectionId: number, path: string, baseBlob: string, content: string, encrypted = false): Promise<Attempt> {
+  const body = JSON.stringify(encrypted ? { path, baseBlob, content, encrypted } : { path, baseBlob, content });
   try {
     const response = await fetch(address(connectionId), {
       method: "PUT",

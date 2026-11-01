@@ -91,6 +91,8 @@ export async function saveGuestDraft(deps: GuestDeps, input: { cookie: string | 
   let before: string;
   let baseBlob: string;
   if (existing) {
+    // A draft of an encrypted file is ciphertext, which a guest's text cannot be put after (a shared document is never in an encrypted vault).
+    if (existing.encrypted) return { ok: false, reason: "not_editable" };
     before = existing.content;
     baseBlob = existing.baseBlob;
   } else {
@@ -115,6 +117,7 @@ export async function saveGuestDraft(deps: GuestDeps, input: { cookie: string | 
     case "too_many_editors":
       return { ok: false, reason: "too_many_editors" };
     case "base_mismatch":
+    case "encryption_mismatch":
       return { ok: false, reason: "unavailable" };
   }
 }

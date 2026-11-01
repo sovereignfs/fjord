@@ -1,0 +1,1 @@
+ALTER TABLE "fjord"."working_copy" ADD COLUMN "encrypted" integer DEFAULT 0 NOT NULL;

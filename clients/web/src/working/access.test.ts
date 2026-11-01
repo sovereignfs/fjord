@@ -6,10 +6,10 @@ import type { WorkingCopy } from "./service";
  * The repository's rules for a draft (`access.ts`), with stand-ins for the database and the host: whose it may be,
  * when the host is asked, and who it is attributed to.
  */
-const INPUT = { path: "Notes/a.md", baseBlob: "a".repeat(40), content: "text" };
-const COPY: WorkingCopy = { path: "Notes/a.md", baseBlob: INPUT.baseBlob, content: "text", editors: [{ type: "account", id: "alice" }], createdAt: 1, lastEdit: 2 };
+const INPUT = { path: "Notes/a.md", baseBlob: "a".repeat(40), content: "text", encrypted: false };
+const COPY: WorkingCopy = { path: "Notes/a.md", baseBlob: INPUT.baseBlob, content: "text", encrypted: false, editors: [{ type: "account", id: "alice" }], createdAt: 1, lastEdit: 2 };
 
-function setup(over: { owns?: boolean; existing?: WorkingCopy; editable?: "yes" | "no" | "unavailable" } = {}) {
+function setup(over: { owns?: boolean; existing?: WorkingCopy; editable?: "yes" | "encrypted" | "no" | "unavailable" } = {}) {
   const service = {
     get: vi.fn(async (..._args: unknown[]) => over.existing),
     save: vi.fn(async (..._args: unknown[]) => ({ ok: true as const, workingCopy: COPY })),
@@ -43,7 +43,7 @@ describe("whose", () => {
   it("is kept for the connection asked, attributed to the caller", async () => {
     const { access, service } = setup();
     await access.save("alice", 7, INPUT);
-    expect(service.save).toHaveBeenCalledWith(7, "Notes/a.md", { baseBlob: INPUT.baseBlob, content: "text" }, { type: "account", id: "alice" });
+    expect(service.save).toHaveBeenCalledWith(7, "Notes/a.md", { baseBlob: INPUT.baseBlob, content: "text", encrypted: false }, { type: "account", id: "alice" });
   });
 
   it("is thrown away for the connection asked", async () => {
@@ -71,6 +71,25 @@ describe("starting a draft", () => {
     const { access, service } = setup({ editable: "unavailable" });
     expect(await access.save("alice", 1, INPUT)).toEqual({ found: true, result: { ok: false, reason: "unavailable" } });
     expect(service.save).not.toHaveBeenCalled();
+  });
+});
+
+describe("an encrypted vault's file (ROADMAP 2b.3)", () => {
+  const cipher = { ...INPUT, content: "YWdl", encrypted: true };
+
+  it("is kept as ciphertext when the host says it is an encrypted file", async () => {
+    const { access, service } = setup({ editable: "encrypted" });
+    expect(await access.save("alice", 1, cipher)).toMatchObject({ found: true, result: { ok: true } });
+    expect(service.save).toHaveBeenCalledWith(1, "Notes/a.md", { baseBlob: INPUT.baseBlob, content: "YWdl", encrypted: true }, { type: "account", id: "alice" });
+  });
+
+  it("never keeps plain text for it, nor ciphertext for a plain note", async () => {
+    const encrypted = setup({ editable: "encrypted" });
+    expect(await encrypted.access.save("alice", 1, INPUT)).toEqual({ found: true, result: { ok: false, reason: "not_editable" } });
+    const plain = setup({ editable: "yes" });
+    expect(await plain.access.save("alice", 1, cipher)).toEqual({ found: true, result: { ok: false, reason: "not_editable" } });
+    expect(encrypted.service.save).not.toHaveBeenCalled();
+    expect(plain.service.save).not.toHaveBeenCalled();
   });
 });
 

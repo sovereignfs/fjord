@@ -91,6 +91,11 @@ export const workingCopy = app.table(
     path: text("path").notNull(),
     baseBlob: text("base_blob").notNull(),
     content: text("content").notNull(),
+    /**
+     * 1 when `content` is not the text but the file's **ciphertext** as base64, made in the browser (ROADMAP 2b.3): the draft of a file
+     * in an encrypted vault, kept encrypted to the vault's recipients so that the server holds no plaintext of it, ever.
+     */
+    encrypted: integer("encrypted").notNull().default(0),
     editors: text("editors").notNull(),
     createdAt: epochMs("created_at").notNull(),
     lastEdit: epochMs("last_edit").notNull(),

@@ -1,0 +1,1 @@
+ALTER TABLE `working_copy` ADD `encrypted` integer DEFAULT 0 NOT NULL;

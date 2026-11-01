@@ -99,6 +99,13 @@
       "when": 1793449884717,
       "tag": "0013_rate_buckets",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1793520641350,
+      "tag": "0014_working_copy_encrypted",
+      "breakpoints": true
     }
   ]
 }

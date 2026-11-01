@@ -3,6 +3,7 @@ import type { Database } from "../db/client";
 import { dbAll, dbGet, dbRun } from "../db/exec";
 import * as postgresSchema from "../db/schema/postgres";
 import * as sqliteSchema from "../db/schema/sqlite";
+import { whyNotCiphertext } from "./ciphertext";
 
 /**
  * Drafts of files being edited (DESIGN.md §11, ROADMAP 1b.8): what someone has typed so far, kept as they type so that
@@ -41,6 +42,8 @@ export interface WorkingCopy {
   path: string;
   baseBlob: string;
   content: string;
+  /** True when `content` is the file's ciphertext as base64, made in the browser (ROADMAP 2b.3), not its text. */
+  encrypted: boolean;
   editors: Editor[];
   createdAt: number;
   lastEdit: number;
@@ -51,18 +54,21 @@ export type SaveResult =
   /** The draft is of a different version of the file. `baseBlob` is the one it is of. */
   | { ok: false; reason: "base_mismatch"; baseBlob: string }
   | { ok: false; reason: "too_many" }
+  /** The draft is of the other kind: an encrypted draft is never replaced by plain text, nor a plain one by ciphertext. */
+  | { ok: false; reason: "encryption_mismatch" }
   /** The draft has as many editors as it keeps, and this one is not among them. */
   | { ok: false; reason: "too_many_editors" }
   | { ok: false; reason: "unstorable"; message: string };
 
 const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy);
-const COLUMNS = sql.raw('id, path, base_blob AS "baseBlob", content, editors, created_at AS "createdAt", last_edit AS "lastEdit"');
+const COLUMNS = sql.raw('id, path, base_blob AS "baseBlob", content, encrypted, editors, created_at AS "createdAt", last_edit AS "lastEdit"');
 
 interface Row {
   id: number;
   path: string;
   baseBlob: string;
   content: string;
+  encrypted: number | string;
   editors: string;
   createdAt: number;
   lastEdit: number;
@@ -72,13 +78,15 @@ const toCopy = (row: Row): WorkingCopy => ({
   path: row.path,
   baseBlob: row.baseBlob,
   content: row.content,
+  encrypted: Number(row.encrypted) === 1,
   editors: JSON.parse(row.editors) as Editor[],
   createdAt: Number(row.createdAt),
   lastEdit: Number(row.lastEdit),
 });
 
 /** Why a text cannot be kept as a draft, or `undefined` if it can. */
-export function whyUnstorable(content: string): string | undefined {
+export function whyUnstorable(content: string, encrypted = false): string | undefined {
+  if (encrypted) return whyNotCiphertext(content);
   if (content.includes("\u0000")) return "It contains a NUL character, which this kind of draft cannot hold.";
   if (!content.isWellFormed()) return "It contains a character that is not valid Unicode text.";
   if (new TextEncoder().encode(content).byteLength > MAX_CONTENT_BYTES) return "It is larger than 1 MB.";
@@ -110,8 +118,9 @@ export class WorkingCopyService {
    * Keep `content` as the draft of `path`, started from `baseBlob`, edited by `editor`. Creates the draft or replaces its
    * text; adds the editor to those who have edited since the last version.
    */
-  async save(connectionId: number, path: string, input: { baseBlob: string; content: string }, editor: Editor): Promise<SaveResult> {
-    const unstorable = whyUnstorable(input.content);
+  async save(connectionId: number, path: string, input: { baseBlob: string; content: string; encrypted?: boolean }, editor: Editor): Promise<SaveResult> {
+    const encrypted = input.encrypted === true;
+    const unstorable = whyUnstorable(input.content, encrypted);
     if (unstorable) return { ok: false, reason: "unstorable", message: unstorable };
 
     for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
@@ -122,8 +131,8 @@ export class WorkingCopyService {
         if ((await this.count(connectionId)) >= MAX_DRAFTS_PER_CONNECTION) return { ok: false, reason: "too_many" };
         const created = await dbAll<Row>(
           this.database,
-          sql`INSERT INTO ${table(this.database)} (connection_id, path, base_blob, content, editors, created_at, last_edit)
-              VALUES (${connectionId}, ${path}, ${input.baseBlob}, ${input.content}, ${JSON.stringify([editor])}, ${now}, ${now})
+          sql`INSERT INTO ${table(this.database)} (connection_id, path, base_blob, content, encrypted, editors, created_at, last_edit)
+              VALUES (${connectionId}, ${path}, ${input.baseBlob}, ${input.content}, ${encrypted ? 1 : 0}, ${JSON.stringify([editor])}, ${now}, ${now})
               ON CONFLICT (connection_id, path) DO NOTHING
               RETURNING ${COLUMNS}`,
         );
@@ -132,6 +141,7 @@ export class WorkingCopyService {
       }
 
       if (existing.baseBlob !== input.baseBlob) return { ok: false, reason: "base_mismatch", baseBlob: existing.baseBlob };
+      if ((Number(existing.encrypted) === 1) !== encrypted) return { ok: false, reason: "encryption_mismatch" };
 
       const before = toCopy(existing);
       const known = before.editors.some((candidate) => editorKey(candidate) === editorKey(editor));
@@ -167,9 +177,9 @@ export class WorkingCopyService {
     input: { fromBase: string; toBase: string; content: string; lastEdit: number },
     editor: Editor,
   ): Promise<RebaseResult> {
-    const unstorable = whyUnstorable(input.content);
-    if (unstorable) return { ok: false, reason: "unstorable", message: unstorable };
     const existing = await this.row(connectionId, path);
+    const unstorable = whyUnstorable(input.content, existing !== undefined && Number(existing.encrypted) === 1);
+    if (unstorable) return { ok: false, reason: "unstorable", message: unstorable };
     if (!existing || existing.baseBlob !== input.fromBase || Number(existing.lastEdit) !== input.lastEdit) return { ok: false, reason: "changed" };
     const before = toCopy(existing);
     const editors = before.editors.some((candidate) => editorKey(candidate) === editorKey(editor)) ? before.editors : [...before.editors, editor];

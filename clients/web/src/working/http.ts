@@ -31,7 +31,7 @@ export type SaveOutcome =
 
 export interface Deps {
   /** Keep a draft of one of the caller's repositories. `found: false` if it is not the caller's (or not there). */
-  save: (accountId: string, id: number, input: { path: string; baseBlob: string; content: string }) => Promise<SaveOutcome>;
+  save: (accountId: string, id: number, input: { path: string; baseBlob: string; content: string; encrypted: boolean }) => Promise<SaveOutcome>;
   /** Throw a draft away. `found: false` if the repository is not the caller's. Throwing away what is not there is not an error. */
   discard: (accountId: string, id: number, path: string) => Promise<{ found: boolean }>;
   /**
@@ -65,7 +65,10 @@ export function isRepositoryPath(path: unknown): path is string {
   return typeof path === "string" && path.length > 0 && path.length <= MAX_PATH_CHARS && safeSegments(path.split("/")) !== undefined && path.isWellFormed();
 }
 
-/** `PUT` keeps the text as the draft of a file, `{ path, baseBlob, content }`; `DELETE ?path=` throws the draft away. */
+/**
+ * `PUT` keeps the text as the draft of a file, `{ path, baseBlob, content, encrypted? }`; `DELETE ?path=` throws the draft away. With `encrypted: true` the
+ * content is the file's ciphertext as base64, made in the browser, for a file of an encrypted vault (ROADMAP 2b.3): the server keeps it as it is.
+ */
 export async function handleWorkingCopy(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
   const method = request.method;
   if (method !== "PUT" && method !== "DELETE") return failure(405, "method_not_allowed", "That method is not allowed here.");
@@ -89,12 +92,13 @@ export async function handleWorkingCopy(request: Request, caller: Caller | null,
     if (text.length > MAX_BODY_CHARS) return tooLarge();
     const body = parse(text);
     if (!body) return failure(400, "invalid_request", "Send a JSON object.");
-    const { path, baseBlob, content } = body;
+    const { path, baseBlob, content, encrypted } = body;
     if (!isRepositoryPath(path)) return failure(400, "invalid_request", "Say which file, by its path in the repository.");
     if (typeof baseBlob !== "string" || !OBJECT_ID.test(baseBlob)) return failure(400, "invalid_request", "Say which version of the file the draft is of, by its git object id.");
     if (typeof content !== "string") return failure(400, "invalid_request", "Send the text as text.");
+    if (encrypted !== undefined && typeof encrypted !== "boolean") return failure(400, "invalid_request", "Say whether the draft is encrypted with true or false, or leave it out.");
 
-    const outcome = await deps.save(caller.accountId, number, { path, baseBlob, content });
+    const outcome = await deps.save(caller.accountId, number, { path, baseBlob, content, encrypted: encrypted === true });
     if (!outcome.found) return notFound();
     return fromResult(outcome.result);
   } catch (error) {
@@ -172,6 +176,7 @@ const RESOLVE_REFUSALS: Record<Extract<ResolveResult, { ok: false }>["reason"], 
   gone: { status: 409, message: "This note is no longer in the repository. Your changes are kept." },
   upstream_moved: { status: 409, message: "The note changed in the repository again while you were looking. Nothing was changed; look at it again." },
   draft_changed: { status: 409, message: "Your changes were edited while this was being done, so nothing was changed. Look again." },
+  encrypted: { status: 422, message: "This file is encrypted, so the two versions cannot be combined by the server, which has no key. Keep yours or take theirs." },
   unreadable: { status: 422, message: "Either version is not valid UTF-8 text or is larger than 1 MB, so they cannot be combined here. Your changes are kept; you can keep yours or take theirs." },
   unstorable: { status: 422, message: "The combined text cannot be kept as a draft (it has a NUL character or is larger than 1 MB). Your changes are kept; you can keep yours or take theirs." },
   bad_token: { status: 422, message: "The git host did not accept this repository's token. Connect the repository again with a new one. Your changes are kept." },
@@ -190,6 +195,7 @@ const VERSION_REFUSALS: Record<Extract<VersionResult, { ok: false }>["reason"], 
   read_only: { status: 422, message: "That token can read this repository but not write to it, so nothing was saved. Create the token with the repository permission “Contents: Read and write”, and connect the repository again. Your changes are kept." },
   bad_token: { status: 422, message: "The git host did not accept this repository's token. Connect the repository again with a new one. Your changes are kept." },
   unavailable: { status: 502, message: "Could not reach the git host just now. Nothing was saved, and your changes are kept. Try again in a moment." },
+  not_ciphertext: { status: 422, message: "This draft is not an encrypted file, so it was not saved: nothing but an encrypted file is put into an encrypted vault. Your changes are kept; reload the page and edit again." },
 };
 
 const notFound = () => failure(404, "not_found", "There is no such connection.");
@@ -215,6 +221,8 @@ function fromResult(result: Extract<SaveOutcome, { found: true }>["result"]): Re
       return failure(409, "base_mismatch", "This draft was started from another version of the file. Reload to see it.", { baseBlob: result.baseBlob });
     case "unstorable":
       return failure(422, "unstorable", `This text cannot be kept as a draft. ${result.message}`);
+    case "encryption_mismatch":
+      return failure(409, "encryption_mismatch", "This draft is kept the other way, encrypted or not, than what was sent. Reload the page.");
     case "too_many_editors":
       return failure(422, "too_many_editors", "This draft has been edited by as many people as it keeps. Save a version first.");
     case "too_many":

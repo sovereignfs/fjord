@@ -38,7 +38,7 @@ export type ResolveResult =
   | { ok: true; conflicts: number }
   | {
       ok: false;
-      reason: "no_draft" | "up_to_date" | "gone" | "upstream_moved" | "draft_changed" | "unreadable" | "unstorable" | "bad_token" | "unavailable";
+      reason: "no_draft" | "up_to_date" | "gone" | "upstream_moved" | "draft_changed" | "encrypted" | "unreadable" | "unstorable" | "bad_token" | "unavailable";
     };
 
 /** What the page can say before the person chooses: whether the two edits combine without a conflict. */
@@ -48,6 +48,8 @@ const identityLabels = { ours: OURS_LABEL, theirs: THEIRS_LABEL };
 
 /** Whether the draft and the file as it is now can be combined, found without changing anything. */
 export async function previewCombine(provider: Provider, ref: RepositoryRef, format: ResolveDeps["format"], draft: WorkingCopy, upstreamText: string): Promise<Preview> {
+  // The text of an encrypted file is not the server's to read: nothing is merged here.
+  if (draft.encrypted) return { state: "unavailable" };
   try {
     const base = await readTextBlob(provider, ref, draft.baseBlob);
     if (!base.ok) return { state: "unavailable" };
@@ -74,6 +76,7 @@ export async function resolveUpstream(deps: ResolveDeps, input: { connectionId: 
 
     let content = draft.content;
     let conflicts = 0;
+    if (input.choice === "combine" && draft.encrypted) return { ok: false, reason: "encrypted" };
     if (input.choice === "combine") {
       const [base, theirs] = [await readTextBlob(deps.provider, deps.ref, draft.baseBlob), await readTextBlob(deps.provider, deps.ref, current)];
       if (!base.ok || !theirs.ok) return { ok: false, reason: "unreadable" };

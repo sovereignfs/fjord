@@ -13,7 +13,7 @@ import { MAX_MESSAGE_CHARS, type VersionResult } from "./version";
 const ORIGIN = "https://fjord.example.com";
 const ALICE: Caller = { accountId: "alice", name: "Alice Example", email: "alice@example.com" };
 const BLOB = "a".repeat(40);
-const COPY = { path: "Notes/a.md", baseBlob: BLOB, content: "SECRET TEXT", editors: [{ type: "account" as const, id: "alice" }], createdAt: 10, lastEdit: 20 };
+const COPY = { path: "Notes/a.md", baseBlob: BLOB, content: "SECRET TEXT", encrypted: false, editors: [{ type: "account" as const, id: "alice" }], createdAt: 10, lastEdit: 20 };
 
 function stub(outcome: SaveOutcome = { found: true, result: { ok: true, workingCopy: COPY } }) {
   const save = vi.fn(async (..._args: unknown[]): Promise<SaveOutcome> => outcome);
@@ -75,7 +75,7 @@ describe("who may call", () => {
     const saved = await handleWorkingCopy(put(valid), ALICE, deps, "1");
     const discarded = await handleWorkingCopy(del("Notes/a.md"), ALICE, deps, "1");
     expect([saved.status, discarded.status]).toEqual([404, 404]);
-    expect(save).toHaveBeenCalledWith("alice", 1, valid);
+    expect(save).toHaveBeenCalledWith("alice", 1, { ...valid, encrypted: false });
     expect(discard).toHaveBeenCalledWith("alice", 1, "Notes/a.md");
     expect((await body(saved)).error).toEqual({ code: "not_found", message: "There is no such connection." });
   });
@@ -95,7 +95,7 @@ describe("what may be sent", () => {
     const response = await handleWorkingCopy(put(valid), ALICE, deps, "1");
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(save).toHaveBeenCalledWith("alice", 1, valid);
+    expect(save).toHaveBeenCalledWith("alice", 1, { ...valid, encrypted: false });
     const text = JSON.stringify(await body(response));
     expect(JSON.parse(text)).toEqual({ workingCopy: { baseBlob: BLOB, createdAt: 10, lastEdit: 20 } });
     expect(text).not.toContain("SECRET TEXT");
@@ -107,6 +107,22 @@ describe("what may be sent", () => {
     await handleWorkingCopy(put({ ...valid, content }), ALICE, deps, "1");
     await handleWorkingCopy(put({ ...valid, content: "" }), ALICE, deps, "1");
     expect(save.mock.calls.map((call) => (call[2] as { content: string }).content)).toEqual([content, ""]);
+  });
+
+  it("passes on that a draft is encrypted, only when it says so with true", async () => {
+    const { deps, save } = stub();
+    await handleWorkingCopy(put({ ...valid, encrypted: true }), ALICE, deps, "1");
+    await handleWorkingCopy(put({ ...valid, encrypted: false }), ALICE, deps, "1");
+    expect(save.mock.calls.map((call) => (call[2] as { encrypted: boolean }).encrypted)).toEqual([true, false]);
+    for (const encrypted of ["true", 1, null, []]) expect((await handleWorkingCopy(put({ ...valid, encrypted }), ALICE, deps, "1")).status).toBe(400);
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it("tells a page that keeps a draft the other way to reload", async () => {
+    const { deps } = stub({ found: true, result: { ok: false, reason: "encryption_mismatch" } });
+    const response = await handleWorkingCopy(put(valid), ALICE, deps, "1");
+    expect(response.status).toBe(409);
+    expect((await body(response)).error.code).toBe("encryption_mismatch");
   });
 
   it("wants JSON", async () => {

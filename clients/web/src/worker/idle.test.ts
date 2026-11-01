@@ -9,7 +9,9 @@ import { freshDatabase, testTarget } from "../db/test-support";
 import type { FakeGitHub } from "../providers/testing/fake-github";
 import { githubHarness } from "../providers/testing/harnesses";
 import type { Identity } from "../providers/types";
+import { wasmAvailable } from "../format/wasm";
 import { type Editor, WorkingCopyService } from "../working/service";
+import { encryptedDraft } from "../working/test-ciphertext";
 import { guestIdentity } from "../working/version";
 import { type IdleDeps, createIdleVersions } from "./idle";
 
@@ -270,5 +272,21 @@ describe(`idle versions (${leg})`, () => {
     expect((await idle.pass()).results.map((r) => r.path)).toEqual(["b.md", "a.md"]);
     expect((await idle.pass()).results.map((r) => r.path)).toEqual(["c.md"]);
     expect(await fake.filesAt(await head())).toEqual({ "a.md": "A", "b.md": "B", "c.md": "C" });
+  });
+});
+
+describe.skipIf(!wasmAvailable())(`idle versions of encrypted drafts (${leg})`, () => {
+  it("commits the ciphertext as it is, needing no key, and nothing readable is in the repository", async () => {
+    await h.seed({ "Secret/n.age": "old ciphertext" });
+    const { content, bytes } = encryptedDraft("SECRET PLAINTEXT of the note");
+    await drafts.save(1, "Secret/n.age", { baseBlob: await blobOf("Secret/n.age"), content, encrypted: true }, ed("ada"));
+    clock = T0 + IDLE;
+
+    expect((await worker().pass()).made).toBe(1);
+    const stored = await h.provider.readBlob(h.repo, await blobOf("Secret/n.age"));
+    expect([...stored]).toEqual([...bytes]);
+    expect(Buffer.from(stored).toString("latin1")).not.toContain("SECRET PLAINTEXT");
+    expect(await drafts.get(1, "Secret/n.age")).toBeUndefined();
+    await fake.fsck();
   });
 });
