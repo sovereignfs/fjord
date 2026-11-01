@@ -174,7 +174,7 @@ describe.skipIf(!available)(`deleting and putting back in an encrypted vault (${
     );
   const restore = (ids: number[], path?: string, idNamed = false) =>
     restoreDeleted(
-      { provider: h.provider, ref: h.repo, branch: "main", format: fjord(), deletions, vaultOk: (vault) => vault === "Secret", idNamed: () => idNamed, windowMs: 30 * 24 * 60 * 60 * 1000 },
+      { provider: h.provider, ref: h.repo, branch: "main", format: fjord(), deletions, vaultOk: (vault) => vault === "Secret", encryptedVault: (vault) => vault === "Secret", idNamed: () => idNamed, windowMs: 30 * 24 * 60 * 60 * 1000 },
       { connectionId: 1, ids, path, author: ADA },
     );
 
@@ -213,3 +213,58 @@ describe.skipIf(!available)(`deleting and putting back in an encrypted vault (${
     expect(await restore(ids, "Secret/Restored.md.age")).toMatchObject({ ok: true, paths: ["Secret/Restored.md.age"] });
   });
 });
+
+describe.skipIf(!available)(`putting back never crosses between plain text and an encrypted vault (${leg}; security review of phase 2)`, () => {
+  const remove = async (vault: string, path: string) => {
+    const done = await deletePath(
+      { provider: h.provider, ref: h.repo, branch: "main", format: fjord(), deletions, drafts: new WorkingCopyService(database), saveDraft: async () => ({ ok: false, reason: "unavailable" }) },
+      { connectionId: 1, accountId: "ada", vault, target: await fileTarget(path), kindOf: () => "other", author: ADA },
+    );
+    return (done as { deletions: number[] }).deletions;
+  };
+  const encryptedVaults = new Set(["Locked", "Sealed"]);
+  const restore = (ids: number[], path: string) =>
+    restoreDeleted(
+      {
+        provider: h.provider,
+        ref: h.repo,
+        branch: "main",
+        format: fjord(),
+        deletions,
+        vaultOk: () => true,
+        idNamed: (vault) => vault === "Sealed",
+        encryptedVault: (vault) => encryptedVaults.has(vault),
+        windowMs: 30 * 24 * 60 * 60 * 1000,
+      },
+      { connectionId: 1, ids, path, author: ADA },
+    );
+  const seedAll = () =>
+    h.seed({
+      "Notes/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "Notes", createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" }),
+      "Locked/fjord.vault.json": manifest("plain"),
+      "Sealed/fjord.vault.json": manifest("id"),
+      "Notes/Plan.md": "SECRET PLAINTEXT",
+      "Locked/Plan.md.age": Buffer.from(encryptedDraft("x").bytes),
+    });
+
+  it("does not put a plaintext file into an encrypted vault, even at a path of its kind", async () => {
+    await seedAll();
+    const ids = await remove("Notes", "Notes/Plan.md");
+    const before = await fake.branchHead();
+    expect(await restore(ids, "Locked/Plan.md")).toMatchObject({ ok: false, reason: "bad_path" });
+    expect(await restore(ids, "Locked/Plan.md.age")).toMatchObject({ ok: false, reason: "bad_path" });
+    expect(await fake.branchHead()).toBe(before);
+    expect(await restore(ids, "Notes/Back.md")).toMatchObject({ ok: true });
+  });
+
+  it("does not put ciphertext into a plaintext vault, or into another encrypted vault, which has other recipients", async () => {
+    await seedAll();
+    const ids = await remove("Locked", "Locked/Plan.md.age");
+    const before = await fake.branchHead();
+    expect(await restore(ids, "Notes/Plan.md.age")).toMatchObject({ ok: false, reason: "bad_path" });
+    expect(await restore(ids, `Sealed/${ID}.age`)).toMatchObject({ ok: false, reason: "bad_path" });
+    expect(await fake.branchHead()).toBe(before);
+    expect(await restore(ids, "Locked/Back.md.age")).toMatchObject({ ok: true });
+  });
+});
+

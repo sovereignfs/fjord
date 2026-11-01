@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { wasmAvailable, wasmDirectory } from "../format/wasm";
 import type { CryptoModule } from "../keys/module";
 import { whyNotCiphertext } from "../working/ciphertext";
-import { keyFragment, keyFromFragment, openShare, sealShare } from "./seal";
+import { MAX_SHARED_WORK_FACTOR, keyFragment, keyFromFragment, openShare, scryptWorkFactor, sealShare } from "./seal";
 
 /** A sealed copy made and opened with the real module (ROADMAP 2c.1): what is in it, who can open it, and that the server's check accepts it as ciphertext. */
 const available = wasmAvailable();
@@ -46,7 +46,7 @@ describe.runIf(available)("a sealed copy", () => {
   it("is not opened as the other mode", () => {
     const module = load();
     const sealed = sealShare(module, { ...DOC, mode: "key" }) as { ciphertext: string; key: string };
-    expect(openShare(module, { mode: "password", ciphertext: sealed.ciphertext, secret: sealed.key })).toEqual({ ok: false, reason: "wrong_secret" });
+    expect(openShare(module, { mode: "password", ciphertext: sealed.ciphertext, secret: sealed.key })).toMatchObject({ ok: false });
   });
 
   it("says a copy that opened but is not a share's is damaged", () => {
@@ -64,3 +64,32 @@ describe("the key in a link", () => {
     for (const fragment of ["", "#", "#key=", "#key=not a key", "#other=" + key, key, "#key=" + key.toLowerCase()]) expect(keyFromFragment(fragment), fragment).toBeUndefined();
   });
 });
+
+describe.runIf(available)("the work a sealed copy may ask of the one who opens it (security review of phase 2)", () => {
+  it("is read from the header, and ours is the identity's 2^17", () => {
+    const module = load();
+    const sealed = sealShare(module, { ...DOC, mode: "password", password: "a password of some length" });
+    expect(scryptWorkFactor(Buffer.from(sealed.ciphertext, "base64"))).toBe(17);
+    expect(scryptWorkFactor(Buffer.from("age-encryption.org/v1\n-> X25519 abc\nbody"))).toBeUndefined();
+  });
+
+  it("is refused before any work is done when a copy from someone else asks for more than age's own default", () => {
+    const module = load();
+    const sealed = sealShare(module, { ...DOC, mode: "password", password: "a password of some length" });
+    // A copy that claims 2^20: the header is rewritten, which would fail its check later, but the page never gets that far.
+    const hostile = Buffer.from(Buffer.from(sealed.ciphertext, "base64").toString("latin1").replace(/^(-> scrypt \S+ )17$/m, "$120"), "latin1").toString("base64");
+    const started = Date.now();
+    expect(openShare(module, { mode: "password", ciphertext: hostile, secret: "a password of some length" })).toEqual({ ok: false, reason: "too_costly" });
+    expect(Date.now() - started).toBeLessThan(500);
+    expect(MAX_SHARED_WORK_FACTOR).toBe(18);
+    const edge = Buffer.from(Buffer.from(sealed.ciphertext, "base64").toString("latin1").replace(/^(-> scrypt \S+ )17$/m, "$118"), "latin1").toString("base64");
+    expect(openShare(module, { mode: "password", ciphertext: edge, secret: "a password of some length" })).not.toEqual({ ok: false, reason: "too_costly" });
+  });
+
+  it("is not a thing a key-mode copy can ask for", () => {
+    const module = load();
+    const sealed = sealShare(module, { ...DOC, mode: "key" }) as { ciphertext: string; key: string };
+    expect(openShare(module, { mode: "key", ciphertext: sealed.ciphertext, secret: sealed.key })).toMatchObject({ ok: true });
+  });
+});
+

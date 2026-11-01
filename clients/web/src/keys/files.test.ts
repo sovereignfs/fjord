@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { wasmAvailable, wasmDirectory } from "../format/wasm";
 import { whyNotCiphertext } from "../working/ciphertext";
-import { fromBase64, newEncryptedFile, openCiphertext, prepareTransfer, sealText, toBase64 } from "./files";
+import { fromBase64, newEncryptedFile, recipientCount, openCiphertext, prepareTransfer, sealText, toBase64 } from "./files";
 import type { CryptoModule } from "./module";
 import { KeyError } from "./store";
 
@@ -53,6 +53,18 @@ describe.runIf(available)("an encrypted file's text", () => {
     const { module, recipient, keys } = person();
     const sealed = module.encrypt(new Uint8Array([0xff, 0xfe, 0xfd]), recipient, false);
     expect(openCiphertext(module, keys, sealed, "plain", "a.bin")).toEqual({ kind: "binary", name: "a.bin", bytes: 3 });
+  });
+
+  it("is not put in an editor when it is larger than a note can be, in either naming", () => {
+    const { module, recipient, keys } = person();
+    const big = new Uint8Array(1024 * 1024 + 1).fill(97);
+    for (const naming of ["plain", "id"] as const) {
+      const plain = naming === "id" ? module.wrapContainer("big.txt", big) : big;
+      const sealed = module.encrypt(plain, recipient, false);
+      expect(openCiphertext(module, keys, sealed, naming, "big.txt")).toEqual({ kind: "large", name: "big.txt", bytes: big.length });
+    }
+    const small = module.encrypt(new Uint8Array(1024 * 1024).fill(97), recipient, false);
+    expect(openCiphertext(module, keys, small, "plain", "ok.txt")).toMatchObject({ kind: "text" });
   });
 
   it("round-trips base64 for large bytes", () => {
@@ -127,5 +139,13 @@ describe.runIf(available)("a file moved to another vault (ROADMAP 2b.6)", () => 
     const { module } = person();
     expect(prepareTransfer(module, { text: "x", name: "Plan.md", to: { form: "encrypted", naming: "plain" }, recipients: { ok: false, message: "no recipients" }, ...args })).toEqual({ ok: false, message: "no recipients" });
     expect(prepareTransfer(module, { text: "x", name: "Plan.md", to: { form: "encrypted", naming: "plain" }, ...args })).toMatchObject({ ok: false });
+  });
+});
+
+describe("the recipients a file is encrypted to", () => {
+  it("are counted from the file: not blank lines, not comments", () => {
+    expect(recipientCount("age1aaa\n")).toBe(1);
+    expect(recipientCount("# the team\nage1aaa\n\n  # one more\nage1bbb\r\nage1ccc")).toBe(3);
+    expect(recipientCount("")).toBe(0);
   });
 });

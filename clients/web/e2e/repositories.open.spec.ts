@@ -1127,6 +1127,142 @@ test("an encrypted file is shared by a sealed link: the server holds a copy it c
   }
 });
 
+// --- Security review of phase 2 (ROADMAP 2c.2, docs/security-review-phase-2.md) ---
+
+test("review of phase 2: nothing but ciphertext can be made to land in an encrypted vault, by any route, whatever is sent, and another account reaches none of it", async ({ page, browser }) => {
+  test.setTimeout(300_000);
+  const MARK = "SECRET PLAINTEXT MARK";
+  const AGE_B64 = (bytesIn: Uint8Array) => Buffer.from(bytesIn).toString("base64");
+  const minute = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
+  try {
+    const { id, secret } = await encryptedWorkbench(page, (recipient) => ({
+      "Notes/fjord.vault.json": VAULT_MANIFEST,
+      "Notes/Plan.md": `# Plan ${MARK}`,
+      "Notes/Gone.md": `gone ${MARK}`,
+      "Open/Enc.md.age": wasm.encrypt(bytes("encrypted"), recipient, false),
+    }));
+    const post = (path: string, data: unknown, method: "POST" | "PUT" = "POST") => page.request.fetch(`/api/connections/${id}${path}`, { method, headers: { origin: BASE }, data, failOnStatusCode: false });
+    const code = async (response: Awaited<ReturnType<typeof post>>) => (await response.json().catch(() => ({}))).error?.code as string | undefined;
+    const plain = bytes(MARK);
+    const cipher = wasm.encrypt(bytes("x"), wasm.identityRecipient(wasm.generateIdentity()), false);
+    const NOTE_BLOB = createHash("sha1").update(`blob ${Buffer.byteLength(`# Plan ${MARK}`)}\0`).update(`# Plan ${MARK}`).digest("hex");
+
+    // A deletion to put back from: a plaintext file whose record the restore route can be asked about.
+    const deleted = await post("/files/delete", { vault: "Notes", type: "file", path: "Notes/Gone.md", blob: gitBlobId(`gone ${MARK}`) });
+    expect(deleted.status()).toBe(200);
+    const deletionIds = (await deleted.json()).deletions as number[];
+    const before = (await hubs.more.branchHead())!;
+
+    const refused: [string, Awaited<ReturnType<typeof post>>, number, string | undefined][] = [
+      ["a plain note made in an encrypted vault", await post("/files", { vault: "Open", folder: "", kind: "note", title: "Sneaky", localMinute: minute }), 422, "encrypted_vault"],
+      ["plain text sent as a new encrypted file", await post("/files/encrypted", { vault: "Open", folder: "", kind: "note", title: "Sneaky", localMinute: minute, ciphertext: AGE_B64(plain) }), 422, "not_ciphertext"],
+      ["a plain draft of an encrypted file", await post("/working-copy", { path: "Open/Enc.md.age", baseBlob: "0".repeat(40), content: MARK }, "PUT"), 422, "not_editable"],
+      ["plain text as an encrypted draft", await post("/working-copy", { path: "Open/Enc.md.age", baseBlob: "0".repeat(40), content: AGE_B64(plain), encrypted: true }, "PUT"), 422, "unstorable"],
+      ["an encrypted draft of a plaintext note", await post("/working-copy", { path: "Notes/Plan.md", baseBlob: NOTE_BLOB, content: AGE_B64(cipher), encrypted: true }, "PUT"), 422, "not_editable"],
+      ["a plaintext note moved into an encrypted vault", await post("/files/move", { vault: "Notes", type: "file", path: "Notes/Plan.md", blob: NOTE_BLOB, destination: "Open/Plan.md" }), 422, "encrypted_vault"],
+      ["an encrypted file moved to a plaintext vault by Move", await post("/files/move", { vault: "Open", type: "file", path: "Open/Enc.md.age", blob: "0".repeat(40), destination: "Notes/Enc.md.age" }), 422, "other_vault"],
+      ["plain text transferred into an encrypted vault", await post("/files/transfer", { path: "Notes/Plan.md", blob: NOTE_BLOB, destination: "Open/Plan.md.age", content: AGE_B64(plain) }), 422, "wrong_form"],
+      ["ciphertext transferred into a plaintext vault", await post("/files/transfer", { path: "Open/Enc.md.age", blob: "0".repeat(40), destination: "Notes/Enc.md", content: AGE_B64(cipher) }), 422, "wrong_form"],
+      ["a vault's recipients file deleted", await post("/files/delete", { vault: "Open", type: "file", path: "Open/recipients.txt", blob: "0".repeat(40) }), 422, "protected"],
+      ["a vault's recipients file moved", await post("/files/move", { vault: "Open", type: "file", path: "Open/recipients.txt", blob: "0".repeat(40), destination: "Open/keys.txt" }), 422, "protected"],
+      ["a plaintext deletion put back into an encrypted vault", await post("/files/restore", { ids: deletionIds, path: "Open/Gone.md" }), 422, "bad_path"],
+      ["plain text kept as a sealed copy", await post("/sealed-shares", { path: "Open/Enc.md.age", mode: "key", ciphertext: AGE_B64(plain) }), 422, "not_ciphertext"],
+      ["a plaintext note shared as a sealed copy", await post("/sealed-shares", { path: "Notes/Plan.md", mode: "key", ciphertext: AGE_B64(cipher) }), 422, "not_encrypted"],
+    ];
+    const wrong = [];
+    for (const [what, response, status, expected] of refused) if (response.status() !== status || (await code(response)) !== expected) wrong.push(`${what}: ${response.status()} ${await code(response)}`);
+    expect(wrong).toEqual([]);
+
+    // Nothing was written by any of it, and no file of an encrypted vault holds a word of plain text.
+    expect(await hubs.more.branchHead()).toBe(before);
+    for (const [path, text] of Object.entries(await hubs.more.filesAt(before))) if (path.startsWith("Open/")) expect(text, path).not.toContain(MARK);
+    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(before, "Open/Enc.md.age")))).toBe("encrypted");
+
+    // Another account reaches none of it: the same answer as for something that is not there.
+    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.95" } });
+    const other = await stranger.newPage();
+    await signUp(other, `mallory-${Date.now()}@example.com`, "Mallory");
+    const theirs = (path: string, method = "GET", data?: unknown) => other.request.fetch(`/api/connections/${id}${path}`, { method, headers: { origin: BASE }, ...(data === undefined ? {} : { data }), failOnStatusCode: false });
+    const sees = [
+      await theirs("/ciphertext?path=Open/Enc.md.age"),
+      await theirs("/recipients?vault=Open"),
+      await theirs("/sealed-shares?path=Open/Enc.md.age"),
+      await theirs("/sealed-shares?share=1", "DELETE"),
+      await theirs("/sealed-shares", "POST", { path: "Open/Enc.md.age", mode: "key", ciphertext: AGE_B64(cipher) }),
+      await theirs("/files/transfer", "POST", { path: "Open/Enc.md.age", blob: "0".repeat(40), destination: "Notes/x.md", content: AGE_B64(plain) }),
+      await theirs("/files/encrypted", "POST", { vault: "Open", folder: "", kind: "note", title: "x", localMinute: minute, ciphertext: AGE_B64(cipher) }),
+    ];
+    expect(sees.map((response) => response.status())).toEqual(sees.map(() => 404));
+    await stranger.close();
+    expect(await hubs.more.branchHead()).toBe(before);
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("review of phase 2: a sealed link from someone hostile is shown as text and does nothing, its page is sent with the policy and no referrer, and a copy asking for ruinous work is not opened", async ({ page, browser }) => {
+  test.setTimeout(300_000);
+  try {
+    const { id, record } = await encryptedWorkbench(page, (recipient) => ({ "Open/Enc.md.age": wasm.encrypt(bytes("x"), recipient, false) }));
+    void record;
+    // The hostile sharer is a person with a link, so the copy is made here with the same module that makes ours.
+    const hostileName = `<img src=x onerror="window.__owned=1"><script>window.__owned=2</script>.md`;
+    const hostileText = `<script>window.__owned=3</script>\n<iframe src="https://evil.example/frame"></iframe>\n[click](javascript:window.__owned=4)\n![remote](https://evil.example/pixel.png)\n`;
+    const identity = wasm.generateIdentity();
+    const payload = bytes(JSON.stringify({ v: 1, name: hostileName, text: hostileText }));
+    const sealed = wasm.encrypt(payload, `${wasm.identityRecipient(identity)}\n`, false);
+    const made = await page.request.post(`/api/connections/${id}/sealed-shares`, { headers: { origin: BASE }, data: { path: "Open/Enc.md.age", mode: "key", ciphertext: Buffer.from(sealed).toString("base64") } });
+    expect(made.status()).toBe(201);
+    const token = (await made.json()).token as string;
+    const link = `${BASE}/s/${token}#key=${new TextDecoder().decode(identity)}`;
+
+    const visitor = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.96" } });
+    const guest = await visitor.newPage();
+    const requested: string[] = [];
+    guest.on("request", (request) => requested.push(request.url()));
+    await guest.addInitScript(() => {
+      (window as unknown as { __violations: string[] }).__violations = [];
+      document.addEventListener("securitypolicyviolation", (event) => (window as unknown as { __violations: string[] }).__violations.push(event.violatedDirective));
+    });
+    const loaded = await guest.goto(link);
+    // The page is sent with the policy (with a nonce of its own), no referrer, and no leave to be framed or kept.
+    const headers = loaded!.headers();
+    expect(headers["content-security-policy"]).toMatch(/script-src[^;]*'nonce-[A-Za-z0-9+/=_-]+'/);
+    expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+    expect(headers["content-security-policy"]).not.toMatch(/(?<!wasm-)'unsafe-eval'/);
+    expect(headers["referrer-policy"]).toBe("no-referrer");
+    expect(headers["x-frame-options"]).toBe("DENY");
+    expect(await guest.locator('meta[name="robots"]').getAttribute("content")).toContain("noindex");
+    const served = await visitor.request.get(`/api/sealed/${token}`);
+    expect(served.headers()["cache-control"]).toContain("no-store");
+
+    // The copy opens, and what is in it is only text: nothing ran, nothing was fetched from another site.
+    await expect(guest.getByRole("heading", { name: hostileName })).toBeVisible({ timeout: 60_000 });
+    await expect(guest.getByRole("textbox", { name: hostileName, exact: true })).toContainText("<script>window.__owned=3</script>");
+    await guest.waitForLoadState("networkidle");
+    expect(await guest.evaluate(() => (window as unknown as { __owned?: number }).__owned)).toBeUndefined();
+    expect(await guest.locator("iframe, img[src*='evil'], script:not([src]):has-text('__owned')").count()).toBe(0);
+    expect(requested.filter((url) => !url.startsWith(BASE))).toEqual([]);
+    expect(await guest.evaluate(() => (window as unknown as { __violations: string[] }).__violations)).toEqual([]);
+
+    // A password copy that asks for far more work than the identity's own is refused before any is done.
+    const costly = wasm.sealWithPassphrase(payload, bytes("a password of some length"), 10);
+    const rewritten = Buffer.from(Buffer.from(costly).toString("latin1").replace(/^(-> scrypt \S+ )10$/m, "$120"), "latin1");
+    const second = await page.request.post(`/api/connections/${id}/sealed-shares`, { headers: { origin: BASE }, data: { path: "Open/Enc.md.age", mode: "password", ciphertext: rewritten.toString("base64") } });
+    expect(second.status()).toBe(201);
+    const costlyPage = await visitor.newPage();
+    await costlyPage.goto(`${BASE}/s/${(await second.json()).token as string}`);
+    await costlyPage.getByLabel("Password").fill("a password of some length");
+    const asked = Date.now();
+    await costlyPage.getByRole("button", { name: "Open" }).click();
+    await expect(costlyPage.getByText("asks for far more work")).toBeVisible({ timeout: 10_000 });
+    expect(Date.now() - asked).toBeLessThan(5_000);
+    await visitor.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
 // --- A note in the note editor (ROADMAP 1b.2) -----------------------------------------------------------------
 
 /** `acme/more` holding these files, connected by a new account. */
@@ -3807,6 +3943,7 @@ const wasm = createRequire(join(process.cwd(), "package.json"))(join(wasmDirecto
   decrypt(ciphertext: Uint8Array, identity: Uint8Array): Uint8Array;
   wrapContainer(name: string, contents: Uint8Array): Uint8Array;
   unwrapContainer(archive: Uint8Array): { name: string; contents: Uint8Array };
+  sealWithPassphrase(plaintext: Uint8Array, passphrase: Uint8Array, logN: number): Uint8Array;
 };
 const bytes = (text: string) => new TextEncoder().encode(text);
 

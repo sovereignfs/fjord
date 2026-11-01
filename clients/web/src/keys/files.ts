@@ -9,7 +9,10 @@ import { KeyError } from "./store";
  * Plaintext buffers are wiped as soon as they are text or ciphertext. The text itself is a string, which a page cannot wipe: that is why a page hides it when it
  * is done and when the identity locks.
  */
-export type Shown = { kind: "text"; name: string; text: string } | { kind: "binary"; name: string; bytes: number };
+export type Shown = { kind: "text"; name: string; text: string } | { kind: "binary"; name: string; bytes: number } | { kind: "large"; name: string; bytes: number };
+
+/** The most text that is opened to be read or edited: a note's limit (1 MiB), which is also what a draft may be. A larger file is allowed in a repository but is not put in an editor. */
+export const MAX_TEXT_BYTES = 1024 * 1024;
 
 export type Naming = "plain" | "id";
 
@@ -37,6 +40,12 @@ export function openCiphertext(module: CryptoModule, keys: { with<T>(use: (secre
     } finally {
       plain.fill(0);
     }
+  }
+  // Someone with write access can encrypt a file of any size to this identity (up to the 25 MB the server hands over): it is not put in an editor.
+  if (contents.byteLength > MAX_TEXT_BYTES) {
+    const bytes = contents.byteLength;
+    contents.fill(0);
+    return { kind: "large", name, bytes };
   }
   try {
     return { kind: "text", name, text: decoder.decode(contents) };
@@ -138,4 +147,9 @@ export function prepareTransfer(
   if (!input.recipients?.ok) return { ok: false, message: input.recipients?.message ?? "The vault's recipients were not read, so there is no one to encrypt to." };
   const sealed = toBase64(sealText(module, { text: input.text, name: input.name, naming: input.to.naming, recipients: input.recipients.text }));
   return { ok: true, leaf: input.to.naming === "id" ? `${module.newUlid(input.now, input.random)}.age` : `${input.name}.age`, content: sealed };
+}
+
+/** How many recipients a recipients file lists: its lines that are not blank or comments. Shown, so that someone who added a key to the file is not invisible to a person about to encrypt to it. */
+export function recipientCount(text: string): number {
+  return text.split(/\r?\n/).filter((line) => line.trim() !== "" && !line.trim().startsWith("#")).length;
 }

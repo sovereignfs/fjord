@@ -15,6 +15,7 @@ import { FakeGitHub } from "../providers/testing/fake-github";
 import { TreeCache } from "../browse/tree-cache";
 import { DocIndex } from "../browse/doc-index";
 import { CommentService } from "../comments/service";
+import { SealedShareService } from "../sealed/service";
 import { LinkService } from "../sharing/links";
 import { ShareService } from "../sharing/shares";
 import { DeletionService } from "../files/deletions";
@@ -73,6 +74,7 @@ beforeEach(async () => {
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.shareLink : sqliteSchema.shareLink}`);
+  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.sealedShare : sqliteSchema.sealedShare}`);
   for (const table of database.dialect === "postgres" ? [postgresSchema.commentReply, postgresSchema.commentThread, postgresSchema.commentActivity, postgresSchema.commentClosed] : [sqliteSchema.commentReply, sqliteSchema.commentThread, sqliteSchema.commentActivity, sqliteSchema.commentClosed]) {
     await dbRun(database, sql`DELETE FROM ${table}`);
   }
@@ -371,6 +373,27 @@ describe(`using and removing a connection (${leg})`, () => {
     await s.remove(ALICE, one.id);
     expect(await links.byToken(tokens[0]!)).toBeUndefined();
     expect(await links.byToken(tokens[1]!)).toBeDefined();
+  });
+
+  it("deletes the sealed copies of a repository when it is disconnected, and of no other (security review of phase 2)", async () => {
+    const memory = new MemoryProvider();
+    for (const name of ["one", "two"]) {
+      memory.createRepository({ owner: "acme", name });
+      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    }
+    const s = new ConnectionService({ database, credentials, github: () => memory });
+    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const sealed = new SealedShareService(database);
+    const tokens: string[] = [];
+    for (const { id } of [one, two]) {
+      const made = await sealed.create(id, { path: "Secret/a.md.age", mode: "key", ciphertext: Buffer.from("age-encryption.org/v1\nx").toString("base64"), createdBy: ALICE });
+      if (made.ok) tokens.push(made.token);
+    }
+    await s.remove(ALICE, one.id);
+    expect(await sealed.byToken(tokens[0]!)).toBeUndefined();
+    expect(await sealed.byToken(tokens[1]!)).toBeDefined();
+    expect(await sealed.list(one.id, "Secret/a.md.age")).toEqual([]);
   });
 
   it("forgets what was said about a repository's documents when it is disconnected, and about no other's", async () => {

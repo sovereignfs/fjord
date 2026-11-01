@@ -134,6 +134,7 @@ async function restore(accountId: string, id: number, input: { ids: number[]; pa
       format: fjord(),
       deletions: new DeletionService(await getDatabase()),
       vaultOk: (vault) => checkVault(vaults, vault) === "ok" || encryptedAt(vault).ok,
+      encryptedVault: (vault) => vaults.some((candidate) => candidate.directory === vault && candidate.encrypted === true),
       idNamed: (vault) => {
         const found = encryptedAt(vault);
         return found.ok && found.target.naming === "id";

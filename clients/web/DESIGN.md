@@ -1471,7 +1471,10 @@ it is what the tests use when nothing else is set.
 
 - **What the server can read:** every plaintext file in a connected repository. That
   is inherent to editing on a server, and stated in the product. **What it cannot:**
-  encrypted files' contents (phase 2), because age identities stay in the browser.
+  encrypted files' contents (phase 2), because age identities stay in the browser. That
+  holds for a server that only stores and serves; a server that served changed code to
+  the page could read what the page reads, which no web page can prevent (the review of
+  phase 2 says so, and who should use the CLI).
 - **Credentials:** GitHub App with minimal permissions, or fine-grained single-repo
   PATs; encrypted at rest; never sent to the browser.
 - **Rendering untrusted Markdown:** shared documents, comments and display names
@@ -1500,6 +1503,11 @@ it is what the tests use when nothing else is set.
 - **Deletion:** deleting an account removes its connections, shares, comments and
   working copies; it never touches the repositories.
 
+
+### Phase 2 security review
+
+The review of phase 2 (ROADMAP 2c.2) is recorded in [`docs/security-review-phase-2.md`](../../docs/security-review-phase-2.md): what the encryption promise is and is not (it holds against a passive
+server, not an active one or a changed page script), who sees what, the four defects found and fixed, the checks that are tests, and the exceptions argued.
 
 ### Phase 1 security review
 

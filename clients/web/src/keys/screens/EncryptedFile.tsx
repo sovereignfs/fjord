@@ -5,7 +5,7 @@ import "fjord-editor/styles.css";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { keyStore, onAutoLock } from "../client";
-import { type Naming, type Shown, type TransferTarget, fromBase64, openCiphertext } from "../files";
+import { type Naming, type Shown, type TransferTarget, fromBase64, openCiphertext, recipientCount } from "../files";
 import { loadModule } from "../module";
 import { KeyError, type Status } from "../store";
 import { Alert, Button, FormField, Input } from "../../ui";
@@ -214,7 +214,7 @@ export function EncryptedFile({
           <p className={styles.itemMeta}>
             Decrypted in this browser: {shown.name}.{" "}
             {base !== undefined && recipients.ok && !upstreamChanged
-              ? "What you type is encrypted here, to this vault's recipients, before it is sent; the server never has the text."
+              ? `What you type is encrypted here, to this vault's ${recipientCount(recipients.text) === 1 ? "one recipient" : `${recipientCount(recipients.text)} recipients`} (listed in its recipients file, which anyone who can write to the repository can change), before it is sent; the server never has the text.`
               : "It is read-only here, and nothing of it leaves this page."}
           </p>
           {status?.state === "unlocked" && recipients.ok && !recipients.text.includes(status.recipient) ? (
@@ -236,6 +236,18 @@ export function EncryptedFile({
           ) : (
             <EncryptedReader name={shown.name} text={shown.text} />
           )}
+          <div className={styles.actions}>
+            <Button type="button" variant="ghost" onClick={() => void hide()}>
+              Hide
+            </Button>
+          </div>
+        </>
+      ) : null}
+      {shown?.kind === "large" ? (
+        <>
+          <Alert variant="info" heading="Too large to open here">
+            {shown.name} opened, and is {(shown.bytes / (1024 * 1024)).toFixed(1)} MB, more than the 1 MB of text this page puts in an editor. Open it with the command line.
+          </Alert>
           <div className={styles.actions}>
             <Button type="button" variant="ghost" onClick={() => void hide()}>
               Hide

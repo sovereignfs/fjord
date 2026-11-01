@@ -77,13 +77,14 @@ describe("deleting", () => {
   });
 
   it("is done in an encrypted vault this version writes (ROADMAP 2b.5), and not in one it does not", async () => {
+    const payload = { ...input, target: { ...input.target, path: "Notes/Plan.md.age" } };
     const written = setup({ vault: "encrypted_vault" });
-    expect((await written.access.delete("alice", 1, input)).found).toBe(true);
+    expect((await written.access.delete("alice", 1, payload)).found).toBe(true);
     expect(written.remove).toHaveBeenCalledOnce();
     const unsupported = setup({ vault: "encrypted_vault", encrypted: { ok: false, reason: "unsupported_vault" } });
-    expect(await unsupported.access.delete("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unsupported_vault" } });
+    expect(await unsupported.access.delete("alice", 1, payload)).toEqual({ found: true, result: { ok: false, reason: "unsupported_vault" } });
     const away = setup({ vault: "encrypted_vault", encrypted: { ok: false, reason: "unavailable" } });
-    expect(await away.access.delete("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unavailable" } });
+    expect(await away.access.delete("alice", 1, payload)).toEqual({ found: true, result: { ok: false, reason: "unavailable" } });
     expect(unsupported.remove).not.toHaveBeenCalled();
     expect(away.remove).not.toHaveBeenCalled();
   });
@@ -131,7 +132,8 @@ describe("renaming and moving", () => {
 
   it("keeps a file of an encrypted vault in it: another vault is not a place for it, and nothing is asked or moved", async () => {
     const { access, vaultFor, move } = setup({ vaults: { Notes: "encrypted_vault" }, encrypted: { ok: true, target: { naming: "id", suffix: ".age" } } });
-    expect(await access.move("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "other_vault", where: "destination" } });
+    const payload = { ...input, target: { ...input.target, path: "Notes/a.md.age" } };
+    expect(await access.move("alice", 1, payload)).toEqual({ found: true, result: { ok: false, reason: "other_vault", where: "destination" } });
     expect(vaultFor).toHaveBeenCalledTimes(1);
     expect(move).not.toHaveBeenCalled();
   });
@@ -139,8 +141,9 @@ describe("renaming and moving", () => {
   it("moves within an encrypted vault, telling the move how the vault names its files and that it is encrypted", async () => {
     for (const naming of ["plain", "id"] as const) {
       const { access, move } = setup({ vaults: { Notes: "encrypted_vault" }, encrypted: { ok: true, target: { naming, suffix: ".age" } } });
-      await access.move("alice", 1, { ...input, destination: "Notes/Sub/a.md" });
-      expect(move).toHaveBeenCalledWith("alice", 1, { ...input, destination: "Notes/Sub/a.md", encrypted: { idNamed: naming === "id" } });
+      const payload = { ...input, target: { ...input.target, path: "Notes/a.md.age" } };
+      await access.move("alice", 1, { ...payload, destination: "Notes/Sub/a.md.age" });
+      expect(move).toHaveBeenCalledWith("alice", 1, { ...payload, destination: "Notes/Sub/a.md.age", encrypted: { idNamed: naming === "id" } });
     }
   });
 
@@ -240,3 +243,25 @@ describe("moving a file between vaults, one of them encrypted (ROADMAP 2b.6)", (
     expect(destination.transfer).not.toHaveBeenCalled();
   });
 });
+
+describe("an encrypted vault's own files are not its owner's to delete or move by an API call (security review of phase 2)", () => {
+  const encrypted = { vaults: { Secret: "encrypted_vault" as const }, encrypted: { ok: true as const, target: { naming: "plain" as const, suffix: ".age" as const } } };
+  const author = { name: "Alice", email: "alice@example.com" };
+
+  it.each(["Secret/recipients.txt", "Secret/.gitignore", "Secret/fjord.vault.json", "Secret/notes.md"])("%s is refused: only an encrypted file (.age) of the vault is changed", async (path) => {
+    const { access, remove, move, transfer } = setup(encrypted);
+    const target = { type: "file" as const, path, blob: "a".repeat(40) };
+    expect(await access.delete("alice", 1, { vault: "Secret", target, author })).toEqual({ found: true, result: { ok: false, reason: "protected" } });
+    expect(await access.move("alice", 1, { vault: "Secret", target, destination: "Secret/other.txt", author })).toEqual({ found: true, result: { ok: false, reason: "protected", where: "source" } });
+    expect(await access.transfer("alice", 1, { path, blob: "a".repeat(40), destination: "Elsewhere/x.md", content: new Uint8Array([1]), author })).toEqual({ found: true, result: { ok: false, reason: "protected", where: "source" } });
+    expect([remove, move, transfer].map((fn) => fn.mock.calls.length)).toEqual([0, 0, 0]);
+  });
+
+  it("still changes a payload, and a folder", async () => {
+    const { access, remove, move } = setup(encrypted);
+    expect((await access.delete("alice", 1, { vault: "Secret", target: { type: "file", path: "Secret/a.md.age", blob: "a".repeat(40) }, author })).found).toBe(true);
+    expect((await access.move("alice", 1, { vault: "Secret", target: { type: "folder", path: "Secret/Sub", files: 2 }, destination: "Secret/Sub2", author })).found).toBe(true);
+    expect([remove, move].map((fn) => fn.mock.calls.length)).toEqual([1, 1]);
+  });
+});
+

@@ -236,7 +236,7 @@ describe.skipIf(!enabled || !haveAge)("what the web renames, moves, deletes and 
       const gone = await deletePath({ ...deps(), deletions, drafts: new WorkingCopyService(database), saveDraft: async () => ({ ok: false as const, reason: "unavailable" as const }) }, { connectionId: 1, accountId: "ada", vault: "Sealed", target: await target(other), kindOf: () => "other", author: AUTHOR });
       if (!gone.ok) throw new Error(`could not delete: ${gone.reason}`);
       expect(Object.keys(await fake.filesAt((await fake.branchHead())!))).not.toContain(other);
-      const back = await restoreDeleted({ ...deps(), deletions, vaultOk: (vault) => vault === "Sealed", idNamed: () => true, windowMs: 1e12 }, { connectionId: 1, ids: gone.deletions, path: undefined, author: AUTHOR });
+      const back = await restoreDeleted({ ...deps(), deletions, vaultOk: (vault) => vault === "Sealed", encryptedVault: (vault) => vault === "Sealed", idNamed: () => true, windowMs: 1e12 }, { connectionId: 1, ids: gone.deletions, path: undefined, author: AUTHOR });
       expect(back.ok, JSON.stringify(back)).toBe(true);
     } finally {
       await database.close();

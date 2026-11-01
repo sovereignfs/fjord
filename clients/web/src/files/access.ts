@@ -64,6 +64,13 @@ async function changeable(deps: AccessDeps, accountId: string, id: number, vault
   return { ok: true, encrypted: { idNamed: encrypted.target.naming === "id" } };
 }
 
+/**
+ * An encrypted vault holds its encrypted files (`….age`) and its own machinery: the manifest, the recipients file, the guard in `.gitignore`. The page offers to change
+ * only the first, and the server holds to it: a file that is not an encrypted file is not deleted, moved or sent from an encrypted vault by a call that names it, since
+ * taking away the recipients file or the guard would break the vault (security review of phase 2).
+ */
+const isPayload = (path: string) => /\.age$/i.test(path);
+
 export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncrypted" | "transfer" | "delete" | "restore" | "header" | "move"> {
   const formOf = (vault: { encrypted: { idNamed: boolean } | undefined }): VaultForm => (vault.encrypted ? { form: "encrypted", naming: vault.encrypted.idNamed ? "id" : "plain" } : { form: "plaintext" });
   return {
@@ -71,6 +78,7 @@ export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncr
       if (!(await deps.owns(accountId, id))) return { found: false };
       const from = await changeable(deps, accountId, id, input.path.split("/")[0] as string);
       if (!from.ok) return { found: true, result: { ok: false, reason: from.reason, where: "source" } };
+      if (from.encrypted && !isPayload(input.path)) return { found: true, result: { ok: false, reason: "protected", where: "source" } };
       const to = await changeable(deps, accountId, id, input.destination.split("/")[0] as string);
       if (!to.ok) return { found: true, result: { ok: false, reason: to.reason, where: "destination" } };
       // Between two plaintext vaults there is nothing to encrypt or decrypt, and nothing for the browser to do: that is Move.
@@ -98,6 +106,7 @@ export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncr
       if (!(await deps.owns(accountId, id))) return { found: false };
       const vault = await changeable(deps, accountId, id, input.vault);
       if (!vault.ok) return { found: true, result: { ok: false, reason: vault.reason } };
+      if (vault.encrypted && input.target.type === "file" && !isPayload(input.target.path)) return { found: true, result: { ok: false, reason: "protected" } };
       return { found: true, result: await deps.delete(accountId, id, input) };
     },
 
@@ -105,6 +114,7 @@ export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncr
       if (!(await deps.owns(accountId, id))) return { found: false };
       const from = await changeable(deps, accountId, id, input.vault);
       if (!from.ok) return { found: true, result: { ok: false, reason: from.reason, where: "source" } };
+      if (from.encrypted && input.target.type === "file" && !isPayload(input.target.path)) return { found: true, result: { ok: false, reason: "protected", where: "source" } };
       // Where it goes: the first step of the new path is its vault, which is asked of the repository as it is now. Out of an encrypted vault, or into one
       // from another, is the browser's to do (ROADMAP 2b.6): here it would need a key, or would put plaintext where there must be none.
       const to = input.destination.split("/")[0] as string;

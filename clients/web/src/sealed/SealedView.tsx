@@ -54,7 +54,7 @@ export function SealedView({ token }: { token: string }) {
     try {
       const opened = openShare(await loadModule(), { mode: "password" as SealedMode, ciphertext: state.ciphertext, secret: password });
       if (opened.ok) setState({ kind: "open", name: opened.name, text: opened.text });
-      else setError(opened.reason === "wrong_secret" ? "That password does not open it." : "The copy opened, but is not a shared document.");
+      else setError(opened.reason === "wrong_secret" ? "That password does not open it." : opened.reason === "too_costly" ? "This copy asks for far more work to open than a shared document should, so it was not tried. Do not trust it." : "The copy opened, but is not a shared document.");
       setPassword("");
     } finally {
       setBusy(false);

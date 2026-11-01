@@ -11,6 +11,10 @@ section.
 
 ## [Unreleased]
 
+### Security
+
+- **Review of phase 2** ([`docs/security-review-phase-2.md`](../../docs/security-review-phase-2.md), ROADMAP 2c.2): four defects fixed. *Put back* can no longer write plain text into an encrypted vault (or ciphertext into a plaintext or another encrypted one); a password-sealed link cannot ask your browser for more than age's default work to open it; an API call can no longer delete or move an encrypted vault's recipients file or guard; and a decrypted file larger than 1 MB is not put in an editor. The page now says how many recipients a file is encrypted to.
+
 ### Added
 
 - **Share an encrypted file by a sealed link** (ROADMAP 2c.1): on an open encrypted file, *Make a sealed link* encrypts a copy in your browser, either to a key that lives only in the link (after the `#`, which is never sent to a server) or to a password you tell the reader. The server keeps the sealed copy and serves it to the link, and cannot read it; the link opens in any browser, read-only, with no account. Revoking a link deletes its copy. A sealed link is a snapshot of the file as it was, and has no comments yet.

@@ -37,6 +37,11 @@ export interface RestoreDeps {
   idsInUse?: (docIds: string[]) => Promise<Record<string, string[]>>;
   /** Whether files may be put in this vault of the repository now (it is there, and plaintext with plain names, or encrypted as ROADMAP 2b.4 writes). */
   vaultOk: (vault: string) => boolean;
+  /**
+   * Whether the vault is an encrypted one, as the repository is now. Plain text is never put in one, nor ciphertext in a plaintext one (invariant 1, spec §6.5), and a
+   * file of an encrypted vault goes back only to its own, whose recipients and naming are the ones it was made for. Without it, only plaintext vaults take files.
+   */
+  encryptedVault?: (vault: string) => boolean;
   /** Whether the vault names its files by id: a file there keeps its name when it is put back, since its name is its identifier (spec §7.2). */
   idNamed?: (vault: string) => boolean;
   /** How long after it a deletion is offered, in milliseconds. */
@@ -79,6 +84,14 @@ export async function restoreDeleted(deps: RestoreDeps, input: { connectionId: n
   const targets = targetsOf(deps, records, input.path);
   if (typeof targets === "string") return { ok: false, reason: targets };
   if (!targets.every((target) => deps.vaultOk(target.path.split("/")[0] as string))) return { ok: false, reason: "vault_unavailable" };
+  // What is put back is what the vault it goes to holds: an encrypted file (`….age`) in an encrypted vault, and nothing else there, and only in its own vault.
+  for (const target of targets) {
+    const to = target.path.split("/")[0] as string;
+    const from = target.record.path.split("/")[0] as string;
+    const encrypted = deps.encryptedVault?.(to) ?? false;
+    const payload = /\.age$/i.test(target.path);
+    if (encrypted !== payload || (encrypted && to !== from)) return { ok: false, reason: "bad_path" };
+  }
   // A file of an id-named vault is its identifier: it goes back under that name, in any folder of its vault.
   if (targets.some((target) => deps.idNamed?.(target.path.split("/")[0] as string) && (target.path.slice(target.path.lastIndexOf("/") + 1) !== target.record.path.slice(target.record.path.lastIndexOf("/") + 1) || target.path.split("/")[0] !== target.record.path.split("/")[0]))) {
     return { ok: false, reason: "bad_path" };

@@ -48,14 +48,33 @@ export function sealShare(module: CryptoModule, input: { name: string; text: str
   }
 }
 
-export type Opened = { ok: true; name: string; text: string } | { ok: false; reason: "wrong_secret" | "damaged" };
+/**
+ * The most work a password-sealed copy may ask of the opener (security review of phase 2). The copy comes from whoever made the link, and the work factor is written in
+ * its header: a copy that asked for 2^20 would hold the viewer's tab for many seconds and a gigabyte of memory before it said the password was wrong. Ours are 2^17 (the
+ * identity's); age's own default, 2^18, is the most that is accepted. The header is read before any work is done.
+ */
+export const MAX_SHARED_WORK_FACTOR = 18;
+
+/** The work factor (log2 of scrypt's N) an age file asks of the one who opens it, read from its header; undefined if it has no password stanza. */
+export function scryptWorkFactor(bytes: Uint8Array): number | undefined {
+  const header = new TextDecoder("latin1").decode(bytes.subarray(0, Math.min(bytes.length, 4096)));
+  const match = /^-> scrypt \S+ (\d+)$/m.exec(header);
+  return match ? Number(match[1]) : undefined;
+}
+
+export type Opened = { ok: true; name: string; text: string } | { ok: false; reason: "wrong_secret" | "damaged" | "too_costly" };
 
 /** Open a copy with the key from the link or the password typed. A secret that does not open it, and a copy that is not what a sealed share holds, are told apart. */
 export function openShare(module: CryptoModule, input: { mode: SealedMode; ciphertext: string; secret: string }): Opened {
+  const copy = fromBase64(input.ciphertext);
+  if (input.mode === "password") {
+    const cost = scryptWorkFactor(copy);
+    if (cost === undefined || cost > MAX_SHARED_WORK_FACTOR) return { ok: false, reason: cost === undefined ? "damaged" : "too_costly" };
+  }
   const secret = encoder.encode(input.secret);
   let plain: Uint8Array;
   try {
-    plain = input.mode === "key" ? module.decrypt(fromBase64(input.ciphertext), secret) : module.openWithPassphrase(fromBase64(input.ciphertext), secret);
+    plain = input.mode === "key" ? module.decrypt(copy, secret) : module.openWithPassphrase(copy, secret);
   } catch {
     return { ok: false, reason: "wrong_secret" };
   } finally {

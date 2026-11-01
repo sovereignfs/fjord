@@ -177,10 +177,13 @@ A share of an encrypted document cannot be read by the server, which has no key.
 
 ### 2c.2 Security review of phase 2
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** DESIGN §15
 
 As 1d.5 was for phase 1: what each role and each process can see, written down and turned into tests, including the identity's life in the browser, extensions and a compromised page script, which end-to-end encryption in a web page cannot defend against and the review says so.
 
 **Accepts when:** the review is in `docs/` and each of its checks is a test or an explicit, argued exception.
+
+- **Done as:** [`docs/security-review-phase-2.md`](../security-review-phase-2.md): the promise and what it is not (an active server or page defeats it, and the review says so), who sees what, seven findings, the checks as tests, and fourteen exceptions argued. Four real defects were found and fixed, each with a failing test first or a test seen to fail with the fix off: **put back could write plain text into an encrypted vault** (a hole 2b.5 opened), **a sealed copy could demand 2^20 scrypt of its opener**, **an API call could delete or move a vault's recipients file or guard**, and **a very large decrypted file was put in an editor**; the number of recipients is now shown; disconnecting deleting sealed copies, the sealed page's headers and a hostile sharer's content are tested. A browser test calls every route that writes with hostile input against an encrypted vault and finds the repository unchanged, and another account gets the same 404 from all of them.
+- **Not here:** a penetration test by someone else; pinning the recipients (E5); comments on sealed copies.
