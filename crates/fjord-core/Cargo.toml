@@ -6,6 +6,12 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
+keywords = ["fjord", "markdown", "frontmatter", "age", "encryption"]
+categories = ["parser-implementations", "cryptography"]
+# The conformance fixtures are the repository's, at its root (`tests/fixtures/`), shared by every client, and are not in the package: the
+# integration tests that read them stay in the repository.
+exclude = ["tests/discovery.rs", "tests/fixtures.rs"]
 
 # This crate is compiled into the CLI, the Tauri clients, mobile via FFI, and
 # the web client via WASM. It must therefore never depend on a terminal, a

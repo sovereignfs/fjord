@@ -333,8 +333,17 @@ mod tests {
             .join(name)
     }
 
+    /// The conformance fixtures are the repository's, at its root, and are not in the package published to crates.io: a test that
+    /// reads them is skipped there, and runs everywhere else.
+    fn fixtures_present() -> bool {
+        fixture("conforming").is_dir()
+    }
+
     #[test]
     fn discovers_both_vaults_of_the_conforming_fixture() {
+        if !fixtures_present() {
+            return;
+        }
         let vaults = match discover(&fixture("conforming")) {
             Ok(vaults) => vaults,
             Err(err) => panic!("{err}"),
@@ -348,6 +357,9 @@ mod tests {
     /// one of them is wrong about the format.
     #[test]
     fn discovery_agrees_with_verify() {
+        if !fixtures_present() {
+            return;
+        }
         let root = fixture("conforming");
         let report = match crate::verify::verify(&root, &crate::verify::Options::default()) {
             Ok(report) => report,
@@ -368,6 +380,9 @@ mod tests {
 
     #[test]
     fn reads_the_encryption_settings() {
+        if !fixtures_present() {
+            return;
+        }
         let private = match find(&fixture("conforming"), "Private") {
             Ok(Some(vault)) => vault,
             other => panic!("expected the Private vault, got {other:?}"),
@@ -384,6 +399,9 @@ mod tests {
 
     #[test]
     fn a_plaintext_vault_has_no_encryption_settings() {
+        if !fixtures_present() {
+            return;
+        }
         let public = find(&fixture("conforming"), "Public")
             .expect("find")
             .expect("Public");
@@ -394,6 +412,9 @@ mod tests {
 
     #[test]
     fn a_vault_can_be_addressed_by_label_as_well_as_directory() {
+        if !fixtures_present() {
+            return;
+        }
         let root = fixture("conforming");
         assert!(find(&root, "Private").expect("find").is_some());
         // Same vault, found by its `name` field.
@@ -404,6 +425,9 @@ mod tests {
 
     #[test]
     fn finds_the_vault_containing_a_path() {
+        if !fixtures_present() {
+            return;
+        }
         let root = fixture("conforming");
         let vault = containing(&root, "Public/welcome.md")
             .expect("containing")
@@ -420,6 +444,9 @@ mod tests {
 
     #[test]
     fn lists_vault_content_and_leaves_machinery_out() {
+        if !fixtures_present() {
+            return;
+        }
         let private = find(&fixture("conforming"), "Private")
             .expect("find")
             .expect("Private");
@@ -444,6 +471,9 @@ mod tests {
 
     #[test]
     fn a_payload_is_listed_under_its_logical_name() {
+        if !fixtures_present() {
+            return;
+        }
         // §6.3: the suffix is appended, so stripping it gives the
         // document's real name and type.
         let vault = find(&fixture("broken/E304"), "Private")

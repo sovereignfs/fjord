@@ -7,6 +7,10 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 homepage.workspace = true
+keywords = ["fjord", "markdown", "git", "age", "encryption"]
+categories = ["command-line-utilities"]
+# The tests that read the repository's conformance fixtures (`tests/fixtures/`, at its root) stay in the repository; the rest are in the package.
+exclude = ["tests/cli.rs", "tests/fix.rs", "tests/init.rs"]
 
 [[bin]]
 name = "fjord"
