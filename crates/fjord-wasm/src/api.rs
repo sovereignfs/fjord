@@ -523,6 +523,106 @@ pub fn plan_setup(
     )
 }
 
+/// What to add to a Fjord repository for a new vault, plaintext or encrypted (ROADMAP 2d.1): the
+/// vault's own files, `fjord.json` with the vault listed (every other field kept), and for an encrypted
+/// vault spec §9's merge guard in `.gitattributes` if the repository lacks it. One planner for the CLI's
+/// `fjord vault add` and the web client (`fjord_core::scaffold::plan_vault`), so they write the same bytes.
+///
+/// - `options_json`: `{"name": string, "encrypted": bool, "idNaming": bool, "recipients": [string]}`.
+/// - `manifest`: the text of the repository's `fjord.json`.
+/// - `existing_json`: as for [`plan_setup`].
+/// - `now_ms` and `random`: the time and at least 16 random bytes, which the vault's identifier and
+///   creation time are made from.
+///
+/// The answer is JSON: `{"ok": false, "error": {"code", "message"}}` for a finding (the code one of
+/// `manifest_unusable`, `newer_version`, `invalid_name`, `name_taken`, `recipients_need_encryption`,
+/// `id_naming_needs_encryption`, `bad_recipient`, `recipients_unsupported`, `gitattributes_not_read`),
+/// else `{"ok": true, "files": [{"path", "contents", "change"}], "vaultId", "createdAt", "recipients"}`.
+/// `Err` is a malformed call.
+pub fn plan_vault(
+    options_json: &str,
+    manifest: &str,
+    existing_json: &str,
+    now_ms: f64,
+    random: &[u8],
+) -> Result<String, String> {
+    let options: Value = serde_json::from_str(options_json)
+        .map_err(|err| format!("the options are not JSON: {err}"))?;
+    let name = options
+        .get("name")
+        .and_then(Value::as_str)
+        .ok_or("the options need a text `name`")?
+        .to_string();
+    let flag = |key: &str| -> Result<bool, String> {
+        match options.get(key) {
+            None | Some(Value::Null) => Ok(false),
+            Some(Value::Bool(value)) => Ok(*value),
+            Some(_) => Err(format!("`{key}` must be true or false")),
+        }
+    };
+    let recipients = match options.get("recipients") {
+        None | Some(Value::Null) => Vec::new(),
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|item| {
+                item.as_str()
+                    .map(str::to_string)
+                    .ok_or("a recipient must be text")
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+        Some(_) => return Err("`recipients` must be a list".to_string()),
+    };
+    let setup = scaffold::VaultSetup {
+        name,
+        encrypted: flag("encrypted")?,
+        id_naming: flag("idNaming")?,
+        recipients,
+    };
+
+    let (paths, gitattributes) = existing(existing_json)?;
+
+    if !now_ms.is_finite() || now_ms < 0.0 {
+        return Err("the time must be milliseconds since the epoch, not negative".to_string());
+    }
+    if random.len() < 16 {
+        return Err("a vault needs 16 random bytes".to_string());
+    }
+    let mut entropy = [0u8; 16];
+    entropy.copy_from_slice(&random[..16]);
+    let created_at = scalar::rfc3339_utc_from_unix((now_ms / 1000.0) as i64)
+        .ok_or("the time cannot be written as a date")?;
+    let vault_id = scalar::new_ulid_from(now_ms as u64, entropy);
+
+    Ok(match scaffold::plan_vault(
+        &setup,
+        manifest.as_bytes(),
+        &paths,
+        gitattributes.as_deref(),
+        &vault_id,
+        &created_at,
+    ) {
+        Ok(plan) => json!({
+            "ok": true,
+            "files": plan.files.iter().map(|file| json!({
+                "path": file.path,
+                "contents": file.contents,
+                "change": match file.change {
+                    FileChange::Create => "create",
+                    FileChange::Append => "append",
+                },
+            })).collect::<Vec<_>>(),
+            "vaultId": plan.vault_id,
+            "createdAt": plan.created_at,
+            "recipients": plan.recipients,
+        }),
+        Err(error) => json!({
+            "ok": false,
+            "error": { "code": error.code(), "message": error.to_string() },
+        }),
+    }
+    .to_string())
+}
+
 /// A vault name that is free at the root of a repository (`"Public"`, else `"Public 2"`, …).
 /// `existing_json` is as for [`plan_setup`]; only its `paths` are looked at.
 pub fn free_vault_name(preferred: &str, existing_json: &str) -> Result<String, String> {
@@ -941,6 +1041,91 @@ mod tests {
             .join("../../tests/fixtures/setup.json");
         let text = serde_json::to_string_pretty(&cases).expect("JSON");
         std::fs::write(path, format!("{text}\n")).expect("write");
+    }
+
+    fn recorded_vaults() -> Vec<Value> {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/vault.json");
+        let text = std::fs::read_to_string(path).expect("vault.json");
+        serde_json::from_str::<Vec<Value>>(&text).expect("an array of cases")
+    }
+
+    fn vault_answer(case: &Value) -> Value {
+        let random = hex(case["randomHex"].as_str().expect("randomHex"));
+        let text = plan_vault(
+            &case["options"].to_string(),
+            case["manifest"].as_str().expect("manifest"),
+            &case["existing"].to_string(),
+            case["nowMs"].as_f64().expect("nowMs"),
+            &random,
+        )
+        .expect("a well-formed call");
+        parsed(&text)
+    }
+
+    #[test]
+    fn the_recorded_vaults_are_what_it_answers() {
+        let cases = recorded_vaults();
+        assert!(cases.len() >= 12, "only {} cases", cases.len());
+        for case in cases {
+            assert_eq!(vault_answer(&case), case["expected"], "{}", case["name"]);
+        }
+    }
+
+    /// Re-record `tests/fixtures/vault.json` after a deliberate change to what a new vault writes:
+    /// `cargo test -p fjord-wasm record_the_vaults -- --ignored`, then read the diff.
+    #[test]
+    #[ignore = "writes tests/fixtures/vault.json"]
+    fn record_the_vaults() {
+        let mut cases = recorded_vaults();
+        for case in &mut cases {
+            let expected = vault_answer(case);
+            case["expected"] = expected;
+        }
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/vault.json");
+        let text = serde_json::to_string_pretty(&cases).expect("JSON");
+        std::fs::write(path, format!("{text}\n")).expect("write");
+    }
+
+    #[test]
+    fn a_malformed_vault_call_is_an_error_and_not_a_finding() {
+        let existing = r#"{"paths":["fjord.json"],"gitattributes":null}"#;
+        let manifest = r#"{"fjord":1}"#;
+        let random = vec![7u8; 16];
+        assert!(plan_vault(r#"{"name":"V"}"#, manifest, existing, 1.0e12, &random).is_ok());
+        for (options, existing, now, random) in [
+            ("not json", existing, 1.0e12, &random[..]),
+            (r#"{}"#, existing, 1.0e12, &random[..]),
+            (r#"{"name":3}"#, existing, 1.0e12, &random[..]),
+            (
+                r#"{"name":"V","encrypted":"yes"}"#,
+                existing,
+                1.0e12,
+                &random[..],
+            ),
+            (
+                r#"{"name":"V","recipients":"age1"}"#,
+                existing,
+                1.0e12,
+                &random[..],
+            ),
+            (
+                r#"{"name":"V","recipients":[1]}"#,
+                existing,
+                1.0e12,
+                &random[..],
+            ),
+            (r#"{"name":"V"}"#, "not json", 1.0e12, &random[..]),
+            (r#"{"name":"V"}"#, existing, f64::NAN, &random[..]),
+            (r#"{"name":"V"}"#, existing, -1.0, &random[..]),
+            (r#"{"name":"V"}"#, existing, 1.0e12, &random[..15]),
+        ] {
+            assert!(
+                plan_vault(options, manifest, existing, now, random).is_err(),
+                "{options} {existing} {now}"
+            );
+        }
     }
 
     #[test]

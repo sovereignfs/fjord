@@ -7,6 +7,9 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 
 ### Added
 
+- **`planVault`** (ROADMAP 2d.1): `fjord_core::scaffold::plan_vault`, the files to add for a new vault, plaintext or encrypted, from
+  `fjord.json`, the repository's paths and its `.gitattributes`, with the time and randomness the caller supplies. The CLI's `fjord vault add`
+  writes from the same planner. Held, by Rust and by the JavaScript suite, to `tests/fixtures/vault.json`. 1,321,125 bytes, 499,067 gzipped.
 - **`withTitle`** (ROADMAP 1b.5): `fjord_core::doc::with_title`, a document's text with its `title` set or taken away, every other
   key kept in its place, for the web client's Document properties panel. `impliedTitle` now strips the whole `.fj.md` from a
   document's name.

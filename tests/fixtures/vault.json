@@ -1,0 +1,590 @@
+[
+  {
+    "name": "a plaintext vault",
+    "options": {
+      "name": "Notes",
+      "encrypted": false,
+      "idNaming": false,
+      "recipients": []
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    },\n    {\n      \"path\": \"Notes\",\n      \"id\": \"01m5vj1jg00c51260z4rpk8et2\"\n    }\n  ]\n}\n",
+          "change": "append"
+        },
+        {
+          "path": "Notes/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m5vj1jg00c51260z4rpk8et2\",\n  \"name\": \"Notes\",\n  \"createdAt\": \"2026-10-26T07:33:20Z\",\n  \"encryption\": null,\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        }
+      ],
+      "vaultId": "01m5vj1jg00c51260z4rpk8et2",
+      "createdAt": "2026-10-26T07:33:20Z",
+      "recipients": []
+    }
+  },
+  {
+    "name": "an encrypted vault with a key, in a repository that has the guard",
+    "options": {
+      "name": "Secret",
+      "encrypted": true,
+      "idNaming": false,
+      "recipients": [
+        "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+      ]
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    },\n    {\n      \"path\": \"Secret\",\n      \"id\": \"01m5vj1jg00c51260z4rpk8et2\"\n    }\n  ]\n}\n",
+          "change": "append"
+        },
+        {
+          "path": "Secret/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m5vj1jg00c51260z4rpk8et2\",\n  \"name\": \"Secret\",\n  \"createdAt\": \"2026-10-26T07:33:20Z\",\n  \"encryption\": {\n    \"tool\": \"age\",\n    \"recipients\": \"recipients.txt\",\n    \"suffix\": \".age\",\n    \"container\": \"none\",\n    \"armor\": false\n  },\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "Secret/recipients.txt",
+          "contents": "# age recipients for the Private vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
+          "change": "create"
+        },
+        {
+          "path": "Secret/.gitignore",
+          "contents": "# Plaintext guard for an encrypted vault.\n#\n# Ignore everything, then allow back only the things that belong in an\n# encrypted vault. This is what stops a decrypted working copy — say you ran\n# `age -d` to edit a file in another editor and forgot to clean up — from\n# being committed in the clear.\n#\n# Do not remove these lines. If you add a new allowed file type to this\n# vault, add a matching `!` rule rather than deleting the `*`.\n\n*\n\n# Let git descend into subdirectories.\n!*/\n\n# Encrypted payloads.\n!*.age\n\n# Vault machinery (must stay readable to find the keys and the format).\n!fjord.vault.json\n!recipients.txt\n!.gitignore\n",
+          "change": "create"
+        }
+      ],
+      "vaultId": "01m5vj1jg00c51260z4rpk8et2",
+      "createdAt": "2026-10-26T07:33:20Z",
+      "recipients": [
+        "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+      ]
+    }
+  },
+  {
+    "name": "an encrypted vault with no key yet",
+    "options": {
+      "name": "Secret",
+      "encrypted": true,
+      "idNaming": false,
+      "recipients": []
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    },\n    {\n      \"path\": \"Secret\",\n      \"id\": \"01m5vj1jg00c51260z4rpk8et2\"\n    }\n  ]\n}\n",
+          "change": "append"
+        },
+        {
+          "path": "Secret/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m5vj1jg00c51260z4rpk8et2\",\n  \"name\": \"Secret\",\n  \"createdAt\": \"2026-10-26T07:33:20Z\",\n  \"encryption\": {\n    \"tool\": \"age\",\n    \"recipients\": \"recipients.txt\",\n    \"suffix\": \".age\",\n    \"container\": \"none\",\n    \"armor\": false\n  },\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "Secret/recipients.txt",
+          "contents": "# age recipients for the Private vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n",
+          "change": "create"
+        },
+        {
+          "path": "Secret/.gitignore",
+          "contents": "# Plaintext guard for an encrypted vault.\n#\n# Ignore everything, then allow back only the things that belong in an\n# encrypted vault. This is what stops a decrypted working copy — say you ran\n# `age -d` to edit a file in another editor and forgot to clean up — from\n# being committed in the clear.\n#\n# Do not remove these lines. If you add a new allowed file type to this\n# vault, add a matching `!` rule rather than deleting the `*`.\n\n*\n\n# Let git descend into subdirectories.\n!*/\n\n# Encrypted payloads.\n!*.age\n\n# Vault machinery (must stay readable to find the keys and the format).\n!fjord.vault.json\n!recipients.txt\n!.gitignore\n",
+          "change": "create"
+        }
+      ],
+      "vaultId": "01m5vj1jg00c51260z4rpk8et2",
+      "createdAt": "2026-10-26T07:33:20Z",
+      "recipients": []
+    }
+  },
+  {
+    "name": "an encrypted vault named by id",
+    "options": {
+      "name": "Vault",
+      "encrypted": true,
+      "idNaming": true,
+      "recipients": [
+        "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p",
+        "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+      ]
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    },\n    {\n      \"path\": \"Vault\",\n      \"id\": \"01m5vj1jg00c51260z4rpk8et2\"\n    }\n  ]\n}\n",
+          "change": "append"
+        },
+        {
+          "path": "Vault/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m5vj1jg00c51260z4rpk8et2\",\n  \"name\": \"Vault\",\n  \"createdAt\": \"2026-10-26T07:33:20Z\",\n  \"encryption\": {\n    \"tool\": \"age\",\n    \"recipients\": \"recipients.txt\",\n    \"suffix\": \".age\",\n    \"container\": \"tar\",\n    \"armor\": false\n  },\n  \"fileNaming\": \"id\"\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "Vault/recipients.txt",
+          "contents": "# age recipients for the Private vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
+          "change": "create"
+        },
+        {
+          "path": "Vault/.gitignore",
+          "contents": "# Plaintext guard for an encrypted vault.\n#\n# Ignore everything, then allow back only the things that belong in an\n# encrypted vault. This is what stops a decrypted working copy — say you ran\n# `age -d` to edit a file in another editor and forgot to clean up — from\n# being committed in the clear.\n#\n# Do not remove these lines. If you add a new allowed file type to this\n# vault, add a matching `!` rule rather than deleting the `*`.\n\n*\n\n# Let git descend into subdirectories.\n!*/\n\n# Encrypted payloads.\n!*.age\n\n# Vault machinery (must stay readable to find the keys and the format).\n!fjord.vault.json\n!recipients.txt\n!.gitignore\n",
+          "change": "create"
+        }
+      ],
+      "vaultId": "01m5vj1jg00c51260z4rpk8et2",
+      "createdAt": "2026-10-26T07:33:20Z",
+      "recipients": [
+        "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+      ]
+    }
+  },
+  {
+    "name": "an encrypted vault in a repository with no .gitattributes",
+    "options": {
+      "name": "Secret",
+      "encrypted": true,
+      "idNaming": false,
+      "recipients": [
+        "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+      ]
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json"
+      ],
+      "gitattributes": null
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    },\n    {\n      \"path\": \"Secret\",\n      \"id\": \"01m5vj1jg00c51260z4rpk8et2\"\n    }\n  ]\n}\n",
+          "change": "append"
+        },
+        {
+          "path": "Secret/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m5vj1jg00c51260z4rpk8et2\",\n  \"name\": \"Secret\",\n  \"createdAt\": \"2026-10-26T07:33:20Z\",\n  \"encryption\": {\n    \"tool\": \"age\",\n    \"recipients\": \"recipients.txt\",\n    \"suffix\": \".age\",\n    \"container\": \"none\",\n    \"armor\": false\n  },\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "Secret/recipients.txt",
+          "contents": "# age recipients for the Private vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
+          "change": "create"
+        },
+        {
+          "path": "Secret/.gitignore",
+          "contents": "# Plaintext guard for an encrypted vault.\n#\n# Ignore everything, then allow back only the things that belong in an\n# encrypted vault. This is what stops a decrypted working copy — say you ran\n# `age -d` to edit a file in another editor and forgot to clean up — from\n# being committed in the clear.\n#\n# Do not remove these lines. If you add a new allowed file type to this\n# vault, add a matching `!` rule rather than deleting the `*`.\n\n*\n\n# Let git descend into subdirectories.\n!*/\n\n# Encrypted payloads.\n!*.age\n\n# Vault machinery (must stay readable to find the keys and the format).\n!fjord.vault.json\n!recipients.txt\n!.gitignore\n",
+          "change": "create"
+        },
+        {
+          "path": ".gitattributes",
+          "contents": "# Fjord: never diff or merge ciphertext (spec §9).\n*.age binary -diff -merge\n",
+          "change": "create"
+        }
+      ],
+      "vaultId": "01m5vj1jg00c51260z4rpk8et2",
+      "createdAt": "2026-10-26T07:33:20Z",
+      "recipients": [
+        "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+      ]
+    }
+  },
+  {
+    "name": "an encrypted vault in a repository whose .gitattributes lacks the guard",
+    "options": {
+      "name": "Secret",
+      "encrypted": true,
+      "idNaming": false,
+      "recipients": [
+        "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+      ]
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "* text=auto"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    },\n    {\n      \"path\": \"Secret\",\n      \"id\": \"01m5vj1jg00c51260z4rpk8et2\"\n    }\n  ]\n}\n",
+          "change": "append"
+        },
+        {
+          "path": "Secret/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m5vj1jg00c51260z4rpk8et2\",\n  \"name\": \"Secret\",\n  \"createdAt\": \"2026-10-26T07:33:20Z\",\n  \"encryption\": {\n    \"tool\": \"age\",\n    \"recipients\": \"recipients.txt\",\n    \"suffix\": \".age\",\n    \"container\": \"none\",\n    \"armor\": false\n  },\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        },
+        {
+          "path": "Secret/recipients.txt",
+          "contents": "# age recipients for the Private vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
+          "change": "create"
+        },
+        {
+          "path": "Secret/.gitignore",
+          "contents": "# Plaintext guard for an encrypted vault.\n#\n# Ignore everything, then allow back only the things that belong in an\n# encrypted vault. This is what stops a decrypted working copy — say you ran\n# `age -d` to edit a file in another editor and forgot to clean up — from\n# being committed in the clear.\n#\n# Do not remove these lines. If you add a new allowed file type to this\n# vault, add a matching `!` rule rather than deleting the `*`.\n\n*\n\n# Let git descend into subdirectories.\n!*/\n\n# Encrypted payloads.\n!*.age\n\n# Vault machinery (must stay readable to find the keys and the format).\n!fjord.vault.json\n!recipients.txt\n!.gitignore\n",
+          "change": "create"
+        },
+        {
+          "path": ".gitattributes",
+          "contents": "* text=auto\n# Fjord: never diff or merge ciphertext (spec §9).\n*.age binary -diff -merge\n",
+          "change": "append"
+        }
+      ],
+      "vaultId": "01m5vj1jg00c51260z4rpk8et2",
+      "createdAt": "2026-10-26T07:33:20Z",
+      "recipients": [
+        "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+      ]
+    }
+  },
+  {
+    "name": "a manifest with fields of its own keeps them",
+    "options": {
+      "name": "Notes",
+      "encrypted": false
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ],\n  \"x-custom\": {\n    \"keep\": true\n  }\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": true,
+      "files": [
+        {
+          "path": "fjord.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    },\n    {\n      \"path\": \"Notes\",\n      \"id\": \"01m5vj1jg00c51260z4rpk8et2\"\n    }\n  ],\n  \"x-custom\": {\n    \"keep\": true\n  }\n}\n",
+          "change": "append"
+        },
+        {
+          "path": "Notes/fjord.vault.json",
+          "contents": "{\n  \"fjord\": 1,\n  \"id\": \"01m5vj1jg00c51260z4rpk8et2\",\n  \"name\": \"Notes\",\n  \"createdAt\": \"2026-10-26T07:33:20Z\",\n  \"encryption\": null,\n  \"fileNaming\": \"plain\"\n}\n",
+          "change": "create"
+        }
+      ],
+      "vaultId": "01m5vj1jg00c51260z4rpk8et2",
+      "createdAt": "2026-10-26T07:33:20Z",
+      "recipients": []
+    }
+  },
+  {
+    "name": "a name that is taken, case aside",
+    "options": {
+      "name": "public",
+      "encrypted": false
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "name_taken",
+        "message": "\"public\" is already used in this repository"
+      }
+    }
+  },
+  {
+    "name": "a name that is not a directory",
+    "options": {
+      "name": "a/b",
+      "encrypted": false
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "invalid_name",
+        "message": "\"a/b\" cannot be the name of a vault: a vault is a single directory at the repository root (spec §2.3)"
+      }
+    }
+  },
+  {
+    "name": "a hidden name",
+    "options": {
+      "name": ".git",
+      "encrypted": false
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "invalid_name",
+        "message": "\".git\" cannot be the name of a vault: it would be a hidden directory"
+      }
+    }
+  },
+  {
+    "name": "a key on a plaintext vault",
+    "options": {
+      "name": "Notes",
+      "encrypted": false,
+      "recipients": [
+        "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p"
+      ]
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "recipients_need_encryption",
+        "message": "recipients need an encrypted vault: a plaintext vault has none, so the key would be dropped and the vault left readable by everyone"
+      }
+    }
+  },
+  {
+    "name": "id naming on a plaintext vault",
+    "options": {
+      "name": "Notes",
+      "encrypted": false,
+      "idNaming": true
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "id_naming_needs_encryption",
+        "message": "naming files by id needs an encrypted vault: on a plaintext vault it hides nothing and makes the vault unbrowsable, which spec §7.2 requires clients to reject"
+      }
+    }
+  },
+  {
+    "name": "a key that is not one",
+    "options": {
+      "name": "Secret",
+      "encrypted": true,
+      "recipients": [
+        "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p",
+        "not a key"
+      ]
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "bad_recipient",
+        "message": "not a key: not an age recipient; expected an `age1…` public key"
+      }
+    }
+  },
+  {
+    "name": "a repository of a newer format",
+    "options": {
+      "name": "Notes",
+      "encrypted": false
+    },
+    "manifest": "{\n  \"fjord\": 2,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "newer_version",
+        "message": "this repository declares Fjord format version 2, and this build implements 1; it may be read but not written"
+      }
+    }
+  },
+  {
+    "name": "a manifest that is not JSON",
+    "options": {
+      "name": "Notes",
+      "encrypted": false
+    },
+    "manifest": "nope",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": "# Fjord: never diff or merge ciphertext\n*.age binary -diff -merge\n"
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "manifest_unusable",
+        "message": "fjord.json is not usable: expected ident at line 1 column 2"
+      }
+    }
+  },
+  {
+    "name": "a .gitattributes that was not read",
+    "options": {
+      "name": "Secret",
+      "encrypted": true
+    },
+    "manifest": "{\n  \"fjord\": 1,\n  \"id\": \"01m4xrc0000c51260z4rpk8et2\",\n  \"name\": \"notes\",\n  \"createdAt\": \"2026-10-14T17:46:40Z\",\n  \"generator\": \"fjord-web 0.0.0\",\n  \"vaults\": [\n    {\n      \"path\": \"Public\",\n      \"id\": \"01m4xrc000edx8324fjtet9axj\"\n    }\n  ]\n}\n",
+    "existing": {
+      "paths": [
+        "fjord.json",
+        "Public/fjord.vault.json",
+        "Public/welcome.fj.md",
+        ".gitattributes"
+      ],
+      "gitattributes": null
+    },
+    "nowMs": 1793000000000,
+    "randomHex": "030a11181f262d343b424950575e656c",
+    "expected": {
+      "ok": false,
+      "error": {
+        "code": "gitattributes_not_read",
+        "message": ".gitattributes is there but its text was not supplied"
+      }
+    }
+  }
+]
