@@ -91,6 +91,16 @@ URL + fine-grained token; permissions checked on add.
 
 **Accepts when:** A read-only token is refused with a clear message; a correct one works. Built as: `/repositories` and `/api/connections`, tested against a git-backed fake GitHub on all three databases and in a browser. Not yet seen with a real fine-grained token.
 
+- **What is left is one run against the real GitHub, which only the owner of a repository and two tokens can do.** `clients/web/src/connections/live-github.test.ts` is that check, written and skipped until it is given a repository and two fine-grained tokens for it (it never runs in CI). It asserts, against the real API and not the fake: a token with *Contents: Read-only* is refused as `read_only`, with the message that names the permission, and nothing is kept; one with *Contents: Read and write* connects (the no-change write `canWrite` makes, the branch moved to where it already is, is accepted by GitHub), moves nothing (the branch's head is the same after), is kept only sealed (no column holds it or its last twelve characters), and reads the tree back through the stored credential; and a token GitHub does not know is `bad_token` while a repository that does not exist is `not_found`. It writes nothing to the repository. The check's own logic was shown against the git-backed fake, where it passes.
+
+  ```bash
+  read -rs FJORD_LIVE_TOKEN_RW && export FJORD_LIVE_TOKEN_RW   # Contents: Read and write, Metadata: Read-only
+  read -rs FJORD_LIVE_TOKEN_RO && export FJORD_LIVE_TOKEN_RO   # Contents: Read-only,       Metadata: Read-only
+  FJORD_LIVE_REPO=owner/name pnpm exec vitest run src/connections/live-github.test.ts   # in clients/web
+  ```
+
+  When it passes, 1a.7 is done: mark it ✅ here and in `clients/web/ROADMAP.md`. If GitHub answers differently from the fake (the likeliest place is the no-change write for a token without write permission, which GitHub may refuse with another status than 403), the failure names the step and `src/providers/github/provider.ts` `canWrite` is where to fix it, with the fake changed to match what GitHub said.
+
 ## 1a.8 Credentials at rest
 
 **Status:** ✅ Done
