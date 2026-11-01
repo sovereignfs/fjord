@@ -111,3 +111,31 @@ export function newEncryptedFile(
   }
   return { ok: true, ciphertext: toBase64(sealText(module, { text, name, naming: input.naming, recipients: input.recipients })) };
 }
+
+/** Where a file can be moved to in another vault (ROADMAP 2b.6): a plaintext vault, or an encrypted one with the recipients to encrypt to (or why there is none). */
+export type TransferForm = { form: "plaintext" } | { form: "encrypted"; naming: Naming };
+
+/** The text of a vault's recipients file, or why there is none. */
+export type Recipients = { ok: true; text: string } | { ok: false; message: string };
+
+export interface TransferTarget {
+  /** The folder it goes into, repository-relative; a vault's own directory is its top. */
+  folder: string;
+  vault: string;
+  to: TransferForm;
+}
+
+/**
+ * The file as the destination vault holds it (ROADMAP 2b.6), made here because the server has no key: the text itself for a plaintext vault; for an encrypted one the
+ * ciphertext (with its real name inside a container in an `id`-named vault, whose file is then called by a new identifier, else by its name and `.age`). `leaf` is the
+ * name in the folder. The server holds the destination to the form it holds, so this cannot put plain text in an encrypted vault even if it were wrong.
+ */
+export function prepareTransfer(
+  module: CryptoModule,
+  input: { text: string; name: string; to: TransferForm; recipients?: Recipients | undefined; now: number; random: Uint8Array },
+): { ok: true; leaf: string; content: string } | { ok: false; message: string } {
+  if (input.to.form === "plaintext") return { ok: true, leaf: input.name, content: toBase64(encoder.encode(input.text)) };
+  if (!input.recipients?.ok) return { ok: false, message: input.recipients?.message ?? "The vault's recipients were not read, so there is no one to encrypt to." };
+  const sealed = toBase64(sealText(module, { text: input.text, name: input.name, naming: input.to.naming, recipients: input.recipients.text }));
+  return { ok: true, leaf: input.to.naming === "id" ? `${module.newUlid(input.now, input.random)}.age` : `${input.name}.age`, content: sealed };
+}

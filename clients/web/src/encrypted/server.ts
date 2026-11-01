@@ -4,7 +4,8 @@ import type { ConnectionInfo } from "../connections/service";
 import { connectionService } from "../connections/server";
 import { isProviderError } from "../providers/errors";
 import { workingCopyService } from "../working/server";
-import { type Deps, MAX_CIPHERTEXT_BYTES } from "./http";
+import { checkEncryptedVault } from "../files/create-encrypted";
+import { type Deps, MAX_CIPHERTEXT_BYTES, type RecipientsDeps } from "./http";
 import { type Recipients, readRecipients } from "./recipients";
 
 /**
@@ -53,3 +54,14 @@ export async function editingFor(accountId: string, connection: ConnectionInfo, 
   const recipients: Recipients = used ? await readRecipients(used.provider, { owner: connection.owner, name: connection.name }, read, vaultDirectory) : { ok: false, message: "That repository is not connected." };
   return { draft, recipients };
 }
+
+/** The recipients of one of the account's encrypted vaults, for a page that moves a file into it (ROADMAP 2b.6): only a vault this version writes to. */
+export const readVaultRecipients: RecipientsDeps["read"] = async (accountId, id, vault) => {
+  const connection = await (await connectionService()).get(accountId, id);
+  if (!connection) return { found: false };
+  const outcome = await readConnection(accountId, connection);
+  if (!outcome.ok) return { found: true, result: { ok: false, reason: outcome.problem.code === "not_found" ? "not_a_vault" : "unavailable" } };
+  if (!checkEncryptedVault(outcome.read.discovery.vaults, outcome.read.manifests, vault).ok) return { found: true, result: { ok: false, reason: "not_a_vault" } };
+  const recipients = await recipientsFor(accountId, connection, outcome.read, vault);
+  return { found: true, result: recipients.ok ? { ok: true, text: recipients.text } : { ok: false, reason: "no_recipients" } };
+};

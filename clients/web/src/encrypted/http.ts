@@ -68,3 +68,42 @@ export async function handleCiphertext(request: Request, caller: Caller | null, 
     return failure(500, "internal_error", "Something went wrong on our side. Try again.");
   }
 }
+
+/**
+ * `GET /api/connections/<id>/recipients?vault=<directory>` (ROADMAP 2b.6): the text of an encrypted vault's recipients file, which a page encrypts to when it moves a file
+ * into the vault. They are public keys, read from the repository like any file. Asked for on demand, when a person chooses such a vault, so that opening a file reads
+ * nothing for it. Only a vault this version writes to; another, a plaintext one and a vault that is not there are the same 404.
+ */
+export interface RecipientsDeps {
+  read: (accountId: string, id: number, vault: string) => Promise<{ found: false } | { found: true; result: { ok: true; text: string } | { ok: false; reason: "not_a_vault" | "no_recipients" | "unavailable" } }>;
+}
+
+const RECIPIENTS_REFUSALS = {
+  not_a_vault: { status: 404, code: "not_found", message: "There is no such vault." },
+  no_recipients: { status: 422, code: "no_recipients", message: "That vault's manifest does not name a recipients file that can be read, so there is no one to encrypt to." },
+  unavailable: { status: 502, code: "unavailable", message: "Could not reach the git host just now. Try again in a moment." },
+} as const;
+
+export async function handleRecipients(request: Request, caller: Caller | null, deps: RecipientsDeps, id: string): Promise<Response> {
+  if (request.method !== "GET") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  if (!caller) return failure(401, "unauthorized", "Sign in first.");
+  const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
+  if (number === undefined) return notFound();
+  const vault = new URL(request.url).searchParams.get("vault");
+  if (typeof vault !== "string" || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+
+  try {
+    const outcome = await deps.read(caller.accountId, number, vault);
+    if (!outcome.found) return notFound();
+    if (!outcome.result.ok) {
+      const refusal = RECIPIENTS_REFUSALS[outcome.result.reason];
+      return failure(refusal.status, refusal.code, refusal.message);
+    }
+    return json(200, { recipients: outcome.result.text });
+  } catch (error) {
+    if (isCredentialError(error, "no_key")) return failure(503, "not_configured", "This instance cannot read repositories yet: its administrator needs to set FJORD_ENCRYPTION_KEY.");
+    if (isProviderError(error, "rate_limited")) return failure(429, "rate_limited", "The git host is limiting requests. Try again in a moment.");
+    console.error(`[fjord] recipients: unexpected ${error instanceof Error ? error.name : "failure"}`);
+    return failure(500, "internal_error", "Something went wrong on our side. Try again.");
+  }
+}

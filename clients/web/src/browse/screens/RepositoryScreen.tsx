@@ -15,6 +15,8 @@ import type { RepositoryRead } from "../repository";
 import { fjord } from "../../format/wasm";
 import { DeletedUpstream } from "../screens/DeletedUpstream";
 import { checkEncryptedVault } from "../../files/create-encrypted";
+import type { TransferTarget } from "../../keys/files";
+import type { VaultListing } from "../../format/types";
 import type { EncryptedCreate } from "../screens/NewFile";
 import { editingFor, recipientsFor } from "../../encrypted/server";
 
@@ -77,17 +79,50 @@ export async function RepositoryScreen({ connection, path }: { connection: strin
       const vaultOf = found.location.kind === "folder" || found.location.kind === "file" ? found.location.vault : undefined;
       const writtenAs = vaultOf?.encrypted === true ? checkEncryptedVault(outcome.read.discovery.vaults, outcome.read.manifests, vaultOf.directory) : undefined;
       const encryptedNaming = writtenAs?.ok ? writtenAs.target.naming : undefined;
+      // Where a file can go in another vault when one of the two is encrypted (ROADMAP 2b.6): the page makes the bytes, so it is given the recipients.
+      const movable = file !== undefined && vaultOf !== undefined && fileBlob !== undefined && (file.kind === "payload" ? encryptedNaming !== undefined : (file.kind === "note" || file.kind === "document") && vaultOf.encrypted === false);
+      const transferTargets = movable ? transferTargetsFor(outcome.read, vaultOf) : undefined;
       const prefix = `${segments.join("/")}/`;
       const folderFiles = found.location.kind === "folder" && !outcome.read.partial ? [...outcome.read.blobs.keys()].filter((path) => path.startsWith(prefix)).length : undefined;
       // A note or a document is a header and a body, and its editor is given the body: where that starts in the text shown, what
       // the header says, and the header a file with none is given on its first edit (ROADMAP 1b.3, 1b.5).
       const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
-      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} encryptedCreate={encryptedCreate} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "document" ? (docId ?? undefined) : undefined} destinations={moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined)} encryptedNaming={encryptedNaming} />;
+      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} encryptedCreate={encryptedCreate} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "document" ? (docId ?? undefined) : undefined} destinations={moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined)} encryptedNaming={encryptedNaming} transferTargets={transferTargets} />;
     }
   }
 
   const landing = content === undefined && (path === undefined || path.length === 0) ? <Landing accountId={user.id} connection={current} outcome={outcome} /> : undefined;
   return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} setup={landing ? await assessSetupFor(user.id, current, outcome) : undefined} security={localAuthConfig() !== undefined} />;
+}
+
+/** A vault's own directory and every folder in it, repository-relative (a repository too large to list names none beyond the top). */
+function foldersOf(vault: VaultListing): string[] {
+  const folders = new Set<string>();
+  for (const file of vault.files) {
+    const segments = file.path.split("/").slice(0, -1);
+    for (let i = 2; i <= segments.length; i++) folders.add(segments.slice(0, i).join("/"));
+  }
+  return [vault.directory, ...[...folders].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }) || (a < b ? -1 : 1))];
+}
+
+/**
+ * The folders a file can be moved to in another vault when one of the two is encrypted (ROADMAP 2b.6): every other vault this version writes, except that a plaintext
+ * file does not go to another plaintext vault (that is Move). The recipients the page encrypts to are asked for when a vault is chosen, not read for every page.
+ */
+function transferTargetsFor(read: RepositoryRead, source: VaultListing): TransferTarget[] {
+  const targets: TransferTarget[] = [];
+  for (const vault of read.discovery.vaults) {
+    if (vault.directory === source.directory || vault.manifestError !== null) continue;
+    if (vault.encrypted === true) {
+      const written = checkEncryptedVault(read.discovery.vaults, read.manifests, vault.directory);
+      if (!written.ok) continue;
+      const to = { form: "encrypted" as const, naming: written.target.naming };
+      for (const folder of foldersOf(vault)) targets.push({ folder, vault: vault.directory, to });
+    } else if (vault.encrypted === false && vault.fileNaming === "plain" && source.encrypted === true) {
+      for (const folder of foldersOf(vault)) targets.push({ folder, vault: vault.directory, to: { form: "plaintext" } });
+    }
+  }
+  return targets.slice(0, 300);
 }
 
 /**

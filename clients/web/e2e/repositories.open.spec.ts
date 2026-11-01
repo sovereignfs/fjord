@@ -937,6 +937,105 @@ test("a file of an id-named encrypted vault is renamed by the name inside it, ke
   }
 });
 
+// --- Moving files in and out of encrypted vaults (ROADMAP 2b.6) ---
+
+test("a file is encrypted on the way into an encrypted vault, decrypted on the way out after asking, and re-encrypted between two, all in the browser", async ({ page }) => {
+  test.setTimeout(300_000);
+  const sealedId = "01jagc4k7pr9tbm3ykwx6zq2hz";
+  try {
+    const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({
+      "Notes/fjord.vault.json": VAULT_MANIFEST,
+      "Notes/Plan.md": "# Plan\n\nSECRET PLAINTEXT of the plan",
+      "Notes/Other.md": "SECRET PLAINTEXT other",
+      "Open/Enc.md.age": wasm.encrypt(bytes("SECRET PLAINTEXT encrypted note"), recipient, false),
+      [`Sealed/${sealedId}.age`]: wasm.encrypt(wasm.wrapContainer("Inner.md", bytes("SECRET PLAINTEXT inner")), recipient, false),
+    }));
+    const filesAt = async () => Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!));
+    const choose = (page2: Page, option: string) => page2.getByLabel("Move to", { exact: true }).selectOption({ label: option });
+
+    // Into a plain-named encrypted vault: asked first, and the new commit holds no plaintext of the file.
+    await page.goto(`/repo/${id}/Notes/Plan.md`);
+    await page.getByRole("button", { name: "Move to another vault" }).click();
+    const options = await page.getByLabel("Move to", { exact: true }).locator("option").allTextContents();
+    expect(options).toEqual(expect.arrayContaining(["Open (encrypted)", "Sealed (encrypted)"]));
+    expect(options.some((option) => option.startsWith("Notes"))).toBe(false); // plaintext to plaintext is Move
+    await choose(page, "Open (encrypted)");
+    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await expect(page.getByText("The plain text stays in the history")).toBeVisible();
+    const before = await hubs.more.branchHead();
+    expect(await hubs.more.branchHead()).toBe(before); // asking is not doing
+    await page.getByRole("button", { name: "Yes, move it" }).click();
+    await expect(page).toHaveURL(new RegExp("/Open/Plan\\.md\\.age$"), { timeout: 30_000 });
+    let head = (await hubs.more.branchHead())!;
+    expect(await hubs.more.show(head, "%B")).toBe("Move Plan into the encrypted vault Open");
+    expect(await filesAt()).not.toContain("Notes/Plan.md");
+    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(head, "Open/Plan.md.age")))).toBe("# Plan\n\nSECRET PLAINTEXT of the plan");
+    for (const [path, text] of Object.entries(await hubs.more.filesAt(head))) if (path.startsWith("Open/") || path.startsWith("Sealed/")) expect(text, path).not.toContain("SECRET PLAINTEXT");
+
+    // Into an id-named one: a new identifier, the real name inside.
+    await page.goto(`/repo/${id}/Notes/Other.md`);
+    await page.getByRole("button", { name: "Move to another vault" }).click();
+    await choose(page, "Sealed (encrypted)");
+    await expect(page.getByLabel("Name")).toHaveCount(0); // the name is kept inside
+    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await page.getByRole("button", { name: "Yes, move it" }).click();
+    await expect(page).toHaveURL(new RegExp("/Sealed/[0-7][0-9a-hjkmnp-tv-z]{25}\\.age$"), { timeout: 30_000 });
+    head = (await hubs.more.branchHead())!;
+    const made = (await filesAt()).find((path) => path.startsWith("Sealed/") && path.endsWith(".age") && !path.includes(sealedId))!;
+    const inside = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(head, made)));
+    expect([inside.name, textOf(inside.contents)]).toEqual(["Other.md", "SECRET PLAINTEXT other"]);
+    expect(await hubs.more.show(head, "%B")).toBe("Move Other into the encrypted vault Sealed");
+
+    // Out of an encrypted vault: it needs the identity, says what it does, and does nothing until told.
+    await page.goto(`/repo/${id}/Open/Enc.md.age`);
+    await page.getByLabel("Passphrase").fill(PASSPHRASE);
+    await page.getByRole("button", { name: "Unlock and open" }).click();
+    await expect(noteEditor(page, "Enc.md")).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "Move to another vault" }).click();
+    await choose(page, "Notes");
+    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await expect(page.getByText("This decrypts the file")).toBeVisible();
+    const asked = await hubs.more.branchHead();
+    expect(await filesAt()).toContain("Open/Enc.md.age"); // nothing yet
+    await page.getByRole("button", { name: "Yes, decrypt and move" }).click();
+    await expect(page).toHaveURL(new RegExp("/Notes/Enc\\.md$"), { timeout: 30_000 });
+    head = (await hubs.more.branchHead())!;
+    expect(head).not.toBe(asked);
+    expect((await hubs.more.filesAt(head))["Notes/Enc.md"]).toBe("SECRET PLAINTEXT encrypted note");
+    expect(await filesAt()).not.toContain("Open/Enc.md.age");
+    expect(await hubs.more.show(head, "%B")).toBe("Move Enc out of the encrypted vault Open");
+
+    // Between two encrypted vaults, the id-named one's real name comes out of the container.
+    await page.goto(`/repo/${id}/Sealed/${sealedId}.age`);
+    await page.getByLabel("Passphrase").fill(PASSPHRASE);
+    await page.getByRole("button", { name: "Unlock and open" }).click();
+    await expect(noteEditor(page, "Inner.md")).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "Move to another vault" }).click();
+    await choose(page, "Open (encrypted)");
+    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await page.getByRole("button", { name: "Yes, move it" }).click();
+    await expect(page).toHaveURL(new RegExp("/Open/Inner\\.md\\.age$"), { timeout: 30_000 });
+    head = (await hubs.more.branchHead())!;
+    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(head, "Open/Inner.md.age")))).toBe("SECRET PLAINTEXT inner");
+    expect(await filesAt()).not.toContain(`Sealed/${sealedId}.age`);
+    await hubs.more.fsck();
+
+    // No request carried the text of any file; the server refuses plain text for an encrypted vault, whatever the page says.
+    const transfers = record.filter((line) => line.startsWith("POST ") && line.includes("/files/transfer"));
+    expect(transfers.length).toBe(4);
+    expect(transfers.slice(0, 2).join("\n")).not.toContain("SECRET PLAINTEXT");
+    const refused = await page.request.post(`/api/connections/${id}/files/transfer`, {
+      headers: { origin: BASE },
+      data: { path: "Notes/Enc.md", blob: "0".repeat(40), destination: "Open/Enc.md.age", content: Buffer.from("SECRET PLAINTEXT").toString("base64") },
+      failOnStatusCode: false,
+    });
+    expect((await refused.json()).error.code).toBe("wrong_form");
+    expect(await hubs.more.branchHead()).toBe(head);
+  } finally {
+    await restoreMore();
+  }
+});
+
 // --- A note in the note editor (ROADMAP 1b.2) -----------------------------------------------------------------
 
 /** `acme/more` holding these files, connected by a new account. */

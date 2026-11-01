@@ -147,13 +147,17 @@ In `plain` naming the same one-commit operations as phase 1 (the name is public)
 
 ### 2b.6 Moving files in and out of vaults
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** DESIGN §8
 
 Between a plaintext and an encrypted vault the file is encrypted or decrypted in the browser on the way, and the moves that would leave plaintext where there must be none (invariant 1) are refused.
 
 **Accepts when:** a move into an encrypted vault leaves no plaintext of the file anywhere in the new commit; a move out asks first.
+
+- **Done as:** *Move to another vault* (`TransferControl`) on the page of a plaintext note or document (to an encrypted vault) and of an encrypted file (to a plaintext vault or another encrypted one), for files and text only. The page makes the destination's bytes in the browser (`prepareTransfer`: the text, or `sealText` to the recipients, a name and `.age` or a new identifier with the real name inside) and `POST /api/connections/<id>/files/transfer` (`handleTransfer`, `transferFile`; `owner("move")`) commits one change: source away, bytes in. The recipients of an encrypted target are asked for when it is chosen (`GET /api/connections/<id>/recipients?vault=`, `owner("read")`), so opening a file reads nothing for them. Server rules: the destination vault's form is the repository's (age in an encrypted vault, text and a `.md` in a plaintext one, both ways refused otherwise: `wrong_form`), the shapes of names by naming, the path rules, nothing over anything, the blob shown, no draft of the source or the place, and `Move` (the old route) still refuses to cross into or out of an encrypted vault. The commit says nothing secret. The page asks first in every case: out says it decrypts and commits plain text; in says the plain text stays in earlier commits; between says access changes with the recipients.
+- **Tested:** `transfer.test.ts` (against a real git repository: each direction, the bytes as made, one file away and one in, no plaintext in the new commit's encrypted vault, every `wrong_form` and name rule, over nothing, blob and drafts, and the messages; the form checks seen to fail a test with them off), `http.test.ts`, `access.test.ts` and `encrypted/http.test.ts` (who may, what is sent), `keys/files.test.ts` (the browser's bytes with the real module in both namings), and `cli.test.ts` with `FJORD_CLI` and the real `age`: a repository after moves in, out and between passes `fjord verify --strict` and `age -d | tar` returns the text. In Chromium: in to a plain-named and an id-named vault (a new identifier, the real name inside), out after the question (nothing changes until it is answered), and between two, with no request carrying any text and the server refusing plain text for an encrypted vault.
+- **Not here:** a folder (move its files one at a time, or it within its vault); a file that is not text; removing a moved plaintext from the earlier history (git's job, and the page says so); a draft is not carried across (save or discard first).
 
 ## 2c — Sealed shares
 

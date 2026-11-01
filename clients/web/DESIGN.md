@@ -559,13 +559,13 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
   of spec §5, including the reserved names and two names in one folder that differ
   only by case. A name that is already taken is refused, never overwritten.
 - **Where a file can move:** to any folder of a plaintext vault in the same
-  repository. Into an encrypted vault is refused: it would put plaintext in the
-  vault (CLI invariant 1), and moving in means encrypting, which is phase 2.
+  repository, by *Move*. Into an encrypted vault, or out of one, is *Move to another vault* (ROADMAP 2b.6, below), never *Move*: the
+  server has no key, so a file cannot change form there.
   Between repositories is not a move (ids are unique only within one, spec E401).
 - **In an encrypted vault** (ROADMAP 2b.5) a file is renamed, moved, deleted and put back as the bytes it is, within its own vault,
   with no key on the server, for a vault this version writes (age, `.age`, binary, the container its naming needs). A rename
   keeps what the file is: `Plan.md.age` stays `.md.age`, and a document stays `.fj.md.age`. Moving to or from another vault
-  waits for 2b.6, which decrypts or encrypts in the browser on the way; until then the server refuses both. In an `id`-named
+  is 2b.6, which decrypts or encrypts in the browser on the way; *Move* refuses both. In an `id`-named
   vault the on-disk name is the identifier and never changes (spec §7.2), so the server refuses a rename by path (`id_named`)
   and a file there is **renamed by the name inside the container**: the browser has the file open, repacks it under the new
   name, encrypts it again, and has the server keep that as a draft and commit a version in place, with the message `Rename an
@@ -573,6 +573,19 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
   would otherwise carry them. A folder's name is plaintext in both namings and is renamed or moved like any. Deleting an
   encrypted file reads nothing of it (no `id` to record), and Undo and Recently deleted put the same ciphertext blob back; in an
   `id`-named vault only under the same identifier.
+- **Between vaults, when one is encrypted** (ROADMAP 2b.6) a file moves with *Move to another vault* on its page: into an encrypted
+  vault, out of one, or between two. The page has the file's text (a plaintext note it was given, or an encrypted file it has
+  decrypted with the identity) and makes the bytes the destination holds: the text for a plaintext vault, and for an encrypted one
+  the ciphertext to that vault's recipients (asked for from `GET /api/connections/<id>/recipients?vault=` when the vault is
+  chosen, so opening a file reads nothing for them), under its name and `.age` or, in an `id`-named vault, a new identifier with
+  the real name inside. `POST /api/connections/<id>/files/transfer` then makes one commit that takes the source away and adds those
+  bytes. The server **holds the destination to the form its vault holds**, from the repository and not the request: age in an
+  encrypted vault and text in a plaintext one (never ciphertext, nor a NUL, there), so no plaintext can reach an encrypted vault whatever
+  was sent; a `.md` in a plaintext vault; `Name.age` or `<ULID>.age` by naming; every step by the path rules; nothing over anything; the
+  source only if it is the blob that was decrypted or read, and with no draft of it or of the place it goes. The commit says
+  nothing secret (`Move Plan into the encrypted vault Open`, or `a file` for an id-named source). **It asks first**, and says what
+  cannot be undone: moving in leaves the plain text in earlier commits, and moving out commits the plain text for everyone who can
+  read the repository. Files only (a folder is moved within its vault), and text only.
 - **A folder** is renamed, moved or deleted with everything in it, in one commit.
   Vault directories themselves, `fjord.vault.json` and `fjord.json` are not
   touched by these actions in phase 1; they belong to the CLI.

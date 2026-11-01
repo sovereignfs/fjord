@@ -13,6 +13,8 @@ section.
 
 ### Added
 
+- **Move a file into, out of and between encrypted vaults** (ROADMAP 2b.6): *Move to another vault* on a file's page. Into an encrypted vault the file is encrypted in your browser to that vault's recipients; out of one it is decrypted in your browser, after the page tells you it will be committed as plain text; between two it is decrypted and encrypted again. The server, which has no key, takes the old file away and adds the bytes your browser made in one commit, and refuses plain text for an encrypted vault. The plain text of a file moved in stays in the repository's earlier commits. Text files only for now.
+
 - **Rename, move and delete in encrypted vaults** (ROADMAP 2b.5): files and folders of an encrypted vault are renamed, moved and deleted, and Undo and *Recently deleted* put them back, all with no key on the server, which moves the encrypted bytes as they are. A rename keeps what a file is (`Plan.md.age` stays a note). In a vault that names its files by id, a file keeps its identifier and is renamed by the name kept inside it, from its own page once it is open. Between vaults is not possible yet.
 
 - **New notes and documents in encrypted vaults** (ROADMAP 2b.4): *New note* and *New document* now work in an encrypted vault. The file is written and encrypted in your browser, to the vault's recipients, and only the ciphertext is sent, so it works with your identity locked. In a vault that names its files by their names, the title names the file (that is public, as every name there is); in a vault that names them by id, the file is a new identifier and its real name is inside it, and the title is not sent. The server accepts only an age-encrypted file, and `fjord verify` accepts what is made.

@@ -5,7 +5,7 @@ import "fjord-editor/styles.css";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { keyStore, onAutoLock } from "../client";
-import { type Naming, type Shown, fromBase64, openCiphertext } from "../files";
+import { type Naming, type Shown, type TransferTarget, fromBase64, openCiphertext } from "../files";
 import { loadModule } from "../module";
 import { KeyError, type Status } from "../store";
 import { Alert, Button, FormField, Input } from "../../ui";
@@ -50,10 +50,13 @@ export function EncryptedFile({
   blob,
   draft,
   recipients,
+  transferTargets,
 }: {
   connectionId: number;
   path: string;
   naming: Naming;
+  /** Where the file can be moved to in another vault (ROADMAP 2b.6). */
+  transferTargets: TransferTarget[];
   logical: string;
   /** The file's blob in the repository now; not known for a repository too large to list, and then it is not edited. */
   blob: string | undefined;
@@ -229,7 +232,7 @@ export function EncryptedFile({
             </div>
           ) : null}
           {base !== undefined && recipients.ok ? (
-            <EncryptedEditor connectionId={connectionId} path={path} name={shown.name} naming={naming} recipients={recipients.text} text={shown.text} base={base} hasDraft={draft !== null} readOnly={upstreamChanged} flushRef={flushRef} />
+            <EncryptedEditor connectionId={connectionId} path={path} name={shown.name} naming={naming} recipients={recipients.text} text={shown.text} base={base} hasDraft={draft !== null} readOnly={upstreamChanged} flushRef={flushRef} transferTargets={transferTargets} />
           ) : (
             <EncryptedReader name={shown.name} text={shown.text} />
           )}

@@ -9,7 +9,8 @@ import { discardDraft, sendDraft, sendVersion } from "../../working/client";
 import { MAX_MESSAGE_CHARS } from "../../working/limits";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
 import { keyStore } from "../client";
-import { type Naming, sealText, toBase64 } from "../files";
+import { TransferControl } from "../../browse/screens/TransferControl";
+import { type Naming, type TransferTarget, sealText, toBase64 } from "../files";
 import { loadModule } from "../module";
 
 /**
@@ -29,6 +30,7 @@ export function EncryptedEditor({
   hasDraft: hadDraft,
   readOnly,
   flushRef,
+  transferTargets,
 }: {
   connectionId: number;
   path: string;
@@ -46,6 +48,8 @@ export function EncryptedEditor({
   readOnly: boolean;
   /** Set to send what is waiting: the page awaits it before it hides the text or re-reads the draft, so that what it then opens is what was typed. */
   flushRef: MutableRefObject<(() => Promise<void>) | null>;
+  /** Where the file can be moved to in another vault (ROADMAP 2b.6). */
+  transferTargets: TransferTarget[];
 }) {
   const saver = useMemo(
     () =>
@@ -282,6 +286,18 @@ export function EncryptedEditor({
             </Button>
           )}
         </div>
+      ) : null}
+      {!readOnly ? (
+        <TransferControl
+          connectionId={connectionId}
+          path={path}
+          blob={base}
+          name={name}
+          text={saver.text}
+          sourceEncrypted
+          targets={transferTargets}
+          blocked={hasDraft ? "To move this file to another vault, save a version of your changes or discard them first." : undefined}
+        />
       ) : null}
       {hasDraft ? (
         <div>

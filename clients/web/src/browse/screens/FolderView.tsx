@@ -15,6 +15,8 @@ import type { HeaderInfo } from "../document";
 import { type DraftOfNote, NoteView } from "./NoteView";
 import { UpstreamChanged } from "./UpstreamChanged";
 import { EncryptedFile, type EncryptedDraft } from "../../keys/screens/EncryptedFile";
+import type { TransferTarget } from "../../keys/files";
+import { TransferControl } from "./TransferControl";
 
 /**
  * A folder of a vault, or one file of it, as a list (DESIGN.md §8). What can be opened is decided from the name alone,
@@ -37,6 +39,7 @@ export function FolderView({
   docId,
   destinations,
   encryptedNaming,
+  transferTargets,
 }: {
   connectionId: number;
   repository: string;
@@ -65,6 +68,8 @@ export function FolderView({
   destinations?: string[] | undefined;
   /** Set for an encrypted vault this version writes: how it names its files. Its files are renamed, moved and deleted as the bytes they are (ROADMAP 2b.5). */
   encryptedNaming?: "plain" | "id" | undefined;
+  /** For a file: where it can be moved to in another vault when one of the two is encrypted (ROADMAP 2b.6). */
+  transferTargets?: TransferTarget[] | undefined;
 }) {
   const here = (...segments: string[]) => repositoryHref(connectionId, ...segments);
   const vault = location.vault;
@@ -96,7 +101,7 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []}
           remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -207,6 +212,7 @@ function FileCard({
   blob,
   encryptedEditing,
   encryptedChange,
+  transferTargets,
 }: {
   connectionId: number;
   file: ClassifiedFile;
@@ -225,6 +231,7 @@ function FileCard({
   blob: string | undefined;
   /** For a file of an encrypted vault this version writes: how the vault names its files. */
   encryptedChange: "plain" | "id" | undefined;
+  transferTargets: TransferTarget[];
   encryptedEditing: { draft: EncryptedDraft | null; recipients: { ok: true; text: string } | { ok: false; message: string } } | undefined;
 }) {
   return (
@@ -261,7 +268,7 @@ function FileCard({
           This {file.kind === "document" ? "document" : "note"} could not be read just now. Try again in a moment.
         </Alert>
       ) : file.kind === "payload" ? (
-        <EncryptedFile connectionId={connectionId} path={file.path} naming={naming} logical={file.logical} blob={blob} draft={encryptedEditing?.draft ?? null} recipients={encryptedEditing?.recipients ?? { ok: false, message: "This file cannot be edited just now." }} />
+        <EncryptedFile connectionId={connectionId} path={file.path} naming={naming} logical={file.logical} blob={blob} transferTargets={transferTargets} draft={encryptedEditing?.draft ?? null} recipients={encryptedEditing?.recipients ?? { ok: false, message: "This file cannot be edited just now." }} />
       ) : encrypted ? (
         <Alert variant="info" heading="Locked">This file is in an encrypted vault but is not an encrypted file, so it cannot be opened.</Alert>
       ) : (
@@ -270,6 +277,18 @@ function FileCard({
       {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} /> : null}
       {remove ? (
         <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.fj\.md|\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.fj\.md$|\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
+      ) : null}
+      {remove && (file.kind === "note" || file.kind === "document") && note?.ok && transferTargets.length > 0 ? (
+        <TransferControl
+          connectionId={connectionId}
+          path={file.path}
+          blob={note.blob}
+          name={leaf(file.path)}
+          text={note.text}
+          sourceEncrypted={false}
+          targets={transferTargets}
+          blocked={draft ? "This file has unsaved changes. Save a version of them, or discard them, to move it to another vault." : undefined}
+        />
       ) : null}
       {remove ? (
         <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.fj\.md$/i, "").replace(/\.md$/i, "")} goTo={remove.goTo} />

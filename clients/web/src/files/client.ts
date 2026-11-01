@@ -52,6 +52,36 @@ export async function sendCreateEncrypted(
   }
 }
 
+/** The recipients of an encrypted vault (ROADMAP 2b.6), asked for when a person chooses to move a file into it. */
+export async function fetchRecipients(connectionId: number, vault: string): Promise<{ ok: true; text: string } | { ok: false; message: string }> {
+  try {
+    const response = await fetch(`/api/connections/${connectionId}/recipients?vault=${encodeURIComponent(vault)}`, { credentials: "same-origin" });
+    const parsed = (await response.json().catch(() => undefined)) as { recipients?: string; error?: { message?: string } } | undefined;
+    if (response.status === 200 && typeof parsed?.recipients === "string") return { ok: true, text: parsed.recipients };
+    return { ok: false, message: parsed?.error?.message ?? "Could not read that vault's recipients just now. Nothing was moved. Try again in a moment." };
+  } catch {
+    return { ok: false, message: "Could not reach this server, so nothing was moved. Try again in a moment." };
+  }
+}
+
+/** Move one file to another vault, one of them encrypted (ROADMAP 2b.6), with the bytes the browser made for the destination (`content`, base64). */
+export async function sendTransfer(connectionId: number, input: { path: string; blob: string; destination: string; content: string }): Promise<CreateAttempt> {
+  try {
+    const response = await fetch(`/api/connections/${connectionId}/files/transfer`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+      credentials: "same-origin",
+    });
+    const parsed = (await response.json().catch(() => undefined)) as { path?: string; error?: { message?: string } } | undefined;
+    if (response.status === 200 && typeof parsed?.path === "string") return { ok: true, path: parsed.path };
+    if (response.status === 401) return { ok: false, message: "You are signed out, so nothing was moved. Sign in again, then try again." };
+    return { ok: false, message: parsed?.error?.message ?? "Could not move that just now. Nothing was moved. Try again in a moment." };
+  } catch {
+    return { ok: false, message: "Could not reach this server, so nothing was moved. Try again in a moment." };
+  }
+}
+
 // --- A header's title (ROADMAP 1b.5) -------------------------------------------------------------------------------
 
 export type TitleAttempt = { ok: true; header: string } | { ok: false; message: string };

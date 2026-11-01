@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { wasmAvailable, wasmDirectory } from "../format/wasm";
 import { whyNotCiphertext } from "../working/ciphertext";
-import { fromBase64, newEncryptedFile, openCiphertext, sealText, toBase64 } from "./files";
+import { fromBase64, newEncryptedFile, openCiphertext, prepareTransfer, sealText, toBase64 } from "./files";
 import type { CryptoModule } from "./module";
 import { KeyError } from "./store";
 
@@ -95,5 +95,37 @@ describe.runIf(available)("a new file for an encrypted vault", () => {
     expect(openCiphertext(named.module, named.keys, fromBase64((named.made as { ciphertext: string }).ciphertext), "id", "01j.age")).toMatchObject({ name: "Q4 plan.fj.md" });
     const dated = make({ naming: "id" });
     expect(openCiphertext(dated.module, dated.keys, fromBase64((dated.made as { ciphertext: string }).ciphertext), "id", "01j.age")).toMatchObject({ name: "2026-10-22 1430.md" });
+  });
+});
+
+describe.runIf(available)("a file moved to another vault (ROADMAP 2b.6)", () => {
+  const args = { now: 1_800_000_000_000, random: new Uint8Array(16).fill(7) };
+
+  it("is the same text for a plaintext vault, under its own name", () => {
+    const { module } = person();
+    expect(prepareTransfer(module, { text: "SECRET ünï", name: "Plan.md", to: { form: "plaintext" }, ...args })).toEqual({ ok: true, leaf: "Plan.md", content: Buffer.from("SECRET ünï").toString("base64") });
+  });
+
+  it("is ciphertext for an encrypted vault, called by its name and .age in a plain-named one", () => {
+    const { module, recipient, keys } = person();
+    const made = prepareTransfer(module, { text: "SECRET PLAINTEXT", name: "Plan.md", to: { form: "encrypted", naming: "plain" }, recipients: { ok: true, text: recipient }, ...args });
+    expect(made).toMatchObject({ ok: true, leaf: "Plan.md.age" });
+    const content = (made as { content: string }).content;
+    expect(whyNotCiphertext(content)).toBeUndefined();
+    expect(Buffer.from(content, "base64").toString("latin1")).not.toContain("SECRET PLAINTEXT");
+    expect(openCiphertext(module, keys, fromBase64(content), "plain", "Plan.md.age")).toMatchObject({ text: "SECRET PLAINTEXT" });
+  });
+
+  it("is called by a new identifier in an id-named vault, with the real name inside", () => {
+    const { module, recipient, keys } = person();
+    const made = prepareTransfer(module, { text: "x", name: "Plan.md", to: { form: "encrypted", naming: "id" }, recipients: { ok: true, text: recipient }, ...args });
+    expect((made as { leaf: string }).leaf).toMatch(/^[0-7][0-9a-hjkmnp-tv-z]{25}\.age$/);
+    expect(openCiphertext(module, keys, fromBase64((made as { content: string }).content), "id", "x.age")).toMatchObject({ name: "Plan.md", text: "x" });
+  });
+
+  it("makes nothing for a vault with no recipients to encrypt to", () => {
+    const { module } = person();
+    expect(prepareTransfer(module, { text: "x", name: "Plan.md", to: { form: "encrypted", naming: "plain" }, recipients: { ok: false, message: "no recipients" }, ...args })).toEqual({ ok: false, message: "no recipients" });
+    expect(prepareTransfer(module, { text: "x", name: "Plan.md", to: { form: "encrypted", naming: "plain" }, ...args })).toMatchObject({ ok: false });
   });
 });

@@ -70,6 +70,7 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/connections/[id]/files", methods: { POST: owner("create") } },
   // The stored bytes of an encrypted file, for the browser to decrypt (2b.2). A read, so the owner's `read`; the server holds no key to them.
   { route: "/api/connections/[id]/ciphertext", methods: { GET: owner("read") } },
+  { route: "/api/connections/[id]/recipients", methods: { GET: owner("read") } },
   { route: "/api/connections/[id]/files/encrypted", methods: { POST: owner("create") } },
   { route: "/api/connections/[id]/files/transfer", methods: { POST: owner("move") } },
   { route: "/api/connections/[id]/files/header", methods: { POST: owner("edit") } },

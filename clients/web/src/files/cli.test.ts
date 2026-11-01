@@ -14,6 +14,8 @@ import { createFile } from "./create";
 import { deletePath } from "./delete";
 import { DeletionService } from "./deletions";
 import { restoreDeleted } from "./restore";
+import { type VaultForm, transferFile } from "./transfer";
+import { sealText } from "../keys/files";
 import { createEncryptedFile } from "./create-encrypted";
 import { newEncryptedFile } from "../keys/files";
 import type { CryptoModule } from "../keys/module";
@@ -250,5 +252,38 @@ describe.skipIf(!enabled || !haveAge)("what the web renames, moves, deletes and 
     const names = spawnSync("tar", ["-tf", "-"], { input: container, encoding: "utf8", env: { ...process.env, COPYFILE_DISABLE: "1" } });
     expect(names.stdout.trim()).toBe("Hidden plan.fj.md"); // `age -d | tar -x` gives the real name
     expect(new TextDecoder().decode(spawnSync("tar", ["-xOf", "-"], { input: await decrypt(key, other), env: { ...process.env, COPYFILE_DISABLE: "1" } }).stdout)).toBe("# Other\n");
+  });
+
+  it("leaves a repository that verifies when files move into, out of and between encrypted vaults, and age still opens what it holds (ROADMAP 2b.6)", async () => {
+    const { file: key, recipient } = identity();
+    const PLAINTEXT: VaultForm = { form: "plaintext" };
+    const transfer = async (from: string, fromForm: VaultForm, to: string, toForm: VaultForm, content: Uint8Array) => {
+      const done = await transferFile(
+        { ...deps(), format: fjord(), drafts: { paths: async () => [] as string[] } },
+        { connectionId: 1, source: { path: from, blob: (await target(from)).blob, form: fromForm }, destination: { path: to, form: toForm }, content, author: AUTHOR },
+      );
+      if (!done.ok) throw new Error(`could not move ${from}: ${done.reason}`);
+      return done.path;
+    };
+    const files = await fake.filesAt((await fake.branchHead())!);
+    const plan = files["Notes/Projects/2026/plan.fj.md"]!;
+
+    // In: a note to a plain-named vault, a document to an id-named one (a new identifier, the real name inside).
+    await transfer("Notes/existing.md", PLAINTEXT, "Locked/existing.md.age", { form: "encrypted", naming: "plain" }, sealText(module!, { text: files["Notes/existing.md"]!, name: "existing.md", naming: "plain", recipients: recipient }));
+    const id = `Sealed/${module!.newUlid(1_800_000_000_000, crypto.getRandomValues(new Uint8Array(16)))}.age`;
+    await transfer("Notes/Projects/2026/plan.fj.md", PLAINTEXT, id, { form: "encrypted", naming: "id" }, sealText(module!, { text: plan, name: "plan.fj.md", naming: "id", recipients: recipient }));
+    let { status, report } = await verify();
+    expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
+
+    // `age -d | tar` gives the document's text back from the id-named vault's container.
+    const container = spawnSync("tar", ["-xOf", "-"], { input: await decrypt(key, id), env: { ...process.env, COPYFILE_DISABLE: "1" } }).stdout;
+    expect(new TextDecoder().decode(container)).toBe(plan);
+    // Out: what age recovers is what is put in a plaintext vault.
+    const recovered = await decrypt(key, "Locked/existing.md.age");
+    expect(new TextDecoder().decode(recovered)).toBe("# Existing\n");
+    await transfer("Locked/existing.md.age", { form: "encrypted", naming: "plain" }, "Notes/Back again.md", PLAINTEXT, recovered);
+    ({ status, report } = await verify());
+    expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
+    expect((await fake.filesAt((await fake.branchHead())!))["Notes/Back again.md"]).toBe("# Existing\n");
   });
 });
