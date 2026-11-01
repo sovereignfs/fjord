@@ -6,3 +6,5 @@ allowBuilds:
   # platform binary arrived; the binary comes from an optional dependency either
   # way, so the script is not needed. (drizzle-kit generate is exercised in CI.)
   esbuild: false
+minimumReleaseAgeExclude:
+  - '@sovereignfs/ui@0.89.1'

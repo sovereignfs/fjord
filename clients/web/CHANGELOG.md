@@ -16,6 +16,10 @@ section.
 - **The frontmatter parser is safe Rust** (the format module): the library behind it was replaced, so a document header from outside is read by code that forbids `unsafe` and limits what an alias can expand to. A header that cannot be kept exactly (a key given twice, a YAML tag, a whole number too large to be one) is shown as the file it is and is not rewritten. The headers the page writes now quote text and timestamps (`created: "2026-10-16T09:34:00Z"`), so the first title change or promotion of a file re-quotes those lines; nothing else about them changes. The module is 1.3 MB (495 KB compressed), up from 980 KB.
 - **Review of phase 2** ([`docs/security-review-phase-2.md`](../../docs/security-review-phase-2.md), ROADMAP 2c.2): four defects fixed. *Put back* can no longer write plain text into an encrypted vault (or ciphertext into a plaintext or another encrypted one); a password-sealed link cannot ask your browser for more than age's default work to open it; an API call can no longer delete or move an encrypted vault's recipients file or guard; and a decrypted file larger than 1 MB is not put in an editor. The page now says how many recipients a file is encrypted to.
 
+### Changed
+
+- **`@sovereignfs/ui` 0.89.1** (from 0.83.1).
+
 ### Added
 
 - **Add a vault** (ROADMAP 2d.1): *Add a vault* on a Fjord repository's page makes a plaintext or an encrypted vault in one commit: a name, how the files are named, and the public keys (yours is put in), with the list of files shown first. The files are the ones `fjord vault add` writes, from the same planner in `fjord-core`; `.gitattributes` gains the merge guard if an encrypted vault is added to a repository that lacks it. An encrypted vault is added only with a key, so it can be written to at once. New API: `POST /api/connections/<id>/vaults`.
