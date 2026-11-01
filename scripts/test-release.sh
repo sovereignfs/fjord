@@ -792,6 +792,30 @@ notesw web5
 relw web5 check "$rel_web_next"
 refuses "web: a version in package.json that is not X.Y.Z" "not of the form X.Y.Z"
 
+# A patch release carries no migration (RELEASING.md § Fjord Web versions). The scratch repository
+# has been released at 0.1.0 (a local tag stands in for it) and then gained a migration.
+freshw web6 0.1.0
+(
+  cd "$T/web6" || exit 1
+  git tag web-v0.1.0
+  mkdir -p clients/web/migrations/sqlite
+  echo "ALTER TABLE x ADD COLUMN y;" >clients/web/migrations/sqlite/9999_scratch.sql
+  git add -A
+  git commit -q -m "scratch: a migration"
+  git push -q origin main
+)
+notesw web6
+relw web6 check 0.1.1
+refuses "web: a patch release with a migration since the last release" "a patch release carries none"
+relw web6 check 0.2.0
+accepts "web: ...but the same changes are fine in a minor release"
+
+freshw web7 0.1.0
+(cd "$T/web7" && git tag web-v0.1.0)
+notesw web7
+relw web7 check 0.1.1
+accepts "web: a patch release with no migration since the last release"
+
 # --- The full gates, once ---------------------------------------------------------------
 
 if [ "$FULL" = yes ]; then
