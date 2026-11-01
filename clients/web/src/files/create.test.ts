@@ -119,7 +119,7 @@ describe.skipIf(!available)("a new document", () => {
     const text = (await fake.filesAt(result.commit))[result.path]!;
     const id = fjord().newUlid(1_800_000_000_000, new Uint8Array(16).fill(7));
     expect(text).toBe(fjord().newDocument(id, "Q4: plan", "2027-01-15T08:00:00Z"));
-    expect(text).toMatch(/^---\nid: [0-9a-z]{26}\ntitle: 'Q4: plan'\ncreated: 2027-01-15T08:00:00Z\n---\n\n# Q4: plan\n$/);
+    expect(text).toMatch(/^---\nid: [0-9a-z]{26}\ntitle: "Q4: plan"\ncreated: "2027-01-15T08:00:00Z"\n---\n\n# Q4: plan\n$/);
     expect(await fake.show(result.commit, "%B")).toBe("Create Q4 plan");
   });
 

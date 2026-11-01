@@ -12,6 +12,21 @@ tagging it.
 
 ## [Unreleased]
 
+### Security
+
+- **The frontmatter parser is safe Rust** (ROADMAP: replace `unsafe-libyaml`): `fjord-core` reads and writes YAML through `serde-saphyr` (`fjord_core::yaml`), which forbids
+  unsafe code and limits what an alias can expand to, in place of `serde_yaml_ng`, which sat on `unsafe-libyaml`, a C-to-Rust transliteration, and had no
+  such limits. Frontmatter is untrusted input (spec §8.1, §11.5). The advisory ignore for `unsafe-libyaml` is gone from `deny.toml`.
+  What a file says survives as before (invariant 3), and **a block that could not be written back exactly is now reported as unparseable (`E402`) and not
+  rewritten**: a key given twice (the old library kept the last and dropped the first), a YAML tag (it would have been dropped), and a whole number too large
+  to be one (it would have been rounded). `yes`/`no`/`on`/`off` remain text; a `<<` key remains a key. Slightly wider than YAML 1.2: `1_000` and `0b11` are read
+  as numbers (as YAML 1.1 and Obsidian do), and written back as `1000` and `3`. The text Fjord writes is read identically by `libyaml` (checked on 20,000 random
+  mappings), and a multi-line text with a tab, a carriage return or a Unicode line separator is written in double quotes so that no reader differs.
+- **A header Fjord writes quotes more**: text is in double quotes where it was in single quotes (`title: "Q4: plan"`), and a timestamp is quoted (`created: "2026-10-16T09:34:00Z"`, which every reader
+  reads as the same text, where an unquoted one some tools read as a date). The first time Fjord rewrites a file's header (a new id, a title, a promotion) these lines change; the keys, their values and
+  their order do not.
+- **Building from source needs Rust 1.89** (it was 1.88): the YAML library requires it.
+
 ### Added
 
 - **`fjord-core` can set or take away a document's `title`** (ROADMAP 1b.5): `doc::with_title` rewrites a header's `title`

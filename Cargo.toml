@@ -8,9 +8,9 @@ edition = "2021"
 # The lowest toolchain that builds this workspace, verified by the `msrv`
 # job in CI rather than asserted here. 1.82 was declared originally and was
 # never achievable: `time`, `ignore`, `globset` and `sha2` (via `age`) all
-# require 1.88, and since `cargo install` resolves dependencies afresh,
+# require 1.88 (and `serde-saphyr`, the YAML library, 1.89), and since `cargo install` resolves dependencies afresh,
 # pinning the lockfile would not have made the older claim true for anyone.
-rust-version = "1.88"
+rust-version = "1.89"
 license = "MPL-2.0"
 repository = "https://github.com/sovereignfs/fjord"
 homepage = "https://github.com/sovereignfs/fjord"
@@ -20,7 +20,7 @@ homepage = "https://github.com/sovereignfs/fjord"
 # Format
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
-serde_yaml_ng = "0.10"
+serde-saphyr = { version = "2.0", default-features = false, features = ["serialize", "deserialize"] }
 indexmap = { version = "2", features = ["serde"] }
 # `std` (its random source) is left to the crates that need it: `fjord-core` enables it with its `native`
 # feature, so the pure subset builds for WebAssembly, where a clock and a random source are injected.

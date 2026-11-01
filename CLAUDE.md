@@ -198,7 +198,7 @@ codebase.
 | age encryption | `age` | Pure Rust, maintained, no C deps — keeps static musl builds clean. |
 | CLI parsing | `clap` (derive) | Standard. |
 | Identifiers | `ulid` | Spec §8.3 mandates ULID. |
-| YAML | `serde_yaml_ng` | `serde_yaml` is unmaintained and archived. |
+| YAML | `serde-saphyr` (through `fjord_core::yaml`) | `serde_yaml` is archived and `serde_yaml_ng` rests on `unsafe-libyaml`, a C transliteration; this one is safe Rust with limits on alias expansion. Frontmatter is untrusted input. |
 | Ordered maps | `indexmap` | Needed to preserve frontmatter key order. |
 | JSON | `serde_json` with `preserve_order` | Same reason, for manifests. |
 | Tar container | `tar` | Spec §6.4. |
@@ -224,7 +224,7 @@ pub struct Frontmatter {
     pub title: Option<String>,
     // …
     #[serde(flatten)]
-    pub extra: IndexMap<String, serde_yaml_ng::Value>,
+    pub extra: IndexMap<String, fjord_core::yaml::Value>,
 }
 ```
 

@@ -56,6 +56,6 @@ The acceptance criteria of each milestone are in [`CLAUDE.md`](CLAUDE.md), under
 | A development flow | ✅ Done | [Detail](docs/epics/cli.md#a-development-flow) |
 | Homebrew tap | ✅ Done | [Detail](docs/epics/cli.md#homebrew) |
 | M0.5: hold the README diagnostics tables to `diagnostics::Code` (checked by a test, not generated) | ✅ Done | [Detail](docs/epics/cli.md#groundwork--m0) |
-| Replace `unsafe-libyaml` as the frontmatter parser | 📋 Planned | [Detail](docs/epics/cli.md#beyond-the-milestones) |
+| Replace `unsafe-libyaml` as the frontmatter parser | ✅ Done | [Detail](docs/epics/cli.md#beyond-the-milestones) |
 | Publish to crates.io | 📋 Planned (not advertised until it exists) | [Detail](docs/epics/cli.md#beyond-the-milestones) |
 | Frontmatter comment preservation | ❌ Out of scope for v1 (needs an AST-level YAML parser) | [Detail](docs/epics/cli.md#out-of-scope) |

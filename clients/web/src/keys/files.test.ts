@@ -94,7 +94,7 @@ describe.runIf(available)("a new file for an encrypted vault", () => {
   it("is a document with the format's own header, its title and a heading", () => {
     const { module, keys, made } = make({ kind: "document", title: "Q4: plan" });
     const shown = openCiphertext(module, keys, fromBase64((made as { ciphertext: string }).ciphertext), "plain", "x.fj.md") as { text: string };
-    expect(shown.text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: ["']?Q4: plan["']?\ncreated: 2027-01-15T08:00:00Z\n---\n/);
+    expect(shown.text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: "Q4: plan"\ncreated: "2027-01-15T08:00:00Z"\n---\n/);
     expect(shown.text).toContain("# Q4: plan");
   });
 

@@ -24,7 +24,7 @@ const BASE = "http://localhost:3201";
  */
 const promoted = (title: string, text: string) => {
   const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return expect.stringMatching(new RegExp(`^---\\nid: [0-9a-hjkmnp-tv-z]{26}\\ntitle: ${escape(title)}\\ncreated: \\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ\\n---\\n(?:\\n)?${escape(text)}$`));
+  return expect.stringMatching(new RegExp(`^---\\nid: [0-9a-hjkmnp-tv-z]{26}\\ntitle: \"?${escape(title)}\"?\\ncreated: \"\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ\"\\n---\\n(?:\\n)?${escape(text)}$`));
 };
 
 /** The connect form's own alert, never the route announcer that Next puts outside `<main>`. */
@@ -1769,7 +1769,7 @@ test("a document is made with a header, in a folder, and a note of the same name
     await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Projects/Q4%20plan.fj.md`);
     const head = (await hubs.more.branchHead()) as string;
     const text = (await hubs.more.filesAt(head))["Notes/Projects/Q4 plan.fj.md"]!;
-    expect(text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\ncreated: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\n---\n\n# Q4 plan\n$/);
+    expect(text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\ncreated: "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"\n---\n\n# Q4 plan\n$/);
     expect(await hubs.more.show(head, "%B")).toBe("Create Q4 plan");
   } finally {
     await restoreMore();
@@ -2360,7 +2360,7 @@ test("the title is changed from the panel: it is the only thing in the header th
     const saved = files["Notes/Weekly.fj.md"]!;
     expect(saved.endsWith(body)).toBe(true);
     // The module wrote the header: the title as written safely, and every other key where it was.
-    expect(saved).toBe("---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nzeta: 1\ntitle: 'Plan: the sequel'\nx-future:\n- kept\ncreated: 2026-10-16T09:34:00Z\n---\n" + body);
+    expect(saved).toBe("---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nzeta: 1\ntitle: \"Plan: the sequel\"\nx-future:\n- kept\ncreated: \"2026-10-16T09:34:00Z\"\n---\n" + body);
     await hubs.more.fsck();
 
     // And the page shows it, after it was read again.

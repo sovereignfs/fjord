@@ -59,6 +59,6 @@ result. It loads the web build as a page does, with the page's own clock and `cr
 
 ## Size
 
-`fjord_wasm_bg.wasm` is **499,598 bytes, 214,928 gzipped** (release, `opt-level = "z"`, LTO; `wasm-opt` is
-not required and would take a little more off). The YAML parser, `time`, Unicode normalisation and
+`fjord_wasm_bg.wasm` is **1,308,294 bytes, 494,580 gzipped** with `age` and the YAML library (release, `opt-level = "z"`, LTO; `wasm-opt` is
+not required and would take a little more off). `age`, the YAML library (`serde-saphyr` and its parser, with `encoding_rs`), `time`, Unicode normalisation and
 `serde_json` are most of it. CI records it on every run.

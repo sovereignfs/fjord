@@ -22,8 +22,8 @@
 //! [c]: crate::diagnostics::Code::DocumentIdInvalid
 
 use crate::scalar;
+use crate::yaml::{self, Value};
 use indexmap::IndexMap;
-use serde_yaml_ng::Value;
 
 /// The fence that opens and closes a frontmatter block. Spec §8.1.
 pub const FENCE: &str = "---";
@@ -134,8 +134,8 @@ impl Frontmatter {
     ///
     /// Used by every command that rewrites a file, and by the round-trip
     /// test that guards invariant 3.
-    pub fn to_yaml(&self) -> Result<String, serde_yaml_ng::Error> {
-        serde_yaml_ng::to_string(&self.raw)
+    pub fn to_yaml(&self) -> Result<String, yaml::Error> {
+        yaml::to_string(&self.raw)
     }
 }
 
@@ -144,13 +144,13 @@ impl Frontmatter {
 /// The mapping is serialised by the YAML writer rather than formatted by
 /// hand, so a title containing a colon, a quote or a leading `-` cannot
 /// produce a file this crate would then refuse to parse.
-pub fn new_document(id: &str, title: &str, created: &str) -> Result<String, serde_yaml_ng::Error> {
+pub fn new_document(id: &str, title: &str, created: &str) -> Result<String, yaml::Error> {
     let mut frontmatter: IndexMap<String, Value> = IndexMap::new();
     frontmatter.insert(key::ID.to_string(), Value::String(id.to_string()));
     frontmatter.insert(key::TITLE.to_string(), Value::String(title.to_string()));
     frontmatter.insert(key::CREATED.to_string(), Value::String(created.to_string()));
 
-    let yaml = serde_yaml_ng::to_string(&frontmatter)?;
+    let yaml = yaml::to_string(&frontmatter)?;
     Ok(format!("{FENCE}\n{yaml}{FENCE}\n\n# {title}\n"))
 }
 
@@ -180,7 +180,7 @@ pub fn with_fresh_id(text: &str, id: &str) -> Option<String> {
     let mut raw = frontmatter.raw().clone();
     raw.insert(key::ID.to_string(), Value::String(id.to_string()));
 
-    let yaml = serde_yaml_ng::to_string(&raw).ok()?;
+    let yaml = yaml::to_string(&raw).ok()?;
     Some(format!("{FENCE}\n{yaml}{FENCE}\n{}", &text[body_offset..]))
 }
 
@@ -220,7 +220,7 @@ pub fn with_title(text: &str, title: Option<&str>) -> Option<String> {
         // `---\n---\n`, which is a mapping with nothing in it (§8.1), not `{}`.
         String::new()
     } else {
-        serde_yaml_ng::to_string(&raw).ok()?
+        yaml::to_string(&raw).ok()?
     };
     Some(format!("{FENCE}\n{yaml}{FENCE}\n{}", &text[body_offset..]))
 }
@@ -259,7 +259,7 @@ pub fn promote(text: &str, id: &str, created: &str, title: &str) -> Option<Strin
     raw.entry(key::CREATED.to_string())
         .or_insert_with(|| Value::String(created.to_string()));
 
-    let yaml = serde_yaml_ng::to_string(&raw).ok()?;
+    let yaml = yaml::to_string(&raw).ok()?;
     Some(format!("{FENCE}\n{yaml}{FENCE}\n{body}"))
 }
 
@@ -315,9 +315,9 @@ fn fence_appears_late(text: &str) -> bool {
 
 /// Look for frontmatter at the head of `text`. Spec §8.1.
 ///
-/// The YAML is parsed with `serde_yaml_ng`, which constructs no arbitrary
-/// objects and honours no custom tags — §8.1 requires a safe loader,
-/// because frontmatter is untrusted input.
+/// The YAML is parsed by [`crate::yaml`], safe Rust that constructs no arbitrary
+/// objects, honours no custom tags and limits what an alias can expand to —
+/// §8.1 requires a safe loader, because frontmatter is untrusted input.
 pub fn parse(text: &str) -> Parse {
     let (first, after_first) = match next_line(text, 0) {
         Some(line) => line,
@@ -355,23 +355,16 @@ fn parse_mapping(yaml: &str, body_offset: usize) -> Parse {
         };
     }
 
-    match serde_yaml_ng::from_str::<IndexMap<String, Value>>(yaml) {
-        Ok(raw) => Parse::Present {
+    match yaml::read_mapping(yaml) {
+        yaml::Read::Mapping(raw) => Parse::Present {
             frontmatter: Frontmatter { raw },
             body_offset,
         },
-        Err(err) => match serde_yaml_ng::from_str::<Value>(yaml) {
-            // Valid YAML, but not a mapping of string keys. A mapping whose
-            // keys are not strings lands here too, and is reported as
-            // unparseable rather than as "not a mapping", because the
-            // parser's message names the offending key.
-            Ok(Value::Sequence(_))
-            | Ok(Value::String(_))
-            | Ok(Value::Number(_))
-            | Ok(Value::Bool(_))
-            | Ok(Value::Null) => Parse::NotAMapping,
-            _ => Parse::Unparseable(err.to_string()),
-        },
+        // Valid YAML, but a sequence or a scalar.
+        yaml::Read::NotAMapping => Parse::NotAMapping,
+        // Not valid, or something that could not be written back exactly (a key twice, a tag, a whole number too large to be one), or a
+        // mapping with a key that is not text: reported as unparseable, with the reader's message.
+        yaml::Read::Invalid(err) => Parse::Unparseable(err.to_string()),
     }
 }
 

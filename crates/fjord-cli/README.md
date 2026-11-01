@@ -52,8 +52,8 @@ Linux builds are statically linked against musl, so one binary works on any
 distribution — checked on every push, by inspecting the binary and then
 running it.
 
-Building from source needs Rust 1.88 or newer. That is not a style
-preference: `time`, `ignore` and `age`'s own dependencies require it.
+Building from source needs Rust 1.89 or newer. That is not a style
+preference: `time`, `ignore`, `age`'s own dependencies and the YAML library require it.
 
 There is no crates.io release yet, so a bare `cargo install fjord-cli` will not
 work; use the `--git` form above. It is worth having, and not worth advertising
@@ -851,8 +851,11 @@ cannot reach.
 ## Known limitations
 
 - **Comments in frontmatter are not preserved** when Fjord rewrites a file.
-  Unknown *keys* always are. Preserving comments needs an AST-level YAML
-  parser; the specification permits losing them.
+  Unknown *keys* always are, with their values and their order. Preserving comments needs an AST-level YAML
+  parser; the specification permits losing them. A frontmatter block that Fjord could not write back exactly is reported as
+  unparseable (`E402`) and is not rewritten: a key given twice, a YAML tag, and a whole number too large to be one
+  (quote it to keep it as text). Numbers are read as the library reads them, which is slightly wider than YAML 1.2: `1_000` is the
+  number 1000, as in YAML 1.1 and Obsidian, and is written back as `1000`.
 - **`fjord grep` in an encrypted vault decrypts everything** to search it.
 - **Shredding temporary files is best-effort** on SSDs and copy-on-write
   filesystems.

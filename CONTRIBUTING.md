@@ -16,7 +16,7 @@ section of [`CLAUDE.md`](CLAUDE.md); the two are meant to say the same thing.
 
 ## Development setup
 
-You need Rust 1.88 or newer, Git, and for the full test suite the reference
+You need Rust 1.89 or newer, Git, and for the full test suite the reference
 [`age`](https://github.com/FiloSottile/age) binary (the interop tests skip
 without it, and CI always has it).
 

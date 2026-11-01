@@ -31,23 +31,6 @@ unmaintained = "all"
 yanked = "deny"
 
 ignore = [
-  { id = "RUSTSEC-2024-0449", reason = """
-`unsafe-libyaml`, reached through `serde_yaml_ng`, is unmaintained with no
-safe upgrade available.
-
-This one deserves attention rather than acceptance. Fjord parses frontmatter
-that arrives from outside, and §8.1 requires "a safe YAML loader"; §11.5
-calls frontmatter untrusted input explicitly. `unsafe-libyaml` is a C-to-Rust
-transliteration, so the parser handling that input is the least safe part of
-the tree.
-
-CLAUDE.md chose `serde_yaml_ng` because `serde_yaml` was unmaintained — and
-the replacement inherited the problem one level down. The advisory suggests
-`saphyr`/`serde-saphyr`. Migrating means re-proving invariant 3 (unknown
-frontmatter keys and their order survive a round trip), which is a change
-worth making deliberately and not in passing. Tracked in ROADMAP.md.
-""" },
-
   { id = "RUSTSEC-2026-0387", reason = """
 `crypto-bigint` 0.5.5 has operations meant to be constant-time that can branch on secret data, depending on the compiler and CPU. The fix is 0.7.6, and
 there is no way to take it from here: the only path to it is `age` -> `p256` / `hpke` -> `elliptic-curve` 0.13, which `age` 0.12 pins. It waits for `age`
@@ -100,7 +83,6 @@ allow = [
   "BSD-1-Clause",
   "BSD-2-Clause",
   "BSD-3-Clause",
-  "BSL-1.0",
   "CC0-1.0",
   "ISC",
   "MIT",

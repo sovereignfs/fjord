@@ -569,7 +569,7 @@ change their names on disk, which is `fjord encrypt`'s job, not this one's.
 | | `fjord rekey` | `done` |
 | | `fjord export` / `fjord import` | `done` |
 | | `cargo deny` in CI, with a dependency policy | `done` |
-| | Replace `unsafe-libyaml` as the frontmatter parser | `todo` — see below |
+| | Replace `unsafe-libyaml` as the frontmatter parser | `done` — see below |
 | | M0.5: hold the README diagnostics tables to `diagnostics::Code` | `done` |
 | | Release machinery: `dist`, installers, archives | `done` — see below |
 | | Cut the first release | `done` — `v0.1.0`, after two failed attempts; see below |
@@ -609,6 +609,27 @@ least safe part of the tree. CLAUDE.md chose `serde_yaml_ng` because
 `serde_yaml` was unmaintained — and the replacement inherited the problem
 one level down. Migrating to `saphyr`/`serde-saphyr` means re-proving
 invariant 3, so it is a deliberate change and not a passing one.
+
+**Done (2026-11-01).** `fjord-core` reads and writes YAML through `serde-saphyr` (safe Rust, `#![forbid(unsafe_code)]`, budgets on alias expansion), behind
+one module, `fjord_core::yaml`, whose `Value` replaces the library's: `unsafe-libyaml` is out of both lockfiles and its advisory ignore out of `deny.toml`.
+Invariant 3 was re-proved before the swap was trusted, and what the library does differently was found by comparing it with the one it replaced on a corpus, then
+by writing with one and reading with the other on 20,000 random mappings in each direction. What that found, and what was done:
+
+- **Three defaults changed what a file said when it was written back**, and are now refused instead, so that the block is reported as unparseable (`E402`) and
+  not rewritten, as a broken one never is: a **key given twice** (the old library kept the last and lost the first), a **tag** (`!custom x` came back as `x`), and
+  a **whole number too large to be one** (it came back as a rounded float). Aliases are expanded as before, `<<` is an ordinary key as before (the library merges by
+  default), and `yes`/`no`/`on`/`off` are text as before (the library read them as booleans by default).
+- **`.inf` and `.nan`** are kept (the old library turned them into null).
+- **Slightly wider than YAML 1.2, and recorded**: `1_000` and `0b11` are numbers (as in YAML 1.1 and js-yaml, Obsidian's reader), written back as `1000` and `3`; the
+  old library took them for text. Test `numbers_are_read_as_the_library_reads_them…` pins it.
+- **U+2028, U+2029 and U+0085** are no longer line breaks (YAML 1.2, not 1.1); a file the old writer made with one inside a quoted text now reads with it as text.
+- **The writer's block text broke `libyaml`**: a multi-line text with a tab was written as a block scalar that `libyaml` refuses (found by reading the new writer's
+  output with the old library). Text with a tab, a carriage return, a Unicode line separator, a byte order mark or another control character is now written in double quotes.
+- **Tested** by `yaml.rs`'s unit tests: the core types; the three refusals; an alias bomb (a billion laughs) and 100,000 levels of nesting end in an error, quickly;
+  text that looks like something else (`true`, `null`, `0x1F`, `.inf`, `2026-10-16`, `- x`, `x: y`, …) as a key and a value is written so that it reads back as text; and
+  20,000 random mappings write and read back equal, and 5,000 are a fixed point (a file rewritten twice does not drift). The existing frontmatter tests, the conformance fixtures,
+  the property tests of the CLI and the web client's suites pass unchanged.
+- **Costs**: the WebAssembly module grows from 980 KB to 1.3 MB (390 to 495 KB gzipped); and the minimum Rust version is **1.89** (was 1.88), which the library requires.
 
 ### `export` and `import`
 

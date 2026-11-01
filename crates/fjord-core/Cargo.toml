@@ -28,7 +28,7 @@ crypto = ["dep:age", "dep:tar", "dep:zeroize"]
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
-serde_yaml_ng.workspace = true
+serde-saphyr.workspace = true
 indexmap.workspace = true
 ulid.workspace = true
 time.workspace = true

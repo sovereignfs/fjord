@@ -56,7 +56,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --check
 ```
 
-Rust 1.88 or newer. [`CLAUDE.md`](CLAUDE.md) is the build brief: the
+Rust 1.89 or newer. [`CLAUDE.md`](CLAUDE.md) is the build brief: the
 invariants nothing may break, the architecture, and what a new component owes
 the rest. [`ROADMAP.md`](ROADMAP.md) records what is done and what is not, and [`docs/`](docs/) holds the specification, the detail of every task and the security reviews.
 [`RELEASING.md`](RELEASING.md) explains how each component is released.

@@ -168,7 +168,7 @@ describe.skipIf(!available)("the format module", () => {
       const id = fjord().newUlid(1_800_000_000_000, new Uint8Array(16).fill(7));
       expect(id).toMatch(/^[0-9a-hjkmnp-tv-z]{26}$/);
       const text = fjord().newDocument(id, "Q4: plan \"final\"", created);
-      expect(text).toBe(`---\nid: ${id}\ntitle: 'Q4: plan "final"'\ncreated: ${created}\n---\n\n# Q4: plan "final"\n`);
+      expect(text).toBe(`---\nid: ${id}\ntitle: "Q4: plan \\"final\\""\ncreated: "${created}"\n---\n\n# Q4: plan "final"\n`);
     });
   });
 
