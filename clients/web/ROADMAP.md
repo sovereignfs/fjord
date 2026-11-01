@@ -1,6 +1,6 @@
 # Fjord Web — roadmap
 
-**Status:** phase 1 is done except a real-GitHub check of the PAT connection (1a.7) and the App (1a.6), and house style (1b.4); phase 2 is planned (tasks, not built) and phase 3 is an outline. The design is
+**Status:** phase 1 is done except a real-GitHub check of the App (1a.6) and house style (1b.4); phase 2 is planned (tasks, not built) and phase 3 is an outline. The design is
 [`DESIGN.md`](DESIGN.md); this file is the order of work, and the detail of each task is in [`docs/epics/`](../../docs/epics/). Section numbers (§) refer to `DESIGN.md` unless they say "spec".
 
 | | |
@@ -44,7 +44,7 @@ P4 is the longest pole; 1a needs P3–P5, 1b needs P1, P2 and P4; 1a.10 needs P6
 | [1a.4](../../docs/epics/web-1a.md#1a4-account-linking-when-both-are-on) | Account linking when both are on | ✅ Done |
 | [1a.5](../../docs/epics/web-1a.md#1a5-provider-interface--github) | Provider interface + GitHub | ✅ Done |
 | [1a.6](../../docs/epics/web-1a.md#1a6-github-app-connection) | GitHub App connection | ✅ Done |
-| [1a.7](../../docs/epics/web-1a.md#1a7-pat-connection) | PAT connection | ⏳ In progress |
+| [1a.7](../../docs/epics/web-1a.md#1a7-pat-connection) | PAT connection | ✅ Done |
 | [1a.8](../../docs/epics/web-1a.md#1a8-credentials-at-rest) | Credentials at rest | ✅ Done |
 | [1a.9](../../docs/epics/web-1a.md#1a9-first-run-and-defaults) | First run and defaults | ✅ Done |
 | [1a.10](../../docs/epics/web-1a.md#1a10-not-a-fjord-repository) | Not a Fjord repository | ✅ Done |
