@@ -73,6 +73,12 @@ jobs:
           cache-dependency-path: clients/web/pnpm-lock.yaml
 
       - run: pnpm install --frozen-lockfile
+
+      # The app imports the editors' package, which has to be built first, and the tests and the
+      # build read the format module (WebAssembly from crates/fjord-wasm): web-ci.yml does the same.
+      # (Without these this job could never pass; it was found by running it by hand, below.)
+      - uses: ./.github/actions/build-wasm
+      - uses: ./.github/actions/build-editor
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
