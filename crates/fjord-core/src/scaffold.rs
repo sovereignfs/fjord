@@ -548,6 +548,220 @@ pub fn with_vault_entry(
     Ok(pretty(&serde_json::Value::Object(raw)))
 }
 
+/// A vault to add to a Fjord repository (`fjord vault add`, and *Add a vault* in the web client).
+#[derive(Debug, Clone)]
+pub struct VaultSetup {
+    /// The vault's directory, at the root. It is also its display name (spec §2.3).
+    pub name: String,
+    pub encrypted: bool,
+    /// Name the vault's files by identifier (spec §7.2): only for an encrypted vault.
+    pub id_naming: bool,
+    /// The recipients of an encrypted vault, one key each: written to its recipients file, which makes it writable at once.
+    pub recipients: Vec<String>,
+}
+
+/// Everything [`plan_vault`] adds. **Additive**: every file is new except `fjord.json`, which gains the vault's entry, and possibly
+/// `.gitattributes`, which gains a line.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VaultPlan {
+    pub files: Vec<SetupFile>,
+    pub vault_id: String,
+    pub created_at: String,
+    /// The recipients registered, checked and without repeats.
+    pub recipients: Vec<String>,
+}
+
+/// Why a vault cannot be added, or not like this.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum VaultError {
+    /// `fjord.json` is not there, or cannot be read: it is not ours to rewrite.
+    #[error("fjord.json is not usable: {0}")]
+    ManifestUnusable(String),
+    /// The repository declares a newer format than this build implements: read-only (spec §10.1, invariant 4).
+    #[error("this repository declares Fjord format version {found}, and this build implements {supported}; it may be read but not written")]
+    NewerVersion { found: i64, supported: u32 },
+    /// The name cannot be a directory a vault lives in.
+    #[error("\"{name}\" cannot be the name of a vault: {reason}")]
+    InvalidName { name: String, reason: String },
+    /// Something at the root already has that name, case aside (spec §5 rule 6).
+    #[error("\"{0}\" is already used in this repository")]
+    NameTaken(String),
+    /// Recipients were given for a vault with no encryption, which would be dropped, and the vault left readable by everyone.
+    #[error("recipients need an encrypted vault: a plaintext vault has none, so the key would be dropped and the vault left readable by everyone")]
+    RecipientsNeedEncryption,
+    /// Spec §7.2: identifier names on a plaintext vault conceal nothing and destroy browsability.
+    #[error("naming files by id needs an encrypted vault: on a plaintext vault it hides nothing and makes the vault unbrowsable, which spec §7.2 requires clients to reject")]
+    IdNamingNeedsEncryption,
+    /// A recipient `age` cannot use. The key is shown only if it is not a secret one.
+    #[error("{recipient}: {reason}")]
+    BadRecipient { recipient: String, reason: String },
+    /// This build cannot check recipients (no `crypto`), so it cannot honour any.
+    #[error("this build cannot check recipients")]
+    RecipientsUnsupported,
+    /// There is a `.gitattributes` but its text was not given, so the guard cannot be added to it.
+    #[error(".gitattributes is there but its text was not supplied")]
+    GitattributesNotRead,
+}
+
+impl VaultError {
+    /// A stable name for the kind of failure, for a caller that reports it.
+    pub fn code(&self) -> &'static str {
+        match self {
+            VaultError::ManifestUnusable(_) => "manifest_unusable",
+            VaultError::NewerVersion { .. } => "newer_version",
+            VaultError::InvalidName { .. } => "invalid_name",
+            VaultError::NameTaken(_) => "name_taken",
+            VaultError::RecipientsNeedEncryption => "recipients_need_encryption",
+            VaultError::IdNamingNeedsEncryption => "id_naming_needs_encryption",
+            VaultError::BadRecipient { .. } => "bad_recipient",
+            VaultError::RecipientsUnsupported => "recipients_unsupported",
+            VaultError::GitattributesNotRead => "gitattributes_not_read",
+        }
+    }
+}
+
+/// Decide what to add to a Fjord repository for a new vault. Pure: the identifier and the time are the caller's.
+///
+/// `manifest` is the text of the repository's `fjord.json`, `existing` the path of every file in the repository (directories need not
+/// be listed) and `gitattributes` the text of its `.gitattributes` if it has one (needed only for an encrypted vault, which adds spec §9's
+/// merge guard if the repository lacks it). Everything is checked before anything is planned, so a request that cannot be honoured
+/// plans nothing: a vault made with some of its keys is the worst result.
+pub fn plan_vault<S: AsRef<str>>(
+    setup: &VaultSetup,
+    manifest: &[u8],
+    existing: &[S],
+    gitattributes: Option<&str>,
+    vault_id: &str,
+    created_at: &str,
+) -> Result<VaultPlan, VaultError> {
+    let parsed = crate::manifest::Manifest::parse(manifest)
+        .map_err(|err| VaultError::ManifestUnusable(err.to_string()))?;
+    if let Some(found) = parsed.version() {
+        if found > i64::from(FORMAT_VERSION) {
+            return Err(VaultError::NewerVersion {
+                found,
+                supported: FORMAT_VERSION,
+            });
+        }
+    }
+
+    if !setup.recipients.is_empty() && !setup.encrypted {
+        return Err(VaultError::RecipientsNeedEncryption);
+    }
+    if setup.id_naming && !setup.encrypted {
+        return Err(VaultError::IdNamingNeedsEncryption);
+    }
+
+    #[cfg(not(feature = "crypto"))]
+    if !setup.recipients.is_empty() {
+        return Err(VaultError::RecipientsUnsupported);
+    }
+    #[cfg_attr(not(feature = "crypto"), allow(unused_mut))]
+    let mut accepted: Vec<String> = Vec::new();
+    #[cfg(feature = "crypto")]
+    for recipient in &setup.recipients {
+        if let Err(reason) = crate::crypto::check_recipient(recipient) {
+            return Err(VaultError::BadRecipient {
+                recipient: crate::crypto::display_safe(recipient),
+                reason,
+            });
+        }
+        // The same key twice is harmless to age and pointless to store.
+        let trimmed = recipient.trim().to_string();
+        if !accepted.contains(&trimmed) {
+            accepted.push(trimmed);
+        }
+    }
+
+    // A vault is a directory at the repository root (spec §2.3), so its name is one path component and the §5 rules apply to it.
+    let name = to_nfc(&setup.name);
+    let invalid = |reason: &str| VaultError::InvalidName {
+        name: setup.name.clone(),
+        reason: reason.to_string(),
+    };
+    if name.is_empty() {
+        return Err(invalid("it is empty"));
+    }
+    if name.contains('/') || name.contains('\\') {
+        return Err(invalid(
+            "a vault is a single directory at the repository root (spec §2.3)",
+        ));
+    }
+    if name.starts_with('.') {
+        return Err(invalid("it would be a hidden directory"));
+    }
+    if let Some(code) = check_component(&name).first() {
+        return Err(invalid(&code.to_string()));
+    }
+    let roots = root_names(existing);
+    if roots.iter().any(|root| fold(root) == fold(&name)) {
+        return Err(VaultError::NameTaken(name));
+    }
+
+    let file_naming = if setup.id_naming { "id" } else { "plain" };
+    let mut files: Vec<SetupFile> = vault_files(
+        &name,
+        vault_id,
+        created_at,
+        setup.encrypted,
+        file_naming,
+        &accepted,
+    )
+    .into_iter()
+    .map(|file| SetupFile {
+        path: format!("{name}/{}", file.path),
+        contents: file.contents,
+        change: FileChange::Create,
+    })
+    .collect();
+
+    // The manifest first in the list, as the CLI writes it first: a vault the manifest does not list is only a warning (W601), where a
+    // manifest listing a vault that was never made is an error (E106).
+    let rewritten = with_vault_entry(&parsed, &name, vault_id)
+        .map_err(|err| VaultError::ManifestUnusable(err.to_string()))?;
+    files.insert(
+        0,
+        SetupFile {
+            path: REPOSITORY_MANIFEST.to_string(),
+            contents: rewritten,
+            change: FileChange::Append,
+        },
+    );
+
+    // Spec §9: ciphertext is never diffed or merged. A repository made by `fjord init` has the line; one that was not might not.
+    if setup.encrypted {
+        let has_gitattributes = roots.contains(&".gitattributes");
+        match (has_gitattributes, gitattributes) {
+            (false, _) => files.push(SetupFile {
+                path: ".gitattributes".to_string(),
+                contents: SETUP_GITATTRIBUTES.to_string(),
+                change: FileChange::Create,
+            }),
+            (true, None) => return Err(VaultError::GitattributesNotRead),
+            (true, Some(text)) if has_merge_guard(text) => {}
+            (true, Some(text)) => {
+                let mut contents = text.to_string();
+                if !contents.is_empty() && !contents.ends_with('\n') {
+                    contents.push('\n');
+                }
+                contents.push_str(SETUP_GITATTRIBUTES);
+                files.push(SetupFile {
+                    path: ".gitattributes".to_string(),
+                    contents,
+                    change: FileChange::Append,
+                });
+            }
+        }
+    }
+
+    Ok(VaultPlan {
+        files,
+        vault_id: vault_id.to_string(),
+        created_at: created_at.to_string(),
+        recipients: accepted,
+    })
+}
+
 /// Write a plan to disk, creating `root` and any parent directories.
 ///
 /// Never overwrites: an existing file is [`Error::Exists`], and the caller
@@ -1321,5 +1535,403 @@ mod tests {
         std::fs::write(temp.path().join("README.md"), "# Mine\n").expect("write");
         let report = verify(temp.path(), &Options::default()).expect("verify");
         assert!(report.errors() > 0, "{:?}", report.diagnostics);
+    }
+
+    // --- Adding a vault to a Fjord repository ---
+
+    const VAULT_ID: &str = "01jxvaaaa0000000000000000a";
+    const VAULT_AT: &str = "2026-11-01T09:30:00Z";
+
+    fn repo_manifest() -> &'static str {
+        "{\n  \"fjord\": 1,\n  \"id\": \"01jxrepa00000000000000000a\",\n  \"name\": \"Mine\",\n  \"custom\": {\"keep\": true},\n  \"vaults\": [{\"path\": \"Public\", \"id\": \"01jxabthe0000000000000000a\"}]\n}\n"
+    }
+
+    fn new_vault(name: &str, encrypted: bool) -> VaultSetup {
+        VaultSetup {
+            name: name.to_string(),
+            encrypted,
+            id_naming: false,
+            recipients: Vec::new(),
+        }
+    }
+
+    fn plan_new(
+        setup: &VaultSetup,
+        existing: &[&str],
+        gitattributes: Option<&str>,
+    ) -> Result<VaultPlan, VaultError> {
+        plan_vault(
+            setup,
+            repo_manifest().as_bytes(),
+            existing,
+            gitattributes,
+            VAULT_ID,
+            VAULT_AT,
+        )
+    }
+
+    fn vault_paths(plan: &VaultPlan) -> Vec<&str> {
+        plan.files.iter().map(|file| file.path.as_str()).collect()
+    }
+
+    #[test]
+    fn a_plaintext_vault_is_its_manifest_and_an_entry_in_fjord_json() {
+        let plan = plan_new(
+            &new_vault("Notes", false),
+            &["Public/fjord.vault.json", "fjord.json"],
+            None,
+        )
+        .expect("a plan");
+        assert_eq!(vault_paths(&plan), ["fjord.json", "Notes/fjord.vault.json"]);
+        assert_eq!(plan.files[0].change, FileChange::Append);
+        assert_eq!(plan.files[1].change, FileChange::Create);
+        let manifest = &plan.files[1].contents;
+        assert!(
+            manifest.contains(VAULT_ID) && manifest.contains(VAULT_AT),
+            "{manifest}"
+        );
+        assert!(manifest.contains("\"encryption\": null"), "{manifest}");
+    }
+
+    #[test]
+    fn the_repository_manifest_keeps_what_it_had_and_lists_the_vault_after_the_others() {
+        let plan = plan_new(&new_vault("Notes", false), &["fjord.json"], None).expect("a plan");
+        let text = &plan.files[0].contents;
+        let value: serde_json::Value = serde_json::from_str(text).expect("json");
+        assert_eq!(
+            value["custom"]["keep"], true,
+            "an unknown field survives (invariant 3): {text}"
+        );
+        assert_eq!(value["name"], "Mine");
+        let vaults = value["vaults"].as_array().expect("vaults");
+        assert_eq!(vaults.len(), 2);
+        assert_eq!(vaults[0]["path"], "Public");
+        assert_eq!(vaults[1]["path"], "Notes");
+        assert_eq!(vaults[1]["id"], VAULT_ID);
+    }
+
+    #[cfg(feature = "crypto")]
+    fn some_recipient() -> String {
+        crate::crypto::generate_identity().recipient.to_string()
+    }
+
+    #[cfg(feature = "crypto")]
+    #[test]
+    fn an_encrypted_vault_has_its_recipients_its_guard_and_the_repository_guard() {
+        let key = some_recipient();
+        let setup = VaultSetup {
+            recipients: vec![key.clone(), key.clone()],
+            ..new_vault("Secret", true)
+        };
+        let plan = plan_new(&setup, &["fjord.json"], None).expect("a plan");
+        assert_eq!(
+            vault_paths(&plan),
+            [
+                "fjord.json",
+                "Secret/fjord.vault.json",
+                "Secret/recipients.txt",
+                "Secret/.gitignore",
+                ".gitattributes"
+            ]
+        );
+        assert_eq!(
+            plan.recipients,
+            std::slice::from_ref(&key),
+            "a key given twice is stored once"
+        );
+        let recipients = &plan
+            .files
+            .iter()
+            .find(|file| file.path.ends_with("recipients.txt"))
+            .expect("recipients")
+            .contents;
+        assert_eq!(recipients.matches(&key).count(), 1, "{recipients}");
+        assert!(plan
+            .files
+            .last()
+            .expect("last")
+            .contents
+            .contains("*.age binary -diff -merge"));
+        assert_eq!(plan.files.last().expect("last").change, FileChange::Create);
+    }
+
+    #[cfg(feature = "crypto")]
+    #[test]
+    fn an_encrypted_vault_may_be_made_with_no_key_yet() {
+        let plan = plan_new(
+            &new_vault("Secret", true),
+            &["fjord.json", ".gitattributes"],
+            Some("*.age binary -diff -merge\n"),
+        )
+        .expect("a plan");
+        assert!(plan.recipients.is_empty());
+        assert!(
+            plan.files.iter().all(|file| file.path != ".gitattributes"),
+            "a repository with the guard is left alone"
+        );
+    }
+
+    #[cfg(feature = "crypto")]
+    #[test]
+    fn id_naming_is_written_into_the_manifest_of_an_encrypted_vault() {
+        let setup = VaultSetup {
+            id_naming: true,
+            recipients: vec![some_recipient()],
+            ..new_vault("Secret", true)
+        };
+        let plan = plan_new(
+            &setup,
+            &["fjord.json", ".gitattributes"],
+            Some("*.age -merge\n"),
+        )
+        .expect("a plan");
+        let manifest = &plan
+            .files
+            .iter()
+            .find(|file| file.path == "Secret/fjord.vault.json")
+            .expect("manifest")
+            .contents;
+        assert!(manifest.contains("\"id\""), "{manifest}");
+        assert!(manifest.contains("fileNaming"), "{manifest}");
+    }
+
+    #[test]
+    fn a_gitattributes_without_the_guard_gains_it_for_an_encrypted_vault_only() {
+        let before = "* text=auto";
+        let plan = plan_new(
+            &new_vault("Secret", true),
+            &["fjord.json", ".gitattributes"],
+            Some(before),
+        )
+        .expect("a plan");
+        let file = plan
+            .files
+            .iter()
+            .find(|file| file.path == ".gitattributes")
+            .expect(".gitattributes");
+        assert_eq!(file.change, FileChange::Append);
+        assert!(
+            file.contents.starts_with("* text=auto\n"),
+            "{:?}",
+            file.contents
+        );
+        assert!(has_merge_guard(&file.contents));
+        let plain = plan_new(
+            &new_vault("Notes", false),
+            &["fjord.json", ".gitattributes"],
+            Some(before),
+        )
+        .expect("a plan");
+        assert!(plain.files.iter().all(|file| file.path != ".gitattributes"));
+    }
+
+    #[test]
+    fn a_gitattributes_that_was_not_read_is_never_overwritten() {
+        let err = plan_new(
+            &new_vault("Secret", true),
+            &["fjord.json", ".gitattributes"],
+            None,
+        )
+        .expect_err("refused");
+        assert_eq!(err, VaultError::GitattributesNotRead);
+        assert_eq!(err.code(), "gitattributes_not_read");
+        // A plaintext vault needs no guard, so it needs no text.
+        assert!(plan_new(
+            &new_vault("Notes", false),
+            &["fjord.json", ".gitattributes"],
+            None
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn a_name_that_is_taken_is_refused_whatever_its_case_and_whatever_holds_it() {
+        for existing in [
+            vec!["Notes/a.md"],
+            vec!["notes"],
+            vec!["NOTES/fjord.vault.json"],
+            vec!["Notes.md"].into_iter().map(|_| "notes").collect(),
+        ] {
+            let err = plan_new(&new_vault("Notes", false), &existing, None).expect_err("refused");
+            assert_eq!(err.code(), "name_taken", "{existing:?}");
+        }
+        assert!(plan_new(
+            &new_vault("Notes", false),
+            &["Notes.md", "Other/a.md"],
+            None
+        )
+        .is_ok());
+    }
+
+    #[test]
+    fn a_name_that_cannot_be_a_directory_is_refused() {
+        for name in [
+            "",
+            ".hidden",
+            "a/b",
+            "a\\b",
+            "con",
+            "trailing.",
+            "bad:name",
+            "x ",
+            "../up",
+        ] {
+            let err = plan_new(&new_vault(name, false), &["fjord.json"], None).expect_err(name);
+            assert_eq!(err.code(), "invalid_name", "{name:?}: {err}");
+        }
+    }
+
+    #[test]
+    fn a_name_is_written_in_nfc() {
+        let plan =
+            plan_new(&new_vault("Cafe\u{301}", false), &["fjord.json"], None).expect("a plan");
+        assert_eq!(plan.files[1].path, "Caf\u{e9}/fjord.vault.json");
+    }
+
+    #[test]
+    fn recipients_and_id_naming_need_an_encrypted_vault() {
+        let with_key = VaultSetup {
+            recipients: vec!["age1anything".to_string()],
+            ..new_vault("Notes", false)
+        };
+        assert_eq!(
+            plan_new(&with_key, &["fjord.json"], None).expect_err("refused"),
+            VaultError::RecipientsNeedEncryption
+        );
+        let by_id = VaultSetup {
+            id_naming: true,
+            ..new_vault("Notes", false)
+        };
+        assert_eq!(
+            plan_new(&by_id, &["fjord.json"], None).expect_err("refused"),
+            VaultError::IdNamingNeedsEncryption
+        );
+    }
+
+    #[cfg(feature = "crypto")]
+    #[test]
+    fn a_recipient_that_age_cannot_use_is_refused_and_a_secret_key_is_never_echoed() {
+        let secret = crate::crypto::generate_identity().secret.to_string();
+        for bad in ["", "not a key", "age1short", secret.as_str()] {
+            let setup = VaultSetup {
+                recipients: vec![some_recipient(), bad.to_string()],
+                ..new_vault("Secret", true)
+            };
+            let err = plan_new(&setup, &["fjord.json"], None).expect_err(bad);
+            assert_eq!(err.code(), "bad_recipient", "{bad:?}");
+            assert!(
+                !err.to_string().contains(&secret),
+                "a secret key must not appear in an error: {err}"
+            );
+        }
+    }
+
+    #[cfg(not(feature = "crypto"))]
+    #[test]
+    fn a_build_that_cannot_check_recipients_honours_none() {
+        let setup = VaultSetup {
+            recipients: vec!["age1anything".to_string()],
+            ..new_vault("Secret", true)
+        };
+        assert_eq!(
+            plan_new(&setup, &["fjord.json"], None).expect_err("refused"),
+            VaultError::RecipientsUnsupported
+        );
+    }
+
+    #[test]
+    fn a_manifest_that_is_unusable_or_newer_is_not_rewritten() {
+        let setup = new_vault("Notes", false);
+        for bad in ["", "not json", "[]"] {
+            let err = plan_vault(
+                &setup,
+                bad.as_bytes(),
+                &["fjord.json"],
+                None,
+                VAULT_ID,
+                VAULT_AT,
+            )
+            .expect_err(bad);
+            assert_eq!(err.code(), "manifest_unusable", "{bad:?}");
+        }
+        let newer = format!("{{\"fjord\": {}, \"vaults\": []}}", FORMAT_VERSION + 1);
+        let err = plan_vault(
+            &setup,
+            newer.as_bytes(),
+            &["fjord.json"],
+            None,
+            VAULT_ID,
+            VAULT_AT,
+        )
+        .expect_err("refused");
+        assert_eq!(err.code(), "newer_version");
+    }
+
+    #[test]
+    fn a_plan_is_pure_the_same_input_gives_the_same_plan() {
+        let setup = new_vault("Notes", false);
+        assert_eq!(
+            plan_new(&setup, &["fjord.json"], None),
+            plan_new(&setup, &["fjord.json"], None)
+        );
+    }
+
+    #[cfg(feature = "native")]
+    #[test]
+    fn a_repository_with_a_vault_added_passes_verify_strictly() {
+        use crate::verify::{verify, Options};
+        for (encrypted, id_naming) in [(false, false), (true, false), (true, true)] {
+            let temp = tempfile::tempdir().expect("tempdir");
+            let root = temp.path();
+            // A repository as `plan_setup` leaves one, then a second vault on top of it.
+            let first = plan_setup(
+                &setup("Public"),
+                &origin(),
+                &["README.md".to_string()],
+                None,
+            )
+            .expect("a plan");
+            std::fs::write(root.join("README.md"), "# Mine\n").expect("write");
+            for file in &first.files {
+                let path = root.join(&file.path);
+                std::fs::create_dir_all(path.parent().expect("parent")).expect("dir");
+                std::fs::write(&path, &file.contents).expect("write");
+            }
+            let manifest = std::fs::read(root.join("fjord.json")).expect("read");
+            let gitattributes = std::fs::read_to_string(root.join(".gitattributes")).ok();
+            let existing = ["README.md", "fjord.json", ".gitattributes", "Public"];
+            let vault = VaultSetup {
+                id_naming,
+                recipients: if encrypted {
+                    vec![some_recipient()]
+                } else {
+                    Vec::new()
+                },
+                ..new_vault("Second", encrypted)
+            };
+            let plan = plan_vault(
+                &vault,
+                &manifest,
+                &existing,
+                gitattributes.as_deref(),
+                VAULT_ID,
+                VAULT_AT,
+            )
+            .expect("a plan");
+            for file in &plan.files {
+                let path = root.join(&file.path);
+                std::fs::create_dir_all(path.parent().expect("parent")).expect("dir");
+                std::fs::write(&path, &file.contents).expect("write");
+            }
+            let report = verify(root, &Options::default()).expect("verify");
+            assert_eq!(report.warnings(), 0, "strict: {:?}", report.diagnostics);
+            assert_eq!(
+                report.errors(),
+                0,
+                "encrypted={encrypted} id={id_naming}: {:?}",
+                report.diagnostics
+            );
+            assert_eq!(report.vaults.len(), 2);
+        }
     }
 }

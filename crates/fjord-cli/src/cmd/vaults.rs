@@ -8,7 +8,7 @@ use crate::cli::{ExitCode, GlobalArgs, VaultCommand};
 use crate::cmd::{ensure_writable, find_root, plural, usage, Style};
 use crate::git::Git;
 use anyhow::{Context, Result};
-use fjord_core::{crypto, manifest::Manifest, path as rules, scaffold, scalar, store, vault};
+use fjord_core::{scaffold, scalar, store, vault};
 
 pub fn run(command: &VaultCommand, global: &GlobalArgs) -> Result<ExitCode> {
     match command {
@@ -57,104 +57,78 @@ fn add(
         }
     }
 
-    // A plaintext vault has no recipients file, so accepting a key would
-    // quietly do nothing — and the user would believe it was protected.
-    if !recipients.is_empty() && !encrypted {
-        return Ok(usage(
-            "--recipient needs --encrypted: a plaintext vault has no recipients, so the \
-             key would be dropped and the vault left readable by everyone",
-        ));
-    }
-
-    // Every key is checked before anything is written. A vault created with
-    // some of its keys is the worst result: it looks usable, and the keys
-    // that are missing are the ones that fail later, on someone else's
-    // machine.
-    let mut accepted: Vec<String> = Vec::new();
-    for recipient in recipients {
-        if let Err(reason) = crypto::check_recipient(recipient) {
-            return Ok(usage(format!(
-                "{}: {reason}. Nothing was created",
-                crypto::display_safe(recipient)
-            )));
-        }
-        // The same key twice is harmless to age and pointless to store.
-        let recipient = recipient.trim().to_string();
-        if !accepted.contains(&recipient) {
-            accepted.push(recipient);
-        }
-    }
-
-    // §7.2: identifier names on a plaintext vault conceal nothing and
-    // destroy browsability, and clients MUST reject the combination.
-    if id_naming && !encrypted {
-        return Ok(usage(
-            "--id-naming needs --encrypted: naming files by id on a plaintext vault \
-             hides nothing and makes the vault unbrowsable, which spec §7.2 requires \
-             clients to reject",
-        ));
-    }
-
-    // A vault is a directory at the repository root (§2.3), so its name is
-    // one path component and the §5 rules apply to it.
-    if name.contains('/') || name.contains('\\') {
-        return Ok(usage(format!(
-            "{name:?} is not a vault name: a vault is a single directory at the \
-             repository root (spec §2.3)"
-        )));
-    }
-    if let Some(code) = rules::check_component(name).first() {
-        return Ok(usage(format!(
-            "{name:?} cannot be used as a name: {} ({})",
-            code.message(),
-            code.as_str()
-        )));
-    }
-
-    let directory = root.join(name);
-    if directory.exists() {
-        return Ok(usage(format!("{name} already exists")));
-    }
+    // Everything is decided by the planner `fjord-core` shares with the web client, before anything is written, so a request that
+    // cannot be honoured creates nothing: a vault made with some of its keys is the worst result.
+    let manifest_path = root.join(fjord_core::REPOSITORY_MANIFEST);
+    let manifest_bytes = std::fs::read(&manifest_path).context("could not read fjord.json")?;
+    let existing: Vec<String> = std::fs::read_dir(&root)
+        .with_context(|| format!("could not read {}", root.display()))?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .collect();
+    let gitattributes = std::fs::read_to_string(root.join(".gitattributes")).ok();
 
     let id = scalar::new_ulid();
     let created_at = scalar::now_rfc3339_utc();
+    let setup = scaffold::VaultSetup {
+        name: name.to_string(),
+        encrypted,
+        id_naming,
+        recipients: recipients.to_vec(),
+    };
+    let plan = match scaffold::plan_vault(
+        &setup,
+        &manifest_bytes,
+        &existing,
+        gitattributes.as_deref(),
+        &id,
+        &created_at,
+    ) {
+        Ok(plan) => plan,
+        Err(refusal) => return Ok(usage(refusal_message(&refusal, name))),
+    };
+    let accepted = plan.recipients.clone();
     let file_naming = if id_naming { "id" } else { "plain" };
-    let files = scaffold::vault_files(name, &id, &created_at, encrypted, file_naming, &accepted);
 
-    // The manifest is rewritten first: a vault on disk that `fjord.json`
-    // does not list is only a warning (W601), while a manifest listing a
-    // vault that was never created is an error (E106).
-    let manifest_path = root.join(fjord_core::REPOSITORY_MANIFEST);
-    let manifest =
-        Manifest::parse(&std::fs::read(&manifest_path).context("could not read fjord.json")?)
-            .map_err(|err| anyhow::anyhow!("fjord.json is not usable: {err}"))?;
-    let rewritten = scaffold::with_vault_entry(&manifest, name, &id)
-        .context("could not add the vault to fjord.json")?;
-
+    // The manifest first: a vault on disk that `fjord.json` does not list is only a warning (W601), while a manifest listing a vault
+    // that was never created is an error (E106). The plan puts it first.
+    let directory = root.join(name);
+    let mut changed: Vec<&str> = Vec::new();
+    let mut files: Vec<String> = Vec::new();
     std::fs::create_dir(&directory)
         .with_context(|| format!("could not create {}", directory.display()))?;
-    for file in &files {
-        std::fs::write(directory.join(&file.path), &file.contents)
-            .with_context(|| format!("could not write {name}/{}", file.path))?;
+    for file in &plan.files {
+        let path = root.join(&file.path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("could not create {}", parent.display()))?;
+        }
+        std::fs::write(&path, &file.contents)
+            .with_context(|| format!("could not write {}", file.path))?;
+        if file.path.starts_with(&format!("{name}/")) {
+            files.push(file.path.clone());
+        } else {
+            changed.push(&file.path);
+        }
     }
-    std::fs::write(&manifest_path, rewritten).context("could not write fjord.json")?;
 
-    // Only the vault and the manifest entry that lists it. See
+    // Only the vault and what it changed outside itself (`fjord.json`, and `.gitattributes` if it gained the guard). See
     // `Git::commit_paths`: a bare commit would take everything staged.
     let message = format!("Add vault {name}");
     if commit {
+        let mut paths: Vec<&str> = vec![name];
+        paths.extend(changed.iter().copied());
         repository
-            .add_paths(&[name, fjord_core::REPOSITORY_MANIFEST])
-            .and_then(|()| {
-                repository.commit_paths(&message, &[name, fjord_core::REPOSITORY_MANIFEST])
-            })
+            .add_paths(&paths)
+            .and_then(|()| repository.commit_paths(&message, &paths))
             // The vault exists by now, and the user needs to know that: the
             // obvious next move is to run this again, and be told it exists.
             .with_context(|| {
                 format!(
                     "the {name} vault was created, but could not be committed. Fix the \
                      problem below, then commit it yourself with `git add {name} \
-                     fjord.json && git commit`"
+                     {} && git commit`",
+                    changed.join(" ")
                 )
             })?;
     }
@@ -171,10 +145,8 @@ fn add(
             "container": if id_naming { "tar" } else { "none" },
             "recipients": accepted,
             "committed": commit,
-            "files": files
-                .iter()
-                .map(|file| format!("{name}/{}", file.path))
-                .collect::<Vec<String>>(),
+            "files": files,
+            "changed": changed,
         });
         println!(
             "{}",
@@ -216,6 +188,19 @@ fn add(
     }
 
     Ok(ExitCode::Ok)
+}
+
+/// What the planner's refusal is called on the command line: the flags the person typed, not the names the web client's form gives them.
+fn refusal_message(refusal: &scaffold::VaultError, name: &str) -> String {
+    use scaffold::VaultError::*;
+    match refusal {
+        RecipientsNeedEncryption => "--recipient needs --encrypted: a plaintext vault has no recipients, so the key would be dropped and the vault left readable by everyone".to_string(),
+        IdNamingNeedsEncryption => "--id-naming needs --encrypted: naming files by id on a plaintext vault hides nothing and makes the vault unbrowsable, which spec §7.2 requires clients to reject".to_string(),
+        BadRecipient { recipient, reason } => format!("{recipient}: {reason}. Nothing was created"),
+        NameTaken(_) => format!("{name} already exists"),
+        InvalidName { reason, .. } => format!("{name:?} cannot be used as a name: {reason}"),
+        other => other.to_string(),
+    }
 }
 
 fn list(global: &GlobalArgs) -> Result<ExitCode> {

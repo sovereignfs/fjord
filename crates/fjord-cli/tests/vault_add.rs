@@ -779,3 +779,32 @@ fn quiet_commit_prints_nothing_but_still_commits() {
     assert_eq!(out(&created), "");
     assert_eq!(commit_count(&repo), before + 1);
 }
+
+/// A repository that was not made by `fjord init` may lack spec §9's merge guard. An encrypted vault added to it brings the line, in the
+/// same commit, as the web client's "Add a vault" does (both come from `scaffold::plan_vault`).
+#[test]
+fn an_encrypted_vault_brings_the_merge_guard_to_a_repository_that_lacks_it() {
+    let repo = repo();
+    std::fs::write(repo.root.join(".gitattributes"), "* text=auto").expect("write");
+    git(&repo, &["add", ".gitattributes"]);
+    git(
+        &repo,
+        &["commit", "-m", "A gitattributes without the guard"],
+    );
+
+    let created = repo.run(&["vault", "add", "Secret", "--encrypted", "--commit"]);
+    assert_eq!(code(&created), 0, "{}", err(&created));
+
+    let attributes = std::fs::read_to_string(repo.root.join(".gitattributes")).expect("read");
+    assert!(attributes.starts_with("* text=auto\n"), "{attributes:?}");
+    assert!(
+        attributes.contains("*.age binary -diff -merge"),
+        "{attributes:?}"
+    );
+    let committed = git(&repo, &["show", "--name-only", "--format=", "HEAD"]);
+    assert!(
+        committed.lines().any(|line| line == ".gitattributes"),
+        "{committed}"
+    );
+    assert!(git(&repo, &["status", "--porcelain"]).trim().is_empty());
+}
