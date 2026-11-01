@@ -806,7 +806,7 @@ freshw web6 0.1.0
 )
 notesw web6
 relw web6 prepare 0.1.1 --skip-gates
-refuses "web: a patch release with a migration since the last release" "a patch release carries none"
+refuses "web: a patch release with a migration since the last release" "A patch release carries none"
 check_in web6 "web: ...and prepare put everything back" \
   '[ "$(git branch --show-current)" = main ] && [ -z "$(git status --short | grep -v CHANGELOG)" ]'
 relw web6 prepare 0.2.0 --skip-gates
