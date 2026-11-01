@@ -187,3 +187,21 @@ As 1d.5 was for phase 1: what each role and each process can see, written down a
 
 - **Done as:** [`docs/security-review-phase-2.md`](../security-review-phase-2.md): the promise and what it is not (an active server or page defeats it, and the review says so), who sees what, seven findings, the checks as tests, and fourteen exceptions argued. Four real defects were found and fixed, each with a failing test first or a test seen to fail with the fix off: **put back could write plain text into an encrypted vault** (a hole 2b.5 opened), **a sealed copy could demand 2^20 scrypt of its opener**, **an API call could delete or move a vault's recipients file or guard**, and **a very large decrypted file was put in an editor**; the number of recipients is now shown; disconnecting deleting sealed copies, the sealed page's headers and a hostile sharer's content are tested. A browser test calls every route that writes with hostile input against an encrypted vault and finds the repository unchanged, and another account gets the same 404 from all of them.
 - **Not here:** a penetration test by someone else; pinning the recipients (E5); comments on sealed copies.
+
+## 2d — Vaults
+
+### 2d.1 Add a vault
+
+**Status:** ⏳ In progress
+
+**Design:** DESIGN §7; spec §2.3, §4, §6, §7.2
+
+Add a vault to a Fjord repository, plaintext or encrypted, from the web client as well as the CLI. Until now the web client could make only the **first** vault of a repository that was not a Fjord repository (1a.10), and the CLI had `fjord vault add` with its rules written inline in the command. Both now ask one planner in `fjord-core` (`scaffold::plan_vault`, pure, no disk or clock: the caller supplies the identifier and the time, as `plan_setup` does), so the two cannot disagree about what a vault is, and the web client reimplements nothing.
+
+- **The plan** is what is added and nothing else: the vault's `fjord.vault.json`; for an encrypted vault its recipients file (at least the person's own key, so it is writable at once) and the `.gitignore` plaintext guard (spec §6.5); `fjord.json` with the vault added and every other field and its order kept (invariant 3); and, for an encrypted vault, the `*.age binary -diff -merge` line of spec §9 if `.gitattributes` lacks it. Nothing that is there is changed or removed.
+- **The rules**, held in one place: the name is one directory name at the root that passes the path rules, not hidden, and free there case aside (spec §5 rule 6); recipients only with encryption, each one an X25519 key `age` accepts (a secret key is refused and never echoed); `id` naming only with encryption (spec §7.2); a repository whose format version is newer than this build's is read-only (invariant 4); an unreadable `fjord.json` is not ours to rewrite.
+- **In the web client** *Add a vault* on the repository page: a name; plaintext or encrypted; for encrypted, how its files are named (by name or by id) and the recipients, the person's own public key from the Keys page filled in; a list of the files that will be made; one commit on the head that was read, never forced, never over anything.
+- **In the CLI** `fjord vault add` keeps its flags and its messages and now asks the same planner.
+
+**Accepts when:** the web client adds a plaintext and an encrypted vault (both namings) to a Fjord repository in one commit each, and `fjord verify --strict` accepts the result; the CLI and the web client make byte-identical files for the same input; every refusal above is a test; and an encrypted vault made in the browser can be written to at once (2b.4).
+
