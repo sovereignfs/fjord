@@ -574,7 +574,7 @@ change their names on disk, which is `fjord encrypt`'s job, not this one's.
 | | Release machinery: `dist`, installers, archives | `done` — see below |
 | | Cut the first release | `done` — `v0.1.0`, after two failed attempts; see below |
 | | Homebrew tap | `done` — `brew install sovereignfs/tap/fjord`, published by `fjord-cli-v0.3.1`; see "Homebrew" below |
-| | crates.io publish | `todo` — not advertised until it exists |
+| | crates.io publish | `ready` — a dry run of both crates passes; needs the owner's token to run for real (see RELEASING.md); not advertised until it exists |
 | | Frontmatter comment preservation | out of scope for v1; needs an AST-level YAML parser |
 
 ### `cargo deny`, and the vulnerability it found

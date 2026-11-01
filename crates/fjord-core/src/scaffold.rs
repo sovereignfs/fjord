@@ -11,8 +11,8 @@
 //! - [`plan_setup`] decides what to add to a repository that is **not** a Fjord repository yet: a
 //!   `fjord.json` and one plaintext vault, nothing else, and it never touches a file that is there
 //!   except to append the one line spec §9 requires to `.gitattributes`.
-//! - [`plan`] and [`write`] are the native conveniences: [`plan`] reads the clock and makes the
-//!   identifiers, and [`write`] is the only function here that performs IO.
+//! - [`plan`] and [`write()`] are the native conveniences: [`plan`] reads the clock and makes the
+//!   identifiers, and [`write()`] is the only function here that performs IO.
 //!
 //! # What a fresh repository is, and is not
 //!

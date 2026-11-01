@@ -171,3 +171,27 @@ its test, and `scripts/release.sh cli verify` is how to read the result. The sam
 goes for the PR-based flow: `prepare`, `propose` and the preflights of `tag` are
 tested against a local origin and a stand-in for `gh`, but the first real
 `propose` → merge → `tag` is what proves the whole of it.
+
+## Publishing to crates.io
+
+`fjord-core` and `fjord-cli` are meant to be on [crates.io](https://crates.io) (`cargo install fjord-cli` gives the `fjord` command); they are not yet. A dry run of both passes
+(`cargo publish --workspace --dry-run`, from a clean tree), and the checks it stands for are kept true by the workspace itself:
+
+- **The names are free** (`fjord-core`, `fjord-cli`, checked 2026-11-01). A different crate called `fjord` exists (a stranger's, v0.4.12): the command is `fjord`, the package is `fjord-cli`,
+  and the README says `cargo install fjord-cli`, so a bare `cargo install fjord` would install the wrong thing.
+- **`fjord-cli` names `fjord-core` by version** as well as by path, as `cargo publish` requires; `release.sh` bumps both together.
+- **The package is the crate and nothing else.** The conformance fixtures are the repository's, at its root, so the tests that read them are left out of the package (`exclude`) or skip when
+  the fixtures are not there; the packaged `fjord-core`'s own tests pass on their own (246, run from the unpacked `.crate`).
+- **docs.rs** builds `fjord-core` with its default features, and `cargo doc` is clean under `-D warnings`.
+- **`fjord-wasm` is `publish = false`** and is not part of this.
+
+Publishing is a person's step, after `tag` has verified the release, because it needs the owner's crates.io API token (never put in the repository or a workflow) and cannot be undone: a
+version can be yanked but never replaced or deleted.
+
+```bash
+cargo login                              # once, with a token from https://crates.io/settings/tokens (scope: publish-new, publish-update)
+cargo publish --workspace --dry-run      # from a clean checkout of the tagged commit
+cargo publish --workspace                # fjord-core first, then fjord-cli, in the right order
+```
+
+The first publish of each name makes its publisher the crate's owner; add the other owners with `cargo owner --add`.
