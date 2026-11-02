@@ -13,7 +13,7 @@ import { MemoryProvider } from "../providers/memory";
 import type { Provider, RepositoryRef } from "../providers/types";
 import { forgetBlobTexts } from "./blob-text";
 import { readRepository } from "./repository";
-import { type SetupDeps, applySetup, assessSetup, isNotFjord } from "./setup";
+import { type SetupChoice, type SetupDeps, applySetup, assessSetup, changeKind, isNotFjord } from "./setup";
 import { TreeCache } from "./tree-cache";
 
 /**
@@ -89,7 +89,7 @@ describe.skipIf(!available)(`setting a repository up (${leg})`, () => {
     expect(isNotFjord(read)).toBe(true);
 
     const assessed = await assessSetup(deps(host), TARGET, read);
-    expect(assessed).toEqual({
+    expect(assessed).toMatchObject({
       offer: true,
       preview: {
         vault: "Public",
@@ -281,5 +281,90 @@ describe.skipIf(!available)(`setting a repository up (${leg})`, () => {
     for (const path of ["fjord.json", "Public/fjord.vault.json", "Public/welcome.md", ".gitattributes"]) {
       expect(await textAt(first, path), path).toBe(await textAt(second, path));
     }
+  });
+});
+
+describe.skipIf(!available)(`setting a repository up as a kind, and changing its kind (3a.3, ${leg})`, () => {
+  const KEY = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p";
+
+  it("offers each kind, and says what each would write", async () => {
+    const host = repository(CODE);
+    const read = await readRepository(deps(host), TARGET);
+    const assessed = await assessSetup(deps(host), TARGET, read);
+    if (!assessed.offer) throw new Error("no offer");
+    const { kinds, journalVault } = assessed.preview;
+    expect(journalVault).toBe("journal");
+    expect("files" in kinds.journal && kinds.journal.files.map((file) => file.path).sort()).toEqual([".gitattributes", "fjord.json", "journal/fjord.vault.json"]);
+    expect("files" in kinds.encryptedJournal && kinds.encryptedJournal.files.map((file) => file.path)).toContain("journal/recipients.txt");
+    expect("files" in kinds.astro && kinds.astro.files.map((file) => file.path)).toContain("src/content.config.ts");
+    // The repository's own README is not one to write over: the site is offered without it.
+    expect("files" in kinds.jekyll && kinds.jekyll.files.map((file) => file.path)).not.toContain("README.md");
+  });
+
+  it("says a site cannot be made where its engine's file is already somebody's", async () => {
+    const host = repository({ ...CODE, "package.json": "{}\n" });
+    const read = await readRepository(deps(host), TARGET);
+    const assessed = await assessSetup(deps(host), TARGET, read);
+    if (!assessed.offer) throw new Error("no offer");
+    expect(assessed.preview.kinds.astro).toEqual({ refused: expect.stringContaining("package.json") });
+    expect("files" in assessed.preview.kinds.jekyll).toBe(true);
+    const before = await headOf(host);
+    await refusal(applySetup(deps(host), TARGET, { kind: "ssg", engine: "astro" }), "file_taken");
+    expect(await headOf(host), "nothing was written").toBe(before);
+  });
+
+  it("makes a journal, plaintext or encrypted to the person's keys, and a site, each read back as its kind", async () => {
+    const cases: [SetupChoice, string][] = [
+      [{ kind: "journal", vault: "journal", encrypted: false, recipients: [] }, "journal"],
+      [{ kind: "journal", vault: "Diary", encrypted: true, recipients: [KEY] }, "journal"],
+      [{ kind: "ssg", engine: "astro" }, "ssg"],
+      [{ kind: "ssg", engine: "jekyll" }, "ssg"],
+    ];
+    for (const [choice, kind] of cases) {
+      const host = repository(CODE);
+      await applySetup(deps(host), TARGET, choice);
+      const read = await readRepository(deps(host), TARGET);
+      expect(read.manifest?.ok && read.manifest.kind, JSON.stringify(choice)).toBe(kind);
+      expect(read.discovery.vaults, JSON.stringify(choice)).toHaveLength(1);
+      expect(read.discovery.vaults[0]?.encrypted).toBe(choice.kind === "journal" && choice.encrypted);
+      expect(await textAt(host, "README.md")).toBe("# Mine\n");
+    }
+  });
+
+  it("changes a kind with every other field of fjord.json kept, in one commit of that file", async () => {
+    const host = repository(CODE);
+    await applySetup(deps(host), TARGET, "Notes");
+    const before = await headOf(host);
+    const old = JSON.parse((await textAt(host, "fjord.json")) as string) as Record<string, unknown>;
+    const done = await changeKind(deps(host), TARGET, { kind: "ssg", engine: "jekyll" });
+    expect(done.commit).not.toBe(before);
+    const now = JSON.parse((await textAt(host, "fjord.json")) as string) as Record<string, unknown>;
+    expect(now).toEqual({ ...old, kind: "ssg", ssg: { engine: "jekyll" } });
+    expect((await readRepository(deps(host), TARGET)).manifest).toMatchObject({ ok: true, kind: "ssg", ssgEngine: "jekyll" });
+  });
+
+  it("refuses a kind whose rules the repository breaks, and says why, writing nothing", async () => {
+    const host = repository({
+      ...CODE,
+      "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3md", name: "two", createdAt: "2026-11-02T09:34:00Z", vaults: [] }),
+      "A/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "A", createdAt: "2026-11-02T09:34:00Z", encryption: null, fileNaming: "plain" }),
+      "B/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7psd5vnz8qmt3yxb4k", name: "B", createdAt: "2026-11-02T09:34:00Z", encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container: "none", armor: false }, fileNaming: "plain" }),
+      "B/recipients.txt": `${KEY}\n`,
+    });
+    const before = await headOf(host);
+    const two = await refusal(changeKind(deps(host), TARGET, { kind: "journal" }), "kind_rule");
+    expect(two.message).toContain("exactly one vault");
+    expect(await headOf(host)).toBe(before);
+
+    const encrypted = repository({
+      ...CODE,
+      "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3md", name: "one", createdAt: "2026-11-02T09:34:00Z", vaults: [] }),
+      "B/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7psd5vnz8qmt3yxb4k", name: "B", createdAt: "2026-11-02T09:34:00Z", encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container: "none", armor: false }, fileNaming: "plain" }),
+      "B/recipients.txt": `${KEY}\n`,
+    });
+    const site = await refusal(changeKind(deps(encrypted), TARGET, { kind: "ssg", engine: "astro" }), "kind_rule");
+    expect(site.message).toContain("cannot be encrypted");
+    // The same repository can be a journal: one vault, and a journal's may be encrypted.
+    await changeKind(deps(encrypted), TARGET, { kind: "journal" });
   });
 });

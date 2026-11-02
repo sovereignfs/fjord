@@ -128,7 +128,7 @@ Today's vault list and folder browser become the `drive` module's entry view, wi
   - The browse, connection, access and format unit tests pass unchanged. The e2e suite was not run in this session.
 ### 3a.3 Choosing a kind
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0001; DESIGN §7 (setting up a repository, 1a.10)
 
@@ -136,6 +136,17 @@ When a repository that is not a Fjord repository is set up, offer a kind: drive 
 
 **Accepts when:** each kind set up in the web client passes the real `fjord verify` (`FJORD_CLI`, as `cli.test.ts` does); changing a kind refuses a repository that breaks the new kind's rules and says why; an `ssg` repository is never offered an encrypted vault.
 
+- **Done as:**
+  - **In `fjord-core`:** `scaffold::plan_setup_kind`, which composes `plan_vault` for the one vault, so an encrypted journal is an encrypted vault added with the person's key, writable at once. Also `scaffold::with_kind` and `manifest::kind_rule`, exposed as `planSetupKind`, `withKind` and `kindRule`.
+  - **In the web client:**
+    - `browse/setup.ts`: `SetupChoice`; `assessSetup` previews every kind; `applySetup` takes a choice; `changeKind`.
+    - `connections/http.ts`: `handleSetup` takes a kind, and refuses an encrypted site. `handleKind` serves the new `PUT /api/connections/[id]/kind`, which is in `routes.ts`.
+    - `SetupOffer.tsx` chooses a kind; `kinds/screens/ChangeKind.tsx` changes one.
+  - **Tested:**
+    - `setup-kinds.cli.test.ts`: each kind set up from the web, and a drive changed to a journal, pass the real `fjord verify --strict`.
+    - `setup.test.ts`: the previews, a site refused for its `package.json`, and a change refused for two vaults and for an encrypted site vault.
+    - `http.test.ts`: who may call, and the request's shape.
+  - **Different from the task as written:** an encrypted journal set up here takes this browser's key only. Adding more is *Add a vault*'s form, which is not repeated here.
 ## 3b — Journal
 
 ### 3b.1 Journal entries

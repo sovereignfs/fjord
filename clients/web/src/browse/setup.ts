@@ -1,5 +1,5 @@
 import { ConnectionError } from "../connections/errors";
-import type { SetupResult } from "../format/types";
+import type { KindSetupResult, RepositoryKind, SetupResult, SiteEngine } from "../format/types";
 import { isProviderError } from "../providers/errors";
 import type { Change, Provider, RepositoryRef } from "../providers/types";
 import pkg from "../../package.json";
@@ -35,6 +35,21 @@ export interface SetupTarget {
   branch: string;
 }
 
+/**
+ * What the repository is set up as (spec §3.1, ROADMAP 3a.3): a drive with one plaintext vault (1a.10's offer), a journal, plaintext or
+ * encrypted to the person's keys, or a site for an engine. A site's vault is never encrypted, so there is no choice to make for it.
+ */
+export type SetupChoice =
+  | { kind: "drive"; vault: string }
+  | { kind: "journal"; vault: string; encrypted: boolean; recipients: string[] }
+  | { kind: "ssg"; engine: SiteEngine };
+
+/** The directory a journal's vault is offered as, as `fjord init --kind journal` makes it. */
+export const DEFAULT_JOURNAL_VAULT = "journal";
+
+/** What one choice would write, or why it cannot be made here (a site's file that is already there). */
+export type ChoicePreview = { files: { path: string; change: "create" | "append" }[] } | { refused: string };
+
 /** What the page shows before anything is written. */
 export interface SetupPreview {
   /** The vault's directory, which is also its name. */
@@ -42,6 +57,12 @@ export interface SetupPreview {
   branch: string;
   /** Every file that would be written: a new one, or a line added to the one that is there. */
   files: { path: string; change: "create" | "append" }[];
+  /**
+   * What each other kind would write (ROADMAP 3a.3): a plaintext journal (in `journalVault`), an encrypted one (shown without keys,
+   * which the browser adds), and a site for each engine.
+   */
+  kinds: { journal: ChoicePreview; encryptedJournal: ChoicePreview; astro: ChoicePreview; jekyll: ChoicePreview };
+  journalVault: string;
 }
 
 /** Why a repository that could be set up is not offered it, when the person should be told. */
@@ -92,9 +113,19 @@ export async function strictText(provider: Provider, ref: RepositoryRef, blob: s
   }
 }
 
-function plan(deps: SetupDeps, repositoryName: string, vault: string, gathered: { paths: string[]; gitattributes: string | null }): Extract<SetupResult, { ok: true }> {
+function plan(deps: SetupDeps, repositoryName: string, choice: SetupChoice, gathered: { paths: string[]; gitattributes: string | null }): Extract<SetupResult, { ok: true }> {
   const random = deps.random?.() ?? globalThis.crypto.getRandomValues(new Uint8Array(80));
-  const made = deps.format.planSetup({ repositoryName, vault, generator: GENERATOR }, gathered, deps.now?.() ?? Date.now(), random);
+  const now = deps.now?.() ?? Date.now();
+  if (choice.kind !== "drive") {
+    const made: KindSetupResult =
+      choice.kind === "journal"
+        ? deps.format.planSetupKind({ repositoryName, generator: GENERATOR, kind: "journal", vault: choice.vault, encrypted: choice.encrypted, recipients: choice.recipients }, gathered, now, random)
+        : deps.format.planSetupKind({ repositoryName, generator: GENERATOR, kind: "ssg", engine: choice.engine }, gathered, now, random);
+    if (made.ok) return made;
+    throw kindRefusal(made.error);
+  }
+  const vault = choice.vault;
+  const made = deps.format.planSetup({ repositoryName, vault, generator: GENERATOR }, gathered, now, random);
   if (made.ok) return made;
   switch (made.error.code) {
     case "already_fjord":
@@ -108,6 +139,37 @@ function plan(deps: SetupDeps, repositoryName: string, vault: string, gathered: 
   }
 }
 
+/** The words for what `planSetupKind` refused: the format module's message, with its code turned into one of ours. */
+function kindRefusal(error: { code: string; message: string }): ConnectionError {
+  switch (error.code) {
+    case "already_fjord":
+      return refused("already_fjord");
+    case "gitattributes_not_read":
+      return refused("gitattributes_unreadable");
+    case "invalid_name":
+    case "invalid_vault_name":
+      return new ConnectionError("invalid_vault_name", error.message);
+    case "name_taken":
+    case "vault_name_taken":
+      return new ConnectionError("vault_name_taken", `${error.message}. Choose another name.`);
+    case "file_taken":
+      return new ConnectionError("file_taken", `${error.message}. Nothing was written.`);
+    default:
+      // A key that is not one, or a choice that does not go together: the module's own words say which.
+      return new ConnectionError("invalid_vault_options", error.message);
+  }
+}
+
+/** What a choice would write, for the page, or the words for why it cannot be made. */
+function previewOf(deps: SetupDeps, repositoryName: string, choice: SetupChoice, gathered: { paths: string[]; gitattributes: string | null }): ChoicePreview {
+  try {
+    return { files: plan(deps, repositoryName, choice, gathered).files.map((file) => ({ path: file.path, change: file.change })) };
+  } catch (error) {
+    if (error instanceof ConnectionError) return { refused: error.message };
+    throw error;
+  }
+}
+
 /**
  * What would be written to a repository that is not a Fjord repository, for the page to show. `read` is the
  * repository as `readRepository` saw it. A vault name is chosen (`Public`, else the next free one) unless the
@@ -118,8 +180,15 @@ export async function assessSetup(deps: SetupDeps, target: SetupTarget & { repos
     if (!(await deps.provider.canWrite(target.ref, target.branch))) return { offer: false, refusal: { code: "read_only", message: MESSAGES.read_only as string } };
     const gathered = await gather(deps, target, read.commit);
     const vault = wanted ?? deps.format.freeVaultName(DEFAULT_VAULT, gathered.paths);
-    const made = plan(deps, target.repositoryName, vault, gathered);
-    return { offer: true, preview: { vault, branch: read.branch, files: made.files.map((file) => ({ path: file.path, change: file.change })) } };
+    const made = plan(deps, target.repositoryName, { kind: "drive", vault }, gathered);
+    const journalVault = deps.format.freeVaultName(DEFAULT_JOURNAL_VAULT, gathered.paths);
+    const kinds = {
+      journal: previewOf(deps, target.repositoryName, { kind: "journal", vault: journalVault, encrypted: false, recipients: [] }, gathered),
+      encryptedJournal: previewOf(deps, target.repositoryName, { kind: "journal", vault: journalVault, encrypted: true, recipients: [] }, gathered),
+      astro: previewOf(deps, target.repositoryName, { kind: "ssg", engine: "astro" }, gathered),
+      jekyll: previewOf(deps, target.repositoryName, { kind: "ssg", engine: "jekyll" }, gathered),
+    };
+    return { offer: true, preview: { vault, branch: read.branch, files: made.files.map((file) => ({ path: file.path, change: file.change })), kinds, journalVault } };
   } catch (error) {
     if (error instanceof ConnectionError && error.code === "gitattributes_unreadable") return { offer: false, refusal: { code: "gitattributes_unreadable", message: error.message } };
     throw error;
@@ -130,25 +199,21 @@ export async function assessSetup(deps: SetupDeps, target: SetupTarget & { repos
  * Set the repository up, with the vault named `vault`: one commit on the head as it is now. Throws a
  * `ConnectionError` saying what is wrong when it is not possible, and when the head moved since it was read.
  */
-export async function applySetup(deps: SetupDeps, target: SetupTarget & { repositoryName: string }, vault: string): Promise<{ commit: string }> {
+export async function applySetup(deps: SetupDeps, target: SetupTarget & { repositoryName: string }, choice: SetupChoice | string): Promise<{ commit: string }> {
+  // A name alone is 1a.10's setup, a drive with that vault.
+  const chosen: SetupChoice = typeof choice === "string" ? { kind: "drive", vault: choice } : choice;
   const read = await readRepository(deps, target);
   if (read.manifest !== null) throw refused("already_fjord");
   if (read.discovery.vaults.length > 0) throw refused("has_vaults");
   if (!(await deps.provider.canWrite(target.ref, target.branch))) throw refused("read_only");
 
   const gathered = await gather(deps, target, read.commit);
-  const made = plan(deps, target.repositoryName, vault, gathered);
+  const made = plan(deps, target.repositoryName, chosen, gathered);
 
   const encoder = new TextEncoder();
   const changes: Change[] = made.files.map((file) => ({ path: file.path, content: encoder.encode(file.contents) }));
   const appended = made.files.some((file) => file.change === "append");
-  const message = [
-    `Set up Fjord: add the vault "${vault}"`,
-    "",
-    `Adds fjord.json and the vault "${vault}" (its manifest and a starter note), so that this repository is a Fjord repository.${
-      appended ? " Adds one line to .gitattributes, which spec §9 requires." : ""
-    } Nothing else that is here is changed.`,
-  ].join("\n");
+  const message = setupMessage(chosen, appended);
 
   try {
     const result = await deps.provider.commit(target.ref, { branch: target.branch, expectedHead: read.commit, message, changes });
@@ -159,3 +224,72 @@ export async function applySetup(deps: SetupDeps, target: SetupTarget & { reposi
     throw error;
   }
 }
+
+/** The commit's message: what was added, in the words of the kind it was set up as. Names no file's contents. */
+function setupMessage(choice: SetupChoice, appended: boolean): string {
+  const guard = appended ? " Adds one line to .gitattributes, which spec §9 requires." : "";
+  switch (choice.kind) {
+    case "drive":
+      return [`Set up Fjord: add the vault "${choice.vault}"`, "", `Adds fjord.json and the vault "${choice.vault}" (its manifest and a starter note), so that this repository is a Fjord repository.${guard} Nothing else that is here is changed.`].join("\n");
+    case "journal":
+      return [
+        `Set up Fjord: a journal in "${choice.vault}"`,
+        "",
+        `Adds fjord.json, of the kind journal, and its vault "${choice.vault}"${choice.encrypted ? ", encrypted, with its recipients" : ""}, so that this repository is a Fjord journal.${guard} Nothing else that is here is changed.`,
+      ].join("\n");
+    case "ssg":
+      return [
+        `Set up Fjord: a ${choice.engine === "astro" ? "Astro" : "Jekyll"} site`,
+        "",
+        `Adds fjord.json, of the kind ssg, the vault "content" for the site's posts, and the ${choice.engine === "astro" ? "Astro" : "Jekyll"} project that builds them.${guard} Nothing else that is here is changed.`,
+      ].join("\n");
+  }
+}
+
+/** A kind a repository can be changed to, from its settings (ROADMAP 3a.3). */
+export interface KindChange {
+  kind: RepositoryKind;
+  /** A site's. */
+  engine?: SiteEngine;
+}
+
+/**
+ * Change a Fjord repository's kind (spec §3.1): one commit of `fjord.json`, rewritten by the format module with every other field kept,
+ * on the head as it is now. Refused, with the rule it breaks, when the repository does not keep the new kind's rules (a journal or a
+ * site has exactly one vault, a site's is plaintext), and refused for a repository whose format is newer than this one's.
+ */
+export async function changeKind(deps: RepositoryDeps, target: SetupTarget, change: KindChange): Promise<{ commit: string }> {
+  const read = await readRepository(deps, target);
+  const manifest = read.manifest;
+  if (manifest === null || !manifest.ok) throw new ConnectionError("manifest_unusable", "This repository has no fjord.json that can be read, so its kind cannot be changed here.");
+  if (manifest.version !== null && manifest.version > deps.format.version) {
+    throw new ConnectionError("newer_version", "This repository was made by a newer version of Fjord, so it can be read here but not changed.");
+  }
+  const broken = deps.format.kindRule(
+    change.kind,
+    read.discovery.vaults.map((vault) => vault.encrypted === true),
+  );
+  if (broken === "E111") throw new ConnectionError("kind_rule", `A ${KIND_LABELS[change.kind].toLowerCase()} has exactly one vault, and this repository has ${read.discovery.vaults.length}. Nothing was changed.`);
+  if (broken === "E112") throw new ConnectionError("kind_rule", "A site's content is published, so its vault cannot be encrypted, and this repository's is. Nothing was changed.");
+
+  const blob = read.blobs.get("fjord.json");
+  if (blob === undefined) throw new ConnectionError("manifest_unusable", "This repository's fjord.json cannot be read, so its kind cannot be changed here.");
+  const text = new TextDecoder().decode(await deps.provider.readBlob(target.ref, blob, { maxBytes: 256 * 1024 }));
+  const rewritten = deps.format.withKind(text, change.kind, change.engine);
+  if (!rewritten.ok) throw new ConnectionError("invalid_vault_options", rewritten.error.message);
+  if (rewritten.text === text) return { commit: read.commit };
+
+  const label = KIND_LABELS[change.kind].toLowerCase();
+  const message = [`Make this repository a ${label}`, "", `Sets fjord.json's kind to ${change.kind}${change.engine ? `, built with ${change.engine}` : ""} (spec §3.1). No other file changes.`].join("\n");
+  try {
+    const done = await deps.provider.commit(target.ref, { branch: target.branch, expectedHead: read.commit, message, changes: [{ path: "fjord.json", content: new TextEncoder().encode(rewritten.text) }] });
+    return { commit: done.commit };
+  } catch (error) {
+    if (isProviderError(error, "head_moved")) throw refused("head_moved");
+    if (isProviderError(error, "forbidden")) throw refused("read_only");
+    throw error;
+  }
+}
+
+/** What each kind is called where a person reads it. The client's, not the format's (RFC 0001). */
+export const KIND_LABELS: Record<RepositoryKind, string> = { drive: "Drive", journal: "Journal", ssg: "Site" };

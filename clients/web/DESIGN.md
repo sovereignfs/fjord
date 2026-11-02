@@ -495,6 +495,13 @@ alternatives are [RFC 0001](../../docs/rfcs/0001-repository-kinds.md), and the `
 - **Every kind can be shown as files.** A repository of another kind offers *Show files*, which is the drive's view
   (`/repo/<connection>?view=files`), and back. The folder and file pages under `/repo/<connection>/<vault>/…` are the same for
   every kind.
+- **Setting up offers a kind** (3a.3, extending §7's offer): a drive with one plaintext vault (as before), a journal, plaintext or
+  encrypted to this browser's public key (as *Add a vault* does), or a site for Astro or Jekyll. Each is previewed, and made, by
+  `fjord-core` (`planSetup`, `planSetupKind`) in one commit that writes over nothing of the repository's own: a site whose engine
+  would need a file that is there is refused with its name. A site is never offered encryption.
+- **A kind is changed** from the repository's page, `PUT /api/connections/<id>/kind` (the account's own connection, this site's
+  `Origin`): one commit of `fjord.json`, rewritten by the module (`withKind`) with every other field kept, refused with the rule it
+  would break (`kindRule`: a journal or site has exactly one vault, a site's is plaintext).
 - **The one vault of a journal or a site is not shown as a vault.** The repository is presented as the journal or the site;
   the vault appears only in its files.
 - **The timeline and tag indexes are derived, never committed** (spec §2.2): for a plaintext journal built on the server from the

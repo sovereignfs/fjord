@@ -24,6 +24,8 @@
  *   manifest_unusable    fjord.json is not there or cannot be read, so it is not ours to rewrite
  *   newer_version        the repository declares a newer format than this client implements: read only
  *   invalid_vault_options  the choices for a new vault do not go together (a key on a plaintext vault, a key that is not one)
+ *   file_taken           a file a site's engine needs is already in the repository, and is not Fjord's to write over
+ *   kind_rule            the repository does not keep the rules of the kind it would be changed to (spec §3.1)
  */
 export type ConnectionErrorCode =
   | "invalid_repository"
@@ -47,7 +49,9 @@ export type ConnectionErrorCode =
   | "vault_name_taken"
   | "manifest_unusable"
   | "newer_version"
-  | "invalid_vault_options";
+  | "invalid_vault_options"
+  | "file_taken"
+  | "kind_rule";
 
 export class ConnectionError extends Error {
   override name = "ConnectionError";

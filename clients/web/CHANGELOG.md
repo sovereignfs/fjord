@@ -13,6 +13,7 @@ section.
 
 ### Added
 
+- **Setting a repository up offers a kind, and a kind can be changed** (ROADMAP 3a.3): a repository that is not a Fjord repository can be set up as a drive (as before), a journal (plaintext, or encrypted to this browser's key) or an Astro or Jekyll site, each previewed and made by `fjord-core` in one commit that writes over nothing of the repository's own; a Fjord repository's kind is changed from its page (`PUT /api/connections/<id>/kind`), one commit of `fjord.json`, refused with the reason when the repository does not keep the new kind's rules.
 - **A repository opens as its kind** (ROADMAP 3a.1, 3a.2; RFC 0001): what `/repo/<connection>` and `/` open on is chosen by the repository's `kind` (spec §3.1), through a module per kind (`src/kinds/`). A drive, and every repository made before kinds, opens on its vaults exactly as before; a kind this build has no module for opens as a drive, and any other kind offers *Show files* (`?view=files`).
 - **Signing out at a Sovereign instance signs the person out of Fjord Web, and deleting their account there deletes theirs.** The instance tells
   each app it signed them in to; `sovereign.manifest.json` now names the two addresses, `/api/sovereign/backchannel-logout` and

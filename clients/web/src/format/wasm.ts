@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Discovery, ListedFile, LocalMinute, MergeResult, RepositoryManifest, SetupExisting, SetupOptions, SetupResult, VaultOptions, VaultResult } from "./types";
+import type { Discovery, KindSetupOptions, KindSetupResult, ListedFile, LocalMinute, MergeResult, RepositoryKind, RepositoryManifest, SetupExisting, SetupOptions, SetupResult, SiteEngine, VaultOptions, VaultResult, WithKindResult } from "./types";
 
 /**
  * `fjord-core` as WebAssembly, in Node (DESIGN.md §2: the server reads the format, the browser never does in
@@ -22,6 +22,9 @@ interface Module {
   describeRepositoryManifest(text: string): string;
   planSetup(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
   planVault(optionsJson: string, manifest: string, existingJson: string, nowMs: number, random: Uint8Array): string;
+  planSetupKind(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
+  withKind(manifest: string, kind: string, engine: string | undefined): string;
+  kindRule(kind: string, encryptedJson: string): string | undefined;
   freeVaultName(preferred: string, existingJson: string): string;
   mergeTexts(base: string, ours: string, theirs: string, oursLabel: string, theirsLabel: string): string;
   quickNoteName(text: string, existingJson: string, year: number, month: number, day: number, hour: number, minute: number): string;
@@ -142,6 +145,25 @@ export class Fjord {
    */
   planVault(options: VaultOptions, manifest: string, existing: SetupExisting, nowMs: number, random: Uint8Array): VaultResult {
     return JSON.parse(this.module.planVault(JSON.stringify(options), manifest, JSON.stringify(existing), nowMs, random)) as VaultResult;
+  }
+
+  /**
+   * What to add to a repository that is not a Fjord repository to make it a journal or a site (spec §3.1): `fjord.json` with the kind,
+   * its one vault (an encrypted journal's written to `recipients` at once) and, for a site, its engine's files, refusing one that is
+   * already there. Pure, as `planSetup` is. A finding is `ok: false`; a malformed call throws.
+   */
+  planSetupKind(options: KindSetupOptions, existing: SetupExisting, nowMs: number, random: Uint8Array): KindSetupResult {
+    return JSON.parse(this.module.planSetupKind(JSON.stringify(options), JSON.stringify(existing), nowMs, random)) as KindSetupResult;
+  }
+
+  /** `fjord.json`'s text with its kind changed (spec §3.1), every other field kept; a site's engine is written with it. */
+  withKind(manifest: string, kind: RepositoryKind, engine?: SiteEngine): WithKindResult {
+    return JSON.parse(this.module.withKind(manifest, kind, engine)) as WithKindResult;
+  }
+
+  /** The rule of spec §3.1 a repository of `kind` would break with vaults that are, in order, encrypted or not: `E111`, `E112`, or none. */
+  kindRule(kind: RepositoryKind, encrypted: boolean[]): "E111" | "E112" | undefined {
+    return this.module.kindRule(kind, JSON.stringify(encrypted)) as "E111" | "E112" | undefined;
   }
 
   /**
