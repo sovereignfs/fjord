@@ -100,7 +100,10 @@ key; that is expected, not a fault. Fix it with `fjord key new` followed by
 | Flag | Effect |
 | --- | --- |
 | `--name <text>` | Repository display name. Defaults to the directory name. |
-| `--no-encrypt` | Create `Private` as a plaintext vault. |
+| `--no-encrypt` | Create `Private` as a plaintext vault. A drive only. |
+| `--kind <kind>` | `drive` (the default), `journal` or `ssg`. See [Repository kinds](#repository-kinds). |
+| `--engine <engine>` | `astro` or `jekyll`, for `--kind ssg`. |
+| `--encrypt` | Encrypt the journal, for `--kind journal`. |
 | `--no-git` | Skip `git init` and the first commit. |
 | `--no-input` | Never prompt; take every default. |
 | `--json` | Machine-readable summary of what was created. |
@@ -117,6 +120,27 @@ On a terminal it asks for the repository name and whether to encrypt
 `Private`, writing the prompts to stderr so `--json` on stdout stays
 parseable. Anywhere else — a pipe, a CI job, or with `--no-input` — it takes
 the defaults without asking.
+
+#### Repository kinds
+
+A repository's kind (spec §3.1, `"kind"` in `fjord.json`) says what it is for, and so how a client
+such as Fjord Web presents it. It changes no file's meaning: every repository can still be read as a
+drive, and `fjord verify` does not fail a kind it does not know.
+
+- **`drive`** is what `init` has always made: `Public` and `Private`. No `kind` is written.
+- **`journal`** is one vault, `journal/`, of dated entries. `fjord new` with no path writes one,
+  dated now in this machine's time zone (spec §8.1 keeps the local offset), at
+  `journal/YYYY/MM/DD/HHMM-slug.md`. With `--encrypt` the vault names its files by id inside a tar
+  container, and entries are not put in dated folders, since folder names are never encrypted
+  (spec §11.2); it has no recipients yet, so `verify` reports `W602` until a key is added.
+- **`ssg`** is a static site: one plaintext vault, `content/`, for its posts, and the engine's own
+  project around it: `package.json`, `astro.config.mjs` and `src/` for Astro, or `_config.yml`,
+  `Gemfile` and `_layouts/` for Jekyll, set up to read their posts from `content/`. A site's content
+  is never encrypted, because a site is published. `--engine` is required; on a terminal `init`
+  asks for it.
+
+A flag for another kind (`--engine` without `--kind ssg`, `--encrypt` without `--kind journal`,
+`--no-encrypt` with either) is refused rather than ignored. Exits `2`.
 
 `--identity` is **not accepted here.** Registering a recipient is
 `fjord key add`, so `init` refuses the flag rather than quietly creating a
@@ -157,6 +181,11 @@ one error.
 
 Exits `0` when conforming, `1` when any error is found. Warnings alone do not
 change the exit code unless `--strict` is given.
+
+A repository of a kind other than `drive` names it on the first line
+(`format version 1 · journal`), and `--json` reports it as `repositoryKind`, `"drive"` when
+none is declared. A journal or site without exactly one vault is `E111`, and a site whose vault is
+encrypted is `E112`.
 
 The `--json` shape is published API, specified by
 [`schema/verify.schema.json`](https://github.com/sovereignfs/fjord/blob/main/schema/verify.schema.json) and checked against
@@ -307,7 +336,7 @@ recipients, since the edit could not be saved.
 Shredding is best-effort on SSDs and copy-on-write filesystems; the operating
 system may retain blocks regardless.
 
-### `fjord new <path>`
+### `fjord new [path]`
 
 Creates a Fjord Doc with valid frontmatter — a fresh ULID, `created`, and a
 `title` — then opens it for editing. In an encrypted vault the document is
@@ -332,6 +361,13 @@ never created in the first place.
 | `--title <text>` | Set the title. Defaults to the file stem (without `.md` or `.fj.md`). |
 | `--document` | Make it a document: name it `*.fj.md`. |
 | `--no-edit` | Create the file without opening an editor. |
+| `--date <date>` | For a journal entry made with no path: its `date`, RFC 3339 with an offset. Defaults to now. |
+
+**In a journal the path may be left out** (`fjord new --title "Morning run"`): the new entry is dated
+now, at this machine's offset from UTC, and filed by that date, `journal/2026/11/02/0814-morning-run.md`,
+or at the vault's root in an encrypted journal. Its title becomes the end of its name. A second entry
+in the same minute takes a number. Where the system will not say its offset, the entry is dated in UTC
+and `new` says so. Anywhere else a path is required, and leaving it out exits `2`.
 
 Paths in `open`, `encrypt`, `decrypt` and `new` may be given relative to the
 working directory or to the repository root, whichever resolves — so `-C` and
