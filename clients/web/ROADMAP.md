@@ -1,6 +1,6 @@
 # Fjord Web — roadmap
 
-**Status:** phase 1 is done except a real-GitHub check of the App (1a.6); phase 2 is built; phase 3, repository kinds, is planned (tasks written, [RFC 0001](../../docs/rfcs/0001-repository-kinds.md) proposed), and phase 4 is an outline. The design is
+**Status:** phase 1 is done except a real-GitHub check of the App (1a.6); phase 2 is built; phase 3, repository kinds, is in progress ([RFC 0001](../../docs/rfcs/0001-repository-kinds.md) accepted; the format, P9–P12, is done), and phase 4 is an outline. The design is
 [`DESIGN.md`](DESIGN.md); this file is the order of work, and the detail of each task is in [`docs/epics/`](../../docs/epics/). Section numbers (§) refer to `DESIGN.md` unless they say "spec".
 
 | | |
@@ -118,10 +118,10 @@ Planned on 2026-11-02. `fjord.json`'s `kind` (`drive`, `journal`, `ssg`) chooses
 
 | # | Task | Status |
 | --- | --- | --- |
-| [P9](../../docs/epics/web-3.md#p9-spec-repository-kinds-date-and-comparing-tags) | Spec: repository kinds, `date`, and comparing tags | ⏳ In progress |
-| [P10](../../docs/epics/web-3.md#p10-fjord-core-kinds-their-rules-and-their-scaffolds) | `fjord-core`: kinds, their rules and their scaffolds | 📋 Planned |
-| [P11](../../docs/epics/web-3.md#p11-cli-init---kind-verify-and-journal-entries) | CLI: `init --kind`, `verify` and journal entries | 📋 Planned |
-| [P12](../../docs/epics/web-3.md#p12-fjord-wasm-kinds-and-journal-paths) | `fjord-wasm`: kinds and journal paths | 📋 Planned |
+| [P9](../../docs/epics/web-3.md#p9-spec-repository-kinds-date-and-comparing-tags) | Spec: repository kinds, `date`, and comparing tags | ✅ Done |
+| [P10](../../docs/epics/web-3.md#p10-fjord-core-kinds-their-rules-and-their-scaffolds) | `fjord-core`: kinds, their rules and their scaffolds | ✅ Done |
+| [P11](../../docs/epics/web-3.md#p11-cli-init---kind-verify-and-journal-entries) | CLI: `init --kind`, `verify` and journal entries | ✅ Done |
+| [P12](../../docs/epics/web-3.md#p12-fjord-wasm-kinds-and-journal-paths) | `fjord-wasm`: kinds and journal paths | ✅ Done |
 | [3a.1](../../docs/epics/web-3.md#3a1-kind-modules) | Kind modules | 📋 Planned |
 | [3a.2](../../docs/epics/web-3.md#3a2-drive-as-a-kind) | Drive as a kind | 📋 Planned |
 | [3a.3](../../docs/epics/web-3.md#3a3-choosing-a-kind) | Choosing a kind | 📋 Planned |

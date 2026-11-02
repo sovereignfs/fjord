@@ -2,7 +2,7 @@
 
 The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients/web/ROADMAP.md): what each one is, how it is known to be done, and how it was done. The design is [RFC 0001](../rfcs/0001-repository-kinds.md) until task 3a.1 moves it into [`clients/web/DESIGN.md`](../../clients/web/DESIGN.md); the `ssg` kind's detail is [Research 0001](../research/0001-ssg-kind.md). Where this file and either disagree, they are right. The order of work, across legs, is [workstream 0001](../workstreams/0001-repository-kinds.md).
 
-**Status of the whole phase:** ⏳ in progress since 2026-11-02, when the owner accepted RFC 0001.
+**Status of the whole phase:** ⏳ in progress since 2026-11-02, when the owner accepted RFC 0001. The format (P9–P12) is done.
 
 ## What the phase promises, and what it does not
 
@@ -22,7 +22,7 @@ The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients
 
 ### P9 Spec: repository kinds, `date`, and comparing tags
 
-**Status:** ⏳ In progress
+**Status:** ✅ Done
 
 **Design:** RFC 0001, The `kind` field, The rules of each kind, `date`, Tags, Diagnostics
 
@@ -39,9 +39,10 @@ Fixtures: `tests/fixtures/broken/<code>/` for each new code, and a conforming re
 
 **Accepts when:** the spec says all of it; every new fixture emits exactly its code and nothing else; the conforming fixtures, old and new, emit nothing; the RFC's status says it was implemented by P9.
 
+- **Done as:** the spec's new §3.1 (kinds, the one-vault rule, plaintext `ssg`, the fallback), §2's sentence on files outside vaults, §8.1's `date` and tag comparison, §11.2's sentence on paths, and **Kind** in §1.3, with no format version change. One deliberate change from the RFC: tags compare by Unicode's **default lowercase mapping** after NFC, not by case folding, because that is what every client's standard library has (JavaScript has no case folding), so the CLI and the web agree byte for byte (RFC changelog 1.1). The codes are `E111`, `E112` and `W606`, as the RFC proposed. The fixtures (`broken/E111`, `E112`, `W606`, and conforming `journal/` and `ssg/`) landed with P10's code, so that every commit kept the fixture suite green.
 ### P10 `fjord-core`: kinds, their rules and their scaffolds
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0001, The CLI and `fjord-core`, Diagnostics
 
@@ -49,9 +50,20 @@ The manifest reads `kind` and its settings object and writes them back as they w
 
 **Accepts when:** round-tripping `fjord.json` with an unknown kind and an unknown settings object loses nothing (a property test, beside the frontmatter one); each kind's scaffold, written to disk, passes `verify`; the entry path is tested across a day boundary in UTC that is not one in local time; the pure subset builds for `wasm32-unknown-unknown`.
 
+- **Done as:** in `fjord-core`, all in the pure subset:
+  - `manifest::Kind`, `Engine`, `Manifest::kind` and `presented_kind`. Nothing was needed to preserve them, because the manifest is its raw map; the seeded property test `any_kind_and_its_settings_survive_a_rewrite` holds it.
+  - The three codes in `diagnostics.rs`, checked in `verify.rs` (`check_kind`, against the vaults on disk; `W606` in `check_markdown`). A kind or `ssg` value of the wrong type is `E110`.
+  - `scaffold::plan_kind_with`, with templates under `crates/fjord-core/templates/` (`README-journal.md`, `README-ssg.md`, `ssg/astro/`, `ssg/jekyll/`). A drive is `plan_with`'s bytes exactly, with no `kind` written. An encrypted journal has no recipients yet (`W602`), as `Private` does.
+  - `journal::entry_path` and `slug`: an encrypted journal is filed flat as `YYYY-MM-DD-HHMM[-slug].md`, the name inside its container.
+  - `scalar::is_entry_date` and `rfc3339_from_unix_at_offset`.
+  - `tags::fold`, `same` and `is_under`. These were moved here from 3b.3, as the workstream asked, so every client compares tags alike.
+  - Tests: `crates/fjord-core/tests/kinds.rs` writes and verifies each scaffold.
+  - **Left for later:**
+    - the engine templates are a starting point, and 3c.1's spike builds them;
+    - `verify` walks everything outside the vaults, so a site with `node_modules/` installed may show path warnings locally (3c.1 decides whether `verify` should skip gitignored files outside vaults).
 ### P11 CLI: `init --kind`, `verify` and journal entries
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0001, The CLI and `fjord-core`
 
@@ -61,9 +73,14 @@ The manifest reads `kind` and its settings object and writes them back as they w
 
 **Accepts when:** `fjord init --kind <k> x && cd x && fjord verify` exits 0 for each kind; an `ssg` repository with an encrypted vault, and a journal with two vaults, each fail with their codes; the schema of `verify --json` (`schema/`) gains the field; the README documents all of it.
 
+- **Done as:**
+  - **`init`:** `--kind`, `--engine`, `--encrypt` (`cmd/init.rs`). With no `--kind` a repository is a drive, made exactly as before. A flag for another kind is refused (exit 2). On a terminal, a site's engine is asked for.
+  - **`verify --json`:** a top-level `repositoryKind`, required in `schema/verify.schema.json`. The human output names a kind other than `drive` (`format version 1 · journal`), so the golden files did not change.
+  - **`new`:** with no path, in a journal, it writes an entry dated now at the machine's offset (`--date` to choose). It uses `time`'s `local-offset` feature in the CLI only, and falls back to UTC with a note. A second entry in the same minute takes a number.
+  - **Tests:** `crates/fjord-cli/tests/kinds.rs`.
 ### P12 `fjord-wasm`: kinds and journal paths
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0001, The CLI and `fjord-core`
 
@@ -71,6 +88,11 @@ Expose P10 to JavaScript: a repository's kind and settings from its manifest (th
 
 **Accepts when:** the module's JavaScript tests read every new fixture with the answers the CLI gives (`fixtures.test.mjs`); its size change is recorded here.
 
+- **Done as:**
+  - `describeRepositoryManifest` reports `kind` (the one to present), `declaredKind` and `ssgEngine`. The kind comes from `fjord.json`, which the web already reads with this function: `discover` takes only the vault manifests, so it was not the place.
+  - New exports: `planKind`, `journalEntryPath`, `journalSlug`, `entryDateFromUnix`, `isEntryDate`, `foldTag`, `sameTag` and `tagIsUnder`.
+  - `discovery.json` records each fixture's kind. `verify` is held to it in Rust, and the module in `fixtures.test.mjs`. `kinds.test.mjs` covers the rest, including that `foldTag` agrees with JavaScript's own `normalize` and `toLowerCase`.
+  - **Size:** 1,385,572 bytes and 522,115 gzipped, from 1,321,125 and 499,067.
 ## 3a — Kinds in the web client
 
 ### 3a.1 Kind modules
@@ -131,7 +153,7 @@ The journal's entry view: entries newest first, grouped by day, with their title
 
 **Design:** RFC 0001, Tags
 
-A tag index shared by every kind, built where the timeline index is and under the same rule for encrypted vaults. Comparison is case-insensitive after NFC and case folding, with `/` as nesting. In the journal: filter the timeline by one or more tags and a date range, a list of every tag with its count, and suggestions of existing tags while one is typed into an entry's `tags`.
+A tag index shared by every kind, built where the timeline index is and under the same rule for encrypted vaults. Comparison is `fjord-core`'s (`tags`, through the module's `sameTag` and `tagIsUnder`): case-insensitive after NFC by the lowercase mapping, with `/` as nesting (spec §8.1). In the journal: filter the timeline by one or more tags and a date range, a list of every tag with its count, and suggestions of existing tags while one is typed into an entry's `tags`.
 
 **Accepts when:** `Work` and `work` are one tag and both spellings stay as they were written in the files; a filter on `project` includes `project/fjord`; the suggestions offer existing spellings first; the encrypted case is tested as in 3b.2.
 

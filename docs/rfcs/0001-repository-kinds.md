@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **Status** | Accepted, 2026-11-02, by the owner. Being implemented on `feat/repository-kinds` ([workstream 0001](../workstreams/0001-repository-kinds.md)) |
+| **Status** | Accepted, 2026-11-02, by the owner. Implemented in part: the format (P9–P12) is in the spec, `fjord-core`, the CLI and `fjord-wasm`; the web client's kinds are being built on `feat/repository-kinds` ([workstream 0001](../workstreams/0001-repository-kinds.md)) |
 | **Date** | November 2026 |
 | **Author** | Claude Code, for review |
 | **Scope** | [`docs/specs/Fjord.spec.md`](../specs/Fjord.spec.md) §3, §8.1, §11.2 (a format change, additive); `fjord-core`, `fjord-cli`, `fjord-wasm`; Fjord Web ([`clients/web/DESIGN.md`](../../clients/web/DESIGN.md) §8, a new section); the other clients' fallback |
