@@ -2,10 +2,10 @@
 // (src/providers/github/github.recorded.test.ts).
 //
 //   node scripts/record-github-fixtures.mjs                    # everything
-//   node scripts/record-github-fixtures.mjs --statuses-only    # only a commit's build status, added to the fixture that is there
+//   node scripts/record-github-fixtures.mjs --additions        # only a commit's build status and the branch listing, added to the fixture that is there
 //
 // It reads a public repository, sovereignfs/fjord, with no credential at all, so it spends the
-// anonymous limit (60 requests an hour; this makes 12) and cannot leak anything. `--statuses-only` makes 3 (and one more for each
+// anonymous limit (60 requests an hour; this makes 13) and cannot leak anything. `--additions` makes 4 (and one more for each
 // deployment the commit has) and keeps every other recorded answer as it is: the recorded tests assert on that commit's tree. The answers are
 // saved exactly as GitHub sent them, headers trimmed to the few the provider reads. Re-run it to
 // see whether GitHub's shapes have changed, and read the diff before committing: a test that
@@ -33,21 +33,25 @@ async function get(path, { accept = "application/vnd.github+json", binary = fals
 
 const out = join(dirname(fileURLToPath(import.meta.url)), "../src/providers/github/fixtures/sovereignfs-fjord.json");
 
-/** What the host reports of a commit's build (ROADMAP 3c.3): check runs, commit statuses, deployments and each deployment's statuses. */
+/**
+ * What the host reports of a commit's build (ROADMAP 3c.3): check runs, commit statuses, deployments and each deployment's statuses; and the
+ * listing of branches by a prefix (3d.1), which GitHub matches as a string and not by path segments.
+ */
 async function recordBuild(commit) {
+  await get(`${REPO}/git/matching-refs/heads/ma?per_page=100`);
   await get(`${REPO}/commits/${commit}/check-runs?per_page=100`);
   await get(`${REPO}/commits/${commit}/status?per_page=100`);
   const deployments = await get(`${REPO}/deployments?sha=${commit}&per_page=10`);
   for (const deployment of (deployments.body ?? []).slice(0, 5)) await get(`${REPO}/deployments/${deployment.id}/statuses?per_page=1`);
 }
 
-if (process.argv.includes("--statuses-only")) {
+if (process.argv.includes("--additions")) {
   if (!existsSync(out)) throw new Error(`${out} is not there: record everything first`);
   const fixture = JSON.parse(readFileSync(out, "utf8"));
   await recordBuild(fixture.commit);
-  const kept = fixture.record.filter((old) => !/\/(commits\/[0-9a-f]{40}\/(check-runs|status)|deployments)/.test(old.path));
+  const kept = fixture.record.filter((old) => !/\/(commits\/[0-9a-f]{40}\/(check-runs|status)|deployments|git\/matching-refs)/.test(old.path));
   writeFileSync(out, `${JSON.stringify({ ...fixture, record: [...kept, ...record] }, null, 1)}\n`);
-  console.log(`recorded ${record.length} build-status answers for ${fixture.commit.slice(0, 7)} into ${out}`);
+  console.log(`recorded ${record.length} additional answers for ${fixture.commit.slice(0, 7)} into ${out}`);
   process.exit(0);
 }
 

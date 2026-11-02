@@ -328,6 +328,34 @@ export class FakeGitHub {
       return reply(201, { sha: commit });
     }
 
+    if (method === "POST" && rest === "/git/refs") {
+      return this.serialised(async () => {
+        if (typeof body?.ref !== "string" || !body.ref.startsWith("refs/heads/")) return reply(422, { message: "Reference name is not valid" });
+        if (await this.revParse(body.ref)) return reply(422, { message: "Reference already exists" });
+        if (!(await this.exists(body.sha, "commit"))) return reply(422, { message: "Object does not exist" });
+        await this.git(["update-ref", body.ref, body.sha]);
+        return reply(201, { ref: body.ref, object: { sha: body.sha, type: "commit" } });
+      });
+    }
+
+    if (method === "DELETE" && (found = /^\/git\/refs\/heads\/(.+)$/.exec(rest))) {
+      const ref = `refs/heads/${decodeURIComponent(found[1]!)}`;
+      return this.serialised(async () => {
+        const current = await this.revParse(ref);
+        if (!current) return reply(422, { message: "Reference does not exist" });
+        await this.git(["update-ref", "-d", ref, current]);
+        res.writeHead(204, { "x-github-request-id": `FAKE${this.requests.length}` });
+        res.end();
+      });
+    }
+
+    if (method === "GET" && (found = /^\/git\/matching-refs\/heads\/(.*)$/.exec(rest))) {
+      const prefix = `refs/heads/${decodeURIComponent(found[1]!)}`;
+      // GitHub matches by the string's prefix, not by path segments as `git for-each-ref <pattern>` does: `fjord/preview/ab-` finds `fjord/preview/ab-1`.
+      const lines = (await this.git(["for-each-ref", "--format=%(refname) %(objectname)", "refs/heads"])).toString().split("\n").filter((line) => line.startsWith(prefix));
+      return reply(200, lines.map((line) => ({ ref: line.split(" ")[0], object: { sha: line.split(" ")[1], type: "commit" } })));
+    }
+
     if (method === "PATCH" && (found = /^\/git\/refs\/heads\/(.+)$/.exec(rest))) {
       const ref = `refs/heads/${decodeURIComponent(found[1]!)}`;
       return this.serialised(async () => {

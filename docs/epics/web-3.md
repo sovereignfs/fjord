@@ -2,7 +2,7 @@
 
 The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients/web/ROADMAP.md): what each one is, how it is known to be done, and how it was done. The design is [RFC 0001](../rfcs/0001-repository-kinds.md) until task 3a.1 moves it into [`clients/web/DESIGN.md`](../../clients/web/DESIGN.md); the `ssg` kind's detail is [Research 0001](../research/0001-ssg-kind.md). Where this file and either disagree, they are right. The order of work, across legs, is [workstream 0001](../workstreams/0001-repository-kinds.md).
 
-**Status of the whole phase:** ⏳ in progress since 2026-11-02, when the owner accepted RFC 0001. The format (P9–P12) is done.
+**Status of the whole phase:** ✅ built 2026-11-02 to 2026-11-03, except 3d.2 (a build in Fjord), which is an outline that needs its own RFC and a security review. The order of the work was [workstream 0001](../workstreams/0001-repository-kinds.md), and every task below says how it was done and what was left out.
 
 ## What the phase promises, and what it does not
 
@@ -274,7 +274,7 @@ The head commit's statuses, checks and deployments, read through the `Provider`,
 - **Done as:**
   - **The contract:** `Provider.getBuildStatus(ref, commit)` returns `{ commit, state: none | pending | success | failure, checks, siteUrl? }`. `MemoryProvider.reportBuild` and the GitHub fake (`fake.reportBuild`) hold what a host's integrations posted. Both are run through `providerContract` ("a commit's build"): nothing reported is `none`; a failure is not hidden by something still running; the site's address comes from a successful deployment; a later commit has its own; an unknown commit is `not_found`.
   - **GitHub** (`github/provider.ts`): check runs, commit statuses, deployments, and each deployment's newest status. A replaced (`inactive`) deployment is left out. GitHub's 422 for an unknown commit is `not_found`. Only `http(s)` addresses are kept, as the host gave them.
-  - **Re-recorded:** `node scripts/record-github-fixtures.mjs --statuses-only` added GitHub's real answers for the fixture's commit, leaving the rest as recorded. They show that the combined status is `pending` with no status for a commit nothing posted to, so the provider reads the statuses and not that state; that commit has 16 check runs and no deployment.
+  - **Re-recorded:** `node scripts/record-github-fixtures.mjs --additions` added GitHub's real answers for the fixture's commit, leaving the rest as recorded. They show that the combined status is `pending` with no status for a commit nothing posted to, so the provider reads the statuses and not that state; that commit has 16 check runs and no deployment.
   - **The page:** `site/screens/BuildStatus.tsx` reads the head commit through the connection's own provider, and `BuildStatusView.tsx` says building, built or failed. It is on the site module (`kinds/ssg.tsx`). A token that may not read these says so. Any other failure to read leaves the page as it was.
   - **Tested:** the contract on both providers; `github.test.ts` (conclusions, replaced deployments, unsafe links, a forbidden token, the requests made); the recorded test; `BuildStatusView.test.tsx` for each state.
   - **Different from the task as written:** each state is tested from the view and the provider's answers separately, not as one page from one recorded answer. The page needs the connection, session and database to render, which a unit test does not stand up. **Not run:** a real GitHub deployment's `environment_url` (this repository has none), so the siteUrl path is held to the fake and the documented shape only.
@@ -282,7 +282,7 @@ The head commit's statuses, checks and deployments, read through the `Provider`,
 
 ### 3d.1 Previews through the host
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** Research 0001, *Build status and preview*, open question 4
 
@@ -290,6 +290,18 @@ The head commit's statuses, checks and deployments, read through the `Provider`,
 
 **Accepts when:** against a recorded host answer, the link appears for the preview commit and not the default branch's; the default branch is never written; a host that previews no branches is told plainly, not left waiting.
 
+- **Done as:**
+  - **Decided at the start, as the task said: the branch's lifetime.** One branch per preview, `fjord/preview/<hash of the account>-<UTC time>`, cut from the default branch's head with one commit of the person's drafts, kept until the person stops it (which deletes the branch), at most three at a time. Rejected: one reused branch per person (it would have to be reset to the default branch each time, which is a force); a timer that deletes old branches (a repository's history is not Fjord's to prune unasked). The hash keeps the name from saying who the person is in a repository others read.
+  - **`Provider`:** `createBranch` (`branch_exists` for a name that is taken, never a reset), `deleteBranch` (the default branch refused as `invalid_request`, by the provider itself, so a caller cannot name it by mistake) and `listBranches(prefix)`, in `MemoryProvider`, the GitHub provider and the GitHub fake, and in `providerContract`. GitHub answers a missing branch and a taken name with a 422 each, mapped to `not_found` and `branch_exists`.
+  - **`src/site/preview.ts`:** `candidates` (the person's own plaintext drafts in the site's vault whose base is still the file at the head; others are named as left out), `startPreview`, `previewsOf`, `stopPreview` and the pure `outcomeOf`. A preview that is refused after its branch was made deletes the branch.
+  - **The link is the preview commit's.** `previewsOf` reads `getBuildStatus` of the preview's own commit. The test reports a built default branch with its own address first and finds the preview still waiting until the host reports the preview's commit.
+  - **A host that previews no branches** has `unsupported` after three minutes of nothing reported (`WAIT_MS`), with words naming what to look at (hosts that build every branch; GitHub Pages does not), and the preview still there to stop.
+  - **HTTP:** `src/site/preview-http.ts`, `GET`/`POST`/`DELETE` at `/api/connections/[id]/previews`, in `routes.ts` (read; `save_version`). Nothing about the branch, paths or text is taken from a request to start one. The Origin check and the "only your own branch" rule were each seen to fail their tests with the rule switched off.
+  - **The page:** `site/screens/PreviewPanel.tsx` (polls every five seconds while any preview is waiting or building) and `PreviewRows.tsx` (each state, from a recorded answer), on the site module.
+  - **Tested:** the contract on both providers; GitHub's real answer for a branch listing, recorded (`record-github-fixtures.mjs --additions`); `preview.test.ts` on each database leg; `preview-http.test.ts`; `PreviewRows.test.tsx`; and in a browser, `e2e/kinds.open.spec.ts`: the flow end to end against a git-backed fake, with the default branch's head and file unchanged and the default branch's own build address not shown.
+  - **Found by the browser test:** the fake GitHub listed branches by path segments (as `git for-each-ref` does), where GitHub matches the prefix as a string, so a person's previews were not found. Fixed, with a contract case.
+  - **No account or token at the host itself was needed** (the workstream's "Do not proceed if"): the address is what the host posted to the repository, read with the connection's own token.
+  - **Not done:** a real host's preview (none is connected to this repository); creating or deleting a branch on real GitHub, which is held to the fake's contract and the documented API only; previewing an encrypted vault's drafts (a site is never encrypted); a Jekyll site's preview of a *new* post, since a draft is of a file that exists.
 ### 3d.2 A build in Fjord
 
 **Status:** 🚧 Open (needs its own RFC and a security review)

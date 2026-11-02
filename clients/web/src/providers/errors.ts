@@ -21,6 +21,8 @@ export type ProviderErrorCode =
   | "rate_limited"
   /** The host or the network did not answer properly. Worth trying again later. */
   | "unavailable"
+  /** A branch of that name is already there. */
+  | "branch_exists"
   /** The request itself is wrong: an empty commit, a path the host rejects. */
   | "invalid_request"
   /** A webhook whose signature does not match. */

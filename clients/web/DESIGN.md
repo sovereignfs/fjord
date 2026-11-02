@@ -506,6 +506,18 @@ alternatives are [RFC 0001](../../docs/rfcs/0001-repository-kinds.md), and the `
   the statuses are read and not that. Any failure is a failure, anything not done is pending, and every address is shown only if
   it is `http(s)`. The build is the **head commit's** and is read at each view. A token that may not read these says so and does not
   mean "nothing built": a fine-grained token needs *Checks*, *Commit statuses* and *Deployments*, each *Read*.
+- **A site's unsaved changes are previewed through its host** (3d.1, Research 0001). Fjord builds nothing and holds no credential of the
+  host's. "Preview" commits the person's drafts of the site's vault to a **branch of their own** (`src/site/preview.ts`): cut from the default
+  branch's head, one commit, never forced, and the default branch only ever read. The host (Cloudflare Pages, Netlify, Vercel…) builds that
+  branch as it builds any, posts a deployment to the repository, and the page shows the address of **that commit's** deployment, read through
+  the `Provider` with the connection's own token. A draft of a file that changed upstream since it was started is left out and named, since
+  putting it in would write over the change.
+  - **The branch's life is the preview's.** One branch per preview, `fjord/preview/<hash of the account>-<UTC time>`, deleted only when the person
+    stops it, at most three at once. The alternatives were one reused branch per person (it would have to be reset to the default branch each time,
+    which is a force) and a timer that deletes old branches (a repository's history is not Fjord's to prune unasked). Only a branch named like this
+    and carrying the caller's own tag is ever deleted, and the default branch is refused by the `Provider` as well.
+  - **A host that builds no branches is told so**: with nothing reported for the commit after three minutes the page says the host has not built
+    it (GitHub Pages builds none), and offers to stop the preview. It is not left waiting.
 - **A kind is changed** from the repository's page, `PUT /api/connections/<id>/kind` (the account's own connection, this site's
   `Origin`): one commit of `fjord.json`, rewritten by the module (`withKind`) with every other field kept, refused with the rule it
   would break (`kindRule`: a journal or site has exactly one vault, a site's is plaintext).

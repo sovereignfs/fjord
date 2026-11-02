@@ -1,7 +1,7 @@
 import { ProviderError } from "./errors";
 import { gitBlobId } from "./git-id";
 import { summarise } from "./build-status";
-import type { BuildCheck, BuildStatus, Change, CommitRequest, CommitResult, EntryKind, HeadResult, Provider, Repository, RepositoryRef, Tree, TreeEntry } from "./types";
+import type { Branch, BuildCheck, BuildStatus, Change, CommitRequest, CommitResult, EntryKind, HeadResult, Provider, Repository, RepositoryRef, Tree, TreeEntry } from "./types";
 import { repositoryKey } from "./types";
 import { validateCommitRequest } from "./validate";
 import { createHash } from "node:crypto";
@@ -102,6 +102,23 @@ export class MemoryProvider implements Provider {
     const etag = `"${commit}"`;
     if (options.etag === etag) return { changed: false };
     return { changed: true, head: { branch, commit, etag } };
+  }
+
+  async createBranch(ref: RepositoryRef, branch: string, fromCommit: string): Promise<void> {
+    const repo = this.repo(ref);
+    if (!repo.commits.has(fromCommit)) throw new ProviderError("not_found", `there is no commit ${fromCommit}`);
+    if (repo.branches.has(branch)) throw new ProviderError("branch_exists", `there is already a branch ${branch}`);
+    repo.branches.set(branch, fromCommit);
+  }
+
+  async deleteBranch(ref: RepositoryRef, branch: string): Promise<void> {
+    const repo = this.repo(ref);
+    if (branch === repo.info.defaultBranch) throw new ProviderError("invalid_request", "the default branch is not deleted from here");
+    if (!repo.branches.delete(branch)) throw new ProviderError("not_found", `there is no branch ${branch}`);
+  }
+
+  async listBranches(ref: RepositoryRef, prefix: string): Promise<Branch[]> {
+    return [...this.repo(ref).branches].filter(([name]) => name.startsWith(prefix)).map(([branch, commit]) => ({ branch, commit })).sort((a, b) => (a.branch < b.branch ? -1 : 1));
   }
 
   async getBuildStatus(ref: RepositoryRef, commit: string): Promise<BuildStatus> {

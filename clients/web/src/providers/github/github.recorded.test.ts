@@ -182,5 +182,16 @@ describe("the fake the contract tests use, against the real thing", () => {
       expect((await provider.getBuildStatus(REAL, COMMIT)).siteUrl).toBeUndefined();
     });
   });
+
+  describe("a branch listing (ROADMAP 3d.1)", () => {
+    it("is read from GitHub's real answer, which matches a prefix as a string and names each branch by its ref", async () => {
+      const raw = find("/git/matching-refs/heads/ma?per_page=100").body as { ref: string; object: { sha: string } }[];
+      expect(raw.length).toBeGreaterThan(0);
+      const branches = await provider.listBranches(REAL, "ma");
+      expect(branches.map((b) => b.branch)).toEqual(raw.map((r) => r.ref.replace(/^refs\/heads\//, "")).sort());
+      expect(branches.find((b) => b.branch === "main")?.commit).toMatch(/^[0-9a-f]{40}$/);
+      for (const branch of branches) expect(branch.branch.startsWith("ma")).toBe(true);
+    });
+  });
 });
 
