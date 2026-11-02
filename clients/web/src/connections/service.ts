@@ -198,6 +198,17 @@ export class ConnectionService {
   }
 
   /** Disconnect: the connection and its token are deleted. False if it is not this account's (or not there). */
+  /**
+   * Every connection an account has, removed as `remove` does one (what hangs on each goes with it, its credential too), and the
+   * account's default. For an account that is being deleted (`src/sovereign/people.ts`). It can be run again: what is not there is skipped.
+   */
+  async removeAll(accountId: string): Promise<number> {
+    const rows = await dbAll<{ id: number }>(this.database, sql`SELECT id FROM ${table(this.database)} WHERE account_id = ${accountId}`);
+    for (const { id } of rows) await this.remove(accountId, Number(id));
+    await dbRun(this.database, sql`DELETE FROM ${defaults(this.database)} WHERE account_id = ${accountId}`);
+    return rows.length;
+  }
+
   async remove(accountId: string, id: number): Promise<boolean> {
     const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
     if (!row) return false;

@@ -99,6 +99,12 @@ export interface SmtpConfig {
   from: string;
 }
 
+/** The id Sovereign sign-in is known by: it is in the callback URL registered with Sovereign, and it is the `provider_id` of the account it links. */
+export const SOVEREIGN_PROVIDER_ID = "sovereign";
+
+/** What Fjord Web asks Sovereign for. The manifest (sovereign.manifest.json) says the same, which a test holds. */
+export const SOVEREIGN_SCOPES = ["openid", "profile", "email"];
+
 const MIN_SECRET_LENGTH = 32;
 const DEFAULT_PASSWORD_MIN_LENGTH = 10;
 

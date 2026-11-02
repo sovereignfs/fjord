@@ -276,6 +276,27 @@ describe(`using and removing a connection (${leg})`, () => {
     expect(await cache.get(two.id, "c1")).toBeDefined();
   });
 
+  it("removes every connection an account has, with each credential, and its default, and no other account's", async () => {
+    const memory = new MemoryProvider();
+    for (const name of ["one", "two", "three"]) {
+      memory.createRepository({ owner: "acme", name });
+      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    }
+    const s = new ConnectionService({ database, credentials, github: () => memory });
+    await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD });
+    await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD });
+    const bobs = (await s.addWithToken(BOB, { repository: "acme/three", token: GOOD })).connection;
+
+    expect(await s.removeAll(ALICE)).toBe(2);
+    expect(await s.list(ALICE)).toEqual([]);
+    expect((await s.list(BOB)).map((c) => c.id)).toEqual([bobs.id]);
+    expect(await count(defaultTable())).toBe(1);
+    expect(await count(credentialTable())).toBe(1);
+    // Again, and for an account with none: nothing to do.
+    expect(await s.removeAll(ALICE)).toBe(0);
+    expect(await s.removeAll("user-nobody")).toBe(0);
+  });
+
   it("forgets the repository's drafts when it is disconnected, and no other's", async () => {
     const memory = new MemoryProvider();
     for (const name of ["one", "two"]) {

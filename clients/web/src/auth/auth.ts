@@ -10,7 +10,7 @@ import * as postgresAuth from "../db/schema/postgres/auth";
 import * as sqliteAuth from "../db/schema/sqlite/auth";
 import type { Mailer } from "../mail/mailer";
 import { passwordResetEmail, verificationEmail } from "../mail/templates";
-import type { EnabledAuthConfig } from "./config";
+import { type EnabledAuthConfig, SOVEREIGN_PROVIDER_ID, SOVEREIGN_SCOPES } from "./config";
 import { countUsers } from "./users";
 
 /**
@@ -28,10 +28,8 @@ export interface AuthDependencies {
   mailer?: Mailer;
 }
 
-/** The id Sovereign sign-in is known by: it is in the callback URL registered with Sovereign. */
-export const SOVEREIGN_PROVIDER_ID = "sovereign";
-/** What Fjord Web asks Sovereign for. The manifest (sovereign.manifest.json) says the same, which a test holds. */
-export const SOVEREIGN_SCOPES = ["openid", "profile", "email"];
+/** Re-exported for what already imports them here; they are `config.ts`'s, which needs no better-auth. */
+export { SOVEREIGN_PROVIDER_ID, SOVEREIGN_SCOPES };
 
 /** The code a refused sign-up carries, in the API's answer and in the `?error=` of a redirect. */
 export const SIGNUP_CLOSED = "SIGNUP_CLOSED";
