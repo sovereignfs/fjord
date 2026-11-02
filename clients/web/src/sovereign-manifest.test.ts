@@ -121,7 +121,7 @@ describe("scripts/manifest.mjs", () => {
     const lines = run("docker-args", "--format", "github").trimEnd().split("\n");
     expect(lines[1]).toBe(`build-args=PORT=${manifest.port}`);
     // The build action reads `labels` as CSV, in which a field that opens with a quote ends at its closing one, so the label is one such field.
-    const field = lines[0].slice("labels=".length);
+    const field = (lines[0] ?? "").slice("labels=".length);
     expect(field.startsWith('"') && field.endsWith('"')).toBe(true);
     expect(field.slice(1, -1).replace(/""/g, '"')).toBe(`io.github.sovereignfs.app-manifest=${JSON.stringify(manifest)}`);
   });
