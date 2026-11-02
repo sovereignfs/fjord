@@ -17,6 +17,7 @@ export function DocumentProperties({
   pending,
   disabled,
   onTitle,
+  onDate,
 }: {
   properties: Properties;
   /** True while the header is still to be added, on the first edit. */
@@ -24,7 +25,13 @@ export function DocumentProperties({
   disabled: boolean;
   /** Ask for the title to be set; the answer is a message when it could not be. */
   onTitle: (title: string) => Promise<string | null>;
+  /** Ask for the `date` to be set, or taken away with null (spec §8.1); the answer is a message when it could not be. The file is not moved. */
+  onDate?: (date: string | null) => Promise<string | null>;
 }) {
+  const [date, setDate] = useState(properties.date ?? "");
+  const [dating, setDating] = useState(false);
+  const [dateProblem, setDateProblem] = useState<string | null>(null);
+  const dateUnchanged = date.trim() === (properties.date ?? "");
   const [title, setTitle] = useState(properties.title ?? "");
   const [changing, setChanging] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -65,6 +72,37 @@ export function DocumentProperties({
           </Button>
         </div>
       </form>
+      {onDate ? (
+        <form
+          className={styles.form}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void (async () => {
+              setDating(true);
+              setDateProblem(null);
+              const message = await onDate(date.trim() === "" ? null : date.trim());
+              setDating(false);
+              if (message !== null) setDateProblem(message);
+            })();
+          }}
+        >
+          <FormField label="Date" hint="What it is about, as 2026-11-02, or with a time and your offset, 2026-11-02T08:14:00+05:30. The file is not moved.">
+            {(field) => <Input {...field} name="date" autoComplete="off" maxLength={64} value={date} onChange={(e) => setDate(e.target.value)} disabled={disabled || pending || dating} />}
+          </FormField>
+          {dateProblem ? (
+            <div className={styles.notice}>
+              <Alert variant="error" heading="The date was not changed">
+                {dateProblem}
+              </Alert>
+            </div>
+          ) : null}
+          <div className={styles.actions}>
+            <Button type="submit" variant="secondary" size="sm" loading={dating} disabled={disabled || pending || dateUnchanged}>
+              Set date
+            </Button>
+          </div>
+        </form>
+      ) : null}
       <dl>
         <dt>Identifier</dt>
         <dd>

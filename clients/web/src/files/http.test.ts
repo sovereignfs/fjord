@@ -4,7 +4,7 @@ import { ProviderError } from "../providers/errors";
 import type { Caller } from "../working/http";
 import { type CreateResult, MAX_TITLE_CHARS, type VaultRefusal } from "./create";
 import type { DeleteResult } from "./delete";
-import { type Deps, handleCreate, handleCreateEncrypted, handleDelete, handleTransfer, handleHeader, handleMove, handleRestore } from "./http";
+import { type Deps, handleCreate, handleCreateEncrypted, handleDelete, handleEntry, handleTransfer, handleHeader, handleMove, handleRestore } from "./http";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 
@@ -32,7 +32,11 @@ function stub() {
     found: true,
     result: { ok: true, commit: "f".repeat(40), files: 1, moved: [{ from: "Notes/Plan.md", to: "Notes/Plans/Plan.md" }] },
   }));
-  const header = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; header: string } | { ok: false; reason: "unreadable" } }> => ({
+  const entry = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; path: string; commit: string; date: string } | { ok: false; reason: "not_a_journal" | "encrypted_journal" | "bad_date" } }> => ({
+    found: true,
+    result: { ok: true, path: "journal/2026/11/02/0100.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" },
+  }));
+  const header = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; header: string } | { ok: false; reason: "unreadable" | "bad_date" } }> => ({
     found: true,
     result: { ok: true, header: "---\ntitle: New\n---\n" },
   }));
@@ -48,13 +52,14 @@ function stub() {
     transfer: (accountId, id, input) => transfer(accountId, id, input) as ReturnType<Deps["transfer"]>,
     createEncrypted: (accountId, id, input) => createEncrypted(accountId, id, input) as ReturnType<Deps["createEncrypted"]>,
     header: (accountId, id, input) => header(accountId, id, input),
+    entry: (accountId, id, input) => entry(accountId, id, input) as ReturnType<Deps["entry"]>,
     move: (accountId, id, input) => move(accountId, id, input),
     create: (accountId, id, input) => create(accountId, id, input),
     delete: (accountId, id, input) => remove(accountId, id, input),
     restore: (accountId, id, input) => restore(accountId, id, input),
     origin: ORIGIN,
   };
-  return { deps, create, createEncrypted, transfer, remove, restore, header, move };
+  return { deps, create, createEncrypted, transfer, remove, restore, header, move, entry };
 }
 
 const post = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
@@ -738,5 +743,58 @@ describe("moving a file between vaults, one of them encrypted (ROADMAP 2b.6)", (
     expect(await response.text()).not.toContain(AGE);
     expect(JSON.stringify(logged.mock.calls)).not.toContain(AGE);
     logged.mockRestore();
+  });
+});
+
+describe("a journal entry, and a header's date and tags (ROADMAP 3b.1, 3b.3)", () => {
+  const AT = 1_793_561_400_000;
+
+  it("is for a signed-in person, from this site; nothing is asked before that", async () => {
+    const { deps, entry } = stub();
+    expect((await handleEntry(post({ at: AT, offsetMinutes: 330 }), null, deps, "1")).status).toBe(401);
+    expect((await handleEntry(post({ at: AT, offsetMinutes: 330 }, { origin: "https://evil.example" }), ALICE, deps, "1")).status).toBe(403);
+    expect((await handleEntry(post({ at: AT, offsetMinutes: 330 }), ALICE, deps, "x")).status).toBe(404);
+    expect(entry).not.toHaveBeenCalled();
+  });
+
+  it("sends the moment and the writer's offset, and only those, with the caller as its author", async () => {
+    const { deps, entry } = stub();
+    const done = await handleEntry(post({ at: AT, offsetMinutes: 330, title: "Late", path: "elsewhere.md" }), ALICE, deps, "1");
+    expect(done.status).toBe(201);
+    expect(await body(done)).toEqual({ path: "journal/2026/11/02/0100.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" });
+    expect(entry.mock.calls).toEqual([["alice", 1, { at: AT, offsetMinutes: 330, title: "Late", author: { name: "Alice Example", email: "alice@example.com" } }]]);
+  });
+
+  it("refuses a moment or an offset that is not one, and says when the repository is not a plaintext journal", async () => {
+    const { deps, entry } = stub();
+    for (const bad of [{}, { at: "now", offsetMinutes: 0 }, { at: -1, offsetMinutes: 0 }, { at: AT, offsetMinutes: 1440 }, { at: AT, offsetMinutes: 1.5 }, { at: AT, offsetMinutes: 0, title: "a\nb" }]) {
+      expect((await handleEntry(post(bad), ALICE, deps, "1")).status, JSON.stringify(bad)).toBe(400);
+    }
+    expect(entry).not.toHaveBeenCalled();
+    for (const reason of ["not_a_journal", "encrypted_journal"] as const) {
+      const failing = { ...deps, entry: async () => ({ found: true as const, result: { ok: false as const, reason } }) };
+      const response = await handleEntry(post({ at: AT, offsetMinutes: 0 }), ALICE, failing, "1");
+      expect(response.status, reason).toBe(422);
+      expect((await body(response)).error.code).toBe(reason);
+    }
+  });
+
+  it("changes one key of a header at a time: a date (or none) and the tags, and says when a date is not one", async () => {
+    const { deps, header } = stub();
+    expect((await handleHeader(post({ header: "---\n", date: "2026-11-02" }), ALICE, deps, "1")).status).toBe(200);
+    expect((await handleHeader(post({ header: "---\n", date: null }), ALICE, deps, "1")).status).toBe(200);
+    expect((await handleHeader(post({ header: "---\n", tags: ["Work", "project/fjord"] }), ALICE, deps, "1")).status).toBe(200);
+    expect(header.mock.calls.map((call) => call[2])).toEqual([
+      { header: "---\n", date: "2026-11-02" },
+      { header: "---\n", date: null },
+      { header: "---\n", tags: ["Work", "project/fjord"] },
+    ]);
+    for (const bad of [{ header: "---\n" }, { header: "---\n", title: "x", date: "2026-11-02" }, { header: "---\n", tags: "Work" }, { header: "---\n", tags: [""] }, { header: "---\n", tags: ["a\nb"] }, { header: "---\n", date: 3 }]) {
+      expect((await handleHeader(post(bad), ALICE, deps, "1")).status, JSON.stringify(bad)).toBe(400);
+    }
+    const refusing = { ...deps, header: async () => ({ found: true as const, result: { ok: false as const, reason: "bad_date" as const } }) };
+    const refused = await handleHeader(post({ header: "---\n", date: "yesterday" }), ALICE, refusing, "1");
+    expect(refused.status).toBe(422);
+    expect((await body(refused)).error.code).toBe("bad_date");
   });
 });

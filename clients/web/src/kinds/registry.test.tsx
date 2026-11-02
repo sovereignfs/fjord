@@ -28,7 +28,6 @@ const standIn = (id: string): KindModule => ({
 
 afterEach(() => {
   unregisterKind("wiki");
-  unregisterKind("journal");
 });
 
 describe("which module presents a repository (RFC 0001, spec §3.1)", () => {
@@ -41,7 +40,7 @@ describe("which module presents a repository (RFC 0001, spec §3.1)", () => {
 
   it("is the drive for a kind no module presents, and for a defined kind whose engine this build does not know", () => {
     expect(kindFor(manifest("drive", "wiki")).id).toBe("drive");
-    expect(kindFor(manifest("journal", "journal")).id).toBe("drive");
+    expect(kindFor(manifest("journal", "journal")).id).toBe("journal");
     registerKind(standIn("ssg"));
     try {
       // The format module presents an ssg with an unknown engine as a drive; so does the client, whatever is registered.

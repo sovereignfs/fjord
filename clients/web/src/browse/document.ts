@@ -25,6 +25,8 @@ export interface Properties {
   id: string | null;
   title: string | null;
   created: string | null;
+  /** `date`, when it is text: the moment the Doc is about, with the writer's offset (spec §8.1). A `date` that is not text is among `others`. */
+  date: string | null;
   /** Every other key, in the order written, with its value as text: Fjord shows what it does not know and keeps it. */
   others: { key: string; value: string }[];
 }
@@ -57,8 +59,9 @@ function propertiesOf(parsed: ReturnType<Reader["parseDocument"]>): Properties {
     id: parsed.docId ?? null,
     title: typeof raw.title === "string" ? raw.title : null,
     created: typeof raw.created === "string" ? raw.created : null,
+    date: typeof raw.date === "string" ? raw.date : null,
     others: Object.entries(raw)
-      .filter(([key]) => !KNOWN.has(key))
+      .filter(([key, value]) => !KNOWN.has(key) && !(key === "date" && typeof value === "string"))
       .map(([key, value]) => ({ key, value: typeof value === "string" ? value : JSON.stringify(value) })),
   };
 }

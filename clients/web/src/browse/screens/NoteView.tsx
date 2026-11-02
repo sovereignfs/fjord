@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { useComments } from "../../comments/Comments";
-import { sendTitle } from "../../files/client";
+import { sendDate, sendTitle } from "../../files/client";
 import { discardDraft, sendDraft, sendVersion } from "../../working/client";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
 import { MAX_MESSAGE_CHARS } from "../../working/limits";
@@ -147,6 +147,16 @@ export function NoteView({
     return null;
   }
 
+  async function changeDate(date: string | null): Promise<string | null> {
+    const answer = await sendDate(connectionId, headerNow.current, date);
+    if (!answer.ok) return answer.message;
+    const body = saver.text.slice(headerNow.current.length);
+    headerNow.current = answer.header;
+    setProperties((now) => (now ? { ...now, date } : now));
+    saver.change(answer.header + body);
+    return null;
+  }
+
   async function discard() {
     setDiscarding(true);
     setDiscardFailed(false);
@@ -217,7 +227,7 @@ export function NoteView({
           </Alert>
         </div>
       ) : null}
-      {properties ? <DocumentProperties properties={properties} pending={promotion !== undefined && !promoted} disabled={saving} onTitle={changeTitle} /> : null}
+      {properties ? <DocumentProperties properties={properties} pending={promotion !== undefined && !promoted} disabled={saving} onTitle={changeTitle} onDate={changeDate} /> : null}
       {bodyStart === undefined ? (
         <NoteEditor aria-label={label} value={start} onChange={(next) => saver.change(next)} readOnly={saving} />
       ) : kind === "document" ? (

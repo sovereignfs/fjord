@@ -22,6 +22,9 @@ function setup(over: { owns?: boolean; encrypted?: Awaited<ReturnType<AccessDeps
     createEncrypted: (a, i, x) => createEncrypted(a, i, x),
     owns: (a, i) => owns(a, i),
     setTitle: (header, title) => setTitle(header, title),
+    setDate: (header, date) => (date === "yesterday" ? "bad_date" : `${header}date: ${date}\n`),
+    setTags: (header, tags) => `${header}tags: ${tags.join(",")}\n`,
+    entry: async () => ({ ok: true, path: "journal/2026/11/02/0100.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" }),
     vaultFor: (a, i, v) => vaultFor(a, i, v),
     create: (a, i, x) => create(a, i, x),
     delete: (a, i, x) => remove(a, i, x),
@@ -117,6 +120,15 @@ describe("changing a header's title", () => {
     const { access } = setup();
     expect(await access.header("alice", 1, { header: "---\n", title: "x" })).toEqual({ found: true, result: { ok: true, header: "---\ntitle: x\n" } });
     expect(await access.header("alice", 1, { header: "broken", title: "x" })).toEqual({ found: true, result: { ok: false, reason: "unreadable" } });
+    expect(await access.header("alice", 1, { header: "---\n", date: "2026-11-02" })).toEqual({ found: true, result: { ok: true, header: "---\ndate: 2026-11-02\n" } });
+    expect(await access.header("alice", 1, { header: "---\n", date: "yesterday" })).toEqual({ found: true, result: { ok: false, reason: "bad_date" } });
+    expect(await access.header("alice", 1, { header: "---\n", tags: ["a", "b"] })).toEqual({ found: true, result: { ok: true, header: "---\ntags: a,b\n" } });
+  });
+
+  it("changes a date or tags, or makes an entry, for the caller's own connection only", async () => {
+    const { access } = setup({ owns: false });
+    expect(await access.header("mallory", 1, { header: "---\n", date: "2026-11-02" })).toEqual({ found: false });
+    expect(await access.entry("mallory", 1, { at: 0, offsetMinutes: 0, title: "", author: { name: "M", email: "m@example.com" } })).toEqual({ found: false });
   });
 });
 

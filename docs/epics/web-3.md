@@ -151,7 +151,7 @@ When a repository that is not a Fjord repository is set up, offer a kind: drive 
 
 ### 3b.1 Journal entries
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0001, Journals
 
@@ -159,6 +159,17 @@ When a repository that is not a Fjord repository is set up, offer a kind: drive 
 
 **Accepts when:** an entry made just after midnight local time is on that local day, whatever the UTC date; an entry in an encrypted journal is created with no dated directory; a moved entry keeps its place on the timeline.
 
+- **Done as:**
+  - **`fjord-core` and the module:** `doc::new_entry`, `doc::with_date` and `journal::entry_path`, exposed as `newEntry`, `withDate` and `journalEntryPath`.
+  - **Plaintext journal:** `src/journal/entries.ts` (`createEntry`, `journalVault`) behind `POST /api/connections/[id]/files/entry`. It is sent the moment and the browser's offset; the server's module writes the `date`. A second entry in one minute takes a number.
+  - **Encrypted journal:** `src/journal/seal.ts`. The page writes and encrypts the entry under its flat name inside the container, and sends it to the encrypted files' route with no title. The server names it by a new id.
+  - **The page:** `src/journal/screens/NewEntry.tsx`, on the journal module's entry view (`src/kinds/journal.tsx`, now registered).
+  - **Changing the date:** the header route takes a `date` (or `null`) as well as a `title`. `DocumentProperties` has a Date field, for every note, as spec §8.1 defines `date` for every Doc. Changing it rewrites the header and never the path.
+  - **Tested:**
+    - `entries.test.ts`: the local day across UTC's, and the numbering.
+    - `seal.test.ts`: the encrypted entry is flat, and its date and title are only in the ciphertext.
+    - `http.test.ts` and `access.test.ts`: who may call, and the shape of the request.
+  - The timeline itself, and a moved entry keeping its place, are 3b.2's.
 ### 3b.2 Timeline
 
 **Status:** 📋 Planned

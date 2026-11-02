@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Discovery, KindSetupOptions, KindSetupResult, ListedFile, LocalMinute, MergeResult, RepositoryKind, RepositoryManifest, SetupExisting, SetupOptions, SetupResult, SiteEngine, VaultOptions, VaultResult, WithKindResult } from "./types";
+import type { Discovery, JournalEntrySummary, KindSetupOptions, KindSetupResult, ListedFile, LocalMinute, MergeResult, RepositoryKind, RepositoryManifest, SetupExisting, SetupOptions, SetupResult, SiteEngine, VaultOptions, VaultResult, WithKindResult } from "./types";
 
 /**
  * `fjord-core` as WebAssembly, in Node (DESIGN.md §2: the server reads the format, the browser never does in
@@ -25,6 +25,17 @@ interface Module {
   planSetupKind(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
   withKind(manifest: string, kind: string, engine: string | undefined): string;
   kindRule(kind: string, encryptedJson: string): string | undefined;
+  newEntry(id: string, title: string | undefined, created: string, date: string): string;
+  withDate(text: string, date: string | undefined): string | undefined;
+  withTags(text: string, tagsJson: string): string | undefined;
+  journalEntry(text: string, path: string): string;
+  journalEntryPath(date: string, slug: string | undefined, encrypted: boolean): string | undefined;
+  journalSlug(title: string): string | undefined;
+  entryDateFromUnix(seconds: number, offsetMinutes: number): string | undefined;
+  isEntryDate(text: string): boolean;
+  foldTag(tag: string): string;
+  sameTag(a: string, b: string): boolean;
+  tagIsUnder(tag: string, parent: string): boolean;
   freeVaultName(preferred: string, existingJson: string): string;
   mergeTexts(base: string, ours: string, theirs: string, oursLabel: string, theirsLabel: string): string;
   quickNoteName(text: string, existingJson: string, year: number, month: number, day: number, hour: number, minute: number): string;
@@ -164,6 +175,59 @@ export class Fjord {
   /** The rule of spec §3.1 a repository of `kind` would break with vaults that are, in order, encrypted or not: `E111`, `E112`, or none. */
   kindRule(kind: RepositoryKind, encrypted: boolean[]): "E111" | "E112" | undefined {
     return this.module.kindRule(kind, JSON.stringify(encrypted)) as "E111" | "E112" | undefined;
+  }
+
+  /** A new journal entry's text: `id`, `title` if any, `created` and `date` (spec §8.1). */
+  newEntry(id: string, title: string | undefined, created: string, date: string): string {
+    return this.module.newEntry(id, title, created, date);
+  }
+
+  /** A header with its `date` set, or taken away with undefined; undefined for a header that cannot be rewritten. */
+  withDate(text: string, date: string | undefined): string | undefined {
+    return this.module.withDate(text, date);
+  }
+
+  /** A header with its `tags` set as written (none takes them away); undefined for a header that cannot be rewritten. */
+  withTags(text: string, tags: string[]): string | undefined {
+    return this.module.withTags(text, JSON.stringify(tags));
+  }
+
+  /** What a timeline shows of the entry `text` at `path`, relative to its vault. */
+  journalEntry(text: string, path: string): JournalEntrySummary {
+    return JSON.parse(this.module.journalEntry(text, path)) as JournalEntrySummary;
+  }
+
+  /** Where an entry dated `date` goes in its vault (dated folders, or flat in an encrypted journal); undefined for a date with no time. */
+  journalEntryPath(date: string, slug: string | undefined, encrypted: boolean): string | undefined {
+    return this.module.journalEntryPath(date, slug, encrypted);
+  }
+
+  journalSlug(title: string): string | undefined {
+    return this.module.journalSlug(title);
+  }
+
+  /** A `date` at the writer's offset (minutes east of UTC), from seconds since the epoch. */
+  entryDateFromUnix(seconds: number, offsetMinutes: number): string | undefined {
+    return this.module.entryDateFromUnix(seconds, offsetMinutes);
+  }
+
+  /** Whether `text` is a `date` as spec §8.1 defines one. */
+  isEntryDate(text: string): boolean {
+    return this.module.isEntryDate(text);
+  }
+
+  /** The form a tag is compared in (spec §8.1). */
+  foldTag(tag: string): string {
+    return this.module.foldTag(tag);
+  }
+
+  sameTag(a: string, b: string): boolean {
+    return this.module.sameTag(a, b);
+  }
+
+  /** Whether `tag` is `parent` or nested under it with `/`. */
+  tagIsUnder(tag: string, parent: string): boolean {
+    return this.module.tagIsUnder(tag, parent);
   }
 
   /**

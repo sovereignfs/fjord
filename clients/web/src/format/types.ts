@@ -173,3 +173,18 @@ export type RepositoryManifest =
       raw: Record<string, unknown>;
     }
   | { ok: false; error: string };
+
+/** What a journal's timeline shows of one entry (`fjord-core`'s `journal::summary`, spec §8.1). */
+export interface JournalEntrySummary {
+  docId: string | null;
+  title: string;
+  /** `date` as written, or null. */
+  date: string | null;
+  /** A `date` is there and is not one: the warning W606. */
+  dateInvalid: boolean;
+  tags: string[];
+  /** When it is about, in the writer's own time: from its `date`, else its path, else its `created`; null when none says. */
+  when: { day: string; time: string | null; source: "date" | "path" | "created"; sortKey: string } | null;
+  excerpt: string;
+}
+

@@ -11,6 +11,13 @@ import { MAX_TITLE_CHARS } from "./create";
 import type { DeleteResult, DeleteTarget } from "./delete";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
+import type { EntryResult } from "../journal/entries";
+
+/** One key of a header to change (ROADMAP 1b.5, 3b.1, 3b.3): its title, its `date` (null takes it away) or its `tags`. */
+export type HeaderChange = { header: string } & ({ title: string } | { date: string | null } | { tags: string[] });
+
+/** Why a journal entry cannot be made here: the repository is not a journal, its journal is encrypted (entries are made in the browser), or not one this version writes. */
+export type JournalRefusal = "not_a_journal" | "encrypted_journal" | "unsupported_journal";
 
 /**
  * The HTTP face of making files (`/api/connections/<id>/files`): who may call, what they may send, what they are told.
@@ -79,7 +86,16 @@ export interface Deps {
    * or written to the repository: the page holds the header and gets it back. `found: false` if the connection is not the
    * caller's.
    */
-  header: (accountId: string, id: number, input: { header: string; title: string }) => Promise<{ found: false } | { found: true; result: { ok: true; header: string } | { ok: false; reason: "unreadable" } }>;
+  header: (accountId: string, id: number, input: HeaderChange) => Promise<{ found: false } | { found: true; result: { ok: true; header: string } | { ok: false; reason: "unreadable" | "bad_date" } }>;
+  /**
+   * Make a journal entry, dated `at` at the writer's offset, in one of the caller's plaintext journals (ROADMAP 3b.1). `found: false` if it is not
+   * the caller's (or not there).
+   */
+  entry: (
+    accountId: string,
+    id: number,
+    input: { at: number; offsetMinutes: number; title: string; author: Identity },
+  ) => Promise<{ found: false } | { found: true; result: EntryResult | { ok: false; reason: JournalRefusal } }>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
 }
@@ -199,6 +215,8 @@ export async function handleCreateEncrypted(request: Request, caller: Caller | n
 }
 
 const MAX_HEADER_CHARS = 64_000;
+const MAX_TAGS = 64;
+const MAX_TAG_CHARS = 200;
 
 /**
  * `POST` sets (or, with an empty title, takes away) a header's `title`: `{ header, title }` answers `{ header }`, the header
@@ -217,15 +235,31 @@ export async function handleHeader(request: Request, caller: Caller | null, deps
     if (text.length > MAX_HEADER_CHARS + MAX_BODY_CHARS) return failure(413, "too_large", "That request is too large.");
     const body = parse(text);
     if (!body) return failure(400, "invalid_request", "Send a JSON object.");
-    const { header, title } = body;
+    const { header, title, date, tags } = body;
     if (typeof header !== "string" || header.length > MAX_HEADER_CHARS || !header.isWellFormed()) return failure(400, "invalid_request", "Send the header as text.");
-    if (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed()) {
-      return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or empty to take it away.`);
+    // Exactly one key is changed at a time.
+    const given = [title, date, tags].filter((value) => value !== undefined).length;
+    if (given !== 1) return failure(400, "invalid_request", "Send one of the title, the date or the tags to change.");
+    let change: HeaderChange;
+    if (title !== undefined) {
+      if (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed()) {
+        return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or empty to take it away.`);
+      }
+      change = { header, title };
+    } else if (date !== undefined) {
+      if (date !== null && (typeof date !== "string" || date.length > 64 || CONTROL.test(date))) return failure(400, "invalid_request", "Send the date as text, or null to take it away.");
+      change = { header, date };
+    } else {
+      if (!Array.isArray(tags) || tags.length > MAX_TAGS || !tags.every((tag) => typeof tag === "string" && tag !== "" && tag.length <= MAX_TAG_CHARS && !CONTROL.test(tag) && tag.isWellFormed())) {
+        return failure(400, "invalid_request", `Send the tags as a list of at most ${MAX_TAGS}, each one line of text.`);
+      }
+      change = { header, tags: tags as string[] };
     }
-    const outcome = await deps.header(caller.accountId, number, { header, title });
+    const outcome = await deps.header(caller.accountId, number, change);
     if (!outcome.found) return notFound();
     if (outcome.result.ok) return json(200, { header: outcome.result.header });
-    return failure(422, "unreadable_header", "This file's header cannot be read, so its title cannot be changed from here.");
+    if (outcome.result.reason === "bad_date") return failure(422, "bad_date", "That is not a date: write it as 2026-11-02, or with a time and an offset, 2026-11-02T08:14:00+05:30.");
+    return failure(422, "unreadable_header", "This file's header cannot be read, so it cannot be changed from here.");
   } catch (error) {
     return fromError(error);
   }
@@ -525,4 +559,43 @@ const RESTORE_REFUSALS: Record<Extract<RestoreResult, { ok: false }>["reason"], 
   read_only: { status: 422, message: "That token can read this repository but not write to it, so nothing was put back." },
   bad_token: { status: 422, message: "The git host did not accept this repository's token. Connect the repository again with a new one." },
   unavailable: { status: 502, message: "Could not reach the git host just now. Nothing was put back. Try again in a moment." },
+};
+
+// --- Journal entries (ROADMAP 3b.1) ---------------------------------------------------------------------------------
+
+/**
+ * `POST` makes an entry in one of the caller's plaintext journals, `{ at, offsetMinutes, title? }`: the moment, and the writer's offset from UTC
+ * in minutes, which the entry's `date` keeps (spec §8.1). One commit; where it goes and what it says are `fjord-core`'s.
+ */
+export async function handleEntry(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  const gate = await gateway(request, caller, deps, id);
+  if (gate instanceof Response) return gate;
+  try {
+    const { body, number } = gate;
+    const { at, offsetMinutes, title } = body;
+    if (typeof at !== "number" || !Number.isInteger(at) || at < 0) return failure(400, "invalid_request", "Send the moment as milliseconds since 1970.");
+    if (typeof offsetMinutes !== "number" || !Number.isInteger(offsetMinutes) || Math.abs(offsetMinutes) >= 24 * 60) return failure(400, "invalid_request", "Send your offset from UTC in whole minutes.");
+    if (title !== undefined && title !== null && (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed())) {
+      return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or leave it out.`);
+    }
+    const outcome = await deps.entry((caller as Caller).accountId, number, { at, offsetMinutes, title: typeof title === "string" ? title : "", author: { name: (caller as Caller).name, email: (caller as Caller).email } });
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (result.ok) return json(201, { path: result.path, commit: result.commit, date: result.date });
+    const refusal = ENTRY_REFUSALS[result.reason];
+    return failure(refusal.status, result.reason, refusal.message);
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+const ENTRY_REFUSALS: Record<Extract<EntryResult, { ok: false }>["reason"] | JournalRefusal, { status: number; message: string }> = {
+  not_a_journal: { status: 422, message: "This repository is not a journal with one vault, so it has no entries to add to." },
+  encrypted_journal: { status: 422, message: "This journal is encrypted: its entries are written and encrypted in your browser, not here." },
+  unsupported_journal: { status: 422, message: "This journal's vault cannot be written to from here: its manifest cannot be read, or its files are not named plainly." },
+  bad_date: { status: 422, message: "That moment cannot be written as a date." },
+  head_moved: REFUSALS.head_moved,
+  read_only: REFUSALS.read_only,
+  bad_token: REFUSALS.bad_token,
+  unavailable: REFUSALS.unavailable,
 };
