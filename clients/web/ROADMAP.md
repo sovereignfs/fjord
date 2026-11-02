@@ -145,6 +145,18 @@ In outline.
   package's interface (§10).
 - Comment anchors as Yjs relative positions beside the text-quote selectors.
 
+## Hosted on Sovereign
+
+Fjord Web as an app a Sovereign instance can host with its operator toolkit (`sv app add`), while staying a program of its own: the
+only links to Sovereign are its shared packages, its sign-in (which Fjord chooses), and the manifest and environment conventions the
+toolkit reads. The plan, and what it asks of Sovereign, are in the epic.
+
+| # | Task | Status |
+| --- | --- | --- |
+| [H1](../../docs/epics/web-sovereign.md#h1-settings-under-sovereigns-names) | Settings under Sovereign's names | ✅ Done |
+| [H2](../../docs/epics/web-sovereign.md#h2-the-manifest-and-the-image) | The manifest and the image | 📋 Planned (waits on Sovereign's manifest 2) |
+| [H3](../../docs/epics/web-sovereign.md#h3-signing-out-and-account-deletion-from-core) | Signing out and account deletion from core | 📋 Planned (waits on the SDK's token verifiers) |
+
 ## Later
 
 GitLab, Forgejo/Gitea and other git servers (a provider each); search;
