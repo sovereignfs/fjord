@@ -1,6 +1,6 @@
 # Workstream 0001 — Repository kinds
 
-**Status:** ⏳ In progress, leg 1 (RFC 0001 accepted 2026-11-02)\
+**Status:** ⏳ In progress, leg 2 (leg 1 done and its gate passed, 2026-11-02)\
 **Date:** November 2026\
 **Author:** Claude Code, from a design conversation with the owner\
 **Goal owner:** the repository's owner (kasunben)\
@@ -20,10 +20,10 @@ stays readable, and buildable, without Fjord.
 
 ## Definition of done
 
-- [ ] The spec defines `kind`, its settings object, the fallback to `drive`, the one-vault rule, plaintext `ssg`, `date` and tag
+- [x] The spec defines `kind`, its settings object, the fallback to `drive`, the one-vault rule, plaintext `ssg`, `date` and tag
       comparison, with a fixture for each new code (P9).
-- [ ] `fjord init --kind` makes each kind, `fjord verify` checks each, and `fjord new` makes a journal entry (P10, P11).
-- [ ] `fjord-wasm` answers the kind and an entry's path, and its fixture tests agree with the CLI (P12).
+- [x] `fjord init --kind` makes each kind, `fjord verify` checks each, and `fjord new` makes a journal entry (P10, P11).
+- [x] `fjord-wasm` answers the kind and an entry's path, and its fixture tests agree with the CLI (P12).
 - [ ] Fjord Web opens each kind on its own view, a kind it does not know as a drive, and every kind as files on request (3a).
 - [ ] A journal can be made, written and read as a timeline, with tags, plaintext or encrypted, and an encrypted journal's
       dates, titles and tags never reach the server (3b).
@@ -49,7 +49,7 @@ without asking.
 | Entries a day | Several. Plaintext journal: `YYYY/MM/DD/HHMM[-slug].md` from `date`, a convention only, `date` wins | One entry per day |
 | Encrypted journal layout | Entries at the vault's root, `fileNaming: "id"`, tar container; no dated folders | Dated folders (directory names are never encrypted, §11.2) |
 | Timeline and tag index | Derived, never committed; for an encrypted journal, built and kept in the browser only | A committed index; a server-side index of decrypted data |
-| Tags | §8.1's `tags`; case-insensitive (NFC, case folding), `/` nests; stored as written; frontmatter only; one index shared by every kind | `#tags` in the text; exact matching; an index per kind |
+| Tags | §8.1's `tags`; case-insensitive (NFC, then the lowercase mapping, which every client's library has: P9), `/` nests; stored as written; frontmatter only; one index shared by every kind | `#tags` in the text; exact matching; an index per kind |
 | SSG layout | Fjord scaffolds the site, with the engine reading content from the one vault (`content/`) | Declaring the engine's own content folders (an import feature, later, with its own RFC) |
 | SSG scope | Content editing first, then previews through the host. A build in Fjord only with its own RFC and security review. Fjord never publishes | Building or publishing in the first version |
 | SSG content model | Fixed per engine in this workstream | A per-site model (an open question of Research 0001) |
@@ -200,3 +200,4 @@ credential for Fjord to hold (DESIGN §7, §15), so stop and ask.
 | --- | --- | --- |
 | 0.1 | 2026-11-02 | Initial draft |
 | 0.2 | 2026-11-02 | RFC 0001 accepted by the owner; started on one branch, `feat/repository-kinds`, at the owner's request (one commit per task rather than one PR per task) |
+| 0.3 | 2026-11-02 | **Leg 1 done** (P9–P12: spec §3.1, §8.1, §11.2; `E111`, `E112`, `W606`; `init --kind`, `verify`'s `repositoryKind`, a journal's `new`; the module's kind, `planKind`, entry paths and tags). Tags compare by the lowercase mapping, not case folding (RFC 0001 1.1). **Gate passed** on the owner's standing instruction to push and open a draft PR at the first gate and carry on; the spec text is for review in that PR |

@@ -12,4 +12,4 @@ kept in step with the table below.
 
 | RFC | Title | Status |
 | --- | --- | --- |
-| [0001](0001-repository-kinds.md) | Repository kinds: Drive, Journal and SSG | Accepted, being implemented |
+| [0001](0001-repository-kinds.md) | Repository kinds: Drive, Journal and SSG | Accepted; the format is implemented (P9–P12), the web client's kinds are being built |
