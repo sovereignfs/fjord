@@ -6,7 +6,8 @@ import type { TransferResult, VaultForm } from "./transfer";
 import type { DeleteResult, DeleteTarget } from "./delete";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
-import type { Deps } from "./http";
+import type { Deps, JournalRefusal } from "./http";
+import type { EntryResult } from "../journal/entries";
 
 /**
  * Whose, and where (ROADMAP 1b.7). `http.ts` has the request's rules; this has the repository's:
@@ -31,6 +32,12 @@ export interface AccessDeps {
   ) => Promise<CreateEncryptedResult>;
   /** A header with its title set or taken away, by the format module; undefined for a header that cannot be rewritten. */
   setTitle: (header: string, title: string) => string | undefined;
+  /** A header with its `date` set or taken away; undefined for one that cannot be rewritten, `bad_date` for a date that is not one (spec §8.1). */
+  setDate: (header: string, date: string | null) => string | undefined | "bad_date";
+  /** A header with its `tags` set as written; undefined for one that cannot be rewritten. */
+  setTags: (header: string, tags: string[]) => string | undefined;
+  /** Make a journal entry in the connection's journal, if it is one an entry can be written to here: or why not. Only called for a connection that is the caller's. */
+  entry: (accountId: string, id: number, input: { at: number; offsetMinutes: number; title: string; author: Identity }) => Promise<EntryResult | { ok: false; reason: JournalRefusal }>;
   /** Make the file, through the connection's own token. Only called for a vault that is `ok` of a connection that is the caller's. */
   create: (
     accountId: string,
@@ -71,7 +78,7 @@ async function changeable(deps: AccessDeps, accountId: string, id: number, vault
  */
 const isPayload = (path: string) => /\.age$/i.test(path);
 
-export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncrypted" | "transfer" | "delete" | "restore" | "header" | "move"> {
+export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncrypted" | "transfer" | "delete" | "restore" | "header" | "move" | "entry"> {
   const formOf = (vault: { encrypted: { idNamed: boolean } | undefined }): VaultForm => (vault.encrypted ? { form: "encrypted", naming: vault.encrypted.idNamed ? "id" : "plain" } : { form: "plaintext" });
   return {
     async transfer(accountId, id, input) {
@@ -98,8 +105,14 @@ export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncr
 
     async header(accountId, id, input) {
       if (!(await deps.owns(accountId, id))) return { found: false };
-      const header = deps.setTitle(input.header, input.title);
+      const header = "title" in input ? deps.setTitle(input.header, input.title) : "date" in input ? deps.setDate(input.header, input.date) : deps.setTags(input.header, input.tags);
+      if (header === "bad_date") return { found: true, result: { ok: false, reason: "bad_date" } };
       return { found: true, result: header === undefined ? { ok: false, reason: "unreadable" } : { ok: true, header } };
+    },
+
+    async entry(accountId, id, input) {
+      if (!(await deps.owns(accountId, id))) return { found: false };
+      return { found: true, result: await deps.entry(accountId, id, input) };
     },
 
     async delete(accountId, id, input) {

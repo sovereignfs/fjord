@@ -1,5 +1,6 @@
 import type { RepositoryManifest } from "../format/types";
 import { driveKind } from "./drive";
+import { journalKind } from "./journal";
 import type { KindModule } from "./types";
 
 /**
@@ -8,7 +9,10 @@ import type { KindModule } from "./types";
  * kind this build has no module for yet, still opens, on its files. The kind itself is the format module's answer
  * (`describeRepositoryManifest`), never read from `fjord.json` here.
  */
-const modules = new Map<string, KindModule>([[driveKind.id, driveKind]]);
+const modules = new Map<string, KindModule>([
+  [driveKind.id, driveKind],
+  [journalKind.id, journalKind],
+]);
 
 /** Add a kind's module. The kinds of this build register themselves where they are defined; a test may register a stand-in. */
 export function registerKind(module: KindModule): void {

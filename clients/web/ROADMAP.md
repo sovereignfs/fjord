@@ -125,7 +125,7 @@ Planned on 2026-11-02. `fjord.json`'s `kind` (`drive`, `journal`, `ssg`) chooses
 | [3a.1](../../docs/epics/web-3.md#3a1-kind-modules) | Kind modules | ✅ Done |
 | [3a.2](../../docs/epics/web-3.md#3a2-drive-as-a-kind) | Drive as a kind | ✅ Done |
 | [3a.3](../../docs/epics/web-3.md#3a3-choosing-a-kind) | Choosing a kind | ✅ Done |
-| [3b.1](../../docs/epics/web-3.md#3b1-journal-entries) | Journal entries | 📋 Planned |
+| [3b.1](../../docs/epics/web-3.md#3b1-journal-entries) | Journal entries | ✅ Done |
 | [3b.2](../../docs/epics/web-3.md#3b2-timeline) | Timeline | 📋 Planned |
 | [3b.3](../../docs/epics/web-3.md#3b3-tags) | Tags | 📋 Planned |
 | [3c.1](../../docs/epics/web-3.md#3c1-site-scaffold) | Site scaffold | 📋 Planned |

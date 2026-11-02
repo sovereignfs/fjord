@@ -16,6 +16,8 @@ import { DeletionService } from "./deletions";
 import { type MoveResult, movePath } from "./move";
 import { type TransferResult, type VaultForm, transferFile } from "./transfer";
 import { type RestoreResult, restoreDeleted } from "./restore";
+import { type EntryResult, createEntry, journalVault } from "../journal/entries";
+import type { JournalRefusal } from "./http";
 
 /** Whether files may be made in a vault of one of the account's repositories, as the repository is now. */
 async function vaultFor(accountId: string, id: number, vault: string): Promise<"ok" | ReturnType<typeof checkVault> | "unavailable"> {
@@ -152,11 +154,28 @@ async function restore(accountId: string, id: number, input: { ids: number[]; pa
   );
 }
 
+/** Make an entry in one of the account's journals: a plaintext journal's, through the connection's own token (ROADMAP 3b.1). */
+async function entry(accountId: string, id: number, input: { at: number; offsetMinutes: number; title: string; author: Identity }): Promise<EntryResult | { ok: false; reason: JournalRefusal }> {
+  const used = await (await connectionService()).provider(accountId, id);
+  if (!used) return { ok: false, reason: "unavailable" };
+  const outcome = await readConnection(accountId, used.connection);
+  if (!outcome.ok) return { ok: false, reason: "unavailable" };
+  if (!outcome.read.manifest?.ok || outcome.read.manifest.kind !== "journal") return { ok: false, reason: "not_a_journal" };
+  const vault = journalVault(outcome.read.discovery.vaults);
+  if (vault === "none") return { ok: false, reason: "not_a_journal" };
+  if (vault === "encrypted") return { ok: false, reason: "encrypted_journal" };
+  if (vault === "unsupported") return { ok: false, reason: "unsupported_journal" };
+  return createEntry({ provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord() }, { vault: vault.directory, ...input });
+}
+
 export async function filesAccessFor(): Promise<ReturnType<typeof filesAccess>> {
   const deps: AccessDeps = {
     owns: async (accountId, id) => (await (await connectionService()).get(accountId, id)) !== undefined,
     vaultFor,
     setTitle: (header, title) => fjord().withTitle(header, title),
+    setDate: (header, date) => (date !== null && !fjord().isEntryDate(date) ? "bad_date" : fjord().withDate(header, date ?? undefined)),
+    setTags: (header, tags) => fjord().withTags(header, tags),
+    entry,
     create,
     transfer,
     encryptedVaultFor,

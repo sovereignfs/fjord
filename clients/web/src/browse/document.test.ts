@@ -58,6 +58,7 @@ describe.skipIf(!available)("a note's or a document's header, for the page", () 
       id: "01jagc4k7pt8y3wqnmzv5xrb8j",
       title: "Q4 plan",
       created: "2026-10-16T09:34:00Z",
+      date: null,
       others: [
         { key: "zeta", value: "1" },
         { key: "x-future", value: '["a","b"]' },

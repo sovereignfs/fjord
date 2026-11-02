@@ -108,6 +108,46 @@ export async function sendTitle(connectionId: number, header: string, title: str
   }
 }
 
+/** Ask the server to write a `date` (spec §8.1), or with null to take it away, into a header; as `sendTitle`. */
+export async function sendDate(connectionId: number, header: string, date: string | null): Promise<TitleAttempt> {
+  return sendHeaderChange(connectionId, { header, date }, "the date was not changed");
+}
+
+/** Ask the server to write `tags` into a header, as written; as `sendTitle`. */
+export async function sendTags(connectionId: number, header: string, tags: string[]): Promise<TitleAttempt> {
+  return sendHeaderChange(connectionId, { header, tags }, "the tags were not changed");
+}
+
+async function sendHeaderChange(connectionId: number, body: Record<string, unknown>, what: string): Promise<TitleAttempt> {
+  try {
+    const response = await fetch(`/api/connections/${connectionId}/files/header`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), credentials: "same-origin" });
+    const parsed = (await response.json().catch(() => undefined)) as Parameters<typeof titleFrom>[1];
+    if (response.status === 401) return { ok: false, message: `You are signed out, so ${what}. Sign in again, then try again.` };
+    return titleFrom(response.status, parsed);
+  } catch {
+    return { ok: false, message: `Could not reach this server, so ${what}. Try again in a moment.` };
+  }
+}
+
+// --- A journal's new entry (ROADMAP 3b.1) ---------------------------------------------------------------------------
+
+/** Make an entry in a plaintext journal, dated now at this browser's offset from UTC (spec §8.1): the server writes it. */
+export async function sendEntry(connectionId: number, title: string, now: Date = new Date()): Promise<CreateAttempt> {
+  try {
+    const response = await fetch(`/api/connections/${connectionId}/files/entry`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      // `getTimezoneOffset` is minutes *behind* UTC; the format's offset is minutes ahead.
+      body: JSON.stringify({ at: now.getTime(), offsetMinutes: -now.getTimezoneOffset(), title }),
+      credentials: "same-origin",
+    });
+    const parsed = (await response.json().catch(() => undefined)) as { path?: string; error?: { message?: string } } | undefined;
+    return createFrom(response.status, parsed);
+  } catch {
+    return { ok: false, message: "Could not reach this server, so no entry was made. Try again in a moment." };
+  }
+}
+
 // --- Deleting and putting back (ROADMAP 1b.12) ---------------------------------------------------------------------
 
 export type DeleteAttempt =
