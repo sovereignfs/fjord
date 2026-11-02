@@ -288,3 +288,4 @@ journal is an obvious thing to ask Claude about, and that is for its own roadmap
 | --- | --- | --- |
 | 0.1 | 2026-11-02 | Initial draft, from a design conversation with the owner |
 | 1.0 | 2026-11-02 | Accepted by the owner as drafted; workstream 0001 started |
+| 1.1 | 2026-11-02 | P9: tags are compared by Unicode's default lowercase mapping after NFC, not by case folding, so that every client's standard library gives the same answer (JavaScript has `toLowerCase` and no case folding); `date` written in the spec as an RFC 3339 date-time with any offset, or a full-date |
