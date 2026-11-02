@@ -18,6 +18,8 @@ export function DocumentProperties({
   disabled,
   onTitle,
   onDate,
+  onTags,
+  tagSuggestions = [],
 }: {
   properties: Properties;
   /** True while the header is still to be added, on the first edit. */
@@ -27,7 +29,19 @@ export function DocumentProperties({
   onTitle: (title: string) => Promise<string | null>;
   /** Ask for the `date` to be set, or taken away with null (spec §8.1); the answer is a message when it could not be. The file is not moved. */
   onDate?: (date: string | null) => Promise<string | null>;
+  /** Ask for the `tags` to be set as written (spec §8.1); the answer is a message when they could not be. */
+  onTags?: (tags: string[]) => Promise<string | null>;
+  /** Tags already in use in this repository, as first written, the most used first: offered while one is typed (ROADMAP 3b.3). */
+  tagSuggestions?: string[];
 }) {
+  const [tagText, setTagText] = useState((properties.tags ?? []).join(", "));
+  const [tagging, setTagging] = useState(false);
+  const [tagProblem, setTagProblem] = useState<string | null>(null);
+  const typedTags = tagText.split(",").map((tag) => tag.trim()).filter((tag) => tag !== "");
+  const tagsUnchanged = typedTags.join("\n") === (properties.tags ?? []).join("\n");
+  // What is being typed now, after the last comma, and the tags in use that begin with it: existing spellings, so `Run` is not added beside `run`.
+  const typing = (tagText.split(",").pop() ?? "").trim().toLowerCase();
+  const offered = typing === "" ? [] : tagSuggestions.filter((tag) => tag.toLowerCase().startsWith(typing) && !typedTags.includes(tag)).slice(0, 8);
   const [date, setDate] = useState(properties.date ?? "");
   const [dating, setDating] = useState(false);
   const [dateProblem, setDateProblem] = useState<string | null>(null);
@@ -99,6 +113,55 @@ export function DocumentProperties({
           <div className={styles.actions}>
             <Button type="submit" variant="secondary" size="sm" loading={dating} disabled={disabled || pending || dateUnchanged}>
               Set date
+            </Button>
+          </div>
+        </form>
+      ) : null}
+      {onTags ? (
+        <form
+          className={styles.form}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void (async () => {
+              setTagging(true);
+              setTagProblem(null);
+              const message = await onTags(typedTags);
+              setTagging(false);
+              if (message !== null) setTagProblem(message);
+            })();
+          }}
+        >
+          <FormField label="Tags" hint="Separated by commas. Case does not make a different tag, and / nests one: project/fjord is under project.">
+            {(field) => <Input {...field} name="tags" autoComplete="off" value={tagText} onChange={(e) => setTagText(e.target.value)} disabled={disabled || pending || tagging} />}
+          </FormField>
+          {offered.length > 0 ? (
+            <p aria-label="Tags in use" data-testid="tag-suggestions">
+              {offered.map((tag) => (
+                <Button
+                  key={tag}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    const done = tagText.split(",").slice(0, -1).map((t) => t.trim()).filter((t) => t !== "");
+                    setTagText([...done, tag].join(", ") + ", ");
+                  }}
+                >
+                  #{tag}
+                </Button>
+              ))}
+            </p>
+          ) : null}
+          {tagProblem ? (
+            <div className={styles.notice}>
+              <Alert variant="error" heading="The tags were not changed">
+                {tagProblem}
+              </Alert>
+            </div>
+          ) : null}
+          <div className={styles.actions}>
+            <Button type="submit" variant="secondary" size="sm" loading={tagging} disabled={disabled || pending || tagsUnchanged}>
+              Set tags
             </Button>
           </div>
         </form>
