@@ -217,14 +217,18 @@ pub struct DecryptArgs {
 
 #[derive(Debug, Args)]
 pub struct NewArgs {
-    /// Path for the new document, relative to the repository root. In a journal it may be left out:
-    /// the new entry is then dated now and filed by that date (spec §3.1, §8.1).
+    /// Path for the new document, relative to the repository root. In a journal or a site it may be left out:
+    /// the new entry or post is then dated now and filed as the kind files it (spec §3.1, §8.1).
     pub path: Option<PathBuf>,
 
     /// The entry's `date`, RFC 3339 with an offset, for a journal entry made with no path. Defaults
     /// to now, at this machine's offset.
     #[arg(long, value_name = "DATE")]
     pub date: Option<String>,
+
+    /// For a post made in a site with no path: make it a draft (Astro: `draft: true`; Jekyll: in `_drafts`), not for the site yet.
+    #[arg(long)]
+    pub draft: bool,
 
     /// Title. Defaults to the file stem.
     #[arg(long)]

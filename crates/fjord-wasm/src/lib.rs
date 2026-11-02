@@ -247,6 +247,28 @@ pub fn journal_entry(text: &str, path: &str) -> String {
     api::journal_entry(text, path)
 }
 
+#[wasm_bindgen(js_name = sitePostPath)]
+pub fn site_post_path(engine: &str, date: &str, title: &str, draft: bool) -> Option<String> {
+    api::site_post_path(engine, date, title, draft)
+}
+
+#[wasm_bindgen(js_name = siteNewPost)]
+pub fn site_new_post(
+    engine: &str,
+    id: &str,
+    title: &str,
+    created: &str,
+    date: &str,
+    draft: bool,
+) -> Result<String, JsError> {
+    api::site_new_post(engine, id, title, created, date, draft).map_err(thrown)
+}
+
+#[wasm_bindgen(js_name = siteTagProblem)]
+pub fn site_tag_problem(engine: &str, tag: &str) -> Option<String> {
+    api::site_tag_problem(engine, tag)
+}
+
 #[wasm_bindgen(js_name = foldTag)]
 pub fn fold_tag(tag: &str) -> String {
     api::fold_tag(tag)

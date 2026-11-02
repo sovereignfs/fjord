@@ -17,9 +17,9 @@
 use crate::cli::{ExitCode, GlobalArgs, NewArgs, OpenArgs};
 use crate::cmd::{ensure_writable, find_root, resolve_destination, usage, Style};
 use anyhow::{Context, Result};
-use fjord_core::manifest::{Kind, Manifest};
+use fjord_core::manifest::{Engine, Kind, Manifest};
 use fjord_core::vault::{self, Vault};
-use fjord_core::{crypto, doc, journal, path as rules, scalar, store, REPOSITORY_MANIFEST};
+use fjord_core::{crypto, doc, journal, path as rules, scalar, site, store, REPOSITORY_MANIFEST};
 use std::path::{Path, PathBuf};
 
 pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
@@ -30,21 +30,21 @@ pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
 
     // With a path, a Doc where it is asked for. Without one, in a journal, an entry dated now and
     // filed by that date (spec §3.1).
-    let (relative, date) = match &args.path {
+    let (relative, date, post) = match &args.path {
         Some(path) => {
-            if args.date.is_some() {
+            if args.date.is_some() || args.draft {
                 return Ok(usage(
-                    "--date is for a journal entry made without a path; \
+                    "--date and --draft are for an entry or a post made without a path; \
                      a Doc at a path is dated by editing its `date`",
                 ));
             }
             match destination(&root, path, args.document) {
-                Ok(relative) => (relative, None),
+                Ok(relative) => (relative, None, None),
                 Err(message) => return Ok(usage(message)),
             }
         }
-        None => match journal_entry(&root, args)? {
-            Ok((relative, date)) => (relative, Some(date)),
+        None => match generated(&root, args)? {
+            Ok(made) => (made.relative, Some(made.date), made.post),
             Err(message) => return Ok(usage(message)),
         },
     };
@@ -105,10 +105,21 @@ pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
         None
     };
 
-    let contents = match &date {
+    let contents = match (&date, &post) {
+        // A site's post has what its engine reads.
+        (Some(date), Some((engine, draft))) => site::new_post(
+            engine,
+            &id,
+            args.title.as_deref().unwrap_or(""),
+            &scalar::now_rfc3339_utc(),
+            date,
+            *draft,
+        ),
         // An entry needs no title: it is read by its date.
-        Some(date) => doc::new_entry(&id, args.title.as_deref(), &scalar::now_rfc3339_utc(), date),
-        None => {
+        (Some(date), None) => {
+            doc::new_entry(&id, args.title.as_deref(), &scalar::now_rfc3339_utc(), date)
+        }
+        _ => {
             let title = match &args.title {
                 Some(title) => title.clone(),
                 None => default_title(&relative),
@@ -161,20 +172,25 @@ pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
     crate::cmd::open::run(&open, global)
 }
 
-/// Where a new journal entry goes, and its `date`, for `fjord new` with no path; or why there is none.
-fn journal_entry(
-    root: &Path,
-    args: &NewArgs,
-) -> Result<std::result::Result<(String, String), String>> {
+/// What `fjord new` made up for itself, with no path to go on.
+struct Generated {
+    relative: String,
+    date: String,
+    /// For a site's post: its engine, and whether it is a draft.
+    post: Option<(Engine, bool)>,
+}
+
+/// Where a new journal entry or site post goes, and its `date`, for `fjord new` with no path; or why there is none (spec §3.1).
+fn generated(root: &Path, args: &NewArgs) -> Result<std::result::Result<Generated, String>> {
     let manifest = Manifest::parse(
         &std::fs::read(root.join(REPOSITORY_MANIFEST)).context("could not read fjord.json")?,
     )
     .map_err(|err| anyhow::anyhow!("fjord.json: {err}"))?;
     let kind = manifest.kind().declared();
-    if kind != Kind::Journal {
+    if kind != Kind::Journal && kind != Kind::Ssg {
         return Ok(Err(format!(
-            "a path is required: this repository is a {}, and only a journal makes an entry \
-             without one",
+            "a path is required: this repository is a {}, and only a journal or a site makes \
+             one without",
             kind.as_str()
         )));
     }
@@ -184,8 +200,9 @@ fn journal_entry(
         [vault] => vault,
         _ => {
             return Ok(Err(format!(
-                "a journal has exactly one vault and this one has {} (`fjord verify` reports \
+                "a {} has exactly one vault and this one has {} (`fjord verify` reports \
                  E111). Give a path",
+                kind.as_str(),
                 vaults.len()
             )))
         }
@@ -202,16 +219,37 @@ fn journal_entry(
         None => now_here(),
     };
 
-    let slug = args.title.as_deref().and_then(journal::slug);
-    let layout = journal::Layout::for_vault(vault.is_encrypted());
-    let Some(mut leaf) = journal::entry_path(&date, slug.as_deref(), layout) else {
-        return Ok(Err(format!("{date} cannot name an entry")));
+    let (mut leaf, post) = if kind == Kind::Ssg {
+        let engine =
+            match manifest.ssg_engine() {
+                Some(engine @ (Engine::Astro | Engine::Jekyll)) => engine,
+                _ => return Ok(Err(
+                    "this site's engine is not one this version knows (astro or jekyll), so it \
+                     does not know where a post goes. Give a path"
+                        .to_string(),
+                )),
+            };
+        let title = args.title.as_deref().unwrap_or("");
+        match site::post_path(&engine, &date, title, args.draft) {
+            Some(leaf) => (leaf, Some((engine, args.draft))),
+            None => return Ok(Err(format!("{date} cannot name a post"))),
+        }
+    } else {
+        if args.draft {
+            return Ok(Err("--draft is for a post in a site".to_string()));
+        }
+        let slug = args.title.as_deref().and_then(journal::slug);
+        let layout = journal::Layout::for_vault(vault.is_encrypted());
+        match journal::entry_path(&date, slug.as_deref(), layout) {
+            Some(leaf) => (leaf, None),
+            None => return Ok(Err(format!("{date} cannot name an entry"))),
+        }
     };
     if args.document {
         leaf = format!("{}{}", leaf.trim_end_matches(".md"), doc::DOCUMENT_SUFFIX);
     }
 
-    // Two entries in one minute: the second takes a number, as a copy does.
+    // Two in one minute (or with one title): the second takes a number, as a copy does.
     let base = format!("{}/{leaf}", vault.directory);
     let mut relative = base.clone();
     let mut number = 2;
@@ -223,7 +261,11 @@ fn journal_entry(
         relative = format!("{stem}-{number}{extension}");
         number += 1;
     }
-    Ok(Ok((relative, date)))
+    Ok(Ok(Generated {
+        relative,
+        date,
+        post,
+    }))
 }
 
 /// Now, at this machine's offset from UTC, as a `date` (spec §8.1). Where the offset cannot be told

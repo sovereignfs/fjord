@@ -23,13 +23,13 @@ use fjord_core::container;
 use fjord_core::crypto;
 use fjord_core::doc::{self, Parse};
 use fjord_core::listing::{self, FileKind, ListedFile};
-use fjord_core::manifest::{field, Kind, KindField, Manifest, Vaults};
+use fjord_core::manifest::{field, Engine, Kind, KindField, Manifest, Vaults};
 use fjord_core::merge;
 use fjord_core::naming::{self, LocalMinute};
 use fjord_core::scaffold::{
     self, FileChange, KindChoice, KindSettings, KindSetup, Origin, Setup, SetupKind, SiteEngine,
 };
-use fjord_core::{journal, path, scalar, tags};
+use fjord_core::{journal, path, scalar, site, tags};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 
@@ -450,8 +450,33 @@ pub fn journal_entry(text: &str, path: &str) -> String {
             "sortKey": when.sort_key(),
         })),
         "excerpt": made.excerpt,
+        "draft": made.draft,
     })
     .to_string()
+}
+
+/// Where a site's new post goes in its vault, by its engine's rules (`fjord_core::site::post_path`): Astro's `posts/<slug>.md`, Jekyll's
+/// `_posts/YYYY-MM-DD-<slug>.md` in the writer's day, or Jekyll's `_drafts/<slug>.md`. `None` for a date that is not one or an engine not known.
+pub fn site_post_path(engine: &str, date: &str, title: &str, draft: bool) -> Option<String> {
+    site::post_path(&Engine::parse(engine), date, title, draft)
+}
+
+/// A site's new post: `fjord_core::site::new_post`.
+pub fn site_new_post(
+    engine: &str,
+    id: &str,
+    title: &str,
+    created: &str,
+    date: &str,
+    draft: bool,
+) -> Result<String, String> {
+    site::new_post(&Engine::parse(engine), id, title, created, date, draft)
+        .map_err(|err| err.to_string())
+}
+
+/// Why `tag` cannot be a tag of a post of this engine, or `None`: `fjord_core::site::tag_problem`.
+pub fn site_tag_problem(engine: &str, tag: &str) -> Option<String> {
+    site::tag_problem(&Engine::parse(engine), tag).map(str::to_string)
 }
 
 /// The form a tag is compared in (spec §8.1): NFC and lowercase. Never written back.

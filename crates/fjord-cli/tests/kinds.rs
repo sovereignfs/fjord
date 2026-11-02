@@ -243,3 +243,85 @@ fn a_date_that_is_not_rfc_3339_is_refused() {
     ]);
     assert_eq!(code(&output), 2, "{}", text(&output));
 }
+
+/// A post made with no path in a site: filed as its engine reads it, dated in the writer's day, and a draft where the engine says so.
+#[test]
+fn new_with_no_path_writes_a_site_s_post_as_its_engine_reads_it() {
+    let (_astro_dir, astro) = init(&["--kind", "ssg", "--engine", "astro"]);
+    let made = fjord(&[
+        "-C",
+        &astro,
+        "new",
+        "--no-edit",
+        "--title",
+        "Hello, World!",
+        "--date",
+        "2026-11-02T00:30:00+05:30",
+    ]);
+    assert_eq!(code(&made), 0, "{}", text(&made));
+    let post = std::fs::read_to_string(Path::new(&astro).join("content/posts/hello-world.md"))
+        .expect("the post");
+    assert!(
+        post.contains("title: Hello, World!")
+            && post.contains("date: \"2026-11-02T00:30:00+05:30\""),
+        "{post}"
+    );
+    assert!(!post.contains("draft"), "{post}");
+    let draft = fjord(&[
+        "-C",
+        &astro,
+        "new",
+        "--no-edit",
+        "--title",
+        "Not yet",
+        "--draft",
+    ]);
+    assert_eq!(code(&draft), 0, "{}", text(&draft));
+    let hidden = std::fs::read_to_string(Path::new(&astro).join("content/posts/not-yet.md"))
+        .expect("the draft");
+    assert!(hidden.contains("draft: true"), "{hidden}");
+    assert_eq!(codes(&verify(&astro)), Vec::<String>::new());
+
+    let (_jekyll_dir, jekyll) = init(&["--kind", "ssg", "--engine", "jekyll"]);
+    let made = fjord(&[
+        "-C",
+        &jekyll,
+        "new",
+        "--no-edit",
+        "--title",
+        "First light",
+        "--date",
+        "2026-11-02T00:30:00+05:30",
+    ]);
+    assert_eq!(code(&made), 0, "{}", text(&made));
+    // The name is a rule in Jekyll: the writer's day, then the slug.
+    assert!(Path::new(&jekyll)
+        .join("content/_posts/2026-11-02-first-light.md")
+        .is_file());
+    let draft = fjord(&[
+        "-C",
+        &jekyll,
+        "new",
+        "--no-edit",
+        "--title",
+        "Later",
+        "--draft",
+    ]);
+    assert_eq!(code(&draft), 0, "{}", text(&draft));
+    let hidden = std::fs::read_to_string(Path::new(&jekyll).join("content/_drafts/later.md"))
+        .expect("the draft");
+    assert!(
+        !hidden.contains("draft"),
+        "Jekyll's draft is a folder: {hidden}"
+    );
+    assert_eq!(codes(&verify(&jekyll)), Vec::<String>::new());
+}
+
+#[test]
+fn a_draft_needs_a_site_and_a_path_forbids_the_generated_options() {
+    let (_dir, journal) = init(&["--kind", "journal"]);
+    let output = fjord(&["-C", &journal, "new", "--no-edit", "--draft"]);
+    assert_eq!(code(&output), 2, "{}", text(&output));
+    let output = fjord(&["-C", &journal, "new", "journal/a.md", "--draft"]);
+    assert_eq!(code(&output), 2, "{}", text(&output));
+}
