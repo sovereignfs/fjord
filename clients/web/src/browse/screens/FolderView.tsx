@@ -40,6 +40,7 @@ export function FolderView({
   destinations,
   encryptedNaming,
   transferTargets,
+  tagSuggestions,
 }: {
   connectionId: number;
   repository: string;
@@ -64,6 +65,8 @@ export function FolderView({
   permalink?: string | undefined;
   /** For a document whose header has an `id`: what it can be shared by (ROADMAP 1c.7). */
   docId?: string | undefined;
+  /** For a note or a document: tags in use in the repository, offered while one is typed (ROADMAP 3b.3). */
+  tagSuggestions?: string[] | undefined;
   /** The folders of plaintext vaults a file or folder can be moved to, repository-relative; none for a repository too large to list. */
   destinations?: string[] | undefined;
   /** Set for an encrypted vault this version writes: how it names its files. Its files are renamed, moved and deleted as the bytes they are (ROADMAP 2b.5). */
@@ -101,7 +104,7 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
           remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -213,7 +216,9 @@ function FileCard({
   encryptedEditing,
   encryptedChange,
   transferTargets,
+  tagSuggestions,
 }: {
+  tagSuggestions?: string[] | undefined;
   connectionId: number;
   file: ClassifiedFile;
   encrypted: boolean;
@@ -255,7 +260,7 @@ function FileCard({
                   Address by id, which does not depend on where the file is: <a href={permalink}>{permalink}</a>
                 </p>
               ) : null}
-              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} kind={file.kind === "document" ? "document" : "note"} header={header} docId={docId} />
+              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} kind={file.kind === "document" ? "document" : "note"} header={header} docId={docId} tagSuggestions={tagSuggestions} />
             </>
           )
         ) : (

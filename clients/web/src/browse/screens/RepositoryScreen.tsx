@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { localAuthConfig, requireSession } from "../../auth/server";
 import { safeSegments } from "../location";
 import { entryFor } from "../../kinds/entry";
+import { journalTagsFor } from "../../journal/server";
 import { FolderView } from "../screens/FolderView";
 import { assessSetupFor, locateInRepository, readConnection, readNoteFor, recordFileRead } from "../server";
 import { RepositoryView } from "../../connections/screens/RepositoryView";
@@ -87,7 +88,9 @@ export async function RepositoryScreen({ connection, path, view, query = {} }: {
       // A note or a document is a header and a body, and its editor is given the body: where that starts in the text shown, what
       // the header says, and the header a file with none is given on its first edit (ROADMAP 1b.3, 1b.5).
       const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
-      content = <FolderView connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} encryptedCreate={encryptedCreate} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "document" ? (docId ?? undefined) : undefined} destinations={moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined)} encryptedNaming={encryptedNaming} transferTargets={transferTargets} />;
+      // In a plaintext journal, the tags already in use are offered while one is typed (ROADMAP 3b.3): from what its timeline knows.
+      const tagSuggestions = note?.ok ? await journalTagsFor(user.id, current, outcome.read) : undefined;
+      content = <FolderView tagSuggestions={tagSuggestions} connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} encryptedCreate={encryptedCreate} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "document" ? (docId ?? undefined) : undefined} destinations={moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined)} encryptedNaming={encryptedNaming} transferTargets={transferTargets} />;
     }
   }
 

@@ -193,7 +193,7 @@ The journal's entry view: entries newest first, grouped by day, with their title
   - **Left out:** a timeline of a repository whose listing the host cuts short. The page says so and offers its files. The browser's index is not cached between visits; the privacy rule comes first (workstream, Risks).
 ### 3b.3 Tags
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0001, Tags
 
@@ -201,6 +201,18 @@ A tag index shared by every kind, built where the timeline index is and under th
 
 **Accepts when:** `Work` and `work` are one tag and both spellings stay as they were written in the files; a filter on `project` includes `project/fjord`; the suggestions offer existing spellings first; the encrypted case is tested as in 3b.2.
 
+- **Done as:**
+  - **Comparison** is `fjord-core`'s (`tags::fold`, `same`, `is_under`) through the module's `foldTag`, `sameTag` and `tagIsUnder`, so the CLI and every client agree. It was written in leg 1.
+  - **The index** is the timeline's (`journal/timeline.ts`, `tagCounts`, `arrange`). One tag is counted once per entry and shown as first written. A filter takes any number of tags and a range of days, and a parent matches the tags under it. It is the same code for a plaintext journal, on the server, and an encrypted one, in the browser.
+  - **The page:**
+    - the tag list and filter are `journal/screens/TagFilter.tsx`, with the choice in the address for a plaintext journal and in memory for an encrypted one;
+    - editing is a Tags field in the properties panel, which writes the list as typed through the header route (`withTags`).
+  - **Suggestions** are the journal's own tags, from the timeline's index (`journal/server.ts`), offered while the last word is typed and never a tag already there. An encrypted journal's would have to come from the browser's decrypted entries, which the file page does not hold, so it has none.
+  - **Tested:**
+    - `timeline.test.ts`: `Work` and `work` are one tag, a filter on `project` finds `project/fjord`, and both spellings are kept in the files;
+    - `encrypted-timeline.test.ts`: the privacy rule;
+    - `DocumentProperties.test.tsx`: the suggestions.
+  - **Different from the task as written:** "a list of every tag with its count" is in the filter's panel, not a page of its own.
 ## 3c — SSG
 
 ### 3c.1 Site scaffold

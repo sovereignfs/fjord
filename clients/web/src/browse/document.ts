@@ -27,6 +27,8 @@ export interface Properties {
   created: string | null;
   /** `date`, when it is text: the moment the Doc is about, with the writer's offset (spec §8.1). A `date` that is not text is among `others`. */
   date: string | null;
+  /** `tags`, when they are a list of text, as written (spec §8.1). Tags of another shape are among `others`. */
+  tags: string[] | null;
   /** Every other key, in the order written, with its value as text: Fjord shows what it does not know and keeps it. */
   others: { key: string; value: string }[];
 }
@@ -60,10 +62,16 @@ function propertiesOf(parsed: ReturnType<Reader["parseDocument"]>): Properties {
     title: typeof raw.title === "string" ? raw.title : null,
     created: typeof raw.created === "string" ? raw.created : null,
     date: typeof raw.date === "string" ? raw.date : null,
+    tags: tagList(raw.tags),
     others: Object.entries(raw)
-      .filter(([key, value]) => !KNOWN.has(key) && !(key === "date" && typeof value === "string"))
+      .filter(([key, value]) => !KNOWN.has(key) && !(key === "date" && typeof value === "string") && !(key === "tags" && tagList(value) !== null))
       .map(([key, value]) => ({ key, value: typeof value === "string" ? value : JSON.stringify(value) })),
   };
+}
+
+/** `tags` as a list of text, or null for anything else (a string, a list with something that is not text in it). */
+function tagList(value: unknown): string[] | null {
+  return Array.isArray(value) && value.every((tag) => typeof tag === "string") ? (value as string[]) : null;
 }
 
 export function headerOf(

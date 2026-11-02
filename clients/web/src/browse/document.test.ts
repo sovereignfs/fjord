@@ -59,6 +59,7 @@ describe.skipIf(!available)("a note's or a document's header, for the page", () 
       title: "Q4 plan",
       created: "2026-10-16T09:34:00Z",
       date: null,
+      tags: null,
       others: [
         { key: "zeta", value: "1" },
         { key: "x-future", value: '["a","b"]' },

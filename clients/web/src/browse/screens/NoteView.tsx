@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { useComments } from "../../comments/Comments";
-import { sendDate, sendTitle } from "../../files/client";
+import { sendDate, sendTags, sendTitle } from "../../files/client";
 import { discardDraft, sendDraft, sendVersion } from "../../working/client";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
 import { MAX_MESSAGE_CHARS } from "../../working/limits";
@@ -46,6 +46,7 @@ export function NoteView({
   header,
   kind,
   docId,
+  tagSuggestions,
 }: {
   connectionId: number;
   path: string;
@@ -58,6 +59,8 @@ export function NoteView({
   draft: DraftOfNote | null;
   /** For a file with a header that can be read, or none: where its body starts in the text shown (the draft, else the file), and its properties. */
   header?: HeaderInfo | undefined;
+  /** Tags in use in the repository, offered while one is typed (ROADMAP 3b.3). */
+  tagSuggestions?: string[] | undefined;
 }) {
   const start = draft?.content ?? text;
   const { adapter, onNeedName, panel } = useComments(kind === "document" ? docId : undefined, { guest: false });
@@ -157,6 +160,16 @@ export function NoteView({
     return null;
   }
 
+  async function changeTags(tags: string[]): Promise<string | null> {
+    const answer = await sendTags(connectionId, headerNow.current, tags);
+    if (!answer.ok) return answer.message;
+    const body = saver.text.slice(headerNow.current.length);
+    headerNow.current = answer.header;
+    setProperties((now) => (now ? { ...now, tags: tags.length === 0 ? null : tags } : now));
+    saver.change(answer.header + body);
+    return null;
+  }
+
   async function discard() {
     setDiscarding(true);
     setDiscardFailed(false);
@@ -227,7 +240,7 @@ export function NoteView({
           </Alert>
         </div>
       ) : null}
-      {properties ? <DocumentProperties properties={properties} pending={promotion !== undefined && !promoted} disabled={saving} onTitle={changeTitle} onDate={changeDate} /> : null}
+      {properties ? <DocumentProperties properties={properties} pending={promotion !== undefined && !promoted} disabled={saving} onTitle={changeTitle} onDate={changeDate} onTags={changeTags} tagSuggestions={tagSuggestions} /> : null}
       {bodyStart === undefined ? (
         <NoteEditor aria-label={label} value={start} onChange={(next) => saver.change(next)} readOnly={saving} />
       ) : kind === "document" ? (
