@@ -192,6 +192,26 @@ pub fn plan_kind(options_json: &str, now_ms: f64, random: &[u8]) -> Result<Strin
     api::plan_kind(options_json, now_ms, random).map_err(thrown)
 }
 
+#[wasm_bindgen(js_name = planSetupKind)]
+pub fn plan_setup_kind(
+    options_json: &str,
+    existing_json: &str,
+    now_ms: f64,
+    random: &[u8],
+) -> Result<String, JsError> {
+    api::plan_setup_kind(options_json, existing_json, now_ms, random).map_err(thrown)
+}
+
+#[wasm_bindgen(js_name = withKind)]
+pub fn with_kind(manifest: &str, kind: &str, engine: Option<String>) -> String {
+    api::with_kind(manifest, kind, engine)
+}
+
+#[wasm_bindgen(js_name = kindRule)]
+pub fn kind_rule(kind: &str, encrypted_json: &str) -> Result<Option<String>, JsError> {
+    api::kind_rule(kind, encrypted_json).map_err(thrown)
+}
+
 #[wasm_bindgen(js_name = journalEntryPath)]
 pub fn journal_entry_path(date: &str, slug: Option<String>, encrypted: bool) -> Option<String> {
     api::journal_entry_path(date, slug, encrypted)

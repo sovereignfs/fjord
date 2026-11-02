@@ -96,3 +96,39 @@ test("tags are compared without case, and / nests them", () => {
     assert.equal(wasm.foldTag(tag), tag.normalize("NFC").toLowerCase().normalize("NFC"), tag);
   }
 });
+
+test("a repository that is not a Fjord repository is set up as a journal or a site, and nothing of its own is written over", () => {
+  const existing = JSON.stringify({ paths: ["README.md", "src/main.rs"], gitattributes: null });
+  const setUp = (options) =>
+    JSON.parse(wasm.planSetupKind(JSON.stringify({ repositoryName: "Mine", generator: "fjord-web test", ...options }), existing, now, random));
+  const journal = setUp({ kind: "journal", vault: "journal", encrypted: false });
+  assert.equal(journal.ok, true);
+  assert.deepEqual(journal.files.map((f) => [f.path, f.change]).sort(), [
+    [".gitattributes", "create"],
+    ["fjord.json", "create"],
+    ["journal/fjord.vault.json", "create"],
+  ]);
+  assert.equal(JSON.parse(journal.files.find((f) => f.path === "fjord.json").contents).kind, "journal");
+  const site = setUp({ kind: "ssg", engine: "jekyll" });
+  assert.ok(site.files.some((f) => f.path === "_config.yml"));
+  assert.ok(!site.files.some((f) => f.path === "README.md"), "somebody's README is kept");
+  const taken = JSON.parse(
+    wasm.planSetupKind(JSON.stringify({ repositoryName: "M", generator: "g", kind: "ssg", engine: "astro" }), JSON.stringify({ paths: ["package.json"], gitattributes: null }), now, random),
+  );
+  assert.equal(taken.error.code, "file_taken");
+  assert.equal(setUp({ kind: "drive" }).error.code, "unknown_kind");
+});
+
+test("a kind is changed with everything else kept, and its rules are the format's", () => {
+  const changed = JSON.parse(wasm.withKind(JSON.stringify({ fjord: 1, name: "N", "x-mine": [1], vaults: [] }), "ssg", "astro"));
+  assert.equal(changed.ok, true);
+  const manifest = JSON.parse(changed.text);
+  assert.equal(manifest.kind, "ssg");
+  assert.deepEqual(manifest.ssg, { engine: "astro" });
+  assert.deepEqual(manifest["x-mine"], [1]);
+  assert.equal(JSON.parse(wasm.withKind("{}", "ssg", undefined)).error.code, "unknown_engine");
+  assert.equal(JSON.parse(wasm.withKind("{}", "wiki", undefined)).error.code, "unknown_kind");
+  assert.equal(wasm.kindRule("journal", "[false, false]"), "E111");
+  assert.equal(wasm.kindRule("ssg", "[true]"), "E112");
+  assert.equal(wasm.kindRule("drive", "[]"), undefined);
+});

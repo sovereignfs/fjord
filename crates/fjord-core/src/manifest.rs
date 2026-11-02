@@ -330,6 +330,23 @@ impl Engine {
     }
 }
 
+/// Which rule of spec §3.1 a repository of `kind` breaks, given whether each of its vaults on disk is encrypted: a journal or a
+/// site without exactly one vault, or a site whose vault is encrypted. `None` when it keeps them, and always for a drive and for a
+/// kind this build does not know. `fjord verify` reports the same rules; a client asks this before changing a repository's kind.
+pub fn kind_rule(kind: &Kind, encrypted: &[bool]) -> Option<crate::diagnostics::Code> {
+    use crate::diagnostics::Code;
+    if !kind.has_one_vault() {
+        return None;
+    }
+    if encrypted.len() != 1 {
+        return Some(Code::KindVaultCount);
+    }
+    if *kind == Kind::Ssg && encrypted.iter().any(|encrypted| *encrypted) {
+        return Some(Code::EncryptedSiteVault);
+    }
+    None
+}
+
 /// The state of `fjord.json`'s `kind` field. Spec §3, §3.1.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KindField {
@@ -558,6 +575,25 @@ mod tests {
             Ok(manifest) => manifest,
             Err(err) => panic!("{err}"),
         }
+    }
+
+    #[test]
+    fn a_kind_s_rules_are_its_vault_count_and_a_site_s_plaintext() {
+        use crate::diagnostics::Code;
+        assert_eq!(kind_rule(&Kind::Drive, &[]), None);
+        assert_eq!(kind_rule(&Kind::Drive, &[true, false]), None);
+        assert_eq!(kind_rule(&Kind::Journal, &[true]), None);
+        assert_eq!(kind_rule(&Kind::Journal, &[]), Some(Code::KindVaultCount));
+        assert_eq!(
+            kind_rule(&Kind::Journal, &[false, false]),
+            Some(Code::KindVaultCount)
+        );
+        assert_eq!(kind_rule(&Kind::Ssg, &[false]), None);
+        assert_eq!(
+            kind_rule(&Kind::Ssg, &[true]),
+            Some(Code::EncryptedSiteVault)
+        );
+        assert_eq!(kind_rule(&Kind::Unknown("wiki".into()), &[]), None);
     }
 
     #[test]

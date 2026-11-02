@@ -26,7 +26,9 @@ use fjord_core::listing::{self, FileKind, ListedFile};
 use fjord_core::manifest::{field, Kind, KindField, Manifest, Vaults};
 use fjord_core::merge;
 use fjord_core::naming::{self, LocalMinute};
-use fjord_core::scaffold::{self, FileChange, KindChoice, KindSettings, Origin, Setup, SiteEngine};
+use fjord_core::scaffold::{
+    self, FileChange, KindChoice, KindSettings, KindSetup, Origin, Setup, SetupKind, SiteEngine,
+};
 use fjord_core::{journal, path, scalar, tags};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
@@ -662,6 +664,155 @@ pub fn plan_kind(options_json: &str, now_ms: f64, random: &[u8]) -> Result<Strin
         "createdAt": plan.created_at,
     })
     .to_string())
+}
+
+/// What to add to a repository that is not a Fjord repository to make it a journal or a site (ROADMAP web 3a.3):
+/// `fjord_core::scaffold::plan_setup_kind`. The options are `{ "repositoryName", "generator", "kind": "journal" | "ssg", "vault"
+/// (a journal's), "encrypted" and "recipients": ["age1…"] (a journal's), "engine": "astro" | "jekyll" (a site's) }`; `existing` is as
+/// for [`plan_setup`].
+///
+/// `{ "ok": true, "files": [{"path", "contents", "change"}], "repositoryId", "vaultId", "createdAt" }`, or `{ "ok": false, "error":
+/// { "code", "message" } }`: `plan_setup`'s and `plan_vault`'s codes, `file_taken` for an engine's file that is already there,
+/// `unknown_kind`, `unknown_engine`.
+pub fn plan_setup_kind(
+    options_json: &str,
+    existing_json: &str,
+    now_ms: f64,
+    random: &[u8],
+) -> Result<String, String> {
+    let options: Value = serde_json::from_str(options_json)
+        .map_err(|err| format!("the options are not JSON: {err}"))?;
+    let text = |key: &str| -> Result<String, String> {
+        options
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| format!("the options need a text `{key}`"))
+    };
+    let refused = |code: &str, message: String| {
+        json!({ "ok": false, "error": { "code": code, "message": message } }).to_string()
+    };
+    let kind = match Kind::parse(&text("kind")?) {
+        Kind::Journal => SetupKind::Journal {
+            vault: text("vault")?,
+            encrypted: options
+                .get("encrypted")
+                .and_then(Value::as_bool)
+                .unwrap_or(false),
+            recipients: options
+                .get("recipients")
+                .and_then(Value::as_array)
+                .map(|keys| {
+                    keys.iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_string)
+                        .collect()
+                })
+                .unwrap_or_default(),
+        },
+        Kind::Ssg => {
+            let engine = options.get("engine").and_then(Value::as_str).unwrap_or("");
+            match SiteEngine::parse(engine) {
+                Some(engine) => SetupKind::Ssg { engine },
+                None => {
+                    return Ok(refused(
+                        "unknown_engine",
+                        format!("\"{engine}\" is not an engine this build can make a site for"),
+                    ))
+                }
+            }
+        }
+        other => {
+            return Ok(refused(
+                "unknown_kind",
+                format!(
+                    "\"{}\" is not a kind to set up this way: a drive is planSetup's",
+                    other.as_str()
+                ),
+            ))
+        }
+    };
+
+    let (paths, gitattributes) = existing(existing_json)?;
+    if !now_ms.is_finite() || now_ms < 0.0 {
+        return Err("the time must be milliseconds since the epoch, not negative".to_string());
+    }
+    let origin = Origin::from_entropy(now_ms as u64, random).ok_or_else(|| {
+        format!(
+            "a setup needs {} random bytes and a time that is a date",
+            Origin::ENTROPY_BYTES
+        )
+    })?;
+    let setup = KindSetup {
+        repository_name: text("repositoryName")?,
+        generator: text("generator")?,
+        kind,
+    };
+    Ok(
+        match scaffold::plan_setup_kind(&setup, &origin, &paths, gitattributes.as_deref()) {
+            Ok(plan) => json!({
+                "ok": true,
+                "files": plan.files.iter().map(|file| json!({
+                    "path": file.path,
+                    "contents": file.contents,
+                    "change": match file.change {
+                        FileChange::Create => "create",
+                        FileChange::Append => "append",
+                    },
+                })).collect::<Vec<_>>(),
+                "repositoryId": plan.repository_id,
+                "vaultId": plan.vault_id,
+                "createdAt": plan.created_at,
+            }),
+            Err(error) => json!({
+                "ok": false,
+                "error": { "code": error.code(), "message": error.to_string() },
+            }),
+        }
+        .to_string(),
+    )
+}
+
+/// `fjord.json`'s text with its kind changed (spec §3.1), every other field kept: `fjord_core::scaffold::with_kind`. `engine` is a
+/// site's. `{ "ok": true, "text" }`, or `{ "ok": false, "error": { "code", "message" } }` for a manifest that is not JSON
+/// (`manifest_unusable`), a kind this build does not define (`unknown_kind`), or a site with no engine it knows (`unknown_engine`).
+pub fn with_kind(manifest: &str, kind: &str, engine: Option<String>) -> String {
+    let refused = |code: &str, message: String| {
+        json!({ "ok": false, "error": { "code": code, "message": message } }).to_string()
+    };
+    let parsed = match parse_manifest(manifest) {
+        Ok(parsed) => parsed,
+        Err(error) => return refused("manifest_unusable", error),
+    };
+    let kind = Kind::parse(kind);
+    if let Kind::Unknown(other) = &kind {
+        return refused(
+            "unknown_kind",
+            format!("\"{other}\" is not a kind this build defines"),
+        );
+    }
+    let engine = match (&kind, engine.as_deref().map(SiteEngine::parse)) {
+        (Kind::Ssg, Some(Some(engine))) => Some(engine),
+        (Kind::Ssg, _) => {
+            return refused(
+                "unknown_engine",
+                "a site needs an engine: astro or jekyll".to_string(),
+            )
+        }
+        _ => None,
+    };
+    json!({ "ok": true, "text": scaffold::with_kind(&parsed, &kind, engine) }).to_string()
+}
+
+/// Which rule of spec §3.1 a repository of `kind` breaks, given `[true, false, …]`, whether each of its vaults is encrypted: `E111`,
+/// `E112`, or `None`. `fjord_core::manifest::kind_rule`.
+pub fn kind_rule(kind: &str, encrypted_json: &str) -> Result<Option<String>, String> {
+    let encrypted: Vec<bool> = serde_json::from_str(encrypted_json)
+        .map_err(|err| format!("the vaults must be a JSON array of booleans: {err}"))?;
+    Ok(
+        fjord_core::manifest::kind_rule(&Kind::parse(kind), &encrypted)
+            .map(|code| code.as_str().to_string()),
+    )
 }
 
 /// What to add to a Fjord repository for a new vault, plaintext or encrypted (ROADMAP 2d.1): the

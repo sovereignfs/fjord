@@ -757,6 +757,208 @@ pub fn plan_setup<S: AsRef<str>>(
     })
 }
 
+// --- Setting up a repository of a kind (spec §3.1) ------------------------------------------------------
+
+/// The kind a repository that is not a Fjord repository is set up as, beyond [`plan_setup`]'s drive.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SetupKind {
+    /// One vault of entries, plaintext or encrypted. An encrypted one names its files by id inside a tar container (spec §7.2,
+    /// §11.2) and is written to `recipients` at once, as [`plan_vault`]'s are.
+    Journal {
+        vault: String,
+        encrypted: bool,
+        recipients: Vec<String>,
+    },
+    /// One plaintext vault, [`SITE_VAULT`], and the engine's files around it.
+    Ssg { engine: SiteEngine },
+}
+
+/// What to add to a repository that is not a Fjord repository, to make it one of a kind.
+#[derive(Debug, Clone)]
+pub struct KindSetup {
+    /// `fjord.json`'s `name`. Spec §3.
+    pub repository_name: String,
+    /// Tool and version, recorded in `generator`. Spec §3.
+    pub generator: String,
+    pub kind: SetupKind,
+}
+
+/// Why a repository cannot be set up as a kind: [`plan_setup`]'s reasons, [`plan_vault`]'s for the one vault, or a file of a site's
+/// engine that is there already, which is somebody's and not ours to write over.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum KindSetupError {
+    #[error(transparent)]
+    Setup(SetupError),
+    #[error(transparent)]
+    Vault(VaultError),
+    #[error("\"{0}\" is already in this repository, and a site's engine would need it")]
+    FileTaken(String),
+}
+
+impl KindSetupError {
+    /// A stable name for the kind of failure, for a caller that reports it.
+    pub fn code(&self) -> &'static str {
+        match self {
+            KindSetupError::Setup(error) => error.code(),
+            KindSetupError::Vault(error) => error.code(),
+            KindSetupError::FileTaken(_) => "file_taken",
+        }
+    }
+}
+
+/// Decide what to add to a repository that is not a Fjord repository to make it a journal or a site (spec §3.1). Pure.
+///
+/// Additive, as [`plan_setup`] is: `fjord.json` with the kind, the one vault (made by [`plan_vault`], so a journal's encryption is
+/// exactly an added vault's), spec §9's merge guard where it is missing, and for a site its engine's files and a first post. A
+/// file the engine would need that is already there is refused, not written over; a `.gitignore` that is there is left as it is.
+pub fn plan_setup_kind<S: AsRef<str>>(
+    setup: &KindSetup,
+    origin: &Origin,
+    existing: &[S],
+    gitattributes: Option<&str>,
+) -> Result<SetupPlan, KindSetupError> {
+    let roots = root_names(existing);
+    if roots.iter().any(|name| fold(name) == REPOSITORY_MANIFEST) {
+        return Err(KindSetupError::Setup(SetupError::AlreadyFjord));
+    }
+
+    let (kind, kind_settings, vault, encrypted, recipients) = match &setup.kind {
+        SetupKind::Journal {
+            vault,
+            encrypted,
+            recipients,
+        } => (
+            crate::manifest::Kind::JOURNAL,
+            None,
+            vault.clone(),
+            *encrypted,
+            recipients.clone(),
+        ),
+        SetupKind::Ssg { engine } => (
+            crate::manifest::Kind::SSG,
+            Some(json!({ field::ENGINE: engine.as_str() })),
+            SITE_VAULT.to_string(),
+            false,
+            Vec::new(),
+        ),
+    };
+
+    // `fjord.json` with the kind and no vault yet, which `plan_vault` then lists the vault in.
+    let mut manifest = serde_json::Map::new();
+    manifest.insert(field::FJORD.into(), json!(FORMAT_VERSION));
+    manifest.insert(field::ID.into(), json!(origin.repository_id));
+    manifest.insert(field::NAME.into(), json!(setup.repository_name));
+    manifest.insert(field::CREATED_AT.into(), json!(origin.created_at));
+    manifest.insert(field::GENERATOR.into(), json!(setup.generator));
+    manifest.insert(field::KIND.into(), json!(kind));
+    if let Some(kind_settings) = kind_settings {
+        manifest.insert(kind.into(), kind_settings);
+    }
+    manifest.insert(field::VAULTS.into(), json!([]));
+    let manifest = pretty(&serde_json::Value::Object(manifest));
+
+    let planned = plan_vault(
+        &VaultSetup {
+            name: vault.clone(),
+            encrypted,
+            id_naming: encrypted,
+            recipients,
+        },
+        manifest.as_bytes(),
+        existing,
+        gitattributes,
+        &origin.vault_id,
+        &origin.created_at,
+    )
+    .map_err(KindSetupError::Vault)?;
+    let mut files: Vec<SetupFile> = planned
+        .files
+        .into_iter()
+        .map(|file| SetupFile {
+            // `fjord.json` is new here, though `plan_vault` rewrites an existing one.
+            change: if file.path == REPOSITORY_MANIFEST {
+                FileChange::Create
+            } else {
+                file.change
+            },
+            ..file
+        })
+        .collect();
+
+    // An encrypted vault brought the merge guard with it; a plaintext one did not, and §9 asks for it in every repository.
+    if !files.iter().any(|file| file.path == ".gitattributes") {
+        match (roots.contains(&".gitattributes"), gitattributes) {
+            (false, _) => files.push(SetupFile {
+                path: ".gitattributes".to_string(),
+                contents: SETUP_GITATTRIBUTES.to_string(),
+                change: FileChange::Create,
+            }),
+            (true, None) => {
+                return Err(KindSetupError::Setup(SetupError::GitattributesNotRead));
+            }
+            (true, Some(text)) if has_merge_guard(text) => {}
+            (true, Some(text)) => {
+                let mut contents = text.to_string();
+                if !contents.is_empty() && !contents.ends_with('\n') {
+                    contents.push('\n');
+                }
+                contents.push_str(SETUP_GITATTRIBUTES);
+                files.push(SetupFile {
+                    path: ".gitattributes".to_string(),
+                    contents,
+                    change: FileChange::Append,
+                });
+            }
+        }
+    }
+
+    if let SetupKind::Ssg { engine } = &setup.kind {
+        // The site's files, as a new repository of the kind has them, less what a repository that is somebody's has already.
+        let site = plan_site(
+            &KindSettings {
+                name: setup.repository_name.clone(),
+                generator: setup.generator.clone(),
+                kind: KindChoice::Ssg { engine: *engine },
+            },
+            origin,
+            *engine,
+        );
+        let taken = |path: &str| {
+            existing
+                .iter()
+                .any(|there| fold(there.as_ref()) == fold(path))
+        };
+        for file in site.files {
+            let ours = file.path == REPOSITORY_MANIFEST
+                || file.path == ".gitattributes"
+                || file.path == format!("{SITE_VAULT}/{VAULT_MANIFEST}");
+            if ours {
+                continue;
+            }
+            if file.path == ".gitignore" || file.path == "README.md" {
+                // Somebody's own, if there is one; the site builds without ours.
+                if taken(&file.path) {
+                    continue;
+                }
+            } else if taken(&file.path) {
+                return Err(KindSetupError::FileTaken(file.path));
+            }
+            files.push(SetupFile {
+                path: file.path,
+                contents: file.contents,
+                change: FileChange::Create,
+            });
+        }
+    }
+
+    Ok(SetupPlan {
+        files,
+        repository_id: origin.repository_id.clone(),
+        vault_id: origin.vault_id.clone(),
+        created_at: origin.created_at.clone(),
+    })
+}
+
 /// The `.gitattributes` a setup creates where there is none: only what spec §9 requires. (A new repository
 /// from [`plan_with`] gets the fuller template, which also normalises line endings.)
 const SETUP_GITATTRIBUTES: &str =
@@ -827,6 +1029,27 @@ pub fn with_vault_entry(
     raw.insert(field::VAULTS.to_string(), serde_json::Value::Array(vaults));
 
     Ok(pretty(&serde_json::Value::Object(raw)))
+}
+
+/// `fjord.json` with its kind changed to `kind` (spec §3.1), every other field kept where it was, settings objects of other kinds
+/// included (§3.1 and §10.1 keep them). A site's `engine` is written into its `ssg` object, whose other fields are kept too. Whether
+/// the repository then keeps the kind's rules is [`crate::manifest::kind_rule`]'s to say, before this is written.
+pub fn with_kind(
+    manifest: &crate::manifest::Manifest,
+    kind: &crate::manifest::Kind,
+    engine: Option<SiteEngine>,
+) -> String {
+    let mut raw = manifest.raw().clone();
+    raw.insert(field::KIND.to_string(), json!(kind.as_str()));
+    if let Some(engine) = engine {
+        let mut settings = match raw.get(field::SSG) {
+            Some(serde_json::Value::Object(existing)) => existing.clone(),
+            _ => serde_json::Map::new(),
+        };
+        settings.insert(field::ENGINE.to_string(), json!(engine.as_str()));
+        raw.insert(field::SSG.to_string(), serde_json::Value::Object(settings));
+    }
+    pretty(&serde_json::Value::Object(raw))
 }
 
 /// A vault to add to a Fjord repository (`fjord vault add`, and *Add a vault* in the web client).
