@@ -26,7 +26,7 @@ import { editingFor, recipientsFor } from "../../encrypted/server";
  * one that tries to climb out are all a 404 and nothing more. `path` is the decoded segments. `/doc/<id>` and `/note/<id>`
  * show a file the same way, once the id has been found (ROADMAP 1b.6).
  */
-export async function RepositoryScreen({ connection, path, view }: { connection: string; path: string[] | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined }) {
+export async function RepositoryScreen({ connection, path, view, query = {} }: { connection: string; path: string[] | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined; /** The page's query, for an entry view that pages or filters. */ query?: Record<string, string | string[] | undefined> }) {
   const { user } = await requireSession();
   if (!/^[1-9][0-9]{0,15}$/.test(connection) || encryptionKeyring() === undefined) notFound();
   const connections = await (await connectionService()).list(user.id);
@@ -94,7 +94,7 @@ export async function RepositoryScreen({ connection, path, view }: { connection:
   // What it opens on is its kind's (RFC 0001), or its files when asked: every kind can be shown as a drive.
   const atTop = content === undefined && (path === undefined || path.length === 0);
   const asFiles = view === "files";
-  const { kind, entry } = entryFor(user.id, current, outcome, asFiles);
+  const { kind, entry } = entryFor(user.id, current, outcome, asFiles, query);
   const landing = atTop ? entry : undefined;
   const kindLink = atTop && kind.id !== "drive" ? { label: kind.label, asFiles } : undefined;
   return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} kind={kindLink} setup={atTop ? await assessSetupFor(user.id, current, outcome) : undefined} security={localAuthConfig() !== undefined} />;

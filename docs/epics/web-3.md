@@ -172,7 +172,7 @@ When a repository that is not a Fjord repository is set up, offer a kind: drive 
   - The timeline itself, and a moved entry keeping its place, are 3b.2's.
 ### 3b.2 Timeline
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0001, Journals
 
@@ -180,6 +180,17 @@ The journal's entry view: entries newest first, grouped by day, with their title
 
 **Accepts when:** a timeline of a few thousand entries pages without reading every blob at each view; a test of the encrypted journal reads every request the page sends and finds no date, title or tag of an entry; entries with a `date` and a path that disagree are placed by the `date`.
 
+- **Done as:**
+  - **`fjord-core`:** `journal::when` (the `date`, then the path, then `created`) and `journal::summary`, as the module's `journalEntry`.
+  - **Plaintext journal:**
+    - `src/journal/timeline.ts`: `summaries` reads only the entries that `journal_entry` does not hold by blob and path; `arrange` sorts newest first, groups by day, pages by 50 and filters.
+    - `src/journal/index-store.ts` keeps `journal_entry`, a derived table in both dialects (migration 0016). Its rows go with a disconnected repository, and with a deleted person through it.
+    - `screens/Timeline.tsx` reads the page, the tags and the days from the address.
+  - **Encrypted journal:** `encrypted-timeline.ts` and `screens/EncryptedTimeline.tsx`. The browser fetches each entry's ciphertext by its identifier, decrypts it with its key (asking for the passphrase when the key is locked), and summarises it with the module. The result is kept in memory only.
+  - **Tested:**
+    - `timeline.test.ts`: on each database leg, the order, the date beating the path, and that a second and third page of 120 entries read no entry again.
+    - `encrypted-timeline.test.ts`: the privacy test, which records every request and finds only GETs of identifiers, with no date, title or tag.
+  - **Left out:** a timeline of a repository whose listing the host cuts short. The page says so and offers its files. The browser's index is not cached between visits; the privacy rule comes first (workstream, Risks).
 ### 3b.3 Tags
 
 **Status:** 📋 Planned

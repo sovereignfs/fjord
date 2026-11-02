@@ -26,6 +26,8 @@ export interface EntryViewProps {
   accountId: string;
   connection: ConnectionInfo;
   read: RepositoryRead;
+  /** The page's query, for an entry view that pages or filters (a journal's timeline: `page`, `tag`, `from`, `to`). */
+  query: Record<string, string | string[] | undefined>;
 }
 
 export interface ContentModel {

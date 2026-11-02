@@ -158,6 +158,20 @@ export const docIndex = app.table(
   (table) => [uniqueIndex("doc_index_connection_path_idx").on(table.connectionId, table.path), index("doc_index_doc_id_idx").on(table.docId)],
 );
 
+/** What a plaintext journal's timeline shows of each entry; see `schema/sqlite/app.ts`. */
+export const journalEntry = app.table(
+  "journal_entry",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    path: text("path").notNull(),
+    blob: text("blob").notNull(),
+    summary: text("summary").notNull(),
+    indexedAt: epochMs("indexed_at").notNull(),
+  },
+  (table) => [uniqueIndex("journal_entry_connection_blob_path_idx").on(table.connectionId, table.blob, table.path)],
+);
+
 /**
  * A document shared with a named account of the instance (DESIGN.md §12, ROADMAP 1c.2): one row per document and account,
  * with the role it has there (`view`, `comment` or `edit`). A document is its connection and its Doc `id` (spec §8.3), not

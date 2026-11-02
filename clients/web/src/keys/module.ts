@@ -31,6 +31,7 @@ export interface CryptoModule {
   journalSlug(title: string): string | undefined;
   entryDateFromUnix(seconds: number, offsetMinutes: number): string | undefined;
   journalEntry(text: string, path: string): string;
+  withTags(text: string, tagsJson: string): string | undefined;
   foldTag(tag: string): string;
   tagIsUnder(tag: string, parent: string): boolean;
 }

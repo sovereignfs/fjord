@@ -56,7 +56,7 @@ describe("which module presents a repository (RFC 0001, spec §3.1)", () => {
     const module = kindFor(manifest("drive", "wiki"));
     expect(module.id).toBe("wiki");
     const { EntryView } = module;
-    const html = renderToStaticMarkup(<>{EntryView({ accountId: "a", connection: {} as never, read: {} as never })}</>);
+    const html = renderToStaticMarkup(<>{EntryView({ accountId: "a", connection: {} as never, read: {} as never, query: {} })}</>);
     expect(html).toBe("<p>the wiki entry view</p>");
     expect(kindFor(manifest("drive", null)).id).toBe("drive");
     expect(registeredKinds()[0]?.id).toBe("drive");
