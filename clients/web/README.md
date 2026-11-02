@@ -47,6 +47,13 @@ its build provenance attested. Set `FJORD_IMAGE` to it in `.env` and `docker com
 instead of building. What an update does to the database, and how to go back, is in
 [`deploy/README.md`](deploy/README.md#updating).
 
+### On a Sovereign instance
+
+A [Sovereign](https://github.com/sovereignfs/sovereign) instance can host Fjord Web as one of its apps: `sv app add --image
+ghcr.io/sovereignfs/fjord-web:X.Y.Z` reads `sovereign.manifest.json` from the image and registers it, signs people in through the instance,
+and gives it a PostgreSQL database and its secrets. Nothing here requires one. [`deploy/README.md`](deploy/README.md#hosted-on-a-sovereign-instance)
+has what an operator sets.
+
 ### The database
 
 Fjord Web keeps accounts, connections, shares and the like in SQLite (the default,

@@ -11,8 +11,22 @@ section.
 
 ## [Unreleased]
 
+### Added
+
+- **A Sovereign instance can host Fjord Web.** `sovereign.manifest.json`, at the root of the app, is the manifest an instance's `sv app add` reads
+  (manifest 2: the sign-in address and scopes, the health route, the icon, a database, the secret to make, the core versions), and the image carries it as
+  its `io.github.sovereignfs.app-manifest` label, so that it can be read from the registry without pulling. It names no back-channel or
+  account-deleted address yet, so signing out of the instance does not end a Fjord Web session and deleting an account there deletes nothing here. [`deploy/README.md`](deploy/README.md#hosted-on-a-sovereign-instance) says what an operator sets, `FJORD_AUTH_SIGNUP: open` first.
+  A fourth check in `scripts/deploy-check.sh`, `sovereign`, gives the image what an instance gives an app and checks that it listens on the
+  `PORT` it is given, offers Sovereign and no password, serves its icon to someone with no session and stops on SIGTERM in seconds.
+
 ### Changed
 
+- **Building the image needs the port, which `sovereign.manifest.json` now writes and nothing else does.** The image is built with
+  `eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest.mjs docker-args) -t fjord-web ."`, which gives it the
+  port and its label; a plain `docker build` stops at once and prints that command. The Compose files, which build from a checkout, pass the
+  port themselves (a test holds it to the manifest); the published image is unchanged to anyone who pulls it. The image's health check reads
+  `PORT`, with no number of its own.
 - **Every setting starts `FJORD_`, with the names of Sovereign's environment convention** (`contracts/env.md` in
   sovereignfs/sovereign), so that a Sovereign instance can host Fjord Web with the variables it gives every app, and an
   operator can set the rest in its `suite.yml`. The database is `FJORD_DB_DIALECT` (`sqld`, the default; `sqlite`, a
@@ -30,8 +44,6 @@ section.
 
 - **The frontmatter parser is safe Rust** (the format module): the library behind it was replaced, so a document header from outside is read by code that forbids `unsafe` and limits what an alias can expand to. A header that cannot be kept exactly (a key given twice, a YAML tag, a whole number too large to be one) is shown as the file it is and is not rewritten. The headers the page writes now quote text and timestamps (`created: "2026-10-16T09:34:00Z"`), so the first title change or promotion of a file re-quotes those lines; nothing else about them changes. The module is 1.3 MB (495 KB compressed), up from 980 KB.
 - **Review of phase 2** ([`docs/security-review-phase-2.md`](../../docs/security-review-phase-2.md), ROADMAP 2c.2): four defects fixed. *Put back* can no longer write plain text into an encrypted vault (or ciphertext into a plaintext or another encrypted one); a password-sealed link cannot ask your browser for more than age's default work to open it; an API call can no longer delete or move an encrypted vault's recipients file or guard; and a decrypted file larger than 1 MB is not put in an editor. The page now says how many recipients a file is encrypted to.
-
-### Changed
 
 - **`@sovereignfs/ui` 0.89.1** (from 0.83.1).
 

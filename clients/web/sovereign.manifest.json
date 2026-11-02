@@ -1,0 +1,17 @@
+{
+  "manifest": 2,
+  "prefix": "fjord",
+  "name": "Fjord",
+  "description": "Your documents as plain files in a Git repository you control",
+  "icon": "/icon.svg",
+  "port": 3000,
+  "health": "/api/health",
+  "launch": "/",
+  "signIn": {
+    "redirect": ["/api/auth/callback/sovereign"],
+    "scopes": ["openid", "profile", "email"]
+  },
+  "database": true,
+  "generate": ["FJORD_AUTH_SECRET"],
+  "core": ">=0.57.0 <1.0.0"
+}

@@ -1,7 +1,9 @@
 # The Fjord Web image (clients/web/DESIGN.md §17). Build it from the root of the repository, because the
-# format module is built from `crates/`:
+# format module is built from `crates/`, with the arguments that clients/web/sovereign.manifest.json gives it: its port,
+# which is written there and nowhere else, and its label, which is how a Sovereign instance reads the manifest
+# without pulling the image (`scripts/manifest.mjs`):
 #
-#   docker build -f clients/web/Dockerfile -t fjord-web .
+#   eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest.mjs docker-args) -t fjord-web ."
 #
 # Four stages: the format module (Rust, to WebAssembly), the editors' package (TypeScript, built), the app (Node, a
 # self-contained Next.js server) and a small runtime with none of the toolchains in it.
@@ -62,6 +64,10 @@ RUN FJORD_STANDALONE=1 pnpm build
 # --- What runs -------------------------------------------------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 
+# The port the manifest names. A build without it would listen where nothing looks for it, so it stops here and says how to build.
+ARG PORT
+RUN test -n "${PORT}" || { echo 'Build with: eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest.mjs docker-args) ."' >&2; exit 1; }
+
 LABEL org.opencontainers.image.title="Fjord Web" \
       org.opencontainers.image.description="The hosted web client for Fjord" \
       org.opencontainers.image.source="https://github.com/sovereignfs/fjord" \
@@ -69,7 +75,7 @@ LABEL org.opencontainers.image.title="Fjord Web" \
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3000 \
+    PORT=${PORT} \
     HOSTNAME=0.0.0.0 \
     FJORD_WASM_DIR=/app/wasm
 
@@ -100,9 +106,9 @@ COPY --from=editor /build/packages/fjord-editor/dist/THIRD_PARTY_NOTICES.txt /us
 RUN mkdir /data && chown node:node /data
 VOLUME /data
 USER node
-EXPOSE 3000
+EXPOSE ${PORT}
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=40s --retries=3 \
-  CMD ["node", "-e", "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+  CMD ["node", "-e", "fetch('http://127.0.0.1:'+process.env.PORT+'/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
 
 CMD ["node", "clients/web/server.js"]

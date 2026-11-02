@@ -30,6 +30,8 @@ export interface AuthDependencies {
 
 /** The id Sovereign sign-in is known by: it is in the callback URL registered with Sovereign. */
 export const SOVEREIGN_PROVIDER_ID = "sovereign";
+/** What Fjord Web asks Sovereign for. The manifest (sovereign.manifest.json) says the same, which a test holds. */
+export const SOVEREIGN_SCOPES = ["openid", "profile", "email"];
 
 /** The code a refused sign-up carries, in the API's answer and in the `?error=` of a redirect. */
 export const SIGNUP_CLOSED = "SIGNUP_CLOSED";
@@ -154,7 +156,7 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
                   clientId: sovereign.clientId,
                   clientSecret: sovereign.clientSecret,
                   authentication: "basic",
-                  scopes: ["openid", "profile", "email"],
+                  scopes: SOVEREIGN_SCOPES,
                   pkce: true,
                   // Signing out of Fjord does not sign the person out of Sovereign, which is
                   // their account for other things as well.

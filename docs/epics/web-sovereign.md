@@ -2,7 +2,7 @@
 
 The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients/web/ROADMAP.md): what each one is, how it is known to be done, and how it was done. The design is [`clients/web/DESIGN.md`](../../clients/web/DESIGN.md); where it and this file disagree, the design is right.
 
-**Status:** planned on 2026-11-02; H1 done.
+**Status:** planned on 2026-11-02; H1 and H2 done.
 
 ## What this promises, and what it does not
 
@@ -31,7 +31,7 @@ Every variable Fjord Web reads starts `FJORD_`, and a setting that Sovereign's `
 
 ## H2 The manifest and the image
 
-**Status:** 📋 Planned (waits on Sovereign's manifest 2)
+**Status:** ✅ Done
 
 `clients/web/sovereign.manifest.json`:
 
@@ -58,6 +58,24 @@ Every variable Fjord Web reads starts `FJORD_`, and a setting that Sovereign's `
 No `postLogout` (signing out of Fjord is local), no `offline_access` (Fjord calls no Core API), no `data` (on PostgreSQL nothing on disk must survive). The release and CI image builds set the label and the `PORT` build argument from the file (`ARG PORT`, `ENV PORT=${PORT}`, `EXPOSE ${PORT}`), CI validates the file against the schema and checks the built image's label equals it, and `deploy/README.md` gains "Hosted on a Sovereign instance": `sv app add`, `FJORD_AUTH_SIGNUP: open` and the GitHub App's id and slug in `env`, `FJORD_ENCRYPTION_KEY` and the App's keys in `secrets.age.yml`, and the App's callback at `https://fjord.<domain>/api/github-app/callback`.
 
 **Accepts when:** the image's label validates and equals the file; the image boots with exactly what `sv` gives (`_FILE` secrets, `FJORD_CORE_*`, PostgreSQL) and signs in through the fake Sovereign; it stops cleanly on `SIGTERM`; `/icon.svg` answers.
+
+- **Done as:** the manifest above, as written, with `"core": ">=0.57.0 <1.0.0"`; `scripts/manifest.mjs`, which does what `sovereign-manifest` of `@sovereignfs/manifest` does (`check`, `label`,
+  `docker-args` with the same output), because that package is not published and this app takes no dependency that is not on npm, and which the package replaces
+  when it is. The image is built with `ARG PORT` (required, so a plain `docker build` stops and says how to build), `ENV PORT=${PORT}`, `EXPOSE ${PORT}` and
+  the label, in CI and in the release. `src/sovereign-manifest.test.ts` holds the file to a copy of the manifest's JSON Schema
+  (`src/auth/fixtures/app-manifest-v2.schema.json`, taken from `contracts/schemas/app-manifest-v2.schema.json` in sovereignfs/sovereign, and `ajv` is a
+  development dependency for it), and to the code and files it names: the sign-in address and scopes (`SOVEREIGN_SCOPES` is now shared by the sign-in and
+  the test), the health route, the icon, the secret, no back-channel or account-deleted address, and the port in the Dockerfile and the Compose
+  files. `deploy-check.sh` has a fourth check, `sovereign`. `deploy/README.md` has "Hosted on a Sovereign instance".
+- **Not as planned:** the icon needed no change (`/icon.svg` is the Next icon route, which the proxy leaves to anyone). SIGTERM ends the image with exit code 143, not 0:
+  Next finishes what is in flight and exits with the signal's own code, which is what an orchestrator expects; the check wants it within seconds, not killed
+  (137). The Compose files carry the port as a build argument because Compose cannot read the manifest; the test holds them to it.
+- **Verified here:** the new test, with ten changes to the manifest each seen to fail it; the image built from the Dockerfile with the manifest's arguments, and the
+  `sovereign` check against it, then against four wrong images (no port, no label, another label, another port), each refused; the whole `deploy-check.sh`; the
+  app's tests, typecheck and build.
+- **Not verified:** a real Sovereign instance hosting it (`sv` and a core were not run), so whether `sv app add` accepts this manifest and a person signs in through
+  core is tested only against its schema and the fake Sovereign; the CI and release workflows' new steps, which run only there (the release needs a tag);
+  and that `docker/build-push-action` reads the label's JSON as one value.
 
 ## H3 Signing out and account deletion from core
 

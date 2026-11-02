@@ -374,16 +374,24 @@ jobs:
 
       - uses: docker/setup-buildx-action@v4
 
+      # The image's label and its port are made from clients/web/sovereign.manifest.json, which is where the port is written
+      # (scripts/manifest.mjs); deploy-check.sh then checks that the label is the file.
+      - name: The manifest, as the image's label and port
+        id: manifest
+        run: node clients/web/scripts/manifest.mjs docker-args --format github >> "$GITHUB_OUTPUT"
+
       - uses: docker/build-push-action@v7
         with:
           context: .
           file: clients/web/Dockerfile
           load: true
           tags: fjord-web:ci
+          labels: ${{ steps.manifest.outputs.labels }}
+          build-args: ${{ steps.manifest.outputs.build-args }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Each setup comes up, keeps what it is given, and a bad setting stops it
+      - name: Each setup comes up, keeps what it is given, a Sovereign instance can host it, and a bad setting stops it
         env:
           FJORD_IMAGE: fjord-web:ci
         run: clients/web/scripts/deploy-check.sh

@@ -154,7 +154,7 @@ toolkit reads. The plan, and what it asks of Sovereign, are in the epic.
 | # | Task | Status |
 | --- | --- | --- |
 | [H1](../../docs/epics/web-sovereign.md#h1-settings-under-sovereigns-names) | Settings under Sovereign's names | ✅ Done |
-| [H2](../../docs/epics/web-sovereign.md#h2-the-manifest-and-the-image) | The manifest and the image | 📋 Planned (waits on Sovereign's manifest 2) |
+| [H2](../../docs/epics/web-sovereign.md#h2-the-manifest-and-the-image) | The manifest and the image | ✅ Done |
 | [H3](../../docs/epics/web-sovereign.md#h3-signing-out-and-account-deletion-from-core) | Signing out and account deletion from core | 📋 Planned (waits on the SDK's token verifiers) |
 
 ## Later

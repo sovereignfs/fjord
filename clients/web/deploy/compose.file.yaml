@@ -12,6 +12,9 @@ services:
     build:
       context: ../../..
       dockerfile: clients/web/Dockerfile
+      # The port is written in clients/web/sovereign.manifest.json, which Compose cannot read; a test holds this to it.
+      args:
+        PORT: "3000"
     image: ${FJORD_IMAGE:-fjord-web}
     restart: unless-stopped
     env_file:

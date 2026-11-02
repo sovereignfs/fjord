@@ -1645,6 +1645,36 @@ The offer of §7, as it works (`src/browse/setup.ts`, `src/browse/screens/SetupO
 - **Not built yet:** the `worker` as a process of its own (idle commits, 1b.13, run inside the web process; a command of the same image for webhooks, 1a.6, comes with them), and publishing the image to a registry (a release step, with the `web-vX.Y.Z` tag).
   Continuous backups and a staging instance are the operator's.
 
+### Hosted on a Sovereign instance, as built (ROADMAP H2)
+
+A Sovereign instance hosts Fjord Web as an app with its operator's toolkit (`sv app add`), and Fjord Web stays a program of its own: its
+only ties are `@sovereignfs/ui`, its sign-in through the instance's core (which it chose, §6), and the two conventions the toolkit reads, both
+Sovereign's `contracts/` (`app-manifest.md` and `env.md`), neither of which core sees.
+
+- **The manifest is `clients/web/sovereign.manifest.json`**, at the root of the app's code: manifest 2, `"prefix": "fjord"`, the sign-in
+  address `/api/auth/callback/sovereign` and the scopes of §6 (`SOVEREIGN_SCOPES`, which the sign-in code and the manifest share), the
+  health route, the icon (`/icon.svg`, which the proxy leaves to anyone), `"database": true` (and no pooling: the migrations hold a lock on
+  one connection), the one secret the instance makes (`FJORD_AUTH_SECRET`) and the core versions it works with. It declares no back-channel
+  or account-deleted address, because nothing answers them yet (ROADMAP H3). `src/sovereign-manifest.test.ts` holds it to the manifest's
+  JSON Schema (a copy, `src/auth/fixtures/app-manifest-v2.schema.json`, taken as the discovery document beside it is recorded) and to the
+  code and files it promises things about.
+- **The port is written once, there.** The image is built with it (`ARG PORT`, `ENV PORT=${PORT}`, `EXPOSE ${PORT}`), and a build without it
+  stops with the command to use; the health check reads `PORT`. The Compose files cannot read the manifest, so they carry the number as a
+  build argument and the container side of the published port, which the test holds to the manifest. An instance gives the app `PORT` as
+  well, so it listens where the instance looks whatever the image was built with.
+- **The image's label is the manifest** (`io.github.sovereignfs.app-manifest`), made from the file when the image is built, in CI and in the
+  release (`scripts/manifest.mjs docker-args`; it is what `sovereign-manifest` of `@sovereignfs/manifest` does, which replaces it when
+  published), so that `sv app add` reads it from the registry without pulling. `deploy-check.sh sovereign` checks that the label is the
+  file.
+- **Checked as an instance would host it** (`deploy-check.sh sovereign`): given what `sv apply` gives an app, with a `PORT` that is not the
+  default, it comes up on that port on PostgreSQL from files, offers Sovereign and no password, serves its icon to someone with no session,
+  and stops on SIGTERM in seconds (Next's server finishes what is in flight and exits 143, the signal's own code, as a Sovereign
+  instance's contract wants: it is never killed after the grace period). It does not sign in: that is the fake Sovereign's, in the browser tests, against the same
+  code; and no real instance has hosted it yet.
+- **What an operator sets** is in `deploy/README.md`: `FJORD_AUTH_SIGNUP=open` (on an instance the instance decides who may sign in),
+  the encryption key, and the GitHub App. **Not yet:** a Fjord session does not end when the person signs out of the instance, and an account
+  deleted there deletes nothing here (ROADMAP H3).
+
 ## 18. Licence
 
 `clients/web` is **AGPL-3.0-or-later**, because it bundles `@sovereignfs/ui`, which

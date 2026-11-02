@@ -4,7 +4,7 @@
 # (clients/web/Dockerfile) for linux/amd64 and linux/arm64 on a runner of each kind,
 # publishes it to GitHub's container registry as ghcr.io/<owner>/fjord-web:X.Y.Z (and
 # :X.Y, and :latest) with a signed build-provenance attestation, brings the published
-# image up in the file setup as an operator would (deploy-check.sh), and only then
+# image up in the file setup as an operator would, and as a Sovereign instance would host it (deploy-check.sh), and only then
 # publishes a GitHub release whose notes are the version's section of
 # clients/web/CHANGELOG.md and which says how to pull the image.
 #
@@ -123,6 +123,12 @@ jobs:
           labels: |
             org.opencontainers.image.version=${{ needs.check.outputs.version }}
 
+      # What a Sovereign instance reads to host the image without pulling it, and the port the image listens on: both from
+      # clients/web/sovereign.manifest.json, the one place either is written (scripts/manifest.mjs).
+      - name: The manifest, as the image's label and port
+        id: manifest
+        run: node clients/web/scripts/manifest.mjs docker-args --format github >> "$GITHUB_OUTPUT"
+
       - name: Build
         id: build
         uses: docker/build-push-action@v7
@@ -130,7 +136,10 @@ jobs:
           context: .
           file: clients/web/Dockerfile
           platforms: ${{ matrix.platform }}
-          labels: ${{ steps.meta.outputs.labels }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            ${{ steps.manifest.outputs.labels }}
+          build-args: ${{ steps.manifest.outputs.build-args }}
           # The attestation is made once, on the merged image, below.
           provenance: false
           sbom: false
@@ -228,11 +237,12 @@ jobs:
           push-to-registry: true
 
       # The published thing, not the one built a minute ago: pulled by its tag, and brought up in the
-      # single-container setup, then signed in to after a restart (clients/web/scripts/deploy-check.sh).
+      # single-container setup, then signed in to after a restart, and given what a Sovereign instance gives an app
+      # (clients/web/scripts/deploy-check.sh).
       - name: The published image comes up and keeps what it is given
         env:
           FJORD_IMAGE: ${{ env.IMAGE }}@${{ steps.digest.outputs.digest }}
-        run: clients/web/scripts/deploy-check.sh file
+        run: clients/web/scripts/deploy-check.sh file sovereign
 
   release:
     name: publish the release

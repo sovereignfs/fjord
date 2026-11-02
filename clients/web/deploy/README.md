@@ -2,15 +2,16 @@
 
 Fjord Web is one container image and a database. This directory has the three ways of running it that the design
 names ([`DESIGN.md`](../DESIGN.md) §17), as Docker Compose files, and what to know to run it for real. Build the image
-from the root of the repository (the Compose files do it for you):
+from the root of the repository (the Compose files do it for you), with the arguments that `sovereign.manifest.json` gives it: its port,
+which is written there and nowhere else, and its label (below). A build without them stops and says so.
 
 ```bash
-docker build -f clients/web/Dockerfile -t fjord-web .
+eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest.mjs docker-args) -t fjord-web ."
 ```
 
 It builds the format module from `crates/` (Rust and WebAssembly), then the app (Node 24), and keeps neither toolchain:
 the image is a Node runtime, the app, the module and the licences, about 100 MB. It runs as an unprivileged user,
-listens on port 3000, writes only to `/data` (and only when the database is a file), and has a health check on
+listens on the manifest's port (3000) or the `PORT` it is given, writes only to `/data` (and only when the database is a file), and has a health check on
 `/api/health`.
 
 ## Pick a setup
@@ -234,17 +235,64 @@ To see which version is running, `docker image inspect ghcr.io/sovereignfs/fjord
   of this same image, and a Compose service for it, come with the GitHub App's webhooks (1a.6).
 - **Continuous backups and a staging instance** are the operator's to set up; this directory does not provide them.
 
+## Hosted on a Sovereign instance
+
+A [Sovereign](https://github.com/sovereignfs/sovereign) instance can host Fjord Web as one of its apps, next to its sign-in, with the
+operator's toolkit (`sv`). Fjord Web stays a program of its own: everything above still works without Sovereign, and what ties it to
+one is `sovereign.manifest.json` (the manifest `sv` reads), the image's label made from it, and the names of the settings an instance
+gives an app. In your instance repository, with a toolkit that reads manifest 2 (`sv app add` says when it does not):
+
+```bash
+./sv app add --image ghcr.io/sovereignfs/fjord-web:0.2.0     # the app is called fjord, as its manifest says, at https://fjord.<your domain>
+./sv secret set FJORD_ENCRYPTION_KEY --app fjord              # a value from: openssl rand -base64 32
+./sv push && ./sv deploy
+```
+
+`sv app add` reads the manifest from the image's label without pulling it, and shows what Fjord Web asks core for (`openid profile
+email`). Then, by itself:
+
+- **Fjord Web is registered with core** as a trusted app, with its sign-in address (`/api/auth/callback/sovereign`), its name, its
+  description and its icon (`/icon.svg`), so it appears in the launcher.
+- **It is given** `PORT` (the manifest's port, 3000), `FJORD_URL` (`https://fjord.<your domain>`), `FJORD_CORE_URL`,
+  `FJORD_CORE_CLIENT_ID` and `FJORD_CORE_CLIENT_SECRET_FILE`, `FJORD_AUTH_SECRET_FILE` (made once, kept), and a PostgreSQL database of its own
+  as `FJORD_DB_DIALECT=postgres` with `FJORD_POSTGRES_URL_FILE`. It makes its own tables when it starts, as everywhere else. Its
+  manifest does not say it can work through a connection pooler, because its migrations hold a lock on one connection.
+- **People sign in through the instance** and nothing else is switched on, so there is no password to set.
+
+What the operator adds, in `suite.yml` under `apps.fjord.env` (settings) and with `sv secret set NAME --app fjord` (secrets):
+
+| | |
+| --- | --- |
+| `FJORD_AUTH_SIGNUP: open` | **Set it.** The default, `closed`, lets only the first person who signs in have an account, which on an instance is not what anyone wants: the instance already decides who may sign in. |
+| `FJORD_ENCRYPTION_KEY` (a secret) | Without it nobody can connect a repository. Keep it apart from backups, as above. |
+| The GitHub App | Optional, as above: `FJORD_GITHUB_APP_ID`, `_SLUG` and `_CLIENT_ID` under `env`, and `FJORD_GITHUB_APP_PRIVATE_KEY`, `_CLIENT_SECRET` and `_WEBHOOK_SECRET` as secrets. Its callback is `https://fjord.<your domain>/api/github-app/callback` and its webhook `https://fjord.<your domain>/api/webhooks/github`. |
+
+Updating is a newer image: `./sv app update fjord --image ghcr.io/sovereignfs/fjord-web:0.2.1`, then `./sv push && ./sv deploy`. [Updating](#updating)
+says what a release may change, and `sv backup` is the backup to take first.
+
+**Not yet:** signing out of the instance, or deleting an account there, does not end a Fjord Web session or delete what it holds of the
+person; the manifest names no back-channel or account-deleted address until it answers them (ROADMAP H3). Signing out of Fjord Web signs
+out of Fjord Web only.
+
 ## Checked by CI
 
 [`../scripts/deploy-check.sh`](../scripts/deploy-check.sh) builds nothing itself. Given the image, it brings each of the
 three setups up from nothing and checks, for each, that Compose reports it healthy; that `/api/health` names the
 right database and says the format module loaded; that the first account can be made; that after the containers are
 taken down (keeping their volumes) and up again the account can sign in; and, once, that an image given sign-in
-without a secret exits and names it. CI runs it on every change to Fjord Web (`web-ci.yml`, job `image`).
+without a secret exits and names it. A fourth, `sovereign`, is what an instance relies on: the image's label is
+`sovereign.manifest.json` and its exposed port is the manifest's; given what `sv` gives an app (secrets as files, PostgreSQL, a `PORT`
+that is not the default, core's address and client) it comes up on that `PORT`, offers sign-in through Sovereign and no password, serves
+`/icon.svg` to someone with no session, and stops on SIGTERM within seconds (Next finishes what is in flight and exits 143, the
+signal's own code). CI runs it on every change to Fjord Web
+(`web-ci.yml`, job `image`).
+
+The image is built with its label and its port, which the manifest is the one place to write (`scripts/manifest.mjs`, the same commands as
+`sovereign-manifest` of `@sovereignfs/manifest`, which replaces it once published):
 
 ```bash
-docker build -f clients/web/Dockerfile -t fjord-web:ci .
-FJORD_IMAGE=fjord-web:ci clients/web/scripts/deploy-check.sh          # all three, or name some: sqld file postgres
+eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest.mjs docker-args) -t fjord-web:ci ."
+FJORD_IMAGE=fjord-web:ci clients/web/scripts/deploy-check.sh          # all four, or name some: sqld file postgres sovereign
 ```
 
 ## Licences

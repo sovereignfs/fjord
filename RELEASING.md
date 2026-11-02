@@ -65,8 +65,10 @@ nothing to compare with.
    platforms are in it, and **attests its build provenance** (a signed statement of the commit
    and workflow that built it; `gh attestation verify oci://ghcr.io/<owner>/fjord-web:X.Y.Z
    --owner <owner>`).
-4. **Pulls the published image by digest and brings it up** with `deploy-check.sh file`, as an
-   operator would: healthy, the first account, a restart, signing in again.
+4. **Pulls the published image by digest and brings it up** with `deploy-check.sh file sovereign`, as an
+   operator would: healthy, the first account, a restart, signing in again; and as a Sovereign
+   instance would host it: the label is `sovereign.manifest.json`, it listens on the `PORT` it is given
+   and stops on SIGTERM within seconds.
 5. **Publishes the GitHub release page**, whose notes are the changelog's section and the image's
    name. This is last, so a release page means an image that was pulled and run.
 
