@@ -399,6 +399,61 @@ pub fn journal_slug(title: &str) -> Option<String> {
     journal::slug(title)
 }
 
+/// A new journal entry's text: `id`, `title` if there is one, `created` and `date` (spec §8.1), and a heading only with a title.
+/// `fjord_core::doc::new_entry`.
+pub fn new_entry(
+    id: &str,
+    title: Option<String>,
+    created: &str,
+    date: &str,
+) -> Result<String, String> {
+    doc::new_entry(
+        id,
+        title.as_deref().filter(|title| !title.trim().is_empty()),
+        created,
+        date,
+    )
+    .map_err(|err| err.to_string())
+}
+
+/// A Doc's text with its `date` set, or taken away with `None`, every other key and the body kept: `fjord_core::doc::with_date`.
+/// `None` for a file with no header, or a broken one.
+pub fn with_date(text: &str, date: Option<String>) -> Option<String> {
+    doc::with_date(text, date.as_deref())
+}
+
+/// A Doc's text with its `tags` set from a JSON array of text (none takes them away): `fjord_core::doc::with_tags`.
+pub fn with_tags(text: &str, tags_json: &str) -> Result<Option<String>, String> {
+    let tags: Vec<String> = serde_json::from_str(tags_json)
+        .map_err(|err| format!("the tags must be a JSON array of text: {err}"))?;
+    Ok(doc::with_tags(text, &tags))
+}
+
+/// What a journal's timeline shows of an entry, `fjord_core::journal::summary`: `{ "docId", "title", "date", "dateInvalid", "tags",
+/// "when": { "day", "time", "source": "date" | "path" | "created" } | null, "excerpt" }`. `path` is relative to the vault.
+pub fn journal_entry(text: &str, path: &str) -> String {
+    let made = journal::summary(text, path);
+    json!({
+        "docId": made.doc_id,
+        "title": made.title,
+        "date": made.date,
+        "dateInvalid": made.date_invalid,
+        "tags": made.tags,
+        "when": made.when.map(|when| json!({
+            "day": when.day,
+            "time": when.time,
+            "source": match when.source {
+                journal::WhenSource::Date => "date",
+                journal::WhenSource::Path => "path",
+                journal::WhenSource::Created => "created",
+            },
+            "sortKey": when.sort_key(),
+        })),
+        "excerpt": made.excerpt,
+    })
+    .to_string()
+}
+
 /// The form a tag is compared in (spec §8.1): NFC and lowercase. Never written back.
 pub fn fold_tag(tag: &str) -> String {
     tags::fold(tag)

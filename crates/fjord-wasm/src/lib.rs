@@ -222,6 +222,31 @@ pub fn journal_slug(title: &str) -> Option<String> {
     api::journal_slug(title)
 }
 
+#[wasm_bindgen(js_name = newEntry)]
+pub fn new_entry(
+    id: &str,
+    title: Option<String>,
+    created: &str,
+    date: &str,
+) -> Result<String, JsError> {
+    api::new_entry(id, title, created, date).map_err(thrown)
+}
+
+#[wasm_bindgen(js_name = withDate)]
+pub fn with_date(text: &str, date: Option<String>) -> Option<String> {
+    api::with_date(text, date)
+}
+
+#[wasm_bindgen(js_name = withTags)]
+pub fn with_tags(text: &str, tags_json: &str) -> Result<Option<String>, JsError> {
+    api::with_tags(text, tags_json).map_err(thrown)
+}
+
+#[wasm_bindgen(js_name = journalEntry)]
+pub fn journal_entry(text: &str, path: &str) -> String {
+    api::journal_entry(text, path)
+}
+
 #[wasm_bindgen(js_name = foldTag)]
 pub fn fold_tag(tag: &str) -> String {
     api::fold_tag(tag)

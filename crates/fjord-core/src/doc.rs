@@ -229,6 +229,34 @@ pub fn with_fresh_id(text: &str, id: &str) -> Option<String> {
 /// Returns `None` for a file with no frontmatter to rewrite (to give one, [`promote`] it), and for one whose
 /// frontmatter is there but broken, which is not ours to rewrite.
 pub fn with_title(text: &str, title: Option<&str>) -> Option<String> {
+    with_key(
+        text,
+        key::TITLE,
+        title.map(|title| Value::String(title.to_string())),
+    )
+}
+
+/// A Doc's text with its `date` set, or taken away with `None`, every other key and the body as they were. Spec §8.1: `date` is
+/// what an entry is about, and changing it never moves the file. `None` as [`with_title`] gives it. The date is written as given;
+/// whether it is one is [`crate::scalar::is_entry_date`]'s to say, before.
+pub fn with_date(text: &str, date: Option<&str>) -> Option<String> {
+    with_key(
+        text,
+        key::DATE,
+        date.map(|date| Value::String(date.to_string())),
+    )
+}
+
+/// A Doc's text with its `tags` set, as written and in this order, or taken away when there are none. Spec §8.1. `None` as
+/// [`with_title`] gives it.
+pub fn with_tags(text: &str, tags: &[String]) -> Option<String> {
+    let value = (!tags.is_empty())
+        .then(|| Value::Sequence(tags.iter().cloned().map(Value::String).collect()));
+    with_key(text, key::TAGS, value)
+}
+
+/// The header of `text` with one key set (where it was, or at the end) or taken away, and nothing else changed.
+fn with_key(text: &str, name: &str, value: Option<Value>) -> Option<String> {
     let (frontmatter, body_offset) = match parse(text) {
         Parse::Present {
             frontmatter,
@@ -238,13 +266,13 @@ pub fn with_title(text: &str, title: Option<&str>) -> Option<String> {
     };
 
     let mut raw = frontmatter.raw().clone();
-    match title {
-        Some(title) => {
-            raw.insert(key::TITLE.to_string(), Value::String(title.to_string()));
+    match value {
+        Some(value) => {
+            raw.insert(name.to_string(), value);
         }
         // `shift_remove` keeps the order of the keys that are left.
         None => {
-            raw.shift_remove(key::TITLE);
+            raw.shift_remove(name);
         }
     }
 
@@ -403,6 +431,34 @@ fn parse_mapping(yaml: &str, body_offset: usize) -> Parse {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_date_and_tags_are_set_and_taken_away_with_nothing_else_changed() {
+        let text = "---\nzeta: 1\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\n---\n# Body\n";
+        let dated = with_date(text, Some("2026-11-02T08:14:00+05:30")).unwrap_or_default();
+        assert!(
+            dated.starts_with("---\nzeta: 1\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\ndate: "),
+            "{dated}"
+        );
+        assert!(dated.ends_with("---\n# Body\n"));
+        let tagged = with_tags(&dated, &["Work".to_string(), "project/fjord".to_string()])
+            .unwrap_or_default();
+        match parse(&tagged) {
+            Parse::Present { frontmatter, .. } => assert_eq!(
+                frontmatter.get(key::TAGS),
+                Some(&Value::Sequence(vec![
+                    Value::String("Work".into()),
+                    Value::String("project/fjord".into())
+                ]))
+            ),
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(
+            with_date(&with_tags(&tagged, &[]).unwrap_or_default(), None).as_deref(),
+            Some(text)
+        );
+        assert_eq!(with_date("no header\n", Some("2026-11-02")), None);
+    }
 
     const DOC: &str = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb7h\ntitle: Welcome\ncreated: 2026-10-16T09:34:00Z\ntags: [fjord]\nfjord:\n  schema: 1\n---\n\n# Welcome\n";
 

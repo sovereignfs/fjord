@@ -132,3 +132,17 @@ test("a kind is changed with everything else kept, and its rules are the format'
   assert.equal(wasm.kindRule("ssg", "[true]"), "E112");
   assert.equal(wasm.kindRule("drive", "[]"), undefined);
 });
+
+test("an entry is written, re-dated, tagged and summarised by the format module", () => {
+  const text = wasm.newEntry("01jagc4k7pt8y3wqnmzv5xrb9c", "Morning run", "2026-11-01T19:00:00Z", "2026-11-02T00:30:00+05:30");
+  assert.match(text, /^---\nid: 01jagc4k7pt8y3wqnmzv5xrb9c\ntitle: Morning run\ncreated: "2026-11-01T19:00:00Z"\ndate: "2026-11-02T00:30:00\+05:30"\n---\n\n# Morning run\n$/);
+  assert.equal(wasm.newEntry("01jagc4k7pt8y3wqnmzv5xrb9c", undefined, "2026-11-01T19:00:00Z", "2026-11-02").endsWith("---\n\n"), true);
+  const tagged = wasm.withTags(wasm.withDate(text, "2026-11-01T23:00:00+05:30"), JSON.stringify(["Health", "running"]));
+  const summary = JSON.parse(wasm.journalEntry(`${tagged}Five kilometres.\n`, "2026/11/02/0030-morning-run.md"));
+  assert.equal(summary.title, "Morning run");
+  assert.deepEqual(summary.tags, ["Health", "running"]);
+  assert.deepEqual(summary.when, { day: "2026-11-01", time: "23:00", source: "date", sortKey: "2026-11-01T23:00" });
+  assert.equal(summary.excerpt, "Five kilometres.");
+  assert.equal(summary.dateInvalid, false);
+  assert.equal(wasm.withDate("no header\n", "2026-11-02"), undefined);
+});
