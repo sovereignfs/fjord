@@ -111,7 +111,7 @@ A module per kind, behind one interface: entry view, scaffold, content model, ac
   - A kind the format does not define but a module registers (a newer kind, or a test's stand-in) is presented by that module. A defined kind the format presents as a drive (an `ssg` with an unknown engine) is a drive whatever is registered.
   - *Show files* is `?view=files` on the same page, so no route was added.
   - The design moved into `DESIGN.md` §8, "Repository kinds", with a decision-log row.
-  - **Tested:** `registry.test.tsx`. **Not run here:** the e2e suite.
+  - **Tested:** `registry.test.tsx`, and in a browser by `e2e/kinds.open.spec.ts` (every kind can be shown as files and back). The browser suite passes in full (162 tests).
 ### 3a.2 Drive as a kind
 
 **Status:** ✅ Done
@@ -125,7 +125,7 @@ Today's vault list and folder browser become the `drive` module's entry view, wi
 - **Done as:**
   - `src/kinds/drive.tsx`: the vault list, *Add a vault* and the top of the default vault, moved out of `RepositoryView` unchanged. `RepositoryView` now shows whatever entry view it is given, and the link between a kind and its files.
   - Committed with 3a.1, since the registry falls back to this module.
-  - The browse, connection, access and format unit tests pass unchanged. The e2e suite was not run in this session.
+  - The browse, connection, access and format unit tests pass unchanged, and so does the whole browser suite (`pnpm e2e`, 162 tests), which opens existing repositories as drives.
 ### 3a.3 Choosing a kind
 
 **Status:** ✅ Done
@@ -169,7 +169,7 @@ When a repository that is not a Fjord repository is set up, offer a kind: drive 
     - `entries.test.ts`: the local day across UTC's, and the numbering.
     - `seal.test.ts`: the encrypted entry is flat, and its date and title are only in the ciphertext.
     - `http.test.ts` and `access.test.ts`: who may call, and the shape of the request.
-  - The timeline itself, and a moved entry keeping its place, are 3b.2's.
+  - The timeline itself, and a moved entry keeping its place, are 3b.2's. In a browser (`e2e/kinds.open.spec.ts`): a new entry is made in the dated folder of the browser's own day, with a `date` that keeps its offset.
 ### 3b.2 Timeline
 
 **Status:** ✅ Done
@@ -190,6 +190,7 @@ The journal's entry view: entries newest first, grouped by day, with their title
   - **Tested:**
     - `timeline.test.ts`: on each database leg, the order, the date beating the path, and that a second and third page of 120 entries read no entry again.
     - `encrypted-timeline.test.ts`: the privacy test, which records every request and finds only GETs of identifiers, with no date, title or tag.
+  - **A bug the browser showed and the unit tests did not:** a site's post, which has no `# heading`, was listed under its file name, because the summary took `fjord-core`'s `implied_title` (heading, then name) and never looked at the header's own `title` first (spec §8.2). Fixed in `journal::summary` with a test that has no heading, and `journal_entry` rows now carry a version (`SUMMARY_VERSION`), so rows made by another version of the summary are read again and not believed.
   - **Left out:** a timeline of a repository whose listing the host cuts short. The page says so and offers its files. The browser's index is not cached between visits; the privacy rule comes first (workstream, Risks).
 ### 3b.3 Tags
 
@@ -250,6 +251,7 @@ The `ssg` module's entry view: the site's posts, and for Astro its pages, with t
     - the posts are the journal's timeline code (`Timeline`), with a Draft badge, since a post has a `date`, tags and a title like an entry.
   - **The tag rule** is on the header route: `tagProblem` reads the repository's engine and refuses with the engine's words (`bad_tag`), for any note of that site.
   - **Tested:**
+    - `e2e/kinds.open.spec.ts`, in a browser: a repository that is not a Fjord repository set up as an Astro site, a draft post made, the host's build shown with the site's address, and on a Jekyll site a tag with a space refused with the engine's reason;
     - `posts.test.ts`: both engines, the writer's day, the numbering, and the vault checks;
     - `http.test.ts` and `access.test.ts`: who may call, and the refused tag;
     - `setup-kinds.cli.test.ts`: a post made in the browser in a site set up in the browser passes the real `fjord verify --strict`.

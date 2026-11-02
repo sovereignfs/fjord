@@ -122,6 +122,16 @@ describe.skipIf(!available)(`a plaintext journal's timeline (${leg})`, () => {
     ]);
   });
 
+  it("reads an entry again when what is stored was made by another version of the summary", async () => {
+    const host = journal({ "journal/2026/11/02/0800.md": "---\ntitle: The header's title\ndate: 2026-11-02\n---\n\nNo heading.\n" });
+    // A row as an older summary left it: the right blob and path, the file name for a title.
+    const read = await readRepository({ provider: host, cache: new TreeCache(database), format: fjord() }, { id: 1, ref: REF, branch: "main" });
+    const [path, blob] = [...read.blobs].find(([p]) => p.endsWith("0800.md"))!;
+    await dbRun(database, sql`INSERT INTO ${table()} (connection_id, path, blob, summary, indexed_at) VALUES (1, ${path}, ${blob}, ${JSON.stringify({ docId: null, title: "0800", date: null, dateInvalid: false, tags: [], when: null, excerpt: "", draft: false })}, 1)`);
+    const timeline = await timelineOf(host);
+    expect(timeline.days.flatMap((day) => day.entries.map((e) => e.title))).toEqual(["The header's title"]);
+  });
+
   it("keeps both spellings as written", () => {
     expect(tagCounts(fjord(), [{ tags: ["Work", "WORK"] }, { tags: ["work"] }])).toEqual([{ tag: "Work", count: 2 }]);
   });

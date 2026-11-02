@@ -13,6 +13,12 @@ import type { JournalEntrySummary } from "../format/types";
 const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.journalEntry : sqliteSchema.journalEntry);
 const BATCH = 200;
 
+/**
+ * Which version of `fjord-core`'s summary a stored row is of. A row is by blob, which never changes, but what is made of the blob does when the
+ * summary does (it once ignored the header's `title`), so a row of another version is read again and not believed. Raise it when `journal::summary` changes.
+ */
+export const SUMMARY_VERSION = 1;
+
 export interface EntryKey {
   path: string;
   blob: string;
@@ -35,7 +41,8 @@ export class JournalIndex {
       const key = keyOf(row);
       if (!wanted.has(key)) continue;
       try {
-        found.set(key, JSON.parse(row.summary) as JournalEntrySummary);
+        const stored = JSON.parse(row.summary) as { v?: number; summary?: JournalEntrySummary };
+        if (stored.v === SUMMARY_VERSION && stored.summary) found.set(key, stored.summary);
       } catch {
         // A row that is not what this version writes is read again.
       }
@@ -47,7 +54,7 @@ export class JournalIndex {
   async put(connectionId: number, entries: (EntryKey & { summary: JournalEntrySummary })[]): Promise<void> {
     const at = this.now();
     for (let start = 0; start < entries.length; start += BATCH) {
-      const rows = entries.slice(start, start + BATCH).map((entry) => sql`(${connectionId}, ${entry.path}, ${entry.blob}, ${JSON.stringify(entry.summary)}, ${at})`);
+      const rows = entries.slice(start, start + BATCH).map((entry) => sql`(${connectionId}, ${entry.path}, ${entry.blob}, ${JSON.stringify({ v: SUMMARY_VERSION, summary: entry.summary })}, ${at})`);
       await dbRun(
         this.database,
         sql`INSERT INTO ${table(this.database)} (connection_id, path, blob, summary, indexed_at) VALUES ${sql.join(rows, sql`, `)}
