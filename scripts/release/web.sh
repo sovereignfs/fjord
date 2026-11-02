@@ -130,7 +130,7 @@ c_gates() {
 }
 
 c_verify() {
-  local v=$1 tag first image
+  local v=$1 tag first image page owner token index platforms
   tag=$(tag_of "$v")
   need gh
   need jq
@@ -141,22 +141,31 @@ c_verify() {
 
   # The notes on the page are the changelog's section, which the workflow copied;
   # its first line is enough to tell it from a generic or empty page.
-  first=$(section_body "$v" | sed '/./,$!d' | head -1)
+  # Neither pipe is cut short (`head -1`, `grep -q`): the writer would die of SIGPIPE, and `pipefail`
+  # would call that a failure of a long page.
+  first=$(section_body "$v" | sed '/./,$!d' | sed -n 1p)
   [ -n "$first" ] || die "$C_CHANGELOG has no notes for $v"
-  jq -r .body "$WORK/release.json" | grep -qF -- "$first" ||
+  page=$(jq -r .body "$WORK/release.json")
+  grep -qF -- "$first" <<<"$page" ||
     die "the release page does not carry the changelog notes for $v"
   ok "the release page carries the changelog notes"
 
-  # The image is the release's real artifact. It is a warning where it cannot be
-  # looked at (no docker, or a package that is private and a login that cannot read it):
-  # the workflow already pulled it and brought it up before publishing the page.
-  image="ghcr.io/$(gh repo view --json owner --jq .owner.login | tr '[:upper:]' '[:lower:]')/fjord-web:$v"
-  if command -v docker >/dev/null 2>&1 && docker buildx imagetools inspect "$image" >"$WORK/image.txt" 2>&1; then
-    for platform in linux/amd64 linux/arm64; do
-      grep -qF "$platform" "$WORK/image.txt" || die "the image $image has no $platform"
-    done
+  # The image is the release's real artifact. Asked of the registry directly, anonymously and with a time
+  # limit (a `docker` call can wait on a credential helper for ever): a public package answers, and a
+  # private one does not, which is a warning and not a failure, because the workflow itself pulled the
+  # image by digest and brought it up before it published the page.
+  owner=$(gh repo view --json owner --jq .owner.login | tr '[:upper:]' '[:lower:]')
+  image="ghcr.io/$owner/fjord-web:$v"
+  platforms=""
+  if token=$(curl -fsS --max-time 20 "https://ghcr.io/token?scope=repository:$owner/fjord-web:pull" 2>/dev/null | jq -r '.token // empty') && [ -n "$token" ] &&
+    index=$(curl -fsS --max-time 20 -H "Authorization: Bearer $token" -H "Accept: application/vnd.oci.image.index.v1+json" "https://ghcr.io/v2/$owner/fjord-web/manifests/$v" 2>/dev/null); then
+    platforms=$(jq -r '[.manifests[]?.platform | select(.architecture != "unknown") | "\(.os)/\(.architecture)"] | sort | join(",")' <<<"$index")
+  fi
+  if [ "$platforms" = "linux/amd64,linux/arm64" ]; then
     ok "the image $image is published for linux/amd64 and linux/arm64"
+  elif [ -n "$platforms" ]; then
+    die "the image $image is published for $platforms, and must be for linux/amd64 and linux/arm64"
   else
-    warn "could not look at $image: if it is private, make the package public (GitHub, Packages, fjord-web, Package settings); otherwise check the workflow run"
+    warn "could not look at $image: if the package is private, make it public (GitHub, Packages, fjord-web, Package settings); otherwise check the workflow run"
   fi
 }

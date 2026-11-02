@@ -196,7 +196,8 @@ c_verify() {
   [ -z "$missing" ] || die "assets missing from the release: $(echo "$missing" | tr '\n' ' ')"
   ok "all $(wc -l <"$WORK/expected" | tr -d ' ') expected assets are present"
 
-  jq -r .body "$WORK/release.json" | grep -q '^## Release Notes' ||
+  page=$(jq -r .body "$WORK/release.json")
+  grep -q '^## Release Notes' <<<"$page" ||
     die "the release page has generic notes: dist found no section for $v in $C_CHANGELOG"
   ok "the release page carries the changelog notes"
 
