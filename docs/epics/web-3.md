@@ -217,7 +217,7 @@ A tag index shared by every kind, built where the timeline index is and under th
 
 ### 3c.1 Site scaffold
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0001, Sites; Research 0001, *What both engines need* and *Recommendation*
 
@@ -225,6 +225,12 @@ Opens with a spike that settles every **to confirm** of Research 0001 against th
 
 **Accepts when:** each scaffold builds with its engine's own tools on a clean machine (in CI or recorded here) and the built site contains neither manifest; each passes `fjord verify`.
 
+- **Done as:**
+  - **The spike** is written up in Research 0001 ("Confirmed by building"). Every **to confirm** was settled by building both scaffolds, and none changes the approach: both engines read their content from a root vault. The leg 4 condition in the workstream ("Do not proceed if an engine cannot read its content from a root vault") does not hold.
+  - **One defect found and fixed:** Jekyll posts had no layout, so `_config.yml` has `defaults` giving posts the `post` layout. `a_jekyll_site_keeps_the_manifests_out_and_lays_its_posts_out` (`kinds.rs`) holds that and the `exclude` lines in place. The exclusion was seen to be needed: without it Jekyll copies `fjord.json`, the vault manifest and the README into `_site/`.
+  - **The check is a job of its own**, not in the Rust matrix: `scripts/check-site-scaffolds.sh` builds each scaffold with a draft and an offset-dated post and checks the output, and `.github/workflows/sites-ci.yml` runs it when a template or `scaffold.rs` changes, and weekly. Run on 2026-11-02 here: Astro 5.18.2 and Jekyll 4.4.1, both pass. **Not run: the workflow on GitHub's runners**, which first runs when this is pushed.
+  - **Known and left to the site's owner:** the address of a Jekyll post uses the build machine's day. Fjord sets no `timezone`.
+  - **Not done:** the host's usual publishing workflow (the optional part of the task). Publishing is the host's (spec §12), and a workflow file for a host this document has not tested is not something to write blind.
 ### 3c.2 Content editor
 
 **Status:** 📋 Planned

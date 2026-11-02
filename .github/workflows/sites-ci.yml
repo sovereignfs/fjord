@@ -1,0 +1,62 @@
+# Continuous integration for the sites Fjord scaffolds (ROADMAP web 3c.1, Research 0001).
+#
+# `fjord init --kind ssg` writes an Astro or a Jekyll project around a Fjord vault. That a scaffold really builds with its
+# engine's own tools, and that its built site holds the posts and neither of Fjord's manifests, can only be known by building it,
+# which needs Node and Ruby and not the Rust matrix. So this has a workflow of its own (CLAUDE.md § Adding a component), and
+# runs only when a scaffold, the code that writes it, or this check changes. The engines move: it also runs weekly, so a new
+# release of either cannot break the scaffold unnoticed.
+name: Sites CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "crates/fjord-core/templates/**"
+      - "crates/fjord-core/src/scaffold.rs"
+      - "scripts/check-site-scaffolds.sh"
+      - ".github/workflows/sites-ci.yml"
+  pull_request:
+    branches: [main]
+    # `ready_for_review` is how a draft starts running CI, and `labeled` and `unlabeled` are how `skip-ci` takes effect.
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    paths:
+      - "crates/fjord-core/templates/**"
+      - "crates/fjord-core/src/scaffold.rs"
+      - "scripts/check-site-scaffolds.sh"
+      - ".github/workflows/sites-ci.yml"
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-sites:
+    name: build each engine's scaffold
+    runs-on: ubuntu-24.04
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.draft == false &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-ci'))
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Set up Ruby
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ruby-full build-essential
+          ruby --version
+
+      - name: Build the CLI
+        run: cargo build -p fjord-cli
+
+      - name: Build and check both scaffolds
+        run: scripts/check-site-scaffolds.sh target/debug/fjord

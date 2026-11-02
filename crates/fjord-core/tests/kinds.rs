@@ -324,3 +324,34 @@ fn a_kind_is_changed_with_everything_else_kept() {
     let keys: Vec<&str> = site.raw().keys().map(String::as_str).collect();
     assert_eq!(&keys[..5], ["fjord", "id", "name", "createdAt", "wiki"]);
 }
+
+#[test]
+fn a_jekyll_site_keeps_the_manifests_out_and_lays_its_posts_out() {
+    // Found by building the scaffold (Research 0001, 3c.1): without `exclude` Jekyll copies fjord.json, the vault's manifest and the
+    // README into the built site, and without `defaults` a post is a bare fragment with no layout. A real build is
+    // scripts/check-site-scaffolds.sh; this keeps the two lines from being edited out unseen.
+    let plan = scaffold::plan_kind_with(
+        &settings(KindChoice::Ssg {
+            engine: SiteEngine::Jekyll,
+        }),
+        &origin(),
+    );
+    let config = plan
+        .files
+        .iter()
+        .find(|f| f.path == "_config.yml")
+        .expect("config");
+    let fjord_core::yaml::Read::Mapping(config) = fjord_core::yaml::read_mapping(&config.contents)
+    else {
+        panic!("_config.yml is not YAML");
+    };
+    assert_eq!(config["collections_dir"].as_str(), Some("content"));
+    let excluded = format!("{:?}", config["exclude"]);
+    for hidden in ["fjord.json", "content/fjord.vault.json", "README.md"] {
+        assert!(excluded.contains(hidden), "{hidden} is built into the site");
+    }
+    assert!(
+        format!("{:?}", config["defaults"]).contains("post"),
+        "posts have no layout"
+    );
+}

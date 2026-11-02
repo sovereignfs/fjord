@@ -81,6 +81,27 @@ is for the spike that opens task 3c.1.
 So the content model of the `ssg` module is per engine, and for Jekyll the path is derived from `date` and the slug, as for a
 plaintext journal, but here it is the engine's rule and not only a convention.
 
+### Confirmed by building (task 3c.1, 2026-11-02)
+
+The scaffolds were built with their engines' own tools, from `fjord init --kind ssg`, on Astro 5.18.2 (Node 24) and Jekyll 4.4.1
+(Ruby 4.0). `scripts/check-site-scaffolds.sh` repeats it (CI: `sites-ci.yml`). Each **to confirm** above, in order:
+
+| Was | Found |
+| --- | --- |
+| Astro 1: `glob()` with a `base` outside `src/` | **Works.** `base: "./content/posts"` loads from a root vault, with a `**/*.md` pattern that leaves `fjord.vault.json` alone. |
+| Astro 3: schemas are not strict | **Confirmed.** A post with Fjord's `id` builds; the key is dropped from the parsed data. A post with no `id` builds too. |
+| Astro 4: a frontmatter `id` does not override the entry's | **Confirmed.** The entry id is still the file name (`/posts/welcome/`). |
+| Astro 5: nothing outside `src/` and `public/` is served | **Confirmed.** `dist/` holds the pages only. |
+| Dates | `z.coerce.date()` reads `2026-11-02T00:30:00+05:30` as the instant 19:00Z, and `2026-11-01` as a day. A draft (`draft: true`) is left out by the scaffold's own filter. |
+| Jekyll 2: an RFC 3339 `date` | **Read.** `2026-11-02T00:30:00+05:30` is the right instant. **But the post's address uses the build machine's day**, not the writer's: that post is at `/2026/11/01/`, though it is the 2nd where it was written. Setting `timezone:` in `_config.yml` is the site owner's. Fjord does not set one. |
+| Jekyll 3: a tag list | **Read as a list.** |
+| Jekyll 4: `page.id` clash | **No clash.** A post with Fjord's `id` builds. |
+| Jekyll 5: manifests copied | **They are, without `exclude`.** `fjord.json`, `content/fjord.vault.json` and `README.md` all land in `_site/`. The scaffold's `exclude` is needed, and keeps them out. |
+
+What the build found that reading could not: **a Jekyll post is a bare fragment with no layout** unless something gives it one. A post
+written in Fjord has no `layout` key, so the scaffold's `_config.yml` now has a `defaults` entry giving every post the `post` layout.
+A draft in `content/_drafts/` is not built, as expected. A post with no `date` takes the one in its name.
+
 ### Prior art
 
 | Tool | How it works | Learn from it | Do not copy |
