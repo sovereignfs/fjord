@@ -23,11 +23,11 @@ use fjord_core::container;
 use fjord_core::crypto;
 use fjord_core::doc::{self, Parse};
 use fjord_core::listing::{self, FileKind, ListedFile};
-use fjord_core::manifest::{field, Manifest, Vaults};
+use fjord_core::manifest::{field, Kind, KindField, Manifest, Vaults};
 use fjord_core::merge;
 use fjord_core::naming::{self, LocalMinute};
-use fjord_core::scaffold::{self, FileChange, Origin, Setup};
-use fjord_core::{path, scalar};
+use fjord_core::scaffold::{self, FileChange, KindChoice, KindSettings, Origin, Setup, SiteEngine};
+use fjord_core::{journal, path, scalar, tags};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
 
@@ -148,10 +148,15 @@ fn failed(error: String) -> String {
     json!({ "ok": false, "error": error }).to_string()
 }
 
-/// `fjord.json`, read: `{ "ok": true, "version", "id", "name", "createdAt", "vaultsState", "vaults":
-/// [{"path", "id"}], "raw" }`, where `raw` is the whole manifest as written (what a rewrite must
-/// preserve, spec §10.1) and `vaultsState` is `entries`, `absent` or `notAnArray`. Or `{ "ok": false,
-/// "error" }` when it is not a JSON object. Spec §3.
+/// `fjord.json`, read: `{ "ok": true, "version", "id", "name", "createdAt", "kind", "declaredKind",
+/// "ssgEngine", "vaultsState", "vaults": [{"path", "id"}], "raw" }`, where `raw` is the whole manifest as
+/// written (what a rewrite must preserve, spec §10.1) and `vaultsState` is `entries`, `absent` or
+/// `notAnArray`. Or `{ "ok": false, "error" }` when it is not a JSON object. Spec §3.
+///
+/// `kind` is the kind to present the repository as (spec §3.1): `drive`, `journal` or `ssg`, and
+/// `drive` for a kind, or an `ssg` engine, this build does not know. `declaredKind` is what `fjord.json`
+/// says, as written, or `null` when it says nothing that is text, and `ssgEngine` the `ssg.engine` text
+/// or `null`.
 pub fn describe_repository_manifest(text: &str) -> String {
     let manifest = match parse_manifest(text) {
         Ok(manifest) => manifest,
@@ -174,6 +179,12 @@ pub fn describe_repository_manifest(text: &str) -> String {
         "id": manifest.string(field::ID),
         "name": manifest.string(field::NAME),
         "createdAt": manifest.string(field::CREATED_AT),
+        "kind": manifest.presented_kind().as_str(),
+        "declaredKind": match manifest.kind() {
+            KindField::Declared(kind) => Some(kind.as_str().to_string()),
+            KindField::Absent | KindField::NotAString => None,
+        },
+        "ssgEngine": manifest.ssg_engine().map(|engine| engine.as_str().to_string()),
         "vaultsState": state,
         "vaults": vaults,
         "raw": Value::Object(manifest.raw().clone()),
@@ -358,6 +369,49 @@ pub fn rfc3339_from_unix(seconds: f64) -> Option<String> {
     scalar::rfc3339_utc_from_unix(seconds as i64)
 }
 
+/// Whether `text` is a `date` as spec §8.1 defines one: an RFC 3339 date-time with any offset, or a
+/// full-date.
+pub fn is_entry_date(text: &str) -> bool {
+    scalar::is_entry_date(text)
+}
+
+/// Seconds since the Unix epoch as a `date` at `offset_minutes` east of UTC (spec §8.1), or `None`. A page
+/// passes `Date.now() / 1000` and `-new Date().getTimezoneOffset()`.
+pub fn entry_date_from_unix(seconds: f64, offset_minutes: f64) -> Option<String> {
+    if !seconds.is_finite() || !offset_minutes.is_finite() || offset_minutes.fract() != 0.0 {
+        return None;
+    }
+    scalar::rfc3339_from_unix_at_offset(seconds as i64, offset_minutes as i32)
+}
+
+// --- Journals and tags (spec §3.1, §8.1) ----------------------------------------------------------
+
+/// Where a journal's new entry dated `date` goes, relative to the vault: `YYYY/MM/DD/HHMM[-slug].md`, or
+/// at the vault's root in an encrypted journal (spec §11.2). `None` when `date` is not a date-time.
+pub fn journal_entry_path(date: &str, slug: Option<String>, encrypted: bool) -> Option<String> {
+    journal::entry_path(date, slug.as_deref(), journal::Layout::for_vault(encrypted))
+}
+
+/// The slug a title gives an entry's name, or `None` when it gives none.
+pub fn journal_slug(title: &str) -> Option<String> {
+    journal::slug(title)
+}
+
+/// The form a tag is compared in (spec §8.1): NFC and lowercase. Never written back.
+pub fn fold_tag(tag: &str) -> String {
+    tags::fold(tag)
+}
+
+/// Whether two tags are one tag (spec §8.1).
+pub fn same_tag(a: &str, b: &str) -> bool {
+    tags::same(a, b)
+}
+
+/// Whether `tag` is `parent` or nested under it with `/` (spec §8.1).
+pub fn tag_is_under(tag: &str, parent: &str) -> bool {
+    tags::is_under(tag, parent)
+}
+
 // --- Naming new files ---------------------------------------------------------------------------------
 
 /// `["Notes.md", "Archive", …]` read: every entry of a folder, files and directories, with extensions.
@@ -521,6 +575,93 @@ pub fn plan_setup(
         }
         .to_string(),
     )
+}
+
+/// A new repository of a kind (spec §3.1), as `fjord init --kind` makes it: `fjord_core::scaffold::
+/// plan_kind_with`. The options are `{ "repositoryName", "generator", "kind": "drive" | "journal" |
+/// "ssg", "encrypted": bool (a journal; a drive's Private), "engine": "astro" | "jekyll" (a site) }`.
+///
+/// `{ "ok": true, "kind", "files": [{"path", "contents"}], "repositoryId", "vaults": [{"path", "id"}],
+/// "createdAt" }`, or `{ "ok": false, "error": { "code", "message" } }` for a kind or an engine this
+/// build cannot make (`unknown_kind`, `unknown_engine`), or a site asked to be encrypted
+/// (`encrypted_site`).
+pub fn plan_kind(options_json: &str, now_ms: f64, random: &[u8]) -> Result<String, String> {
+    let options: Value = serde_json::from_str(options_json)
+        .map_err(|err| format!("the options are not JSON: {err}"))?;
+    let text = |key: &str| -> Result<String, String> {
+        options
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| format!("the options need a text `{key}`"))
+    };
+    let encrypted = options
+        .get("encrypted")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let refused = |code: &str, message: String| {
+        json!({ "ok": false, "error": { "code": code, "message": message } }).to_string()
+    };
+
+    let kind = text("kind")?;
+    let choice = match Kind::parse(&kind) {
+        Kind::Drive => KindChoice::Drive {
+            encrypt_private: encrypted,
+        },
+        Kind::Journal => KindChoice::Journal { encrypted },
+        Kind::Ssg => {
+            if encrypted {
+                return Ok(refused(
+                    "encrypted_site",
+                    "a site's content cannot be encrypted: it is published".to_string(),
+                ));
+            }
+            let engine = options.get("engine").and_then(Value::as_str).unwrap_or("");
+            match SiteEngine::parse(engine) {
+                Some(engine) => KindChoice::Ssg { engine },
+                None => {
+                    return Ok(refused(
+                        "unknown_engine",
+                        format!("\"{engine}\" is not an engine this build can make a site for"),
+                    ))
+                }
+            }
+        }
+        Kind::Unknown(other) => {
+            return Ok(refused(
+                "unknown_kind",
+                format!("\"{other}\" is not a kind this build can make"),
+            ))
+        }
+    };
+
+    if !now_ms.is_finite() || now_ms < 0.0 {
+        return Err("the time must be milliseconds since the epoch, not negative".to_string());
+    }
+    let origin = Origin::from_entropy(now_ms as u64, random).ok_or_else(|| {
+        format!(
+            "a repository needs {} random bytes and a time that is a date",
+            Origin::ENTROPY_BYTES
+        )
+    })?;
+    let settings = KindSettings {
+        name: text("repositoryName")?,
+        generator: text("generator")?,
+        kind: choice,
+    };
+    let plan = scaffold::plan_kind_with(&settings, &origin);
+    Ok(json!({
+        "ok": true,
+        "kind": kind,
+        "files": plan.files.iter().map(|file| json!({
+            "path": file.path,
+            "contents": file.contents,
+        })).collect::<Vec<_>>(),
+        "repositoryId": plan.repository_id,
+        "vaults": plan.vaults.iter().map(|(path, id)| json!({ "path": path, "id": id })).collect::<Vec<_>>(),
+        "createdAt": plan.created_at,
+    })
+    .to_string())
 }
 
 /// What to add to a Fjord repository for a new vault, plaintext or encrypted (ROADMAP 2d.1): the
@@ -749,6 +890,40 @@ mod tests {
 
     const PLAIN: &str = r#"{"id":"01j8z3k9t2v4w5x6y7z8a9b0c1","name":"Notes","version":1,"createdAt":"2026-01-01T00:00:00Z","fileNaming":"plain","encryption":null}"#;
     const SECRET: &str = r#"{"name":"Secret","encryption":{"tool":"age","recipients":"recipients.txt","suffix":".age","container":"none","armor":false}}"#;
+
+    #[test]
+    fn a_manifest_s_kind_is_presented_and_kept() {
+        let wiki = parsed(&describe_repository_manifest(r#"{"kind":"wiki"}"#));
+        assert_eq!(wiki["kind"], "drive");
+        assert_eq!(wiki["declaredKind"], "wiki");
+        let site = parsed(&describe_repository_manifest(
+            r#"{"kind":"ssg","ssg":{"engine":"jekyll"}}"#,
+        ));
+        assert_eq!(site["kind"], "ssg");
+        assert_eq!(site["ssgEngine"], "jekyll");
+        assert_eq!(
+            parsed(&describe_repository_manifest("{}"))["declaredKind"],
+            Value::Null
+        );
+    }
+
+    #[test]
+    fn a_kind_is_planned_or_refused_with_a_code() {
+        let random = [7u8; Origin::ENTROPY_BYTES];
+        let plan = |options: &str| {
+            parsed(&plan_kind(options, 1_793_559_600_000.0, &random).expect("plan"))
+        };
+        let journal = plan(r#"{"repositoryName":"J","generator":"g","kind":"journal"}"#);
+        assert_eq!(journal["vaults"][0]["path"], "journal");
+        let refused = plan(
+            r#"{"repositoryName":"S","generator":"g","kind":"ssg","engine":"astro","encrypted":true}"#,
+        );
+        assert_eq!(refused["error"]["code"], "encrypted_site");
+        assert!(
+            plan_kind(r#"{"kind":"drive"}"#, 1.0, &random).is_err(),
+            "a name is needed"
+        );
+    }
 
     #[test]
     fn discovery_reports_vaults_files_kinds_and_nested_manifests() {

@@ -7,6 +7,11 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 
 ### Added
 
+- **Repository kinds** (ROADMAP web P12, spec §3.1): `describeRepositoryManifest` reports the `kind` to present a repository as, its
+  `declaredKind` and `ssgEngine`; `planKind` plans a new repository of a kind from `fjord_core::scaffold::plan_kind_with`, as
+  `fjord init --kind` does; `journalEntryPath`, `journalSlug`, `entryDateFromUnix` and `isEntryDate` date and file a journal entry at the
+  writer's offset; `foldTag`, `sameTag` and `tagIsUnder` compare tags (spec §8.1). The fixture suite checks every fixture's kind against
+  what `fjord verify` recorded. 1,385,572 bytes, 522,115 gzipped (from 1,321,125 and 499,067).
 - **`planVault`** (ROADMAP 2d.1): `fjord_core::scaffold::plan_vault`, the files to add for a new vault, plaintext or encrypted, from
   `fjord.json`, the repository's paths and its `.gitattributes`, with the time and randomness the caller supplies. The CLI's `fjord vault add`
   writes from the same planner. Held, by Rust and by the JavaScript suite, to `tests/fixtures/vault.json`. 1,321,125 bytes, 499,067 gzipped.

@@ -33,7 +33,8 @@ from the code **before** vault discovery was moved onto `fjord_core::listing` (R
 `crates/fjord-core/tests/discovery.rs` holds three things to it: the pure function over a bare list of
 paths, the CLI's own filesystem API, and `verify`. It is a recording, not something to regenerate: if a
 change makes it disagree, the change is what needs explaining. Adding a fixture means adding its entry
-(a test checks they are in step).
+(a test checks they are in step). Where a fixture declares a repository kind (spec §3.1), its `verify` entry records it as
+`kind`; an entry without one is a drive.
 
 ## Why some fixtures are not here
 

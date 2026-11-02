@@ -274,6 +274,13 @@ fn verify_counts_and_nests_what_it_did_before() {
             "{name}: nested vaults"
         );
 
+        // A kind is recorded where a fixture declares one; absent is a drive (spec §3.1).
+        assert_eq!(
+            report.repository_kind(),
+            expected["verify"]["kind"].as_str().unwrap_or("drive"),
+            "{name}: kind"
+        );
+
         let wanted = expected["verify"]["vaults"].as_array().expect("vaults");
         assert_eq!(report.vaults.len(), wanted.len(), "{name}: vaults");
         for (summary, expected) in report.vaults.iter().zip(wanted) {
