@@ -184,6 +184,27 @@ export const docIndex = sqliteTable(
 );
 
 /**
+ * What a plaintext journal's timeline shows of each entry (ROADMAP 3b.2): `fjord-core`'s summary of the file (its title, `date`, tags, the
+ * start of its text, when it is about), by the blob it was read at and the path it was read at, since an entry with no `date` is placed by
+ * its path. Derived and disposable, as `tree_cache` is: a blob never changes, so a row is never stale, and one that matches no file of the
+ * head is not shown. Never written for an encrypted journal, whose entries the server cannot read. A disconnected repository's rows go with it.
+ */
+export const journalEntry = sqliteTable(
+  "journal_entry",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    /** Repository-relative, with forward slashes. */
+    path: text("path").notNull(),
+    blob: text("blob").notNull(),
+    /** `fjord-core`'s `journal::summary`, as the module answers it (JSON). */
+    summary: text("summary").notNull(),
+    indexedAt: epochMs("indexed_at").notNull(),
+  },
+  (table) => [uniqueIndex("journal_entry_connection_blob_path_idx").on(table.connectionId, table.blob, table.path)],
+);
+
+/**
  * A document shared with a named account of the instance (DESIGN.md §12, ROADMAP 1c.2): one row per document and account,
  * with the role it has there (`view`, `comment` or `edit`). A document is its connection and its Doc `id` (spec §8.3), not
  * its path, so a share follows the file when it is renamed or moved. `account_id` is better-auth's user id, in the other store,

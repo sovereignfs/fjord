@@ -18,6 +18,7 @@ import { LinkService } from "../sharing/links";
 import { ShareService } from "../sharing/shares";
 import { SealedShareService } from "../sealed/service";
 import { WorkingCopyService } from "../working/service";
+import { JournalIndex } from "../journal/index-store";
 import { DELETED_AUTHOR, DELETED_COMMENT, People } from "./people";
 
 /**
@@ -130,6 +131,7 @@ async function world() {
   await links.create(hers.id, DOC, "view", null, alice.id);
   await sealed.create(hers.id, { path: "x.md", mode: "key", ciphertext: "AAAA", createdBy: alice.id });
   await comments.createThread(hers.id, DOC, ANCHOR, "bob on alice's doc", bob.author);
+  await new JournalIndex(app).put(hers.id, [{ path: "journal/2026/11/02/0814.md", blob: "d".repeat(40), summary: { docId: null, title: "her entry", date: null, dateInvalid: false, tags: ["private"], when: null, excerpt: "hers" } }]);
 
   // Bob's document, shared with her to comment on and edit.
   await shares.set(his.id, DOC, alice.id, "comment", bob.id);
@@ -183,7 +185,7 @@ describe("deleting a person", () => {
 
     expect(await rows(w.alice)).toEqual(GONE);
     expect(await count(app, A().credential, sql`id IN (SELECT credential_id FROM ${A().connection} WHERE account_id = ${w.alice.id})`)).toBe(0);
-    for (const table of [A().workingCopy, A().shareLink, A().sealedShare, A().commentThread, A().treeCache, A().docIndex, A().deletion, A().accountDefault]) {
+    for (const table of [A().workingCopy, A().shareLink, A().sealedShare, A().commentThread, A().treeCache, A().docIndex, A().journalEntry, A().deletion, A().accountDefault]) {
       expect(await count(app, table, sql`connection_id = ${w.hers.id}`), "hers").toBe(0);
     }
     expect(await count(app, A().accountDefault, sql`account_id = ${w.alice.id}`)).toBe(0);
