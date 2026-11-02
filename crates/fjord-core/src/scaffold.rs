@@ -53,6 +53,65 @@ const VAULT_GITIGNORE: &str = include_str!("../templates/vault.gitignore");
 const RECIPIENTS: &str = include_str!("../templates/recipients.txt");
 const WELCOME: &str = include_str!("../templates/welcome.md");
 const SETUP_WELCOME: &str = include_str!("../templates/welcome-setup.md");
+const JOURNAL_README: &str = include_str!("../templates/README-journal.md");
+const SITE_README: &str = include_str!("../templates/README-ssg.md");
+const SITE_WELCOME: &str = include_str!("../templates/ssg/welcome.md");
+const ASTRO_GITIGNORE: &str = include_str!("../templates/gitignore-astro");
+const JEKYLL_GITIGNORE: &str = include_str!("../templates/gitignore-jekyll");
+
+/// The files an engine's site starts with, outside the vault. Spec §2, §3.1; Research 0001.
+const ASTRO_FILES: &[(&str, &str)] = &[
+    (
+        "package.json",
+        include_str!("../templates/ssg/astro/package.json"),
+    ),
+    (
+        "astro.config.mjs",
+        include_str!("../templates/ssg/astro/astro.config.mjs"),
+    ),
+    (
+        "src/content.config.ts",
+        include_str!("../templates/ssg/astro/src/content.config.ts"),
+    ),
+    (
+        "src/layouts/Base.astro",
+        include_str!("../templates/ssg/astro/src/layouts/Base.astro"),
+    ),
+    (
+        "src/pages/index.astro",
+        include_str!("../templates/ssg/astro/src/pages/index.astro"),
+    ),
+    (
+        "src/pages/posts/[...slug].astro",
+        include_str!("../templates/ssg/astro/src/pages/posts/[...slug].astro"),
+    ),
+];
+const JEKYLL_FILES: &[(&str, &str)] = &[
+    ("Gemfile", include_str!("../templates/ssg/jekyll/Gemfile")),
+    (
+        "_config.yml",
+        include_str!("../templates/ssg/jekyll/_config.yml"),
+    ),
+    (
+        "index.html",
+        include_str!("../templates/ssg/jekyll/index.html"),
+    ),
+    (
+        "_layouts/default.html",
+        include_str!("../templates/ssg/jekyll/_layouts/default.html"),
+    ),
+    (
+        "_layouts/post.html",
+        include_str!("../templates/ssg/jekyll/_layouts/post.html"),
+    ),
+];
+
+/// The directory of a new journal's one vault. The scaffold's choice, not the spec's: the vault may be
+/// renamed and is still the journal's (§3.1).
+pub const JOURNAL_VAULT: &str = "journal";
+
+/// The directory of a new site's one vault, which the engine is configured to read.
+pub const SITE_VAULT: &str = "content";
 
 /// What to create.
 #[derive(Debug, Clone)]
@@ -252,6 +311,228 @@ pub fn plan_with(settings: &Settings, origin: &Origin) -> Plan {
             (PRIVATE_VAULT.to_string(), private_id),
         ],
         created_at,
+    }
+}
+
+// --- A repository of a kind (spec §3.1) -----------------------------------------------------------------
+
+/// The engine a new `ssg` repository is built with. Only the engines this revision defines can be made.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SiteEngine {
+    Astro,
+    Jekyll,
+}
+
+impl SiteEngine {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            SiteEngine::Astro => crate::manifest::Engine::ASTRO,
+            SiteEngine::Jekyll => crate::manifest::Engine::JEKYLL,
+        }
+    }
+
+    /// The engine named `value`, if this build can make a site for it.
+    pub fn parse(value: &str) -> Option<Self> {
+        match crate::manifest::Engine::parse(value) {
+            crate::manifest::Engine::Astro => Some(SiteEngine::Astro),
+            crate::manifest::Engine::Jekyll => Some(SiteEngine::Jekyll),
+            crate::manifest::Engine::Unknown(_) => None,
+        }
+    }
+}
+
+/// Which kind of repository to make, and the one choice each kind has.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KindChoice {
+    /// Today's repository: `Public`, and `Private`, encrypted or not. No `kind` is written, so a drive
+    /// made now is the same bytes as one made before kinds existed.
+    Drive { encrypt_private: bool },
+    /// One vault, `journal/`. Encrypted, it names its files by id inside a tar container, so that its
+    /// entries can sit at the vault's root with no name or date showing (§7.2, §11.2).
+    Journal { encrypted: bool },
+    /// One plaintext vault, `content/`, and the engine's own files around it.
+    Ssg { engine: SiteEngine },
+}
+
+/// What to create: [`Settings`] with a kind.
+#[derive(Debug, Clone)]
+pub struct KindSettings {
+    /// The repository's display label. Spec §3.
+    pub name: String,
+    /// Tool and version, recorded in `generator`. Spec §3. See [`Settings::generator`].
+    pub generator: String,
+    pub kind: KindChoice,
+}
+
+/// Decide what a new repository of a kind contains, with the clock and the identifiers of this moment.
+/// See [`plan_kind_with`] for the pure form.
+#[cfg(feature = "native")]
+pub fn plan_kind(settings: &KindSettings) -> Plan {
+    let origin = Origin {
+        created_at: crate::scalar::now_rfc3339_utc(),
+        repository_id: crate::scalar::new_ulid(),
+        vault_id: crate::scalar::new_ulid(),
+        welcome_id: crate::scalar::new_ulid(),
+        private_vault_id: crate::scalar::new_ulid(),
+    };
+    plan_kind_with(settings, &origin)
+}
+
+/// Decide what a new repository of a kind contains. Pure: the same settings and [`Origin`] give the same
+/// plan. A drive is exactly [`plan_with`]'s.
+pub fn plan_kind_with(settings: &KindSettings, origin: &Origin) -> Plan {
+    match settings.kind {
+        KindChoice::Drive { encrypt_private } => plan_with(
+            &Settings {
+                name: settings.name.clone(),
+                encrypt_private,
+                generator: settings.generator.clone(),
+            },
+            origin,
+        ),
+        KindChoice::Journal { encrypted } => plan_journal(settings, origin, encrypted),
+        KindChoice::Ssg { engine } => plan_site(settings, origin, engine),
+    }
+}
+
+fn kind_manifest(
+    settings: &KindSettings,
+    origin: &Origin,
+    kind: &str,
+    kind_settings: Option<serde_json::Value>,
+    vault: &str,
+) -> PlannedFile {
+    // Built field by field, so the order is the spec's (§3, §3.1) whatever the map does.
+    let mut manifest = serde_json::Map::new();
+    manifest.insert(field::FJORD.into(), json!(FORMAT_VERSION));
+    manifest.insert(field::ID.into(), json!(origin.repository_id));
+    manifest.insert(field::NAME.into(), json!(settings.name));
+    manifest.insert(field::CREATED_AT.into(), json!(origin.created_at));
+    manifest.insert(field::GENERATOR.into(), json!(settings.generator));
+    manifest.insert(field::KIND.into(), json!(kind));
+    if let Some(kind_settings) = kind_settings {
+        manifest.insert(kind.into(), kind_settings);
+    }
+    manifest.insert(
+        field::VAULTS.into(),
+        json!([{ field::PATH: vault, field::ID: origin.vault_id }]),
+    );
+    PlannedFile {
+        path: REPOSITORY_MANIFEST.to_string(),
+        contents: pretty(&serde_json::Value::Object(manifest)),
+    }
+}
+
+fn file(path: impl Into<String>, contents: impl Into<String>) -> PlannedFile {
+    PlannedFile {
+        path: path.into(),
+        contents: contents.into(),
+    }
+}
+
+fn plan_journal(settings: &KindSettings, origin: &Origin, encrypted: bool) -> Plan {
+    let mut files = vec![
+        kind_manifest(
+            settings,
+            origin,
+            crate::manifest::Kind::JOURNAL,
+            None,
+            JOURNAL_VAULT,
+        ),
+        file(".gitattributes", GITATTRIBUTES),
+        file(".gitignore", GITIGNORE),
+        file("README.md", JOURNAL_README),
+        file(
+            format!("{JOURNAL_VAULT}/{VAULT_MANIFEST}"),
+            vault_manifest_with(
+                "Journal",
+                &origin.vault_id,
+                &origin.created_at,
+                encrypted,
+                if encrypted { "id" } else { "plain" },
+            ),
+        ),
+    ];
+    // No starter entry: an entry's `date` is in the writer's local time, which only the client that
+    // writes it knows, and an encrypted journal could not hold one in plaintext anyway.
+    if encrypted {
+        files.push(file(
+            format!("{JOURNAL_VAULT}/{CONVENTIONAL_RECIPIENTS_FILE}"),
+            RECIPIENTS,
+        ));
+        files.push(file(format!("{JOURNAL_VAULT}/.gitignore"), VAULT_GITIGNORE));
+    }
+    Plan {
+        files,
+        repository_id: origin.repository_id.clone(),
+        vaults: vec![(JOURNAL_VAULT.to_string(), origin.vault_id.clone())],
+        created_at: origin.created_at.clone(),
+    }
+}
+
+fn plan_site(settings: &KindSettings, origin: &Origin, engine: SiteEngine) -> Plan {
+    let (engine_files, engine_gitignore, posts, build) = match engine {
+        SiteEngine::Astro => (
+            ASTRO_FILES,
+            ASTRO_GITIGNORE,
+            "posts".to_string(),
+            "Build it with Node.js: `npm install`, then `npm run build`; the site is written to `dist/`.",
+        ),
+        SiteEngine::Jekyll => (
+            JEKYLL_FILES,
+            JEKYLL_GITIGNORE,
+            "_posts".to_string(),
+            "Build it with Ruby: `bundle install`, then `bundle exec jekyll build`; the site is written to `_site/`.",
+        ),
+    };
+    let label = match engine {
+        SiteEngine::Astro => "Astro",
+        SiteEngine::Jekyll => "Jekyll",
+    };
+    // Jekyll's rule, not a convention: a post's name is its date and title (Research 0001).
+    let welcome = match engine {
+        SiteEngine::Astro => "welcome.md".to_string(),
+        SiteEngine::Jekyll => format!("{}-welcome.md", origin.created_at.get(..10).unwrap_or("")),
+    };
+    // The name goes into YAML as a JSON string, which YAML reads as a double-quoted scalar, so no name
+    // can break the file.
+    let quoted_name = serde_json::Value::String(settings.name.clone()).to_string();
+
+    let mut files = vec![
+        kind_manifest(
+            settings,
+            origin,
+            crate::manifest::Kind::SSG,
+            Some(json!({ field::ENGINE: engine.as_str() })),
+            SITE_VAULT,
+        ),
+        file(".gitattributes", GITATTRIBUTES),
+        file(".gitignore", format!("{GITIGNORE}{engine_gitignore}")),
+        file(
+            "README.md",
+            SITE_README
+                .replace("{{engine}}", label)
+                .replace("{{build}}", build),
+        ),
+        file(
+            format!("{SITE_VAULT}/{VAULT_MANIFEST}"),
+            vault_manifest("Content", &origin.vault_id, &origin.created_at, false),
+        ),
+        file(
+            format!("{SITE_VAULT}/{posts}/{welcome}"),
+            SITE_WELCOME
+                .replace("{{id}}", &origin.welcome_id)
+                .replace("{{created}}", &origin.created_at),
+        ),
+    ];
+    for (path, contents) in engine_files {
+        files.push(file(*path, contents.replace("{{name}}", &quoted_name)));
+    }
+    Plan {
+        files,
+        repository_id: origin.repository_id.clone(),
+        vaults: vec![(SITE_VAULT.to_string(), origin.vault_id.clone())],
+        created_at: origin.created_at.clone(),
     }
 }
 

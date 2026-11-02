@@ -1,0 +1,5 @@
+
+# The site's build, and its packages. Derived: never committed.
+node_modules/
+dist/
+.astro/

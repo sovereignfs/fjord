@@ -1,0 +1,7 @@
+
+# The site's build. Derived: never committed.
+_site/
+.jekyll-cache/
+.jekyll-metadata
+.bundle/
+vendor/

@@ -158,6 +158,22 @@ pub fn rfc3339_utc_from_unix(seconds: i64) -> Option<String> {
         .ok()
 }
 
+/// A time given as seconds since the Unix epoch, as RFC 3339 at a local offset of `offset_minutes`
+/// east of UTC (`330` for `+05:30`), with whole seconds, or `None` if either cannot be represented.
+///
+/// What a `date` is written as (spec §8.1): the one timestamp that keeps the writer's offset. The pure
+/// subset reads no clock and no time zone, so the caller says both.
+pub fn rfc3339_from_unix_at_offset(seconds: i64, offset_minutes: i32) -> Option<String> {
+    use time::format_description::well_known::Rfc3339;
+
+    let offset = time::UtcOffset::from_whole_seconds(offset_minutes.checked_mul(60)?).ok()?;
+    time::OffsetDateTime::from_unix_timestamp(seconds)
+        .ok()?
+        .to_offset(offset)
+        .format(&Rfc3339)
+        .ok()
+}
+
 /// A filesystem timestamp as RFC 3339 in UTC, or `None` if it predates the
 /// epoch or cannot be represented.
 pub fn rfc3339_utc(at: std::time::SystemTime) -> Option<String> {
@@ -186,6 +202,25 @@ mod tests {
         assert!(is_entry_date("2026-11-01T23:59:59.5-08:00"));
         assert!(is_entry_date("2026-11-02"));
         assert!(is_entry_date("2024-02-29"));
+    }
+
+    #[test]
+    fn a_date_is_written_at_the_writer_s_offset() {
+        // 2026-11-01T19:00:00Z is half past midnight on the 2nd in Colombo.
+        let at = 1_793_559_600;
+        assert_eq!(
+            rfc3339_from_unix_at_offset(at, 330).as_deref(),
+            Some("2026-11-02T00:30:00+05:30")
+        );
+        assert_eq!(
+            rfc3339_from_unix_at_offset(at, 0).as_deref(),
+            Some("2026-11-01T19:00:00Z")
+        );
+        assert_eq!(
+            rfc3339_from_unix_at_offset(at, -480).as_deref(),
+            Some("2026-11-01T11:00:00-08:00")
+        );
+        assert_eq!(rfc3339_from_unix_at_offset(at, 24 * 60), None);
     }
 
     #[test]
