@@ -1,6 +1,7 @@
 import type { RepositoryManifest } from "../format/types";
 import { driveKind } from "./drive";
 import { journalKind } from "./journal";
+import { ssgKind } from "./ssg";
 import type { KindModule } from "./types";
 
 /**
@@ -12,6 +13,7 @@ import type { KindModule } from "./types";
 const modules = new Map<string, KindModule>([
   [driveKind.id, driveKind],
   [journalKind.id, journalKind],
+  [ssgKind.id, ssgKind],
 ]);
 
 /** Add a kind's module. The kinds of this build register themselves where they are defined; a test may register a stand-in. */

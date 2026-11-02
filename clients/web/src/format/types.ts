@@ -186,5 +186,7 @@ export interface JournalEntrySummary {
   /** When it is about, in the writer's own time: from its `date`, else its path, else its `created`; null when none says. */
   when: { day: string; time: string | null; source: "date" | "path" | "created"; sortKey: string } | null;
   excerpt: string;
+  /** Not for the site yet: `draft: true` in its header (Astro), or a path in Jekyll's `_drafts` (spec §3.1). */
+  draft: boolean;
 }
 

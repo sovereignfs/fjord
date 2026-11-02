@@ -88,6 +88,8 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/connections/[id]/files/header", methods: { POST: owner("edit") } },
   // A journal's new entry (3b.1): a file made, as `/files` is.
   { route: "/api/connections/[id]/files/entry", methods: { POST: owner("create") } },
+  // A site's new post (3c.2): a file made, as an entry is.
+  { route: "/api/connections/[id]/files/post", methods: { POST: owner("create") } },
   { route: "/api/connections/[id]/files/delete", methods: { POST: owner("delete") } },
   { route: "/api/connections/[id]/files/move", methods: { POST: owner("move") } },
   { route: "/api/connections/[id]/files/restore", methods: { POST: owner("restore") } },

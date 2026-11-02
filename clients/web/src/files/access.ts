@@ -8,6 +8,7 @@ import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 import type { Deps, JournalRefusal } from "./http";
 import type { EntryResult } from "../journal/entries";
+import type { PostResult, SiteRefusal } from "../site/posts";
 
 /**
  * Whose, and where (ROADMAP 1b.7). `http.ts` has the request's rules; this has the repository's:
@@ -36,6 +37,10 @@ export interface AccessDeps {
   setDate: (header: string, date: string | null) => string | undefined | "bad_date";
   /** A header with its `tags` set as written; undefined for one that cannot be rewritten. */
   setTags: (header: string, tags: string[]) => string | undefined;
+  /** Why these tags cannot be the tags of a file of this connection's repository, in words for a person, or undefined (Jekyll reads a tag with a space as two). */
+  tagProblem: (accountId: string, id: number, tags: string[]) => Promise<string | undefined>;
+  /** Make a post in the connection's site, if it is one a post can be made in here: or why not. Only called for a connection that is the caller's. */
+  post: (accountId: string, id: number, input: { at: number; offsetMinutes: number; title: string; draft: boolean; author: Identity }) => Promise<PostResult | { ok: false; reason: SiteRefusal }>;
   /** Make a journal entry in the connection's journal, if it is one an entry can be written to here: or why not. Only called for a connection that is the caller's. */
   entry: (accountId: string, id: number, input: { at: number; offsetMinutes: number; title: string; author: Identity }) => Promise<EntryResult | { ok: false; reason: JournalRefusal }>;
   /** Make the file, through the connection's own token. Only called for a vault that is `ok` of a connection that is the caller's. */
@@ -78,7 +83,7 @@ async function changeable(deps: AccessDeps, accountId: string, id: number, vault
  */
 const isPayload = (path: string) => /\.age$/i.test(path);
 
-export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncrypted" | "transfer" | "delete" | "restore" | "header" | "move" | "entry"> {
+export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncrypted" | "transfer" | "delete" | "restore" | "header" | "move" | "entry" | "post"> {
   const formOf = (vault: { encrypted: { idNamed: boolean } | undefined }): VaultForm => (vault.encrypted ? { form: "encrypted", naming: vault.encrypted.idNamed ? "id" : "plain" } : { form: "plaintext" });
   return {
     async transfer(accountId, id, input) {
@@ -105,9 +110,18 @@ export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncr
 
     async header(accountId, id, input) {
       if (!(await deps.owns(accountId, id))) return { found: false };
+      if ("tags" in input) {
+        const problem = await deps.tagProblem(accountId, id, input.tags);
+        if (problem !== undefined) return { found: true, result: { ok: false, reason: "bad_tag", message: problem } };
+      }
       const header = "title" in input ? deps.setTitle(input.header, input.title) : "date" in input ? deps.setDate(input.header, input.date) : deps.setTags(input.header, input.tags);
       if (header === "bad_date") return { found: true, result: { ok: false, reason: "bad_date" } };
       return { found: true, result: header === undefined ? { ok: false, reason: "unreadable" } : { ok: true, header } };
+    },
+
+    async post(accountId, id, input) {
+      if (!(await deps.owns(accountId, id))) return { found: false };
+      return { found: true, result: await deps.post(accountId, id, input) };
     },
 
     async entry(accountId, id, input) {

@@ -4,7 +4,7 @@ import { ProviderError } from "../providers/errors";
 import type { Caller } from "../working/http";
 import { type CreateResult, MAX_TITLE_CHARS, type VaultRefusal } from "./create";
 import type { DeleteResult } from "./delete";
-import { type Deps, handleCreate, handleCreateEncrypted, handleDelete, handleEntry, handleTransfer, handleHeader, handleMove, handleRestore } from "./http";
+import { type Deps, handleCreate, handleCreateEncrypted, handleDelete, handleEntry, handlePost, handleTransfer, handleHeader, handleMove, handleRestore } from "./http";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 
@@ -36,7 +36,11 @@ function stub() {
     found: true,
     result: { ok: true, path: "journal/2026/11/02/0100.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" },
   }));
-  const header = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; header: string } | { ok: false; reason: "unreadable" | "bad_date" } }> => ({
+  const post = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; path: string; commit: string; date: string } | { ok: false; reason: "not_a_site" | "unknown_engine" | "bad_date" } }> => ({
+    found: true,
+    result: { ok: true, path: "content/_posts/2026-11-02-hello.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" },
+  }));
+  const header = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; header: string } | { ok: false; reason: "unreadable" | "bad_date" } | { ok: false; reason: "bad_tag"; message: string } }> => ({
     found: true,
     result: { ok: true, header: "---\ntitle: New\n---\n" },
   }));
@@ -53,13 +57,14 @@ function stub() {
     createEncrypted: (accountId, id, input) => createEncrypted(accountId, id, input) as ReturnType<Deps["createEncrypted"]>,
     header: (accountId, id, input) => header(accountId, id, input),
     entry: (accountId, id, input) => entry(accountId, id, input) as ReturnType<Deps["entry"]>,
+    post: (accountId, id, input) => post(accountId, id, input) as ReturnType<Deps["post"]>,
     move: (accountId, id, input) => move(accountId, id, input),
     create: (accountId, id, input) => create(accountId, id, input),
     delete: (accountId, id, input) => remove(accountId, id, input),
     restore: (accountId, id, input) => restore(accountId, id, input),
     origin: ORIGIN,
   };
-  return { deps, create, createEncrypted, transfer, remove, restore, header, move, entry };
+  return { deps, create, createEncrypted, transfer, remove, restore, header, move, entry, post };
 }
 
 const post = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
@@ -798,3 +803,53 @@ describe("a journal entry, and a header's date and tags (ROADMAP 3b.1, 3b.3)", (
     expect((await body(refused)).error.code).toBe("bad_date");
   });
 });
+
+describe("a site's post, and a tag its engine would read as two (ROADMAP 3c.2)", () => {
+  const AT = 1_793_561_400_000;
+
+  it("is for a signed-in person, from this site; nothing is asked before that", async () => {
+    const { deps, post } = stub();
+    expect((await handlePost(post_(null), null, deps, "1")).status).toBe(401);
+    expect((await handlePost(post_({ origin: "https://evil.example" }), ALICE, deps, "1")).status).toBe(403);
+    expect((await handlePost(post_(), ALICE, deps, "x")).status).toBe(404);
+    expect(post).not.toHaveBeenCalled();
+    function post_(opts: { origin?: string } | null = {}) {
+      return opts === null ? post0({ at: AT, offsetMinutes: 330 }) : post0({ at: AT, offsetMinutes: 330 }, opts.origin ? { origin: opts.origin } : {});
+    }
+  });
+
+  it("sends the moment, the offset, the title and whether it is a draft, and only those, with the caller as its author", async () => {
+    const { deps, post } = stub();
+    const done = await handlePost(post0({ at: AT, offsetMinutes: 330, title: "Hello", draft: true, path: "elsewhere.md" }), ALICE, deps, "1");
+    expect(done.status).toBe(201);
+    expect(await body(done)).toEqual({ path: "content/_posts/2026-11-02-hello.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" });
+    expect(post.mock.calls).toEqual([["alice", 1, { at: AT, offsetMinutes: 330, title: "Hello", draft: true, author: { name: "Alice Example", email: "alice@example.com" } }]]);
+  });
+
+  it("refuses what is not a moment, an offset or a draft flag, and says when the repository is not a site", async () => {
+    const { deps, post } = stub();
+    for (const bad of [{}, { at: "now", offsetMinutes: 0 }, { at: AT, offsetMinutes: 1440 }, { at: AT, offsetMinutes: 0, draft: "yes" }, { at: AT, offsetMinutes: 0, title: "a\nb" }]) {
+      expect((await handlePost(post0(bad), ALICE, deps, "1")).status, JSON.stringify(bad)).toBe(400);
+    }
+    expect(post).not.toHaveBeenCalled();
+    for (const reason of ["not_a_site", "unknown_engine"] as const) {
+      const failing = { ...deps, post: async () => ({ found: true as const, result: { ok: false as const, reason } }) };
+      const response = await handlePost(post0({ at: AT, offsetMinutes: 0 }), ALICE, failing, "1");
+      expect(response.status, reason).toBe(422);
+      expect((await body(response)).error.code).toBe(reason);
+    }
+  });
+
+  it("answers a tag the engine would read as two with the words for it, not a bare failure", async () => {
+    const { deps } = stub();
+    const refusing = { ...deps, header: async () => ({ found: true as const, result: { ok: false as const, reason: "bad_tag" as const, message: "“two words”: Jekyll reads a tag with a space as two." } }) };
+    const response = await handleHeader(post0({ header: "---\n", tags: ["two words"] }), ALICE, refusing, "1");
+    expect(response.status).toBe(422);
+    expect(await body(response)).toEqual({ error: { code: "bad_tag", message: "“two words”: Jekyll reads a tag with a space as two." } });
+  });
+
+  function post0(payload: unknown, init: { origin?: string | null; type?: string | null } = {}) {
+    return post(payload, init);
+  }
+});
+

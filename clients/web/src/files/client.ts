@@ -129,6 +129,24 @@ async function sendHeaderChange(connectionId: number, body: Record<string, unkno
   }
 }
 
+// --- A site's new post (ROADMAP 3c.2) -------------------------------------------------------------------------------
+
+/** Make a post in a site, dated now at this browser's offset from UTC: the server asks the site's engine where it goes and what it says. */
+export async function sendPost(connectionId: number, title: string, draft: boolean, now: Date = new Date()): Promise<CreateAttempt> {
+  try {
+    const response = await fetch(`/api/connections/${connectionId}/files/post`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ at: now.getTime(), offsetMinutes: -now.getTimezoneOffset(), title, draft }),
+      credentials: "same-origin",
+    });
+    const parsed = (await response.json().catch(() => undefined)) as { path?: string; error?: { message?: string } } | undefined;
+    return createFrom(response.status, parsed);
+  } catch {
+    return { ok: false, message: "Could not reach this server, so no post was made. Try again in a moment." };
+  }
+}
+
 // --- A journal's new entry (ROADMAP 3b.1) ---------------------------------------------------------------------------
 
 /** Make an entry in a plaintext journal, dated now at this browser's offset from UTC (spec §8.1): the server writes it. */
