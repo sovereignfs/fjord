@@ -20,7 +20,9 @@ use crate::cli::{ExitCode, GlobalArgs, InitArgs};
 use crate::cmd::{plural, usage, Style};
 use crate::git::{Git, DEFAULT_BRANCH};
 use anyhow::{Context, Result};
-use fjord_core::scaffold::{self, Plan, Settings, PRIVATE_VAULT, PUBLIC_VAULT};
+use fjord_core::scaffold::{
+    self, KindChoice, KindSettings, Plan, SiteEngine, PRIVATE_VAULT, PUBLIC_VAULT,
+};
 use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Component, Path, PathBuf};
 
@@ -45,21 +47,59 @@ pub fn run(args: &InitArgs, global: &GlobalArgs) -> Result<ExitCode> {
         return Ok(usage(problem));
     }
 
+    let kind = args.kind.as_deref().unwrap_or("drive");
+    if let Some(problem) = misplaced_flags(kind, args) {
+        return Ok(usage(problem));
+    }
+
     // Defaults, then the interactive overrides.
     let mut name = match &args.name {
         Some(name) => name.clone(),
         None => default_name(&target),
     };
-    let mut encrypt = !args.no_encrypt;
+    let mut encrypt = match kind {
+        "journal" => args.encrypt,
+        _ => !args.no_encrypt,
+    };
+    let mut engine = args.engine.as_deref().and_then(SiteEngine::parse);
 
     let interactive = !global.no_input && io::stdin().is_terminal();
     if interactive {
         let mut stdin = io::stdin().lock();
         let mut stderr = io::stderr();
-        let answers = ask(&mut stdin, &mut stderr, &name, encrypt)?;
-        name = answers.0;
-        encrypt = answers.1;
+        match kind {
+            "drive" => {
+                let answers = ask(&mut stdin, &mut stderr, &name, encrypt)?;
+                name = answers.0;
+                encrypt = answers.1;
+            }
+            _ => {
+                name = ask_name(&mut stdin, &mut stderr, &name)?;
+                if kind == "journal" && !args.encrypt {
+                    encrypt = ask_yes_no(&mut stdin, &mut stderr, "Encrypt the journal?", false)?;
+                }
+                if kind == "ssg" && engine.is_none() {
+                    engine = ask_engine(&mut stdin, &mut stderr)?;
+                }
+            }
+        }
     }
+
+    let choice = match kind {
+        "journal" => KindChoice::Journal { encrypted: encrypt },
+        "ssg" => match engine {
+            Some(engine) => KindChoice::Ssg { engine },
+            None => {
+                return Ok(usage(
+                    "--kind ssg needs --engine astro or --engine jekyll: the site's engine \
+                     decides what is scaffolded",
+                ))
+            }
+        },
+        _ => KindChoice::Drive {
+            encrypt_private: encrypt,
+        },
+    };
 
     // Checked before writing, so a missing git never leaves a repository
     // half-made.
@@ -70,17 +110,17 @@ pub fn run(args: &InitArgs, global: &GlobalArgs) -> Result<ExitCode> {
         );
     }
 
-    let settings = Settings {
+    let settings = KindSettings {
         name: name.clone(),
-        encrypt_private: encrypt,
         // The binary's name and the version it was built as, from the same
         // `CARGO_PKG_VERSION` that `fjord --version` prints. Compiled in, so
         // it follows every version bump with nothing to edit — and a test
         // compares it with `--version` itself rather than with a literal.
         generator: concat!("fjord ", env!("CARGO_PKG_VERSION")).to_string(),
+        kind: choice,
     };
 
-    let plan = scaffold::plan(&settings);
+    let plan = scaffold::plan_kind(&settings);
     scaffold::write(&target, &plan)
         .with_context(|| format!("could not create a repository in {}", target.display()))?;
 
@@ -118,6 +158,47 @@ fn commit(target: &Path) -> Result<()> {
     repository.add_all()?;
     repository.commit("Initial Fjord repository")?;
     Ok(())
+}
+
+/// A flag that does not belong to the kind being made, if one was given. Ignoring it would make a
+/// repository other than the one asked for.
+fn misplaced_flags(kind: &str, args: &InitArgs) -> Option<String> {
+    if args.engine.is_some() && kind != "ssg" {
+        return Some("--engine is for --kind ssg".to_string());
+    }
+    if args.encrypt && kind != "journal" {
+        return Some(match kind {
+            "ssg" => {
+                "a site's content cannot be encrypted: it is published (spec §3.1)".to_string()
+            }
+            _ => "--encrypt is for --kind journal; a drive's Private vault is encrypted unless \
+                  --no-encrypt is given"
+                .to_string(),
+        });
+    }
+    if args.no_encrypt && kind != "drive" {
+        return Some(format!(
+            "--no-encrypt is for a drive's Private vault; a {kind} has no Private vault"
+        ));
+    }
+    None
+}
+
+/// Whether the vault at `path` of a plan is encrypted.
+fn is_encrypted(settings: &KindSettings, path: &str) -> bool {
+    match settings.kind {
+        KindChoice::Drive { encrypt_private } => encrypt_private && path == PRIVATE_VAULT,
+        KindChoice::Journal { encrypted } => encrypted,
+        KindChoice::Ssg { .. } => false,
+    }
+}
+
+fn kind_name(settings: &KindSettings) -> &'static str {
+    match settings.kind {
+        KindChoice::Drive { .. } => "drive",
+        KindChoice::Journal { .. } => "journal",
+        KindChoice::Ssg { .. } => "ssg",
+    }
 }
 
 /// Why `target` cannot be scaffolded, if it cannot.
@@ -197,6 +278,41 @@ pub fn ask(
     Ok((name, encrypt))
 }
 
+/// Ask for the repository name alone.
+pub fn ask_name(
+    reader: &mut impl BufRead,
+    writer: &mut impl Write,
+    name_default: &str,
+) -> io::Result<String> {
+    write!(writer, "Repository name [{name_default}]: ")?;
+    writer.flush()?;
+    Ok(match read_line(reader)? {
+        Some(line) if !line.trim().is_empty() => line.trim().to_string(),
+        _ => name_default.to_string(),
+    })
+}
+
+/// Ask for a site's engine. `None` after three answers that are not one, or at the end of input:
+/// there is no default engine, so the caller refuses rather than guess.
+pub fn ask_engine(
+    reader: &mut impl BufRead,
+    writer: &mut impl Write,
+) -> io::Result<Option<SiteEngine>> {
+    for _ in 0..3 {
+        write!(writer, "Site engine (astro, jekyll): ")?;
+        writer.flush()?;
+        let line = match read_line(reader)? {
+            Some(line) => line,
+            None => return Ok(None),
+        };
+        match SiteEngine::parse(line.trim().to_lowercase().as_str()) {
+            Some(engine) => return Ok(Some(engine)),
+            None => writeln!(writer, "Please answer astro or jekyll.")?,
+        }
+    }
+    Ok(None)
+}
+
 fn ask_yes_no(
     reader: &mut impl BufRead,
     writer: &mut impl Write,
@@ -234,7 +350,79 @@ fn read_line(reader: &mut impl BufRead) -> io::Result<Option<String>> {
 
 // --- Output --------------------------------------------------------------
 
-fn report(target: &Path, settings: &Settings, plan: &Plan, style: Style) -> Result<()> {
+fn report(target: &Path, settings: &KindSettings, plan: &Plan, style: Style) -> Result<()> {
+    match settings.kind {
+        KindChoice::Drive { encrypt_private } => {
+            report_drive(target, settings, plan, encrypt_private, style)
+        }
+        _ => report_kind(target, settings, plan, style),
+    }
+}
+
+/// A journal or a site: one vault, presented as the thing itself.
+fn report_kind(target: &Path, settings: &KindSettings, plan: &Plan, style: Style) -> Result<()> {
+    let out = io::stdout();
+    let mut out = out.lock();
+    let (what, detail) = match settings.kind {
+        KindChoice::Journal { encrypted: true } => {
+            ("journal", "encrypted · no recipients yet".to_string())
+        }
+        KindChoice::Journal { encrypted: false } => ("journal", "plaintext".to_string()),
+        KindChoice::Ssg { engine } => ("site", format!("plaintext · {}", engine.as_str())),
+        KindChoice::Drive { .. } => ("drive", String::new()),
+    };
+    writeln!(
+        out,
+        "  {} {} in {}",
+        style.good(&format!("created {what}")),
+        settings.name,
+        target.display()
+    )?;
+    writeln!(out)?;
+    for (path, _) in &plan.vaults {
+        writeln!(out, "    {:<12}{}", format!("{path}/"), style.dim(&detail))?;
+    }
+    if let Some((vault, _)) = plan.vaults.first() {
+        if is_encrypted(settings, vault) {
+            writeln!(out)?;
+            writeln!(
+                out,
+                "  {vault} has no keys yet, so nothing can be written to it. Add one:"
+            )?;
+            writeln!(out)?;
+            writeln!(out, "      age-keygen -o ~/.config/fjord/identity.txt")?;
+            writeln!(
+                out,
+                "      age-keygen -y ~/.config/fjord/identity.txt >> {vault}/recipients.txt"
+            )?;
+            writeln!(out)?;
+            writeln!(
+                out,
+                "  {}",
+                style.dim("Until then `fjord verify` reports W602. That is expected.")
+            )?;
+        }
+    }
+    if matches!(settings.kind, KindChoice::Journal { .. }) {
+        writeln!(out)?;
+        writeln!(
+            out,
+            "  {}",
+            style.dim("`fjord new` with no path writes today's entry.")
+        )?;
+    }
+    writeln!(out)?;
+    writeln!(out, "  {}", style.dim("README.md explains the layout."))?;
+    Ok(())
+}
+
+fn report_drive(
+    target: &Path,
+    settings: &KindSettings,
+    plan: &Plan,
+    encrypt_private: bool,
+    style: Style,
+) -> Result<()> {
     let out = io::stdout();
     let mut out = out.lock();
 
@@ -260,14 +448,14 @@ fn report(target: &Path, settings: &Settings, plan: &Plan, style: Style) -> Resu
     writeln!(
         out,
         "    {PRIVATE_VAULT:<12}{}",
-        style.dim(if settings.encrypt_private {
+        style.dim(if encrypt_private {
             "encrypted · no recipients yet"
         } else {
             "plaintext"
         })
     )?;
 
-    if settings.encrypt_private {
+    if encrypt_private {
         // Spec §6.2: a vault with no recipients is valid and unwritable.
         // Say so plainly, and say what `fjord verify` will report, so the
         // warning is not a surprise.
@@ -295,7 +483,12 @@ fn report(target: &Path, settings: &Settings, plan: &Plan, style: Style) -> Resu
     Ok(())
 }
 
-fn render_json(target: &Path, settings: &Settings, plan: &Plan, git_initialised: bool) -> String {
+fn render_json(
+    target: &Path,
+    settings: &KindSettings,
+    plan: &Plan,
+    git_initialised: bool,
+) -> String {
     let vaults: Vec<serde_json::Value> = plan
         .vaults
         .iter()
@@ -303,7 +496,7 @@ fn render_json(target: &Path, settings: &Settings, plan: &Plan, git_initialised:
             serde_json::json!({
                 "path": path,
                 "id": id,
-                "encrypted": path == PRIVATE_VAULT && settings.encrypt_private,
+                "encrypted": is_encrypted(settings, path),
             })
         })
         .collect();
@@ -312,6 +505,7 @@ fn render_json(target: &Path, settings: &Settings, plan: &Plan, git_initialised:
         "tool": concat!("fjord ", env!("CARGO_PKG_VERSION")),
         "path": target.display().to_string(),
         "name": settings.name,
+        "kind": kind_name(settings),
         "repositoryId": plan.repository_id,
         "createdAt": plan.created_at,
         "vaults": vaults,

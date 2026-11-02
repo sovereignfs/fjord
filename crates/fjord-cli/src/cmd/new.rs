@@ -17,8 +17,9 @@
 use crate::cli::{ExitCode, GlobalArgs, NewArgs, OpenArgs};
 use crate::cmd::{ensure_writable, find_root, resolve_destination, usage, Style};
 use anyhow::{Context, Result};
+use fjord_core::manifest::{Kind, Manifest};
 use fjord_core::vault::{self, Vault};
-use fjord_core::{crypto, doc, path as rules, scalar, store};
+use fjord_core::{crypto, doc, journal, path as rules, scalar, store, REPOSITORY_MANIFEST};
 use std::path::{Path, PathBuf};
 
 pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
@@ -27,9 +28,25 @@ pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
         return Ok(code);
     }
 
-    let relative = match destination(&root, &args.path, args.document) {
-        Ok(relative) => relative,
-        Err(message) => return Ok(usage(message)),
+    // With a path, a Doc where it is asked for. Without one, in a journal, an entry dated now and
+    // filed by that date (spec §3.1).
+    let (relative, date) = match &args.path {
+        Some(path) => {
+            if args.date.is_some() {
+                return Ok(usage(
+                    "--date is for a journal entry made without a path; \
+                     a Doc at a path is dated by editing its `date`",
+                ));
+            }
+            match destination(&root, path, args.document) {
+                Ok(relative) => (relative, None),
+                Err(message) => return Ok(usage(message)),
+            }
+        }
+        None => match journal_entry(&root, args)? {
+            Ok((relative, date)) => (relative, Some(date)),
+            Err(message) => return Ok(usage(message)),
+        },
     };
 
     // §5, enforced on the way in. This is the only path by which a name is
@@ -88,12 +105,18 @@ pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
         None
     };
 
-    let title = match &args.title {
-        Some(title) => title.clone(),
-        None => default_title(&relative),
-    };
-    let contents = doc::new_document(&id, &title, &scalar::now_rfc3339_utc())
-        .context("could not build the document's frontmatter")?;
+    let contents = match &date {
+        // An entry needs no title: it is read by its date.
+        Some(date) => doc::new_entry(&id, args.title.as_deref(), &scalar::now_rfc3339_utc(), date),
+        None => {
+            let title = match &args.title {
+                Some(title) => title.clone(),
+                None => default_title(&relative),
+            };
+            doc::new_document(&id, &title, &scalar::now_rfc3339_utc())
+        }
+    }
+    .context("could not build the document's frontmatter")?;
 
     let absolute = root.join(&on_disk);
     if let Some(parent) = absolute.parent() {
@@ -136,6 +159,91 @@ pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
         commit: false,
     };
     crate::cmd::open::run(&open, global)
+}
+
+/// Where a new journal entry goes, and its `date`, for `fjord new` with no path; or why there is none.
+fn journal_entry(
+    root: &Path,
+    args: &NewArgs,
+) -> Result<std::result::Result<(String, String), String>> {
+    let manifest = Manifest::parse(
+        &std::fs::read(root.join(REPOSITORY_MANIFEST)).context("could not read fjord.json")?,
+    )
+    .map_err(|err| anyhow::anyhow!("fjord.json: {err}"))?;
+    let kind = manifest.kind().declared();
+    if kind != Kind::Journal {
+        return Ok(Err(format!(
+            "a path is required: this repository is a {}, and only a journal makes an entry \
+             without one",
+            kind.as_str()
+        )));
+    }
+
+    let vaults = vault::discover(root).context("could not read the repository's vaults")?;
+    let vault = match vaults.as_slice() {
+        [vault] => vault,
+        _ => {
+            return Ok(Err(format!(
+                "a journal has exactly one vault and this one has {} (`fjord verify` reports \
+                 E111). Give a path",
+                vaults.len()
+            )))
+        }
+    };
+
+    let date = match &args.date {
+        Some(date) if scalar::is_rfc3339(date) => date.clone(),
+        Some(date) => {
+            return Ok(Err(format!(
+                "--date {date} is not an RFC 3339 date-time with an offset, such as \
+                 2026-11-02T08:14:00+05:30"
+            )))
+        }
+        None => now_here(),
+    };
+
+    let slug = args.title.as_deref().and_then(journal::slug);
+    let layout = journal::Layout::for_vault(vault.is_encrypted());
+    let Some(mut leaf) = journal::entry_path(&date, slug.as_deref(), layout) else {
+        return Ok(Err(format!("{date} cannot name an entry")));
+    };
+    if args.document {
+        leaf = format!("{}{}", leaf.trim_end_matches(".md"), doc::DOCUMENT_SUFFIX);
+    }
+
+    // Two entries in one minute: the second takes a number, as a copy does.
+    let base = format!("{}/{leaf}", vault.directory);
+    let mut relative = base.clone();
+    let mut number = 2;
+    while root.join(&relative).exists() {
+        let (stem, extension) = match base.strip_suffix(doc::DOCUMENT_SUFFIX) {
+            Some(stem) => (stem.to_string(), doc::DOCUMENT_SUFFIX),
+            None => (base.trim_end_matches(".md").to_string(), ".md"),
+        };
+        relative = format!("{stem}-{number}{extension}");
+        number += 1;
+    }
+    Ok(Ok((relative, date)))
+}
+
+/// Now, at this machine's offset from UTC, as a `date` (spec §8.1). Where the offset cannot be told
+/// (some systems refuse to say while other threads run), UTC, and a note saying so.
+fn now_here() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| i64::try_from(elapsed.as_secs()).unwrap_or(0))
+        .unwrap_or(0);
+    let offset = match time::UtcOffset::current_local_offset() {
+        Ok(offset) => i32::from(offset.whole_minutes()),
+        Err(_) => {
+            eprintln!(
+                "note: this machine's offset from UTC could not be read, so the entry is dated in \
+                 UTC. Pass --date to date it in your own time"
+            );
+            0
+        }
+    };
+    scalar::rfc3339_from_unix_at_offset(now, offset).unwrap_or_else(scalar::now_rfc3339_utc)
 }
 
 /// Write a file that must not already exist.

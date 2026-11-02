@@ -253,9 +253,14 @@ fn repository_headline(report: &Report, counts: Tally) -> String {
     if let Some(headline) = counts.headline() {
         return headline;
     }
-    match report.version {
+    let version = match report.version {
         Some(version) => format!("format version {version}"),
         None => "no format version declared".to_string(),
+    };
+    // A drive is every repository made before kinds existed, so it is not mentioned.
+    match report.repository_kind() {
+        "drive" => version,
+        kind => format!("{version} · {kind}"),
     }
 }
 
@@ -387,6 +392,7 @@ fn render_json(report: &Report, repairs: Option<&[Repair]>) -> String {
         "formatVersion": report.version,
         "conforms": report.conforms(),
         "readOnly": report.read_only,
+        "repositoryKind": report.repository_kind(),
         "counts": {
             "errors": report.errors(),
             "warnings": report.warnings(),

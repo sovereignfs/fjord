@@ -11,6 +11,7 @@
     "formatVersion",
     "conforms",
     "readOnly",
+    "repositoryKind",
     "counts",
     "vaults",
     "diagnostics"
@@ -37,6 +38,10 @@
     "readOnly": {
       "type": "boolean",
       "description": "True when the repository declares a format version newer than this build implements. Writing to it is forbidden (spec §10.1)."
+    },
+    "repositoryKind": {
+      "type": "string",
+      "description": "The repository's kind as fjord.json declares it (spec §3.1): \"drive\", \"journal\" or \"ssg\" in this revision, or a kind a later one defines, reported as written. \"drive\" when none is declared. A client presents a kind it does not know as a drive. Named so as not to be confused with `fjord ls --json`'s per-entry `kind`."
     },
     "counts": {
       "type": "object",

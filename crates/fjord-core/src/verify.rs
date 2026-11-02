@@ -73,6 +73,16 @@ pub struct Report {
     /// Set when the repository declares a version this build does not
     /// implement. Writing to it is forbidden. Spec §10.1, invariant 4.
     pub read_only: bool,
+    /// The repository's kind as `fjord.json` declares it, known or not, or `None` when it declares
+    /// none, or one that is not a string, which reads as a drive. Spec §3.1.
+    pub kind: Option<String>,
+}
+
+impl Report {
+    /// The kind as declared, `"drive"` when there is none: what `verify --json` reports. Spec §3.1.
+    pub fn repository_kind(&self) -> &str {
+        self.kind.as_deref().unwrap_or(Kind::DRIVE)
+    }
 }
 
 impl Report {
@@ -188,6 +198,9 @@ pub fn verify(root: &Path, options: &Options) -> Result<Report, Error> {
 
 fn check_repository_manifest(manifest: &Manifest, report: &mut Report) {
     report.version = manifest.version();
+    if let KindField::Declared(kind) = manifest.kind() {
+        report.kind = Some(kind.as_str().to_string());
+    }
 
     if let Some(version) = manifest.version() {
         if version > i64::from(FORMAT_VERSION) {

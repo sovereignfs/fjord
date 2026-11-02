@@ -117,9 +117,23 @@ pub struct InitArgs {
     #[arg(long)]
     pub name: Option<String>,
 
-    /// Create the Private vault unencrypted.
+    /// Create the Private vault unencrypted. A drive only.
     #[arg(long)]
     pub no_encrypt: bool,
+
+    /// What the repository is for (spec §3.1): a drive of vaults and folders, a journal of dated
+    /// entries, or the content of a static site. Defaults to a drive.
+    #[arg(long, value_name = "KIND", value_parser = ["drive", "journal", "ssg"])]
+    pub kind: Option<String>,
+
+    /// The site's engine, for `--kind ssg`. Asked for on a terminal; required with `--no-input`.
+    #[arg(long, value_name = "ENGINE", value_parser = ["astro", "jekyll"])]
+    pub engine: Option<String>,
+
+    /// Encrypt the journal's vault, for `--kind journal`. Its entries are then named by id, in no
+    /// dated folders (spec §11.2).
+    #[arg(long)]
+    pub encrypt: bool,
 
     /// Skip `git init` and the first commit.
     #[arg(long)]
@@ -203,8 +217,14 @@ pub struct DecryptArgs {
 
 #[derive(Debug, Args)]
 pub struct NewArgs {
-    /// Path for the new document, relative to the repository root.
-    pub path: PathBuf,
+    /// Path for the new document, relative to the repository root. In a journal it may be left out:
+    /// the new entry is then dated now and filed by that date (spec §3.1, §8.1).
+    pub path: Option<PathBuf>,
+
+    /// The entry's `date`, RFC 3339 with an offset, for a journal entry made with no path. Defaults
+    /// to now, at this machine's offset.
+    #[arg(long, value_name = "DATE")]
+    pub date: Option<String>,
 
     /// Title. Defaults to the file stem.
     #[arg(long)]

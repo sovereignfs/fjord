@@ -161,6 +161,31 @@ pub fn new_document(id: &str, title: &str, created: &str) -> Result<String, yaml
     Ok(format!("{FENCE}\n{yaml}{FENCE}\n\n# {title}\n"))
 }
 
+/// Build a new journal entry: frontmatter with its `date`, and a heading only if it has a title.
+/// Spec §3.1, §8.1.
+///
+/// `date` is written as given, offset and all; an entry is filed and read by the writer's day.
+pub fn new_entry(
+    id: &str,
+    title: Option<&str>,
+    created: &str,
+    date: &str,
+) -> Result<String, yaml::Error> {
+    let mut frontmatter: IndexMap<String, Value> = IndexMap::new();
+    frontmatter.insert(key::ID.to_string(), Value::String(id.to_string()));
+    if let Some(title) = title {
+        frontmatter.insert(key::TITLE.to_string(), Value::String(title.to_string()));
+    }
+    frontmatter.insert(key::CREATED.to_string(), Value::String(created.to_string()));
+    frontmatter.insert(key::DATE.to_string(), Value::String(date.to_string()));
+
+    let yaml = yaml::to_string(&frontmatter)?;
+    Ok(match title {
+        Some(title) => format!("{FENCE}\n{yaml}{FENCE}\n\n# {title}\n"),
+        None => format!("{FENCE}\n{yaml}{FENCE}\n\n"),
+    })
+}
+
 /// Replace a document's `id`, preserving every other key and its order.
 /// Spec §8.2, §9.1.
 ///

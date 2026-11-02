@@ -35,6 +35,9 @@ tempfile.workspace = true
 zeroize.workspace = true
 blake3.workspace = true
 ctrlc.workspace = true
+# This machine's offset from UTC, for a journal entry's `date` (spec §8.1). Only here: `fjord-core`
+# reads no clock and no time zone.
+time = { workspace = true, features = ["local-offset"] }
 
 [dev-dependencies]
 tempfile.workspace = true
