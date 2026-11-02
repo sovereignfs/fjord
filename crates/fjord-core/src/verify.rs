@@ -33,7 +33,9 @@
 use crate::diagnostics::{Code, Diagnostic, Severity};
 use crate::doc;
 use crate::listing::{self, FileKind, ListedFile, VaultSettings};
-use crate::manifest::{self, EncryptionField, Manifest, RecipientKind, Vaults};
+use crate::manifest::{
+    self, EncryptionField, Kind, KindField, Manifest, RecipientKind, SettingsField, Vaults,
+};
 use crate::scalar;
 use crate::{
     FORMAT_VERSION, LARGE_FILE_WARN_BYTES, LONG_PATH_WARN_BYTES, REPOSITORY_MANIFEST,
@@ -164,6 +166,7 @@ pub fn verify(root: &Path, options: &Options) -> Result<Report, Error> {
 
     let vaults = root_vaults(&root, &walk, &mut report);
     reconcile_manifest(&root, &manifest, &vaults, &mut report);
+    check_kind(&manifest, &vaults, &mut report)?;
 
     // An `id` is unique across the repository, not within a vault, so the
     // map outlives each vault. Spec §8.2.
@@ -226,6 +229,75 @@ fn check_repository_manifest(manifest: &Manifest, report: &mut Report) {
                 .with_detail("vaults must be an array"),
         );
     }
+
+    // A kind this build does not know is not a finding: it is how a repository made by a newer client
+    // looks, and §3.1 has it presented as a drive. Only a value of the wrong type is.
+    if manifest.kind() == KindField::NotAString {
+        report.push(
+            Diagnostic::at(Code::InvalidFieldValue, REPOSITORY_MANIFEST)
+                .with_detail("kind must be a string"),
+        );
+    }
+    match manifest.settings(manifest::field::SSG) {
+        SettingsField::NotAnObject => report.push(
+            Diagnostic::at(Code::InvalidFieldValue, REPOSITORY_MANIFEST)
+                .with_detail("ssg must be an object"),
+        ),
+        SettingsField::Object(settings)
+            if manifest::object_has(settings, manifest::field::ENGINE)
+                && manifest::object_string(settings, manifest::field::ENGINE).is_none() =>
+        {
+            report.push(
+                Diagnostic::at(Code::InvalidFieldValue, REPOSITORY_MANIFEST)
+                    .with_detail("ssg.engine must be a string"),
+            )
+        }
+        SettingsField::Absent | SettingsField::Object(_) => {}
+    }
+}
+
+/// The rules of the repository's kind, against the vaults on disk, which are authoritative (§2.1).
+/// Spec §3.1.
+fn check_kind(
+    manifest: &Manifest,
+    on_disk: &[DiscoveredVault],
+    report: &mut Report,
+) -> Result<(), Error> {
+    let kind = manifest.kind().declared();
+    if !kind.has_one_vault() {
+        return Ok(());
+    }
+
+    if on_disk.len() != 1 {
+        let found: Vec<&str> = on_disk.iter().map(|vault| vault.rel.as_str()).collect();
+        let detail = match found.as_slice() {
+            [] => format!("kind is {}, and there is no vault", kind.as_str()),
+            _ => format!(
+                "kind is {}, and there are {} vaults: {}",
+                kind.as_str(),
+                found.len(),
+                found.join(", ")
+            ),
+        };
+        report.push(Diagnostic::at(Code::KindVaultCount, REPOSITORY_MANIFEST).with_detail(detail));
+    }
+
+    if kind == Kind::Ssg {
+        for vault in on_disk {
+            // A vault manifest that does not parse is reported by its own check, and cannot be said
+            // to be encrypted.
+            let encrypted = Manifest::parse(&read(&vault.abs.join(VAULT_MANIFEST))?)
+                .map(|vault| vault.is_encrypted())
+                .unwrap_or(false);
+            if encrypted {
+                report.push(
+                    Diagnostic::at(Code::EncryptedSiteVault, &vault.rel)
+                        .with_detail("a site is published; its content cannot be encrypted"),
+                );
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Say what is wrong with an identifier, when the cause is the old
@@ -1018,6 +1090,23 @@ fn check_markdown(entry: &Entry, report: &mut Report) -> Result<Option<String>, 
                     Diagnostic::at(Code::InvalidTimestamp, &entry.rel)
                         .with_detail("created is not a string"),
                 );
+            }
+
+            // `date` is tolerated in any form, and only warned about: other tools write their own
+            // (§8.1, §2.1).
+            match frontmatter.get(doc::key::DATE) {
+                None => {}
+                Some(value) => match value.as_str() {
+                    Some(date) if scalar::is_entry_date(date) => {}
+                    Some(date) => report.push(
+                        Diagnostic::at(Code::InvalidDate, &entry.rel)
+                            .with_detail(format!("date: {date}")),
+                    ),
+                    None => report.push(
+                        Diagnostic::at(Code::InvalidDate, &entry.rel)
+                            .with_detail("date is not a string"),
+                    ),
+                },
             }
 
             if let Some(id) = frontmatter.doc_id() {

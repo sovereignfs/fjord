@@ -46,6 +46,8 @@ pub mod key {
     pub const ID: &str = "id";
     pub const TITLE: &str = "title";
     pub const CREATED: &str = "created";
+    /// The moment a Doc is about, with the writer's local offset. Spec §8.1.
+    pub const DATE: &str = "date";
     pub const TAGS: &str = "tags";
     pub const ALIASES: &str = "aliases";
     /// Reserved for client state. Clients MUST NOT put their own keys
@@ -123,6 +125,11 @@ impl Frontmatter {
     /// `created`, as written. Spec §8.1.
     pub fn created(&self) -> Option<&str> {
         self.string(key::CREATED)
+    }
+
+    /// `date`, as written. Spec §8.1.
+    pub fn date(&self) -> Option<&str> {
+        self.string(key::DATE)
     }
 
     /// `title`, which is advisory. Spec §8.2.

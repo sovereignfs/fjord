@@ -8,6 +8,12 @@ with **no diagnostics at all** — not even a warning.
 alone (spec §8.4). It must verify with no diagnostics and count both as Docs. (It is separate from
 `conforming/` because `fjord init` must produce exactly what `conforming/` describes.)
 
+`journal/` and `ssg/` are valid repositories of the two kinds that are not drives (spec §3.1), each
+with exactly one vault. `journal/` has entries at the conventional dated paths and one that is not, a
+`date` with a local offset and one that is a day alone, and tags in two spellings. `ssg/` is an Astro
+site: its engine's files (`astro.config.mjs`, `package.json`) and a `README.md` are outside the vault,
+which spec §2 permits. Both must verify with no diagnostics.
+
 `broken/<code>/` is a minimal repository that triggers exactly diagnostic
 `<code>` and nothing else: for example `broken/E201/` holds a plaintext file
 inside an encrypted vault. Each is the same minimal conforming base — a

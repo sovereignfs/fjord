@@ -86,6 +86,82 @@
       ]
     }
   },
+  "journal": {
+    "discover": [
+      {
+        "directory": "journal",
+        "label": "Journal",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "2026/11/01.md",
+            "logical": "2026/11/01.md",
+            "is_payload": false,
+            "size": 130
+          },
+          {
+            "relative": "2026/11/02/0030.md",
+            "logical": "2026/11/02/0030.md",
+            "is_payload": false,
+            "size": 173
+          },
+          {
+            "relative": "2026/11/02/0814-morning-run.md",
+            "logical": "2026/11/02/0814-morning-run.md",
+            "is_payload": false,
+            "size": 178
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "journal",
+          "docs": 3,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "ssg": {
+    "discover": [
+      {
+        "directory": "content",
+        "label": "Content",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "posts/hello.md",
+            "logical": "posts/hello.md",
+            "is_payload": false,
+            "size": 147
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "content",
+          "docs": 1,
+          "files": 0
+        }
+      ]
+    }
+  },
   "broken/E101": {
     "discover": [
       {
@@ -293,6 +369,73 @@
       "vaults": [
         {
           "path": "Public",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E111": {
+    "discover": [
+      {
+        "directory": "Extra",
+        "label": "Extra",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      },
+      {
+        "directory": "journal",
+        "label": "Journal",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Extra",
+          "docs": 0,
+          "files": 0
+        },
+        {
+          "path": "journal",
+          "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/E112": {
+    "discover": [
+      {
+        "directory": "content",
+        "label": "Content",
+        "encrypted": true,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore",
+          "recipients.txt"
+        ],
+        "contents": []
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "content",
           "docs": 0,
           "files": 0
         }
@@ -1065,6 +1208,38 @@
         {
           "path": "Public",
           "docs": 0,
+          "files": 0
+        }
+      ]
+    }
+  },
+  "broken/W606": {
+    "discover": [
+      {
+        "directory": "Public",
+        "label": "Public",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "doc.md",
+            "logical": "doc.md",
+            "is_payload": false,
+            "size": 178
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "Public",
+          "docs": 1,
           "files": 0
         }
       ]

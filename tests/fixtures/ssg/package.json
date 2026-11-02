@@ -1,0 +1,8 @@
+{
+  "name": "notebook",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "astro build"
+  }
+}

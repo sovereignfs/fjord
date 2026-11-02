@@ -18,6 +18,7 @@ tagging it.
 
 ### Added
 
+- **Repository kinds** (spec §3.1, RFC 0001): `fjord verify` reads `fjord.json`'s optional `kind` (`drive`, `journal` or `ssg`) and its settings object, and checks the rules of each. Three new diagnostics: **`E111`**, a journal or `ssg` repository without exactly one vault; **`E112`**, an `ssg` repository whose vault is encrypted; and the warning **`W606`**, a Doc whose `date` is not an RFC 3339 date-time or full-date (spec §8.1). A kind this build does not know is not a finding: it is presented as a drive, and kept. `fjord-core` gains `manifest::Kind`, `manifest::Engine`, `Manifest::kind`, `Manifest::presented_kind`, and `scalar::is_entry_date`.
 - **`fjord-core` and `fjord-cli` are on crates.io** (from 0.4.0): `cargo install fjord-cli` builds the `fjord` command, and `fjord-core` can be used as a library (`fjord-core = "0.4"`).
 
 ## [0.4.0] - 2026-11-01

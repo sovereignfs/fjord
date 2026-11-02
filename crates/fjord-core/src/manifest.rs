@@ -39,6 +39,12 @@ pub mod field {
     pub const NAME: &str = "name";
     pub const CREATED_AT: &str = "createdAt";
     pub const GENERATOR: &str = "generator";
+    /// What the repository is for. Spec §3.1.
+    pub const KIND: &str = "kind";
+    /// The settings object of the `ssg` kind, named after it. Spec §3.1.
+    pub const SSG: &str = "ssg";
+    /// The engine an `ssg` repository is built with. Spec §3.1.
+    pub const ENGINE: &str = "engine";
     pub const VAULTS: &str = "vaults";
     pub const PATH: &str = "path";
     pub const ENCRYPTION: &str = "encryption";
@@ -183,6 +189,45 @@ impl Manifest {
         }
     }
 
+    /// The `kind` field of `fjord.json`. Spec §3.1.
+    pub fn kind(&self) -> KindField {
+        match self.raw.get(field::KIND) {
+            None => KindField::Absent,
+            Some(Value::String(kind)) => KindField::Declared(Kind::parse(kind)),
+            Some(_) => KindField::NotAString,
+        }
+    }
+
+    /// A kind's settings object, under the key named after it. Spec §3.1.
+    pub fn settings(&self, key: &str) -> SettingsField<'_> {
+        match self.raw.get(key) {
+            None => SettingsField::Absent,
+            Some(Value::Object(map)) => SettingsField::Object(map),
+            Some(_) => SettingsField::NotAnObject,
+        }
+    }
+
+    /// `ssg.engine`, if it is a string. Spec §3.1.
+    pub fn ssg_engine(&self) -> Option<Engine> {
+        match self.settings(field::SSG) {
+            SettingsField::Object(map) => object_string(map, field::ENGINE).map(Engine::parse),
+            SettingsField::Absent | SettingsField::NotAnObject => None,
+        }
+    }
+
+    /// The kind a client presents the repository as. Spec §3.1: a kind the client does not know, or
+    /// an `ssg` repository whose engine it does not know, is a drive.
+    pub fn presented_kind(&self) -> Kind {
+        match self.kind().declared() {
+            Kind::Unknown(_) => Kind::Drive,
+            Kind::Ssg => match self.ssg_engine() {
+                Some(Engine::Astro) | Some(Engine::Jekyll) => Kind::Ssg,
+                Some(Engine::Unknown(_)) | None => Kind::Drive,
+            },
+            kind => kind,
+        }
+    }
+
     /// The `encryption` field of `fjord.vault.json`. Spec §4, §4.1.
     pub fn encryption(&self) -> EncryptionField<'_> {
         match self.raw.get(field::ENCRYPTION) {
@@ -199,6 +244,119 @@ impl Manifest {
     pub fn is_encrypted(&self) -> bool {
         matches!(self.encryption(), EncryptionField::Object(_))
     }
+}
+
+/// A repository's kind. Spec §3.1.
+///
+/// A kind changes how a repository is presented, never what its files mean. One this revision does
+/// not define is kept as written, so that it round-trips and can be reported, and is presented as a
+/// [`Kind::Drive`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Kind {
+    /// Any number of vaults, each encrypted or not: every repository made before kinds existed.
+    Drive,
+    /// Exactly one vault of dated entries.
+    Journal,
+    /// Exactly one plaintext vault: a static site's content.
+    Ssg,
+    /// A kind a later revision defines, as written.
+    Unknown(String),
+}
+
+impl Kind {
+    pub const DRIVE: &'static str = "drive";
+    pub const JOURNAL: &'static str = "journal";
+    pub const SSG: &'static str = "ssg";
+
+    /// The kinds this revision defines, in the order a client offers them.
+    pub const DEFINED: [Kind; 3] = [Kind::Drive, Kind::Journal, Kind::Ssg];
+
+    /// A kind as written in `fjord.json`. Never fails: an unknown kind is how a repository made by
+    /// a newer client looks.
+    pub fn parse(value: &str) -> Self {
+        match value {
+            Self::DRIVE => Kind::Drive,
+            Self::JOURNAL => Kind::Journal,
+            Self::SSG => Kind::Ssg,
+            other => Kind::Unknown(other.to_string()),
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            Kind::Drive => Self::DRIVE,
+            Kind::Journal => Self::JOURNAL,
+            Kind::Ssg => Self::SSG,
+            Kind::Unknown(other) => other,
+        }
+    }
+
+    /// Whether the kind requires exactly one vault. Spec §3.1.
+    pub fn has_one_vault(&self) -> bool {
+        matches!(self, Kind::Journal | Kind::Ssg)
+    }
+}
+
+/// The engine of an `ssg` repository. Spec §3.1.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Engine {
+    Astro,
+    Jekyll,
+    /// An engine a later revision defines, as written. Presented as a drive.
+    Unknown(String),
+}
+
+impl Engine {
+    pub const ASTRO: &'static str = "astro";
+    pub const JEKYLL: &'static str = "jekyll";
+
+    /// The engines this revision defines.
+    pub const DEFINED: [Engine; 2] = [Engine::Astro, Engine::Jekyll];
+
+    pub fn parse(value: &str) -> Self {
+        match value {
+            Self::ASTRO => Engine::Astro,
+            Self::JEKYLL => Engine::Jekyll,
+            other => Engine::Unknown(other.to_string()),
+        }
+    }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            Engine::Astro => Self::ASTRO,
+            Engine::Jekyll => Self::JEKYLL,
+            Engine::Unknown(other) => other,
+        }
+    }
+}
+
+/// The state of `fjord.json`'s `kind` field. Spec §3, §3.1.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KindField {
+    /// No `kind`: a drive.
+    Absent,
+    Declared(Kind),
+    /// Present but not a string. Reported, and presented as a drive.
+    NotAString,
+}
+
+impl KindField {
+    /// The kind as declared, absent and malformed alike read as a drive. This is what the rules of
+    /// §3.1 are checked against.
+    pub fn declared(&self) -> Kind {
+        match self {
+            KindField::Declared(kind) => kind.clone(),
+            KindField::Absent | KindField::NotAString => Kind::Drive,
+        }
+    }
+}
+
+/// The state of a kind's settings object, such as `ssg`. Spec §3.1.
+#[derive(Debug, Clone)]
+pub enum SettingsField<'a> {
+    Absent,
+    Object(&'a Map<String, Value>),
+    NotAnObject,
 }
 
 /// The state of `fjord.json`'s `vaults` field.
@@ -393,6 +551,126 @@ mod tests {
         };
         assert!(round_tripped.contains("unknownToThisVersion"));
         assert!(round_tripped.contains(r#""b":2,"a":1"#));
+    }
+
+    fn parsed(text: &str) -> Manifest {
+        match Manifest::parse(text.as_bytes()) {
+            Ok(manifest) => manifest,
+            Err(err) => panic!("{err}"),
+        }
+    }
+
+    #[test]
+    fn a_repository_with_no_kind_is_a_drive() {
+        let manifest = parsed(REPOSITORY);
+        assert_eq!(manifest.kind(), KindField::Absent);
+        assert_eq!(manifest.kind().declared(), Kind::Drive);
+        assert_eq!(manifest.presented_kind(), Kind::Drive);
+    }
+
+    #[test]
+    fn each_defined_kind_reads_as_itself() {
+        for kind in Kind::DEFINED {
+            assert_eq!(Kind::parse(kind.as_str()), kind);
+        }
+        let journal = parsed(r#"{"kind": "journal"}"#);
+        assert_eq!(journal.presented_kind(), Kind::Journal);
+        let site = parsed(r#"{"kind": "ssg", "ssg": {"engine": "jekyll"}}"#);
+        assert_eq!(site.ssg_engine(), Some(Engine::Jekyll));
+        assert_eq!(site.presented_kind(), Kind::Ssg);
+    }
+
+    /// Spec §3.1: what a client does not know, it presents as a drive, and keeps.
+    #[test]
+    fn an_unknown_kind_or_engine_is_presented_as_a_drive() {
+        let wiki = parsed(r#"{"kind": "wiki"}"#);
+        assert_eq!(
+            wiki.kind(),
+            KindField::Declared(Kind::Unknown("wiki".to_string()))
+        );
+        assert_eq!(wiki.presented_kind(), Kind::Drive);
+
+        let hugo = parsed(r#"{"kind": "ssg", "ssg": {"engine": "hugo"}}"#);
+        assert_eq!(hugo.ssg_engine(), Some(Engine::Unknown("hugo".to_string())));
+        assert_eq!(hugo.kind().declared(), Kind::Ssg);
+        assert_eq!(hugo.presented_kind(), Kind::Drive);
+
+        let no_engine = parsed(r#"{"kind": "ssg"}"#);
+        assert_eq!(no_engine.presented_kind(), Kind::Drive);
+
+        let number = parsed(r#"{"kind": 3}"#);
+        assert_eq!(number.kind(), KindField::NotAString);
+        assert_eq!(number.presented_kind(), Kind::Drive);
+    }
+
+    /// Invariant 3 and spec §3.1, as a property: whatever kind and settings objects a newer client
+    /// wrote, rewriting the manifest gives back the same text, and the same kind.
+    #[test]
+    fn any_kind_and_its_settings_survive_a_rewrite() {
+        // xorshift64*, seeded, so that a failure names a case that can be run again.
+        let mut state: u64 = 0x9e37_79b9_7f4a_7c15;
+        let mut next = move || {
+            state ^= state >> 12;
+            state ^= state << 25;
+            state ^= state >> 27;
+            state.wrapping_mul(0x2545_f491_4f6c_dd1d)
+        };
+        let words = [
+            "drive",
+            "journal",
+            "ssg",
+            "wiki",
+            "reading-log",
+            "Journal",
+            "ssg ",
+            "日記",
+            "",
+        ];
+        let engines = ["astro", "jekyll", "hugo", "11ty", ""];
+
+        for case in 0..2_000 {
+            let kind = words[(next() % words.len() as u64) as usize];
+            let mut text = format!(
+                r#"{{"fjord":1,"id":"01jagc4k7pqw2xn8rvty5zb3md","kind":{}"#,
+                serde_json::Value::String(kind.to_string())
+            );
+            // A settings object for the kind, for another kind, or none, with fields in an order
+            // that is not alphabetical.
+            match next() % 3 {
+                0 => {}
+                1 => {
+                    let engine = engines[(next() % engines.len() as u64) as usize];
+                    text.push_str(&format!(
+                        r#","ssg":{{"zeta":{},"engine":"{engine}","alpha":[1,{{"b":null,"a":true}}]}}"#,
+                        next() % 100
+                    ));
+                }
+                _ => text.push_str(&format!(
+                    r#","{}":{{"layout":"grid","n":{}}}"#,
+                    if kind.is_empty() { "x" } else { kind.trim() },
+                    next() % 1000
+                )),
+            }
+            text.push_str(r#","vaults":[]}"#);
+
+            let first = parsed(&text);
+            let written = match serde_json::to_string(first.raw()) {
+                Ok(written) => written,
+                Err(err) => panic!("case {case}: {err}"),
+            };
+            assert_eq!(
+                written, text,
+                "case {case}: the rewrite changed the manifest"
+            );
+            let second = parsed(&written);
+            assert_eq!(second.kind(), first.kind(), "case {case}");
+            assert_eq!(second.ssg_engine(), first.ssg_engine(), "case {case}");
+            assert_eq!(
+                second.presented_kind(),
+                first.presented_kind(),
+                "case {case}"
+            );
+        }
     }
 
     #[test]

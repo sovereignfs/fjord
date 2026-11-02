@@ -56,6 +56,31 @@ pub fn is_rfc3339_utc(s: &str) -> bool {
     }
 }
 
+/// Whether `s` is an RFC 3339 date-time with any offset. Spec §8.1, `date`.
+///
+/// `date` is the one timestamp that keeps the writer's local offset, so this is
+/// [`is_rfc3339_utc`] without the requirement that the offset be zero.
+pub fn is_rfc3339(s: &str) -> bool {
+    use time::format_description::well_known::Rfc3339;
+    use time::OffsetDateTime;
+
+    OffsetDateTime::parse(s, &Rfc3339).is_ok()
+}
+
+/// Whether `s` is an RFC 3339 full-date, `YYYY-MM-DD`, naming a real day. Spec §8.1, `date`.
+pub fn is_full_date(s: &str) -> bool {
+    // Exactly ten bytes, so that `time`'s parser cannot accept a year of more than four digits or
+    // anything trailing it.
+    s.len() == 10
+        && time::Date::parse(s, time::macros::format_description!("[year]-[month]-[day]")).is_ok()
+}
+
+/// Whether `s` is a `date` as the specification defines one: a date-time with any offset, or a
+/// full-date. Spec §8.1.
+pub fn is_entry_date(s: &str) -> bool {
+    is_rfc3339(s) || is_full_date(s)
+}
+
 /// Now, as RFC 3339 in UTC with whole seconds. Spec §3, §4, §8.1.
 ///
 /// Subsecond precision is dropped: it is noise in a creation timestamp, and
@@ -153,6 +178,30 @@ pub fn rfc3339_utc(at: std::time::SystemTime) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_date_keeps_any_offset_or_is_a_day() {
+        assert!(is_entry_date("2026-11-02T08:14:00+05:30"));
+        assert!(is_entry_date("2026-11-02T08:14:00Z"));
+        assert!(is_entry_date("2026-11-01T23:59:59.5-08:00"));
+        assert!(is_entry_date("2026-11-02"));
+        assert!(is_entry_date("2024-02-29"));
+    }
+
+    #[test]
+    fn a_date_in_another_form_is_not_one() {
+        // Jekyll's own form, which §8.1 tolerates with a warning.
+        assert!(!is_entry_date("2026-11-02 08:14:00 +0530"));
+        // A local time with no offset says nothing about which day it is.
+        assert!(!is_entry_date("2026-11-02T08:14:00"));
+        assert!(!is_entry_date("2026-02-30"));
+        assert!(!is_entry_date("2025-02-29"));
+        assert!(!is_entry_date("2026-11-2"));
+        assert!(!is_entry_date("+12026-11-02"));
+        assert!(!is_entry_date("2026-11-02x"));
+        assert!(!is_entry_date("yesterday"));
+        assert!(!is_entry_date(""));
+    }
 
     #[test]
     fn accepts_a_real_ulid() {
