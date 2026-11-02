@@ -81,10 +81,15 @@ describe("sovereign.manifest.json", () => {
     expect(manifest.database).toBe(true);
   });
 
-  it("has no back-channel or account-deleted address until the app answers them", () => {
-    // Declaring one that nothing serves would have core post to a route that is not there (ROADMAP: signing out from core).
-    expect(manifest.signIn.backChannel).toBeUndefined();
-    expect(manifest.signIn.accountDeleted).toBeUndefined();
+  it("names the addresses Sovereign sends its notices to, and routes answer them that the access list lets Sovereign into", () => {
+    expect(manifest.signIn.backChannel).toBe("/api/sovereign/backchannel-logout");
+    expect(manifest.signIn.accountDeleted).toBe("/api/sovereign/account-deleted");
+    const routes = read("src/access/routes.ts");
+    for (const address of [manifest.signIn.backChannel, manifest.signIn.accountDeleted]) {
+      expect(existsSync(join(root, "app", ...(address as string).split("/").filter(Boolean), "route.ts")), address).toBe(true);
+      // Sovereign has no session: its signed token is what lets a request in.
+      expect(routes, address).toMatch(new RegExp(`route: "${address}", methods: \\{ POST: \\{ kind: "public" \\} \\}`));
+    }
   });
 });
 

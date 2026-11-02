@@ -20,6 +20,14 @@ test.describe("with local sign-in off", () => {
     });
   }
 
+  // There is no Sovereign to hear from, so the addresses its notices come to are not there (ROADMAP H3).
+  for (const path of ["/api/sovereign/backchannel-logout", "/api/sovereign/account-deleted"]) {
+    test(`${path} is not found, even with a notice`, async ({ request }) => {
+      const form = { logout_token: "a.b.c", account_deleted_token: "a.b.c" };
+      expect((await request.post(path, { form })).status()).toBe(404);
+    });
+  }
+
   test("signing up through the API is not found either", async ({ request }) => {
     const response = await request.post("/api/auth/sign-up/email", {
       data: { name: "X", email: "x@example.com", password: "correct horse battery" },

@@ -13,10 +13,16 @@ section.
 
 ### Added
 
+- **Signing out at a Sovereign instance signs the person out of Fjord Web, and deleting their account there deletes theirs.** The instance tells
+  each app it signed them in to; `sovereign.manifest.json` now names the two addresses, `/api/sovereign/backchannel-logout` and
+  `/api/sovereign/account-deleted`, and they check the signed notice with `@sovereignfs/sdk`. Every session of the person ends. A deletion removes everything held
+  of them (repositories and their credentials, shares, drafts, comments on their own documents, sessions, sign-ins, the account itself, even a local
+  password or passkey it had), their replies on other people's documents, and their name from those documents' logs; a thread of theirs that others answered
+  stays with its first comment replaced. Nothing in a git repository is touched. [`deploy/README.md`](deploy/README.md#hosted-on-a-sovereign-instance) says
+  what an operator sees. **`@sovereignfs/sdk` 2.1.0 is the first release with what this needs; `package.json` names it, and `pnpm-lock.yaml` cannot until it is published.**
 - **A Sovereign instance can host Fjord Web.** `sovereign.manifest.json`, at the root of the app, is the manifest an instance's `sv app add` reads
   (manifest 2: the sign-in address and scopes, the health route, the icon, a database, the secret to make, the core versions), and the image carries it as
-  its `io.github.sovereignfs.app-manifest` label, so that it can be read from the registry without pulling. It names no back-channel or
-  account-deleted address yet, so signing out of the instance does not end a Fjord Web session and deleting an account there deletes nothing here. [`deploy/README.md`](deploy/README.md#hosted-on-a-sovereign-instance) says what an operator sets, `FJORD_AUTH_SIGNUP: open` first.
+  its `io.github.sovereignfs.app-manifest` label, so that it can be read from the registry without pulling. [`deploy/README.md`](deploy/README.md#hosted-on-a-sovereign-instance) says what an operator sets, `FJORD_AUTH_SIGNUP: open` first.
   A fourth check in `scripts/deploy-check.sh`, `sovereign`, gives the image what an instance gives an app and checks that it listens on the
   `PORT` it is given, offers Sovereign and no password, serves its icon to someone with no session and stops on SIGTERM in seconds.
 

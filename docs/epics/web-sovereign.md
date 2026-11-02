@@ -2,7 +2,7 @@
 
 The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients/web/ROADMAP.md): what each one is, how it is known to be done, and how it was done. The design is [`clients/web/DESIGN.md`](../../clients/web/DESIGN.md); where it and this file disagree, the design is right.
 
-**Status:** planned on 2026-11-02; H1 and H2 done.
+**Status:** planned on 2026-11-02; H1, H2 and H3 done. H3's lockfile waits on `@sovereignfs/sdk` 2.1.0 being published (below).
 
 ## What this promises, and what it does not
 
@@ -79,8 +79,27 @@ No `postLogout` (signing out of Fjord is local), no `offline_access` (Fjord call
 
 ## H3 Signing out and account deletion from core
 
-**Status:** 📋 Planned (waits on the SDK's token verifiers)
+**Status:** ✅ Done, except that `pnpm install --frozen-lockfile` fails until `@sovereignfs/sdk` 2.1.0 is on npm
 
 `POST /api/sovereign/backchannel-logout` ends every session of the account linked to the token's `sub`; `POST /api/sovereign/account-deleted` deletes what Fjord holds of the person (the account, its sessions, connections and their credentials, its shares), safe to run twice and answering 200 only when done. Both verify core's tokens with `@sovereignfs/sdk`, pinned exactly as `@sovereignfs/ui` is, and the manifest gains `backChannel` and `accountDeleted`. To decide when it starts: whether comments a person wrote on others' documents are deleted or kept without their name. Repository content is never touched.
 
 **Accepts when:** a signed logout token from the fake Sovereign ends the session and a forged, expired, replayed or other-audience one is refused with 400; a deletion notice removes the person's rows on all three databases, twice is the same as once, and a failure answers 500 so core sends it again.
+
+- **Done as:** `src/sovereign/` (`people.ts`, `http.ts`, `verifiers.ts`, `server.ts`), the two routes, their entries in `src/access/routes.ts`, and the manifest's `backChannel` and
+  `accountDeleted`. The SDK is `"@sovereignfs/sdk": "2.1.0"`, exact like `@sovereignfs/ui`, and in `minimumReleaseAgeExclude`. Decided with the owner: **what they said on others' documents**
+  (replies deleted; an unanswered thread deleted; an answered one stays with its first comment replaced and no author; names in logs and resolutions become "Deleted account")
+  and **a linked local account is deleted whole**. `ConnectionService.removeAll` is new. `SOVEREIGN_PROVIDER_ID` and `SOVEREIGN_SCOPES` moved to `auth/config.ts`.
+- **Not as planned:** the browser tests use Fjord's fake Sovereign, which now signs notices (`noticeToken`, and `POST /notice` on its control port), and not a second fake; the SDK's own fake core
+  tests the SDK's side (`verifiers.test.ts`). A logout ends all of a person's sessions, not the one core names, because Fjord Web does not keep core's `sid`. The `jti` record is `rate_bucket`
+  (a limit of one for as long as the notice could be replayed) and not a table, so there is no migration. The routes read the form themselves and give the SDK the token: they cap the body (16 KiB)
+  and the requests (300 a minute together), because the SDK's verifiers contact the instance on every call and a public route would pass a flood on to it. Found by this task and fixed
+  in sovereignfs/sovereign (`df75b4a`): the verifiers asked for the discovery document at the origin and not at the issuer's address, which only an issuer with a path shows.
+- **Blocked on, to finish:** `@sovereignfs/sdk` 2.1.0 is built and committed in sovereignfs/sovereign and is not published. `package.json` names it and **`pnpm-lock.yaml` does not**, because the lockfile
+  records the published tarball's integrity, which does not exist yet: until then `pnpm install --frozen-lockfile` fails (CI and the image build). When it is published
+  (tag `sdk-v2.1.0` there): run `pnpm install` in `clients/web` and commit `pnpm-lock.yaml`. The tests here were run against a tarball packed from that repository's checkout, installed through a
+  temporary `overrides` entry that was not committed.
+- **Verified here:** over the file database, sqld and PostgreSQL, the integration test of `people.ts` (two people and everything either leaves behind; every rule of the 22 seen to fail with it removed,
+  including the deletes SQLite's cascade hides, which a test now switches off); `http.ts` (9 rules seen to fail); the SDK's verifiers against its fake core and Fjord's fake Sovereign; the whole
+  suite and a build with the SDK; and in a browser a real signed logout ending sessions in two browsers, wrong and replayed notices refused, and a deletion emptying the instance's first-account rule.
+- **Not verified:** the image build and `deploy-check.sh` with the SDK (the lockfile cannot install it yet); a real Sovereign instance sending these (the notices are the fake's, checked by the
+  SDK that holds the rules, but no real core was run); and that the instance registers the two addresses from the manifest (that is `sv`'s, tested in sovereignfs/sovereign).

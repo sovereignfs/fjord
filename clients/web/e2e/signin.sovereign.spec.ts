@@ -65,3 +65,86 @@ test("a second person is turned back to the sign-in page, and told why", async (
   await page.goto("/home");
   await expect(page).toHaveURL(/\/sign-in/);
 });
+
+// What Sovereign tells the app when a person's session there ends, or they delete their account (ROADMAP H3). The fake signs the notice
+// with the key it publishes, as Sovereign does, and the test posts it where the manifest says to.
+type Wrong = "signature" | "audience" | "expired" | "type";
+
+async function noticeFrom(page: Page, kind: "logout" | "account-deleted", sub: string, wrong?: Wrong): Promise<string> {
+  const reply = await page.request.post("http://localhost:3191/notice", { data: { kind, sub, sid: "core-session-1", wrong } });
+  expect(reply.ok()).toBe(true);
+  return reply.text();
+}
+
+const sendLogout = (page: Page, token: string) => page.request.post("/api/sovereign/backchannel-logout", { form: { logout_token: token } });
+const sendDeletion = (page: Page, token: string) => page.request.post("/api/sovereign/account-deleted", { form: { account_deleted_token: token } });
+
+async function signInAs(page: Page, who: { sub: string; email: string; name?: string }) {
+  await nextPersonIs(page, who);
+  await page.goto("/sign-in");
+  await page.getByRole("button", { name: "Sign in with Sovereign" }).click();
+  await expect(page.getByRole("heading", { name: `Hello, ${who.name}` })).toBeVisible();
+}
+
+test("signing out at Sovereign signs the person out here, wherever they are signed in", async ({ page, browser }) => {
+  await signInAs(page, first);
+  const other = await browser.newContext({ baseURL: "http://localhost:3204" });
+  const elsewhere = await other.newPage();
+  await signInAs(elsewhere, first);
+
+  const reply = await sendLogout(page, await noticeFrom(page, "logout", first.sub));
+  expect(reply.status()).toBe(200);
+
+  for (const tab of [page, elsewhere]) {
+    await tab.goto("/home");
+    await expect(tab).toHaveURL(/\/sign-in/);
+  }
+  await other.close();
+  // And they can sign in again: the account is theirs still.
+  await signInAs(page, first);
+});
+
+test("a notice that is wrong, or is sent twice, is refused and ends nothing", async ({ page }) => {
+  await signInAs(page, first);
+  for (const wrong of ["signature", "audience", "expired", "type"] as const) {
+    const reply = await sendLogout(page, await noticeFrom(page, "logout", first.sub, wrong));
+    expect(reply.status(), wrong).toBe(400);
+    expect(await reply.json()).toEqual({ error: "invalid_request" });
+  }
+  // A deletion token is not a logout token, nor the reverse.
+  expect((await sendLogout(page, await noticeFrom(page, "account-deleted", first.sub))).status()).toBe(400);
+  expect((await sendDeletion(page, await noticeFrom(page, "logout", first.sub))).status()).toBe(400);
+  // Nothing at all, and not a form.
+  expect((await page.request.post("/api/sovereign/backchannel-logout", { form: {} })).status()).toBe(400);
+  expect((await page.request.post("/api/sovereign/account-deleted", { data: { account_deleted_token: "x.y.z" } })).status()).toBe(400);
+  // They are still signed in.
+  await page.goto("/home");
+  await expect(page.getByRole("heading", { name: `Hello, ${first.name}` })).toBeVisible();
+
+  // The same good notice twice: the first ends the session, the second is a replay.
+  const token = await noticeFrom(page, "logout", first.sub);
+  expect((await sendLogout(page, token)).status()).toBe(200);
+  expect((await sendLogout(page, token)).status()).toBe(400);
+});
+
+test("these addresses answer only a POST, and no one who asks for them is shown anything", async ({ page }) => {
+  for (const path of ["/api/sovereign/backchannel-logout", "/api/sovereign/account-deleted"]) {
+    expect((await page.request.get(path)).status(), path).toBe(405);
+  }
+});
+
+test("a person who deletes their account at Sovereign is deleted here, and the first-account rule is open again", async ({ page }) => {
+  await signInAs(page, first);
+  const reply = await sendDeletion(page, await noticeFrom(page, "account-deleted", first.sub));
+  expect(reply.status()).toBe(200);
+  await page.goto("/home");
+  await expect(page).toHaveURL(/\/sign-in/);
+
+  // They had the only account, and it is gone, so the instance is empty and the next person to sign in is its first.
+  await signInAs(page, second);
+  await expect(page.getByText(second.email)).toBeVisible();
+  // Said again (a retry that was not needed), it is a notice already seen.
+  expect((await sendDeletion(page, await noticeFrom(page, "account-deleted", first.sub))).status()).toBe(200);
+  await page.goto("/home");
+  await expect(page.getByRole("heading", { name: `Hello, ${second.name}` })).toBeVisible();
+});

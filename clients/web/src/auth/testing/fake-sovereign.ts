@@ -58,6 +58,12 @@ export interface FakeSovereign {
   signInAs(user: FakeUser, overrides?: LoginOverrides): void;
   /** Answer the next authorization request with a refusal, the way a person clicking Deny would. */
   denyNext(): void;
+  /**
+   * A signed notice, as Sovereign sends an app when a person's session ends (`logout`: the back-channel logout token of OpenID Connect) or they
+   * delete their account (`account-deleted`): typed, for this client, good for two minutes, with a `jti` of its own, signed with the key it
+   * publishes. Core's carry the `sub` and the `sid`. `wrong` makes one that is wrong in one way, for testing that an app refuses it.
+   */
+  noticeToken(kind: "logout" | "account-deleted", who: { sub?: string; sid?: string }, wrong?: "signature" | "audience" | "expired" | "type"): Promise<string>;
   /** The authorization requests received, newest last. */
   authorizations: URL[];
   /** The access tokens handed out, so a test can look for them where they must not be. */
@@ -88,6 +94,19 @@ export async function startFakeSovereign(options: FakeSovereignOptions = {}): Pr
 
   const sign = (key: CryptoKey, claims: Record<string, unknown>) =>
     new SignJWT(claims).setProtectedHeader({ alg: "EdDSA", kid }).setIssuedAt().setExpirationTime("10m").sign(key);
+
+  const noticeToken: FakeSovereign["noticeToken"] = async (kind, who, wrong) => {
+    const event = kind === "logout" ? "http://schemas.openid.net/event/backchannel-logout" : "urn:sovereignfs:event:account-deleted";
+    const issued = Math.floor(Date.now() / 1000);
+    return new SignJWT({ ...(who.sub ? { sub: who.sub } : {}), ...(who.sid ? { sid: who.sid } : {}), events: { [event]: {} } })
+      .setProtectedHeader({ alg: "EdDSA", kid, typ: wrong === "type" ? "JWT" : kind === "logout" ? "logout+jwt" : "account-deleted+jwt" })
+      .setIssuer(issuer)
+      .setAudience(wrong === "audience" ? "another-app" : clientId)
+      .setIssuedAt(issued)
+      .setExpirationTime(wrong === "expired" ? issued - 10 : issued + 120)
+      .setJti(randomBytes(12).toString("hex"))
+      .sign(wrong === "signature" ? other.privateKey : privateKey);
+  };
 
   const server: Server = createServer((req, res) => {
     void (async () => {
@@ -207,6 +226,7 @@ export async function startFakeSovereign(options: FakeSovereignOptions = {}): Pr
     clientSecret,
     signInAs: (user, overrides = {}) => void (next = { user, overrides }),
     denyNext: () => void (deny = true),
+    noticeToken,
     authorizations,
     accessTokensIssued,
     tokenRequests,

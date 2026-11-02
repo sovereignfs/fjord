@@ -64,6 +64,10 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/github-app/install", methods: { GET: { kind: "account" } } },
   { route: "/api/github-app/callback", methods: { GET: { kind: "account" } } },
   { route: "/api/webhooks/github", methods: { POST: { kind: "public" } } },
+  // Sovereign's notices (H3): a person's session there ended, or they deleted their account. Like the webhook they are the instance's, not a person's: the signed token is the credential,
+  // checked by the SDK against Sovereign's keys, and a request without one is refused before anything else is asked.
+  { route: "/api/sovereign/backchannel-logout", methods: { POST: { kind: "public" } } },
+  { route: "/api/sovereign/account-deleted", methods: { POST: { kind: "public" } } },
   { route: "/api/connections", methods: { GET: { kind: "account" }, POST: { kind: "account" } } },
   { route: "/api/connections/[id]", methods: { DELETE: { kind: "account" } } },
   { route: "/api/connections/[id]/default", methods: { POST: { kind: "account" } } },

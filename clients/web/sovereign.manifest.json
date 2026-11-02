@@ -9,6 +9,8 @@
   "launch": "/",
   "signIn": {
     "redirect": ["/api/auth/callback/sovereign"],
+    "backChannel": "/api/sovereign/backchannel-logout",
+    "accountDeleted": "/api/sovereign/account-deleted",
     "scopes": ["openid", "profile", "email"]
   },
   "database": true,

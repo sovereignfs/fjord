@@ -270,9 +270,21 @@ What the operator adds, in `suite.yml` under `apps.fjord.env` (settings) and wit
 Updating is a newer image: `./sv app update fjord --image ghcr.io/sovereignfs/fjord-web:0.2.1`, then `./sv push && ./sv deploy`. [Updating](#updating)
 says what a release may change, and `sv backup` is the backup to take first.
 
-**Not yet:** signing out of the instance, or deleting an account there, does not end a Fjord Web session or delete what it holds of the
-person; the manifest names no back-channel or account-deleted address until it answers them (ROADMAP H3). Signing out of Fjord Web signs
-out of Fjord Web only.
+**When someone signs out of the instance, or deletes their account there,** the instance tells Fjord Web (the manifest names the addresses,
+`/api/sovereign/backchannel-logout` and `/api/sovereign/account-deleted`, and `sv` registers them):
+
+- **Signing out of the instance signs the person out of Fjord Web, everywhere.** Every session they have here ends, not only the one
+  they signed out of, because Fjord Web does not keep the instance's session ids. Signing out of Fjord Web signs out of Fjord Web only.
+- **Deleting their account deletes everything Fjord Web holds of them**, and the account itself, including a password or a passkey they
+  had set here: their connected repositories and the credentials for them, what was shared from them and with them, their drafts, their
+  comments on their own documents, their sessions and sign-ins. Nothing in a git repository is touched; the files are theirs, at their
+  git host. On other people's documents: their replies are deleted; a thread of theirs that nobody answered is deleted; one that others
+  answered stays, with its first comment replaced by "This comment was deleted." and no author, so no one else's words are lost; their name
+  in a document's log or a resolution becomes "Deleted account". If it cannot be finished the instance is told so and sends it again
+  until it can.
+- **Neither works without the instance being reachable**: Fjord Web checks each notice against the instance's keys, and answers "try
+  again" if it cannot. A notice that is forged, expired, for another app or already seen is refused, and so are more than 300 requests
+  a minute to these two addresses together.
 
 ## Checked by CI
 
@@ -283,7 +295,7 @@ taken down (keeping their volumes) and up again the account can sign in; and, on
 without a secret exits and names it. A fourth, `sovereign`, is what an instance relies on: the image's label is
 `sovereign.manifest.json` and its exposed port is the manifest's; given what `sv` gives an app (secrets as files, PostgreSQL, a `PORT`
 that is not the default, core's address and client) it comes up on that `PORT`, offers sign-in through Sovereign and no password, serves
-`/icon.svg` to someone with no session, and stops on SIGTERM within seconds (Next finishes what is in flight and exits 143, the
+`/icon.svg` to someone with no session, answers Sovereign's two notice addresses (no token is 400, a GET is 405, a notice it cannot check is 503), and stops on SIGTERM within seconds (Next finishes what is in flight and exits 143, the
 signal's own code). CI runs it on every change to Fjord Web
 (`web-ci.yml`, job `image`).
 

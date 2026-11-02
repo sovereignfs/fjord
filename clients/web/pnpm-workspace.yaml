@@ -8,3 +8,4 @@ allowBuilds:
   esbuild: false
 minimumReleaseAgeExclude:
   - '@sovereignfs/ui@0.89.1'
+  - '@sovereignfs/sdk@2.1.0'

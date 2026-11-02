@@ -14,7 +14,8 @@
 # `contracts/app-manifest.md` in sovereignfs/sovereign): the image's label is the manifest and its exposed port is the manifest's; and the
 # image, given what `sv apply` gives an app (PORT, its address, its secrets as files named by `_FILE`, a PostgreSQL database, core's
 # address and its client) comes up on that PORT and no other, serves its icon to someone with no session, offers sign-in through
-# Sovereign, and stops on SIGTERM within seconds. Next finishes what is in flight and exits 143, the signal's own code; a container that
+# Sovereign, answers the two addresses the manifest names for Sovereign's notices (no token is 400, a GET is 405, a notice it cannot
+# check is 503), and stops on SIGTERM within seconds. Next finishes what is in flight and exits 143, the signal's own code; a container that
 # had to be killed after the grace period would say 137. It needs no Sovereign: the address of core is never asked at start-up.
 #
 # Written for bash 3.2.
@@ -132,6 +133,16 @@ check_sovereign() {
   icon="$(curl -sS -o /dev/null -w '%{http_code} %{content_type}' "http://localhost:$port/icon.svg")"
   case "$icon" in "200 image/svg+xml"*) ;; *) sv_fail "/icon.svg answered '$icon'" ;; esac
 
+  # The two addresses the manifest names for Sovereign's notices are there: no token is refused, only a POST is taken, and a notice that cannot
+  # be checked because the instance cannot be reached (this one is not) is "try again", never "done".
+  notice() { curl -sS -o /dev/null -w '%{http_code}' "$@" "http://localhost:$port/api/sovereign/$path"; }
+  for path in backchannel-logout account-deleted; do
+    [ "$(notice -X POST -H 'content-type: application/x-www-form-urlencoded' --data '')" = 400 ] || sv_fail "/api/sovereign/$path did not refuse a notice with no token"
+    [ "$(notice)" = 405 ] || sv_fail "/api/sovereign/$path took something other than a POST"
+  done
+  [ "$(path=backchannel-logout notice -X POST --data-urlencode 'logout_token=a.b.c')" = 503 ] || sv_fail "a logout notice that could not be checked was not answered 503"
+  [ "$(path=account-deleted notice -X POST --data-urlencode 'account_deleted_token=a.b.c')" = 503 ] || sv_fail "a deletion that could not be checked was not answered 503"
+
   # `sv` stops an app with SIGTERM and gives it 30 seconds: it must end within seconds by handling the signal, not wait to be killed.
   # Next's server finishes what is in flight and exits with the signal's own code, 143; a kill after the grace period is 137.
   started="$(date +%s)"
@@ -145,7 +156,7 @@ check_sovereign() {
   docker network rm "$sv_net" >/dev/null 2>&1 || true
   rm -rf "$sv_dir"
   sv_dir=""
-  echo "   the label is the manifest, PORT=$sv_port honoured, Sovereign sign-in offered, the icon served, stopped by SIGTERM in ${elapsed}s (exit code $code)"
+  echo "   the label is the manifest, PORT=$sv_port honoured, Sovereign sign-in offered, the icon served, the notice addresses answering, stopped by SIGTERM in ${elapsed}s (exit code $code)"
 }
 
 for setup in $setups; do

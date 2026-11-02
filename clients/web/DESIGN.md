@@ -1654,8 +1654,8 @@ Sovereign's `contracts/` (`app-manifest.md` and `env.md`), neither of which core
 - **The manifest is `clients/web/sovereign.manifest.json`**, at the root of the app's code: manifest 2, `"prefix": "fjord"`, the sign-in
   address `/api/auth/callback/sovereign` and the scopes of §6 (`SOVEREIGN_SCOPES`, which the sign-in code and the manifest share), the
   health route, the icon (`/icon.svg`, which the proxy leaves to anyone), `"database": true` (and no pooling: the migrations hold a lock on
-  one connection), the one secret the instance makes (`FJORD_AUTH_SECRET`) and the core versions it works with. It declares no back-channel
-  or account-deleted address, because nothing answers them yet (ROADMAP H3). `src/sovereign-manifest.test.ts` holds it to the manifest's
+  one connection), the one secret the instance makes (`FJORD_AUTH_SECRET`) and the core versions it works with. It names the two addresses the
+  instance sends its notices to, which answer them (below). `src/sovereign-manifest.test.ts` holds it to the manifest's
   JSON Schema (a copy, `src/auth/fixtures/app-manifest-v2.schema.json`, taken as the discovery document beside it is recorded) and to the
   code and files it promises things about.
 - **The port is written once, there.** The image is built with it (`ARG PORT`, `ENV PORT=${PORT}`, `EXPOSE ${PORT}`), and a build without it
@@ -1672,8 +1672,40 @@ Sovereign's `contracts/` (`app-manifest.md` and `env.md`), neither of which core
   instance's contract wants: it is never killed after the grace period). It does not sign in: that is the fake Sovereign's, in the browser tests, against the same
   code; and no real instance has hosted it yet.
 - **What an operator sets** is in `deploy/README.md`: `FJORD_AUTH_SIGNUP=open` (on an instance the instance decides who may sign in),
-  the encryption key, and the GitHub App. **Not yet:** a Fjord session does not end when the person signs out of the instance, and an account
-  deleted there deletes nothing here (ROADMAP H3).
+  the encryption key, and the GitHub App.
+
+### Signing out and account deletion from Sovereign, as built (ROADMAP H3)
+
+A Sovereign instance tells each app it signed a person in to when that person's core session ends (an OpenID Connect back-channel logout)
+and when they delete their account (an account-deleted notice; core-app §3.6.5 and §4.5 in sovereignfs/sovereign). Both are a signed token
+in a form, `POST`ed to the addresses the manifest names, and the token is the only credential: no session, no cookie, no `Origin`.
+
+- **Checking a token is `@sovereignfs/sdk`'s** (`verifyLogoutToken`, `verifyAccountDeletedToken`: type, signature against the instance's keys,
+  issuer, audience, age, event, `jti`, no `nonce`), so no rule of the sign-in contract is written twice. `src/sovereign/verifiers.ts` is the one file
+  that imports it. A notice already seen is refused: the `jti` is counted against a limit of one in `rate_bucket` for as long as it could be
+  replayed (`seenBy`), which is in the database every process shares and needs no table of its own.
+- **The routes** (`app/api/sovereign/*`, rules in `src/sovereign/http.ts`) read a bounded form (16 KiB; anything else is refused before
+  Sovereign is asked anything), count every request against one limit for both addresses (300 a minute: the verifiers ask the instance for its keys, so
+  a flood of junk would otherwise be a flood to it), and answer `400` for a notice to refuse, `503` when the instance could not be asked,
+  `500` for a failure of ours (which, for a deletion, makes the instance send it again with a new token) and `200` for a deletion only once it
+  is done. They are `404` where Sovereign sign-in is not set up. Nothing logs the token, the person or a message, only the kind of error.
+- **A person is the `sub`** of the better-auth account linked for the provider `sovereign` (§6), never matched by email.
+- **A logout ends all of the person's sessions** (`People.endSessions`). A token names the instance's session (`sid`) as well, but Fjord does
+  not keep it, and ending only some on a guess would leave others open after the person signed out.
+- **A deletion deletes the person** (`People.deletePerson`): each repository they connected, as disconnecting it does (`ConnectionService.removeAll`: trees,
+  drafts, the record of deletions, the index, shares, links, sealed copies, the comments on those documents, the credential); what was shared with
+  them; their default; their name in the list of who edited someone else's draft (what they typed stays, in the draft, which is the owner's); their
+  rate counters; their passkeys, two-factor, reset links and sign-ins; the account. **A Fjord account that Sovereign sign-in was linked to a
+  password or a passkey is deleted whole**, as the notice asks. It can be run again: the row that links the `sub` to the account goes last,
+  so a run that stopped can find the account. Nothing in a git repository is touched.
+- **What they said on other people's documents** (decided with the owner): their replies are deleted; a thread of theirs that nobody else answered is deleted
+  with its log; one that others answered stays, its opening words replaced by "This comment was deleted." and its author "Deleted account", so
+  no one else's words are lost and nothing of theirs is kept. Their name in a log or a resolution, in a document they could reach or a thread
+  they took part in, becomes "Deleted account" (the log keeps names and not ids, so it goes by the name they had; a namesake's, elsewhere,
+  is not touched).
+- **Tested** over the three databases with two people and everything a person can leave behind (`people.test.ts`; each of 22 rules was seen to fail
+  with it removed), with stand-ins for the answers (`http.test.ts`), against the SDK and its fake core (`verifiers.test.ts`), and in a browser
+  against the fake Sovereign, which signs notices with the key it publishes (`e2e/signin.sovereign.spec.ts`).
 
 ## 18. Licence
 
