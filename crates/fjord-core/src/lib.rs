@@ -37,6 +37,7 @@
 pub mod conformance;
 pub mod diagnostics;
 pub mod doc;
+pub mod journal;
 pub mod listing;
 pub mod manifest;
 pub mod merge;
@@ -44,6 +45,7 @@ pub mod naming;
 pub mod path;
 pub mod scaffold;
 pub mod scalar;
+pub mod tags;
 pub mod yaml;
 
 // What needs a real machine (a disk) is `native`; `age` and `tar` over bytes in memory are `crypto`, which the pure subset

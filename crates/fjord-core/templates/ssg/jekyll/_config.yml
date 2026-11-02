@@ -1,0 +1,10 @@
+title: {{name}}
+# Posts and drafts are in `content/`, a Fjord vault: content/_posts and content/_drafts.
+collections_dir: content
+# Fjord's manifests are not part of the site.
+exclude:
+  - fjord.json
+  - content/fjord.vault.json
+  - README.md
+  - Gemfile
+  - Gemfile.lock

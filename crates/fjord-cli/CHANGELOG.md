@@ -19,6 +19,7 @@ tagging it.
 ### Added
 
 - **Repository kinds** (spec §3.1, RFC 0001): `fjord verify` reads `fjord.json`'s optional `kind` (`drive`, `journal` or `ssg`) and its settings object, and checks the rules of each. Three new diagnostics: **`E111`**, a journal or `ssg` repository without exactly one vault; **`E112`**, an `ssg` repository whose vault is encrypted; and the warning **`W606`**, a Doc whose `date` is not an RFC 3339 date-time or full-date (spec §8.1). A kind this build does not know is not a finding: it is presented as a drive, and kept. `fjord-core` gains `manifest::Kind`, `manifest::Engine`, `Manifest::kind`, `Manifest::presented_kind`, and `scalar::is_entry_date`.
+- **`fjord-core` scaffolds each kind and files journal entries**: `scaffold::plan_kind_with` makes a drive (exactly today's repository), a journal (one `journal/` vault, plaintext, or encrypted with `id` naming and a tar container), or an Astro or Jekyll site (one plaintext `content/` vault and the engine's own files around it). `journal::entry_path` files an entry by its `date` in the writer's own time (`YYYY/MM/DD/HHMM-slug.md`, or flat at the vault's root in an encrypted journal, spec §11.2), `scalar::rfc3339_from_unix_at_offset` writes such a `date`, and `tags::same` and `tags::is_under` compare tags as spec §8.1 says. All of it is in the pure subset.
 - **`fjord-core` and `fjord-cli` are on crates.io** (from 0.4.0): `cargo install fjord-cli` builds the `fjord` command, and `fjord-core` can be used as a library (`fjord-core = "0.4"`).
 
 ## [0.4.0] - 2026-11-01
