@@ -4,7 +4,7 @@
 
 **Version:** 1 (draft)
 **Status:** Draft. Not yet stable; breaking changes possible until declared stable.
-**Date:** 2026-10-23
+**Date:** 2026-11-02
 **Licence:** [CC0 1.0](#licence) (public domain)
 
 ---
@@ -49,6 +49,7 @@ RECOMMENDED, MAY and OPTIONAL are to be interpreted as described in
 | Term | Meaning |
 | --- | --- |
 | **Repository** | A Git repository containing `fjord.json` at its root. |
+| **Kind** | What a repository is for: `drive`, `journal` or `ssg`. Changes presentation only. See §3.1. |
 | **Vault** | A top-level directory containing `fjord.vault.json`. The unit of encryption. |
 | **Fjord Doc** | A `.md` file in a vault whose frontmatter contains a valid `id`. |
 | **Document** | A Fjord Doc whose file name ends in `.fj.md`. See §8.4. |
@@ -68,12 +69,19 @@ RECOMMENDED, MAY and OPTIONAL are to be interpreted as described in
 ├── .gitattributes          REQUIRED
 ├── .gitignore              RECOMMENDED
 ├── .fjord/                 RESERVED
-└── <Vault>/                zero or more
-    ├── fjord.vault.json    REQUIRED
-    ├── recipients.txt      REQUIRED if encrypted
-    ├── .gitignore          REQUIRED if encrypted
-    └── …                   documents and directories, nested freely
+├── <Vault>/                zero or more
+│   ├── fjord.vault.json    REQUIRED
+│   ├── recipients.txt      REQUIRED if encrypted
+│   ├── .gitignore          REQUIRED if encrypted
+│   └── …                   documents and directories, nested freely
+└── …                       other files and directories, outside any vault
 ```
+
+Files and directories outside every vault are permitted: a `README.md` at
+the root, or the configuration and layouts of a site's engine (§3.1). They
+are ordinary files of the repository. They are never Fjord Docs or vault
+files, whatever their names, and nothing in this specification applies to
+them beyond the path rules of §5.
 
 ### 2.1 The filesystem is authoritative
 
@@ -138,7 +146,60 @@ Plaintext, at the repository root, UTF-8, no BOM.
 | `name` | string | yes | Display label. |
 | `createdAt` | RFC 3339 | yes | MUST be UTC, with `Z`. |
 | `generator` | string | no | Tool and version that created the repository. |
+| `kind` | string | no | What the repository is for. See §3.1. Absent means `"drive"`. |
+| `<kind>` | object | no | Settings for the kind, under a key named after it, such as `ssg`. See §3.1. |
 | `vaults` | array | yes | Objects with `path` (relative, no `..`, no leading `/`) and `id` matching that vault's own `id`. |
+
+### 3.1 Kinds
+
+A repository's **kind** says what it is for, and therefore how a client
+presents it: as a set of vaults and folders, as a timeline of entries, as a
+website's content. This revision defines three.
+
+| Kind | Vaults | Encryption | Settings |
+| --- | --- | --- | --- |
+| `drive` | Any number | Per vault, as §4 and §6 allow | None |
+| `journal` | Exactly one | As §4 and §6 allow | None |
+| `ssg` | Exactly one | None: the vault MUST be plaintext | `ssg`: `{ "engine": "astro" }` or `"jekyll"` |
+
+```json
+{
+  "fjord": 1,
+  "id": "01jagc4k7pqw2xn8rvty5zb3md",
+  "name": "Notebook",
+  "createdAt": "2026-11-02T09:34:00Z",
+  "kind": "ssg",
+  "ssg": { "engine": "astro" },
+  "vaults": [{ "path": "content", "id": "01jagc4k7pr9tbm3ykwx6zq2hv" }]
+}
+```
+
+A kind changes how a repository is presented, never what its files mean, as
+the name of a document does for one file (§8.4):
+
+- A client that does not know a repository's kind, or the `engine` of an
+  `ssg` repository, MUST treat the repository as a `drive`. A kind added by a
+  later revision therefore needs no new format version.
+- A client MUST be able to present any repository as a `drive`, and MUST NOT
+  refuse to read a repository because of its kind.
+- A client MUST preserve `kind` and every settings object when it rewrites
+  `fjord.json` (§10.1), including those it does not know.
+- A kind MAY be changed by editing the field. Nothing else changes, and the
+  repository then has to meet the new kind's rules.
+
+The vault of a `journal` or an `ssg` repository is found as every vault is,
+by its `fjord.vault.json` (§2.1). Its directory name is not fixed; the one
+vault is the kind's content, and a client SHOULD present the repository as
+that content rather than as a list of one vault. With one vault, choosing its
+encryption is choosing the repository's.
+
+An `ssg` repository is a static site whose engine builds it from the vault.
+The engine's own files (its configuration, layouts and package files) are
+files outside any vault (§2). The vault is plaintext because a site is
+published: one built from ciphertext would need its key in the build.
+
+A repository that breaks its kind's rules is still readable, and a client
+SHOULD say which rule it breaks rather than refuse it.
 
 ---
 
@@ -395,9 +456,34 @@ object construction. Frontmatter is untrusted input.
 | `id` | ULID | yes | The document's identity. Immutable. Unique within the repository. |
 | `title` | string | no | Display name. |
 | `created` | RFC 3339 | no | UTC. Set once. |
-| `tags` | array of string | no | |
+| `date` | RFC 3339 date-time or full-date | no | The moment the Doc is about. Keeps the writer's local offset. See below. |
+| `tags` | array of string | no | Compared as below. |
 | `aliases` | array of string | no | Obsidian-compatible. |
 | `fjord` | mapping | no | Reserved for client state. Clients MUST NOT place their own keys outside it. |
+
+**`date`** is the moment a Doc is about: the day and time of a journal entry,
+the publication date of a post. It is not `created`, which records when the
+file was made and is set once; `date` may be set and changed by the writer.
+It is an RFC 3339 date-time with any offset (`2026-11-02T08:14:00+05:30`),
+or an RFC 3339 full-date alone (`2026-11-02`).
+
+Unlike every other timestamp in this specification, `date` keeps the
+writer's **local offset** rather than UTC. A Doc is read by the writer's day:
+an entry written at 01:00 in Colombo falls on the previous day in UTC, and
+would be shown on the wrong day. A client writing `date` SHOULD write the
+local offset of the moment it records.
+
+Other tools write dates in other forms (Jekyll writes
+`2026-11-02 08:14:00 +0530`), and §2.1 requires them to be tolerated. A
+`date` that is neither form is therefore not an error: a client SHOULD warn,
+and SHOULD fall back to the path, then to `created`, wherever it needs the
+Doc's date.
+
+**Tags** are compared case-insensitively. Clients SHOULD treat two tags as
+the same when they are equal after NFC normalisation and Unicode's default
+lowercase mapping, and SHOULD treat `/` as nesting: `project/fjord` is a tag
+under `project`. Comparison never rewrites a file; a tag is kept as it was
+written. Only the frontmatter's `tags` are tags; a `#word` in the text is not.
 
 ### 8.2 Rules
 
@@ -551,6 +637,12 @@ To anyone who can read the repository, including the Git host:
 
 Implementations MUST NOT describe an encrypted vault in terms that imply
 metadata protection it does not provide.
+
+A client that chooses paths for the user in an encrypted vault SHOULD NOT
+put in them what the encryption is meant to hide. A journal's entries, for
+instance, are not filed in dated directories in an encrypted vault, because
+`2026/11/02/` would show which days have entries; they sit at the vault's
+root with `fileNaming` `"id"` (§7.2), and their dates stay inside them.
 
 ### 11.3 Identities
 
