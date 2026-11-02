@@ -36,7 +36,8 @@ What it must not give up, whatever the convenience:
 | --- | --- |
 | **1** | Accounts, GitHub repositories, a file browser, editors for **plaintext** documents and notes, renaming, moving and deleting them, versions as commits, sharing, and collaborative **comments**. |
 | **2** | Encrypted files: browse, open and edit documents in encrypted vaults, decrypted in the browser; sealed shares of encrypted documents. |
-| **3** | Collaborative **editing** in real time. |
+| **3** | Repository **kinds**: a repository opens as a drive, a journal (a timeline, tags) or a static site (a content editor, then previews through the host). Proposed in [RFC 0001](../../docs/rfcs/0001-repository-kinds.md); see §8, *Repository kinds*. |
+| **4** | Collaborative **editing** in real time. |
 | Later | Other git hosts (GitLab, Forgejo/Gitea, any git server), Sheets, search, notifications, the desktop and mobile clients and editor plugins reusing the editor package. |
 
 Phase 1 ships in slices (§16), each usable on its own.
@@ -470,6 +471,17 @@ browsed read-only, with an offer to initialise it (decided, §19 #3; ROADMAP 1a.
 - An encrypted vault with `fileNaming: "id"` shows identifiers, not names; that is
   what it is for (spec §7.2).
 
+### Repository kinds (phase 3, proposed)
+
+A repository's `kind` in `fjord.json` (`drive`, `journal`, `ssg`; absent is `drive`) chooses what it opens on: today's vaults
+and folders for a drive, a timeline for a journal, a site's content editor for `ssg`. A kind the client does not know opens as a
+drive, and every kind can still be shown as files. Each kind is a module of the client: an entry view, a scaffold, a content
+model and actions; everything else (editors, versions, sharing, comments, encryption) is shared and unchanged.
+
+This is proposed, not built. The design is [RFC 0001](../../docs/rfcs/0001-repository-kinds.md) and, for `ssg`,
+[Research 0001](../../docs/research/0001-ssg-kind.md); the tasks are [`web-3.md`](../../docs/epics/web-3.md). Task 3a.1 moves
+the design proper here.
+
 ### Browsing, as built (ROADMAP 1a.11: the vaults, browsing them, and the default vault)
 
 1a.11 was built in three steps: the vaults of a repository, browsing a vault's folders and files, and each
@@ -783,7 +795,7 @@ style asks again. Changing any of this later is a change to `HOUSE_STYLE` and to
   it); see §9.
 - **Comments** use Lexical's mark nodes, which MDXEditor does not provide as a
   plugin, so the comment plugin is ours (§13).
-- **Phase 3 risk, recorded now.** Collaborative editing means `@lexical/yjs` inside
+- **Phase 4 risk, recorded now.** Collaborative editing means `@lexical/yjs` inside
   MDXEditor's Lexical instance, which MDXEditor does not do out of the box. The
   package interface is what lets us extend MDXEditor, or replace it, when we get
   there.
@@ -961,7 +973,7 @@ title and no more: the name and, for a document, the header are `fjord-core`'s, 
   path is once, when the draft starts); and a version re-checks the bytes it is about to commit. Because the server cannot read
   either side, **combining is not offered** for an encrypted file that changed upstream: the person keeps theirs (the ciphertext is
   moved onto the file as it is, and theirs stays in the history) or takes theirs (the draft is dropped).
-- **Phase 3** carries real-time collaboration on this same working copy (a shared
+- **Phase 4** carries real-time collaboration on this same working copy (a shared
   Yjs document per open file), which is why it exists now rather than later.
 
 ### Working copies, as built (ROADMAP 1b.8)
@@ -1033,7 +1045,7 @@ A draft nobody has edited for the quiet period becomes a version without anyone 
   reached for, is tried again after fifteen minutes or when it is edited again, not every minute; the delay is kept in memory, so a restart tries once more. At most 50 versions are made in a pass.
 - **Logged** as a count, and an unexpected failure by its name only, never a message (it may carry a path or a host's words).
 - **Not done:** a tab that was left open does not hear that its draft became a version. Typing in it again starts a new draft on the old base, which the note's page then offers to combine (1b.10);
-  nothing is lost. **Decided not to tell the page** (2026-10-31): that would be a stream per open editor to save a click in a case that already keeps every word, and Phase 3's shared document (§11) removes the case.
+  nothing is lost. **Decided not to tell the page** (2026-10-31): that would be a stream per open editor to save a click in a case that already keeps every word, and Phase 4's shared document (§11) removes the case.
 
 ### Upstream changes, as built (ROADMAP 1b.10)
 
@@ -1172,14 +1184,14 @@ wrong, for another document, expired or revoked is a 404 (not told apart from th
 link is a 403, which it may be told. Writes come from this site only. **Only the body is theirs**: the client sends the body, and the header
 (the `id`, the title and whatever else) is the working copy's or the file's own, put back in front, so a guest cannot change what the
 document is; a document whose header cannot be read is not edited through a link. The draft keeps the base it was started from whoever saves
-it, and two people typing at once is last-write-wins until real-time editing (phase 3). `editors` gains the tag the design left room for,
+it, and two people typing at once is last-write-wins until real-time editing (phase 4). `editors` gains the tag the design left room for,
 `{ type: "guest", link, name }`, one entry per link and name (at most 50 per draft, then a new name is refused until a version is saved).
 When the owner opens the document its page says the draft was made by them *and by* the names, and **Save version** credits each guest
 by name: the author is the owner, and each guest is a `Co-authored-by:` trailer with an address that is nobody's
 (`link-<link>-<hash of the name>@users.noreply.fjord.invalid`, so two names on one link are two credits and the address says it was a link, not
 an account). A name is whatever the guest gives; it is not checked against anyone, which is what "the display name they gave" means. Not here:
 a name before **commenting** (comments are 1d, which will use the same name), edit mode for a named account's `edit` share (the policy
-allows it; the page does not yet), and seeing other guests type as they do (phase 3).
+allows it; the page does not yet), and seeing other guests type as they do (phase 4).
 
 *As built (ROADMAP 1c.7), managing shares.* A document's page, for its owner, has a **Sharing** panel (closed until opened, which reads the two
 lists). **People**: everyone it is shared with, by name and address, each with a role to change and *Stop sharing*, and *Share with* an
@@ -1216,7 +1228,7 @@ one scrypt each; the length rule and the work factor are the defence.
 
 ## 13. Comments
 
-Comments are collaborative in phase 1; editing is not (phase 3).
+Comments are collaborative in phase 1; editing is not (phase 4).
 
 - **Threads** on a selection, with replies; resolve and un-resolve (anyone with
   comment access); edit or delete your own; the owner can delete any comment and
@@ -1228,7 +1240,7 @@ Comments are collaborative in phase 1; editing is not (phase 3).
   outside the editor (a commit from elsewhere), threads are re-anchored from the
   selector: exact match near the hint, then a fuzzy match, otherwise the thread is
   marked **outdated** and kept in the panel, never dropped. The anchor is a tagged
-  type, so phase 3 can add Yjs relative positions beside it without a migration.
+  type, so phase 4 can add Yjs relative positions beside it without a migration.
 - **Live:** new comments, replies and resolutions arrive over server-sent events.
 - **Identity:** signed-in users by account; anonymous link users by display name and
   a random browser id (spoofable by design; that is what anonymous means).
@@ -1696,3 +1708,4 @@ standalone output would otherwise prune it.
 | 2026-10-26 | A repository that is not a Fjord repository is offered the setup of one plaintext vault: a preview, a click, one additive commit of what `fjord init` writes | Never offering (a web-only person is stranded without the CLI); offering encrypted vaults (keys do not belong in the browser) |
 | 2026-10-26 | `packages/fjord-editor` is MPL-2.0 and does not depend on `@sovereignfs/ui` | AGPL with the design system (every client that embeds it, the MPL-2.0 mobile client included, would have to be AGPL) |
 | 2026-10-27 | The visual document editor is used only for a document it can hold without changing what it means, tested on opening; any other (raw HTML, footnotes, maths, CRLF, a loose list…) is shown as Markdown in the byte-faithful editor | Opaque raw blocks inside the visual editor (they need custom Lexical nodes, and the editor normalises silently what it does not refuse) |
+| 2026-11-02 | Phase 3 is repository kinds (`drive`, `journal`, `ssg`, on the repository, proposed in RFC 0001); collaborative editing moves to phase 4 | Collaborative editing first (it was an outline with no tasks; kinds were wanted sooner); a kind per vault (one repository is one thing to the person, and a site is deployed per repository) |

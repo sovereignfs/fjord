@@ -78,7 +78,7 @@ Name before commenting or editing; edits go to the working copy.
 **Accepts when:** A link editor's change appears in the next version, credited by name.
 
 - **Done as:** a link with the `edit` role opens in the document editor after a **name** is given (1 to 40 characters, one line, kept in the browser; read-only until then); what is typed is kept as the document's **working copy** by `PUT /doc/<id>/draft` (under `/doc/<id>` so the link's cookie is sent; no session, the cookie is the credential and must be a live link of that document whose role may edit, with the password's proof if it has one; a bad cookie is a 404, a view or comment link a 403, writes from this site only); only the body is theirs, the header is put back as it is, and a document whose header cannot be read is not edited through a link; `editors` takes `{ type: "guest", link, name }` (50 at most), the owner's page names them, and **Save version** credits each by name as a `Co-authored-by:` with a `link-<n>-<hash>@users.noreply.fjord.invalid` address while the owner stays the author.
-- **Not here:** a name before commenting (1d, same name), editing by a named account's edit share, live collaboration (phase 3).
+- **Not here:** a name before commenting (1d, same name), editing by a named account's edit share, live collaboration (phase 4).
 
 ## 1c.7 Share management UI
 

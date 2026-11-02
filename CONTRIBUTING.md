@@ -11,6 +11,7 @@ section of [`CLAUDE.md`](CLAUDE.md); the two are meant to say the same thing.
 - [Pull requests](#pull-requests)
 - [Continuous integration](#continuous-integration)
 - [Changing the format](#changing-the-format)
+- [Proposing a change: RFCs, research and workstreams](#proposing-a-change-rfcs-research-and-workstreams)
 - [Releases](#releases)
 - [Licence of contributions](#licence-of-contributions)
 
@@ -108,6 +109,21 @@ A change to the format is one PR that changes the spec, adds or updates a
 fixture under `tests/fixtures/` (every diagnostic has one that triggers exactly
 it), and changes the code. A client that reads Fjord repositories is expected to
 pass those fixtures.
+
+## Proposing a change: RFCs, research and workstreams
+
+- **An idea or a request:** open an issue.
+- **An open question with no design yet:** a research document in [`docs/research/`](docs/research/): what was read or
+  tried, and when, the findings, the options and a recommendation.
+- **A design that needs review before anything is built**, and every change to the format: an RFC in
+  [`docs/rfcs/`](docs/rfcs/), with its motivation, the design, the alternatives rejected and why, and its security
+  considerations. An RFC that changes the format proposes the text. The spec itself changes with the code that implements it,
+  as above.
+- **A feature that crosses components**, once its RFC is accepted: a workstream in [`docs/workstreams/`](docs/workstreams/),
+  which orders the epic tasks from several roadmaps into legs, with the decisions locked so the work can be run without the
+  conversation that produced it. Each task in a leg is still its own branch and pull request.
+
+Each directory's README has its index and naming rules.
 
 ## Releases
 

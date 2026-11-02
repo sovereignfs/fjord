@@ -8,7 +8,7 @@ The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients
 
 - **The operator cannot read an encrypted file.** An age identity is made, imported and used in the browser only; the server receives ciphertext and never a key, a passphrase or a plaintext (DESIGN §2). What the server and the git host *can* see is what the repository shows them anyway: the names of files in `plain` naming, the sizes, the history, and the recipients' public keys. In `id` naming the names are inside the container (spec §6.4) and are not seen.
 - **`age -d` stays enough to recover a file** (root `CLAUDE.md`, invariant): the browser writes the same bytes the CLI would, and the cross-validation against the real `age` binary (P7) covers the browser's build as it covers the CLI's.
-- **Not in this phase:** changing a vault's recipients (`fjord rekey` is the CLI's, and a rekey re-encrypts every file); searching inside encrypted files; collaborative editing of an encrypted document (phase 3 is plaintext); Web Crypto as a second implementation of age (one implementation, `fjord-core`).
+- **Not in this phase:** changing a vault's recipients (`fjord rekey` is the CLI's, and a rekey re-encrypts every file); searching inside encrypted files; collaborative editing of an encrypted document (phase 4 is plaintext); Web Crypto as a second implementation of age (one implementation, `fjord-core`).
 
 ## Prerequisites in fjord
 

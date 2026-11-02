@@ -1,6 +1,6 @@
 # Fjord Web — roadmap
 
-**Status:** phase 1 is done except a real-GitHub check of the App (1a.6); phase 2 is planned (tasks, not built) and phase 3 is an outline. The design is
+**Status:** phase 1 is done except a real-GitHub check of the App (1a.6); phase 2 is built; phase 3, repository kinds, is planned (tasks written, [RFC 0001](../../docs/rfcs/0001-repository-kinds.md) proposed), and phase 4 is an outline. The design is
 [`DESIGN.md`](DESIGN.md); this file is the order of work, and the detail of each task is in [`docs/epics/`](../../docs/epics/). Section numbers (§) refer to `DESIGN.md` unless they say "spec".
 
 | | |
@@ -112,7 +112,31 @@ Planned on 2026-10-31; the prerequisites (P7, P8) and the keys in the browser (2
 | [2d.1](../../docs/epics/web-2.md#2d1-add-a-vault) | Add a vault, plaintext or encrypted, in the web client and the CLI from one planner | ✅ Done |
 | [2e.1](../../docs/epics/web-2.md#2e1-commit-messages-that-say-what-changed) | Commit messages that say what changed and where, and nothing of an encrypted file's contents | ✅ Done |
 
-## Phase 3 — collaborative editing
+## Phase 3 — repository kinds
+
+Planned on 2026-11-02. `fjord.json`'s `kind` (`drive`, `journal`, `ssg`) chooses what a repository opens on: a file explorer, a timeline, a site's content editor. The design is [RFC 0001](../../docs/rfcs/0001-repository-kinds.md), the `ssg` detail [Research 0001](../../docs/research/0001-ssg-kind.md), what the phase promises is in [`web-3.md`](../../docs/epics/web-3.md), and the order of work, leg by leg, is [workstream 0001](../../docs/workstreams/0001-repository-kinds.md). The prerequisites change the format and need a Rust toolchain; they wait for the RFC to be accepted.
+
+| # | Task | Status |
+| --- | --- | --- |
+| [P9](../../docs/epics/web-3.md#p9-spec-repository-kinds-date-and-comparing-tags) | Spec: repository kinds, `date`, and comparing tags | 📋 Planned (*Next*, once RFC 0001 is accepted) |
+| [P10](../../docs/epics/web-3.md#p10-fjord-core-kinds-their-rules-and-their-scaffolds) | `fjord-core`: kinds, their rules and their scaffolds | 📋 Planned |
+| [P11](../../docs/epics/web-3.md#p11-cli-init---kind-verify-and-journal-entries) | CLI: `init --kind`, `verify` and journal entries | 📋 Planned |
+| [P12](../../docs/epics/web-3.md#p12-fjord-wasm-kinds-and-journal-paths) | `fjord-wasm`: kinds and journal paths | 📋 Planned |
+| [3a.1](../../docs/epics/web-3.md#3a1-kind-modules) | Kind modules | 📋 Planned |
+| [3a.2](../../docs/epics/web-3.md#3a2-drive-as-a-kind) | Drive as a kind | 📋 Planned |
+| [3a.3](../../docs/epics/web-3.md#3a3-choosing-a-kind) | Choosing a kind | 📋 Planned |
+| [3b.1](../../docs/epics/web-3.md#3b1-journal-entries) | Journal entries | 📋 Planned |
+| [3b.2](../../docs/epics/web-3.md#3b2-timeline) | Timeline | 📋 Planned |
+| [3b.3](../../docs/epics/web-3.md#3b3-tags) | Tags | 📋 Planned |
+| [3c.1](../../docs/epics/web-3.md#3c1-site-scaffold) | Site scaffold | 📋 Planned |
+| [3c.2](../../docs/epics/web-3.md#3c2-content-editor) | Content editor | 📋 Planned |
+| [3c.3](../../docs/epics/web-3.md#3c3-build-status) | Build status | 📋 Planned |
+| [3d.1](../../docs/epics/web-3.md#3d1-previews-through-the-host) | Previews through the host | 📋 Planned |
+| [3d.2](../../docs/epics/web-3.md#3d2-a-build-in-fjord) | A build in Fjord (outline) | 🚧 Open: needs its own RFC and a security review |
+
+Order: P9–P12, then 3a, then 3b, then 3c, then 3d.1. 3a needs P12; 3c.1 opens with the spike that settles Research 0001's open points.
+
+## Phase 4 — collaborative editing
 
 In outline.
 

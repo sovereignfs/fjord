@@ -27,7 +27,7 @@ Text-quote selector beside each mark; re-anchoring after outside changes; outdat
 
 - **Done as:** `fjord-editor`'s `reanchor.ts` finds a thread's quote in the text as it is now: word for word if it is there (`intact`, whatever was added around it), else the nearest place within 30% of the quote's characters different (`edited`; only for a quote of 12 characters or more; in a very large document only near where it was), else `outdated`: unmarked, but kept in the panel with an **Outdated** mark and found again if the words come back. The editor tells the app each thread's fate (`CommentsAdapter.anchored`); for an edited one the app, after a moment, asks `PATCH /doc/<id>/comments` `{ op: "reanchor", thread, from, to }` to keep the new words, so the next change is compared with them. The server moves a thread only from the anchor it was found with (a page that missed a move changes nothing) and only onto words like the old ones; it needs the right to comment but no name, works while comments are closed, and is in the log as the page's doing.
 - **Tests:** `reanchor.test.ts` (around, inside and over the quote, the next edit, short and very large texts), the editor contract, `service.test.ts` on three databases, `access.test.ts`, `http.test.ts`, and an e2e that changes a document elsewhere.
-- **Not here:** a viewer's page does not keep a move (only those who may comment do, so a thread seen only by readers is re-found by each page); Yjs positions (phase 3).
+- **Not here:** a viewer's page does not keep a move (only those who may comment do, so a thread seen only by readers is re-found by each page); Yjs positions (phase 4).
 
 ## 1d.3 Live updates
 

@@ -84,7 +84,7 @@ Where this differs from `sovereign`, on purpose:
 
 | Path | What | Licence | Released as |
 | --- | --- | --- | --- |
-| `docs/` | `specs/Fjord.spec.md`, the format, canonical (CC0, the licence is in the file itself); `epics/`, the detail of every task of every roadmap; the security reviews | CC0 for the spec, MPL-2.0 for the rest | with whatever needs it |
+| `docs/` | `specs/Fjord.spec.md`, the format, canonical (CC0, the licence is in the file itself); `epics/`, the detail of every task of every roadmap; `rfcs/`, `research/` and `workstreams/`, proposals, investigations and cross-component runs of tasks (see `CONTRIBUTING.md`); the security reviews | CC0 for the spec, MPL-2.0 for the rest | with whatever needs it |
 | `schema/`, `tests/fixtures/` | The `verify --json` schema, and the conformance fixtures **every** client must pass | MPL-2.0 | — |
 | `crates/fjord-core/` | The format as a library | MPL-2.0 | with the CLI |
 | `crates/fjord-cli/` | The CLI: package `fjord-cli`, binary `fjord` | MPL-2.0 | `fjord-cli-vX.Y.Z` |
