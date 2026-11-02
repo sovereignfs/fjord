@@ -18,6 +18,7 @@ import { type TransferResult, type VaultForm, transferFile } from "./transfer";
 import { type RestoreResult, restoreDeleted } from "./restore";
 import { type EntryResult, createEntry, journalVault } from "../journal/entries";
 import type { JournalRefusal } from "./http";
+import { type PostResult, type SiteRefusal, createPost, siteVault } from "../site/posts";
 
 /** Whether files may be made in a vault of one of the account's repositories, as the repository is now. */
 async function vaultFor(accountId: string, id: number, vault: string): Promise<"ok" | ReturnType<typeof checkVault> | "unavailable"> {
@@ -154,6 +155,34 @@ async function restore(accountId: string, id: number, input: { ids: number[]; pa
   );
 }
 
+/**
+ * Why these tags cannot be a file's in the connection's repository (ROADMAP 3c.2): a site's engine may read a tag differently from the format
+ * (Jekyll reads one with a space as two). Only a site has such a rule; for any other repository, or one that cannot be read just now, none.
+ */
+async function tagProblem(accountId: string, id: number, tags: string[]): Promise<string | undefined> {
+  const connection = await (await connectionService()).get(accountId, id);
+  if (!connection) return undefined;
+  const outcome = await readConnection(accountId, connection);
+  if (!outcome.ok || !outcome.read.manifest?.ok || outcome.read.manifest.kind !== "ssg" || outcome.read.manifest.ssgEngine === null) return undefined;
+  for (const tag of tags) {
+    const problem = fjord().siteTagProblem(outcome.read.manifest.ssgEngine, tag);
+    if (problem !== undefined) return `“${tag}”: ${problem}`;
+  }
+  return undefined;
+}
+
+/** Make a post in one of the account's sites: its vault is plaintext, its engine decides where it goes (ROADMAP 3c.2). */
+async function post(accountId: string, id: number, input: { at: number; offsetMinutes: number; title: string; draft: boolean; author: Identity }): Promise<PostResult | { ok: false; reason: SiteRefusal }> {
+  const used = await (await connectionService()).provider(accountId, id);
+  if (!used) return { ok: false, reason: "unavailable" };
+  const outcome = await readConnection(accountId, used.connection);
+  if (!outcome.ok) return { ok: false, reason: "unavailable" };
+  if (!outcome.read.manifest?.ok || outcome.read.manifest.kind !== "ssg") return { ok: false, reason: "not_a_site" };
+  const site = siteVault(outcome.read.discovery.vaults, outcome.read.manifest.ssgEngine);
+  if (typeof site === "string") return { ok: false, reason: site };
+  return createPost({ provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord() }, { vault: site.vault.directory, engine: site.engine, ...input });
+}
+
 /** Make an entry in one of the account's journals: a plaintext journal's, through the connection's own token (ROADMAP 3b.1). */
 async function entry(accountId: string, id: number, input: { at: number; offsetMinutes: number; title: string; author: Identity }): Promise<EntryResult | { ok: false; reason: JournalRefusal }> {
   const used = await (await connectionService()).provider(accountId, id);
@@ -175,6 +204,8 @@ export async function filesAccessFor(): Promise<ReturnType<typeof filesAccess>> 
     setTitle: (header, title) => fjord().withTitle(header, title),
     setDate: (header, date) => (date !== null && !fjord().isEntryDate(date) ? "bad_date" : fjord().withDate(header, date ?? undefined)),
     setTags: (header, tags) => fjord().withTags(header, tags),
+    tagProblem,
+    post,
     entry,
     create,
     transfer,

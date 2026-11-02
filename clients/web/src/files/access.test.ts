@@ -25,6 +25,8 @@ function setup(over: { owns?: boolean; encrypted?: Awaited<ReturnType<AccessDeps
     setDate: (header, date) => (date === "yesterday" ? "bad_date" : `${header}date: ${date}\n`),
     setTags: (header, tags) => `${header}tags: ${tags.join(",")}\n`,
     entry: async () => ({ ok: true, path: "journal/2026/11/02/0100.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" }),
+    post: async () => ({ ok: true, path: "content/posts/a.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" }),
+    tagProblem: async (_account, _id, tags) => (tags.some((tag) => tag.includes(" ")) ? "Jekyll reads a tag with a space as two." : undefined),
     vaultFor: (a, i, v) => vaultFor(a, i, v),
     create: (a, i, x) => create(a, i, x),
     delete: (a, i, x) => remove(a, i, x),
@@ -125,10 +127,17 @@ describe("changing a header's title", () => {
     expect(await access.header("alice", 1, { header: "---\n", tags: ["a", "b"] })).toEqual({ found: true, result: { ok: true, header: "---\ntags: a,b\n" } });
   });
 
+  it("refuses tags the site's engine would read differently, writing nothing, and says which", async () => {
+    const { access } = setup();
+    expect(await access.header("alice", 1, { header: "---\n", tags: ["two words"] })).toEqual({ found: true, result: { ok: false, reason: "bad_tag", message: "Jekyll reads a tag with a space as two." } });
+    expect(await access.header("alice", 1, { header: "---\n", tags: ["one-word"] })).toMatchObject({ found: true, result: { ok: true } });
+  });
+
   it("changes a date or tags, or makes an entry, for the caller's own connection only", async () => {
     const { access } = setup({ owns: false });
     expect(await access.header("mallory", 1, { header: "---\n", date: "2026-11-02" })).toEqual({ found: false });
     expect(await access.entry("mallory", 1, { at: 0, offsetMinutes: 0, title: "", author: { name: "M", email: "m@example.com" } })).toEqual({ found: false });
+    expect(await access.post("mallory", 1, { at: 0, offsetMinutes: 0, title: "", draft: false, author: { name: "M", email: "m@example.com" } })).toEqual({ found: false });
   });
 });
 

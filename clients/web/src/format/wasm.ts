@@ -33,6 +33,9 @@ interface Module {
   journalSlug(title: string): string | undefined;
   entryDateFromUnix(seconds: number, offsetMinutes: number): string | undefined;
   isEntryDate(text: string): boolean;
+  sitePostPath(engine: string, date: string, title: string, draft: boolean): string | undefined;
+  siteNewPost(engine: string, id: string, title: string, created: string, date: string, draft: boolean): string;
+  siteTagProblem(engine: string, tag: string): string | undefined;
   foldTag(tag: string): string;
   sameTag(a: string, b: string): boolean;
   tagIsUnder(tag: string, parent: string): boolean;
@@ -214,6 +217,21 @@ export class Fjord {
   /** Whether `text` is a `date` as spec §8.1 defines one. */
   isEntryDate(text: string): boolean {
     return this.module.isEntryDate(text);
+  }
+
+  /** Where a site's new post goes in its vault, by its engine's rules (spec §3.1): undefined for a date that is not one or an engine not known. */
+  sitePostPath(engine: string, date: string, title: string, draft: boolean): string | undefined {
+    return this.module.sitePostPath(engine, date, title, draft);
+  }
+
+  /** A site's new post: what its engine reads. */
+  siteNewPost(engine: string, id: string, title: string, created: string, date: string, draft: boolean): string {
+    return this.module.siteNewPost(engine, id, title, created, date, draft);
+  }
+
+  /** Why `tag` cannot be a tag of a post of this engine (Jekyll reads a tag with a space as two), or undefined. */
+  siteTagProblem(engine: string, tag: string): string | undefined {
+    return this.module.siteTagProblem(engine, tag);
   }
 
   /** The form a tag is compared in (spec §8.1). */

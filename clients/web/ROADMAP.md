@@ -129,7 +129,7 @@ Planned on 2026-11-02. `fjord.json`'s `kind` (`drive`, `journal`, `ssg`) chooses
 | [3b.2](../../docs/epics/web-3.md#3b2-timeline) | Timeline | ✅ Done |
 | [3b.3](../../docs/epics/web-3.md#3b3-tags) | Tags | ✅ Done |
 | [3c.1](../../docs/epics/web-3.md#3c1-site-scaffold) | Site scaffold | ✅ Done |
-| [3c.2](../../docs/epics/web-3.md#3c2-content-editor) | Content editor | 📋 Planned |
+| [3c.2](../../docs/epics/web-3.md#3c2-content-editor) | Content editor | ✅ Done |
 | [3c.3](../../docs/epics/web-3.md#3c3-build-status) | Build status | 📋 Planned |
 | [3d.1](../../docs/epics/web-3.md#3d1-previews-through-the-host) | Previews through the host | 📋 Planned |
 | [3d.2](../../docs/epics/web-3.md#3d2-a-build-in-fjord) | A build in Fjord (outline) | 🚧 Open: needs its own RFC and a security review |

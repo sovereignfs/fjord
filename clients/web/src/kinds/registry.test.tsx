@@ -41,14 +41,10 @@ describe("which module presents a repository (RFC 0001, spec §3.1)", () => {
   it("is the drive for a kind no module presents, and for a defined kind whose engine this build does not know", () => {
     expect(kindFor(manifest("drive", "wiki")).id).toBe("drive");
     expect(kindFor(manifest("journal", "journal")).id).toBe("journal");
-    registerKind(standIn("ssg"));
-    try {
-      // The format module presents an ssg with an unknown engine as a drive; so does the client, whatever is registered.
-      expect(kindFor(manifest("drive", "ssg", "hugo")).id).toBe("drive");
-      expect(kindFor(manifest("ssg", "ssg", "astro")).id).toBe("ssg");
-    } finally {
-      unregisterKind("ssg");
-    }
+    // The format module presents an ssg with an unknown engine as a drive; so does the client, though it has a module for the site.
+    expect(kindFor(manifest("drive", "ssg", "hugo")).id).toBe("drive");
+    expect(kindFor(manifest("ssg", "ssg", "astro")).id).toBe("ssg");
+    expect(kindFor(manifest("ssg", "ssg", "jekyll")).label).toBe("Site");
   });
 
   it("is a registered module, whose entry view is shown and nothing else changes", () => {

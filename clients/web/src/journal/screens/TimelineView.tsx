@@ -7,8 +7,20 @@ import type { Timeline } from "../timeline";
  * A journal's timeline as the page shows it (ROADMAP 3b.2): its entries newest first under the day each is about, with the title and
  * the start of each. The same for a plaintext journal, arranged on the server, and an encrypted one, arranged in the browser.
  */
-export function TimelineView({ connectionId, timeline, tagHref }: { connectionId: number; timeline: Timeline; /** Where a tag leads, to narrow the timeline to it (3b.3); none, no links. */ tagHref?: (tag: string) => string }) {
-  if (timeline.total === 0) return <p className={styles.itemMeta}>No entries yet.</p>;
+export function TimelineView({
+  connectionId,
+  timeline,
+  tagHref,
+  empty = "No entries yet.",
+}: {
+  connectionId: number;
+  timeline: Timeline;
+  /** Where a tag leads, to narrow the timeline to it (3b.3); none, no links. */
+  tagHref?: (tag: string) => string;
+  /** What is said when there is nothing to show: "No posts yet." for a site. */
+  empty?: string;
+}) {
+  if (timeline.total === 0) return <p className={styles.itemMeta}>{empty}</p>;
   return (
     <div data-testid="timeline">
       {timeline.days.map((day) => (
@@ -21,6 +33,12 @@ export function TimelineView({ connectionId, timeline, tagHref }: { connectionId
                   <a href={repositoryHref(connectionId, ...entry.path.split("/"))}>
                     {entry.when?.time ? <time dateTime={entry.when.sortKey}>{entry.when.time}</time> : null} {entry.title}
                   </a>
+                  {entry.draft ? (
+                    <>
+                      {" "}
+                      <Badge>Draft</Badge>
+                    </>
+                  ) : null}
                   {entry.dateInvalid ? (
                     <>
                       {" "}

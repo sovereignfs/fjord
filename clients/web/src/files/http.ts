@@ -12,6 +12,7 @@ import type { DeleteResult, DeleteTarget } from "./delete";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 import type { EntryResult } from "../journal/entries";
+import type { PostResult, SiteRefusal } from "../site/posts";
 
 /** One key of a header to change (ROADMAP 1b.5, 3b.1, 3b.3): its title, its `date` (null takes it away) or its `tags`. */
 export type HeaderChange = { header: string } & ({ title: string } | { date: string | null } | { tags: string[] });
@@ -86,7 +87,16 @@ export interface Deps {
    * or written to the repository: the page holds the header and gets it back. `found: false` if the connection is not the
    * caller's.
    */
-  header: (accountId: string, id: number, input: HeaderChange) => Promise<{ found: false } | { found: true; result: { ok: true; header: string } | { ok: false; reason: "unreadable" | "bad_date" } }>;
+  header: (accountId: string, id: number, input: HeaderChange) => Promise<{ found: false } | { found: true; result: { ok: true; header: string } | { ok: false; reason: "unreadable" | "bad_date" } | { ok: false; reason: "bad_tag"; message: string } }>;
+  /**
+   * Make a post in one of the caller's sites (ROADMAP 3c.2): where it goes and what it says are the site's engine's, decided by the module. `found:
+   * false` if it is not the caller's (or not there).
+   */
+  post: (
+    accountId: string,
+    id: number,
+    input: { at: number; offsetMinutes: number; title: string; draft: boolean; author: Identity },
+  ) => Promise<{ found: false } | { found: true; result: PostResult | { ok: false; reason: SiteRefusal } }>;
   /**
    * Make a journal entry, dated `at` at the writer's offset, in one of the caller's plaintext journals (ROADMAP 3b.1). `found: false` if it is not
    * the caller's (or not there).
@@ -258,6 +268,7 @@ export async function handleHeader(request: Request, caller: Caller | null, deps
     const outcome = await deps.header(caller.accountId, number, change);
     if (!outcome.found) return notFound();
     if (outcome.result.ok) return json(200, { header: outcome.result.header });
+    if (outcome.result.reason === "bad_tag") return failure(422, "bad_tag", outcome.result.message);
     if (outcome.result.reason === "bad_date") return failure(422, "bad_date", "That is not a date: write it as 2026-11-02, or with a time and an offset, 2026-11-02T08:14:00+05:30.");
     return failure(422, "unreadable_header", "This file's header cannot be read, so it cannot be changed from here.");
   } catch (error) {
@@ -593,6 +604,52 @@ const ENTRY_REFUSALS: Record<Extract<EntryResult, { ok: false }>["reason"] | Jou
   not_a_journal: { status: 422, message: "This repository is not a journal with one vault, so it has no entries to add to." },
   encrypted_journal: { status: 422, message: "This journal is encrypted: its entries are written and encrypted in your browser, not here." },
   unsupported_journal: { status: 422, message: "This journal's vault cannot be written to from here: its manifest cannot be read, or its files are not named plainly." },
+  bad_date: { status: 422, message: "That moment cannot be written as a date." },
+  head_moved: REFUSALS.head_moved,
+  read_only: REFUSALS.read_only,
+  bad_token: REFUSALS.bad_token,
+  unavailable: REFUSALS.unavailable,
+};
+
+// --- A site's new post (ROADMAP 3c.2) -------------------------------------------------------------------------------
+
+/**
+ * `POST` makes a post in one of the caller's sites, `{ at, offsetMinutes, title?, draft? }`: the moment, the writer's offset from UTC in minutes
+ * and whether it is a draft. One commit; where it goes and what it says are the engine's, which the module knows (spec §3.1).
+ */
+export async function handlePost(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  const gate = await gateway(request, caller, deps, id);
+  if (gate instanceof Response) return gate;
+  try {
+    const { body, number } = gate;
+    const { at, offsetMinutes, title, draft } = body;
+    if (typeof at !== "number" || !Number.isInteger(at) || at < 0) return failure(400, "invalid_request", "Send the moment as milliseconds since 1970.");
+    if (typeof offsetMinutes !== "number" || !Number.isInteger(offsetMinutes) || Math.abs(offsetMinutes) >= 24 * 60) return failure(400, "invalid_request", "Send your offset from UTC in whole minutes.");
+    if (draft !== undefined && typeof draft !== "boolean") return failure(400, "invalid_request", "Say whether it is a draft with true or false.");
+    if (title !== undefined && title !== null && (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed())) {
+      return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or leave it out.`);
+    }
+    const outcome = await deps.post((caller as Caller).accountId, number, {
+      at,
+      offsetMinutes,
+      title: typeof title === "string" ? title : "",
+      draft: draft === true,
+      author: { name: (caller as Caller).name, email: (caller as Caller).email },
+    });
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (result.ok) return json(201, { path: result.path, commit: result.commit, date: result.date });
+    const refusal = POST_REFUSALS[result.reason];
+    return failure(refusal.status, result.reason, refusal.message);
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+const POST_REFUSALS: Record<Extract<PostResult, { ok: false }>["reason"] | SiteRefusal, { status: number; message: string }> = {
+  not_a_site: { status: 422, message: "This repository is not a site with one vault, so it has no posts to add to." },
+  unknown_engine: { status: 422, message: "This site's engine is not one this version knows (Astro or Jekyll), so it does not know where a post goes." },
+  unsupported_site: { status: 422, message: "This site's vault cannot be written to from here: its manifest cannot be read, it is encrypted, or its files are not named plainly." },
   bad_date: { status: 422, message: "That moment cannot be written as a date." },
   head_moved: REFUSALS.head_moved,
   read_only: REFUSALS.read_only,

@@ -233,7 +233,7 @@ Opens with a spike that settles every **to confirm** of Research 0001 against th
   - **Not done:** the host's usual publishing workflow (the optional part of the task). Publishing is the host's (spec §12), and a workflow file for a host this document has not tested is not something to write blind.
 ### 3c.2 Content editor
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0001, Sites; Research 0001
 
@@ -241,6 +241,24 @@ The `ssg` module's entry view: the site's posts, and for Astro its pages, with t
 
 **Accepts when:** a post written in Fjord builds with its engine and shows its fields (checked against a scaffold of 3c.1); a Jekyll post's file name follows its `date`; a tag with a space is refused for Jekyll.
 
+- **Done as:**
+  - **`fjord-core`:** `site::post_path`, `new_post` and `tag_problem` (also in the module and the CLI). Astro's `posts/<slug>.md` takes a `draft` field. Jekyll's `_posts/YYYY-MM-DD-<slug>.md` takes its day from the `date` as the writer wrote it, and a draft is `_drafts/<slug>.md`. A Jekyll tag with whitespace is refused.
+  - **The CLI:** `fjord new` with no path in a site makes a post, with `--draft`. `scripts/check-site-scaffolds.sh` makes its posts that way and builds them with each engine's own tools. Both build, with the draft left out and the offset-dated post present (Astro 5.18.2, Jekyll 4.4.1).
+  - **The web:**
+    - `src/site/posts.ts` (`createPost`, `siteVault`) behind `POST /api/connections/[id]/files/post`, in `routes.ts`;
+    - `src/kinds/ssg.tsx`, the site's module, registered; `src/site/screens/NewPost.tsx`;
+    - the posts are the journal's timeline code (`Timeline`), with a Draft badge, since a post has a `date`, tags and a title like an entry.
+  - **The tag rule** is on the header route: `tagProblem` reads the repository's engine and refuses with the engine's words (`bad_tag`), for any note of that site.
+  - **Tested:**
+    - `posts.test.ts`: both engines, the writer's day, the numbering, and the vault checks;
+    - `http.test.ts` and `access.test.ts`: who may call, and the refused tag;
+    - `setup-kinds.cli.test.ts`: a post made in the browser in a site set up in the browser passes the real `fjord verify --strict`.
+  - **Different from the task as written:**
+    - *Pages* are not edited. The scaffold has no pages collection: an Astro site's pages are its code (`src/pages`), and a Jekyll site's pages are outside the vault (Research 0001). Both are in the files view.
+    - *Description* is not a field of the new-post form or of the properties panel; a post keeps one if it has one.
+  - **Left out:**
+    - changing a draft into a published post. In Astro that is editing `draft`; in Jekyll it is moving the file to `_posts/` under a dated name. Neither is built;
+    - a post's own date does not rename a Jekyll post, which keeps the date its name had (Jekyll's `date` key overrides the name's, Research 0001).
 ### 3c.3 Build status
 
 **Status:** 📋 Planned

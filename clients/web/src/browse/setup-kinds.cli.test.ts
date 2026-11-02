@@ -7,6 +7,7 @@ import { fjord, wasmAvailable } from "../format/wasm";
 import { MemoryProvider } from "../providers/memory";
 import type { RepositoryRef } from "../providers/types";
 import { type SetupChoice, type SetupDeps, applySetup, changeKind } from "./setup";
+import { createPost } from "../site/posts";
 import { TreeCache } from "./tree-cache";
 import { freshDatabase } from "../db/test-support";
 import { runMigrations } from "../db/migrate";
@@ -88,4 +89,21 @@ describe.skipIf(!enabled)("a repository set up as a kind in the browser, as the 
     const { status, report } = verify("changed", await filesOf(host));
     expect({ status, diagnostics: report.diagnostics, kind: report.repositoryKind }).toEqual({ status: 0, diagnostics: [], kind: "journal" });
   });
+
+  for (const engine of ["astro", "jekyll"] as const) {
+    it(`${engine}: a post made in the browser passes the real fjord verify --strict, in a site set up in the browser`, async () => {
+      const host = new MemoryProvider();
+      host.createRepository(REF, { canPush: true });
+      host.seed(REF, MINE);
+      await applySetup(deps(host), { id: 1, ref: REF, branch: "main", repositoryName: "mine" }, { kind: "ssg", engine });
+      const AT = 1_793_561_400_000;
+      for (const [title, draft] of [["Hello", false], ["Later", true]] as const) {
+        const made = await createPost({ provider: host, ref: REF, branch: "main", format: fjord() }, { vault: "content", engine, at: AT, offsetMinutes: 330, title, draft, author: { name: "A", email: "a@example.com" } });
+        expect(made.ok).toBe(true);
+      }
+      const { status, report } = verify(`post-${engine}`, await filesOf(host));
+      expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
+    });
+  }
 });
+
