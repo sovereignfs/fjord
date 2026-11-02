@@ -53,5 +53,6 @@ const quote = (text) => `'${text.replace(/'/g, `'\\''`)}'`;
 
 if (command === "check") console.log(`${file} is a manifest ${manifest.manifest}.`);
 else if (command === "label") console.log(JSON.stringify(manifest));
-else if (format === "github") console.log(`labels=${label}\nbuild-args=${port}`);
+// docker/build-push-action reads `labels` as CSV, where a bare label loses the quotes of every string after a comma: so one quoted field.
+else if (format === "github") console.log(`labels="${label.replace(/"/g, '""')}"\nbuild-args=${port}`);
 else console.log(`--label ${quote(label)} --build-arg ${quote(port)}`);
