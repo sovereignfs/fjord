@@ -92,6 +92,30 @@ export interface CommitResult {
   branch: string;
 }
 
+/** How a build, a check or a deployment of a commit stands. */
+export type BuildState = "pending" | "success" | "failure";
+
+/** One thing the host reports of a commit: a check run, a status, or a deployment. */
+export interface BuildCheck {
+  name: string;
+  state: BuildState;
+  /** Where the host shows it (its log, or the deployment), when it says. */
+  url?: string | undefined;
+}
+
+/**
+ * What a git host reports of a commit's build (ROADMAP 3c.3, Research 0001): the checks, statuses and deployments the host's own
+ * integrations posted. Fjord configures none of them and builds nothing; a host that reports nothing has `state: "none"`.
+ */
+export interface BuildStatus {
+  commit: string;
+  /** `none` when nothing is reported; else `failure` if any failed, `pending` if any is not done, `success` when all are. */
+  state: "none" | BuildState;
+  checks: BuildCheck[];
+  /** Where the commit's site is, when a successful deployment of it says (`environment_url` on GitHub). */
+  siteUrl?: string | undefined;
+}
+
 /** What a `push` webhook says: a branch moved. */
 export type WebhookEvent =
   | { kind: "push"; repository: RepositoryRef; branch: string; before: string; after: string; deleted: boolean }
@@ -141,6 +165,13 @@ export interface Provider {
    * throws as it does anywhere else.
    */
   canWrite(ref: RepositoryRef, branch: string): Promise<boolean>;
+
+  /**
+   * What the host reports of a commit's build: its checks, statuses and deployments (ROADMAP 3c.3). Nothing reported is `state: "none"`,
+   * not an error. `not_found` for a commit the host does not have; `forbidden` for a credential that may not read them (a fine-grained
+   * token needs "Checks", "Commit statuses" and "Deployments", read).
+   */
+  getBuildStatus(ref: RepositoryRef, commit: string): Promise<BuildStatus>;
 
   /**
    * Whether this host sends change notifications. Where it does not, the app asks `getHead`

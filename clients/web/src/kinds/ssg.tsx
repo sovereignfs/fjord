@@ -1,4 +1,5 @@
 import { siteVault } from "../site/posts";
+import { BuildStatus } from "../site/screens/BuildStatus";
 import { NewPost } from "../site/screens/NewPost";
 import { Timeline } from "../journal/screens/Timeline";
 import { Alert } from "../ui";
@@ -7,7 +8,7 @@ import type { EntryViewProps, KindModule } from "./types";
 
 /**
  * A site (spec §3.1, `ssg`): one plaintext vault of the posts an Astro or Jekyll site is built from, presented as the site and never as a
- * list of one vault. Its entry view is the action to write a post above the posts, newest first, drafts marked (ROADMAP 3c.2); the engine's
+ * list of one vault. Its entry view is the build's status as the host reports it (ROADMAP 3c.3) and the action to write a post, above the posts, newest first, drafts marked (ROADMAP 3c.2); the engine's
  * own files are the site's code and are not edited here (Show files has them). The content model is fixed per engine: a title, a `date`,
  * `tags` and whether it is a draft. Where a post goes is the engine's rule (`fjord-core`'s `site`).
  */
@@ -16,7 +17,7 @@ export const ssgKind: KindModule = {
   label: "Site",
   EntryView: SiteEntry,
   contentModel: { placement: "engine", fields: ["title", "date", "tags", "draft"] },
-  actions: [{ id: "new-post", label: "New post" }],
+  actions: [{ id: "new-post", label: "New post" }, { id: "build-status", label: "Build status" }],
 };
 
 async function SiteEntry({ accountId, connection, read, query }: EntryViewProps) {
@@ -41,6 +42,7 @@ async function SiteEntry({ accountId, connection, read, query }: EntryViewProps)
       <p className={styles.itemMeta}>
         Built with {site.engine === "astro" ? "Astro" : "Jekyll"}. Its posts are written here; its pages, layouts and settings are the site's code, and are in the files.
       </p>
+      <BuildStatus accountId={accountId} connection={connection} commit={read.commit} />
       <NewPost connectionId={connection.id} engine={site.engine} />
       {read.partial ? (
         <Alert variant="info">This site is too large to list at once, so its posts cannot be shown here. Show its files to browse them.</Alert>

@@ -131,7 +131,7 @@ async function world() {
   await links.create(hers.id, DOC, "view", null, alice.id);
   await sealed.create(hers.id, { path: "x.md", mode: "key", ciphertext: "AAAA", createdBy: alice.id });
   await comments.createThread(hers.id, DOC, ANCHOR, "bob on alice's doc", bob.author);
-  await new JournalIndex(app).put(hers.id, [{ path: "journal/2026/11/02/0814.md", blob: "d".repeat(40), summary: { docId: null, title: "her entry", date: null, dateInvalid: false, tags: ["private"], when: null, excerpt: "hers" } }]);
+  await new JournalIndex(app).put(hers.id, [{ path: "journal/2026/11/02/0814.md", blob: "d".repeat(40), summary: { docId: null, title: "her entry", date: null, dateInvalid: false, tags: ["private"], when: null, excerpt: "hers", draft: false } }]);
 
   // Bob's document, shared with her to comment on and edit.
   await shares.set(his.id, DOC, alice.id, "comment", bob.id);

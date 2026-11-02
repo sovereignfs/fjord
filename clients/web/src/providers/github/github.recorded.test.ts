@@ -160,4 +160,27 @@ describe("the fake the contract tests use, against the real thing", () => {
       await fake.stop();
     }
   });
+
+  describe("a commit's build (ROADMAP 3c.3)", () => {
+    it("is read from GitHub's real check runs, and a combined status that says pending with no status posted is not a build in progress", async () => {
+      const runs = find(`/commits/${COMMIT}/check-runs?per_page=100`).body.check_runs as { name: string; status: string; conclusion: string | null }[];
+      const combined = find(`/commits/${COMMIT}/status?per_page=100`).body as { state: string; total_count: number };
+      // The shape that makes the provider read the statuses and not the combined state: GitHub says `pending` of a commit nothing posted a status to.
+      expect(combined).toMatchObject({ state: "pending", total_count: 0 });
+
+      const status = await provider.getBuildStatus(REAL, COMMIT);
+      expect(status.commit).toBe(COMMIT);
+      expect(status.checks.map((c) => c.name).sort()).toEqual(runs.map((r) => r.name).sort());
+      for (const check of status.checks) expect(["pending", "success", "failure"]).toContain(check.state);
+      const expected = runs.some((r) => r.status === "completed" && !["success", "neutral", "skipped"].includes(r.conclusion ?? "")) ? "failure" : runs.some((r) => r.status !== "completed") ? "pending" : "success";
+      expect(status.state).toBe(expected);
+      for (const check of status.checks) if (check.url !== undefined) expect(check.url).toMatch(/^https:\/\/github\.com\//);
+    });
+
+    it("has no deployment, so no site address, for a commit of this repository", async () => {
+      expect(find(`/deployments?sha=${COMMIT}&per_page=10`).body).toEqual([]);
+      expect((await provider.getBuildStatus(REAL, COMMIT)).siteUrl).toBeUndefined();
+    });
+  });
 });
+

@@ -1,5 +1,8 @@
 import { ProviderError } from "../errors";
 import type {
+  BuildCheck,
+  BuildState,
+  BuildStatus,
   Change,
   CommitRequest,
   CommitResult,
@@ -14,6 +17,7 @@ import type {
   WebhookRequest,
 } from "../types";
 import { mapLimit } from "../concurrency";
+import { safeUrl, summarise } from "../build-status";
 import { validateCommitRequest } from "../validate";
 import { GitHubClient, type GitHubClientOptions } from "./http";
 import { verifyGitHubWebhook } from "./webhook";
@@ -46,6 +50,34 @@ interface GitHubTreeEntry {
   type: "blob" | "tree" | "commit";
   sha: string;
   size?: number;
+}
+
+/** A check run's state: only a completed one has a conclusion, and a skipped or neutral one is not a failure. */
+export function checkRunState(run: { status?: string; conclusion?: string | null }): BuildState {
+  if (run.status !== "completed") return "pending";
+  switch (run.conclusion) {
+    case "success":
+    case "neutral":
+    case "skipped":
+      return "success";
+    default:
+      // failure, timed_out, cancelled, action_required, stale: nothing was built.
+      return "failure";
+  }
+}
+
+/** A commit status's (and a deployment status's) state. */
+export function statusState(state: string | undefined): BuildState {
+  switch (state) {
+    case "success":
+      return "success";
+    case "failure":
+    case "error":
+      return "failure";
+    default:
+      // pending, queued, in_progress, and anything GitHub adds.
+      return "pending";
+  }
 }
 
 const toRepository = (repo: GitHubRepo): Repository => ({
@@ -104,6 +136,37 @@ export class GitHubProvider implements Provider {
     const { status, data, headers } = await this.client.json<{ object: { sha: string } }>("GET", `${repoPath(ref)}/git/ref/heads/${encodePath(branch)}`, { etag: options.etag });
     if (status === 304) return { changed: false };
     return { changed: true, head: { branch, commit: data!.object.sha, etag: headers.get("etag") ?? undefined } };
+  }
+
+  async getBuildStatus(ref: RepositoryRef, commit: string): Promise<BuildStatus> {
+    const repo = repoPath(ref);
+    const [runs, combined, deployments] = await Promise.all([
+      this.client.json<{ check_runs?: { name: string; status?: string; conclusion?: string | null; html_url?: string | null; details_url?: string | null }[] }>("GET", `${repo}/commits/${commit}/check-runs`, { query: { per_page: 100 } }),
+      this.client.json<{ statuses?: { context: string; state?: string; target_url?: string | null }[] }>("GET", `${repo}/commits/${commit}/status`, { query: { per_page: 100 } }),
+      this.client.json<{ id: number; environment?: string }[]>("GET", `${repo}/deployments`, { query: { sha: commit, per_page: 10 } }),
+    ]).catch((error: unknown) => {
+      // GitHub answers a commit it does not have with a 422 ("No commit found for SHA"), where the rest of the contract says not found.
+      if (error instanceof ProviderError && error.code === "invalid_request") throw new ProviderError("not_found", `there is no commit ${commit}`);
+      throw error;
+    });
+    const checks: BuildCheck[] = [];
+    for (const run of runs.data?.check_runs ?? []) checks.push({ name: run.name, state: checkRunState(run), url: safeUrl(run.html_url ?? run.details_url) });
+    // GitHub's combined status says `pending` when nothing posted one, so it is read from the statuses and not its own state.
+    for (const status of combined.data?.statuses ?? []) checks.push({ name: status.context, state: statusState(status.state), url: safeUrl(status.target_url) });
+
+    let siteUrl: string | undefined;
+    for (const deployment of (deployments.data ?? []).slice(0, 5)) {
+      // The newest status is first.
+      const { data } = await this.client.json<{ state?: string; environment_url?: string | null; target_url?: string | null }[]>("GET", `${repo}/deployments/${deployment.id}/statuses`, { query: { per_page: 1 } });
+      const latest = data?.[0];
+      if (!latest) continue;
+      const state = statusState(latest.state);
+      // An inactive deployment was replaced by a later one: it is no longer how the site is.
+      if (latest.state === "inactive") continue;
+      checks.push({ name: `deployment: ${deployment.environment ?? "site"}`, state, url: safeUrl(latest.environment_url ?? latest.target_url) });
+      if (state === "success" && siteUrl === undefined) siteUrl = safeUrl(latest.environment_url);
+    }
+    return summarise(commit, checks, siteUrl);
   }
 
   async canWrite(ref: RepositoryRef, branch: string): Promise<boolean> {

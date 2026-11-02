@@ -261,7 +261,7 @@ The `ssg` module's entry view: the site's posts, and for Astro its pages, with t
     - a post's own date does not rename a Jekyll post, which keeps the date its name had (Jekyll's `date` key overrides the name's, Research 0001).
 ### 3c.3 Build status
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** Research 0001, *Build status and preview*
 
@@ -269,6 +269,13 @@ The head commit's statuses, checks and deployments, read through the `Provider`,
 
 **Accepts when:** the provider contract covers reading statuses (`MemoryProvider` and the GitHub fixtures, re-recorded); the page shows each state from a recorded answer.
 
+- **Done as:**
+  - **The contract:** `Provider.getBuildStatus(ref, commit)` returns `{ commit, state: none | pending | success | failure, checks, siteUrl? }`. `MemoryProvider.reportBuild` and the GitHub fake (`fake.reportBuild`) hold what a host's integrations posted. Both are run through `providerContract` ("a commit's build"): nothing reported is `none`; a failure is not hidden by something still running; the site's address comes from a successful deployment; a later commit has its own; an unknown commit is `not_found`.
+  - **GitHub** (`github/provider.ts`): check runs, commit statuses, deployments, and each deployment's newest status. A replaced (`inactive`) deployment is left out. GitHub's 422 for an unknown commit is `not_found`. Only `http(s)` addresses are kept, as the host gave them.
+  - **Re-recorded:** `node scripts/record-github-fixtures.mjs --statuses-only` added GitHub's real answers for the fixture's commit, leaving the rest as recorded. They show that the combined status is `pending` with no status for a commit nothing posted to, so the provider reads the statuses and not that state; that commit has 16 check runs and no deployment.
+  - **The page:** `site/screens/BuildStatus.tsx` reads the head commit through the connection's own provider, and `BuildStatusView.tsx` says building, built or failed. It is on the site module (`kinds/ssg.tsx`). A token that may not read these says so. Any other failure to read leaves the page as it was.
+  - **Tested:** the contract on both providers; `github.test.ts` (conclusions, replaced deployments, unsafe links, a forbidden token, the requests made); the recorded test; `BuildStatusView.test.tsx` for each state.
+  - **Different from the task as written:** each state is tested from the view and the provider's answers separately, not as one page from one recorded answer. The page needs the connection, session and database to render, which a unit test does not stand up. **Not run:** a real GitHub deployment's `environment_url` (this repository has none), so the siteUrl path is held to the fake and the documented shape only.
 ## 3d — Preview
 
 ### 3d.1 Previews through the host

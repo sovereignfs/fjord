@@ -1,6 +1,7 @@
 import { ProviderError } from "./errors";
 import { gitBlobId } from "./git-id";
-import type { Change, CommitRequest, CommitResult, EntryKind, HeadResult, Provider, Repository, RepositoryRef, Tree, TreeEntry } from "./types";
+import { summarise } from "./build-status";
+import type { BuildCheck, BuildStatus, Change, CommitRequest, CommitResult, EntryKind, HeadResult, Provider, Repository, RepositoryRef, Tree, TreeEntry } from "./types";
 import { repositoryKey } from "./types";
 import { validateCommitRequest } from "./validate";
 import { createHash } from "node:crypto";
@@ -26,6 +27,8 @@ interface StoredRepository {
   branches: Map<string, string>;
   commits: Map<string, StoredCommit>;
   blobs: Map<string, Uint8Array>;
+  /** What the host was told of each commit's build (see `reportBuild`). */
+  builds: Map<string, { checks: BuildCheck[]; siteUrl?: string | undefined }>;
 }
 
 export interface MemoryProviderOptions {
@@ -55,7 +58,15 @@ export class MemoryProvider implements Provider {
       branches: new Map(),
       commits: new Map(),
       blobs: new Map(),
+      builds: new Map(),
     });
+  }
+
+  /** The host's integrations report on a commit's build (not part of Provider): what `getBuildStatus` then says of it. */
+  reportBuild(ref: RepositoryRef, commit: string, report: { checks: BuildCheck[]; siteUrl?: string | undefined }): void {
+    const repo = this.repositories.get(repositoryKey(ref));
+    if (!repo?.commits.has(commit)) throw new Error(`no such commit ${commit}`);
+    repo.builds.set(commit, report);
   }
 
   setTreeLimit(limit: number | undefined): void {
@@ -91,6 +102,13 @@ export class MemoryProvider implements Provider {
     const etag = `"${commit}"`;
     if (options.etag === etag) return { changed: false };
     return { changed: true, head: { branch, commit, etag } };
+  }
+
+  async getBuildStatus(ref: RepositoryRef, commit: string): Promise<BuildStatus> {
+    const repo = this.repo(ref);
+    if (!repo.commits.has(commit)) throw new ProviderError("not_found", `there is no commit ${commit}`);
+    const report = repo.builds.get(commit);
+    return summarise(commit, report?.checks ?? [], report?.siteUrl);
   }
 
   async canWrite(ref: RepositoryRef, branch: string): Promise<boolean> {

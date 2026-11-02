@@ -47,6 +47,10 @@ export class FakeGitHub {
   readonly ref: { owner: string; name: string };
   /** Cut recursive tree listings short past this many entries. */
   treeLimit: number | undefined;
+  /** What the host's integrations posted about each commit (see `reportBuild`): check runs, commit statuses and deployments, in GitHub's shapes. */
+  private builds = new Map<string, FakeBuild>();
+  /** The next build report is refused for a credential that may not read it. */
+  forbidBuildReads = false;
   /** Refuse blobs past this size as GitHub does for ones it will not serve. */
   maxBlobBytes: number | undefined;
   /** Send listings in pages this small, whatever the client asks. */
@@ -115,6 +119,12 @@ export class FakeGitHub {
     const commit = await this.commitTree(tree, parent ? [parent] : [], options.message ?? `commit ${++this.counter}`, { name: "Someone", email: "someone@example.com" });
     await this.git(["update-ref", `refs/heads/${branch}`, commit]);
     return commit;
+  }
+
+  /** An integration posts about a commit's build, as GitHub would hold it. Each part is optional; GitHub's own shapes. */
+  reportBuild(commit: string, report: Partial<FakeBuild>): void {
+    const known = this.builds.get(commit) ?? { checkRuns: [], statuses: [], deployments: [] };
+    this.builds.set(commit, { checkRuns: [...known.checkRuns, ...(report.checkRuns ?? [])], statuses: [...known.statuses, ...(report.statuses ?? [])], deployments: [...known.deployments, ...(report.deployments ?? [])] });
   }
 
   /** What git itself says about a commit, for asserting on what the provider wrote. */
@@ -214,6 +224,31 @@ export class FakeGitHub {
     if (writes && !grant.push) return reply(403, { message: "Resource not accessible by personal access token" });
 
     let found: RegExpExecArray | null;
+    if (method === "GET" && (found = /^\/commits\/([0-9a-f]{40})\/(check-runs|status)$/.exec(rest))) {
+      if (!(await this.exists(found[1]!, "commit"))) return reply(422, { message: "No commit found for SHA" });
+      if (this.forbidBuildReads) return reply(403, { message: "Resource not accessible by personal access token" });
+      const build = this.builds.get(found[1]!);
+      if (found[2] === "check-runs") return reply(200, { total_count: build?.checkRuns.length ?? 0, check_runs: build?.checkRuns ?? [] });
+      // GitHub's combined status is `pending` when nothing has posted one, which is why the provider reads the statuses and not this.
+      const statuses = build?.statuses ?? [];
+      const state = statuses.length === 0 ? "pending" : statuses.some((s) => s.state === "failure" || s.state === "error") ? "failure" : statuses.some((s) => s.state === "pending") ? "pending" : "success";
+      return reply(200, { state, total_count: statuses.length, statuses, sha: found[1] });
+    }
+
+    if (method === "GET" && rest === "/deployments") {
+      if (this.forbidBuildReads) return reply(403, { message: "Resource not accessible by personal access token" });
+      const sha = url.searchParams.get("sha") ?? "";
+      return reply(200, (this.builds.get(sha)?.deployments ?? []).map(({ id, environment }) => ({ id, environment, sha })));
+    }
+
+    if (method === "GET" && (found = /^\/deployments\/(\d+)\/statuses$/.exec(rest))) {
+      for (const build of this.builds.values()) {
+        const deployment = build.deployments.find((d) => d.id === Number(found![1]));
+        if (deployment) return reply(200, [...deployment.statuses].reverse());
+      }
+      return reply(404, { message: "Not Found" });
+    }
+
     if (method === "GET" && (found = /^\/git\/ref\/heads\/(.+)$/.exec(rest))) {
       const sha = await this.revParse(`refs/heads/${decodeURIComponent(found[1]!)}`);
       if (!sha) return reply(404, { message: "Not Found" });
@@ -386,3 +421,12 @@ async function readBody(req: IncomingMessage): Promise<Buffer> {
   for await (const chunk of req) chunks.push(chunk as Buffer);
   return Buffer.concat(chunks);
 }
+
+/** What a git host holds of a commit's build, in GitHub's shapes (the fields the provider reads). */
+export interface FakeBuild {
+  checkRuns: { name: string; status: string; conclusion: string | null; html_url?: string | null; details_url?: string | null }[];
+  statuses: { context: string; state: string; target_url?: string | null }[];
+  /** Statuses oldest first; the fake answers newest first, as GitHub does. */
+  deployments: { id: number; environment: string; statuses: { state: string; environment_url?: string | null; target_url?: string | null }[] }[];
+}
+

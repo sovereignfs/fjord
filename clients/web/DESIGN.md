@@ -499,6 +499,13 @@ alternatives are [RFC 0001](../../docs/rfcs/0001-repository-kinds.md), and the `
   encrypted to this browser's public key (as *Add a vault* does), or a site for Astro or Jekyll. Each is previewed, and made, by
   `fjord-core` (`planSetup`, `planSetupKind`) in one commit that writes over nothing of the repository's own: a site whose engine
   would need a file that is there is refused with its name. A site is never offered encryption.
+- **A site's page shows the host's build, and Fjord configures nothing** (3c.3, Research 0001). The `Provider` reads what the host
+  reports of a commit (`getBuildStatus`): on GitHub the check runs, the commit statuses and the deployments with their newest
+  status, which is where Cloudflare Pages, Netlify, Vercel and GitHub Pages all post a site's address. Nothing reported is
+  `none`, not an error; GitHub's combined status says `pending` of a commit nothing posted to (found in its real answers), so
+  the statuses are read and not that. Any failure is a failure, anything not done is pending, and every address is shown only if
+  it is `http(s)`. The build is the **head commit's** and is read at each view. A token that may not read these says so and does not
+  mean "nothing built": a fine-grained token needs *Checks*, *Commit statuses* and *Deployments*, each *Read*.
 - **A kind is changed** from the repository's page, `PUT /api/connections/<id>/kind` (the account's own connection, this site's
   `Origin`): one commit of `fjord.json`, rewritten by the module (`withKind`) with every other field kept, refused with the rule it
   would break (`kindRule`: a journal or site has exactly one vault, a site's is plaintext).
