@@ -65,7 +65,7 @@ describe(`booting an instance (${leg})`, () => {
   });
 
   it("fails on a bad setting, and tries again on the next call", async () => {
-    await expect(getStores({ DB_DIALECT: "mysql" })).rejects.toThrow(/DB_DIALECT/);
+    await expect(getStores({ FJORD_DB_DIALECT: "mysql" })).rejects.toThrow(/FJORD_DB_DIALECT/);
     await resetStores(config);
     await expect(getStores(envFor(config))).resolves.toBeDefined();
   });

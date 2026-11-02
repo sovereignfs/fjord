@@ -86,9 +86,9 @@ describe("resolveAuthConfig", () => {
   });
 
   describe("email", () => {
-    const smtp = { SMTP_HOST: "mail.example.com", SMTP_FROM: "Fjord <fjord@example.com>" };
+    const smtp = { FJORD_SMTP_HOST: "mail.example.com", FJORD_SMTP_FROM: "Fjord <fjord@example.com>" };
 
-    it("is off without SMTP_HOST, and then verification is not required", () => {
+    it("is off without FJORD_SMTP_HOST, and then verification is not required", () => {
       expect(flat(on)).toMatchObject({ requireEmailVerification: false });
       expect(flat(on)).not.toHaveProperty("smtp");
     });
@@ -101,17 +101,17 @@ describe("resolveAuthConfig", () => {
     });
 
     it("takes the port, TLS, login and a password from a file", () => {
-      const config = flat({ ...on, ...smtp, SMTP_PORT: "465", SMTP_USER: "u", SMTP_PASSWORD_FILE: "/run/secrets/smtp" }, () => "pw\n");
+      const config = flat({ ...on, ...smtp, FJORD_SMTP_PORT: "465", FJORD_SMTP_USER: "u", FJORD_SMTP_PASSWORD_FILE: "/run/secrets/smtp" }, () => "pw\n");
       expect(config).toMatchObject({ smtp: { port: 465, secure: true, user: "u", password: "pw" } });
     });
 
     it("needs a sender", () => {
-      expect(() => flat({ ...on, SMTP_HOST: "mail.example.com" })).toThrow(/SMTP_FROM/);
+      expect(() => flat({ ...on, FJORD_SMTP_HOST: "mail.example.com" })).toThrow(/FJORD_SMTP_FROM/);
     });
 
     it("lets an operator with SMTP turn verification off, but not on without it", () => {
       expect(flat({ ...on, ...smtp, FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION: "false" })).toMatchObject({ requireEmailVerification: false });
-      expect(() => flat({ ...on, FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION: "true" })).toThrow(/needs SMTP_HOST/);
+      expect(() => flat({ ...on, FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION: "true" })).toThrow(/needs FJORD_SMTP_HOST/);
       expect(() => flat({ ...on, ...smtp, FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION: "maybe" })).toThrow(/"true" or "false"/);
     });
   });
@@ -128,9 +128,9 @@ describe("resolveAuthConfig", () => {
   describe("Sovereign sign-in", () => {
     const base = { FJORD_URL: "https://fjord.example.com", FJORD_AUTH_SECRET: SECRET };
     const sov = {
-      FJORD_AUTH_SOVEREIGN_ISSUER: "https://auth.sovereign.example.com/api/auth/",
-      FJORD_AUTH_SOVEREIGN_CLIENT_ID: "client-1",
-      FJORD_AUTH_SOVEREIGN_CLIENT_SECRET: "shh",
+      FJORD_CORE_URL: "https://sovereign.example.com/",
+      FJORD_CORE_CLIENT_ID: "client-1",
+      FJORD_CORE_CLIENT_SECRET: "shh",
     };
 
     it("is on by itself, without local sign-in, and normalises the issuer", () => {
@@ -140,7 +140,7 @@ describe("resolveAuthConfig", () => {
         secret: SECRET,
         signUp: "closed",
         name: "Fjord",
-        sovereign: { issuer: "https://auth.sovereign.example.com/api/auth", clientId: "client-1", clientSecret: "shh" },
+        sovereign: { issuer: "https://sovereign.example.com", clientId: "client-1", clientSecret: "shh" },
       });
     });
 
@@ -150,7 +150,7 @@ describe("resolveAuthConfig", () => {
 
     it("is off when none of its three settings are set, and an error when only some are", () => {
       expect(resolveAuthConfig(base)).toEqual({ enabled: false });
-      expect(() => resolveAuthConfig({ ...base, FJORD_AUTH_SOVEREIGN_ISSUER: sov.FJORD_AUTH_SOVEREIGN_ISSUER })).toThrow(/missing FJORD_AUTH_SOVEREIGN_CLIENT_ID, FJORD_AUTH_SOVEREIGN_CLIENT_SECRET/);
+      expect(() => resolveAuthConfig({ ...base, FJORD_CORE_URL: sov.FJORD_CORE_URL })).toThrow(/missing FJORD_CORE_CLIENT_ID, FJORD_CORE_CLIENT_SECRET/);
     });
 
     it("needs the instance URL and secret too", () => {
@@ -159,16 +159,48 @@ describe("resolveAuthConfig", () => {
     });
 
     it("takes the client secret from a file", () => {
-      const { FJORD_AUTH_SOVEREIGN_CLIENT_SECRET: _drop, ...rest } = sov;
-      const config = resolveAuthConfig({ ...base, ...rest, FJORD_AUTH_SOVEREIGN_CLIENT_SECRET_FILE: "/run/secrets/sov" }, () => "from-file\n");
+      const { FJORD_CORE_CLIENT_SECRET: _drop, ...rest } = sov;
+      const config = resolveAuthConfig({ ...base, ...rest, FJORD_CORE_CLIENT_SECRET_FILE: "/run/secrets/sov" }, () => "from-file\n");
       expect(config).toMatchObject({ sovereign: { clientSecret: "from-file" } });
     });
 
     it("insists on https for the issuer, except on localhost, and on no query", () => {
-      expect(() => resolveAuthConfig({ ...base, ...sov, FJORD_AUTH_SOVEREIGN_ISSUER: "http://auth.example.com" })).toThrow(/https/);
-      expect(() => resolveAuthConfig({ ...base, ...sov, FJORD_AUTH_SOVEREIGN_ISSUER: "https://auth.example.com/?x=1" })).toThrow(/no query/);
-      expect(() => resolveAuthConfig({ ...base, ...sov, FJORD_AUTH_SOVEREIGN_ISSUER: "nope" })).toThrow(/not a valid URL/);
-      expect(resolveAuthConfig({ ...base, ...sov, FJORD_AUTH_SOVEREIGN_ISSUER: "http://localhost:4000" })).toMatchObject({ sovereign: { issuer: "http://localhost:4000" } });
+      expect(() => resolveAuthConfig({ ...base, ...sov, FJORD_CORE_URL: "http://auth.example.com" })).toThrow(/https/);
+      expect(() => resolveAuthConfig({ ...base, ...sov, FJORD_CORE_URL: "https://auth.example.com/?x=1" })).toThrow(/no query/);
+      expect(() => resolveAuthConfig({ ...base, ...sov, FJORD_CORE_URL: "nope" })).toThrow(/not a valid URL/);
+      expect(resolveAuthConfig({ ...base, ...sov, FJORD_CORE_URL: "http://localhost:4000" })).toMatchObject({ sovereign: { issuer: "http://localhost:4000" } });
+    });
+
+    it("reads the old names, and an issuer with a path, as before", () => {
+      const old = {
+        FJORD_AUTH_SOVEREIGN_ISSUER: "https://auth.sovereign.example.com/api/auth/",
+        FJORD_AUTH_SOVEREIGN_CLIENT_ID: "client-1",
+        FJORD_AUTH_SOVEREIGN_CLIENT_SECRET_FILE: "/run/secrets/sov",
+      };
+      expect(resolveAuthConfig({ ...base, ...old }, () => "from-file\n")).toMatchObject({
+        sovereign: { issuer: "https://auth.sovereign.example.com/api/auth", clientId: "client-1", clientSecret: "from-file" },
+      });
+    });
+
+    it("refuses an old name beside its new one, even in the other form", () => {
+      expect(() => resolveAuthConfig({ ...base, ...sov, FJORD_AUTH_SOVEREIGN_CLIENT_ID: "client-2" })).toThrow(
+        /Set FJORD_CORE_CLIENT_ID or its old name FJORD_AUTH_SOVEREIGN_CLIENT_ID, not both/,
+      );
+      const { FJORD_CORE_CLIENT_SECRET: _drop, ...rest } = sov;
+      expect(() => resolveAuthConfig({ ...base, ...rest, FJORD_CORE_CLIENT_SECRET_FILE: "/a", FJORD_AUTH_SOVEREIGN_CLIENT_SECRET: "b" }, () => "x")).toThrow(
+        /FJORD_CORE_CLIENT_SECRET_FILE or its old name FJORD_AUTH_SOVEREIGN_CLIENT_SECRET/,
+      );
+    });
+  });
+
+  describe("email under the old names", () => {
+    it("reads SMTP_* as before", () => {
+      const config = flat({ ...on, SMTP_HOST: "mail.example.com", SMTP_FROM: "a@b.c", SMTP_PORT: "465", SMTP_PASSWORD_FILE: "/s" }, () => "pw\n");
+      expect(config).toMatchObject({ requireEmailVerification: true, smtp: { host: "mail.example.com", port: 465, secure: true, password: "pw" } });
+    });
+
+    it("refuses an old name beside its new one", () => {
+      expect(() => flat({ ...on, SMTP_HOST: "a.example.com", FJORD_SMTP_HOST: "b.example.com", FJORD_SMTP_FROM: "a@b.c" })).toThrow(/not both/);
     });
   });
 
@@ -180,7 +212,7 @@ describe("resolveAuthConfig", () => {
 describe("describeAuth", () => {
   it("never prints a secret or a password", () => {
     const text = describeAuth(
-      resolveAuthConfig({ ...on, SMTP_HOST: "mail.example.com", SMTP_FROM: "a@b.c", SMTP_PASSWORD: "hunter2hunter2" }),
+      resolveAuthConfig({ ...on, FJORD_SMTP_HOST: "mail.example.com", FJORD_SMTP_FROM: "a@b.c", FJORD_SMTP_PASSWORD: "hunter2hunter2" }),
     );
     expect(text).not.toContain(SECRET);
     expect(text).not.toContain("hunter2");
@@ -192,12 +224,12 @@ describe("describeAuth", () => {
     const text = describeAuth(
       resolveAuthConfig({
         ...on,
-        FJORD_AUTH_SOVEREIGN_ISSUER: "https://auth.sovereign.example.com/api/auth",
-        FJORD_AUTH_SOVEREIGN_CLIENT_ID: "client-1",
-        FJORD_AUTH_SOVEREIGN_CLIENT_SECRET: "topsecretvalue",
+        FJORD_CORE_URL: "https://sovereign.example.com",
+        FJORD_CORE_CLIENT_ID: "client-1",
+        FJORD_CORE_CLIENT_SECRET: "topsecretvalue",
       }),
     );
-    expect(text).toContain("Sovereign (https://auth.sovereign.example.com/api/auth)");
+    expect(text).toContain("Sovereign (https://sovereign.example.com)");
     expect(text).not.toContain("topsecretvalue");
   });
 

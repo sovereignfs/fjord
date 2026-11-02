@@ -66,7 +66,7 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
   not done. A schema change is made in both dialects, and its migrations committed
   with it: CI fails if generating from the schemas would write anything.
 - **Tests that drop data never read the app's variables.** They read `FJORD_TEST_*`
-  (`src/db/test-support.ts`), so a developer's exported `POSTGRES_DB_URL` can never
+  (`src/db/test-support.ts`), so a developer's exported `FJORD_POSTGRES_URL` can never
   be wiped by `pnpm test`.
 - **The design system comes through `src/ui`, and its tokens are the only palette.**
   `@sovereignfs/ui` is one bundle with no `"use client"` and a module-level

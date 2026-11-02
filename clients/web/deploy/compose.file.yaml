@@ -18,8 +18,8 @@ services:
       - path: .env
         required: false
     environment:
-      DB_DIALECT: sqlite
-      SQLITE_URL: file:/data/fjord.db
+      FJORD_DB_DIALECT: sqlite
+      FJORD_SQLITE_URL: file:/data/fjord.db
     volumes:
       - fjord-data:/data
     ports:

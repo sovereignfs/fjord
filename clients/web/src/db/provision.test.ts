@@ -61,13 +61,13 @@ describe(`creating a namespace (${leg})`, () => {
 
 describe("provisioning a service that is not there", () => {
   it("says which setting to check for sqld", async () => {
-    const down = resolveDatabaseConfig({ SQLITE_URL: "http://127.0.0.1:1", SQLD_ADMIN_URL: "http://127.0.0.1:1" });
-    await expect(provisionStores(down, 100)).rejects.toThrow(/SQLD_ADMIN_URL/);
+    const down = resolveDatabaseConfig({ FJORD_SQLD_URL: "http://127.0.0.1:1", FJORD_SQLD_ADMIN_URL: "http://127.0.0.1:1" });
+    await expect(provisionStores(down, 100)).rejects.toThrow(/FJORD_SQLD_ADMIN_URL/);
   });
 
   it("says which setting to check for PostgreSQL", async () => {
-    const down = resolveDatabaseConfig({ DB_DIALECT: "postgres", POSTGRES_DB_URL: "postgres://u:p@127.0.0.1:1/x" });
-    await expect(provisionStores(down, 100)).rejects.toThrow(/POSTGRES_DB_URL/);
+    const down = resolveDatabaseConfig({ FJORD_DB_DIALECT: "postgres", FJORD_POSTGRES_URL: "postgres://u:p@127.0.0.1:1/x" });
+    await expect(provisionStores(down, 100)).rejects.toThrow(/FJORD_POSTGRES_URL/);
   });
 });
 

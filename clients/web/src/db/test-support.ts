@@ -13,12 +13,15 @@ import { createSqldClient, provisionNamespace } from "./sqld";
  * CI runs the whole suite three times (sqld, a `file:` database, PostgreSQL) by
  * setting the FJORD_TEST_* variables below. They are deliberately **not** the
  * variables the app reads: these tests drop whole schemas and namespaces, and a
- * developer with a real instance's DB_DIALECT and POSTGRES_DB_URL exported in a shell
+ * developer with a real instance's FJORD_DB_DIALECT and FJORD_POSTGRES_URL exported in a shell
  * must never find them wiped. With none of them set the tests use a throwaway SQLite
  * file, so `pnpm test` needs no database service.
  *
  *   FJORD_TEST_DB_DIALECT, FJORD_TEST_SQLITE_URL,
  *   FJORD_TEST_SQLD_ADMIN_URL, FJORD_TEST_POSTGRES_DB_URL
+ *
+ * They keep the shape the app's variables had before they took Sovereign's names: a dialect of
+ * `sqlite` or `postgres`, and one SQLite URL that is an sqld service's address or a `file:`.
  */
 export type Leg = "sqld" | "file" | "postgres";
 
@@ -32,16 +35,7 @@ let target: TestTarget | undefined;
 export function testTarget(env: Env = process.env): TestTarget {
   if (target) return target;
   const configured = Boolean(env.FJORD_TEST_DB_DIALECT || env.FJORD_TEST_SQLITE_URL || env.FJORD_TEST_POSTGRES_DB_URL);
-  const config = resolveDatabaseConfig(
-    configured
-      ? {
-          DB_DIALECT: env.FJORD_TEST_DB_DIALECT,
-          SQLITE_URL: env.FJORD_TEST_SQLITE_URL,
-          SQLD_ADMIN_URL: env.FJORD_TEST_SQLD_ADMIN_URL,
-          POSTGRES_DB_URL: env.FJORD_TEST_POSTGRES_DB_URL,
-        }
-      : { DB_DIALECT: "sqlite", SQLITE_URL: `file:${join(mkdtempSync(join(tmpdir(), "fjord-test-")), "fjord.db")}` },
-  );
+  const config = resolveDatabaseConfig(configured ? fromTestVariables(env) : { FJORD_DB_DIALECT: "sqlite", FJORD_SQLITE_URL: `file:${join(mkdtempSync(join(tmpdir(), "fjord-test-")), "fjord.db")}` });
   target = { leg: config.dialect === "postgres" ? "postgres" : config.form, config };
   return target;
 }
@@ -93,9 +87,19 @@ export async function freshDatabase(store: "app" | "auth" = "app"): Promise<{ da
   return { database: await openDatabase(config, store), config, leg };
 }
 
+/** The app's variables for what the FJORD_TEST_* variables name. */
+function fromTestVariables(env: Env): Env {
+  if ((env.FJORD_TEST_DB_DIALECT ?? "").trim().toLowerCase() === "postgres") {
+    return { FJORD_DB_DIALECT: "postgres", FJORD_POSTGRES_URL: env.FJORD_TEST_POSTGRES_DB_URL };
+  }
+  const url = (env.FJORD_TEST_SQLITE_URL ?? "").trim();
+  if (url.startsWith("file:")) return { FJORD_DB_DIALECT: "sqlite", FJORD_SQLITE_URL: url };
+  return { FJORD_DB_DIALECT: "sqld", FJORD_SQLD_URL: url, FJORD_SQLD_ADMIN_URL: env.FJORD_TEST_SQLD_ADMIN_URL };
+}
+
 /** The environment that makes `resolveDatabaseConfig` return this target's configuration. */
 export function envFor(config: DatabaseConfig): Env {
-  if (config.dialect === "postgres") return { DB_DIALECT: "postgres", POSTGRES_DB_URL: config.url };
-  if (config.form === "file") return { DB_DIALECT: "sqlite", SQLITE_URL: `file:${config.path}` };
-  return { DB_DIALECT: "sqlite", SQLITE_URL: config.url, SQLD_ADMIN_URL: config.adminUrl };
+  if (config.dialect === "postgres") return { FJORD_DB_DIALECT: "postgres", FJORD_POSTGRES_URL: config.url };
+  if (config.form === "file") return { FJORD_DB_DIALECT: "sqlite", FJORD_SQLITE_URL: `file:${config.path}` };
+  return { FJORD_DB_DIALECT: "sqld", FJORD_SQLD_URL: config.url, FJORD_SQLD_ADMIN_URL: config.adminUrl };
 }

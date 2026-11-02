@@ -28,7 +28,7 @@ export async function provisionStores(config: DatabaseConfig, timeoutMs = 30_000
         await provisionNamespace(config.adminUrl, AUTH_STORE);
       }, timeoutMs);
     } catch (error) {
-      throw new Error(`could not reach the sqld admin API at ${config.adminUrl} (set SQLD_ADMIN_URL): ${message(error)}`);
+      throw new Error(`could not reach the sqld admin API at ${config.adminUrl} (set FJORD_SQLD_ADMIN_URL): ${message(error)}`);
     }
     return;
   }
@@ -43,7 +43,7 @@ export async function provisionStores(config: DatabaseConfig, timeoutMs = 30_000
       await client.end();
     }
   }, timeoutMs).catch((error: unknown) => {
-    throw new Error(`could not reach PostgreSQL (check POSTGRES_DB_URL): ${message(error)}`);
+    throw new Error(`could not reach PostgreSQL (check FJORD_POSTGRES_URL): ${message(error)}`);
   });
 }
 

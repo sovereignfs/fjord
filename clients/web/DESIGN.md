@@ -137,7 +137,7 @@ instance can run either or both:
 | Method | Enabled by | Notes |
 | --- | --- | --- |
 | **Local**: email and password, plus passkeys and TOTP | `FJORD_AUTH_LOCAL=1` | better-auth email/password, `@better-auth/passkey`, `twoFactor` (authenticator app and backup codes). |
-| **Sovereign** | `FJORD_AUTH_SOVEREIGN_ISSUER`, `…_CLIENT_ID`, `…_CLIENT_SECRET` | OIDC against a Sovereign instance's external OAuth/OIDC provider (Sovereign RFC 0072): authorization code flow, the client registered by that instance's admin with an exact redirect URI. Claims used: `sub`, `email`, `name`. |
+| **Sovereign** | `FJORD_CORE_URL`, `FJORD_CORE_CLIENT_ID`, `FJORD_CORE_CLIENT_SECRET` (the names a Sovereign instance gives an app it hosts) | OIDC against a Sovereign instance's external OAuth/OIDC provider (Sovereign RFC 0072): authorization code flow, the client registered by that instance's admin with an exact redirect URI. Claims used: `sub`, `email`, `name`. |
 
 - **Reuse from Sovereign.** The shared logic *is* better-auth, so Fjord Web uses it
   directly rather than calling into Sovereign's code. The sign-in, sign-up and
@@ -159,7 +159,7 @@ instance can run either or both:
 - **Who may sign up** is `FJORD_AUTH_SIGNUP`: `closed` (the default), where the first account is
   made and then sign-up is refused, by the server and not only hidden by the page; or `open`.
   Secure by default: a self-hoster who forgets is not an open registration.
-- **Email is optional.** With `SMTP_*` set, an address must be verified before first sign-in
+- **Email is optional.** With `FJORD_SMTP_*` set, an address must be verified before first sign-in
   (following the link signs the person in), and a forgotten password is reset by a mailed,
   single-use link that also ends every session. Without it, sign-up is immediate and there is no
   reset by email: no screen offers one and the endpoint is disabled. Sovereign's mailer is not
@@ -185,8 +185,8 @@ instance can run either or both:
 
 - **Registered by the Sovereign instance's admin** (Console, External clients; no dynamic
   registration): redirect URI exactly `<FJORD_URL>/api/auth/callback/sovereign`, scopes `openid
-  profile email`. Fjord Web holds the client id and secret (`FJORD_AUTH_SOVEREIGN_*`, the secret
-  from a file if wanted); all three or none, and a partial set stops the server at start-up.
+  profile email`. Fjord Web holds the core's address, which is the issuer and has no path, and the
+  client id and secret (`FJORD_CORE_*`, the secret from a file if wanted); all three or none, and a partial set stops the server at start-up.
 - **better-auth's `genericOAuth`** with the issuer's discovery document: authorization code with
   PKCE S256, the secret sent by basic auth, a `nonce` bound to the request. The ID token (EdDSA
   on Sovereign) must verify against the keys the document points to, and a document without
@@ -1398,20 +1398,22 @@ writes. That is what makes SQLite a good default, **in production too**, with
 **PostgreSQL** for an operator who prefers it. This follows Sovereign's pattern, and
 is planned in from the start rather than added later.
 
-**The switch.** `DB_DIALECT` is `sqlite` or `postgres`, read in one place; nothing
-infers the dialect from a URL. It **defaults to `sqlite`**, where Sovereign requires
+**The switch.** `FJORD_DB_DIALECT` is `sqld`, `sqlite` or `postgres`, the values and
+names of Sovereign's convention (`contracts/env.md` there), read in one place; nothing
+infers the dialect from a URL. It **defaults to `sqld`**, where Sovereign requires
 it to be set: Fjord's pitch is a simple self-hosted cloud, so the zero-configuration
-path is the default one.
+path is the default one. (Fjord Web 0.1 read `DB_DIALECT`, `sqlite` or `postgres`, with one `SQLITE_URL`
+for both of SQLite's forms; those names still work, `src/env-renames.ts`.)
 
-**SQLite, in two forms through one libSQL client**, chosen by `SQLITE_URL`:
+**SQLite, in two forms through one libSQL client:**
 
-| `SQLITE_URL` | Form | For |
-| --- | --- | --- |
-| `http://sqld:8080` (**default**) | an **sqld** service (libSQL server), as Sovereign runs | most installs: the web process and the worker can be separate containers, replicas reach it over the network, app containers hold no state, and operating Fjord is the same as operating Sovereign |
-| `file:/data/fjord.db` | a plain file | the smallest self-host: one container, no database service |
+| Dialect | Address | Form | For |
+| --- | --- | --- | --- |
+| `sqld` (**default**) | `FJORD_SQLD_URL`, default `http://sqld:8080` | an **sqld** service (libSQL server), as Sovereign runs | most installs: the web process and the worker can be separate containers, replicas reach it over the network, app containers hold no state, and operating Fjord is the same as operating Sovereign |
+| `sqlite` | `FJORD_SQLITE_URL`, `file:/data/fjord.db` | a plain file | the smallest self-host: one container, no database service |
 
 - With sqld, the app and auth databases are the namespaces `fjord` and `fjord_auth`,
-  created through `SQLD_ADMIN_URL`; every request names its namespace in the
+  created through `FJORD_SQLD_ADMIN_URL`; every request names its namespace in the
   `x-namespace` header. With a file, auth is `fjord_auth.db` beside it.
 - **sqld must be 0.24.33 or later.** Earlier releases ignore `x-namespace`, so every
   "namespace" is the one default database and the app's tables and better-auth's would
@@ -1431,8 +1433,8 @@ path is the default one.
   an at-rest encryption experiment it later retired), so offering it here is a
   deliberate difference.
 
-**PostgreSQL** through `POSTGRES_DB_URL`, with `PGSSLROOTCERT` for TLS verification
-and `POSTGRES_POOL_MAX` for the pool, as in Sovereign. The app and auth tables are
+**PostgreSQL** through `FJORD_POSTGRES_URL` (or `_FILE`: it can carry a password), with
+`PGSSLROOTCERT` for TLS verification and `FJORD_POSTGRES_POOL_MAX` for the pool, as in Sovereign. The app and auth tables are
 the schemas `fjord` and `fjord_auth`.
 
 **Schema and migrations.** Drizzle, with a schema file and a migration set per
@@ -1497,7 +1499,7 @@ built instance from an empty database on each, as an operator would. A **schema 
 test** checks that the two dialects' schemas declare the same tables, columns and
 indexes, and a CI step fails if generating migrations from the committed schemas would
 write anything. The tests read `FJORD_TEST_*` variables and not the app's, because they
-drop whole schemas and namespaces: a developer's exported `POSTGRES_DB_URL` must never
+drop whole schemas and namespaces: a developer's exported `FJORD_POSTGRES_URL` must never
 be wiped by `pnpm test`. In development `pnpm db:dev` starts a local sqld or PostgreSQL
 in Docker, as Sovereign's script does; a `file:` URL works with no Docker at all, and
 it is what the tests use when nothing else is set.
@@ -1568,15 +1570,17 @@ Each slice ends usable, tested and released. The tasks are in
 - **The database** (§14), three ways:
   - **Default:** compose includes an `sqld` service, and the app waits for it to be
     healthy.
-  - **Smallest:** a single-container example with `SQLITE_URL=file:/data/fjord.db`
+  - **Smallest:** a single-container example with `FJORD_SQLITE_URL=file:/data/fjord.db`
     on a local volume, web and worker in the one container.
   - **PostgreSQL:** an overlay compose file replaces `sqld` with a `postgres`
-    service, or `POSTGRES_DB_URL` points at an existing server.
+    service, or `FJORD_POSTGRES_URL` points at an existing server.
 - **Backups:** a snapshot of the sqld volume; for the file form, continuous
   replication (for example Litestream) or `sqlite3 .backup`; for PostgreSQL,
   `pg_dump` or the operator's usual process.
-- **Configuration** by environment: instance URL; `DB_DIALECT`, `SQLITE_URL`,
-  `SQLD_ADMIN_URL`, `POSTGRES_DB_URL`, `PGSSLROOTCERT`, `POSTGRES_POOL_MAX`; the
+- **Configuration** by environment, every variable `FJORD_` and named as Sovereign's convention
+  names it (`contracts/env.md` there), so an instance can host Fjord with what it gives every app:
+  instance URL; `FJORD_DB_DIALECT`, `FJORD_SQLD_URL`, `FJORD_SQLD_ADMIN_URL`, `FJORD_SQLITE_URL`,
+  `FJORD_POSTGRES_URL`, `PGSSLROOTCERT`, `FJORD_POSTGRES_POOL_MAX`; the
   instance encryption key; which auth methods are on and their settings; the GitHub
   App's id, private key and webhook secret; the idle-commit interval; limits.
 - **Each instance registers its own GitHub App.**
@@ -1627,7 +1631,7 @@ The offer of §7, as it works (`src/browse/setup.ts`, `src/browse/screens/SetupO
   `@sovereignfs/ui`'s `NOTICE`, which a standalone build prunes. Its health check is `/api/health`, which also says
   whether the format module loaded (`"format": "ok"`), so an image without a working module is found by looking there.
 - **Three setups** (`deploy/`): `compose.yaml` (the web service and sqld, which the web service waits for through a
-  health check), `compose.file.yaml` (one container, `SQLITE_URL=file:/data/fjord.db` on a volume) and
+  health check), `compose.file.yaml` (one container, `FJORD_SQLITE_URL=file:/data/fjord.db` on a volume) and
   `compose.postgres.yaml`, an overlay that removes sqld and adds PostgreSQL. The port is published on the loopback
   address only, for a reverse proxy; the database services are not published at all. `deploy/README.md` has the
   configuration, the proxy, backups (each tried: back up, wipe, restore, sign in) and updating.
@@ -1709,3 +1713,4 @@ standalone output would otherwise prune it.
 | 2026-10-26 | `packages/fjord-editor` is MPL-2.0 and does not depend on `@sovereignfs/ui` | AGPL with the design system (every client that embeds it, the MPL-2.0 mobile client included, would have to be AGPL) |
 | 2026-10-27 | The visual document editor is used only for a document it can hold without changing what it means, tested on opening; any other (raw HTML, footnotes, maths, CRLF, a loose list…) is shown as Markdown in the byte-faithful editor | Opaque raw blocks inside the visual editor (they need custom Lexical nodes, and the editor normalises silently what it does not refuse) |
 | 2026-11-02 | Phase 3 is repository kinds (`drive`, `journal`, `ssg`, on the repository, proposed in RFC 0001); collaborative editing moves to phase 4 | Collaborative editing first (it was an outline with no tasks; kinds were wanted sooner); a kind per vault (one repository is one thing to the person, and a site is deployed per repository) |
+| 2026-11-02 | Every variable `FJORD_`, named as Sovereign's `contracts/env.md` names it (`FJORD_DB_DIALECT` = `sqld`, `sqlite` or `postgres`; `FJORD_POSTGRES_URL[_FILE]`; `FJORD_SMTP_*`; `FJORD_CORE_URL`, `_CLIENT_ID`, `_CLIENT_SECRET`), the old names still read, with a warning, and an error beside their new ones; so an instance can host Fjord Web with the variables it gives every app | Keeping the unprefixed names (an instance's `suite.yml` cannot set them); prefixing only, with `sqlite` still covering sqld and a file; dropping the old names at once (0.1 deployments would stop) |

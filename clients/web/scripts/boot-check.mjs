@@ -1,8 +1,8 @@
 // Start a built instance of the app against whatever database the environment names,
 // and ask it whether it is up. This is the check that "a fresh instance boots from the
 // documented variables" (ROADMAP 1a.0): the server provisions and migrates the database
-// itself at start-up, so all it is given is DB_DIALECT, SQLITE_URL / SQLD_ADMIN_URL or
-// POSTGRES_DB_URL, exactly as an operator would.
+// itself at start-up, so all it is given is FJORD_DB_DIALECT and FJORD_SQLD_URL /
+// FJORD_SQLD_ADMIN_URL, FJORD_SQLITE_URL or FJORD_POSTGRES_URL, exactly as an operator would.
 //
 //   pnpm build && pnpm boot-check
 //
@@ -10,7 +10,10 @@
 import { spawn } from "node:child_process";
 
 const port = process.env.BOOT_CHECK_PORT ?? "3999";
-const expectedDialect = (process.env.DB_DIALECT || "sqlite").toLowerCase();
+// Health says `sqlite` for both of SQLite's forms, an sqld service and a file. The old DB_DIALECT
+// (sqlite or postgres) is read too, for an environment that still uses it.
+const configured = (process.env.FJORD_DB_DIALECT || process.env.DB_DIALECT || "sqld").trim().toLowerCase();
+const expectedDialect = configured === "postgres" ? "postgres" : "sqlite";
 const deadline = Date.now() + Number(process.env.BOOT_CHECK_TIMEOUT_MS ?? 90_000);
 
 const server = spawn("pnpm", ["exec", "next", "start", "--port", port], {

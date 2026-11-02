@@ -34,7 +34,9 @@ const SECRET = "e2e-only-secret-not-for-anything-real-0123456789";
 // settings there (a real Sovereign, say) would reach these instances. Setting a name, even to
 // nothing, keeps it out: an empty value is "not set" to the app.
 const BLANK = Object.fromEntries(
-  ["FJORD_URL", "FJORD_AUTH_LOCAL", "FJORD_AUTH_SECRET", "FJORD_AUTH_SIGNUP", "FJORD_AUTH_SOVEREIGN_ISSUER", "FJORD_AUTH_SOVEREIGN_CLIENT_ID", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET_FILE", "FJORD_AUTH_SECRET_FILE", "SMTP_HOST", "FJORD_ENCRYPTION_KEY", "FJORD_ENCRYPTION_KEY_FILE", "FJORD_ENCRYPTION_KEY_PREVIOUS", "FJORD_GITHUB_API_URL", "FJORD_WASM_DIR"].map((name) => [name, ""]),
+  ["FJORD_URL", "FJORD_AUTH_LOCAL", "FJORD_AUTH_SECRET", "FJORD_AUTH_SIGNUP", "FJORD_CORE_URL", "FJORD_CORE_CLIENT_ID", "FJORD_CORE_CLIENT_SECRET", "FJORD_CORE_CLIENT_SECRET_FILE", "FJORD_AUTH_SECRET_FILE", "FJORD_SMTP_HOST", "FJORD_DB_DIALECT", "FJORD_SQLD_URL", "FJORD_SQLD_ADMIN_URL", "FJORD_POSTGRES_URL", "FJORD_POSTGRES_URL_FILE",
+   // The old names too (src/env-renames.ts): set beside the new ones they would be an error.
+   "FJORD_AUTH_SOVEREIGN_ISSUER", "FJORD_AUTH_SOVEREIGN_CLIENT_ID", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET", "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET_FILE", "SMTP_HOST", "DB_DIALECT", "SQLITE_URL", "SQLD_ADMIN_URL", "POSTGRES_DB_URL", "FJORD_ENCRYPTION_KEY", "FJORD_ENCRYPTION_KEY_FILE", "FJORD_ENCRYPTION_KEY_PREVIOUS", "FJORD_GITHUB_API_URL", "FJORD_WASM_DIR"].map((name) => [name, ""]),
 );
 
 // A directory of its own for each instance: the auth database is `fjord_auth.db` beside the
@@ -47,7 +49,7 @@ const instance = (name: string, port: number, env: Record<string, string>) => {
     url: `http://localhost:${port}/api/health`,
     timeout: 90_000,
     reuseExistingServer: false,
-    env: { ...BLANK, DB_DIALECT: "sqlite", SQLITE_URL: `file:${join(directory, "fjord.db")}`, ...env },
+    env: { ...BLANK, FJORD_DB_DIALECT: "sqlite", FJORD_SQLITE_URL: `file:${join(directory, "fjord.db")}`, ...env },
   };
 };
 
@@ -55,9 +57,9 @@ const on = (port: number) => ({ FJORD_AUTH_LOCAL: "1", FJORD_URL: `http://localh
 
 /** The fake Sovereign these instances sign in through, with the settings that register their client. */
 const sovereign = {
-  FJORD_AUTH_SOVEREIGN_ISSUER: "http://localhost:3190/api/auth",
-  FJORD_AUTH_SOVEREIGN_CLIENT_ID: "fjord-e2e-client",
-  FJORD_AUTH_SOVEREIGN_CLIENT_SECRET: "fjord-e2e-secret",
+  FJORD_CORE_URL: "http://localhost:3190/api/auth",
+  FJORD_CORE_CLIENT_ID: "fjord-e2e-client",
+  FJORD_CORE_CLIENT_SECRET: "fjord-e2e-secret",
 };
 
 export default defineConfig({

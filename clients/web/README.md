@@ -55,21 +55,30 @@ schemas and tables when it starts, from the variables below.
 
 | Variable | Meaning | Default |
 | --- | --- | --- |
-| `DB_DIALECT` | `sqlite` or `postgres` | `sqlite` |
-| `SQLITE_URL` | `http://host:port` for an [sqld](https://github.com/tursodatabase/libsql) service, or `file:/path/fjord.db` for a plain file | `http://sqld:8080` |
-| `SQLD_ADMIN_URL` | sqld's admin API, used to create its namespaces | `http://sqld:8081` |
-| `POSTGRES_DB_URL` | `postgres://user:password@host:port/db`, required for `postgres` | |
-| `POSTGRES_POOL_MAX`, `PGSSLROOTCERT` | pool size (5), and a CA file for `sslmode=verify-*` | |
+| `FJORD_DB_DIALECT` | `sqld`, `sqlite` (a plain file) or `postgres` | `sqld` |
+| `FJORD_SQLD_URL` | `http://host:port` of an [sqld](https://github.com/tursodatabase/libsql) service | `http://sqld:8080` |
+| `FJORD_SQLD_ADMIN_URL` | sqld's admin API, used to create its namespaces | `http://sqld:8081` |
+| `FJORD_SQLITE_URL` | `file:/path/fjord.db`, required for `sqlite` | |
+| `FJORD_POSTGRES_URL` or `_FILE` | `postgres://user:password@host:port/db`, required for `postgres` | |
+| `FJORD_POSTGRES_POOL_MAX`, `PGSSLROOTCERT` | pool size (5), and a CA file for `sslmode=verify-*` | |
 | `FJORD_DB_CONNECT_TIMEOUT_MS` | how long to wait for the database to come up | 30000 |
 
 You need no database service to develop: a file works with no Docker.
 
 ```bash
-SQLITE_URL=file:./data/fjord.db pnpm dev      # a file, no Docker
+FJORD_DB_DIALECT=sqlite FJORD_SQLITE_URL=file:./data/fjord.db pnpm dev   # a file, no Docker
 pnpm db:dev sqld                              # or sqld in Docker; prints the variables to export
 pnpm db:dev postgres                          # or PostgreSQL, to try the other dialect
 pnpm db:dev stop
 ```
+
+**Older names.** These variables used to be read as `DB_DIALECT`, `SQLITE_URL`, `SQLD_ADMIN_URL`,
+`POSTGRES_DB_URL`, `POSTGRES_POOL_MAX`, `SMTP_*` and `FJORD_AUTH_SOVEREIGN_ISSUER`, `_CLIENT_ID` and
+`_CLIENT_SECRET`. Now every one starts `FJORD_`, and a setting that
+[Sovereign's convention](https://github.com/sovereignfs/sovereign/blob/main/contracts/env.md) names has its name,
+which is what a Sovereign instance gives an app it hosts. The old names still work and the server says at start-up
+which it read; an old name with its new one is an error. `DB_DIALECT=sqlite` meant sqld, or a file when `SQLITE_URL`
+was a `file:`; the new dialects say which.
 
 The file form keeps the auth database beside the app's, as `fjord_auth.db`. The tests
 use a throwaway file when nothing says otherwise; CI runs them on sqld, a file and
@@ -80,29 +89,29 @@ whole databases (`src/db/test-support.ts`).
 
 There are two ways to sign in, and each is **off unless it is set**: local (email and password,
 passkeys, two-factor) with `FJORD_AUTH_LOCAL`, and Sovereign (OIDC) with
-`FJORD_AUTH_SOVEREIGN_*`. With neither, `/sign-in`, `/sign-up` and `/api/auth` answer 404. Either
+`FJORD_CORE_*`. With neither, `/sign-in`, `/sign-up` and `/api/auth` answer 404. Either
 or both can be on. The server refuses to start on a setting that is wrong, and says which. Try
 local sign-in:
 
 ```bash
 export FJORD_AUTH_LOCAL=1 FJORD_URL=http://localhost:3000
 export FJORD_AUTH_SECRET="$(openssl rand -base64 48)"   # 32 characters or more
-SQLITE_URL=file:./data/fjord.db pnpm dev
+FJORD_DB_DIALECT=sqlite FJORD_SQLITE_URL=file:./data/fjord.db pnpm dev
 ```
 
 | Variable | Meaning | Default |
 | --- | --- | --- |
 | `FJORD_AUTH_LOCAL` | `1` or `true` turns local sign-in on | off |
-| `FJORD_AUTH_SOVEREIGN_ISSUER` | a Sovereign instance's OIDC issuer, e.g. `https://auth.sovereign.example.com/api/auth` (https, except on localhost) | off |
-| `FJORD_AUTH_SOVEREIGN_CLIENT_ID` | the client registered for this instance (below) | with the issuer |
-| `FJORD_AUTH_SOVEREIGN_CLIENT_SECRET` or `_FILE` | its secret. All three are needed together; some without the others is an error | with the issuer |
+| `FJORD_CORE_URL` | a Sovereign instance's core, which is its OIDC issuer: its address with no path, e.g. `https://sovereign.example.com` (https, except on localhost) | off |
+| `FJORD_CORE_CLIENT_ID` | the client registered for this instance (below) | with the core |
+| `FJORD_CORE_CLIENT_SECRET` or `_FILE` | its secret. All three are needed together; some without the others is an error | with the core |
 | `FJORD_URL` | the address people use; https except on localhost. Passkeys, email links and the Sovereign redirect URI are made from it | required with either |
 | `FJORD_AUTH_SECRET` or `_FILE` | signs sessions and tokens, 32 characters or more | required with either |
 | `FJORD_AUTH_SIGNUP` | `closed`: the first account only. `open`: anyone. For either way in | `closed` |
 | `FJORD_AUTH_PASSWORD_MIN_LENGTH` | | 10 |
 | `FJORD_NAME` | what an authenticator app and a passkey call the instance | Fjord |
 | `FJORD_PASSKEY_RP_ID` | the passkey relying party, to share passkeys across subdomains | the host of `FJORD_URL` |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` or `_FILE`, `SMTP_FROM` | email, optional. With it, addresses are verified and a password can be reset by email; without it, neither | none |
+| `FJORD_SMTP_HOST`, `_PORT`, `_SECURE`, `_USER`, `_PASSWORD` or `_PASSWORD_FILE`, `_FROM` | email, optional. With it, addresses are verified and a password can be reset by email; without it, neither | none |
 | `FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION` | `false` to skip verification even with SMTP | on with SMTP |
 
 **Connecting a repository.** Signed in, open **Repositories**, give the repository's address and a

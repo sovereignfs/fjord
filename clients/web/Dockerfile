@@ -96,7 +96,7 @@ COPY --from=editor /build/packages/fjord-editor/LICENSE /usr/share/licenses/fjor
 # and asks that its notice accompany copies; the package writes them into one file when it is built.
 COPY --from=editor /build/packages/fjord-editor/dist/THIRD_PARTY_NOTICES.txt /usr/share/licenses/fjord-editor/THIRD_PARTY_NOTICES.txt
 
-# The database file, when the instance keeps one (SQLITE_URL=file:/data/fjord.db), and nothing else, is written.
+# The database file, when the instance keeps one (FJORD_SQLITE_URL=file:/data/fjord.db), and nothing else, is written.
 RUN mkdir /data && chown node:node /data
 VOLUME /data
 USER node

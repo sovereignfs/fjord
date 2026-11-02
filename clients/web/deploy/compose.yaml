@@ -18,9 +18,9 @@ services:
       - path: .env
         required: false
     environment:
-      DB_DIALECT: sqlite
-      SQLITE_URL: http://sqld:8080
-      SQLD_ADMIN_URL: http://sqld:8081
+      FJORD_DB_DIALECT: sqld
+      FJORD_SQLD_URL: http://sqld:8080
+      FJORD_SQLD_ADMIN_URL: http://sqld:8081
     depends_on:
       sqld:
         condition: service_healthy

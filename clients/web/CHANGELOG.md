@@ -11,6 +11,19 @@ section.
 
 ## [Unreleased]
 
+### Changed
+
+- **Every setting starts `FJORD_`, with the names of Sovereign's environment convention** (`contracts/env.md` in
+  sovereignfs/sovereign), so that a Sovereign instance can host Fjord Web with the variables it gives every app, and an
+  operator can set the rest in its `suite.yml`. The database is `FJORD_DB_DIALECT` (`sqld`, the default; `sqlite`, a
+  file; or `postgres`) with `FJORD_SQLD_URL` and `FJORD_SQLD_ADMIN_URL`, `FJORD_SQLITE_URL`, or `FJORD_POSTGRES_URL`
+  and `FJORD_POSTGRES_POOL_MAX`. The PostgreSQL address is now a secret that can come from a file
+  (`FJORD_POSTGRES_URL_FILE`). Email is `FJORD_SMTP_*`. Sovereign sign-in is `FJORD_CORE_URL` (the core's address, its
+  issuer), `FJORD_CORE_CLIENT_ID` and `FJORD_CORE_CLIENT_SECRET`. **Not breaking:** the old names (`DB_DIALECT`,
+  `SQLITE_URL`, `SQLD_ADMIN_URL`, `POSTGRES_DB_URL`, `POSTGRES_POOL_MAX`, `SMTP_*`, `FJORD_AUTH_SOVEREIGN_*`) still work,
+  and the server lists the ones it read at start-up; an old name set beside its new one stops the server. The compose
+  files in `deploy/` use the new names.
+
 ## [0.1.0] - 2026-11-01
 
 ### Security

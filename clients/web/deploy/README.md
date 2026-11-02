@@ -21,7 +21,7 @@ listens on port 3000, writes only to `/data` (and only when the database is a fi
 | **File** | `compose.file.yaml` | A SQLite file on a volume, in the one container | One person or a small group, and the fewest moving parts. Cannot scale out: two instances cannot share a file. |
 | **PostgreSQL** | `compose.yaml` + `compose.postgres.yaml` | PostgreSQL in its own container | You already run PostgreSQL, or want to. |
 
-To use a PostgreSQL server you already have, skip the overlay and set `DB_DIALECT=postgres` and `POSTGRES_DB_URL` in
+To use a PostgreSQL server you already have, skip the overlay and set `FJORD_DB_DIALECT=postgres` and `FJORD_POSTGRES_URL` in
 `.env`; with the sqld file, also remove the `sqld` service and the web service's `depends_on`.
 
 ```bash
@@ -54,8 +54,12 @@ Everything is an environment variable, put in `.env` next to the Compose files (
 - **`FJORD_IDLE_VERSION_MINUTES`** (optional, 1 to 1440, default 5; `0` turns it off) is how long a draft goes without an edit
   before the app saves it to the repository as a version. **`FJORD_WORKER=off`** keeps a process from doing it: with several
   web processes on one database, set it on all but one.
-- A secret can come from a file instead (`FJORD_AUTH_SECRET_FILE`, `FJORD_ENCRYPTION_KEY_FILE`, ...), which is how
-  Docker or Kubernetes secrets are passed.
+- A secret can come from a file instead (`FJORD_AUTH_SECRET_FILE`, `FJORD_ENCRYPTION_KEY_FILE`, `FJORD_POSTGRES_URL_FILE`,
+  ...), which is how Docker or Kubernetes secrets are passed.
+- **Every variable starts `FJORD_`.** The database, email and Sovereign settings used to have other names (`DB_DIALECT`,
+  `SQLITE_URL`, `POSTGRES_DB_URL`, `SMTP_HOST`, `FJORD_AUTH_SOVEREIGN_ISSUER`, ...). An `.env` written for 0.1.0 still works,
+  and the log says which old names it read and what they are now (`[fjord] setting: SMTP_HOST (now FJORD_SMTP_HOST) is an
+  old name`); rename them when convenient. An old name beside its new one stops the server, naming both.
 - **Each instance registers its own GitHub App** (ROADMAP 1a.6), which is how people connect repositories without handling a
   token. Without one, a repository is connected with a fine-grained personal access token, and that stays available beside it.
   See [Registering the GitHub App](#registering-the-github-app).
@@ -72,7 +76,7 @@ The server **refuses to start on a setting that is wrong** and says which: the c
   nothing else does. Keep it that way. Its image is pinned to a version that honours the namespace header the app
   relies on (0.24.33 or later; `src/db/provision.test.ts` checks isolation).
 - **PostgreSQL** needs `POSTGRES_PASSWORD` in `.env`. It is not published either. For a server elsewhere, use
-  `POSTGRES_DB_URL` with `sslmode=verify-full` and `PGSSLROOTCERT` (see the main README).
+  `FJORD_POSTGRES_URL` with `sslmode=verify-full` and `PGSSLROOTCERT` (see the main README).
 
 ## A reverse proxy with TLS
 

@@ -21,6 +21,8 @@ export async function registerNode(): Promise<void> {
   installLogRedaction();
   if (process.env.FJORD_SKIP_DATABASE === "1") return;
   try {
+    const { oldNamesInUse } = await import("./src/env-renames");
+    for (const name of oldNamesInUse(process.env)) console.warn(`[fjord] setting: ${name} is an old name, and still works; use the new one`);
     const { describeAuth } = await import("./src/auth/config");
     const { authConfig } = await import("./src/auth/server");
     console.info(`[fjord] auth: ${describeAuth(authConfig())}`);

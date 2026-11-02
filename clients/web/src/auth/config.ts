@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { ConfigError, type Env } from "../db/config";
+import { smtpEnv, sovereignEnv } from "../env-renames";
 import { type ReadFile, resolveSecret } from "../secret-env";
 
 /**
@@ -11,13 +12,17 @@ import { type ReadFile, resolveSecret } from "../secret-env";
  *
  *   FJORD_AUTH_LOCAL                 1 or true turns on email and password, passkeys and
  *                                    two-factor.
- *   FJORD_AUTH_SOVEREIGN_ISSUER      a Sovereign instance's OIDC issuer, e.g.
- *                                    https://auth.sovereign.example.com/api/auth
- *   FJORD_AUTH_SOVEREIGN_CLIENT_ID   the client registered for this instance in that Sovereign's
- *                                    Console (External clients), with the redirect URI
+ *   FJORD_CORE_URL                   a Sovereign instance's core, which is its OIDC issuer, e.g.
+ *                                    https://sovereign.example.com (no path)
+ *   FJORD_CORE_CLIENT_ID             the client registered for this instance at that core: given
+ *                                    by the instance when it hosts Fjord, or made in its Console
+ *                                    (External apps) with the redirect URI
  *                                    <FJORD_URL>/api/auth/callback/sovereign
- *   FJORD_AUTH_SOVEREIGN_CLIENT_SECRET[_FILE]
- *                                    its secret. All three are needed together.
+ *   FJORD_CORE_CLIENT_SECRET[_FILE]  its secret. All three are needed together.
+ *
+ * These are the names a Sovereign instance gives a hosted app (its `contracts/env.md`). The old
+ * ones, FJORD_AUTH_SOVEREIGN_ISSUER, _CLIENT_ID and _CLIENT_SECRET, still work
+ * (`src/env-renames.ts`).
  *
  * With either on:
  *
@@ -38,12 +43,13 @@ import { type ReadFile, resolveSecret } from "../secret-env";
  *                                    FJORD_URL. Set it to a parent domain to share passkeys
  *                                    across subdomains.
  *
- * Email is optional. With SMTP_HOST set, an address must be verified before first sign-in
+ * Email is optional. With FJORD_SMTP_HOST set, an address must be verified before first sign-in
  * and a forgotten password can be reset by email; without it, neither: sign-up is immediate
  * and there is no reset by email.
  *
- *   SMTP_HOST, SMTP_PORT (587), SMTP_SECURE (true for 465), SMTP_USER,
- *   SMTP_PASSWORD[_FILE], SMTP_FROM (required with SMTP_HOST)
+ *   FJORD_SMTP_HOST, FJORD_SMTP_PORT (587), FJORD_SMTP_SECURE (true for 465), FJORD_SMTP_USER,
+ *   FJORD_SMTP_PASSWORD[_FILE], FJORD_SMTP_FROM (required with FJORD_SMTP_HOST); the old
+ *   names without the prefix still work
  *   FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION   default: true when SMTP is set, else false
  *
  * Secrets can come from a file (`*_FILE`), as container secrets do, so they need not sit in
@@ -134,16 +140,17 @@ function resolveLocal(env: Env, url: string, readSecretFile: ReadFile): LocalSet
 }
 
 /** Off when none of the three is set; an error when only some are, which is never what was meant. */
-function resolveSovereign(env: Env, readFile: ReadFile): SovereignSettings | undefined {
-  const issuer = (env.FJORD_AUTH_SOVEREIGN_ISSUER ?? "").trim();
-  const clientId = (env.FJORD_AUTH_SOVEREIGN_CLIENT_ID ?? "").trim();
-  const clientSecret = resolveSecret("FJORD_AUTH_SOVEREIGN_CLIENT_SECRET", env, readFile);
+function resolveSovereign(given: Env, readFile: ReadFile): SovereignSettings | undefined {
+  const env = sovereignEnv(given);
+  const issuer = (env.FJORD_CORE_URL ?? "").trim();
+  const clientId = (env.FJORD_CORE_CLIENT_ID ?? "").trim();
+  const clientSecret = resolveSecret("FJORD_CORE_CLIENT_SECRET", env, readFile);
   if (issuer === "" && clientId === "" && clientSecret === undefined) return undefined;
 
   const missing = [
-    issuer === "" ? "FJORD_AUTH_SOVEREIGN_ISSUER" : "",
-    clientId === "" ? "FJORD_AUTH_SOVEREIGN_CLIENT_ID" : "",
-    clientSecret === undefined ? "FJORD_AUTH_SOVEREIGN_CLIENT_SECRET (or _FILE)" : "",
+    issuer === "" ? "FJORD_CORE_URL" : "",
+    clientId === "" ? "FJORD_CORE_CLIENT_ID" : "",
+    clientSecret === undefined ? "FJORD_CORE_CLIENT_SECRET (or _FILE)" : "",
   ].filter(Boolean);
   if (missing.length > 0) throw new ConfigError(`Sovereign sign-in needs all of its settings; missing ${missing.join(", ")}.`);
   return { issuer: resolveIssuer(issuer), clientId, clientSecret: clientSecret as string };
@@ -154,13 +161,13 @@ function resolveIssuer(value: string): string {
   try {
     url = new URL(value);
   } catch {
-    throw new ConfigError("FJORD_AUTH_SOVEREIGN_ISSUER is not a valid URL.");
+    throw new ConfigError("FJORD_CORE_URL is not a valid URL.");
   }
   // The client secret goes to this host, and the people who sign in trust what it says about them.
   if (url.protocol !== "https:" && !(url.protocol === "http:" && isLocalHost(url.hostname))) {
-    throw new ConfigError("FJORD_AUTH_SOVEREIGN_ISSUER must be https, except on localhost.");
+    throw new ConfigError("FJORD_CORE_URL must be https, except on localhost.");
   }
-  if (url.search !== "" || url.hash !== "") throw new ConfigError("FJORD_AUTH_SOVEREIGN_ISSUER must have no query or fragment.");
+  if (url.search !== "" || url.hash !== "") throw new ConfigError("FJORD_CORE_URL must have no query or fragment.");
   return `${url.origin}${url.pathname}`.replace(/\/+$/, "");
 }
 
@@ -190,15 +197,16 @@ function isLocalHost(hostname: string): boolean {
   return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]" || hostname.endsWith(".localhost");
 }
 
-function resolveSmtp(env: Env, readFile: ReadFile): SmtpConfig | undefined {
-  const host = (env.SMTP_HOST ?? "").trim();
+function resolveSmtp(given: Env, readFile: ReadFile): SmtpConfig | undefined {
+  const env = smtpEnv(given);
+  const host = (env.FJORD_SMTP_HOST ?? "").trim();
   if (host === "") return undefined;
-  const from = (env.SMTP_FROM ?? "").trim();
-  if (from === "") throw new ConfigError("SMTP_HOST is set, so SMTP_FROM (the sender address) is required.");
-  const port = positiveInt(env.SMTP_PORT) ?? 587;
-  const secure = env.SMTP_SECURE === undefined || env.SMTP_SECURE === "" ? port === 465 : isOn(env.SMTP_SECURE);
-  const user = (env.SMTP_USER ?? "").trim();
-  const password = resolveSecret("SMTP_PASSWORD", env, readFile);
+  const from = (env.FJORD_SMTP_FROM ?? "").trim();
+  if (from === "") throw new ConfigError("FJORD_SMTP_HOST is set, so FJORD_SMTP_FROM (the sender address) is required.");
+  const port = positiveInt(env.FJORD_SMTP_PORT) ?? 587;
+  const secure = env.FJORD_SMTP_SECURE === undefined || env.FJORD_SMTP_SECURE === "" ? port === 465 : isOn(env.FJORD_SMTP_SECURE);
+  const user = (env.FJORD_SMTP_USER ?? "").trim();
+  const password = resolveSecret("FJORD_SMTP_PASSWORD", env, readFile);
   return { host, port, secure, from, ...(user ? { user } : {}), ...(password !== undefined ? { password } : {}) };
 }
 
@@ -208,7 +216,7 @@ function resolveVerification(raw: string | undefined, smtpSet: boolean): boolean
   const on = value === "1" || value === "true";
   const off = value === "0" || value === "false";
   if (!on && !off) throw new ConfigError('FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION must be "true" or "false".');
-  if (on && !smtpSet) throw new ConfigError("FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION needs SMTP_HOST: nothing could send the link.");
+  if (on && !smtpSet) throw new ConfigError("FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION needs FJORD_SMTP_HOST: nothing could send the link.");
   return on;
 }
 

@@ -3,12 +3,12 @@
 #   docker compose -f compose.yaml -f compose.postgres.yaml up -d --build
 #
 # Needs Docker Compose 2.24 or later (`!reset` and `!override`). To use a PostgreSQL server you already run, skip
-# this file and set DB_DIALECT=postgres and POSTGRES_DB_URL in .env instead (README.md).
+# this file and set FJORD_DB_DIALECT=postgres and FJORD_POSTGRES_URL in .env instead (README.md).
 services:
   web:
-    environment:
-      DB_DIALECT: postgres
-      POSTGRES_DB_URL: postgres://fjord:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/fjord
+    environment: !override
+      FJORD_DB_DIALECT: postgres
+      FJORD_POSTGRES_URL: postgres://fjord:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/fjord
     depends_on: !override
       postgres:
         condition: service_healthy

@@ -6,7 +6,7 @@
 //
 // Neither is needed to develop: a `file:` URL works with no Docker at all,
 //
-//   SQLITE_URL=file:./data/fjord.db pnpm dev
+//   FJORD_DB_DIALECT=sqlite FJORD_SQLITE_URL=file:./data/fjord.db pnpm dev
 //
 // The containers are named, persistent and bound to localhost on unusual ports, so they
 // neither collide with a database you already run nor lose data between sessions.
@@ -28,7 +28,7 @@ function fail(message) {
 
 function requireDocker() {
   const result = docker("info");
-  if (result.error || result.status !== 0) fail("Docker is not running. Start it, or develop against a file: SQLITE_URL=file:./data/fjord.db");
+  if (result.error || result.status !== 0) fail("Docker is not running. Start it, or develop against a file: FJORD_DB_DIALECT=sqlite FJORD_SQLITE_URL=file:./data/fjord.db");
 }
 
 /** running / stopped / missing */
@@ -65,8 +65,9 @@ async function sqld() {
   await waitFor(SQLD.name, async () => (await fetch(`http://localhost:${SQLD.port}/health`)).ok);
   // The app makes its own namespaces when it starts; this only shows the admin API answers.
   console.log(`sqld is up. Use:\n`);
-  console.log(`  export SQLITE_URL=http://localhost:${SQLD.port}`);
-  console.log(`  export SQLD_ADMIN_URL=http://localhost:${SQLD.adminPort}`);
+  console.log(`  export FJORD_DB_DIALECT=sqld`);
+  console.log(`  export FJORD_SQLD_URL=http://localhost:${SQLD.port}`);
+  console.log(`  export FJORD_SQLD_ADMIN_URL=http://localhost:${SQLD.adminPort}`);
 }
 
 async function postgres() {
@@ -80,8 +81,8 @@ async function postgres() {
   ]);
   await waitFor(POSTGRES.name, async () => docker("exec", POSTGRES.name, "pg_isready", "-U", "fjord", "-d", "fjord").status === 0);
   console.log(`PostgreSQL is up. Use:\n`);
-  console.log(`  export DB_DIALECT=postgres`);
-  console.log(`  export POSTGRES_DB_URL=postgres://fjord:fjord@localhost:${POSTGRES.port}/fjord`);
+  console.log(`  export FJORD_DB_DIALECT=postgres`);
+  console.log(`  export FJORD_POSTGRES_URL=postgres://fjord:fjord@localhost:${POSTGRES.port}/fjord`);
 }
 
 function stop() {
