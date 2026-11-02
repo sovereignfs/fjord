@@ -233,13 +233,22 @@ pub const EXCERPT_CHARS: usize = 160;
 /// [`Summary`] of the entry `text` at `path` (relative to the vault).
 pub fn summary(text: &str, path: &str) -> Summary {
     let leaf = path.rsplit('/').next().unwrap_or(path);
-    let title = crate::doc::implied_title(text, leaf);
     let (frontmatter, body) = match crate::doc::parse(text) {
         crate::doc::Parse::Present {
             frontmatter,
             body_offset,
         } => (Some(frontmatter), &text[body_offset..]),
         _ => (None, text),
+    };
+    // Spec §8.2: the header's `title` first, else the first level-one heading, else the file name.
+    let title = match frontmatter
+        .as_ref()
+        .and_then(|f| f.title())
+        .map(str::trim)
+        .filter(|title| !title.is_empty())
+    {
+        Some(title) => title.to_string(),
+        None => crate::doc::implied_title(text, leaf),
     };
     let date_value = frontmatter
         .as_ref()
@@ -394,6 +403,27 @@ mod tests {
         );
         assert_eq!(at(None, "2026/13/40/0814.md", None), None);
         assert_eq!(at(None, "idea.md", None), None);
+    }
+
+    /// Spec §8.2: a title in the header is the title, whatever the body begins with. A site's posts have no heading, since the layout prints it.
+    #[test]
+    fn the_headers_title_comes_before_a_heading_and_a_file_name() {
+        let post = "---\ntitle: Hello, World!\ndate: 2026-11-02\n---\n\nNo heading here.\n";
+        assert_eq!(summary(post, "posts/hello-world.md").title, "Hello, World!");
+        let both = "---\ntitle: In the header\n---\n\n# In the body\n";
+        assert_eq!(summary(both, "a.md").title, "In the header");
+        assert_eq!(
+            summary("---\ntitle: \"  \"\n---\n\n# Heading\n", "a.md").title,
+            "Heading"
+        );
+        assert_eq!(
+            summary(
+                "---\ndate: 2026-11-02\n---\n\nbody\n",
+                "posts/hello-world.md"
+            )
+            .title,
+            "hello-world"
+        );
     }
 
     #[test]

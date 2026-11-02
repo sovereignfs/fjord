@@ -162,3 +162,11 @@ test("a site's post goes where its engine reads it, with what it reads", () => {
   assert.equal(wasm.siteTagProblem("astro", "two words"), undefined);
   assert.equal(JSON.parse(wasm.journalEntry("---\ndraft: true\n---\nx\n", "posts/a.md")).draft, true);
 });
+
+test("an entry's title is its header's before its heading or its file name (spec §8.2), as a site's posts, which have no heading, need", () => {
+  const summary = (text, path) => JSON.parse(wasm.journalEntry(text, path));
+  assert.equal(summary("---\ntitle: Hello, World!\ndate: 2026-11-02\n---\n\nNo heading.\n", "posts/hello-world.md").title, "Hello, World!");
+  assert.equal(summary("---\ntitle: Header\n---\n\n# Body\n", "a.md").title, "Header");
+  assert.equal(summary("---\ndate: 2026-11-02\n---\n\nx\n", "posts/hello-world.md").title, "hello-world");
+});
+
