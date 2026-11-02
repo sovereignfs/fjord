@@ -118,7 +118,7 @@ Planned on 2026-11-02. `fjord.json`'s `kind` (`drive`, `journal`, `ssg`) chooses
 
 | # | Task | Status |
 | --- | --- | --- |
-| [P9](../../docs/epics/web-3.md#p9-spec-repository-kinds-date-and-comparing-tags) | Spec: repository kinds, `date`, and comparing tags | 📋 Planned (*Next*, once RFC 0001 is accepted) |
+| [P9](../../docs/epics/web-3.md#p9-spec-repository-kinds-date-and-comparing-tags) | Spec: repository kinds, `date`, and comparing tags | ⏳ In progress |
 | [P10](../../docs/epics/web-3.md#p10-fjord-core-kinds-their-rules-and-their-scaffolds) | `fjord-core`: kinds, their rules and their scaffolds | 📋 Planned |
 | [P11](../../docs/epics/web-3.md#p11-cli-init---kind-verify-and-journal-entries) | CLI: `init --kind`, `verify` and journal entries | 📋 Planned |
 | [P12](../../docs/epics/web-3.md#p12-fjord-wasm-kinds-and-journal-paths) | `fjord-wasm`: kinds and journal paths | 📋 Planned |

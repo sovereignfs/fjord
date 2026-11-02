@@ -2,7 +2,7 @@
 
 The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients/web/ROADMAP.md): what each one is, how it is known to be done, and how it was done. The design is [RFC 0001](../rfcs/0001-repository-kinds.md) until task 3a.1 moves it into [`clients/web/DESIGN.md`](../../clients/web/DESIGN.md); the `ssg` kind's detail is [Research 0001](../research/0001-ssg-kind.md). Where this file and either disagree, they are right. The order of work, across legs, is [workstream 0001](../workstreams/0001-repository-kinds.md).
 
-**Status of the whole phase:** 📋 planned on 2026-11-02, nothing built. The RFC is proposed and not yet accepted: P9 does not start until it is.
+**Status of the whole phase:** ⏳ in progress since 2026-11-02, when the owner accepted RFC 0001.
 
 ## What the phase promises, and what it does not
 
@@ -22,7 +22,7 @@ The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients
 
 ### P9 Spec: repository kinds, `date`, and comparing tags
 
-**Status:** 📋 Planned (*Next*, once RFC 0001 is accepted)
+**Status:** ⏳ In progress
 
 **Design:** RFC 0001, The `kind` field, The rules of each kind, `date`, Tags, Diagnostics
 
