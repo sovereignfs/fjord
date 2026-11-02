@@ -5,6 +5,7 @@ import type { Identity, Provider, RepositoryRef, TreeEntry } from "../providers/
 import type { WorkingCopyService } from "../working/service";
 import { type VersionResult, formatIdentity } from "../working/version";
 import type { DeletionService, NewDeletion } from "./deletions";
+import { deleteMessage, render } from "./messages";
 
 /**
  * Deleting a note, a document or a folder of a plaintext vault (DESIGN.md §8, ROADMAP 1b.12): one commit through the owner's
@@ -107,7 +108,7 @@ export async function deletePath(
         const made = await deps.provider.commit(deps.ref, {
           branch: deps.branch,
           expectedHead,
-          message: `Delete ${deletedName(target.path)}${files.length > 1 ? `\n\nRemoves ${files.length} files.` : ""}`,
+          message: render(deleteMessage({ path: target.path, folder: target.type === "folder", paths: files.map((file) => file.path) })),
           author: formatIdentity(input.author),
           changes: files.map((file) => ({ path: file.path, delete: true as const })),
         });

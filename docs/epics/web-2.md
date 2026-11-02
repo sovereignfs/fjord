@@ -209,3 +209,20 @@ Add a vault to a Fjord repository, plaintext or encrypted, from the web client a
 - **Also changed:** `fjord vault add --encrypted` now adds spec §9's `*.age binary -diff -merge` line to `.gitattributes` where the repository lacks it (a repository made by `fjord init` has it), and `--commit` includes that file. Before, such a repository failed `fjord verify` (E109) until the line was added by hand.
 - **Left out:** removing or renaming a vault, and changing a vault's recipients from the repository page (the Keys page and `fjord key` do that); an encrypted vault with no key is made by the CLI only, because the web client would leave a vault nobody can write to.
 
+## 2e — History
+
+### 2e.1 Commit messages that say what changed
+
+**Status:** ✅ Done
+
+**Design:** DESIGN §11
+
+The commits Fjord Web makes read like `Create Plan` and `Edit n`: a verb and a name, the same for a one-word fix and a rewrite. The history of a repository is where people (and `git log`, and the host's pages) read what happened, so each message now says what happened to what, where, and how much.
+
+- **One module** (`src/files/messages.ts`, pure) writes them, so a message is the same whichever way a file was made or changed. A subject is 72 characters at most; the detail is in the body.
+- **An edit of a note or document**: `Edit “Q4 plan” (+4 −3)`, then its path, lines added and removed (the shortest edit, not a count of lines that differ), words before and after (a `##` is not a word), the sections that changed, were added or removed (by heading, not inside a code fence), a retitle, and whether other properties of the header changed. What the person wrote as the message stays first and whole; the detail follows it. A version made because nobody edited for a while says so.
+- **A new file, a deletion, a move or rename, a restore, a transfer between vaults**: the kind, the name, the path, how big it starts, a document's id, which files a folder's deletion removed or a move took (ten shown, then a count), and, for a transfer, from where to where and whether each side is encrypted.
+- **An encrypted file's messages never carry its contents**: not a size, a line count or a heading, only that it changed and its name, where its name is public. A file in a vault named by id has no name to give, so it is “an encrypted file in <vault>”. A test checks that none of the words a plaintext edit uses can appear in one.
+- **Done as:** `messages.ts` and its 16 tests (the diff, the sections, the privacy rule, the 72-character limit); `create`, `create-encrypted`, `delete`, `move`, `restore`, `transfer`, `working/version` and the idle worker use it; every message the unit and browser tests pinned was updated to its new form, and a browser test checks an encrypted edit's message is only the subject, the path and the one line.
+- **Left out:** a message for each CLI command (the CLI's own are `Add vault X` and similar and were already specific); changing a message after the fact.
+

@@ -110,6 +110,7 @@ Planned on 2026-10-31; the prerequisites (P7, P8) and the keys in the browser (2
 | [2c.1](../../docs/epics/web-2.md#2c1-sealed-link-shares) | Sealed link shares | ✅ Done |
 | [2c.2](../../docs/epics/web-2.md#2c2-security-review-of-phase-2) | Security review of phase 2 | ✅ Done |
 | [2d.1](../../docs/epics/web-2.md#2d1-add-a-vault) | Add a vault, plaintext or encrypted, in the web client and the CLI from one planner | ✅ Done |
+| [2e.1](../../docs/epics/web-2.md#2e1-commit-messages-that-say-what-changed) | Commit messages that say what changed and where, and nothing of an encrypted file's contents | ✅ Done |
 
 ## Phase 3 — collaborative editing
 

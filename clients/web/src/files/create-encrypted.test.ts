@@ -46,7 +46,7 @@ describe.skipIf(!available)("a new file in a plain-named encrypted vault", () =>
     const commit = (result as { commit: string }).commit;
     expect(await fake.show(commit, "%P")).toBe(before);
     expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-    expect(await fake.show(commit, "%B")).toBe("Create Meeting notes");
+    expect((await fake.show(commit, "%B")).split("\n")[0]).toBe("Create encrypted note “Meeting notes”");
     expect([...(await fake.fileBytesAt(commit, "Secret/Meeting notes.md.age"))]).toEqual([...bytes]);
     expect(Object.keys(await fake.filesAt(commit)).sort()).toEqual(["Secret/Meeting notes.md.age", "Secret/fjord.vault.json", "Secret/other.md.age", "Secret/recipients.txt"]);
     await fake.fsck();
@@ -89,7 +89,7 @@ describe.skipIf(!available)("a new file in an id-named encrypted vault", () => {
     const result = (await create(BY_ID, { title: "" })) as { path: string; commit: string };
     expect(result.path).toMatch(/^Secret\/[0-9a-hjkmnp-tv-z]{26}\.age$/);
     expect(result.path).not.toBe("Secret/01jagc4k7pr9tbm3ykwx6zq2hz.age");
-    expect(await fake.show(result.commit, "%B")).toBe("Create an encrypted file");
+    expect((await fake.show(result.commit, "%B")).split("\n")[0]).toBe("Create an encrypted file in Secret");
   });
 
   it("is a payload `fjord-core` knows by its identifier", async () => {

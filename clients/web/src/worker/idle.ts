@@ -79,7 +79,7 @@ export function createIdleVersions(deps: IdleDeps) {
 
     return saveVersion(
       { drafts: deps.drafts, provider: target.provider, ref: target.ref, branch: target.branch, identityOf: deps.identityOf },
-      { connectionId, path, message: undefined, author: author.identity, authorId: author.id },
+      { connectionId, path, message: undefined, author: author.identity, authorId: author.id, automatic: true },
     );
   }
 

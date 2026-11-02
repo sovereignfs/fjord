@@ -784,7 +784,10 @@ test("an encrypted file is edited in the browser: the draft is ciphertext, the v
     const head = (await hubs.more.branchHead())!;
     expect(head).not.toBe(before);
     expect(await hubs.more.show(head, "%P")).toBe(before);
-    expect(await hubs.more.show(head, "%B")).toBe("Reword the secret");
+    const reworded = await hubs.more.show(head, "%B");
+    expect(reworded.split("\n\n")[0], "what the person wrote comes first, whole").toBe("Reword the secret");
+    expect(reworded, "an encrypted file's message says nothing of what changed").toContain("Encrypted with age: the history shows that it changed, and nothing of what changed.");
+    expect(reworded).not.toMatch(/lines? added|words|Changed:/);
     const stored = await hubs.more.fileBytesAt(head, "Open/note.md.age");
     expect(textOf(decryptedAt(secret, stored))).toBe(PLAIN + TYPED);
     expect(Buffer.from(stored).toString("latin1")).not.toContain("TYPED SECRET");
@@ -883,7 +886,7 @@ test("a note and a document are made in an encrypted vault, encrypted in the bro
     await expect(page).toHaveURL(new RegExp("/Open/Plain%20titled\\.md\\.age$"), { timeout: 30_000 });
     const afterNote = (await hubs.more.branchHead())!;
     expect(await hubs.more.show(afterNote, "%P")).toBe(before);
-    expect(await hubs.more.show(afterNote, "%B")).toBe("Create Plain titled");
+    expect((await hubs.more.show(afterNote, "%B")).split("\n")[0]).toBe("Create encrypted note “Plain titled”");
     expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(afterNote, "Open/Plain titled.md.age")))).toBe("# Plain titled\n");
 
     // It opens like any encrypted file (the identity is locked on this page load).
@@ -908,7 +911,7 @@ test("a note and a document are made in an encrypted vault, encrypted in the bro
     await page.getByRole("button", { name: "Create document" }).click();
     await expect(page).toHaveURL(new RegExp("/Sealed/[0-9a-hjkmnp-tv-z]{26}\\.age$"), { timeout: 30_000 });
     const afterSealed = (await hubs.more.branchHead())!;
-    expect(await hubs.more.show(afterSealed, "%B")).toBe("Create an encrypted file");
+    expect((await hubs.more.show(afterSealed, "%B")).split("\n")[0]).toBe("Create an encrypted file in Sealed");
     const created = Object.keys(await hubs.more.filesAt(afterSealed)).filter((path) => path.startsWith("Sealed/") && !path.includes("0000") && path.endsWith(".age") && !path.includes("01jagc4k7pr9tbm3ykwx6zq2hz"));
     expect(created).toHaveLength(1);
     const unwrapped = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(afterSealed, created[0]!)));
@@ -966,7 +969,7 @@ test("encrypted files are renamed, moved, deleted and put back as the bytes they
     await page.getByRole("button", { name: "Rename", exact: true }).click();
     await expect(page).toHaveURL(new RegExp("/Open/Renamed\\.md\\.age$"), { timeout: 30_000 });
     let head = (await hubs.more.branchHead())!;
-    expect(await hubs.more.show(head, "%B")).toBe("Rename note to Renamed");
+    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Rename note to Renamed");
     expect(await blobAt(head, "Open/Renamed.md.age")).toBe(original);
     expect(Object.keys(await hubs.more.filesAt(head))).not.toContain("Open/note.md.age");
 
@@ -1045,7 +1048,7 @@ test("a file of an id-named encrypted vault is renamed by the name inside it, ke
     const head = (await hubs.more.branchHead())!;
     expect(head).not.toBe(before);
     expect(await hubs.more.show(head, "%P")).toBe(before);
-    expect(await hubs.more.show(head, "%B")).toBe("Rename an encrypted file");
+    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Rename an encrypted file");
     expect(Object.keys(await hubs.more.filesAt(head)).filter((path) => path.endsWith(".age")).sort()).toEqual([`Sealed/${name}.age`, "Sealed/Sub/01jagc4k7pr9tbm3ykwx6zq2h0.age"]);
     const unwrapped = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(head, `Sealed/${name}.age`)));
     expect(unwrapped.name).toBe("Roadmap.md");
@@ -1098,7 +1101,7 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
     await page.getByRole("button", { name: "Yes, move it" }).click();
     await expect(page).toHaveURL(new RegExp("/Open/Plan\\.md\\.age$"), { timeout: 30_000 });
     let head = (await hubs.more.branchHead())!;
-    expect(await hubs.more.show(head, "%B")).toBe("Move Plan into the encrypted vault Open");
+    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Plan into the encrypted vault Open");
     expect(await filesAt()).not.toContain("Notes/Plan.md");
     expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(head, "Open/Plan.md.age")))).toBe("# Plan\n\nSECRET PLAINTEXT of the plan");
     for (const [path, text] of Object.entries(await hubs.more.filesAt(head))) if (path.startsWith("Open/") || path.startsWith("Sealed/")) expect(text, path).not.toContain("SECRET PLAINTEXT");
@@ -1115,7 +1118,7 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
     const made = (await filesAt()).find((path) => path.startsWith("Sealed/") && path.endsWith(".age") && !path.includes(sealedId))!;
     const inside = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(head, made)));
     expect([inside.name, textOf(inside.contents)]).toEqual(["Other.md", "SECRET PLAINTEXT other"]);
-    expect(await hubs.more.show(head, "%B")).toBe("Move Other into the encrypted vault Sealed");
+    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Other into the encrypted vault Sealed");
 
     // Out of an encrypted vault: it needs the identity, says what it does, and does nothing until told.
     await page.goto(`/repo/${id}/Open/Enc.md.age`);
@@ -1134,7 +1137,7 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
     expect(head).not.toBe(asked);
     expect((await hubs.more.filesAt(head))["Notes/Enc.md"]).toBe("SECRET PLAINTEXT encrypted note");
     expect(await filesAt()).not.toContain("Open/Enc.md.age");
-    expect(await hubs.more.show(head, "%B")).toBe("Move Enc out of the encrypted vault Open");
+    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Enc out of the encrypted vault Open");
 
     // Between two encrypted vaults, the id-named one's real name comes out of the container.
     await page.goto(`/repo/${id}/Sealed/${sealedId}.age`);
@@ -1553,7 +1556,7 @@ test("Save version makes one commit of the draft, authored by the person, and th
     expect(head).not.toBe(before);
     expect(await hubs.more.show(head, "%P")).toBe(before);
     expect(await hubs.more.show(head, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
-    expect(await hubs.more.show(head, "%B")).toBe("Add a line");
+    expect(await hubs.more.show(head, "%B")).toMatch(/^Add a line\n\n.+\n\d+ lines? added, \d+ removed/);
     expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": promoted("Title", "# Title\nA new line, saved at once."), "Notes/other.md": "untouched" });
     await hubs.more.fsck();
 
@@ -1578,7 +1581,7 @@ test("a version without a message is called Edit and the note's name", async ({ 
     await page.keyboard.type("y");
     await page.getByRole("button", { name: "Save version" }).click();
     await expect(page.getByText("Version saved")).toBeVisible();
-    expect(await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).toBe("Edit Meeting notes");
+    expect(await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).toMatch(/^Edit “Meeting notes” \(\+\d+ −\d+\)\n\nNotes\/Meeting notes\.md\n/);
   } finally {
     await restoreMore();
   }
@@ -1859,7 +1862,7 @@ test("a note is made from a title: one commit, by the person, named by fjord-cor
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(before);
     expect(await hubs.more.show(head, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
-    expect(await hubs.more.show(head, "%B")).toBe("Create Weekly review what went well");
+    expect(await hubs.more.show(head, "%B")).toMatch(/^Create note “Weekly review what went well”\n\nNotes\/Weekly review what went well\.md\nA new note in Notes, \d+ words to start with\.$/);
     expect(await hubs.more.filesAt(head)).toEqual({ ...(await hubs.more.filesAt(before)), "Notes/Weekly review what went well.md": "# Weekly review: what went well?\n" });
     await hubs.more.fsck();
   } finally {
@@ -1901,7 +1904,7 @@ test("a document is made with a header, in a folder, and a note of the same name
     const head = (await hubs.more.branchHead()) as string;
     const text = (await hubs.more.filesAt(head))["Notes/Projects/Q4 plan.fj.md"]!;
     expect(text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\ncreated: "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"\n---\n\n# Q4 plan\n$/);
-    expect(await hubs.more.show(head, "%B")).toBe("Create Q4 plan");
+    expect(await hubs.more.show(head, "%B")).toMatch(/^Create document “Q4 plan”\n\nNotes\/Projects\/Q4 plan\.fj\.md\nA new document in Notes\/Projects, 2 words to start with\.\nDocument id: [0-9a-hjkmnp-tv-z]{26}$/);
   } finally {
     await restoreMore();
   }
@@ -2006,7 +2009,7 @@ test("a note is deleted after asking, in one commit, and Undo puts back exactly 
     const deleted = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(deleted, "%P")).toBe(before);
     expect(await hubs.more.show(deleted, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
-    expect(await hubs.more.show(deleted, "%B")).toBe("Delete Weekly review");
+    expect(await hubs.more.show(deleted, "%B")).toBe("Delete “Weekly review”\n\nNotes/Weekly review.md\nKept in this history; Fjord Web can put it back from Recently deleted.");
     expect(Object.keys(await hubs.more.filesAt(deleted)).sort()).toEqual(["Notes/fjord.vault.json", "Notes/other.md"]);
 
     await page.getByRole("button", { name: "Undo" }).click();
@@ -2069,7 +2072,7 @@ test("a folder is deleted with everything in it after naming how many, and put b
     await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
     const deleted = (await hubs.more.branchHead()) as string;
     expect(Object.keys(await hubs.more.filesAt(deleted)).sort()).toEqual(["Notes/fjord.vault.json", "Notes/keep.md"]);
-    expect((await hubs.more.show(deleted, "%B")).split("\n")[0]).toBe("Delete Projects");
+    expect(await hubs.more.show(deleted, "%B")).toMatch(/^Delete folder “Projects” \(3 files\)\n\nRemoves 3 files from Notes\/Projects:\n- Notes\/Projects\//);
 
     await page.goto(`/deleted/${id}`);
     const list = page.getByRole("list", { name: "Recently deleted" });
@@ -2273,7 +2276,7 @@ test("a document opens in the visual editor, an edit is kept as a draft, and a v
     expect(saved.startsWith(DOC_HEADER)).toBe(true); // byte for byte, unknown key and all
     expect(saved.slice(DOC_HEADER.length)).toContain("The quick brown fox. Jumps higher.");
     expect(saved.endsWith("\n")).toBe(true);
-    expect(await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).toBe("Extend the fox");
+    expect(await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).toMatch(/^Extend the fox\n\n.+\n\d+ lines? added, \d+ removed/);
     await hubs.more.fsck();
   } finally {
     await restoreMore();
@@ -2735,7 +2738,7 @@ test("a note is renamed in one commit, byte for byte, keeping its extension", as
 
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(before);
-    expect(await hubs.more.show(head, "%B")).toBe("Rename idea to A better idea");
+    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Rename idea to A better idea");
     const files = await hubs.more.filesAt(head);
     expect(files["Notes/A better idea.md"]).toBe("# Idea\r\n\r\nmixed\nendings\r\n"); // every byte, line endings included
     expect(files["Notes/idea.md"]).toBeUndefined();
@@ -2767,7 +2770,7 @@ test("a document moved to another folder is still found by its id, and its heade
     await expect(page).toHaveURL(`${BASE}/repo/${id}/Other/Plan.fj.md`);
 
     const head = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(head, "%B")).toBe("Move Plan to Other");
+    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Plan to Other");
     expect((await hubs.more.filesAt(head))["Other/Plan.fj.md"]).toBe(`${MOVE_DOC_HEADER}\n# Plan\n`);
 
     // The address by id follows the file: nothing about it said where it was.
@@ -2798,7 +2801,7 @@ test("a folder is renamed with everything in it, in one commit", async ({ page }
 
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(before);
-    expect(await hubs.more.show(head, "%B")).toBe("Rename Old to Older\n\nMoves 2 files.");
+    expect(await hubs.more.show(head, "%B")).toMatch(/^Rename Old to Older\n\nMoves 2 files:\nNotes\/Old\/.* → Notes\/Older\//);
     expect(Object.keys(await hubs.more.filesAt(head)).sort()).toEqual(["Notes/Older/Deep/b.fj.md", "Notes/Older/a.md", "Notes/fjord.vault.json", "Notes/keep.md"]);
     await hubs.more.fsck();
   } finally {
@@ -2843,7 +2846,7 @@ test("what is typed and not yet saved is saved as a version first, then moved wi
     const head = (await hubs.more.branchHead()) as string;
     const version = (await hubs.more.show(head, "%P")) as string;
     expect(await hubs.more.show(version, "%P")).toBe(before);
-    expect(await hubs.more.show(head, "%B")).toBe("Rename n to renamed");
+    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Rename n to renamed");
     expect((await hubs.more.filesAt(head))["Notes/renamed.md"]).toMatch(/typed, not saved$/);
     // The draft went with the version; the renamed note opens clean.
     await expect(page.getByText("Your changes were kept")).toHaveCount(0);

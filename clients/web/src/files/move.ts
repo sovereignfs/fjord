@@ -5,6 +5,7 @@ import type { Change, Identity, Provider, RepositoryRef, TreeEntry } from "../pr
 import type { WorkingCopyService } from "../working/service";
 import { type VersionResult, formatIdentity } from "../working/version";
 import { type DeleteTarget, deletedName, fileAt, filesUnder } from "./delete";
+import { movedLines } from "./messages";
 import { suffix, takenPaths } from "./restore";
 
 /**
@@ -83,7 +84,7 @@ function writable(path: string): boolean {
 }
 
 /** The message of the commit: a rename keeps the folder, a move changes it. */
-export function moveMessage(source: string, destination: string, files: number, folder: boolean): string {
+export function moveMessage(source: string, destination: string, files: number, folder: boolean, moved: { from: string; to: string }[] = []): string {
   const name = (path: string) => (folder ? leaf(path) : deletedName(path));
   const title =
     parent(source) === parent(destination)
@@ -91,7 +92,8 @@ export function moveMessage(source: string, destination: string, files: number, 
       : leaf(source) === leaf(destination)
         ? `Move ${name(source)} to ${parent(destination)}`
         : `Move ${source} to ${destination}`;
-  return files > 1 ? `${title}\n\nMoves ${files} files.` : title;
+  const body = [...(files > 1 ? [`Moves ${files} files:`] : []), ...movedLines(moved)];
+  return body.length > 0 ? `${title}\n\n${body.join("\n")}` : title;
 }
 
 export async function movePath(
@@ -164,7 +166,7 @@ export async function movePath(
         const made = await deps.provider.commit(deps.ref, {
           branch: deps.branch,
           expectedHead,
-          message: moveMessage(source, destination, files.length, target.type === "folder"),
+          message: moveMessage(source, destination, files.length, target.type === "folder", moved.map(({ from, to }) => ({ from, to }))),
           author: formatIdentity(input.author),
           changes,
         });

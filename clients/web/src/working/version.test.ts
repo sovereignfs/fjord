@@ -86,7 +86,7 @@ describe(`a version from a draft (${leg})`, () => {
     await draftOf("Notes/Q4 plan.md", "y");
     const { commit } = (await version("Notes/Q4 plan.md")) as { commit: string };
     expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-    expect(await fake.show(commit, "%B")).toBe("Edit Q4 plan");
+    expect(await fake.show(commit, "%B")).toBe("Edit “Q4 plan” (+1 −1)\n\nNotes/Q4 plan.md\n1 line added, 1 removed\nChanged: the introduction");
   });
 
   it("removes the draft, so the note is the repository's again", async () => {
@@ -102,7 +102,7 @@ describe(`a version from a draft (${leg})`, () => {
       await h.seed({ "n.md": "x" });
       await draftOf("n.md", "y");
       const { commit } = (await version("n.md", { message: "  Reword the intro\n\nBecause it was unclear.  " })) as { commit: string };
-      expect(await fake.show(commit, "%B")).toBe("Reword the intro\n\nBecause it was unclear.");
+      expect(await fake.show(commit, "%B")).toBe("Reword the intro\n\nBecause it was unclear.\n\nn.md\n1 line added, 1 removed\nChanged: the introduction");
     });
 
     it("falls back to the default for a message that is only white space, and keeps line feeds only", async () => {
@@ -168,7 +168,7 @@ describe(`a version from a draft (${leg})`, () => {
       const { commit } = (await version("n.md", { message: "Reword" })) as { commit: string };
       expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
       expect(await fake.show(commit, "%(trailers:key=Co-authored-by,valueonly,separator=%x2C )")).toBe("Grace Hopper <grace@example.com>, Søren <soren@example.com>");
-      expect(await fake.show(commit, "%B")).toBe("Reword\n\nCo-authored-by: Grace Hopper <grace@example.com>\nCo-authored-by: Søren <soren@example.com>");
+      expect(await fake.show(commit, "%B")).toBe("Reword\n\nn.md\n1 line added, 1 removed\nChanged: the introduction\n\nCo-authored-by: Grace Hopper <grace@example.com>\nCo-authored-by: Søren <soren@example.com>");
     });
 
     it("does not credit the author again, or an account that is gone, or the same address twice", async () => {
@@ -193,7 +193,7 @@ describe(`a version from a draft (${leg})`, () => {
       await draftOf("n.md", "y", "ada", "grace");
       const result = await saveVersion({ ...deps(), identityOf: async (editor) => (editor.type !== "account" ? undefined : editor.id === "grace" ? { name: "Ada's other account", email: "ada@example.com" } : PEOPLE[editor.id]) }, { connectionId: 1, path: "n.md", author: ADA, authorId: "ada" });
       const { commit } = result as { commit: string };
-      expect(await fake.show(commit, "%B")).toBe("Edit n");
+      expect(await fake.show(commit, "%B")).toBe("Edit “n” (+1 −1)\n\nn.md\n1 line added, 1 removed\nChanged: the introduction");
     });
 
     it("writes a name that cannot break the commit or the trailer", () => {

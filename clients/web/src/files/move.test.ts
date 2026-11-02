@@ -69,7 +69,10 @@ describe("a commit's message", () => {
     expect(moveMessage("Notes/Plan.fj.md", "Notes/Plan 2.fj.md", 1, false)).toBe("Rename Plan to Plan 2");
     expect(moveMessage("Notes/a.md", "Notes/Sub/a.md", 1, false)).toBe("Move a to Notes/Sub");
     expect(moveMessage("Notes/a.md", "Notes/Sub/b.md", 1, false)).toBe("Move Notes/a.md to Notes/Sub/b.md");
-    expect(moveMessage("Notes/Old", "Notes/New", 3, true)).toBe("Rename Old to New\n\nMoves 3 files.");
+    expect(moveMessage("Notes/Old", "Notes/New", 3, true)).toBe("Rename Old to New\n\nMoves 3 files:");
+    expect(moveMessage("Notes/Old", "Notes/New", 2, true, [{ from: "Notes/Old/a.md", to: "Notes/New/a.md" }, { from: "Notes/Old/b.md", to: "Notes/New/b.md" }])).toBe(
+      "Rename Old to New\n\nMoves 2 files:\nNotes/Old/a.md → Notes/New/a.md\nNotes/Old/b.md → Notes/New/b.md",
+    );
   });
 });
 
@@ -87,7 +90,7 @@ describe.skipIf(!available)(`renaming and moving a file (${leg})`, () => {
     expect(files["Notes/Plans/Plan v2.fj.md"]).toBe(DOC); // every byte, the header and the CRLF body and the comment too
     expect(await blobOf("Notes/Plans/Plan v2.fj.md")).toBe(blob);
     expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-    expect(await fake.show(commit, "%B")).toBe("Move Notes/Plan.fj.md to Notes/Plans/Plan v2.fj.md");
+    expect(await fake.show(commit, "%B")).toBe("Move Notes/Plan.fj.md to Notes/Plans/Plan v2.fj.md\n\nNotes/Plan.fj.md → Notes/Plans/Plan v2.fj.md");
     await fake.fsck();
   });
 
@@ -95,7 +98,7 @@ describe.skipIf(!available)(`renaming and moving a file (${leg})`, () => {
     await seed({ "Notes/a.md": "a", "Notes/b.md": "b" });
     const renamed = await run(await file("Notes/a.md"), "Notes/a2.md");
     expect(reason(renamed)).toBe("ok");
-    expect(await fake.show((await fake.branchHead())!, "%B")).toBe("Rename a to a2");
+    expect((await fake.show((await fake.branchHead())!, "%B")).split("\n")[0]).toBe("Rename a to a2");
     const moved = await run(await file("Notes/b.md"), "Other/b.md");
     expect(reason(moved)).toBe("ok");
     expect(Object.keys(await fake.filesAt((await fake.branchHead())!)).sort()).toEqual(["Notes/a2.md", "Notes/fjord.vault.json", "Other/b.md", "Other/fjord.vault.json"]);
@@ -220,7 +223,10 @@ describe.skipIf(!available)(`renaming and moving a folder (${leg})`, () => {
     expect(result).toMatchObject({ ok: true, files: 3 });
     const commit = (result as { commit: string }).commit;
     expect(await fake.show(commit, "%P")).toBe(before);
-    expect(await fake.show(commit, "%B")).toBe("Move Notes/Old to Other/Archive/New\n\nMoves 3 files.");
+    const message = await fake.show(commit, "%B");
+    expect(message.split("\n")[0]).toBe("Move Notes/Old to Other/Archive/New");
+    expect(message).toContain("Moves 3 files:\nNotes/Old/");
+    expect(message).toContain(" → Other/Archive/New/");
     const files = await fake.filesAt(commit);
     expect(Object.keys(files).sort()).toEqual([
       "Notes/fjord.vault.json",
@@ -238,7 +244,8 @@ describe.skipIf(!available)(`renaming and moving a folder (${leg})`, () => {
     await seed(tree);
     expect(reason(await run(folder("Notes/Old", 3), "Notes/Older"))).toBe("ok");
     const message = await fake.show((await fake.branchHead())!, "%B");
-    expect(message).toBe("Rename Old to Older\n\nMoves 3 files.");
+    expect(message.split("\n")[0]).toBe("Rename Old to Older");
+    expect(message).toContain("Moves 3 files:\nNotes/Old/");
   });
 
   it("is not into itself, not over a folder that is there (nothing here merges), and not over a name alike by case", async () => {

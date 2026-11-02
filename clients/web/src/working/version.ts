@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { isProviderError } from "../providers/errors";
 import type { Identity, Provider, RepositoryRef } from "../providers/types";
 import { fromBase64, looksEncrypted } from "./ciphertext";
+import { type Message, encryptedEditMessage, editMessage } from "../files/messages";
 import type { Editor, WorkingCopyService } from "./service";
 
 /**
@@ -65,10 +66,27 @@ export function formatIdentity(identity: Identity): Identity {
  * The commit message: what the person wrote (else the default), then one `Co-authored-by:` line per other editor after a
  * blank line, which is where git reads trailers.
  */
-export function composeMessage(path: string, wanted: string | undefined, coAuthors: Identity[]): string {
-  const subject = (wanted ?? "").replace(/\r\n?/g, "\n").trim() || defaultMessage(path);
-  if (coAuthors.length === 0) return subject;
-  return `${subject}\n\n${coAuthors.map((who) => `Co-authored-by: ${who.name} <${who.email}>`).join("\n")}`;
+export function composeMessage(path: string, wanted: string | undefined, coAuthors: Identity[], detail?: Message & { note?: string }): string {
+  const own = (wanted ?? "").replace(/\r\n?/g, "\n").trim();
+  // What the person wrote is theirs, whole; the details follow it. Without it the subject is the detail's, else the plain default.
+  const subject = own || detail?.subject || defaultMessage(path);
+  const paragraphs = [subject];
+  const lines = [...(detail?.body ?? []), ...(detail?.note ? [detail.note] : [])];
+  if (lines.length > 0) paragraphs.push(lines.join("\n"));
+  if (coAuthors.length > 0) paragraphs.push(coAuthors.map((who) => `Co-authored-by: ${who.name} <${who.email}>`).join("\n"));
+  return paragraphs.join("\n\n");
+}
+
+/** The most of the file a version reads back to say what changed in it: a larger one is described by its name alone. */
+const MAX_DIFF_BYTES = 1024 * 1024;
+
+/** The text a draft was started from, for the message to compare with; undefined if it cannot be read, which only costs the message its detail. */
+async function baseText(deps: VersionDeps, blob: string): Promise<string | undefined> {
+  try {
+    return new TextDecoder("utf-8", { fatal: false }).decode(await deps.provider.readBlob(deps.ref, blob, { maxBytes: MAX_DIFF_BYTES }));
+  } catch {
+    return undefined;
+  }
 }
 
 /** The file's blob at a commit, or undefined if there is no file there (a symbolic link or a folder is not a note to replace). */
@@ -81,7 +99,10 @@ export async function blobAt(provider: Provider, ref: RepositoryRef, commit: str
   return entries.find((entry) => entry.path === path && entry.kind === "file")?.id;
 }
 
-export async function saveVersion(deps: VersionDeps, input: { connectionId: number; path: string; message?: string | undefined; author: Identity; authorId: string }): Promise<VersionResult> {
+export async function saveVersion(
+  deps: VersionDeps,
+  input: { connectionId: number; path: string; message?: string | undefined; author: Identity; authorId: string; /** Made because nobody edited for a while, not because someone saved. */ automatic?: boolean },
+): Promise<VersionResult> {
   const draft = await deps.drafts.get(input.connectionId, input.path);
   if (!draft) return { ok: false, reason: "no_draft" };
 
@@ -104,7 +125,10 @@ export async function saveVersion(deps: VersionDeps, input: { connectionId: numb
     if (named.email === author.email || coAuthors.some((other) => other.email === named.email)) continue;
     coAuthors.push(named);
   }
-  const message = composeMessage(input.path, input.message, coAuthors);
+  // An encrypted file's message never says what changed, which would be its contents; a note's says where and how much.
+  const detail: Message & { note?: string } = draft.encrypted ? encryptedEditMessage(input.path) : editMessage(input.path, await baseText(deps, draft.baseBlob), draft.content);
+  if (input.automatic) detail.note = "Saved automatically after a quiet period, from what had been typed.";
+  const message = composeMessage(input.path, input.message, coAuthors, detail);
 
   try {
     for (let attempt = 1; ; attempt++) {

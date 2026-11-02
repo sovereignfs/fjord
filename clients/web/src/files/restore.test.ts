@@ -100,7 +100,7 @@ describe.skipIf(!available)(`putting back a file (${leg})`, () => {
     expect(await fake.show(commit, "%P")).toBe(afterDelete);
     expect((await fake.filesAt(commit))["Notes/Weekly review.md"]).toBe(text);
     expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-    expect(await fake.show(commit, "%B")).toBe("Restore Weekly review");
+    expect((await fake.show(commit, "%B")).split("\n")[0]).toBe("Restore Weekly review");
     expect((await deletions.get(1, [id!]))[0]!.restoredAt).toBe(clock);
     expect(await deletions.list(1, 30 * DAY)).toEqual([]);
     await fake.fsck();

@@ -57,6 +57,8 @@ export function checkEncryptedVault(vaults: VaultListing[], manifests: Record<st
   return { ok: true, target: { naming, suffix: ".age" } };
 }
 
+import { createEncryptedMessage, render } from "./messages";
+
 export type CreateEncryptedResult =
   | { ok: true; path: string; commit: string }
   | { ok: false; reason: "folder_gone" | "bad_title" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
@@ -93,7 +95,7 @@ export async function createEncryptedFile(
         const made = await deps.provider.commit(deps.ref, {
           branch: deps.branch,
           expectedHead,
-          message: label === undefined ? "Create an encrypted file" : `Create ${label}`,
+          message: render(createEncryptedMessage({ kind: input.kind, path })),
           author,
           changes: [{ path, content: input.ciphertext }],
         });

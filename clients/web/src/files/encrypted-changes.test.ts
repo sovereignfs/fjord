@@ -106,7 +106,7 @@ describe.skipIf(!available)(`renaming and moving in a plain-named encrypted vaul
     expect(result).toMatchObject({ ok: true, moved: [{ from: "Secret/Plan.md.age", to: "Secret/Plan v2.md.age" }] });
     const commit = (result as { commit: string }).commit;
     expect(await fake.show(commit, "%P")).toBe(before);
-    expect(await fake.show(commit, "%B")).toBe("Rename Plan to Plan v2");
+    expect((await fake.show(commit, "%B")).split("\n")[0]).toBe("Rename Plan to Plan v2");
     expect(await blobOf("Secret/Plan v2.md.age")).toBe(blob);
     expect([...(await fake.fileBytesAt(commit, "Secret/Plan v2.md.age"))]).toEqual([...note.bytes]);
     await noPlaintext(commit);
@@ -188,12 +188,12 @@ describe.skipIf(!available)(`deleting and putting back in an encrypted vault (${
     );
     expect(done).toMatchObject({ ok: true, files: 1 });
     expect(reads).toEqual([]); // the server has nothing to read of an encrypted file
-    expect(await fake.show((done as { commit: string }).commit, "%B")).toBe("Delete Plan");
+    expect((await fake.show((done as { commit: string }).commit, "%B")).split("\n")[0]).toBe("Delete “Plan”");
 
     const back = await restore((done as { deletions: number[] }).deletions);
     expect(back).toMatchObject({ ok: true, paths: ["Secret/Plan.md.age"] });
     expect([...(await fake.fileBytesAt((back as { commit: string }).commit, "Secret/Plan.md.age"))]).toEqual([...note.bytes]);
-    expect(await fake.show((back as { commit: string }).commit, "%B")).toBe("Restore Plan");
+    expect((await fake.show((back as { commit: string }).commit, "%B")).split("\n")[0]).toBe("Restore Plan");
     await fake.fsck();
   });
 

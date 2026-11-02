@@ -88,7 +88,7 @@ describe.skipIf(!available)(`deleting a file (${leg})`, () => {
     expect(await fake.show(commit, "%P")).toBe(before);
     expect(Object.keys(await fake.filesAt(commit)).sort()).toEqual(["Notes/fjord.vault.json", "Notes/other.md"]);
     expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-    expect(await fake.show(commit, "%B")).toBe("Delete Weekly review");
+    expect(await fake.show(commit, "%B")).toBe("Delete “Weekly review”\n\nNotes/Weekly review.md\nKept in this history; Fjord Web can put it back from Recently deleted.");
     expect(await deletions.get(1, (result as { deletions: number[] }).deletions)).toEqual([
       { id: expect.any(Number), path: "Notes/Weekly review.md", docId: null, kind: "note", blob, deletingCommit: commit, deletedBy: "ada", deletedAt: clock, restoredAt: null },
     ]);
@@ -147,7 +147,9 @@ describe.skipIf(!available)(`deleting a folder (${leg})`, () => {
     const { commit, deletions: ids } = result as { commit: string; deletions: number[] };
     expect(await fake.show(commit, "%P")).toBe(before);
     expect(Object.keys(await fake.filesAt(commit)).sort()).toEqual(["Notes/Projects2/z.md", "Notes/fjord.vault.json", "Notes/keep.md"]);
-    expect(await fake.show(commit, "%B")).toBe("Delete Projects\n\nRemoves 3 files.");
+    const message = await fake.show(commit, "%B");
+    expect(message.split("\n")[0]).toBe("Delete folder “Projects” (3 files)");
+    expect(message).toContain("Removes 3 files from Notes/Projects:");
     const records = await deletions.get(1, ids);
     expect(records.map((record) => [record.path, record.kind, record.docId]).sort()).toEqual([
       ["Notes/Projects/2026/c.csv", "other", null],

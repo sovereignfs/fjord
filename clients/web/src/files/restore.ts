@@ -4,6 +4,12 @@ import { assertWritablePath } from "../providers/validate";
 import type { Identity, Provider, RepositoryRef, TreeEntry } from "../providers/types";
 import { formatIdentity } from "../working/version";
 import { deletedName } from "./delete";
+
+/** What a restore says: the file, and where it is back; for several, which. */
+export function restoreMessage(paths: string[]): string {
+  if (paths.length === 1) return `Restore ${deletedName(paths[0]!)}\n\n${paths[0]}\nPut back from the deletion that Fjord Web recorded.`;
+  return `Restore ${paths.length} files\n\n${paths.slice(0, 10).join("\n")}${paths.length > 10 ? `\nand ${paths.length - 10} more` : ""}`;
+}
 import type { DeletionRecord, DeletionService } from "./deletions";
 
 /**
@@ -118,7 +124,7 @@ export async function restoreDeleted(deps: RestoreDeps, input: { connectionId: n
         const made = await deps.provider.commit(deps.ref, {
           branch: deps.branch,
           expectedHead,
-          message: targets.length === 1 ? `Restore ${deletedName(targets[0]!.path)}` : `Restore ${targets.length} files\n\n${targets.map((target) => target.path).join("\n")}`,
+          message: restoreMessage(targets.map((target) => target.path)),
           author: formatIdentity(input.author),
           changes: targets.map((target) => ({ path: target.path, blob: target.record.blob })),
         });

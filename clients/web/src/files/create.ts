@@ -31,6 +31,8 @@ export interface CreateDeps {
   random?: () => Uint8Array;
 }
 
+import { createMessage, render } from "./messages";
+
 export type FileKind = "note" | "document";
 
 /** Why a vault cannot be written to, found before anything is: it is not in the repository, is encrypted (files cannot be made there in this version), or is not one this version writes (a manifest it cannot read, or names that are not plain). */
@@ -82,7 +84,7 @@ export async function createFile(
         const made = await deps.provider.commit(deps.ref, {
           branch: deps.branch,
           expectedHead,
-          message: `Create ${name.endsWith(DOCUMENT_EXTENSION) ? name.slice(0, -DOCUMENT_EXTENSION.length) : name.replace(/\.md$/i, "")}`,
+          message: render(createMessage({ kind: input.kind, path, text })),
           author,
           changes: [{ path, content: new TextEncoder().encode(text) }],
         });

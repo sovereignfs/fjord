@@ -72,7 +72,7 @@ describe.skipIf(!available)("a file moved into an encrypted vault", () => {
     expect(result).toEqual({ ok: true, commit: expect.stringMatching(/^[0-9a-f]{40}$/), path: "Locked/Plan.md.age" });
     const commit = (result as { commit: string }).commit;
     expect(await fake.show(commit, "%P")).toBe(before);
-    expect(await fake.show(commit, "%B")).toBe("Move Plan into the encrypted vault Locked");
+    expect((await fake.show(commit, "%B")).split("\n")[0]).toBe("Move Plan into the encrypted vault Locked");
     expect([...(await fake.fileBytesAt(commit, "Locked/Plan.md.age"))]).toEqual([...bytes]);
     const files = Object.keys(await fake.filesAt(commit)).sort();
     expect(files).toEqual(["Locked/Plan.md.age", "Locked/fjord.vault.json", "Locked/recipients.txt", "Notes/fjord.vault.json", "Notes/other.md", "Sealed/fjord.vault.json", "Sealed/recipients.txt"]);
@@ -117,7 +117,7 @@ describe.skipIf(!available)("a file moved out of an encrypted vault", () => {
     expect(await fake.show(commit, "%P")).toBe(before);
     expect((await fake.filesAt(commit))["Notes/Plan.md"]).toBe("SECRET PLAINTEXT");
     expect(Object.keys(await fake.filesAt(commit))).not.toContain("Locked/Plan.md.age");
-    expect(await fake.show(commit, "%B")).toBe("Move Plan out of the encrypted vault Locked");
+    expect((await fake.show(commit, "%B")).split("\n")[0]).toBe("Move Plan out of the encrypted vault Locked");
   });
 
   it("does not put ciphertext in a plaintext vault, nor binary", async () => {
@@ -130,7 +130,7 @@ describe.skipIf(!available)("a file moved out of an encrypted vault", () => {
     await seed({ [`Sealed/${ID}.age`]: Buffer.from(encryptedDraft("x").bytes) });
     const result = await move({ from: `Sealed/${ID}.age`, fromForm: BY_ID, to: "Notes/Real name.md", toForm: PLAINTEXT, content: new TextEncoder().encode("x") });
     expect(result).toMatchObject({ ok: true });
-    expect(await fake.show((result as { commit: string }).commit, "%B")).toBe("Move a file out of the encrypted vault Sealed");
+    expect((await fake.show((result as { commit: string }).commit, "%B")).split("\n")[0]).toBe("Move a file out of the encrypted vault Sealed");
   });
 });
 

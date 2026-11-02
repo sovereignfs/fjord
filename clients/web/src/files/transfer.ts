@@ -65,6 +65,12 @@ export function transferMessage(source: { path: string; form: VaultForm }, desti
   return `Move ${label(source)} from ${vault(source.path)} to ${vault(destination.path)}`;
 }
 
+/** The subject, then where the file was and where it is, and whether the destination is encrypted: the contents are in neither. */
+export function transferText(source: { path: string; form: VaultForm }, destination: { path: string; form: VaultForm }): string {
+  const form = (side: { form: VaultForm }) => (side.form.form === "encrypted" ? "encrypted with age" : "plaintext");
+  return `${transferMessage(source, destination)}\n\n${source.path} (${form(source)}) → ${destination.path} (${form(destination)})`;
+}
+
 export async function transferFile(
   deps: TransferDeps,
   input: { connectionId: number; source: { path: string; blob: string; form: VaultForm }; destination: { path: string; form: VaultForm }; content: Uint8Array; author: Identity },
@@ -109,7 +115,7 @@ export async function transferFile(
         const made = await deps.provider.commit(deps.ref, {
           branch: deps.branch,
           expectedHead,
-          message: transferMessage(source, destination),
+          message: transferText(source, destination),
           author: formatIdentity(input.author),
           changes: [{ path: source.path, delete: true as const }, { path: destination.path, content: input.content }],
         });

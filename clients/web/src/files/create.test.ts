@@ -58,7 +58,7 @@ describe.skipIf(!available)("a new note", () => {
     expect(await added(before, commit)).toEqual(["Notes/Meeting notes.md"]);
     expect((await fake.filesAt(commit))["Notes/Meeting notes.md"]).toBe("# Meeting notes\n");
     expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-    expect(await fake.show(commit, "%B")).toBe("Create Meeting notes");
+    expect(await fake.show(commit, "%B")).toBe("Create note “Meeting notes”\n\nNotes/Meeting notes.md\nA new note in Notes, 2 words to start with.");
     await fake.fsck();
   });
 
@@ -120,7 +120,7 @@ describe.skipIf(!available)("a new document", () => {
     const id = fjord().newUlid(1_800_000_000_000, new Uint8Array(16).fill(7));
     expect(text).toBe(fjord().newDocument(id, "Q4: plan", "2027-01-15T08:00:00Z"));
     expect(text).toMatch(/^---\nid: [0-9a-z]{26}\ntitle: "Q4: plan"\ncreated: "2027-01-15T08:00:00Z"\n---\n\n# Q4: plan\n$/);
-    expect(await fake.show(result.commit, "%B")).toBe("Create Q4 plan");
+    expect((await fake.show(result.commit, "%B")).split("\n")[0]).toBe("Create document “Q4 plan”");
   });
 
   it("is a document the format module recognises, and a note of the same name does not stop it", async () => {

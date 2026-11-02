@@ -91,7 +91,7 @@ describe(`idle versions (${leg})`, () => {
     expect(await fake.show(commit, "%P")).toBe(before);
     expect(await fake.filesAt(commit)).toEqual({ "n.md": "new\n", "other.md": "keep" });
     expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-    expect(await fake.show(commit, "%B")).toBe("Edit n");
+    expect(await fake.show(commit, "%B")).toMatch(/^Edit “n” \(\+1 −1\)\n\nn\.md\n[^]*\nSaved automatically after a quiet period, from what had been typed\.$/);
     expect(await drafts.get(1, "n.md")).toBeUndefined();
     await fake.fsck();
   });
@@ -137,7 +137,7 @@ describe(`idle versions (${leg})`, () => {
       await worker().pass();
       const commit = await head();
       expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-      expect(await fake.show(commit, "%B")).toBe("Edit n\n\nCo-authored-by: Grace Hopper <grace@example.com>");
+      expect(await fake.show(commit, "%B")).toMatch(/^Edit “n”[^]*\n\nCo-authored-by: Grace Hopper <grace@example.com>$/);
     });
 
     it("is the first editor who can be found when the owner did not edit", async () => {
@@ -147,7 +147,7 @@ describe(`idle versions (${leg})`, () => {
       await worker({ target: async () => ({ provider: h.provider, ref: h.repo, branch: "main", ownerId: "someone-else" }) }).pass();
       const commit = await head();
       expect(await fake.show(commit, "%an <%ae>")).toBe("Grace Hopper <grace@example.com>");
-      expect(await fake.show(commit, "%B")).toBe("Edit n");
+      expect(await fake.show(commit, "%B")).toMatch(/^Edit “n” \(\+1 −1\)\n\nn\.md\n[^]*\nSaved automatically after a quiet period, from what had been typed\.$/);
     });
 
     it("is a person without an account, by the name they gave, when that is all there is", async () => {
@@ -158,7 +158,7 @@ describe(`idle versions (${leg})`, () => {
       await worker().pass();
       const commit = await head();
       expect(await fake.show(commit, "%an <%ae>")).toBe(`Visiting Vera <${guestIdentity({ link: 7, name: "Visiting Vera" }).email}>`);
-      expect(await fake.show(commit, "%B")).toBe("Edit n");
+      expect(await fake.show(commit, "%B")).toMatch(/^Edit “n” \(\+1 −1\)\n\nn\.md\n[^]*\nSaved automatically after a quiet period, from what had been typed\.$/);
     });
 
     it("leaves a draft alone when none of its editors can be found", async () => {
