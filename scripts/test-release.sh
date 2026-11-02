@@ -87,6 +87,16 @@ fresh() {
   local name=$1
   git clone -q --bare "$ROOT" "$T/$name.git"
   git clone -q "$T/$name.git" "$T/$name"
+  # The tests release Fjord Web from 0.0.0, as if it never had been, so the real repository's web tags
+  # (it has been released since these tests were written) are not theirs to meet.
+  for tag in $(git -C "$T/$name.git" tag --list 'web-v*'); do
+    git -C "$T/$name.git" tag -d "$tag" >/dev/null
+    git -C "$T/$name" tag -d "$tag" >/dev/null 2>&1 || true
+  done
+  # ...nor the branches of releases that were made, which the real repository may still have.
+  for branch in $(git -C "$T/$name.git" for-each-ref --format='%(refname:short)' 'refs/heads/chore/release-*'); do
+    git -C "$T/$name.git" branch -D "$branch" >/dev/null
+  done
   (
     cd "$T/$name" || exit 1
     git config user.name "Release Test"
@@ -663,10 +673,13 @@ freshw() {
   fresh "$name"
   (
     cd "$T/$name" || exit 1
+    # Fjord Web has been released since these tests were written: they begin from a changelog that has not been,
+    # with no released section and no version link, and the [Unreleased] link of a component never released.
     awk '/^## \[Unreleased\]/ { print; print ""; skip = 1; next }
-         /^## \[/ { skip = 0 }
          /^\[[^]]+\]: / { skip = 0 }
-         !skip { print }' "$WL" >"$WL.new"
+         /^\[[0-9]+\.[0-9]+\.[0-9]+\]: / { next }
+         /^\[Unreleased\]: / { print "[Unreleased]: " url "/commits/main/clients/web"; next }
+         !skip { print }' url="$REPO" "$WL" >"$WL.new"
     mv "$WL.new" "$WL"
     sed "s/^  \"version\": \".*\",\$/  \"version\": \"$version\",/" clients/web/package.json >package.new
     mv package.new clients/web/package.json
