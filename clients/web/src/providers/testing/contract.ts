@@ -18,6 +18,11 @@ export interface ProviderHarness {
   seed(files: Record<string, string | Uint8Array>): Promise<string>;
   /** Someone else commits to the branch, outside the provider; `null` deletes. Returns the commit. */
   pushElsewhere(files: Record<string, string | null>): Promise<string>;
+  /**
+   * The host's integrations report on a commit's build: checks (each pending, successful or failed, with a link) and, if the commit has a
+   * site, its address. Nothing at all is how a host that has no integration looks.
+   */
+  reportBuild(commit: string, report: { checks: import("../types").BuildCheck[]; siteUrl?: string }): void | Promise<void>;
   limitTree?(entries: number | undefined): void;
   /** The next request is refused for rate limits. */
   rateLimitNext?(resetAt: Date): void;
@@ -307,6 +312,45 @@ export function providerContract(label: string, make: () => Promise<ProviderHarn
           h.provider.commit(h.repo, { branch: "no-such-branch", expectedHead: (await head()).commit, message: "m", changes: [{ path: "a.md", content: encode("a") }] }),
           "not_found",
         );
+      });
+    });
+
+    describe("a commit's build (ROADMAP 3c.3)", () => {
+      it("says nothing is reported when no integration posted anything, which is not a build in progress", async () => {
+        const commit = await h.seed({ "a.md": "a" });
+        expect(await h.provider.getBuildStatus(h.repo, commit)).toEqual({ commit, state: "none", checks: [] });
+      });
+
+      it("is pending while any check is not done, a failure if any failed, and a success when all are", async () => {
+        const commit = await h.seed({ "a.md": "a" });
+        await h.reportBuild(commit, { checks: [{ name: "build", state: "pending", url: "https://ci.example/runs/1" }, { name: "lint", state: "success" }] });
+        const pending = await h.provider.getBuildStatus(h.repo, commit);
+        expect(pending.state).toBe("pending");
+        expect(pending.checks.map((c) => [c.name, c.state]).sort()).toEqual([["build", "pending"], ["lint", "success"]]);
+        expect(pending.checks.find((c) => c.name === "build")?.url).toBe("https://ci.example/runs/1");
+
+        const failed = await h.seed({ "a.md": "b" });
+        await h.reportBuild(failed, { checks: [{ name: "build", state: "failure", url: "https://ci.example/runs/2" }, { name: "deploy", state: "pending" }] });
+        expect((await h.provider.getBuildStatus(h.repo, failed)).state, "a failure is not hidden by something still running").toBe("failure");
+
+        const done = await h.seed({ "a.md": "c" });
+        await h.reportBuild(done, { checks: [{ name: "build", state: "success" }] });
+        expect((await h.provider.getBuildStatus(h.repo, done)).state).toBe("success");
+      });
+
+      it("gives the address of the site when a successful deployment says where it is", async () => {
+        const commit = await h.seed({ "a.md": "a" });
+        await h.reportBuild(commit, { checks: [{ name: "build", state: "success" }], siteUrl: "https://abc123.pages.example" });
+        expect(await h.provider.getBuildStatus(h.repo, commit)).toMatchObject({ state: "success", siteUrl: "https://abc123.pages.example" });
+      });
+
+      it("is the commit's own: a later commit has nothing reported of it, and an unknown commit is not found", async () => {
+        const first = await h.seed({ "a.md": "a" });
+        await h.reportBuild(first, { checks: [{ name: "build", state: "success" }] });
+        const second = await h.pushElsewhere({ "b.md": "b" });
+        expect((await h.provider.getBuildStatus(h.repo, first)).state).toBe("success");
+        expect((await h.provider.getBuildStatus(h.repo, second)).state).toBe("none");
+        await expectCode(h.provider.getBuildStatus(h.repo, "e".repeat(40)), "not_found");
       });
     });
 

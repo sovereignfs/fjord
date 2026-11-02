@@ -124,7 +124,9 @@ FJORD_DB_DIALECT=sqlite FJORD_SQLITE_URL=file:./data/fjord.db pnpm dev
 **Connecting a repository.** Signed in, open **Repositories**, give the repository's address and a
 **fine-grained personal access token**: on GitHub, Settings, Developer settings, Personal access tokens,
 Fine-grained tokens, with *Repository access* limited to that one repository and the repository
-permission **Contents: Read and write** (Metadata: Read comes with it). Fjord checks that the token
+permission **Contents: Read and write** (Metadata: Read comes with it). To see a site's build on its page
+(repository kind `ssg`), also give it **Checks**, **Commit statuses** and **Deployments**, each *Read*; without them the page says
+it cannot read the build, and the rest works. Fjord checks that the token
 works, and can write, before keeping it, and keeps it encrypted (it needs `FJORD_ENCRYPTION_KEY`,
 below; without one the page says so). `FJORD_GITHUB_API_URL` is only for a GitHub Enterprise Server
 (`https://github.example.com/api/v3`); tokens are sent there, so it must be https.

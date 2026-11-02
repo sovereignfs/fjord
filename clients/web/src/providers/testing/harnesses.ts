@@ -14,6 +14,18 @@ export async function githubHarness(): Promise<ProviderHarness & { fake: FakeGit
     provider: as("test-token"),
     repo: fake.ref,
     seed: (files) => fake.commitFiles(files, { replace: true }),
+    reportBuild: (commit, report) => {
+      // A neutral report, as GitHub holds it: each check a check run, and a site a successful deployment with its address.
+      fake.reportBuild(commit, {
+        checkRuns: report.checks.map((check) => ({
+          name: check.name,
+          status: check.state === "pending" ? "in_progress" : "completed",
+          conclusion: check.state === "pending" ? null : check.state === "success" ? "success" : "failure",
+          html_url: check.url ?? null,
+        })),
+        deployments: report.siteUrl ? [{ id: 1 + Math.floor(Math.random() * 1e6), environment: "preview", statuses: [{ state: "in_progress" }, { state: "success", environment_url: report.siteUrl }] }] : [],
+      });
+    },
     pushElsewhere: (files) => fake.commitFiles(files),
     limitTree: (n) => {
       fake.treeLimit = n;
@@ -41,6 +53,7 @@ export async function memoryHarness(): Promise<ProviderHarness> {
     async seed(files) {
       return provider.seed(repo, files, { replace: true });
     },
+    reportBuild: (commit, report) => provider.reportBuild(repo, commit, report),
     async pushElsewhere(files) {
       return provider.seed(repo, files);
     },

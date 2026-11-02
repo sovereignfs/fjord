@@ -226,3 +226,85 @@ describe("when GitHub misbehaves", () => {
     expect(await fake.filesAt(theirs)).toEqual({ "a.md": "a", "late.md": "late" });
   });
 });
+
+describe("a commit's build (ROADMAP 3c.3)", () => {
+  it("reads check runs, commit statuses and deployments, and reads the statuses and not GitHub's combined state, which is pending when nothing posted one", async () => {
+    const commit = await h.seed({ "a.md": "a" });
+    expect((await h.provider.getBuildStatus(h.repo, commit)).state, "no integration at all").toBe("none");
+    fake.reportBuild(commit, { statuses: [{ context: "netlify/site/deploy-preview", state: "success", target_url: "https://app.netlify.example/d/1" }] });
+    const status = await h.provider.getBuildStatus(h.repo, commit);
+    expect(status).toMatchObject({ state: "success", checks: [{ name: "netlify/site/deploy-preview", state: "success", url: "https://app.netlify.example/d/1" }] });
+  });
+
+  it("reads a check run's conclusion: skipped and neutral are not failures, and nothing completed is pending", async () => {
+    const commit = await h.seed({ "a.md": "a" });
+    fake.reportBuild(commit, {
+      checkRuns: [
+        { name: "a", status: "completed", conclusion: "success" },
+        { name: "b", status: "completed", conclusion: "skipped" },
+        { name: "c", status: "completed", conclusion: "neutral" },
+        { name: "d", status: "queued", conclusion: null },
+        { name: "e", status: "completed", conclusion: "timed_out" },
+        { name: "f", status: "completed", conclusion: "cancelled" },
+      ],
+    });
+    const byName = Object.fromEntries((await h.provider.getBuildStatus(h.repo, commit)).checks.map((c) => [c.name, c.state]));
+    expect(byName).toEqual({ a: "success", b: "success", c: "success", d: "pending", e: "failure", f: "failure" });
+  });
+
+  it("takes a deployment's newest status, and leaves out one that a later deployment replaced", async () => {
+    const commit = await h.seed({ "a.md": "a" });
+    fake.reportBuild(commit, {
+      deployments: [
+        { id: 1, environment: "preview", statuses: [{ state: "in_progress" }, { state: "success", environment_url: "https://one.example" }, { state: "inactive" }] },
+        { id: 2, environment: "preview", statuses: [{ state: "queued" }, { state: "success", environment_url: "https://two.example" }] },
+        { id: 3, environment: "production", statuses: [{ state: "error", target_url: "https://logs.example/3" }] },
+      ],
+    });
+    const status = await h.provider.getBuildStatus(h.repo, commit);
+    expect(status.siteUrl).toBe("https://two.example");
+    expect(status.checks.map((c) => [c.name, c.state])).toEqual([
+      ["deployment: preview", "success"],
+      ["deployment: production", "failure"],
+    ]);
+    expect(status.state).toBe("failure");
+  });
+
+  it("shows only an http or https address as a link: a host's report is not trusted to be one", async () => {
+    const commit = await h.seed({ "a.md": "a" });
+    fake.reportBuild(commit, {
+      checkRuns: [
+        { name: "evil", status: "completed", conclusion: "success", html_url: "javascript:alert(1)" },
+        { name: "data", status: "completed", conclusion: "success", html_url: "data:text/html,<script>1</script>" },
+        { name: "fine", status: "completed", conclusion: "success", html_url: "https://ci.example/runs/9" },
+      ],
+      deployments: [{ id: 5, environment: "preview", statuses: [{ state: "success", environment_url: "javascript:alert(2)" }] }],
+    });
+    const status = await h.provider.getBuildStatus(h.repo, commit);
+    expect(Object.fromEntries(status.checks.map((c) => [c.name, c.url]))).toEqual({ evil: undefined, data: undefined, fine: "https://ci.example/runs/9", "deployment: preview": undefined });
+    expect(status.siteUrl).toBeUndefined();
+  });
+
+  it("says a credential that may not read them is forbidden, and not that nothing was built", async () => {
+    const commit = await h.seed({ "a.md": "a" });
+    fake.forbidBuildReads = true;
+    const error = await h.provider.getBuildStatus(h.repo, commit).then(
+      () => undefined,
+      (e: unknown) => e,
+    );
+    expect(isProviderError(error, "forbidden")).toBe(true);
+  });
+
+  it("makes its requests in the one pass: check runs, statuses and deployments, and a status per deployment", async () => {
+    const commit = await h.seed({ "a.md": "a" });
+    fake.reportBuild(commit, { deployments: [{ id: 7, environment: "preview", statuses: [{ state: "success", environment_url: "https://x.example" }] }] });
+    fake.requests.length = 0;
+    await h.provider.getBuildStatus(h.repo, commit);
+    expect(fake.requests.map((r) => r.path.replace(commit, "<sha>")).sort()).toEqual([
+      "/repos/acme/notes/commits/<sha>/check-runs?per_page=100",
+      "/repos/acme/notes/commits/<sha>/status?per_page=100",
+      "/repos/acme/notes/deployments/7/statuses?per_page=1",
+      `/repos/acme/notes/deployments?sha=${commit}&per_page=10`.replace(commit, "<sha>"),
+    ]);
+  });
+});
