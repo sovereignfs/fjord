@@ -1,6 +1,6 @@
 import { localAuthConfig, requireSession } from "../../src/auth/server";
 import { FirstRun } from "../../src/connections/screens/FirstRun";
-import { Landing } from "../../src/browse/screens/Landing";
+import { entryFor } from "../../src/kinds/entry";
 import { assessSetupFor, readConnection } from "../../src/browse/server";
 import { RepositoryView } from "../../src/connections/screens/RepositoryView";
 import { connectionService } from "../../src/connections/server";
@@ -22,6 +22,6 @@ export default async function HomePage() {
   const current = connections.find((connection) => connection.isDefault);
   if (!current) return <FirstRun user={user} canConnect={canConnect} security={security} />;
   const outcome = await readConnection(user.id, current);
-  const landing = <Landing accountId={user.id} connection={current} outcome={outcome} />;
-  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} landing={landing} setup={await assessSetupFor(user.id, current, outcome)} security={security} />;
+  const { kind, entry } = entryFor(user.id, current, outcome);
+  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} landing={entry} kind={kind.id === "drive" ? undefined : { label: kind.label, asFiles: false }} setup={await assessSetupFor(user.id, current, outcome)} security={security} />;
 }
