@@ -79,6 +79,15 @@ pub enum Code {
     /// malformed value as a missing field would send a user looking for the
     /// wrong thing.
     InvalidFieldValue,
+    /// A `journal` or `ssg` repository does not have exactly one vault. Spec §3.1.
+    ///
+    /// The repository is still readable: a client presents it as files and says which rule it
+    /// breaks.
+    KindVaultCount,
+    /// An `ssg` repository's vault is encrypted. Spec §3.1.
+    ///
+    /// A site is published, and one built from ciphertext would need its key in the build.
+    EncryptedSiteVault,
 
     // --- E2xx vault ------------------------------------------------------
     /// An unencrypted file is present inside an encrypted vault. Spec §6.5.
@@ -174,6 +183,11 @@ pub enum Code {
     /// A path exceeds 240 bytes and may fail to check out on Windows.
     /// Spec §5.
     PathTooLong,
+    /// A Doc's `date` is not an RFC 3339 date-time or full-date. Spec §8.1.
+    ///
+    /// Not an error: other tools write dates in other forms (Jekyll's
+    /// `2026-11-02 08:14:00 +0530`), and §2.1 requires them to be tolerated.
+    InvalidDate,
 }
 
 impl Code {
@@ -190,6 +204,8 @@ impl Code {
             VaultIdMismatch => "E108",
             MergeGuardMissing => "E109",
             InvalidFieldValue => "E110",
+            KindVaultCount => "E111",
+            EncryptedSiteVault => "E112",
 
             PlaintextInEncryptedVault => "E201",
             VaultManifestUnparseable => "E202",
@@ -226,6 +242,7 @@ impl Code {
             NoRecipients => "W602",
             FileTooLarge => "W604",
             PathTooLong => "W605",
+            InvalidDate => "W606",
         }
     }
 
@@ -242,6 +259,8 @@ impl Code {
             VaultIdMismatch => "vault id disagrees with its fjord.vault.json",
             MergeGuardMissing => ".gitattributes missing or lacks the *.age -merge guard",
             InvalidFieldValue => "field value is not valid for its type or domain",
+            KindVaultCount => "a journal or ssg repository must have exactly one vault",
+            EncryptedSiteVault => "the vault of an ssg repository must be plaintext",
 
             PlaintextInEncryptedVault => "plaintext file in an encrypted vault",
             VaultManifestUnparseable => "fjord.vault.json is not valid JSON",
@@ -278,6 +297,7 @@ impl Code {
             NoRecipients => "encrypted vault has no recipients, so nothing can be written to it",
             FileTooLarge => "file exceeds 25 MB; Fjord is for documents, not media",
             PathTooLong => "path exceeds 240 bytes and may fail to check out on Windows",
+            InvalidDate => "date is not an RFC 3339 date-time or full-date",
         }
     }
 
@@ -286,7 +306,8 @@ impl Code {
             Code::VaultNotInManifest
             | Code::NoRecipients
             | Code::FileTooLarge
-            | Code::PathTooLong => Severity::Warning,
+            | Code::PathTooLong
+            | Code::InvalidDate => Severity::Warning,
             _ => Severity::Error,
         }
     }
@@ -316,6 +337,8 @@ impl Code {
             VaultIdMismatch,
             MergeGuardMissing,
             InvalidFieldValue,
+            KindVaultCount,
+            EncryptedSiteVault,
             PlaintextInEncryptedVault,
             VaultManifestUnparseable,
             UnsupportedEncryptionTool,
@@ -347,6 +370,7 @@ impl Code {
             NoRecipients,
             FileTooLarge,
             PathTooLong,
+            InvalidDate,
         ]
     }
 }
@@ -419,7 +443,7 @@ mod tests {
     fn all_is_complete() {
         // Update this count deliberately when adding a code, so that adding
         // one without adding a fixture is a visible decision.
-        assert_eq!(Code::all().len(), 40);
+        assert_eq!(Code::all().len(), 43);
     }
 
     /// The module doc burns three numbers. A code that reuses one would make

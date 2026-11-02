@@ -1,0 +1,14 @@
+{
+  "fjord": 1,
+  "id": "01jagc4k7psd5vnz8qmt3yxb4k",
+  "name": "Content",
+  "createdAt": "2026-10-16T09:34:00Z",
+  "encryption": {
+    "tool": "age",
+    "recipients": "recipients.txt",
+    "suffix": ".age",
+    "container": "none",
+    "armor": false
+  },
+  "fileNaming": "plain"
+}

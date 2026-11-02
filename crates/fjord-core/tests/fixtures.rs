@@ -35,9 +35,9 @@ use std::path::{Path, PathBuf};
 
 /// Committed fixtures, each emitting exactly the code it is named for.
 const COMMITTED: &[&str] = &[
-    "E101", "E102", "E103", "E104", "E105", "E106", "E108", "E109", "E110", "E201", "E202", "E203",
-    "E204", "E206", "E207", "E208", "E209", "E301", "E302", "E304", "E305", "E306", "E401", "E402",
-    "E403", "E404", "E405", "E507", "W601", "W602",
+    "E101", "E102", "E103", "E104", "E105", "E106", "E108", "E109", "E110", "E111", "E112", "E201",
+    "E202", "E203", "E204", "E206", "E207", "E208", "E209", "E301", "E302", "E304", "E305", "E306",
+    "E401", "E402", "E403", "E404", "E405", "E507", "W601", "W602", "W606",
 ];
 
 /// Built at test time: a name that must never reach a commit.
@@ -295,6 +295,107 @@ fn the_documents_fixture_conforms_and_has_one_of_each() {
         .find(|v| v.path == "Public")
         .expect("Public");
     assert_eq!((public.docs, public.files), (2, 0));
+}
+
+// --- Repository kinds (spec §3.1) ----------------------------------------
+
+#[test]
+fn the_journal_fixture_conforms() {
+    // A journal: one vault, entries at the conventional dated paths and one that is not, a `date` with
+    // a local offset, a `date` that is a day alone, and tags. None of it is a finding.
+    let report = run(&fixtures().join("journal"));
+    assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+    assert_eq!(report.vaults.len(), 1);
+    assert_eq!((report.vaults[0].docs, report.vaults[0].files), (3, 0));
+}
+
+#[test]
+fn the_ssg_fixture_conforms_with_its_engine_files_outside_the_vault() {
+    // §2: files outside every vault are ordinary files of the repository, not Docs and not findings.
+    let report = run(&fixtures().join("ssg"));
+    assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+    assert_eq!(report.vaults.len(), 1);
+    assert_eq!(report.vaults[0].path, "content");
+    assert_eq!((report.vaults[0].docs, report.vaults[0].files), (1, 0));
+}
+
+fn with_manifest(
+    edit: impl FnOnce(&mut serde_json::Map<String, serde_json::Value>),
+) -> tempfile::TempDir {
+    let temp = scaffold();
+    let path = temp.path().join("fjord.json");
+    let mut manifest: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_slice(&fs::read(&path).expect("read")).expect("json");
+    edit(&mut manifest);
+    fs::write(&path, serde_json::to_vec_pretty(&manifest).expect("json")).expect("write");
+    temp
+}
+
+#[test]
+fn a_kind_this_build_does_not_know_is_not_a_finding() {
+    // §3.1: how a repository made by a newer client looks. Presented as a drive, never failed.
+    let temp = with_manifest(|m| {
+        m.insert("kind".into(), "reading-log".into());
+        m.insert(
+            "reading-log".into(),
+            serde_json::json!({ "shelves": ["read"] }),
+        );
+    });
+    assert_eq!(codes(temp.path()), Vec::<String>::new());
+    let temp = with_manifest(|m| {
+        m.insert("kind".into(), "ssg".into());
+        m.insert("ssg".into(), serde_json::json!({ "engine": "hugo" }));
+    });
+    assert_eq!(codes(temp.path()), Vec::<String>::new());
+}
+
+#[test]
+fn a_kind_or_its_settings_of_the_wrong_type_is_e110() {
+    let temp = with_manifest(|m| {
+        m.insert("kind".into(), 3.into());
+    });
+    assert_eq!(codes(temp.path()), vec!["E110"]);
+    let temp = with_manifest(|m| {
+        m.insert("kind".into(), "ssg".into());
+        m.insert("ssg".into(), "astro".into());
+    });
+    assert_eq!(codes(temp.path()), vec!["E110"]);
+    let temp = with_manifest(|m| {
+        m.insert("kind".into(), "ssg".into());
+        m.insert("ssg".into(), serde_json::json!({ "engine": ["astro"] }));
+    });
+    assert_eq!(codes(temp.path()), vec!["E110"]);
+}
+
+#[test]
+fn a_journal_with_no_vault_is_e111() {
+    let temp = with_manifest(|m| {
+        m.insert("kind".into(), "journal".into());
+        m.insert("vaults".into(), serde_json::json!([]));
+    });
+    fs::remove_dir_all(temp.path().join("Public")).expect("remove");
+    assert_eq!(codes(temp.path()), vec!["E111"]);
+}
+
+#[test]
+fn a_drive_may_have_any_number_of_vaults() {
+    let temp = with_manifest(|m| {
+        m.insert("kind".into(), "drive".into());
+        m.insert("vaults".into(), serde_json::json!([]));
+    });
+    fs::remove_dir_all(temp.path().join("Public")).expect("remove");
+    assert_eq!(codes(temp.path()), Vec::<String>::new());
+}
+
+#[test]
+fn a_date_that_is_not_a_string_is_w606() {
+    let temp = scaffold();
+    fs::write(
+        temp.path().join("Public").join("entry.md"),
+        "---\nid: 01jagc4k7pt8y3wqnmzv5xrb9a\ndate: 20261102\n---\n",
+    )
+    .expect("write");
+    assert_eq!(codes(temp.path()), vec!["W606"]);
 }
 
 const DOC_ID_A: &str = "01jagc4k7pt8y3wqnmzv5xrb9a";

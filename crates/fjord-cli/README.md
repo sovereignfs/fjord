@@ -694,6 +694,8 @@ changes — new checks get new codes.
 | `E108` | Vault `id` disagrees with its `fjord.vault.json` |
 | `E109` | `.gitattributes` missing or lacks the `*.age -merge` guard |
 | `E110` | Field value is not valid for its type or domain |
+| `E111` | A `journal` or `ssg` repository does not have exactly one vault (spec §3.1) |
+| `E112` | The vault of an `ssg` repository is encrypted; a site's content must be plaintext (spec §3.1) |
 
 ### Vault — `E2xx`
 
@@ -753,6 +755,7 @@ before release, and will never be assigned.
 | `W602` | Encrypted vault has no recipients — valid, but unwritable |
 | `W604` | File exceeds 25 MB — Fjord is for documents, not media |
 | `W605` | Path exceeds 240 bytes — may fail to check out on Windows |
+| `W606` | A Doc's `date` is not an RFC 3339 date-time or full-date; tolerated, since other tools write their own forms (spec §8.1) |
 
 ### What `--fix` does
 
