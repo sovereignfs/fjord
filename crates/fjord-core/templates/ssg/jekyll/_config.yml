@@ -8,3 +8,10 @@ exclude:
   - README.md
   - Gemfile
   - Gemfile.lock
+# Posts have the post layout without each one naming it: a post written in Fjord has no `layout` key to write.
+defaults:
+  - scope:
+      path: ""
+      type: posts
+    values:
+      layout: post
