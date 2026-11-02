@@ -12,6 +12,7 @@ changes is recorded under Unreleased and in the web client's notes when it ships
   `fjord init --kind` does; `journalEntryPath`, `journalSlug`, `entryDateFromUnix` and `isEntryDate` date and file a journal entry at the
   writer's offset; `foldTag`, `sameTag` and `tagIsUnder` compare tags (spec §8.1). The fixture suite checks every fixture's kind against
   what `fjord verify` recorded. 1,385,572 bytes, 522,115 gzipped (from 1,321,125 and 499,067).
+- **`sitePostPath`, `siteNewPost`, `siteTagProblem`** (ROADMAP web 3c.2): where a site's post goes by its engine's rules, its text, and Jekyll's refusal of a tag with a space; `journalEntry` also says whether an entry is a `draft`. 1,422,180 bytes, 535,025 gzipped.
 - **`newEntry`, `withDate`, `withTags`, `journalEntry`** (ROADMAP web 3b): a journal entry's text, a header's `date` and `tags` set with
   nothing else changed, and what a timeline shows of an entry, placed by its `date`, path or `created`. 1,418,361 bytes, 533,420 gzipped.
 - **`planSetupKind`, `withKind`, `kindRule`** (ROADMAP web 3a.3): set a repository that is not a Fjord repository up as a journal or a site, change a

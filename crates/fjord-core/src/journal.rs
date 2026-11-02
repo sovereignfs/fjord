@@ -223,6 +223,8 @@ pub struct Summary {
     pub tags: Vec<String>,
     pub when: Option<When>,
     pub excerpt: String,
+    /// A post that is not for the site yet: `draft: true` in its header (Astro), or a path in Jekyll's `_drafts` (spec §3.1).
+    pub draft: bool,
 }
 
 /// How much of an entry's text a timeline shows, in characters.
@@ -277,7 +279,13 @@ pub fn summary(text: &str, path: &str) -> Summary {
         }
         excerpt.push_str(word);
     }
+    let draft = path.split('/').any(|part| part == "_drafts")
+        || matches!(
+            frontmatter.as_ref().and_then(|f| f.get("draft")),
+            Some(crate::yaml::Value::Bool(true))
+        );
     Summary {
+        draft,
         doc_id: frontmatter
             .as_ref()
             .and_then(|f| f.doc_id())
@@ -401,6 +409,11 @@ mod tests {
             made.when.map(|w| w.sort_key()).as_deref(),
             Some("2026-11-02T08:14")
         );
+
+        assert!(!made.draft);
+        assert!(summary("---\ndraft: true\n---\nx\n", "posts/a.md").draft);
+        assert!(summary("---\ntitle: t\n---\nx\n", "_drafts/a.md").draft);
+        assert!(!summary("---\ndraft: false\n---\nx\n", "posts/a.md").draft);
 
         let jekyll = summary(
             "---\ndate: 2026-11-02 08:14:00 +0530\n---\nx\n",

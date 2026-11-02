@@ -45,6 +45,7 @@ pub mod naming;
 pub mod path;
 pub mod scaffold;
 pub mod scalar;
+pub mod site;
 pub mod tags;
 pub mod yaml;
 

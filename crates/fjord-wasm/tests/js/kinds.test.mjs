@@ -146,3 +146,19 @@ test("an entry is written, re-dated, tagged and summarised by the format module"
   assert.equal(summary.dateInvalid, false);
   assert.equal(wasm.withDate("no header\n", "2026-11-02"), undefined);
 });
+
+test("a site's post goes where its engine reads it, with what it reads", () => {
+  assert.equal(wasm.sitePostPath("astro", "2026-11-02T00:30:00+05:30", "Hello, World!", false), "posts/hello-world.md");
+  // Jekyll's name is a rule: the writer's day, then the slug; a draft is a folder.
+  assert.equal(wasm.sitePostPath("jekyll", "2026-11-02T00:30:00+05:30", "First light", false), "_posts/2026-11-02-first-light.md");
+  assert.equal(wasm.sitePostPath("jekyll", "2026-11-02", "Later", true), "_drafts/later.md");
+  assert.equal(wasm.sitePostPath("hugo", "2026-11-02", "x", false), undefined);
+  assert.equal(wasm.sitePostPath("jekyll", "yesterday", "x", false), undefined);
+  const astro = wasm.siteNewPost("astro", "01jagc4k7pt8y3wqnmzv5xrb9c", "Hi", "2026-11-01T19:00:00Z", "2026-11-02", true);
+  assert.match(astro, /draft: true\n---\n\n$/);
+  assert.equal(wasm.siteNewPost("jekyll", "01jagc4k7pt8y3wqnmzv5xrb9c", "Hi", "2026-11-01T19:00:00Z", "2026-11-02", true).includes("draft"), false);
+  assert.match(wasm.siteTagProblem("jekyll", "two words"), /two tags/);
+  assert.equal(wasm.siteTagProblem("jekyll", "project/fjord"), undefined);
+  assert.equal(wasm.siteTagProblem("astro", "two words"), undefined);
+  assert.equal(JSON.parse(wasm.journalEntry("---\ndraft: true\n---\nx\n", "posts/a.md")).draft, true);
+});
