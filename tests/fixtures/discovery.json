@@ -127,7 +127,8 @@
           "docs": 3,
           "files": 0
         }
-      ]
+      ],
+      "kind": "journal"
     }
   },
   "ssg": {
@@ -159,7 +160,8 @@
           "docs": 1,
           "files": 0
         }
-      ]
+      ],
+      "kind": "ssg"
     }
   },
   "broken/E101": {
@@ -413,7 +415,8 @@
           "docs": 0,
           "files": 0
         }
-      ]
+      ],
+      "kind": "journal"
     }
   },
   "broken/E112": {
@@ -439,7 +442,8 @@
           "docs": 0,
           "files": 0
         }
-      ]
+      ],
+      "kind": "ssg"
     }
   },
   "broken/E201": {

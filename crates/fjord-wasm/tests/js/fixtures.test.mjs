@@ -7,7 +7,7 @@
 // a few manifests' text, must say the same.
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fixtures, golden, listing, manifestsFor, wasm } from "./helpers.mjs";
@@ -72,7 +72,20 @@ for (const [name, expected] of Object.entries(golden)) {
   });
 }
 
+for (const [name, expected] of Object.entries(golden)) {
+  test(`${name}: the repository's kind is the one verify reported`, () => {
+    const manifest = join(fixtures, name, "fjord.json");
+    // No fjord.json, or one that is not an object, reads as a drive, as verify reads it (spec §3.1).
+    const read = existsSync(manifest)
+      ? JSON.parse(wasm.describeRepositoryManifest(readFileSync(manifest, "utf8")))
+      : { ok: false };
+    const declared = read.ok ? (read.declaredKind ?? "drive") : "drive";
+    assert.equal(declared, expected.verify.kind ?? "drive", `${name}: kind`);
+    if (read.ok) assert.ok(["drive", "journal", "ssg"].includes(read.kind), `${name}: presented`);
+  });
+}
+
 test("the golden file covers every fixture the module is run on", () => {
-  assert.ok(Object.keys(golden).length >= 31);
+  assert.ok(Object.keys(golden).length >= 36);
   assert.ok("conforming" in golden);
 });

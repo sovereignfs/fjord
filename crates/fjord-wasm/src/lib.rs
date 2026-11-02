@@ -175,6 +175,48 @@ pub fn rfc3339_from_unix(seconds: f64) -> Option<String> {
     api::rfc3339_from_unix(seconds)
 }
 
+#[wasm_bindgen(js_name = isEntryDate)]
+pub fn is_entry_date(text: &str) -> bool {
+    api::is_entry_date(text)
+}
+
+#[wasm_bindgen(js_name = entryDateFromUnix)]
+pub fn entry_date_from_unix(seconds: f64, offset_minutes: f64) -> Option<String> {
+    api::entry_date_from_unix(seconds, offset_minutes)
+}
+
+// --- Repository kinds, journals and tags (ROADMAP web P12) -------------------------------------------------------------
+
+#[wasm_bindgen(js_name = planKind)]
+pub fn plan_kind(options_json: &str, now_ms: f64, random: &[u8]) -> Result<String, JsError> {
+    api::plan_kind(options_json, now_ms, random).map_err(thrown)
+}
+
+#[wasm_bindgen(js_name = journalEntryPath)]
+pub fn journal_entry_path(date: &str, slug: Option<String>, encrypted: bool) -> Option<String> {
+    api::journal_entry_path(date, slug, encrypted)
+}
+
+#[wasm_bindgen(js_name = journalSlug)]
+pub fn journal_slug(title: &str) -> Option<String> {
+    api::journal_slug(title)
+}
+
+#[wasm_bindgen(js_name = foldTag)]
+pub fn fold_tag(tag: &str) -> String {
+    api::fold_tag(tag)
+}
+
+#[wasm_bindgen(js_name = sameTag)]
+pub fn same_tag(a: &str, b: &str) -> bool {
+    api::same_tag(a, b)
+}
+
+#[wasm_bindgen(js_name = tagIsUnder)]
+pub fn tag_is_under(tag: &str, parent: &str) -> bool {
+    api::tag_is_under(tag, parent)
+}
+
 // --- Encryption (ROADMAP web P8) ---------------------------------------------------------------------------------------
 // Secrets travel as `Uint8Array`s so that a page can wipe them; nothing here logs or keeps one.
 
