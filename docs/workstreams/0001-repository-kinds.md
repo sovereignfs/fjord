@@ -1,6 +1,6 @@
 # Workstream 0001 — Repository kinds
 
-**Status:** ⏳ In progress, leg 4 (legs 1 to 3 done, 2026-11-02)\
+**Status:** ⏳ In progress, leg 5 (legs 1 to 4 done, 2026-11-02)\
 **Date:** November 2026\
 **Author:** Claude Code, from a design conversation with the owner\
 **Goal owner:** the repository's owner (kasunben)\
@@ -27,7 +27,7 @@ stays readable, and buildable, without Fjord.
 - [x] Fjord Web opens each kind on its own view, a kind it does not know as a drive, and every kind as files on request (3a).
 - [x] A journal can be made, written and read as a timeline, with tags, plaintext or encrypted, and an encrypted journal's
       dates, titles and tags never reach the server (3b).
-- [ ] An Astro and a Jekyll site can be made, their posts written with fields, and their build status shown (3c).
+- [x] An Astro and a Jekyll site can be made, their posts written with fields, and their build status shown (3c).
 - [ ] A change to a site can be previewed through a host that previews branches (3d.1).
 - [ ] RFC 0001's status says it is implemented; `clients/web/DESIGN.md` holds the design (3a.1 moves it there).
 
@@ -203,3 +203,4 @@ credential for Fjord to hold (DESIGN §7, §15), so stop and ask.
 | 0.3 | 2026-11-02 | **Leg 1 done** (P9–P12: spec §3.1, §8.1, §11.2; `E111`, `E112`, `W606`; `init --kind`, `verify`'s `repositoryKind`, a journal's `new`; the module's kind, `planKind`, entry paths and tags). Tags compare by the lowercase mapping, not case folding (RFC 0001 1.1). **Gate passed** on the owner's standing instruction to push and open a draft PR at the first gate and carry on; the spec text is for review in that PR |
 | 0.4 | 2026-11-02 | **Leg 2 done** (3a.1–3a.3: `src/kinds/`, the drive as its first module, setting up and changing a kind through `fjord-core`'s `planSetupKind`, `withKind` and `kindRule`). An encrypted journal set up from the web takes this browser's key; more keys are *Add a vault*'s |
 | 0.5 | 2026-11-02 | **Leg 3 done** (3b.1–3b.3: New entry, dated in the writer's own time; the timeline, on the server for a plaintext journal and in the browser for an encrypted one; tags). The privacy test (`encrypted-timeline.test.ts`) records every request and finds no date, title or tag. One derived table, `journal_entry` (migration 0016). Not built: an encrypted journal's tag suggestions on a file's page |
+| 0.6 | 2026-11-02 | **Leg 4 done** (3c.1–3c.3). **Gate passed:** the scaffolds were built with their engines' own tools (Astro 5.18.2, Jekyll 4.4.1) and the posts `fjord new` writes were built too, before anything was built on them; the spike (Research 0001, "Confirmed by building") found one defect, a Jekyll post with no layout, fixed in the scaffold, and settled every **to confirm** without changing the approach, so the leg's "Do not proceed if" did not hold. `scripts/check-site-scaffolds.sh` and `sites-ci.yml` repeat it. `Provider.getBuildStatus` reads the host's report; GitHub's real answers are recorded. The whole browser suite passes (162 tests), with `e2e/kinds.open.spec.ts` for the kinds, which found a title bug (fixed) that the unit tests had missed |
