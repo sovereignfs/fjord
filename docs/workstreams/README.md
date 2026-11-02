@@ -60,6 +60,6 @@ Copy [`TEMPLATE.md`](TEMPLATE.md) to `NNNN-short-slug.md` and add a row below.
 
 | Workstream | Goal | Status | Governs |
 | --- | --- | --- | --- |
-| [0001](0001-repository-kinds.md) | A repository opens as what it is for: a drive, a journal with a timeline and tags, or an Astro or Jekyll site with a content editor and previews | ⏳ In progress | RFC 0001, Research 0001, `web-3.md` |
+| [0001](0001-repository-kinds.md) | A repository opens as what it is for: a drive, a journal with a timeline and tags, or an Astro or Jekyll site with a content editor and previews | ✅ Complete | RFC 0001, Research 0001, `web-3.md` |
 
 _Status key: ✅ Complete · ⏳ In progress · 📋 Planned · ⏸️ Paused · ❌ Stopped_

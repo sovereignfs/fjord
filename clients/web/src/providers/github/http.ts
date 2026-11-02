@@ -60,6 +60,12 @@ export class GitHubClient {
     return { status: reply.status, data: (await reply.response.json()) as T, headers: reply.headers };
   }
 
+  /** A request whose answer is nothing (a `204`), or whose answer is not wanted. */
+  async empty(method: string, path: string, options: RequestOptions = {}): Promise<void> {
+    const reply = await this.send(method, path, options);
+    discard(reply.response);
+  }
+
   /** A request whose answer is bytes. */
   async bytes(path: string, options: RequestOptions & { maxBytes?: number | undefined } = {}): Promise<Uint8Array> {
     const reply = await this.send("GET", path, options);

@@ -1,5 +1,6 @@
 import { ProviderError } from "../errors";
 import type {
+  Branch,
   BuildCheck,
   BuildState,
   BuildStatus,
@@ -136,6 +137,42 @@ export class GitHubProvider implements Provider {
     const { status, data, headers } = await this.client.json<{ object: { sha: string } }>("GET", `${repoPath(ref)}/git/ref/heads/${encodePath(branch)}`, { etag: options.etag });
     if (status === 304) return { changed: false };
     return { changed: true, head: { branch, commit: data!.object.sha, etag: headers.get("etag") ?? undefined } };
+  }
+
+  async createBranch(ref: RepositoryRef, branch: string, fromCommit: string): Promise<void> {
+    try {
+      await this.client.json("POST", `${repoPath(ref)}/git/refs`, { json: { ref: `refs/heads/${branch}`, sha: fromCommit } });
+    } catch (error) {
+      // GitHub answers a name that is taken, and a commit it does not have, with a 422 each, and tells them apart only by its words.
+      if (error instanceof ProviderError && error.code === "invalid_request") {
+        if (/already exists/i.test(error.message)) throw new ProviderError("branch_exists", `there is already a branch ${branch}`);
+        if (/object does not exist|not a valid object|sha/i.test(error.message)) throw new ProviderError("not_found", `there is no commit ${fromCommit}`);
+      }
+      throw error;
+    }
+  }
+
+  async deleteBranch(ref: RepositoryRef, branch: string): Promise<void> {
+    const repository = await this.getRepository(ref);
+    // Checked here, and not left to the caller: the one branch that must never be deleted by a mistake.
+    if (branch === repository.defaultBranch) throw new ProviderError("invalid_request", "the default branch is not deleted from here");
+    try {
+      await this.client.empty("DELETE", `${repoPath(ref)}/git/refs/heads/${encodePath(branch)}`);
+    } catch (error) {
+      // GitHub answers a branch that is not there with a 422 ("Reference does not exist"), where the contract says not found.
+      if (error instanceof ProviderError && error.code === "invalid_request" && /does not exist/i.test(error.message)) throw new ProviderError("not_found", `there is no branch ${branch}`);
+      throw error;
+    }
+  }
+
+  async listBranches(ref: RepositoryRef, prefix: string): Promise<Branch[]> {
+    try {
+      const refs = await this.client.paginate<{ ref: string; object: { sha: string } }>(`${repoPath(ref)}/git/matching-refs/heads/${encodePath(prefix)}`, (page) => page as { ref: string; object: { sha: string } }[]);
+      return refs.map((entry) => ({ branch: entry.ref.replace(/^refs\/heads\//, ""), commit: entry.object.sha })).sort((a, b) => (a.branch < b.branch ? -1 : 1));
+    } catch (error) {
+      if (error instanceof ProviderError && error.code === "not_found") return [];
+      throw error;
+    }
   }
 
   async getBuildStatus(ref: RepositoryRef, commit: string): Promise<BuildStatus> {

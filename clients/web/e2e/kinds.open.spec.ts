@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { expect, signUp, test } from "./helpers";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
@@ -155,3 +156,75 @@ test("a tag with a space is refused on a Jekyll site, with the engine's reason, 
   await page.getByRole("button", { name: "Set tags" }).click();
   await expect(page.getByText(/Jekyll reads a tag/)).toHaveCount(0);
 });
+
+test("unsaved changes to a site are previewed through the host on a branch of their own, and the default branch is never written", async ({ page }) => {
+  // The site again, from a plain repository, with a build already reported for its default branch: the preview must not borrow that one's address.
+  await hubs.more.commitFiles({ "README.md": "# Mine, once more\n" }, { replace: true });
+  await signUp(page);
+  const id = await connect(page, "acme/more");
+  await page.goto(`/repo/${id}`);
+  await page.getByLabel(/A site: the posts of a static site/).check();
+  await page.getByRole("radio", { name: "Astro", exact: true }).check();
+  await page.getByRole("button", { name: "Set up Fjord here" }).click();
+  await expect(page.getByRole("button", { name: "New post" })).toBeVisible({ timeout: 30_000 });
+
+  const main = (await hubs.more.branchHead())!;
+  hubs.more.reportBuild(main, {
+    checkRuns: [{ name: "Build site", status: "completed", conclusion: "success" }],
+    deployments: [{ id: 21, environment: "production", statuses: [{ state: "success", environment_url: "https://main-site.example" }] }],
+  });
+
+  // Nothing edited yet: nothing to preview.
+  await page.goto(`/repo/${id}`);
+  const panel = page.getByTestId("preview-panel");
+  await expect(panel.getByRole("button", { name: "Preview" })).toBeDisabled();
+
+  // An unsaved change to the welcome post, kept as a draft the way the editor keeps it.
+  const original = (await hubs.more.filesAt(main))["content/posts/welcome.md"]!;
+  const blob = createHash("sha1").update(`blob ${Buffer.byteLength(original)}\0`).update(original).digest("hex");
+  const edited = `${original}\nAn edit that is not saved as a version.\n`;
+  const saved = await page.request.put(`/api/connections/${id}/working-copy`, { headers: { origin: "http://localhost:3201" }, data: { path: "content/posts/welcome.md", baseBlob: blob, content: edited } });
+  expect(saved.status()).toBe(200);
+
+  await page.reload();
+  await expect(panel.getByText(/You have an unsaved change to this site's posts/)).toBeVisible();
+  await panel.getByRole("button", { name: "Preview" }).click();
+  await expect(panel.getByTestId("preview")).toHaveCount(1);
+  await expect(panel.getByTestId("preview").getByText("Waiting")).toBeVisible();
+
+  // A branch of its own holds the change; the default branch is where it was and holds the file as it was.
+  expect(await hubs.more.branchHead()).toBe(main);
+  const listing = (await (await page.request.get(`/api/connections/${id}/previews`)).json()) as { previews: { branch: string; commit: string }[] };
+  const [preview] = listing.previews;
+  expect(preview!.branch).toMatch(/^fjord\/preview\/[0-9a-f]{8}-\d{8}t\d{6}z$/);
+  expect((await hubs.more.filesAt(preview!.commit))["content/posts/welcome.md"]).toBe(edited);
+  expect((await hubs.more.filesAt(main))["content/posts/welcome.md"]).toBe(original);
+
+  // The host builds that branch and says where: the page shows that address, not the default branch's.
+  hubs.more.reportBuild(preview!.commit, {
+    checkRuns: [{ name: "Build site", status: "completed", conclusion: "success" }],
+    deployments: [{ id: 22, environment: "preview", statuses: [{ state: "success", environment_url: "https://preview-abc.example" }] }],
+  });
+  await page.reload();
+  const link = panel.getByTestId("preview").getByRole("link", { name: "Open the preview" });
+  await expect(link).toHaveAttribute("href", "https://preview-abc.example");
+  await expect(panel.getByText("main-site.example")).toHaveCount(0);
+
+  // Stopping deletes the branch and nothing else.
+  await panel.getByRole("button", { name: "Stop previewing" }).click();
+  await expect(panel.getByTestId("preview")).toHaveCount(0);
+  expect(await hubs.more.branchHead(preview!.branch)).toBeUndefined();
+  expect(await hubs.more.branchHead()).toBe(main);
+});
+
+test("nobody can preview, list or stop a preview of a repository that is not theirs, or without signing in", async ({ page, request }) => {
+  expect((await request.get("/api/connections/1/previews")).status()).toBe(401);
+  expect((await request.post("/api/connections/1/previews", { headers: { origin: "http://localhost:3201" } })).status()).toBe(401);
+  await signUp(page);
+  // Someone else's connection (or none) is not found, and from another site a write is refused.
+  expect((await page.request.get("/api/connections/9999/previews")).status()).toBe(404);
+  expect((await page.request.post("/api/connections/9999/previews", { headers: { origin: "http://localhost:3201" } })).status()).toBe(404);
+  expect((await page.request.post("/api/connections/9999/previews", { headers: { origin: "https://evil.example" } })).status()).toBe(403);
+  expect((await page.request.delete("/api/connections/9999/previews?branch=main", { headers: { origin: "http://localhost:3201" } })).status()).toBe(404);
+});
+

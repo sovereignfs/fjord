@@ -1,6 +1,6 @@
 # Fjord Web — roadmap
 
-**Status:** phase 1 is done except a real-GitHub check of the App (1a.6); phase 2 is built; phase 3, repository kinds, is in progress ([RFC 0001](../../docs/rfcs/0001-repository-kinds.md) accepted; the format, P9–P12, is done), and phase 4 is an outline. The design is
+**Status:** phase 1 is done except a real-GitHub check of the App (1a.6); phase 2 is built; phase 3, repository kinds, is built ([RFC 0001](../../docs/rfcs/0001-repository-kinds.md) implemented; 3d.2, a build in Fjord, is an outline), and phase 4 is an outline. The design is
 [`DESIGN.md`](DESIGN.md); this file is the order of work, and the detail of each task is in [`docs/epics/`](../../docs/epics/). Section numbers (§) refer to `DESIGN.md` unless they say "spec".
 
 | | |
@@ -131,7 +131,7 @@ Planned on 2026-11-02. `fjord.json`'s `kind` (`drive`, `journal`, `ssg`) chooses
 | [3c.1](../../docs/epics/web-3.md#3c1-site-scaffold) | Site scaffold | ✅ Done |
 | [3c.2](../../docs/epics/web-3.md#3c2-content-editor) | Content editor | ✅ Done |
 | [3c.3](../../docs/epics/web-3.md#3c3-build-status) | Build status | ✅ Done |
-| [3d.1](../../docs/epics/web-3.md#3d1-previews-through-the-host) | Previews through the host | 📋 Planned |
+| [3d.1](../../docs/epics/web-3.md#3d1-previews-through-the-host) | Previews through the host | ✅ Done |
 | [3d.2](../../docs/epics/web-3.md#3d2-a-build-in-fjord) | A build in Fjord (outline) | 🚧 Open: needs its own RFC and a security review |
 
 Order: P9–P12, then 3a, then 3b, then 3c, then 3d.1. 3a needs P12; 3c.1 opens with the spike that settles Research 0001's open points.

@@ -1,6 +1,6 @@
 # Workstream 0001 — Repository kinds
 
-**Status:** ⏳ In progress, leg 5 (legs 1 to 4 done, 2026-11-02)\
+**Status:** ✅ Complete, 2026-11-03 (all five legs done; 3d.2 is outside it, as planned)\
 **Date:** November 2026\
 **Author:** Claude Code, from a design conversation with the owner\
 **Goal owner:** the repository's owner (kasunben)\
@@ -28,8 +28,8 @@ stays readable, and buildable, without Fjord.
 - [x] A journal can be made, written and read as a timeline, with tags, plaintext or encrypted, and an encrypted journal's
       dates, titles and tags never reach the server (3b).
 - [x] An Astro and a Jekyll site can be made, their posts written with fields, and their build status shown (3c).
-- [ ] A change to a site can be previewed through a host that previews branches (3d.1).
-- [ ] RFC 0001's status says it is implemented; `clients/web/DESIGN.md` holds the design (3a.1 moves it there).
+- [x] A change to a site can be previewed through a host that previews branches (3d.1).
+- [x] RFC 0001's status says it is implemented; `clients/web/DESIGN.md` holds the design (3a.1 moves it there).
 
 ## Decisions locked
 
@@ -204,3 +204,5 @@ credential for Fjord to hold (DESIGN §7, §15), so stop and ask.
 | 0.4 | 2026-11-02 | **Leg 2 done** (3a.1–3a.3: `src/kinds/`, the drive as its first module, setting up and changing a kind through `fjord-core`'s `planSetupKind`, `withKind` and `kindRule`). An encrypted journal set up from the web takes this browser's key; more keys are *Add a vault*'s |
 | 0.5 | 2026-11-02 | **Leg 3 done** (3b.1–3b.3: New entry, dated in the writer's own time; the timeline, on the server for a plaintext journal and in the browser for an encrypted one; tags). The privacy test (`encrypted-timeline.test.ts`) records every request and finds no date, title or tag. One derived table, `journal_entry` (migration 0016). Not built: an encrypted journal's tag suggestions on a file's page |
 | 0.6 | 2026-11-02 | **Leg 4 done** (3c.1–3c.3). **Gate passed:** the scaffolds were built with their engines' own tools (Astro 5.18.2, Jekyll 4.4.1) and the posts `fjord new` writes were built too, before anything was built on them; the spike (Research 0001, "Confirmed by building") found one defect, a Jekyll post with no layout, fixed in the scaffold, and settled every **to confirm** without changing the approach, so the leg's "Do not proceed if" did not hold. `scripts/check-site-scaffolds.sh` and `sites-ci.yml` repeat it. `Provider.getBuildStatus` reads the host's report; GitHub's real answers are recorded. The whole browser suite passes (162 tests), with `e2e/kinds.open.spec.ts` for the kinds, which found a title bug (fixed) that the unit tests had missed |
+| 1.0 | 2026-11-03 | **Leg 5 done, and the workstream with it** (3d.1: previews through the host). The branch's lifetime was decided at the start and is in `web-3.md`: one branch per preview, `fjord/preview/<hash>-<time>`, kept until the person stops it, at most three. The workstream's "Do not proceed if" did not hold: no account or token at the host itself is needed, since the address is what the host posted to the repository, read with the connection's own token. The default branch is never written, which `preview.test.ts`, the contract and a browser test hold. The whole suite passes: Rust, `fjord-wasm`'s 182 module tests, 2,494 web tests and 164 browser tests, and a real Astro and Jekyll build of the scaffolds. **Not done, by design:** 3d.2 (a build in Fjord), which needs its own RFC and security review. **Not verified, because there is nothing to verify it against:** a real host's preview, and creating or deleting a branch on real GitHub |
+

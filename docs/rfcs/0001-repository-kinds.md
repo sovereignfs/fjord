@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **Status** | Accepted, 2026-11-02, by the owner. Implemented in part: the format (P9–P12) is in the spec, `fjord-core`, the CLI and `fjord-wasm`; the web client's kinds are being built on `feat/repository-kinds` ([workstream 0001](../workstreams/0001-repository-kinds.md)) |
+| **Status** | Implemented, 2026-11-03 ([workstream 0001](../workstreams/0001-repository-kinds.md)): the format (P9–P12) is in the spec, `fjord-core`, the CLI and `fjord-wasm`, and Fjord Web has the kinds, the journal, the site and previews through the host (3a–3d.1). Not implemented, and not proposed here: a build run by Fjord (3d.2) |
 | **Date** | November 2026 |
 | **Author** | Claude Code, for review |
 | **Scope** | [`docs/specs/Fjord.spec.md`](../specs/Fjord.spec.md) §3, §8.1, §11.2 (a format change, additive); `fjord-core`, `fjord-cli`, `fjord-wasm`; Fjord Web ([`clients/web/DESIGN.md`](../../clients/web/DESIGN.md) §8, a new section); the other clients' fallback |
@@ -289,3 +289,4 @@ journal is an obvious thing to ask Claude about, and that is for its own roadmap
 | 0.1 | 2026-11-02 | Initial draft, from a design conversation with the owner |
 | 1.0 | 2026-11-02 | Accepted by the owner as drafted; workstream 0001 started |
 | 1.1 | 2026-11-02 | P9: tags are compared by Unicode's default lowercase mapping after NFC, not by case folding, so that every client's standard library gives the same answer (JavaScript has `toLowerCase` and no case folding); `date` written in the spec as an RFC 3339 date-time with any offset, or a full-date |
+| 1.2 | 2026-11-03 | Implemented. Built as designed, with these differences: `date` and tag comparison as in 1.1; an encrypted journal's entries are named `YYYY-MM-DD-HHMM[-slug].md` inside the container (flat, no dated folder); a site's content model is title, `date`, `tags` and draft, with pages and publishing a draft left to the files view; a preview is a branch per preview, kept until stopped |

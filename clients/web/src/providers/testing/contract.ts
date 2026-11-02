@@ -315,6 +315,53 @@ export function providerContract(label: string, make: () => Promise<ProviderHarn
       });
     });
 
+    describe("branches of their own, for a preview (ROADMAP 3d.1)", () => {
+      it("makes a branch at a commit, lists it by prefix, and commits to it without moving the default branch", async () => {
+        const base = await h.seed({ "a.md": "a" });
+        await h.provider.createBranch(h.repo, "fjord/preview/ada-1", base);
+        await h.provider.createBranch(h.repo, "other/branch", base);
+        expect(await h.provider.listBranches(h.repo, "fjord/preview/")).toEqual([{ branch: "fjord/preview/ada-1", commit: base }]);
+
+        const made = await h.provider.commit(h.repo, { branch: "fjord/preview/ada-1", expectedHead: base, message: "Preview", changes: [{ path: "a.md", content: encode("changed") }] });
+        expect((await h.provider.listBranches(h.repo, "fjord/preview/"))[0]?.commit).toBe(made.commit);
+        // The default branch is where it was, and still has the file as it was.
+        expect((await head()).commit).toBe(base);
+        const tree = await h.provider.getTree(h.repo, (await head()).commit);
+        expect(decode(await h.provider.readBlob(h.repo, tree.entries.find((e) => e.path === "a.md")!.id))).toBe("a");
+      });
+
+      it("never resets a branch that is there, and says a commit it does not have is not found", async () => {
+        const base = await h.seed({ "a.md": "a" });
+        await h.provider.createBranch(h.repo, "fjord/preview/ada-1", base);
+        const later = await h.pushElsewhere({ "b.md": "b" });
+        await expectCode(h.provider.createBranch(h.repo, "fjord/preview/ada-1", later), "branch_exists");
+        expect((await h.provider.listBranches(h.repo, "fjord/preview/"))[0]?.commit, "left where it was").toBe(base);
+        await expectCode(h.provider.createBranch(h.repo, "fjord/preview/ada-2", "e".repeat(40)), "not_found");
+      });
+
+      it("deletes a branch, and refuses the default branch, which a caller could name by mistake", async () => {
+        const base = await h.seed({ "a.md": "a" });
+        await h.provider.createBranch(h.repo, "fjord/preview/ada-1", base);
+        await h.provider.deleteBranch(h.repo, "fjord/preview/ada-1");
+        expect(await h.provider.listBranches(h.repo, "fjord/preview/")).toEqual([]);
+        await expectCode(h.provider.deleteBranch(h.repo, "fjord/preview/ada-1"), "not_found");
+        await expectCode(h.provider.deleteBranch(h.repo, "main"), "invalid_request");
+        expect((await head()).commit, "the default branch is untouched").toBe(base);
+      });
+
+      it("lists by the prefix as a string, which need not end at a slash", async () => {
+        const base = await h.seed({ "a.md": "a" });
+        for (const name of ["fjord/preview/ada-1", "fjord/preview/ada-2", "fjord/preview/bob-1"]) await h.provider.createBranch(h.repo, name, base);
+        expect((await h.provider.listBranches(h.repo, "fjord/preview/ada-")).map((b) => b.branch)).toEqual(["fjord/preview/ada-1", "fjord/preview/ada-2"]);
+        expect((await h.provider.listBranches(h.repo, "fjord/pre")).map((b) => b.branch)).toHaveLength(3);
+      });
+
+      it("lists nothing for a prefix no branch has", async () => {
+        await h.seed({ "a.md": "a" });
+        expect(await h.provider.listBranches(h.repo, "fjord/preview/")).toEqual([]);
+      });
+    });
+
     describe("a commit's build (ROADMAP 3c.3)", () => {
       it("says nothing is reported when no integration posted anything, which is not a build in progress", async () => {
         const commit = await h.seed({ "a.md": "a" });

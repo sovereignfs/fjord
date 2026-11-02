@@ -86,6 +86,12 @@ export interface CommitRequest {
   changes: Change[];
 }
 
+/** A branch and the commit it is at. */
+export interface Branch {
+  branch: string;
+  commit: string;
+}
+
 export interface CommitResult {
   commit: string;
   parent: string;
@@ -165,6 +171,22 @@ export interface Provider {
    * throws as it does anywhere else.
    */
   canWrite(ref: RepositoryRef, branch: string): Promise<boolean>;
+
+  /**
+   * Make a branch at a commit (ROADMAP 3d.1): for a preview, which is a commit on a branch of its own and never on the one the person works
+   * on. `branch_exists` if there is one of that name, and `not_found` for a commit the host does not have. Nothing is moved: a branch that is
+   * there is never reset (no force, anywhere).
+   */
+  createBranch(ref: RepositoryRef, branch: string, fromCommit: string): Promise<void>;
+
+  /**
+   * Delete a branch. Never the repository's default branch, which is refused as `invalid_request`: a caller that can name a branch can name that
+   * one by mistake. `not_found` for a branch that is not there.
+   */
+  deleteBranch(ref: RepositoryRef, branch: string): Promise<void>;
+
+  /** The branches whose names begin with `prefix`, with their heads. */
+  listBranches(ref: RepositoryRef, prefix: string): Promise<Branch[]>;
 
   /**
    * What the host reports of a commit's build: its checks, statuses and deployments (ROADMAP 3c.3). Nothing reported is `state: "none"`,

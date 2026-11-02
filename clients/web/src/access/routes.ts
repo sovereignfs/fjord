@@ -90,6 +90,8 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/connections/[id]/files/entry", methods: { POST: owner("create") } },
   // A site's new post (3c.2): a file made, as an entry is.
   { route: "/api/connections/[id]/files/post", methods: { POST: owner("create") } },
+  // Previewing a site's unsaved changes through its host (3d.1): listing is a read; starting makes a branch of its own with one commit of the caller's drafts, and stopping deletes only such a branch.
+  { route: "/api/connections/[id]/previews", methods: { GET: owner("read"), POST: owner("save_version"), DELETE: owner("save_version") } },
   { route: "/api/connections/[id]/files/delete", methods: { POST: owner("delete") } },
   { route: "/api/connections/[id]/files/move", methods: { POST: owner("move") } },
   { route: "/api/connections/[id]/files/restore", methods: { POST: owner("restore") } },
