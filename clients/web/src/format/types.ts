@@ -66,6 +66,25 @@ export interface SetupExisting {
   gitattributes: string | null;
 }
 
+/**
+ * A repository that is not a Fjord repository, set up as a journal or a site (`fjord-core`'s `scaffold::plan_setup_kind`, spec §3.1). A
+ * drive is `SetupOptions`.
+ */
+export type KindSetupOptions =
+  | { repositoryName: string; generator: string; kind: "journal"; vault: string; encrypted: boolean; recipients: string[] }
+  | { repositoryName: string; generator: string; kind: "ssg"; engine: SiteEngine };
+
+/** The engines a site can be made for (spec §3.1). */
+export type SiteEngine = "astro" | "jekyll";
+
+/** What `planSetupKind` answers: `SetupResult`'s shape, with the refusals of a vault and of a site's files besides. */
+export type KindSetupResult =
+  | Extract<SetupResult, { ok: true }>
+  | { ok: false; error: { code: string; message: string } };
+
+/** `fjord.json` with its kind changed, every other field kept, or why not. */
+export type WithKindResult = { ok: true; text: string } | { ok: false; error: { code: string; message: string } };
+
 /** A vault to add to a Fjord repository (`fjord-core`'s `scaffold::plan_vault`). */
 export interface VaultOptions {
   /** The vault's directory at the root, which is also its display name. */

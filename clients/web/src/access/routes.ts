@@ -73,6 +73,8 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/connections/[id]/default", methods: { POST: { kind: "account" } } },
   { route: "/api/connections/[id]/vault", methods: { PUT: { kind: "account" } } },
   { route: "/api/connections/[id]/setup", methods: { POST: { kind: "account" } } },
+  // A repository's kind (3a.3): one commit of its fjord.json, by the account whose connection it is, as setting it up is.
+  { route: "/api/connections/[id]/kind", methods: { PUT: { kind: "account" } } },
   { route: "/api/connections/[id]/vaults", methods: { POST: { kind: "account" } } },
   { route: "/api/connections/[id]/files", methods: { POST: owner("create") } },
   // The stored bytes of an encrypted file, for the browser to decrypt (2b.2). A read, so the owner's `read`; the server holds no key to them.

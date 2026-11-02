@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { CredentialError } from "../crypto/errors";
-import { type Caller, type Deps, handleConnection, handleAddVault, handleConnections, handleDefault, handleSetup, handleVault } from "./http";
+import { type Caller, type Deps, handleConnection, handleAddVault, handleConnections, handleDefault, handleKind, handleSetup, handleVault } from "./http";
 import { ConnectionError, type ConnectionErrorCode } from "./errors";
 
 /**
@@ -28,14 +28,16 @@ function stub(overrides: Partial<Awaited<ReturnType<Deps["service"]>>> = {}) {
   const vaults = vi.fn(async (...args: unknown[]) => (calls.push(["vaults", ...args]), { found: true as const, vaults: ["Private", "Public"] as string[] | null }));
   const setUp = vi.fn(async (...args: unknown[]) => (calls.push(["setUp", ...args]), { found: true as const, commit: "c0ffee" } as { found: false } | { found: true; commit: string }));
   const addVault = vi.fn(async (...args: unknown[]) => (calls.push(["addVault", ...args]), { found: true as const, commit: "c0ffee", vaultId: "01vault" } as { found: false } | { found: true; commit: string; vaultId: string }));
+  const changeKind = vi.fn(async (...args: unknown[]) => (calls.push(["changeKind", ...args]), { found: true as const, commit: "beef" } as { found: false } | { found: true; commit: string }));
   const deps: Deps = {
     service: async () => service as never,
     origin: ORIGIN,
     vaults: (accountId, id) => vaults(accountId, id),
-    setUp: (accountId, id, vault) => setUp(accountId, id, vault),
+    setUp: (accountId, id, choice) => setUp(accountId, id, choice),
+    changeKind: (accountId, id, change) => changeKind(accountId, id, change),
     addVault: (accountId, id, options) => addVault(accountId, id, options),
   };
-  return { service, deps, calls, vaults, setUp, addVault };
+  return { service, deps, calls, vaults, setUp, addVault, changeKind };
 }
 
 const request = (method: string, init: { origin?: string | null; body?: unknown; type?: string | null; path?: string } = {}) => {
@@ -298,7 +300,29 @@ describe("setting a repository up as a Fjord repository", () => {
     expect(done.status).toBe(201);
     expect(await body(done)).toEqual({ commit: "c0ffee" });
     // Only the name is taken from the request: the account is the caller's, and what is written is not the browser's to say.
-    expect(calls).toEqual([["setUp", "alice", 3, "Notes"]]);
+    expect(calls).toEqual([["setUp", "alice", 3, { kind: "drive", vault: "Notes" }]]);
+  });
+
+  it("sets it up as a journal or a site when asked (3a.3), and never as an encrypted site", async () => {
+    const { deps, calls } = stub();
+    expect((await handleSetup(post({ kind: "journal", vault: "journal", encrypted: true, recipients: ["age1abc"] }), ALICE, deps, "3")).status).toBe(201);
+    expect((await handleSetup(post({ kind: "ssg", engine: "jekyll" }), ALICE, deps, "3")).status).toBe(201);
+    expect(calls).toEqual([
+      ["setUp", "alice", 3, { kind: "journal", vault: "journal", encrypted: true, recipients: ["age1abc"] }],
+      ["setUp", "alice", 3, { kind: "ssg", engine: "jekyll" }],
+    ]);
+    for (const bad of [
+      { kind: "ssg", engine: "astro", encrypted: true },
+      { kind: "ssg", engine: "hugo" },
+      { kind: "ssg" },
+      { kind: "journal" },
+      { kind: "journal", vault: "j", recipients: "age1" },
+      { kind: "journal", vault: "j", encrypted: "yes" },
+      { kind: "wiki", vault: "w" },
+    ]) {
+      expect((await handleSetup(post(bad), ALICE, deps, "3")).status, JSON.stringify(bad)).toBe(400);
+    }
+    expect(calls).toHaveLength(2);
   });
 
   it("answers another account's connection, or one that is not there, as not found", async () => {
@@ -429,5 +453,44 @@ describe("adding a vault to a Fjord repository", () => {
     } finally {
       error.mockRestore();
     }
+  });
+});
+
+describe("changing a repository's kind (3a.3)", () => {
+  const put = (body: unknown = { kind: "journal" }, init: Parameters<typeof request>[1] = {}) => request("PUT", { path: "/api/connections/3/kind", body, ...init });
+
+  it("is for a signed-in person, from this site, and their own connection; nothing is asked of the host before that", async () => {
+    const { deps, changeKind } = stub();
+    expect((await handleKind(put(), null, deps, "3")).status).toBe(401);
+    for (const origin of ["https://evil.example", "null", null]) {
+      expect((await handleKind(put(undefined, { origin }), ALICE, deps, "3")).status, String(origin)).toBe(403);
+    }
+    for (const id of ["abc", "0", ""]) expect((await handleKind(put(), ALICE, deps, id)).status, id).toBe(404);
+    expect(changeKind).not.toHaveBeenCalled();
+    const missing = { ...deps, changeKind: async () => ({ found: false as const }) };
+    expect((await handleKind(put(), ALICE, missing, "3")).status).toBe(404);
+  });
+
+  it("changes the caller's own repository, and says which rule of the new kind it breaks when it does", async () => {
+    const { deps, calls } = stub();
+    const done = await handleKind(put({ kind: "ssg", engine: "astro", accountId: "bob" }), ALICE, deps, "3");
+    expect(done.status).toBe(200);
+    expect(await body(done)).toEqual({ commit: "beef" });
+    expect(calls).toEqual([["changeKind", "alice", 3, { kind: "ssg", engine: "astro" }]]);
+
+    const failing = { ...deps, changeKind: async () => { throw new ConnectionError("kind_rule", "A journal has exactly one vault."); } };
+    const refused = await handleKind(put(), ALICE, failing, "3");
+    expect(refused.status).toBe(422);
+    expect(await body(refused)).toEqual({ error: { code: "kind_rule", message: "A journal has exactly one vault." } });
+  });
+
+  it("takes only a kind this client knows, an engine for a site and none for another, as JSON, by PUT", async () => {
+    const { deps, changeKind } = stub();
+    for (const bad of [{}, { kind: "wiki" }, { kind: "ssg" }, { kind: "ssg", engine: "hugo" }, { kind: "journal", engine: "astro" }, "nope"]) {
+      expect((await handleKind(put(bad), ALICE, deps, "3")).status, JSON.stringify(bad)).toBe(400);
+    }
+    expect((await handleKind(put({ kind: "drive" }, { type: "text/plain" }), ALICE, deps, "3")).status).toBe(415);
+    expect((await handleKind(request("POST", { path: "/api/connections/3/kind" }), ALICE, deps, "3")).status).toBe(405);
+    expect(changeKind).not.toHaveBeenCalled();
   });
 });

@@ -12,7 +12,7 @@ import { type Location, locate } from "./location";
 import { type RepositoryRead, readRepository } from "./repository";
 import { type NoteText, readNoteText } from "./note";
 import { addVault } from "./add-vault";
-import { type Assessment, applySetup, assessSetup, isNotFjord } from "./setup";
+import { type Assessment, type KindChange, type SetupChoice, applySetup, assessSetup, changeKind, isNotFjord } from "./setup";
 import { heads } from "./head-cache";
 import { TreeCache } from "./tree-cache";
 
@@ -90,7 +90,7 @@ const PROBLEM_CODES: Record<Problem["code"], ConnectionErrorCode> = {
  * Set one of the account's repositories up as a Fjord repository with a vault of this name: one commit. `found: false`
  * if it is not theirs. Everything that can go wrong comes back as a `ConnectionError` with words for the person.
  */
-export async function setUpRepository(accountId: string, id: number, vault: string): Promise<{ found: false } | { found: true; commit: string }> {
+export async function setUpRepository(accountId: string, id: number, choice: SetupChoice): Promise<{ found: false } | { found: true; commit: string }> {
   const connection = await (await connectionService()).get(accountId, id);
   if (!connection) return { found: false };
   try {
@@ -99,8 +99,29 @@ export async function setUpRepository(accountId: string, id: number, vault: stri
     const done = await applySetup(
       { provider: used.provider, cache: new TreeCache(await getDatabase()), format: fjord() },
       { id, ref: { owner: connection.owner, name: connection.name }, branch: connection.branch, repositoryName: connection.name },
-      vault,
+      choice,
     );
+    return { found: true, commit: done.commit };
+  } catch (error) {
+    if (error instanceof ConnectionError) throw error;
+    const problem = describeProblem(error);
+    if (problem?.code === "setup") console.error(`[fjord] ${error instanceof Error ? error.message : "the format module is not available"}`);
+    if (problem) throw new ConnectionError(PROBLEM_CODES[problem.code], problem.message);
+    throw error;
+  }
+}
+
+/**
+ * Change the kind of one of the account's Fjord repositories (ROADMAP 3a.3): one commit of `fjord.json`. `found: false` if it is not
+ * theirs. What goes wrong comes back as a `ConnectionError` with words for the person, the rule of the new kind it breaks included.
+ */
+export async function changeRepositoryKind(accountId: string, id: number, change: KindChange): Promise<{ found: false } | { found: true; commit: string }> {
+  const connection = await (await connectionService()).get(accountId, id);
+  if (!connection) return { found: false };
+  try {
+    const used = await (await connectionService()).provider(accountId, id);
+    if (!used) return { found: false };
+    const done = await changeKind({ provider: used.provider, cache: new TreeCache(await getDatabase()), format: fjord(), heads }, { id, ref: { owner: connection.owner, name: connection.name }, branch: connection.branch }, change);
     return { found: true, commit: done.commit };
   } catch (error) {
     if (error instanceof ConnectionError) throw error;

@@ -7,6 +7,7 @@ import { repositoryHref } from "../../browse/links";
 import { Alert, Badge, Card } from "../../ui";
 import type { ConnectionInfo } from "../service";
 import { MakeDefaultButton } from "./MakeDefaultButton";
+import { ChangeKind } from "../../kinds/screens/ChangeKind";
 import styles from "../../auth/screens/screens.module.css";
 
 /**
@@ -81,6 +82,7 @@ export function RepositoryView({
                 </p>
               ) : null}
               {landing}
+              {landing && outcome.read.manifest?.ok ? <ChangeKind connectionId={current.id} kind={outcome.read.manifest.declaredKind ?? "drive"} engine={outcome.read.manifest.ssgEngine} /> : null}
             </>
           ) : (
             <Alert variant="error" heading="This repository cannot be shown right now">

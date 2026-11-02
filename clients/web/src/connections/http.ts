@@ -1,6 +1,7 @@
 import { isCredentialError } from "../crypto/errors";
 import { type ConnectionError, type ConnectionErrorCode, isConnectionError } from "./errors";
 import type { VaultOptions } from "../format/types";
+import type { KindChange, SetupChoice } from "../browse/setup";
 import type { ConnectionService } from "./service";
 
 /**
@@ -33,7 +34,12 @@ export interface Deps {
    * throw a `ConnectionError` saying why not. `found: false` if it is not the caller's (or not there). The browser
    * says only the name; what is written is decided by the server, on the repository as it is.
    */
-  setUp: (accountId: string, id: number, vault: string) => Promise<{ found: false } | { found: true; commit: string }>;
+  setUp: (accountId: string, id: number, choice: SetupChoice) => Promise<{ found: false } | { found: true; commit: string }>;
+  /**
+   * Change one of the caller's Fjord repositories' kind (ROADMAP 3a.3): one commit of `fjord.json`, or a `ConnectionError` saying
+   * which rule of the new kind it breaks. `found: false` if it is not the caller's (or not there).
+   */
+  changeKind: (accountId: string, id: number, change: KindChange) => Promise<{ found: false } | { found: true; commit: string }>;
   /**
    * Add a vault, plaintext or encrypted, to one of the caller's Fjord repositories (ROADMAP 2d.1): one commit, or a
    * `ConnectionError` saying why not. `found: false` if it is not the caller's (or not there). The browser says only what it
@@ -72,6 +78,8 @@ const STATUS: Record<ConnectionErrorCode, number> = {
   manifest_unusable: 409,
   newer_version: 422,
   invalid_vault_options: 422,
+  file_taken: 409,
+  kind_rule: 422,
 };
 
 const NOT_CONFIGURED = "This instance cannot store repository tokens yet: its administrator needs to set FJORD_ENCRYPTION_KEY.";
@@ -179,7 +187,30 @@ export async function handleVault(request: Request, caller: Caller | null, deps:
   }
 }
 
-/** `POST` sets one of the caller's repositories up as a Fjord repository, `{ "vault": "<directory>" }`: one commit. */
+/**
+ * What the browser asks a repository to be set up as (ROADMAP 1a.10, 3a.3): `{ "vault" }` (a drive, as before kinds), `{ "kind":
+ * "journal", "vault", "encrypted", "recipients": ["age1…"] }` or `{ "kind": "ssg", "engine": "astro" | "jekyll" }`. Only the shape is
+ * checked here; a key is the format module's to judge, and the plan is the server's, made on the repository as it is.
+ */
+function setupChoice(body: Record<string, unknown>): SetupChoice | undefined {
+  const name = (value: unknown) => typeof value === "string" && value !== "" && value.length <= MAX_VAULT_LENGTH;
+  const kind = body.kind ?? "drive";
+  if (kind === "drive") return name(body.vault) ? { kind: "drive", vault: body.vault as string } : undefined;
+  if (kind === "journal") {
+    const recipients = body.recipients ?? [];
+    if (!name(body.vault) || typeof (body.encrypted ?? false) !== "boolean") return undefined;
+    if (!Array.isArray(recipients) || recipients.length > MAX_RECIPIENTS || !recipients.every((key) => typeof key === "string" && key.length <= MAX_KEY_LENGTH)) return undefined;
+    return { kind: "journal", vault: body.vault as string, encrypted: body.encrypted === true, recipients: recipients as string[] };
+  }
+  if (kind === "ssg") {
+    // A site's content is published: there is no encrypted site to ask for, and asking is refused rather than ignored.
+    if (body.encrypted !== undefined && body.encrypted !== false) return undefined;
+    return body.engine === "astro" || body.engine === "jekyll" ? { kind: "ssg", engine: body.engine } : undefined;
+  }
+  return undefined;
+}
+
+/** `POST` sets one of the caller's repositories up as a Fjord repository of a kind (see `setupChoice`): one commit. */
 export async function handleSetup(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
   if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
   const denied = unsignedIn(caller) ?? crossOrigin(request, deps);
@@ -193,11 +224,9 @@ export async function handleSetup(request: Request, caller: Caller | null, deps:
     }
     const body = await readJson(request);
     if (body instanceof Response) return body;
-    const vault = body.vault;
-    if (typeof vault !== "string" || vault === "" || vault.length > MAX_VAULT_LENGTH) {
-      return failure(400, "invalid_request", "Send the vault's name as text.");
-    }
-    const done = await deps.setUp((caller as Caller).accountId, number, vault);
+    const choice = setupChoice(body);
+    if (choice === undefined) return failure(400, "invalid_request", "Send the vault's name as text, or a kind with what it needs.");
+    const done = await deps.setUp((caller as Caller).accountId, number, choice);
     return done.found ? json(201, { commit: done.commit }) : failure(404, "not_found", "There is no such connection.");
   } catch (error) {
     return fromError(error);
@@ -257,4 +286,31 @@ function fromError(error: unknown): Response {
   if (isCredentialError(error, "no_key")) return failure(503, "not_configured", NOT_CONFIGURED);
   console.error(`[fjord] connections: unexpected ${error instanceof Error ? error.name : "failure"}`);
   return failure(500, "internal_error", "Something went wrong on our side. Try again.");
+}
+
+/** `PUT` changes one of the caller's Fjord repositories' kind, `{ "kind": "drive" | "journal" | "ssg", "engine"? }`: one commit (ROADMAP 3a.3). */
+export async function handleKind(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "PUT") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  const denied = unsignedIn(caller) ?? crossOrigin(request, deps);
+  if (denied) return denied;
+  const number = /^[1-9][0-9]{0,15}$/.test(id) ? Number(id) : undefined;
+  if (number === undefined) return failure(404, "not_found", "There is no such connection.");
+
+  try {
+    if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) {
+      return failure(415, "unsupported_media_type", "Send JSON.");
+    }
+    const body = await readJson(request);
+    if (body instanceof Response) return body;
+    const kind = body.kind;
+    if (kind !== "drive" && kind !== "journal" && kind !== "ssg") return failure(400, "invalid_request", "Send a kind: drive, journal or ssg.");
+    if (kind === "ssg" ? body.engine !== "astro" && body.engine !== "jekyll" : body.engine !== undefined) {
+      return failure(400, "invalid_request", "A site needs its engine, astro or jekyll; another kind has none.");
+    }
+    const change: KindChange = kind === "ssg" ? { kind, engine: body.engine as "astro" | "jekyll" } : { kind };
+    const done = await deps.changeKind((caller as Caller).accountId, number, change);
+    return done.found ? json(200, { commit: done.commit }) : failure(404, "not_found", "There is no such connection.");
+  } catch (error) {
+    return fromError(error);
+  }
 }
