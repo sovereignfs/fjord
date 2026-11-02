@@ -1,6 +1,6 @@
 # Workstream 0001 — Repository kinds
 
-**Status:** 📋 Planned. Leg 1 waits for RFC 0001 to be accepted\
+**Status:** ⏳ In progress, leg 1 (RFC 0001 accepted 2026-11-02)\
 **Date:** November 2026\
 **Author:** Claude Code, from a design conversation with the owner\
 **Goal owner:** the repository's owner (kasunben)\
@@ -199,3 +199,4 @@ credential for Fjord to hold (DESIGN §7, §15), so stop and ask.
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-11-02 | Initial draft |
+| 0.2 | 2026-11-02 | RFC 0001 accepted by the owner; started on one branch, `feat/repository-kinds`, at the owner's request (one commit per task rather than one PR per task) |

@@ -7,7 +7,7 @@ disagrees with this file, this file is stale and should be corrected. The detail
 
 _Status key: ✅ Done · ⏳ In progress · 📋 Planned · 🚧 Open (waits on a decision) · ❌ Out of scope_
 
-State as of 2026-11-02: the CLI's milestones are all done and `fjord-cli` 0.4.x is released (all 40 diagnostics are implemented); **Fjord Web's phases 1 and 2 are built** (phase 1 bar a check of the GitHub App against real GitHub; phase 2, encrypted files in the browser); **repository kinds are next** (Fjord Web's phase 3, proposed in [RFC 0001](docs/rfcs/0001-repository-kinds.md), and a format change first); mobile and the MCP server are designs.
+State as of 2026-11-02: the CLI's milestones are all done and `fjord-cli` 0.4.x is released (all 40 diagnostics are implemented); **Fjord Web's phases 1 and 2 are built** (phase 1 bar a check of the GitHub App against real GitHub; phase 2, encrypted files in the browser); **repository kinds are next** (Fjord Web's phase 3, accepted in [RFC 0001](docs/rfcs/0001-repository-kinds.md), and a format change first); mobile and the MCP server are designs.
 (sign in, connect a repository, browse, write and version, share, comment; idle versions included); mobile and the MCP server are designs; encrypted files in the browser are next for web (planned in `docs/epics/web-2.md`; they need a Rust toolchain first).
 
 ## Priorities
@@ -18,7 +18,7 @@ components (task IDs are only unique within one), and this list says which comes
 | # | What | Component | Plan | State |
 | --- | --- | --- | --- | --- |
 | 1 | Review and accept RFC 0001, repository kinds | The format, Fjord Web | [RFC 0001](docs/rfcs/0001-repository-kinds.md) · [Research 0001](docs/research/0001-ssg-kind.md) | 📋 Proposed |
-| 2 | Repository kinds: the format change (P9–P12), then kinds, Journal, SSG and previews in the web client | The format, `fjord-core`, the CLI, `fjord-wasm`, Fjord Web | [Workstream 0001](docs/workstreams/0001-repository-kinds.md) · [Web phase 3](clients/web/ROADMAP.md#phase-3--repository-kinds) | 📋 Planned |
+| 2 | Repository kinds: the format change (P9–P12), then kinds, Journal, SSG and previews in the web client | The format, `fjord-core`, the CLI, `fjord-wasm`, Fjord Web | [Workstream 0001](docs/workstreams/0001-repository-kinds.md) · [Web phase 3](clients/web/ROADMAP.md#phase-3--repository-kinds) | ⏳ In progress |
 | 3 | Collaborative editing | Fjord Web | [Web phase 4](clients/web/ROADMAP.md#phase-4--collaborative-editing) | 📋 Outline |
 | 4 | Fjord Mobile, `fjord-mcp` | Their own | [Mobile](clients/mobile/ROADMAP.md) · [MCP](clients/mcp/ROADMAP.md) | 📋 Design only |
 

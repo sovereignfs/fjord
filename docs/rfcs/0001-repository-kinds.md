@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **Status** | Proposed, for review |
+| **Status** | Accepted, 2026-11-02, by the owner. Being implemented on `feat/repository-kinds` ([workstream 0001](../workstreams/0001-repository-kinds.md)) |
 | **Date** | November 2026 |
 | **Author** | Claude Code, for review |
 | **Scope** | [`docs/specs/Fjord.spec.md`](../specs/Fjord.spec.md) §3, §8.1, §11.2 (a format change, additive); `fjord-core`, `fjord-cli`, `fjord-wasm`; Fjord Web ([`clients/web/DESIGN.md`](../../clients/web/DESIGN.md) §8, a new section); the other clients' fallback |
@@ -287,3 +287,4 @@ journal is an obvious thing to ask Claude about, and that is for its own roadmap
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-11-02 | Initial draft, from a design conversation with the owner |
+| 1.0 | 2026-11-02 | Accepted by the owner as drafted; workstream 0001 started |
