@@ -1,11 +1,9 @@
 import { AccountHeader } from "../../auth/screens/AccountHeader";
 import type { ReactNode } from "react";
-import { chosenVault } from "../../browse/screens/Landing";
-import { AddVault } from "../../browse/screens/AddVault";
 import { SetupOffer } from "../../browse/screens/SetupOffer";
 import type { Assessment } from "../../browse/setup";
-import { VaultList } from "../../browse/screens/VaultList";
 import type { Outcome } from "../../browse/server";
+import { repositoryHref } from "../../browse/links";
 import { Alert, Badge, Card } from "../../ui";
 import type { ConnectionInfo } from "../service";
 import { MakeDefaultButton } from "./MakeDefaultButton";
@@ -25,6 +23,7 @@ export function RepositoryView({
   landing,
   setup,
   security,
+  kind,
 }: {
   user: { name: string; email: string };
   connections: ConnectionInfo[];
@@ -32,8 +31,13 @@ export function RepositoryView({
   outcome: Outcome;
   /** What to show in place of the vault list: a folder or a file of a vault (`/repo/<id>/<path>`). */
   content?: ReactNode;
-  /** The top of the vault the repository opens on, under the list of vaults (`<Landing>`); only without `content`. */
+  /** What the repository opens on: its kind's entry view (`entryFor`), which for a drive is its vaults and the top of the one it opens on; only without `content`. */
   landing?: ReactNode;
+  /**
+   * The kind the repository is, when it is not a drive, and whether it is being shown as files: a link between the two is offered,
+   * since every kind can be shown as a drive (spec §3.1).
+   */
+  kind?: { label: string; asFiles: boolean } | undefined;
   /** For a repository that is not a Fjord repository: the offer to set it up, or why there is none (ROADMAP 1a.10). */
   setup?: Assessment | undefined;
   security: boolean;
@@ -67,8 +71,15 @@ export function RepositoryView({
                   </Alert>
                 </div>
               ) : null}
-              <VaultList read={outcome.read} connectionId={current.id} opensOn={chosenVault(current, outcome)} />
-              {outcome.read.manifest?.ok ? <AddVault connectionId={current.id} existing={outcome.read.discovery.vaults.map((vault) => vault.directory)} /> : null}
+              {kind ? (
+                <p className={styles.lead}>
+                  {kind.asFiles ? (
+                    <a href={repositoryHref(current.id)}>Show as {kind.label.toLowerCase()}</a>
+                  ) : (
+                    <a href={`${repositoryHref(current.id)}?view=files`}>Show files</a>
+                  )}
+                </p>
+              ) : null}
               {landing}
             </>
           ) : (

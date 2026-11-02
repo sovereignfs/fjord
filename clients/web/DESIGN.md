@@ -471,16 +471,35 @@ browsed read-only, with an offer to initialise it (decided, §19 #3; ROADMAP 1a.
 - An encrypted vault with `fileNaming: "id"` shows identifiers, not names; that is
   what it is for (spec §7.2).
 
-### Repository kinds (phase 3, proposed)
+### Repository kinds (phase 3)
 
-A repository's `kind` in `fjord.json` (`drive`, `journal`, `ssg`; absent is `drive`) chooses what it opens on: today's vaults
-and folders for a drive, a timeline for a journal, a site's content editor for `ssg`. A kind the client does not know opens as a
-drive, and every kind can still be shown as files. Each kind is a module of the client: an entry view, a scaffold, a content
-model and actions; everything else (editors, versions, sharing, comments, encryption) is shared and unchanged.
+A repository says what it is for in `fjord.json`'s `kind` (spec §3.1): `drive`, `journal` or `ssg`, and a repository with none is
+a drive. What it is changes what Fjord Web shows first, and nothing else: the files are Fjord Docs as in any other repository, and
+the editors, working copies and versions, sharing, comments and encryption are the same for every kind. The decision and the
+alternatives are [RFC 0001](../../docs/rfcs/0001-repository-kinds.md), and the `ssg` kind's detail is
+[Research 0001](../../docs/research/0001-ssg-kind.md).
 
-This is proposed, not built. The design is [RFC 0001](../../docs/rfcs/0001-repository-kinds.md) and, for `ssg`,
-[Research 0001](../../docs/research/0001-ssg-kind.md); the tasks are [`web-3.md`](../../docs/epics/web-3.md). Task 3a.1 moves
-the design proper here.
+- **Each kind is a module** (`src/kinds/`), behind one interface (`KindModule`, `types.ts`):
+
+  | Part | What it is | Drive | Journal | Site (`ssg`) |
+  | --- | --- | --- | --- | --- |
+  | **Entry view** | What `/repo/<connection>` (and `/` for the default repository) opens on | The vault list and the top of the vault it opens on, as before kinds | A timeline (3b.2) | Posts and pages (3c.2) |
+  | **Scaffold** | What a new repository of the kind contains: `fjord-core`'s plan, through the module (`planKind`), never ours | `Public` and `Private` | One vault, `journal/`, plaintext or encrypted | One plaintext vault, `content/`, and the engine's files |
+  | **Content model** | Where a new item goes and which fields it has | Anywhere | From its `date` (spec §8.1) | By the engine's rules |
+  | **Actions** | What the kind adds beyond editing | None | New entry | Build status; preview |
+
+- **Which module** is the registry's (`registry.ts`), from the kind the format module answers (`describeRepositoryManifest`'s
+  `kind`, never `fjord.json` read here). A kind the client has no module for, or one of a newer revision, is a drive; so is an
+  `ssg` repository whose engine this build does not know (spec §3.1). Each kind's module registers itself; a test registers a
+  stand-in and sees its entry view with nothing else changed.
+- **Every kind can be shown as files.** A repository of another kind offers *Show files*, which is the drive's view
+  (`/repo/<connection>?view=files`), and back. The folder and file pages under `/repo/<connection>/<vault>/…` are the same for
+  every kind.
+- **The one vault of a journal or a site is not shown as a vault.** The repository is presented as the journal or the site;
+  the vault appears only in its files.
+- **The timeline and tag indexes are derived, never committed** (spec §2.2): for a plaintext journal built on the server from the
+  listing and the entries' headers, and for an encrypted one built in the browser from what it decrypts, kept there and never
+  sent to the server (3b.2, 3b.3).
 
 ### Browsing, as built (ROADMAP 1a.11: the vaults, browsing them, and the default vault)
 
@@ -1776,3 +1795,4 @@ standalone output would otherwise prune it.
 | 2026-10-27 | The visual document editor is used only for a document it can hold without changing what it means, tested on opening; any other (raw HTML, footnotes, maths, CRLF, a loose list…) is shown as Markdown in the byte-faithful editor | Opaque raw blocks inside the visual editor (they need custom Lexical nodes, and the editor normalises silently what it does not refuse) |
 | 2026-11-02 | Phase 3 is repository kinds (`drive`, `journal`, `ssg`, on the repository, proposed in RFC 0001); collaborative editing moves to phase 4 | Collaborative editing first (it was an outline with no tasks; kinds were wanted sooner); a kind per vault (one repository is one thing to the person, and a site is deployed per repository) |
 | 2026-11-02 | Every variable `FJORD_`, named as Sovereign's `contracts/env.md` names it (`FJORD_DB_DIALECT` = `sqld`, `sqlite` or `postgres`; `FJORD_POSTGRES_URL[_FILE]`; `FJORD_SMTP_*`; `FJORD_CORE_URL`, `_CLIENT_ID`, `_CLIENT_SECRET`), the old names still read, with a warning, and an error beside their new ones; so an instance can host Fjord Web with the variables it gives every app | Keeping the unprefixed names (an instance's `suite.yml` cannot set them); prefixing only, with `sqlite` still covering sqld and a file; dropping the old names at once (0.1 deployments would stop) |
+| 2026-11-02 | A kind is a module of the client (`src/kinds/`): entry view, scaffold, content model, actions, chosen by a registry from the kind the format module answers, falling back to the drive; every kind can be shown as files (`?view=files`) (3a.1) | Branching on the kind in the pages (every new kind would touch them all); parsing `kind` in TypeScript (the format is `fjord-core`'s); a separate route per kind (the folder and file pages are the same for every kind) |

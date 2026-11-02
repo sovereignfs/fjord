@@ -132,6 +132,9 @@ export interface MergeResult {
   text: string;
 }
 
+/** The kinds of repository this build of the format defines (spec §3.1). */
+export type RepositoryKind = "drive" | "journal" | "ssg";
+
 /** `fjord.json`, read. `raw` is the whole manifest as written, which a rewrite must preserve. */
 export type RepositoryManifest =
   | {
@@ -140,6 +143,12 @@ export type RepositoryManifest =
       id: string | null;
       name: string | null;
       createdAt: string | null;
+      /** The kind to present the repository as (spec §3.1): `drive` for none, and for a kind or an `ssg` engine this build does not know. */
+      kind: RepositoryKind;
+      /** `fjord.json`'s `kind` as written, or null when it has none that is text. */
+      declaredKind: string | null;
+      /** `ssg.engine` as written, or null. */
+      ssgEngine: string | null;
       vaultsState: "entries" | "absent" | "notAnArray";
       vaults: { path: string | null; id: string | null }[] | null;
       raw: Record<string, unknown>;

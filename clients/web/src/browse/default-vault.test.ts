@@ -10,6 +10,9 @@ const manifest = (...paths: (string | null)[]): RepositoryManifest => ({
   id: null,
   name: null,
   createdAt: null,
+  kind: "drive",
+  declaredKind: null,
+  ssgEngine: null,
   vaultsState: "entries",
   vaults: paths.map((path) => ({ path, id: null })),
   raw: {},
@@ -41,7 +44,7 @@ describe("defaultVault", () => {
   it("is the first vault found when there is no usable fjord.json", () => {
     expect(defaultVault(found("Private", "Public"), null, null)).toBe("Private");
     expect(defaultVault(found("Private", "Public"), { ok: false, error: "not json" }, null)).toBe("Private");
-    expect(defaultVault(found("Private"), { ok: true, version: 1, id: null, name: null, createdAt: null, vaultsState: "absent", vaults: null, raw: {} }, null)).toBe("Private");
+    expect(defaultVault(found("Private"), { ok: true, version: 1, id: null, name: null, createdAt: null, kind: "drive", declaredKind: null, ssgEngine: null, vaultsState: "absent", vaults: null, raw: {} }, null)).toBe("Private");
   });
 
   it("is nothing when there are no vaults", () => {

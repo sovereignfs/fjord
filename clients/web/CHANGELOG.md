@@ -13,6 +13,7 @@ section.
 
 ### Added
 
+- **A repository opens as its kind** (ROADMAP 3a.1, 3a.2; RFC 0001): what `/repo/<connection>` and `/` open on is chosen by the repository's `kind` (spec §3.1), through a module per kind (`src/kinds/`). A drive, and every repository made before kinds, opens on its vaults exactly as before; a kind this build has no module for opens as a drive, and any other kind offers *Show files* (`?view=files`).
 - **Signing out at a Sovereign instance signs the person out of Fjord Web, and deleting their account there deletes theirs.** The instance tells
   each app it signed them in to; `sovereign.manifest.json` now names the two addresses, `/api/sovereign/backchannel-logout` and
   `/api/sovereign/account-deleted`, and they check the signed notice with `@sovereignfs/sdk`. Every session of the person ends. A deletion removes everything held

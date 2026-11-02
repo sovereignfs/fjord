@@ -97,7 +97,7 @@ Expose P10 to JavaScript: a repository's kind and settings from its manifest (th
 
 ### 3a.1 Kind modules
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0001, The kind modules of Fjord Web
 
@@ -105,9 +105,16 @@ A module per kind, behind one interface: entry view, scaffold, content model, ac
 
 **Accepts when:** a repository with no `kind`, with `drive`, and with a kind the client does not know, each opens on the drive view; a test registers a stand-in kind and its entry view is shown with nothing else changed; every new route is in `src/access/routes.ts`.
 
+- **Done as:**
+  - `src/kinds/`: `types.ts` (`KindModule`: `EntryView`, `contentModel`, `actions`), `registry.ts` (`kindFor`, `registerKind`) and `entry.tsx` (`entryFor`, used by `/` and `/repo/<connection>`).
+  - The kind is the format module's `kind`, from `describeRepositoryManifest`, so `src/format/types.ts` gains `kind`, `declaredKind` and `ssgEngine`.
+  - A kind the format does not define but a module registers (a newer kind, or a test's stand-in) is presented by that module. A defined kind the format presents as a drive (an `ssg` with an unknown engine) is a drive whatever is registered.
+  - *Show files* is `?view=files` on the same page, so no route was added.
+  - The design moved into `DESIGN.md` §8, "Repository kinds", with a decision-log row.
+  - **Tested:** `registry.test.tsx`. **Not run here:** the e2e suite.
 ### 3a.2 Drive as a kind
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0001, The kind modules of Fjord Web; DESIGN §8
 
@@ -115,6 +122,10 @@ Today's vault list and folder browser become the `drive` module's entry view, wi
 
 **Accepts when:** the existing browse unit and e2e tests pass unchanged; nothing a person sees differs for an existing repository.
 
+- **Done as:**
+  - `src/kinds/drive.tsx`: the vault list, *Add a vault* and the top of the default vault, moved out of `RepositoryView` unchanged. `RepositoryView` now shows whatever entry view it is given, and the link between a kind and its files.
+  - Committed with 3a.1, since the registry falls back to this module.
+  - The browse, connection, access and format unit tests pass unchanged. The e2e suite was not run in this session.
 ### 3a.3 Choosing a kind
 
 **Status:** 📋 Planned

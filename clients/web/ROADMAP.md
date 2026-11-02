@@ -122,8 +122,8 @@ Planned on 2026-11-02. `fjord.json`'s `kind` (`drive`, `journal`, `ssg`) chooses
 | [P10](../../docs/epics/web-3.md#p10-fjord-core-kinds-their-rules-and-their-scaffolds) | `fjord-core`: kinds, their rules and their scaffolds | ✅ Done |
 | [P11](../../docs/epics/web-3.md#p11-cli-init---kind-verify-and-journal-entries) | CLI: `init --kind`, `verify` and journal entries | ✅ Done |
 | [P12](../../docs/epics/web-3.md#p12-fjord-wasm-kinds-and-journal-paths) | `fjord-wasm`: kinds and journal paths | ✅ Done |
-| [3a.1](../../docs/epics/web-3.md#3a1-kind-modules) | Kind modules | 📋 Planned |
-| [3a.2](../../docs/epics/web-3.md#3a2-drive-as-a-kind) | Drive as a kind | 📋 Planned |
+| [3a.1](../../docs/epics/web-3.md#3a1-kind-modules) | Kind modules | ✅ Done |
+| [3a.2](../../docs/epics/web-3.md#3a2-drive-as-a-kind) | Drive as a kind | ✅ Done |
 | [3a.3](../../docs/epics/web-3.md#3a3-choosing-a-kind) | Choosing a kind | 📋 Planned |
 | [3b.1](../../docs/epics/web-3.md#3b1-journal-entries) | Journal entries | 📋 Planned |
 | [3b.2](../../docs/epics/web-3.md#3b2-timeline) | Timeline | 📋 Planned |
