@@ -161,17 +161,19 @@ test("disconnecting forgets the repository", async ({ page }) => {
 
 test("a new account is prompted to connect a repository, and the first one becomes where / lands", async ({ page }) => {
   await signUp(page);
-  await page.goto("/");
+  await page.goto("/open");
   await expect(page.getByRole("heading", { name: "Connect your first repository" })).toBeVisible();
 
   await connect(page, "acme/notes");
-  // The same page, now the repository: its name, its branch, and that it is the default.
+  // The same page, now the home page's grid, with a tile for it, marked as the default; opening it shows the repository: its name, its branch.
+  await expect(page.getByRole("list", { name: "Repositories", exact: true }).getByRole("link", { name: /acme\/notes/ })).toContainText("Default");
+  await page.getByRole("list", { name: "Repositories", exact: true }).getByRole("link", { name: /acme\/notes/ }).click();
   await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
   await expect(page.getByText("Branch main")).toBeVisible();
   await expect(page.getByText("Default", { exact: true })).toBeVisible();
 
   // The second visit lands there with no prompt.
-  await page.goto("/");
+  await page.goto("/open");
   await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Connect your first repository" })).toHaveCount(0);
 });
@@ -184,7 +186,7 @@ test("with two repositories, the first stays the default until another is chosen
   await connect(page, "acme/more");
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/more");
 
-  await page.goto("/");
+  await page.goto("/open");
   await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
 
   // Move to the other one, which is not the default, and make it so.
@@ -197,7 +199,7 @@ test("with two repositories, the first stays the default until another is chosen
   await page.getByRole("button", { name: "Make this my default" }).click();
   await expect(page.getByRole("button", { name: "Make this my default" })).toHaveCount(0);
 
-  await page.goto("/");
+  await page.goto("/open");
   await expect(page.getByRole("heading", { name: "acme/more", level: 1 })).toBeVisible();
 
   // Disconnect the default: / falls to the one that is left.
@@ -206,7 +208,7 @@ test("with two repositories, the first stays the default until another is chosen
   page.once("dialog", (dialog) => void dialog.accept());
   await more.getByRole("button", { name: "Disconnect" }).click();
   await expect(page.getByRole("list", { name: "Connected repositories" })).not.toContainText("acme/more");
-  await page.goto("/");
+  await page.goto("/open");
   await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
 });
 
@@ -234,7 +236,7 @@ test("the repository page lists its vaults and what is in each, from names alone
   await connect(page, "acme/notes");
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
 
-  await page.goto("/");
+  await page.goto("/open");
   const vaults = page.getByRole("list", { name: "Vaults" });
   const publicVault = vaults.getByRole("listitem").filter({ hasText: "Public notes" });
   await expect(publicVault).toContainText("3 documents, 2 other files");
@@ -249,12 +251,12 @@ test("looking at a repository again reads no tree and no document from the host"
   await connect(page, "acme/notes");
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
 
-  await page.goto("/");
+  await page.goto("/open");
   await expect(page.getByRole("list", { name: "Vaults" })).toBeVisible();
   hubs.notes.requests.length = 0;
   await page.reload();
   await expect(page.getByRole("list", { name: "Vaults" })).toBeVisible();
-  await page.goto("/");
+  await page.goto("/open");
   await expect(page.getByRole("list", { name: "Vaults" })).toBeVisible();
 
   // The head is asked for each time; the commit's tree and the vaults' manifests were kept.
@@ -271,7 +273,7 @@ test("when GitHub stops accepting the token, the page says so and what to do", a
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
 
   hubs.notes.fail(/git\/ref\/heads/, { status: 401, body: { message: "Bad credentials" }, times: 1 });
-  await page.goto("/");
+  await page.goto("/open");
   await expect(alertOn(page)).toContainText("no longer accepts this repository's token");
   expect(await page.getByRole("main").innerText()).not.toContain("Bad credentials");
 });
@@ -282,7 +284,7 @@ test("a vault is opened to its folders and files, and what can be opened is told
   await connect(page, "acme/notes");
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
 
-  await page.goto("/");
+  await page.goto("/open");
   await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
   await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
 
@@ -323,7 +325,7 @@ async function connected(page: import("@playwright/test").Page): Promise<number>
 
 test("a repository opens on the first vault its fjord.json lists, not the first by name", async ({ page }) => {
   const id = await connected(page);
-  for (const path of ["/", `/repo/${id}`]) {
+  for (const path of ["/open", `/repo/${id}`]) {
     await page.goto(path);
     const vaults = page.getByRole("list", { name: "Vaults" });
     // The directories sort Private before Public; fjord.json lists Public first.
@@ -335,7 +337,7 @@ test("a repository opens on the first vault its fjord.json lists, not the first 
 
 test("choosing another vault changes where the repository opens, and the choice is kept", async ({ page }) => {
   await connected(page);
-  await page.goto("/");
+  await page.goto("/open");
   const vaults = page.getByRole("list", { name: "Vaults" });
   await vaults.getByRole("listitem").filter({ hasText: "Private" }).getByRole("button", { name: "Open this one first" }).click();
 
@@ -377,7 +379,7 @@ test("an encrypted vault's files are shown by name, with a lock, and open to an 
   await connect(page, "acme/notes");
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
 
-  await page.goto("/");
+  await page.goto("/open");
   await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Private" }).click();
   const contents = page.getByRole("list", { name: "Folder contents" });
   // The name without the `.age` it is stored under, a lock, and a way to its page, which asks for the identity that opens it (2b.2).

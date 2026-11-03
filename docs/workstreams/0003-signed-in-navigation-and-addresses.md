@@ -1,6 +1,6 @@
 # Workstream 0003 — Signed-in navigation and addresses
 
-**Status:** 📋 Planned (awaiting the owner's go-ahead; see [Open questions](#open-questions))\
+**Status:** 🚧 In progress: leg 1 done; the owner's answers are under [Answered questions](#answered-questions)\
 **Date:** November 2026\
 **Author:** Claude Code, from a design conversation with the owner\
 **Goal owner:** the repository's owner (kasunben)\
@@ -26,8 +26,8 @@ with no repository or vault in it: `/d/<doc-id>`, `/n/<note-id>`, `/html/<file-i
 - [ ] Keys and Account security are one modal dialog behind a `fingerprint-pattern` icon.
 - [ ] Signing in lands in the default vault of the default repository.
 - [ ] Every address in [the table below](#addresses) works, is what the app links to, and old addresses still arrive.
-- [ ] A shared Doc, note and HTML file open at their short addresses, with the rules sharing has today.
-- [ ] A new plaintext journal entry is filed by the new layout, in the CLI and the web alike; old entries still read.
+- [ ] A shared Doc and note open at their short addresses, with the rules sharing has today (an HTML file's sharing is deferred).
+- [ ] A new journal entry, plaintext or encrypted, is filed by the new layout, in the CLI and the web alike; old entries still read.
 - [ ] `DESIGN.md`, `CLAUDE.md`, the CLI README, `CHANGELOG.md`s and `routes.ts` say what is true. Every leg ends with typecheck,
       unit tests, build and the whole e2e suite passing.
 
@@ -54,7 +54,7 @@ folder appears, never a chain.
 | A journal or site shown as files | `/repo/<repo-id>/v/<vault-id>/…`, replacing `?view=files` |
 | Shared Doc | `/d/<doc-id>` |
 | Shared journal note | `/n/<note-id>` |
-| Shared HTML file | `/html/<file-id>` |
+| Shared HTML file | Deferred (answered question 4) |
 | Shared site post (proposed) | `/d/<post-id>`: a post is a Doc. A published page stays `/p/<token>` |
 | Sealed copy, published page | `/s/<token>`, `/p/<token>`, unchanged |
 
@@ -115,7 +115,7 @@ An agent reading the older documents will find these contradicted. Each is corre
 | 2 | The two dialogs | **Yes**: the owner looks at them | `+` and `fingerprint-pattern` open modals, and every flow in them still works |
 | 3 | Addresses | **Yes**: the biggest change, and everything else builds on it | Every drive address works and is what the app links to; signing in lands in the default vault |
 | 4 | Shared addresses | No | `/d/<id>` redirects its owner; a share, a link and a password all still work |
-| 5 | Static HTML | **Yes**: security review, new ground | HTML is shown sandboxed at its addresses, and can be shared if the owner agrees |
+| 5 | Static HTML | **Yes**: security review, new ground | An HTML file runs, sandboxed, at its addresses |
 | 6 | Journal notes and layout | No | `/repo/<id>/n/<id>`, `/n/<id>`, and the new layout in core, WASM, CLI and web |
 | 7 | Site addresses | No | `/repo/<id>/post/<id>` works and `?view=files` is gone |
 
@@ -137,6 +137,8 @@ An agent reading the older documents will find these contradicted. Each is corre
   `sovereign-legacy/runtime/app/(platform)/page.module.css`. Name is `owner/name`, description the kind's label and branch, chip the kind.
   No git host call to draw the grid. The default repository is marked.
 - The Index's `active` is now `/` only; the default repository's own icon is no longer lit by it.
+
+**Done early, from leg 3:** `/open` (a page that redirects to the default repository, or to `/` when there is none) and the sign-in landing on it, because `/` stopped being the default repository's page. Leg 3 makes it go to the default *vault*.
 
 **Interactions:** many e2e tests `goto("/")` and expect a repository heading. They move to `/open` or the tile.
 
@@ -188,26 +190,40 @@ no match show "moved or gone", as `/f/` does.
 
 ### Leg 5 — Static HTML
 
-New ground: today an HTML file is an "other file" with no viewer.
+New ground: today an HTML file is an "other file" with no viewer. The owner's need is to run checklists made with Claude (single HTML files with their
+own script and style) without finding them in Claude again.
 
 **Technical notes:**
 
-- **A file's HTML is someone else's code on our origin, and must never run with our cookies.** Show it in `<iframe sandbox srcdoc>` with no
-  `allow-same-origin`, under its own restrictive CSP. This needs `frame-src` opened from `'none'` for exactly this page, so `csp.ts` takes a page
-  option and its test holds every other page to `'none'`. `allow-scripts` is an open question.
-- Which files: `.html` and `.htm` in a plaintext vault. In an encrypted vault the browser decrypts, then the same frame.
-- Sharing: `share_user`, `share_link` and the cookie's `Path` are keyed to Doc ids. An HTML file's id is a handle, which is derived data that dies with
-  the database, unlike a Doc's. The tables gain a target type, in both dialects.
+- **A file's HTML is someone else's code, and must never run with this app's origin or cookies.** It is served by its own route, `…/html/<file-id>/raw`,
+  as its own response (not `srcdoc`: a `srcdoc` frame inherits the embedding page's policy, whose scripts need our nonce, and the file's inline script
+  would be blocked). The response carries its own header, `Content-Security-Policy: sandbox allow-scripts; default-src 'none'; script-src
+  'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; form-action 'none'`, so that the document has an opaque
+  origin **even if someone opens the address directly**, and cannot call this app's API or send anything out. `allow-same-origin` is never set. The page
+  shows it in `<iframe sandbox="allow-scripts" src>` below the toolbar; `csp.ts` opens `frame-src` to `'self'` for this page only, held by its test.
+  `Referrer-Policy: no-referrer`, `X-Content-Type-Options: nosniff`, and the route is the same owner check as any file.
+- **What will not work, and the owner should know:** an opaque origin has no `localStorage`, cookies or IndexedDB, so a checklist that remembers its ticks
+  that way will run but forget them on reload. Offered later, if wanted: a small shim injected into the page that keeps that state in Fjord per file
+  (through `postMessage` to the frame's parent), which is a feature of its own. No network means a checklist cannot fetch a library from a CDN either.
+- Which files: `.html` and `.htm`, plaintext vaults first. In an encrypted vault the browser decrypts, then the frame is given a `blob:` document with the same
+  sandbox (so `img-src blob:` and the frame source `blob:` are needed): a second step, only if the plaintext one is right.
+- The address `/repo/<repo-id>/v/<vault-id>/<folder-id>/html/<file-id>` is the viewer; its file is addressed by handle like any other.
+- **Not in this leg:** sharing (answered question 4), so no change to the sharing tables or the cookie paths.
 
-**Do not proceed if:** the open questions are unanswered.
+**Do not proceed if:** the sandbox header cannot be made to apply to the direct address, which is what makes it safe. Test it by opening `/raw` in a tab and
+reading `document.cookie`, `fetch("/api/connections")` and `parent` from a script in the file.
 
 ### Leg 6 — Journal notes and layout
 
 **Technical notes:**
 
-- `fjord-core/src/journal.rs`: `entry_path` writes the new layout, and the reading of a date from a path accepts both (old journals stay filed
+- `fjord-core/src/journal.rs`: `entry_path` writes `<yyyy-mm-dd>/<hh-mm>.md` for a plaintext journal, and for an encrypted one the same folder with the file
+  named by id inside it (answered question 2); the reading of a date from a path accepts the old layouts too (old journals, flat encrypted ones included, stay filed
   correctly). `fjord-wasm` `journalEntryPath` loses `slug`; `journalSlug` goes if unused. CLI `fjord new`, its README and tests, `templates/README-journal.md`, and fixtures.
 - Two notes in one minute: `entries.ts` already retries on a taken path. Decide the suffix in core, default `hh-mm-2.md`.
+- **Encrypted journals now show their dates in folder names.** Update `README-journal` for encrypted journals, `clients/web/DESIGN.md` §15's claim and `encrypted-timeline.test.ts`
+  (which should now assert that titles, tags and times are still absent from what the server sees, and that the day is the one thing that is not). The timeline of an
+  encrypted journal is still built in the browser.
 - `src/sharing/enter.ts`: cookies are set with `Path=/d/<id>`. A share entered at `/n/<id>` must also send to `/d/<id>/comments` and `/d/<id>/draft`, so set
   both paths. `proxy.ts`: `/n/<id>?token=` goes to the entry, and `/n/` leaves the 308 list.
 - `TimelineView`, `NewEntry` link to `/repo/<id>/n/<id>`. `kindFor(...).id === "journal"` decides whether `/repo/<id>/n/` applies.
@@ -217,18 +233,23 @@ New ground: today an HTML file is an "other file" with no viewer.
 Mirrors leg 6's addressing with no format change. `NewPost` and the posts list link to `/repo/<id>/post/<id>`; `RepositoryView`'s *Show files* link becomes the
 vault's address, and `?view=files` redirects.
 
+## Answered questions
+
+Answered by the owner on 2026-11-03; they are decisions now.
+
+1. **The date folder is `2026-11-03/14-30.md`**: four-digit year, ISO date, `hh-mm`.
+2. **Encrypted journals have dated folders too.** The owner accepts that directory names are not encrypted (spec §11.2), so **an encrypted
+   journal's entry dates are visible to the git host and to the server**. This overturns workstream 0001's "an encrypted journal's dates never reach
+   the server" and the flat layout of RFC 0001/0002, and `encrypted-timeline.test.ts`, which holds that guarantee, changes with it (leg 6). Titles and
+   tags still never leave the browser, and the entry files are still named by id (`fileNaming: "id"`), so what is visible is the day each entry was
+   written, not the time or what it says. The README of a new encrypted journal says so. Existing flat encrypted journals keep reading.
+3. **HTML files run their scripts.** The owner's use is checklists made with Claude, to be run in Fjord rather than found again in Claude's
+   artifacts. So a script runs, but never with this app's origin or cookies: see leg 5.
+4. **Sharing an HTML file is deferred**, so `/html/<file-id>` as a shared address is not built in leg 5 and no sharing table changes.
+
 ## Open questions
 
-For the owner. The default is what will be built if there is no other answer.
-
-1. **Date in a journal's folder name.** Asked for as `<YY-mm-dd>`. Default: four digits, `2026-11-03/14-30.md`, because `26-11-03` can be read as three different dates
-   and the rest of the format uses ISO dates. Say if two digits were meant.
-2. **Encrypted journals.** RFC 0002 made journals encrypted by default, and spec §11.2 never encrypts directory names, so a dated folder would publish
-   every entry's date in clear. Default: the new layout for plaintext journals only, encrypted ones stay flat with `fileNaming: "id"`.
-3. **Scripts in shared HTML.** Default: `sandbox` without `allow-scripts`, so a static page shows and nothing runs, including for its owner. Allowing them is safe from our
-   origin in the sandbox, but a stranger's link then runs its author's code in the visitor's browser.
-4. **Should an HTML file be shareable by account as well as by link?** Default: by link only at first, as it is the smaller change to the tables.
-5. **The site addresses and the *proposed* rows** above: the owner asked for a proposal, and these are it.
+1. **The site addresses and the other rows marked *proposed*** above: the owner asked for a proposal, and these are it. Say if any should change.
 
 ## Risks
 

@@ -47,6 +47,8 @@ export const connection = app.table(
     createdAt: epochMs("created_at").notNull(),
     /** The vault (its directory) that opens first, when the account has chosen one; null until then (DESIGN.md §7). */
     defaultVault: text("default_vault"),
+    /** What kind the repository was when it was last read (`drive`, `journal`, `ssg`), for the icon of a repository that is not open; null until it is read. A hint only: what a repository is, is its manifest's to say (`kindFor`). */
+    repoKind: text("repo_kind"),
   },
   (table) => [
     uniqueIndex("connection_account_repository_idx").on(table.accountId, table.provider, table.owner, table.name),

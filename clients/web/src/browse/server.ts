@@ -30,6 +30,10 @@ export async function readConnection(accountId: string, connection: ConnectionIn
       { provider: used.provider, cache: new TreeCache(await getDatabase()), format: fjord(), heads },
       { id: connection.id, ref: { owner: connection.owner, name: connection.name }, branch: connection.branch },
     );
+    // The kind it is now, kept for the rail's icon and the home page's tile, which do not read the repository.
+    // From the manifest directly: the kinds registry imports the screens, which import this file.
+    const kind = read.manifest?.ok ? read.manifest.kind : "drive";
+    if ((kind === "drive" || kind === "journal" || kind === "ssg") && kind !== connection.repoKind) await (await connectionService()).setRepoKind(accountId, connection.id, kind).catch(() => undefined);
     return { ok: true, read };
   } catch (error) {
     const problem = describeProblem(error);

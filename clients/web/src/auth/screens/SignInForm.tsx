@@ -47,7 +47,7 @@ export function SignInForm({
     if (data && "twoFactorRedirect" in data && data.twoFactorRedirect) return;
     // A full navigation, not a client-side one: `/` is a different page now that there is a
     // session, and the server decides which.
-    window.location.assign("/");
+    window.location.assign("/open");
   }
 
   async function onPasskey() {
@@ -59,7 +59,7 @@ export function SignInForm({
       setError(messageFor(failure, "Passkey sign-in did not work. Try your password instead."));
       return;
     }
-    window.location.assign("/");
+    window.location.assign("/open");
   }
 
   async function onSovereign(event?: FormEvent<HTMLFormElement>) {
@@ -68,7 +68,7 @@ export function SignInForm({
     setError(null);
     // On success the browser is sent to Sovereign, so there is nothing to do after the call;
     // a person who comes back with a failure lands on this page again with the reason.
-    const { error: failure } = await authClient.signIn.social({ provider: "sovereign", callbackURL: "/", errorCallbackURL: "/sign-in" });
+    const { error: failure } = await authClient.signIn.social({ provider: "sovereign", callbackURL: "/open", errorCallbackURL: "/sign-in" });
     if (failure) {
       setBusy(null);
       setError(messageFor(failure, "Signing in with Sovereign did not work. Try again."));

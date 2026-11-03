@@ -1,0 +1,124 @@
+/* The home page's tiles: Sovereign's launcher's (`sovereign-legacy/plugins/launcher/app/launcher.module.css`), in the same tokens. */
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-6);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--sv-font-size-2xl);
+  font-weight: var(--sv-font-weight-semibold);
+  color: var(--sv-color-text-primary);
+}
+
+.subtitle {
+  margin: var(--sv-space-1) 0 0;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-muted);
+}
+
+.sectionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: calc(-1 * var(--sv-space-2));
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: var(--sv-font-weight-semibold);
+  letter-spacing: 0.06em;
+  color: var(--sv-color-text-muted);
+}
+
+.sectionCount {
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-muted);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--sv-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--sv-space-3);
+  height: 100%;
+  padding: var(--sv-space-6) var(--sv-space-5);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+  background-color: var(--sv-color-surface-raised);
+  box-shadow: var(--sv-shadow-card);
+  color: inherit;
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .tile:hover {
+    border-color: var(--sv-color-border-strong);
+  }
+}
+
+.tile:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.tileIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--sv-radius-md);
+  background-color: var(--sv-color-surface-sunken);
+  color: var(--sv-color-text-primary);
+}
+
+.tileName {
+  font-size: var(--sv-font-size-md);
+  font-weight: var(--sv-font-weight-medium);
+  color: var(--sv-color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.tileDesc {
+  flex: 1;
+  font-size: var(--sv-font-size-sm);
+  color: var(--sv-color-text-muted);
+  line-height: 1.5;
+}
+
+.tileSep {
+  display: block;
+  width: 100%;
+  height: 1px;
+  margin-top: auto;
+  background-color: var(--sv-color-border);
+}
+
+.tileBadgeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--sv-space-2);
+}
+
+.tileBadge {
+  font-family: var(--sv-font-family-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--sv-color-text-muted);
+  background-color: var(--sv-color-surface-sunken);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-sm);
+  padding: 2px 8px;
+}

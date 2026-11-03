@@ -23,7 +23,6 @@ export function RepositoryView({
   landing,
   setup,
   kind,
-  home = false,
 }: {
   user: { name: string; email: string };
   connections: ConnectionInfo[];
@@ -40,12 +39,10 @@ export function RepositoryView({
   kind?: { label: string; asFiles: boolean } | undefined;
   /** For a repository that is not a Fjord repository: the offer to set it up, or why there is none (ROADMAP 1a.10). */
   setup?: Assessment | undefined;
-  /** It is the page at `/`, which opens on the default repository: the Index's icon in the rail is the current one, not the repository's. */
-  home?: boolean;
 }) {
   const label = `${current.owner}/${current.name}`;
   return (
-    <SignedInShell user={user} connections={connections} place={home ? "index" : { repository: current.id }}>
+    <SignedInShell user={user} connections={connections} place={{ repository: current.id }}>
       <div className={styles.workspace}>
         <h1 className={styles.title}>{label}</h1>
         <p className={styles.lead}>

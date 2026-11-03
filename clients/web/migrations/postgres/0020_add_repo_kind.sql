@@ -1,0 +1,1 @@
+ALTER TABLE "fjord"."connection" ADD COLUMN "repo_kind" text;

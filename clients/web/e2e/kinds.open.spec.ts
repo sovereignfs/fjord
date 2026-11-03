@@ -43,6 +43,27 @@ async function connect(page: import("@playwright/test").Page, repository: string
   return found.id;
 }
 
+test("the home page has a tile for each repository, and the rail an icon by its kind once it has been opened", async ({ page }) => {
+  await signUp(page);
+  const journal = await connect(page, "acme/notes");
+  const other = await connect(page, "acme/more");
+  await page.goto("/");
+  const tiles = page.getByRole("list", { name: "Repositories", exact: true });
+  await expect(tiles.getByRole("link")).toHaveCount(2);
+  await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toHaveAttribute("href", `/repo/${journal}`);
+  // Not opened yet, so not known to be a journal: a drive's tile.
+  await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toContainText("Drive");
+  await page.goto(`/repo/${journal}`);
+  await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
+  await page.goto("/");
+  await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toContainText("Journal");
+  await expect(tiles.getByRole("link", { name: /acme\/more/ })).toContainText("Drive");
+  void other;
+  // Signing in lands on the default repository, not on the grid.
+  await page.goto("/open");
+  await expect(page).toHaveURL(new RegExp(`/repo/${journal}$`));
+});
+
 test("a journal opens on its timeline, placed by date, and takes an entry dated in the browser's own time", async ({ page }) => {
   await signUp(page);
   const id = await connect(page, "acme/notes");

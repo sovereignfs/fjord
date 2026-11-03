@@ -136,9 +136,7 @@ its security page: Sovereign must use the same email address as the account, or 
 either way signs in the same account. An account that came in through Sovereign has no password; it can
 sign in through Sovereign only.
 
-Once a repository is connected, `/` is that repository: the first one you connect is your default,
-and **Make this my default** on another one changes it. With several, a list on the repository's page
-moves between them. A repository opens on one of its vaults: the first that its `fjord.json` lists, until you
+Once a repository is connected, `/` is a page of tiles, one for each; signing in lands on your default repository (`/open`), which is the first one you connect, and **Make this my default** on another one changes it. A rail down the left has an icon for each repository, by its kind, to move between them. A repository opens on one of its vaults: the first that its `fjord.json` lists, until you
 choose another with **Open this one first** on the list of vaults.
 
 **Reading repositories needs the format module.** The web client runs the Fjord format as WebAssembly (`fjord-core`

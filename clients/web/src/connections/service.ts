@@ -37,6 +37,8 @@ export interface ConnectionInfo {
    * when the vault has since gone, is decided from the repository (`src/browse/default-vault.ts`), not stored.
    */
   defaultVault: string | null;
+  /** The kind the repository was when it was last read, for its icon in the rail and its tile; null until it has been. A hint: the manifest decides. */
+  repoKind: "drive" | "journal" | "ssg" | null;
 }
 
 export interface Added {
@@ -83,7 +85,7 @@ const linkShares = (database: Database) => (database.dialect === "postgres" ? po
 const commentTables = (database: Database) => (database.dialect === "postgres" ? [postgresSchema.commentReply, postgresSchema.commentThread, postgresSchema.commentActivity, postgresSchema.commentClosed] : [sqliteSchema.commentReply, sqliteSchema.commentThread, sqliteSchema.commentActivity, sqliteSchema.commentClosed]);
 const deletions = (database: Database) => (database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion);
 const defaults = (database: Database) => (database.dialect === "postgres" ? postgresSchema.accountDefault : sqliteSchema.accountDefault);
-const COLUMNS = sql.raw('id, kind, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", default_vault AS "defaultVault"');
+const COLUMNS = sql.raw('id, kind, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", default_vault AS "defaultVault", repo_kind AS "repoKind"');
 
 interface Row {
   id: number;
@@ -94,6 +96,7 @@ interface Row {
   createdAt: number;
   credentialId: string;
   defaultVault: string | null;
+  repoKind: string | null;
 }
 
 const toInfo = (row: Row, isDefault: boolean): ConnectionInfo => ({
@@ -106,6 +109,7 @@ const toInfo = (row: Row, isDefault: boolean): ConnectionInfo => ({
   createdAt: Number(row.createdAt),
   isDefault,
   defaultVault: row.defaultVault ?? null,
+  repoKind: row.repoKind === "drive" || row.repoKind === "journal" || row.repoKind === "ssg" ? row.repoKind : null,
 });
 
 export class ConnectionService {
@@ -194,6 +198,11 @@ export class ConnectionService {
    * connection is not this account's (or not there). Whether the vault exists is the caller's to have checked against
    * the repository: the service has no view of it, and a choice that has gone is ignored on reading.
    */
+  /** Remembers the kind a repository was read as, for the icon of one that is not open (a hint: the manifest decides, and is read again). */
+  async setRepoKind(accountId: string, id: number, kind: "drive" | "journal" | "ssg"): Promise<void> {
+    await dbRun(this.database, sql`UPDATE ${table(this.database)} SET repo_kind = ${kind} WHERE id = ${id} AND account_id = ${accountId}`);
+  }
+
   async setDefaultVault(accountId: string, id: number, vault: string | null): Promise<boolean> {
     if (!(await this.get(accountId, id))) return false;
     await dbRun(this.database, sql`UPDATE ${table(this.database)} SET default_vault = ${vault} WHERE id = ${id} AND account_id = ${accountId}`);

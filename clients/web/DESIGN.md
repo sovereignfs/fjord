@@ -53,8 +53,8 @@ Phase 1 ships in slices (§16), each usable on its own.
    GitHub App and pick repositories, or give a repository URL and a fine-grained
    token. More can be added later. The first one added is the default repository,
    and each repository has a default vault.
-4. **Each visit after that**, `/` is the default repository's view: its vaults, as
-   in a file manager. The user switches repository from the header.
+4. **Each visit after that**, signing in lands on the default repository's view (`/open`): its vaults, as
+   in a file manager. `/` is the home page, a tile for each repository, and the user switches repository from the rail (workstream 0003).
 5. **Browsing** shows names, paths and sizes only, nothing downloaded (§8).
    Markdown files are clearly openable; other files are shown greyed out.
    Encrypted vaults show a lock; a file in one opens and is edited in the browser with the person's own age identity, and new files are made there (phase 2).
@@ -410,13 +410,13 @@ user can change it. Each connection has a default vault: the first vault listed 
 - **First run:** a signed-in account with no repository sees, at `/`, the one thing to do: connect its
   first (the form of §7's token connection, in place). With no instance key the same page says why it
   cannot. Without a repository there is nothing else to show.
-- **The default repository** is where `/` lands. It is stored per account in `account_default` (one
+- **The default repository** is where signing in lands (`/open`). It is stored per account in `account_default` (one
   row, an account's id and a connection id, both dialects) and is **the first connection an account
   makes**, until the account chooses another. One that is not the account's first never takes it.
   Disconnecting the default moves it to the account's first remaining connection (or none); a row that
-  names a connection that is gone any other way is ignored on reading, so `/` never lands on a
+  names a connection that is gone any other way is ignored on reading, so `/open` never lands on a
   repository that is not there.
-- **The repository page** is `/` for the default and `/repo/<connection>` for any of the account's own
+- **The repository page** is `/repo/<connection>` for any of the account's own (`/` is the home page: a tile for each, drawn from what is stored, with the kind each was last read as in `connection.repo_kind`, a hint for the icons, never a decision)
   (the path inside it, `/repo/<connection>/<path>`, comes with the file browser, 1a.11). It names the
   repository and its branch, marks the default, and offers *Make this my default* on the others. With
   two or more it has the switcher: a list of the account's repositories, each a link. Someone else's
@@ -604,8 +604,8 @@ repository's default vault.
   slash inside a segment (`%2f`), after decoding. So is a vault or folder or file that is not there, and anything at
   all in a repository that is not the caller's. A vault whose manifest cannot be read is said to be unreadable and
   lists nothing. Browsing reads no tree and no file: the head, and the tree and manifests that are kept.
-- **The default vault** (`src/browse/default-vault.ts`) is the vault a repository opens on: `/` and `/repo/<connection>`
-  show the list of its vaults and, under it, the top of that vault. It is **the one the account chose**, and until it
+- **The default vault** (`src/browse/default-vault.ts`) is the vault a repository opens on: `/repo/<connection>`
+  shows the list of its vaults and, under it, the top of that vault. It is **the one the account chose**, and until it
   chooses, **the first vault `fjord.json` lists**. The filesystem is authoritative (spec §2.1), so a vault `fjord.json`
   lists that is not there is skipped, one that is there and not listed can still be chosen, and with no usable
   `fjord.json` it is the first vault found. A choice that names a vault that has since gone is ignored, not an

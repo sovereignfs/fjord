@@ -141,6 +141,13 @@
       "when": 1793714772690,
       "tag": "0019_publication_copy",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1793740841888,
+      "tag": "0020_add_repo_kind",
+      "breakpoints": true
     }
   ]
 }

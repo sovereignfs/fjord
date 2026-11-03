@@ -97,7 +97,7 @@ async function refused(promise: Promise<unknown>, code: ConnectionErrorCode): Pr
 describe(`connecting with a token (${leg})`, () => {
   it("keeps a repository the token can read and write", async () => {
     const { connection, warnings } = await service.addWithToken(ALICE, { repository: "https://github.com/acme/notes", token: GOOD });
-    expect(connection).toEqual({ id: expect.any(Number), provider: "github", kind: "pat", owner: "acme", name: "notes", branch: "main", createdAt: 1_800_000_000_000, isDefault: true, defaultVault: null });
+    expect(connection).toEqual({ id: expect.any(Number), provider: "github", kind: "pat", owner: "acme", name: "notes", branch: "main", createdAt: 1_800_000_000_000, isDefault: true, defaultVault: null, repoKind: null });
     expect(warnings).toEqual([]);
     expect(await service.list(ALICE)).toEqual([connection]);
   });
@@ -581,6 +581,23 @@ describe(`the default repository (${leg})`, () => {
     expect((await s.defaultFor(ALICE))?.id).toBe(two.id);
     const three = serviceWithRepositories("one", "two", "three");
     expect((await connect(three, ALICE, "three")).connection.isDefault).toBe(false);
+  });
+});
+
+describe(`the kind a repository was last read as (${leg})`, () => {
+  it("is nothing until one is kept, is kept for that account's repository only, and a value that is not a kind reads as nothing", async () => {
+    const s = serviceWithRepositories("one", "two");
+    const one = (await connect(s, ALICE, "one")).connection;
+    const two = (await connect(s, ALICE, "two")).connection;
+    expect(one.repoKind).toBeNull();
+    await s.setRepoKind(ALICE, one.id, "journal");
+    expect((await s.get(ALICE, one.id))?.repoKind).toBe("journal");
+    expect((await s.get(ALICE, two.id))?.repoKind).toBeNull();
+    // Someone else's id changes nothing.
+    await s.setRepoKind("someone-else", two.id, "ssg");
+    expect((await s.get(ALICE, two.id))?.repoKind).toBeNull();
+    await dbRun(database, sql`UPDATE ${connectionTable()} SET repo_kind = 'something-new' WHERE id = ${two.id}`);
+    expect((await s.get(ALICE, two.id))?.repoKind).toBeNull();
   });
 });
 

@@ -1,0 +1,1 @@
+ALTER TABLE `connection` ADD `repo_kind` text;

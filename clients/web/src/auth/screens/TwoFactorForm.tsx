@@ -23,7 +23,7 @@ export function TwoFactorForm() {
       setError(messageFor(failure));
       return;
     }
-    window.location.assign("/");
+    window.location.assign("/open");
   }
 
   return (

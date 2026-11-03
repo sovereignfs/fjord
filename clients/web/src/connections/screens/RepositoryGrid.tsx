@@ -1,0 +1,55 @@
+import { SignedInShell } from "../../auth/screens/SignedInShell";
+import { repositoryHref } from "../../browse/links";
+import { Badge } from "../../ui";
+import { KIND_LABEL, RepositoryKindIcon } from "../../ui/icons";
+import type { ConnectionInfo } from "../service";
+import styles from "./RepositoryGrid.module.css";
+
+/**
+ * The home page: a tile for each connected repository, in the look of Sovereign's launcher: its kind's icon, its name, a line of what it is and a chip.
+ * Drawn from what is stored (`repoKind` is what the repository was when it was last opened; a tile of one never opened is a drive's until it is).
+ */
+export function RepositoryGrid({ user, connections }: { user: { name: string; email: string }; connections: ConnectionInfo[] }) {
+  return (
+    <SignedInShell user={user} connections={connections} place="index">
+      <div className={styles.home}>
+        <header>
+          <h1 className={styles.title}>Repositories</h1>
+          <p className={styles.subtitle}>Your connected repositories.</p>
+        </header>
+        <div className={styles.sectionRow}>
+          <span className={styles.sectionLabel}>REPOSITORIES</span>
+          <span className={styles.sectionCount}>{connections.length}</span>
+        </div>
+        <ul className={styles.grid} aria-label="Repositories">
+          {connections.map((connection) => {
+            const kind = connection.repoKind ?? "drive";
+            return (
+              <li key={connection.id}>
+                <a className={styles.tile} href={repositoryHref(connection.id)}>
+                  <span className={styles.tileIcon}>
+                    <RepositoryKindIcon kind={kind} size={28} />
+                  </span>
+                  <span className={styles.tileName}>
+                    {connection.owner}/{connection.name}
+                  </span>
+                  <span className={styles.tileDesc}>
+                    {KIND_LABEL[kind]} on branch {connection.branch}
+                  </span>
+                  <span className={styles.tileSep} aria-hidden="true" />
+                  <span className={styles.tileBadgeRow}>
+                    <span className={styles.tileBadge}>{kind}</span>
+                    {connection.isDefault ? <Badge>Default</Badge> : null}
+                  </span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+        <p>
+          <a href="/repositories">Connect or disconnect repositories</a>
+        </p>
+      </div>
+    </SignedInShell>
+  );
+}

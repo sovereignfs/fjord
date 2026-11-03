@@ -18,7 +18,7 @@ export function SignUpForm({ minLength, verifyEmail }: { minLength: number; veri
     event.preventDefault();
     setBusy(true);
     setError(null);
-    const { error: failure } = await authClient.signUp.email({ name, email, password, callbackURL: "/" });
+    const { error: failure } = await authClient.signUp.email({ name, email, password, callbackURL: "/open" });
     if (failure) {
       setBusy(false);
       setError(messageFor(failure));
@@ -29,7 +29,7 @@ export function SignUpForm({ minLength, verifyEmail }: { minLength: number; veri
       setSentTo(email);
       return;
     }
-    window.location.assign("/");
+    window.location.assign("/open");
   }
 
   if (sentTo) {
