@@ -2740,6 +2740,64 @@ test("a Doc opens at /d/<id> wherever it is, and /n/<id> sends to it (RFC 0002)"
   }
 });
 
+const CHECKLIST = `<!doctype html><title>Checklist</title><h1>Packing</h1><ul id="list"></ul><p id="cookie"></p><p id="network"></p><p id="parent"></p><p id="storage"></p>
+<script>
+  document.getElementById("list").innerHTML = "<li>Passport</li><li>Charger</li>";
+  const say = (id, text) => (document.getElementById(id).textContent = text);
+  try { say("cookie", "cookie:" + document.cookie.length); } catch (error) { say("cookie", "cookie:blocked"); }
+  try { say("parent", "parent:" + window.parent.document.title); } catch (error) { say("parent", "parent:blocked"); }
+  try { localStorage.setItem("a", "b"); say("storage", "storage:kept"); } catch (error) { say("storage", "storage:blocked"); }
+  fetch("/api/connections").then(() => say("network", "network:reached"), () => say("network", "network:blocked"));
+</script>`;
+
+test("an HTML page of a plaintext vault is opened and run in a sandbox: its script runs, and it can reach neither this app's cookies, the page around it, nor the network", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/checklist.html": CHECKLIST, "Notes/readme.md": "# Readme\n" });
+    await page.goto(`/repo/${id}`);
+    await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Notes" }).click();
+    const contents = page.getByRole("list", { name: "Folder contents" });
+    await expect(contents.getByRole("listitem").filter({ hasText: "checklist.html" })).toContainText("Page");
+    await contents.getByRole("link", { name: "checklist.html" }).click();
+    await expect(page).toHaveURL(new RegExp(`/repo/${id}/v/01jagc4k7pr9tbm3ykwx6zq2hv/html/[0-9a-z]{16}$`));
+
+    const frame = page.frameLocator('iframe[title="checklist.html"]');
+    // The script ran.
+    await expect(frame.getByRole("listitem")).toHaveText(["Passport", "Charger"]);
+    // And it is boxed in: no cookie, no parent, no storage of this origin, no request to this app.
+    await expect(frame.locator("#cookie")).toHaveText("cookie:blocked");
+    await expect(frame.locator("#parent")).toHaveText("parent:blocked");
+    await expect(frame.locator("#storage")).toHaveText("storage:blocked");
+    await expect(frame.locator("#network")).toHaveText("network:blocked");
+    // This page is the only one that frames anything, and the page policy has no violation to report for it.
+    const src = (await page.locator("iframe").getAttribute("src"))!;
+    expect(src).toMatch(new RegExp(`^/raw/${id}/[0-9a-z]{16}$`));
+
+    // The address of the document itself carries the sandbox too, so opening it in a tab does not give it this app's origin.
+    const direct = await page.request.get(src);
+    expect(direct.status()).toBe(200);
+    expect(direct.headers()["content-security-policy"]).toContain("sandbox allow-scripts");
+    expect(direct.headers()["content-security-policy"]).not.toContain("allow-same-origin");
+    expect(direct.headers()["x-frame-options"]).toBeUndefined();
+    await page.goto(src);
+    await expect(page.evaluate(() => document.cookie)).rejects.toThrow(/sandboxed/);
+    expect(await page.evaluate(() => (window as unknown as { origin: string }).origin)).toBe("null");
+
+    // Nobody else, and nobody signed out, is served it.
+    const signedOut = await browser.newContext({ baseURL: BASE });
+    expect((await signedOut.request.get(src)).status()).toBe(404);
+    await signedOut.close();
+    const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.12" } });
+    const otherPage = await other.newPage();
+    await signUp(otherPage, `visitor-${Date.now()}@example.com`, "Grace Hopper");
+    expect((await otherPage.request.get(src)).status()).toBe(404);
+    await other.close();
+    // A page that is not HTML is not served this way.
+    await page.goto(`/repo/${id}`);
+  } finally {
+    await restoreMore();
+  }
+});
+
 test("an id that is not there, is not an id, or is another person's is a 404 that says nothing about which", async ({ page, browser }) => {
   try {
     const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/idea.md": withId(ID_NOTE, "mine") });

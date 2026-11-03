@@ -1,7 +1,7 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
-import { SECURITY_HEADERS } from "./src/security/csp";
+import { EMBEDDABLE_SECURITY_HEADERS, SECURITY_HEADERS } from "./src/security/csp";
 
 // The repository's root. The app imports `fjord-editor` from `packages/fjord-editor`, which is outside this project, and the
 // bundler follows a link there only if its root is a directory that holds both. (It also puts a standalone server under
@@ -17,7 +17,11 @@ const config: NextConfig = {
   // Pages send `Referrer-Policy: no-referrer` (DESIGN.md §12, ROADMAP 1c.4): a link followed from a page does not tell the other
   // site where it came from, which on a shared document includes the address it was opened at.
   async headers() {
-    return [{ source: "/:path*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, ...SECURITY_HEADERS] }];
+    // `/raw/…` is a sandboxed page that this app's own page frames: everything but the header that forbids framing.
+    return [
+      { source: "/((?!raw/).*)", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, ...SECURITY_HEADERS] },
+      { source: "/raw/:path*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, ...EMBEDDABLE_SECURITY_HEADERS] },
+    ];
   },
   // Loaded by Node at run time, not bundled: pg is CommonJS with optional native
   // parts, and libsql ships a native addon that only the `file:` database loads.

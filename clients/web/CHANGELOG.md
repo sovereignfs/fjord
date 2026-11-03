@@ -11,6 +11,10 @@ section.
 
 ## [Unreleased]
 
+### Added
+
+- **An HTML page in a vault can be opened and run.** `.html` and `.htm` files of a plaintext vault are links (marked *Page*) to `/repo/<repo>/v/<vault>/…/html/<handle>`, which shows the page in a sandboxed frame: its script and style run, and it can reach neither this app's cookies, the page around it, nor the network (it is served from `/raw/<repo>/<handle>` with `Content-Security-Policy: sandbox allow-scripts`, so opening that address in a tab is boxed in too). For checklists and small tools made elsewhere. A page keeps nothing between visits, since a sandbox has no storage of this origin. Only the repository's owner is served it, to 2 MB; sharing a page is not built. Workstream 0003, leg 5.
+
 ### Changed
 
 - **`/d/<id>` is the address a share is given, and the owner is sent from it to the Doc's address inside its repository.** Someone it is shared with, a share link (with its password), the comments and the draft route are as they were; the owner's own `/d/<id>`, `/doc/<id>` and `/note/<id>` now end at `/repo/<repo>/v/<vault>/…/d/<id>`. Workstream 0003, leg 4.

@@ -1,6 +1,6 @@
 # Workstream 0003 — Signed-in navigation and addresses
 
-**Status:** 🚧 In progress: legs 1 to 4 done (the owner said on 2026-11-03 to commit each leg and go straight on, with no gate between, and to push everything once the last is done); the owner's answers are under [Answered questions](#answered-questions)\
+**Status:** 🚧 In progress: legs 1 to 5 done (the owner said on 2026-11-03 to commit each leg and go straight on, with no gate between, and to push everything once the last is done); the owner's answers are under [Answered questions](#answered-questions)\
 **Date:** November 2026\
 **Author:** Claude Code, from a design conversation with the owner\
 **Goal owner:** the repository's owner (kasunben)\
@@ -207,7 +207,7 @@ own script and style) without finding them in Claude again.
   (through `postMessage` to the frame's parent), which is a feature of its own. No network means a checklist cannot fetch a library from a CDN either.
 - Which files: `.html` and `.htm`, plaintext vaults first. In an encrypted vault the browser decrypts, then the frame is given a `blob:` document with the same
   sandbox (so `img-src blob:` and the frame source `blob:` are needed): a second step, only if the plaintext one is right.
-- The address `/repo/<repo-id>/v/<vault-id>/<folder-id>/html/<file-id>` is the viewer; its file is addressed by handle like any other.
+- The address `/repo/<repo-id>/v/<vault-id>/<folder-id>/html/<file-id>` is the viewer; its file is addressed by handle like any other. Built so, with the sandboxed document at `/raw/<repo-id>/<handle>` (a route outside `/repo/…/[[...path]]`, which cannot have a suffix).
 - **Not in this leg:** sharing (answered question 4), so no change to the sharing tables or the cookie paths.
 
 **Do not proceed if:** the sandbox header cannot be made to apply to the direct address, which is what makes it safe. Test it by opening `/raw` in a tab and

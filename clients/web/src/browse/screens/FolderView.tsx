@@ -28,6 +28,7 @@ import { TransferControl } from "./TransferControl";
  * greyed out; and an encrypted file is a link with a lock, opened in the browser with the identity kept there (phase 2).
  */
 export async function FolderView({
+  html,
   connectionId,
   repository,
   location,
@@ -58,6 +59,8 @@ export async function FolderView({
   draft?: DraftOfNote | null | undefined;
   /** For a note whose draft is of an older version than the repository has: whether the two combine (ROADMAP 1b.10). */
   preview?: Preview | undefined;
+  /** For a static HTML page: where the sandboxed document is served from (`/raw/<repo>/<handle>`), which it is shown from in place of a viewer of text. */
+  html?: { src: string } | undefined;
   /** For a file: its blob in the repository now, which deleting it names (ROADMAP 1b.12). Not known for a repository too large to list. */
   fileBlob?: string | undefined;
   /** For an encrypted file: its draft (ciphertext) if there is one, and the vault's recipients, which what is typed is encrypted to (ROADMAP 2b.3). */
@@ -120,7 +123,9 @@ export async function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} site={site === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
+      {location.kind === "file" && html ? <HtmlFrame name={leaf(location.file.relative)} src={html.src} /> : null}
+
+      {location.kind === "file" && !html ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} site={site === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
           remove={writable && fileBlob !== undefined && (location.file.kind === "doc" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -160,7 +165,7 @@ export async function FolderView({
               ))}
               {location.files.map((file) => (
                 <li key={`f:${file.relative}`} className={styles.item}>
-                  <FileRow href={book.href(file.path)} file={file} />
+                  <FileRow href={vault.encrypted === false && /\.html?$/i.test(file.path) && file.kind === "other" ? book.htmlHref(file.path) : book.href(file.path)} file={file} page={vault.encrypted === false && /\.html?$/i.test(file.path) && file.kind === "other"} />
                 </li>
               ))}
             </ul>
@@ -185,7 +190,21 @@ const openable = (kind: FileKind) => kind === "doc";
 const decryptable = (kind: FileKind) => kind === "payload";
 const leaf = (relative: string) => relative.slice(relative.lastIndexOf("/") + 1);
 
-function FileRow({ href, file }: { href: string; file: ClassifiedFile }) {
+/**
+ * A static HTML page run in a sandbox (workstream 0003, leg 5): its own response (`/raw/…`) carries `Content-Security-Policy: sandbox allow-scripts`, so it has no origin of
+ * this app's, no cookies and no network, and `sandbox="allow-scripts"` here says the same from this side. It can run a script, draw, and keep what it does in memory
+ * only: a checklist made elsewhere works, and forgets its ticks on reload.
+ */
+function HtmlFrame({ name, src }: { name: string; src: string }) {
+  return (
+    <section aria-label="Page">
+      <p className={styles.itemMeta}>Runs in a sandbox: it cannot reach your account, other pages or the network, and keeps nothing between visits.</p>
+      <iframe title={name} src={src} sandbox="allow-scripts" referrerPolicy="no-referrer" style={{ width: "100%", height: "75vh", border: "1px solid var(--sv-color-border)", borderRadius: "var(--sv-radius-md)", background: "white" }} />
+    </section>
+  );
+}
+
+function FileRow({ href, file, page }: { href: string; file: ClassifiedFile; page?: boolean }) {
   const name = leaf(file.logical);
   const size = file.size > 0 ? <span className={styles.itemMeta}> · {humanSize(file.size)}</span> : null;
 
@@ -193,6 +212,14 @@ function FileRow({ href, file }: { href: string; file: ClassifiedFile }) {
     return (
       <span>
         <Icon name="file-text" aria-hidden /> <a href={href}>{name}</a> <Badge>{KIND_LABEL[file.kind]}</Badge>
+        {size}
+      </span>
+    );
+  }
+  if (page) {
+    return (
+      <span>
+        <Icon name="file" aria-hidden /> <a href={href}>{name}</a> <Badge>Page</Badge>
         {size}
       </span>
     );

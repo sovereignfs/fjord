@@ -23,9 +23,12 @@ export function proxy(request: NextRequest) {
 
   // A page is sent with a policy that has this request's own nonce (DESIGN.md §15, ROADMAP 1d.5); Next reads it from the request's copy of the header and puts the
   // nonce on the scripts and styles it makes, and the layout puts it on the theme script (`x-nonce`). An API's answer is data, with no page to protect.
-  const page = !pathname.startsWith("/api/");
+  // `/raw/…` is a sandboxed document with a policy of its own (`src/browse/raw.ts`), which a page policy here would replace.
+  const page = !pathname.startsWith("/api/") && !pathname.startsWith("/raw/");
   const nonce = newNonce();
-  const policy = contentSecurityPolicy({ nonce, secure, development: process.env.NODE_ENV === "development" });
+  // The one page that shows such a document in a frame: `/repo/<repo>/v/<vault>/…/html/<handle>`.
+  const frames = /^\/repo\/\d+\/v\/[^/]+\/(?:[^/]+\/)?html\/[0-9a-z]{16}$/.test(pathname);
+  const policy = contentSecurityPolicy({ nonce, secure, development: process.env.NODE_ENV === "development", frames });
   const requestHeaders = new Headers(request.headers);
   if (page) {
     requestHeaders.set("x-nonce", nonce);

@@ -32,6 +32,15 @@ describe("styles", () => {
   });
 });
 
+describe("frames", () => {
+  it("are refused everywhere, and a page that shows a sandboxed page of this origin may frame this origin and nothing else", () => {
+    expect(directive(policy(), "frame-src")).toBe("frame-src 'none'");
+    expect(directive(policy({ frames: true }), "frame-src")).toBe("frame-src 'self'");
+    // Nobody may frame a page either way.
+    expect(directive(policy({ frames: true }), "frame-ancestors")).toBe("frame-ancestors 'none'");
+  });
+});
+
 describe("styles in development", () => {
   it("allow inline style elements, which `next dev`'s own overlay is drawn with, and only there", () => {
     expect(directive(policy({ development: true }), "style-src-elem")).toBe("style-src-elem 'self' 'unsafe-inline'");

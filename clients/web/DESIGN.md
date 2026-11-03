@@ -1623,6 +1623,12 @@ it is what the tests use when nothing else is set.
 
 ## 15. Security and privacy
 
+- **A static HTML page of a vault runs in a sandbox** (workstream 0003, leg 5). The owner keeps small pages (checklists made elsewhere) in a plaintext vault and opens them here; the
+  file is someone's code. It is served from `/raw/<repo>/<handle>` as a response of its own (`src/browse/raw.ts`), with `Content-Security-Policy: sandbox allow-scripts` and no
+  `allow-same-origin`, so its document has an opaque origin **even when that address is opened directly**: it cannot read a cookie, reach this app's API (`connect-src 'none'`), submit
+  a form, open a frame or be framed by any origin but this one. It may run its own script and style. The page that shows it, `/repo/<repo>/v/<vault>/…/html/<handle>`, is the only
+  page whose policy has `frame-src 'self'` (`csp.ts`, held by its test), and its iframe is `sandbox="allow-scripts"` as well. Only the repository's owner is served it, only a `.html` or `.htm`
+  file of a vault that is not encrypted, to 2 MB. Consequences: a page has no `localStorage` or cookies, so what it remembers lasts until it is closed; and it cannot fetch anything.
 - **What the server can read:** every plaintext file in a connected repository. That
   is inherent to editing on a server, and stated in the product. **What it cannot:**
   encrypted files' contents (phase 2), because age identities stay in the browser. That

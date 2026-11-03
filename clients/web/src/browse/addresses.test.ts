@@ -18,6 +18,13 @@ describe("parsing an address", () => {
     expect(parseAddress(["v", VAULT, FOLDER, "d", DOC])).toEqual({ kind: "place", vault: VAULT, parent: FOLDER, target: { doc: DOC } });
   });
 
+  it("knows a static HTML page, with or without its folder", () => {
+    expect(parseAddress(["v", VAULT, "html", FILE])).toEqual({ kind: "place", vault: VAULT, parent: undefined, target: { html: FILE } });
+    expect(parseAddress(["v", VAULT, FOLDER, "html", FILE])).toEqual({ kind: "place", vault: VAULT, parent: FOLDER, target: { html: FILE } });
+    expect(parseAddress(["v", VAULT, "html", "x"]).kind).toBe("invalid");
+    expect(placeAddress(7, VAULT, { html: FILE }, FOLDER)).toBe(`/repo/7/v/${VAULT}/${FOLDER}/html/${FILE}`);
+  });
+
   it("is what the builders make, for every shape", () => {
     const rest = (address: string) => address.slice("/repo/7/".length).split("/");
     expect(parseAddress(rest(vaultAddress(7, VAULT)))).toEqual({ kind: "vault", vault: VAULT });

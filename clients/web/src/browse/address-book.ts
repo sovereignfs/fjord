@@ -30,6 +30,13 @@ export class AddressBook {
     return placeAddress(this.connectionId, this.vault.id, { doc: docId }, this.parentOf(path));
   }
 
+  /** A static HTML page by its handle. */
+  htmlHref(path: string): string {
+    const handle = this.handles.get(path);
+    if (this.vault.id === null || handle === undefined) return repositoryHref(this.connectionId, ...path.split("/"));
+    return placeAddress(this.connectionId, this.vault.id, { html: handle }, this.parentOf(path));
+  }
+
   /** The handle of the folder a path is in, none when it is at the vault's top. */
   private parentOf(path: string): string | undefined {
     const parent = path.slice(0, path.lastIndexOf("/"));

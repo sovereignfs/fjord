@@ -25,6 +25,8 @@ export interface PolicyOptions {
   secure: boolean;
   /** `next dev`, which needs `eval`. */
   development: boolean;
+  /** The page shows a sandboxed document of this origin in a frame (an HTML page of a repository, `src/browse/raw.ts`): `frame-src 'self'`, on that page only. */
+  frames?: boolean;
 }
 
 /**
@@ -35,7 +37,7 @@ export interface PolicyOptions {
  */
 export const LIBRARY_STYLE_HASHES = ["sha256-441zG27rExd4/il+NvIqyL8zFx5XmyNQtE381kSkUJk=", "sha256-nzTgYzXYDNe6BAHiiI7NNlfK8n/auuOAhh2t92YvuXo="];
 
-export function contentSecurityPolicy({ nonce, secure, development }: PolicyOptions): string {
+export function contentSecurityPolicy({ nonce, secure, development, frames = false }: PolicyOptions): string {
   const hashes = LIBRARY_STYLE_HASHES.map((hash) => `'${hash}'`).join(" ");
   // `next dev`'s own overlay (the indicator at the bottom left, its menus and error dialog) draws itself with a dozen inline `<style>` elements inside a shadow
   // root, none of which can be given a nonce, so under the production policy it is left unstyled (a bare grey box). Development only, and a nonce or a hash in
@@ -50,7 +52,7 @@ export function contentSecurityPolicy({ nonce, secure, development }: PolicyOpti
     "img-src 'self' data: blob:",
     "font-src 'self'",
     "connect-src 'self'",
-    "frame-src 'none'",
+    frames ? "frame-src 'self'" : "frame-src 'none'",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -81,6 +83,12 @@ export const SECURITY_HEADERS: { key: string; value: string }[] = [
   // Another site's window cannot hold a reference to this one's after a link is followed.
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
+
+/**
+ * The same for `/raw/…`, a document this app shows in its own frame: it may be framed by this origin (its own policy says so, `frame-ancestors 'self'`), so the one header that
+ * forbids all framing is left off it; the rest are the same.
+ */
+export const EMBEDDABLE_SECURITY_HEADERS = SECURITY_HEADERS.filter((header) => header.key !== "X-Frame-Options");
 
 /** A year, and the subdomains: the instance is served over https or not at all. */
 export const HSTS = "max-age=31536000; includeSubDomains";

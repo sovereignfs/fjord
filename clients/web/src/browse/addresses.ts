@@ -9,6 +9,7 @@ import { isDocId } from "./ids";
  *     /repo/<repo>/v/<vault>/<folder>                      a folder (its handle)
  *     /repo/<repo>/v/<vault>/<folder>/<file>               a file (its handle)
  *     /repo/<repo>/v/<vault>/<folder>/d/<doc>              a Doc (its `id`)
+ *     /repo/<repo>/v/<vault>/<folder>/html/<file>          a static HTML page (its handle), run in a sandbox
  *
  * and the same without `<folder>` for what is at a vault's top. **Only the last id says what is shown**: the vault and the folder in front of it describe
  * where it was when the address was made, so a file that has since been moved is still found by its own id, and the page then sends the person to its address as
@@ -21,7 +22,7 @@ import { isDocId } from "./ids";
 export type Address =
   | { kind: "repository" }
   | { kind: "vault"; vault: string }
-  | { kind: "place"; vault: string; /** The handle of the folder it is in, when it is in one. */ parent?: string | undefined; target: { handle: string } | { doc: string } }
+  | { kind: "place"; vault: string; /** The handle of the folder it is in, when it is in one. */ parent?: string | undefined; target: { handle: string } | { doc: string } | { html: string } }
   | { kind: "legacy"; segments: string[] }
   | { kind: "invalid" };
 
@@ -34,6 +35,10 @@ export function parseAddress(segments: string[]): Address {
   if (tail.length === 0) return { kind: "vault", vault };
   const last = tail[tail.length - 1] as string;
   const marker = tail.length >= 2 ? tail[tail.length - 2] : undefined;
+  if (marker === "html") {
+    if (!isHandle(last) || tail.length > 3) return { kind: "invalid" };
+    return placed(vault, tail.length === 3 ? tail[0] : undefined, { html: last });
+  }
   if (marker === "d") {
     if (!isDocId(last) || tail.length > 3) return { kind: "invalid" };
     return placed(vault, tail.length === 3 ? tail[0] : undefined, { doc: last });
@@ -42,7 +47,7 @@ export function parseAddress(segments: string[]): Address {
   return placed(vault, tail.length === 2 ? tail[0] : undefined, { handle: last });
 }
 
-function placed(vault: string, parent: string | undefined, target: { handle: string } | { doc: string }): Address {
+function placed(vault: string, parent: string | undefined, target: { handle: string } | { doc: string } | { html: string }): Address {
   if (parent !== undefined && !isHandle(parent)) return { kind: "invalid" };
   return { kind: "place", vault, parent, target };
 }
@@ -51,8 +56,8 @@ export const repositoryAddress = (connection: number): string => `/repo/${connec
 
 export const vaultAddress = (connection: number, vault: string): string => `${repositoryAddress(connection)}/v/${vault}`;
 
-/** A folder or file by its handle, or a Doc by its `id`, with the handle of the folder it is in. */
-export function placeAddress(connection: number, vault: string, target: { handle: string } | { doc: string }, parent?: string): string {
+/** A folder or file by its handle, a Doc by its `id`, or an HTML page by its handle, with the handle of the folder it is in. */
+export function placeAddress(connection: number, vault: string, target: { handle: string } | { doc: string } | { html: string }, parent?: string): string {
   const front = `${vaultAddress(connection, vault)}${parent === undefined ? "" : `/${parent}`}`;
-  return "doc" in target ? `${front}/d/${target.doc}` : `${front}/${target.handle}`;
+  return "doc" in target ? `${front}/d/${target.doc}` : "html" in target ? `${front}/html/${target.html}` : `${front}/${target.handle}`;
 }

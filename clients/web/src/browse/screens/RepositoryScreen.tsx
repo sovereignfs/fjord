@@ -6,6 +6,7 @@ import { journalTagsFor } from "../../journal/server";
 import { FolderView } from "../screens/FolderView";
 import { assessSetupFor, findDocIdIn, locateInRepository, readConnection, readNoteFor, recordFileRead } from "../server";
 import { type Address } from "../addresses";
+import type { Location } from "../location";
 import { addressBookFor } from "../address-book";
 import { repositoryHref } from "../links";
 import { RepositoryView } from "../../connections/screens/RepositoryView";
@@ -49,8 +50,8 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
       const vault = outcome.read.discovery.vaults.find((candidate) => candidate.id === address.vault);
       if (!vault) notFound();
       path = [vault.directory];
-    } else if ("handle" in address.target) {
-      const place = await new FileHandles(await getDatabase()).resolve(address.target.handle);
+    } else if ("handle" in address.target || "html" in address.target) {
+      const place = await new FileHandles(await getDatabase()).resolve("html" in address.target ? address.target.html : address.target.handle);
       // Another repository's handle is nothing here.
       if (!place || place.connectionId !== current.id) notFound();
       path = place.path.split("/");
@@ -101,7 +102,8 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
       if (!(via === undefined && query.pick === "1")) {
         const place = segments.join("/");
         const book = await addressBookFor(current.id, found.location.vault, [place]);
-        const target = docId !== null && file !== undefined ? book.docHref(place, docId) : book.href(place);
+        // A static HTML page of a plaintext vault is at its own `html` address, where it is shown in a sandbox.
+        const target = docId !== null && file !== undefined ? book.docHref(place, docId) : isHtmlPage(found.location) ? book.htmlHref(place) : book.href(place);
         if (target !== (requested ?? "")) redirect(target);
       }
       // What was typed here and not yet saved as a version: kept by the server (ROADMAP 1b.8), and found again here.
@@ -134,7 +136,7 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
       const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
       // In a plaintext journal, the tags already in use are offered while one is typed (ROADMAP 3b.3): from what its timeline knows.
       const tagSuggestions = note?.ok ? await journalTagsFor(user.id, current, outcome.read) : undefined;
-      content = <FolderView tagSuggestions={tagSuggestions} connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} encryptedCreate={encryptedCreate} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "doc" ? (docId ?? undefined) : undefined} editor={kindFor(outcome.read.manifest).editor} writing={kindFor(outcome.read.manifest).writingView} site={kindFor(outcome.read.manifest).contentModel.fields.includes("draft")} destinations={moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined)} encryptedNaming={encryptedNaming} transferTargets={transferTargets} />;
+      content = <FolderView html={isHtmlPage(found.location) ? { src: `/raw/${current.id}/${await new FileHandles(await getDatabase()).forPath(current.id, segments.join("/"))}` } : undefined} tagSuggestions={tagSuggestions} connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} encryptedCreate={encryptedCreate} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "doc" ? (docId ?? undefined) : undefined} editor={kindFor(outcome.read.manifest).editor} writing={kindFor(outcome.read.manifest).writingView} site={kindFor(outcome.read.manifest).contentModel.fields.includes("draft")} destinations={moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined)} encryptedNaming={encryptedNaming} transferTargets={transferTargets} />;
     }
   }
 
@@ -145,6 +147,11 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
   const landing = atTop ? entry : undefined;
   const kindLink = atTop && kind.id !== "drive" ? { label: kind.label, asFiles } : undefined;
   return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} kind={kindLink} setup={atTop ? await assessSetupFor(user.id, current, outcome) : undefined} />;
+}
+
+/** Whether a located file is a static HTML page the app can run: `.html` or `.htm` in a vault that is not encrypted (an encrypted vault's bytes are the browser's to open). */
+export function isHtmlPage(location: Location): boolean {
+  return location.kind === "file" && location.vault.encrypted === false && /\.html?$/i.test(location.file.path) && location.file.kind === "other";
 }
 
 /** A vault's own directory and every folder in it, repository-relative (a repository too large to list names none beyond the top). */
