@@ -178,6 +178,48 @@ test("a new account is prompted to connect a repository, and the first one becom
   await expect(page.getByRole("heading", { name: "Connect your first repository" })).toHaveCount(0);
 });
 
+test("the rail's + opens a dialog to connect a repository, which closes when it is connected and puts the repository in the rail", async ({ page }) => {
+  await signUp(page);
+  await page.goto("/open");
+  await page.getByRole("button", { name: "Connect a repository", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Connect a repository" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("textbox", { name: "Repository" }).fill("acme/notes");
+  await dialog.getByLabel("Access token").fill(GOOD);
+  await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "Your repositories" }).getByRole("link", { name: "acme/notes" })).toBeVisible();
+});
+
+test("the account opens as a dialog over the page it was opened from, and as a page at its own address", async ({ page }) => {
+  await signUp(page);
+  await page.goto("/open");
+  await connect(page, "acme/notes");
+  await page.getByRole("list", { name: "Repositories", exact: true }).getByRole("link", { name: /acme\/notes/ }).click();
+  await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
+  const repository = new URL(page.url()).pathname;
+
+  await page.getByRole("link", { name: "Account", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Account" });
+  await expect(dialog).toBeVisible();
+  await expect(page).toHaveURL(/\/account$/);
+  await expect(dialog.getByRole("tab", { name: "Encryption identity" })).toBeVisible();
+  await expect(dialog.getByRole("tab", { name: "Security" })).toBeVisible();
+  // The page it was opened from is still there behind it, and closing the dialog goes back to it.
+  await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(page).toHaveURL(new RegExp(`${repository}$`));
+
+  // At its own address it is a page, not a dialog.
+  await page.goto("/account");
+  await expect(page.getByRole("heading", { name: "Account", level: 1 })).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.goto("/account/security");
+  await expect(page).toHaveURL(/\/account\?tab=security$/);
+  await expect(page.getByRole("button", { name: "Turn on" })).toBeVisible();
+});
+
 test("with two repositories, the first stays the default until another is chosen, and disconnecting moves it", async ({ page }) => {
   await signUp(page);
   await page.goto("/repositories");

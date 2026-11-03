@@ -118,7 +118,7 @@ export function VaultConversion({ connectionId, vault, encrypted }: { connection
       </p>
       {status === null ? null : status.state === "none" ? (
         <Alert variant="info" heading="No identity in this browser">
-          Make or bring an age identity on the <a href="/account/keys">Keys page</a> first. It stays in this browser.
+          Make or bring an age identity on the <a href="/account?tab=keys">Keys page</a> first. It stays in this browser.
         </Alert>
       ) : status.state === "locked" ? (
         <form className={styles.form} onSubmit={onUnlock} style={{ marginTop: 0 }}>

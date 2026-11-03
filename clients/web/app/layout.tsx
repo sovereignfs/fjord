@@ -28,7 +28,7 @@ export const viewport: Viewport = {
   colorScheme: "light dark",
 };
 
-export default async function RootLayout({ children }: { children: ReactNode }) {
+export default async function RootLayout({ children, modal }: { children: ReactNode; /** The dialog slot (`app/@modal`): empty, unless a page opened `/account` as one. */ modal: ReactNode }) {
   // The proxy made a nonce for this request and put it in the policy; the theme script is inline and runs only with it (DESIGN.md §15).
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
@@ -38,7 +38,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        {modal}
+      </body>
     </html>
   );
 }

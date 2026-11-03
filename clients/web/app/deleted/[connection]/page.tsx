@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { localAuthConfig, requireSession } from "../../../src/auth/server";
-import { AccountHeader } from "../../../src/auth/screens/AccountHeader";
+import { requireSession } from "../../../src/auth/server";
+import { SignedInShell } from "../../../src/auth/screens/SignedInShell";
 import styles from "../../../src/auth/screens/screens.module.css";
 import { RecentlyDeleted } from "../../../src/browse/screens/RecentlyDeleted";
 import { connectionService } from "../../../src/connections/server";
@@ -46,9 +46,8 @@ export default async function RecentlyDeletedPage({ params }: { params: Promise<
   }
 
   return (
-    <main className={styles.page}>
-      <AccountHeader name={user.name} email={user.email} security={localAuthConfig() !== undefined} />
-      <div className={styles.account}>
+    <SignedInShell user={user} place={{ repository: current.id }}>
+      <div className={styles.workspace}>
         <h1 className={styles.title}>Recently deleted</h1>
         <p className={styles.lead}>
           {current.owner}/{current.name} · <a href={`/repo/${current.id}`}>Back to the repository</a>
@@ -57,6 +56,6 @@ export default async function RecentlyDeletedPage({ params }: { params: Promise<
           <RecentlyDeleted connectionId={current.id} groups={groups} days={Math.round(window / DAY)} />
         </Card>
       </div>
-    </main>
+    </SignedInShell>
   );
 }

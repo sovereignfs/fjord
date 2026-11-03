@@ -131,7 +131,7 @@ export function AddVault({ connectionId, existing }: { connectionId: number; /**
           <p className={styles.itemMeta}>
             {mine === null ? (
               <>
-                You have no key in this browser yet. <a href="/account/keys">Make or import one</a> to put yours here; a vault needs at least one key to be written to.
+                You have no key in this browser yet. <a href="/account?tab=keys">Make or import one</a> to put yours here; a vault needs at least one key to be written to.
               </>
             ) : (
               "Your own key is listed. Only public keys go here; a public key is not a secret, and a secret key is refused."

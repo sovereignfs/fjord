@@ -27,6 +27,8 @@ export {
   BrandBadge,
   Button,
   Card,
+  Dialog,
+  Tabs,
   FormField,
   Icon,
   Input,

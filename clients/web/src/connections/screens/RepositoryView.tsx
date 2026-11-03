@@ -42,7 +42,7 @@ export function RepositoryView({
 }) {
   const label = `${current.owner}/${current.name}`;
   return (
-    <SignedInShell user={user} connections={connections} place={{ repository: current.id }}>
+    <SignedInShell user={user} connections={connections.map((connection) => (connection.id === current.id && outcome.ok && outcome.read.manifest?.ok ? { ...connection, repoKind: outcome.read.manifest.kind } : connection))} place={{ repository: current.id }}>
       <div className={styles.workspace}>
         <h1 className={styles.title}>{label}</h1>
         <p className={styles.lead}>

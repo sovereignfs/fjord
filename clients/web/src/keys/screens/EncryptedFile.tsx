@@ -173,7 +173,7 @@ export function EncryptedFile({
       {status === null ? <p>Looking…</p> : null}
       {status?.state === "none" ? (
         <Alert variant="info" heading="No identity in this browser">
-          This file is encrypted. To read it, make or bring the age identity it was encrypted to, on the <a href="/account/keys">Keys page</a>. It stays in this browser; the server never has it.
+          This file is encrypted. To read it, make or bring the age identity it was encrypted to, on the <a href="/account?tab=keys">Keys page</a>. It stays in this browser; the server never has it.
         </Alert>
       ) : null}
       {status?.state === "locked" && !shown ? (

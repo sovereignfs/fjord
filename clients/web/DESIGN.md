@@ -204,9 +204,9 @@ instance can run either or both:
 - **No implicit linking.** A Sovereign login whose email is a local account's is refused
   (`account_not_linked`, a message on the sign-in page), whether or not that address is
   confirmed, until the person links the two from a signed-in session (below). A Sovereign-only
-  person has no password, two-factor or passkeys, so those settings (`/account/security`) answer
+  person has no password, two-factor or passkeys, so those settings (the Security tab of `/account`; `/account/security` still arrives there) answer
   404 on an instance with only Sovereign on.
-- **Linking (ROADMAP 1a.4), when both methods are on.** On `/account/security` a signed-in person can
+- **Linking (ROADMAP 1a.4), when both methods are on.** On the Security tab of `/account` a signed-in person can
   *Link Sovereign*: they go to Sovereign and back, and Sovereign's `sub` is attached to **this**
   account. The rules are the server's, and each is tested:
   - **Only from a signed-in session**, so linking is something a person who has shown they control the

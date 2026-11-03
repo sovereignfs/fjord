@@ -17,7 +17,8 @@ test("a person signs in through Sovereign and has the security page of the local
   await page.goto("/sign-in");
   await page.getByRole("button", { name: "Sign in with Sovereign" }).click();
   await expect(page.getByRole("heading", { name: `Hello, ${who.name}` })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Security", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Account", exact: true }).click();
+  await expect(page.getByRole("tab", { name: "Security" })).toBeVisible();
 });
 
 test("a person with a local account still signs in with their password", async ({ page }) => {
@@ -44,7 +45,7 @@ test.describe("linking Sovereign", () => {
     await page.goto("/account/security");
     await page.getByRole("button", { name: "Link Sovereign" }).click();
 
-    await expect(page).toHaveURL(/\/account\/security/);
+    await expect(page).toHaveURL(/\/account\?tab=security/);
     await expect(page.getByText("Sovereign is linked")).toBeVisible();
     await expect(page.getByRole("button", { name: "Unlink Sovereign" })).toBeEnabled();
 
@@ -62,7 +63,7 @@ test.describe("linking Sovereign", () => {
     await page.goto("/account/security");
     await page.getByRole("button", { name: "Link Sovereign" }).click();
 
-    await expect(page).toHaveURL(/\/account\/security/);
+    await expect(page).toHaveURL(/\/account\?tab=security/);
     await expect(alertOn(page)).toContainText("different email address");
     await expect(page.getByRole("button", { name: "Link Sovereign" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Unlink Sovereign" })).toHaveCount(0);

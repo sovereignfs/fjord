@@ -1,6 +1,6 @@
 # Workstream 0003 — Signed-in navigation and addresses
 
-**Status:** 🚧 In progress: leg 1 done; the owner's answers are under [Answered questions](#answered-questions)\
+**Status:** 🚧 In progress: legs 1 and 2 done (the owner said on 2026-11-03 to commit each leg and go straight on, with no gate between, and to push everything once the last is done); the owner's answers are under [Answered questions](#answered-questions)\
 **Date:** November 2026\
 **Author:** Claude Code, from a design conversation with the owner\
 **Goal owner:** the repository's owner (kasunben)\
@@ -112,7 +112,7 @@ An agent reading the older documents will find these contradicted. Each is corre
 | Leg | Name | Gate? | Done when |
 | --- | --- | --- | --- |
 | 1 | Home grid and rail icons | No | `/` is the grid; the rail shows `layout-grid` and a kind's icon per repository |
-| 2 | The two dialogs | **Yes**: the owner looks at them | `+` and `fingerprint-pattern` open modals, and every flow in them still works |
+| 2 | The two dialogs | No (the owner waived the gates) | `+` and `fingerprint-pattern` open modals, and every flow in them still works |
 | 3 | Addresses | **Yes**: the biggest change, and everything else builds on it | Every drive address works and is what the app links to; signing in lands in the default vault |
 | 4 | Shared addresses | No | `/d/<id>` redirects its owner; a share, a link and a password all still work |
 | 5 | Static HTML | **Yes**: security review, new ground | An HTML file runs, sandboxed, at its addresses |

@@ -10,7 +10,7 @@ import styles from "../../auth/screens/screens.module.css";
  * server in one request and is checked there; it is not kept in the page after, and it is never
  * shown again.
  */
-export function ConnectForm({ heading = "Connect a repository" }: { heading?: string }) {
+export function ConnectForm({ heading = "Connect a repository", onConnected }: { heading?: string; /** Told when a repository was connected, with the warnings worth showing: a dialog around the form closes on none. */ onConnected?: (warnings: string[]) => void }) {
   const router = useRouter();
   const [repository, setRepository] = useState("");
   const [token, setToken] = useState("");
@@ -38,6 +38,7 @@ export function ConnectForm({ heading = "Connect a repository" }: { heading?: st
       setToken("");
       setWarnings(body?.warnings ?? []);
       router.refresh();
+      onConnected?.(body?.warnings ?? []);
     } catch {
       setError("Could not reach this server. Check your connection and try again.");
     } finally {

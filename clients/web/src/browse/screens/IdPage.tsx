@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { AccountHeader } from "../../auth/screens/AccountHeader";
+import { SignedInShell } from "../../auth/screens/SignedInShell";
 import styles from "../../auth/screens/screens.module.css";
-import { localAuthConfig, requireSession } from "../../auth/server";
+import { requireSession } from "../../auth/server";
 import { connectionService } from "../../connections/server";
 import { encryptionKeyring } from "../../crypto/server";
 import { Alert, Badge, Card } from "../../ui";
@@ -133,16 +133,15 @@ export async function IdPage({ id, wrong }: { id: string; wrong?: "wrong" | "wai
 
 }
 
-function Shell({ user, title, children }: { user: { name: string; email: string }; title: string; children: ReactNode }) {
+function Shell({ user, title, children }: { user: { id: string; name: string; email: string }; title: string; children: ReactNode }) {
   return (
-    <main className={styles.page}>
-      <AccountHeader name={user.name} email={user.email} security={localAuthConfig() !== undefined} />
-      <div className={styles.account}>
+    <SignedInShell user={user} place="index">
+      <div className={styles.workspace}>
         <h1 className={styles.title}>{title}</h1>
         <Card as="article" padding="lg">
           {children}
         </Card>
       </div>
-    </main>
+    </SignedInShell>
   );
 }

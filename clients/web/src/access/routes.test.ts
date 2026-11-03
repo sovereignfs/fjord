@@ -36,7 +36,11 @@ export function findRoutes(appDir: string): { route: string; kind: "page" | "api
         continue;
       }
       if (entry.name !== "page.tsx" && entry.name !== "route.ts") continue;
-      const segments = relative(appDir, dir).split(sep).filter((segment) => segment !== "" && !/^\(.*\)$/.test(segment));
+      // A route group `(name)` and a parallel slot `@name` are not in the address; an intercepting `(.)name` is the address `name` (it only changes how a soft navigation shows it).
+      const segments = relative(appDir, dir)
+        .split(sep)
+        .filter((segment) => segment !== "" && !/^\(.*\)$/.test(segment) && !segment.startsWith("@"))
+        .map((segment) => segment.replace(/^\((?:\.|\.\.|\.\.\.)+\)/, ""));
       const route = `/${segments.join("/")}`;
       out.push(entry.name === "page.tsx" ? { route, kind: "page", methods: [] } : { route, kind: "api", methods: exportedMethods(readFileSync(path, "utf8")) });
     }

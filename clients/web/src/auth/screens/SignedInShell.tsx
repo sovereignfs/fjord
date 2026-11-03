@@ -1,22 +1,29 @@
 import type { ReactNode } from "react";
+import { ConnectDialog } from "../../connections/screens/ConnectDialog";
 import type { ConnectionInfo } from "../../connections/service";
+import { connectionService } from "../../connections/server";
+import { encryptionKeyring } from "../../crypto/server";
 import { AppShell, type ShellPlace } from "../../ui/AppShell";
-import { authConfig, localAuthConfig } from "../server";
+import { authConfig } from "../server";
 import { SignOutButton } from "./SignOutButton";
 
+type Listed = Pick<ConnectionInfo, "id" | "owner" | "name" | "isDefault" | "repoKind">;
+
 /**
- * The frame of a signed-in page (`AppShell`) with what this instance knows to put in it: its name, whether there are security
- * settings, the way out, and the repositories the person has connected, as icons to move between them.
+ * The frame of a signed-in page (`AppShell`) with what this instance knows to put in it: its name, the dialog that connects a repository, the way out, and the
+ * repositories the person has connected, as icons to move between them. A page that has the list already passes it; one that has not leaves it out and it is read here.
  */
-export function SignedInShell({ user, connections, place, children }: { user: { name: string; email: string }; connections: Pick<ConnectionInfo, "id" | "owner" | "name" | "isDefault" | "repoKind">[]; place: ShellPlace; children: ReactNode }) {
+export async function SignedInShell({ user, connections, place, children }: { user: { id?: string; name: string; email: string }; connections?: Listed[]; place: ShellPlace; children: ReactNode }) {
   const config = authConfig();
+  const canConnect = encryptionKeyring() !== undefined;
+  const listed = connections ?? (canConnect && user.id !== undefined ? await (await connectionService()).list(user.id) : []);
   return (
     <AppShell
       name={config.enabled ? config.name : "Fjord"}
       person={user}
-      repositories={connections.map((connection) => ({ id: connection.id, label: `${connection.owner}/${connection.name}`, isDefault: connection.isDefault, kind: connection.repoKind }))}
+      repositories={listed.map((connection) => ({ id: connection.id, label: `${connection.owner}/${connection.name}`, isDefault: connection.isDefault, kind: connection.repoKind }))}
       place={place}
-      security={localAuthConfig() !== undefined}
+      connect={<ConnectDialog canConnect={canConnect} />}
       signOut={<SignOutButton icon />}
     >
       {children}
