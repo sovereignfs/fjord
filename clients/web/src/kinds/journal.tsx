@@ -15,6 +15,7 @@ import type { EntryViewProps, KindModule } from "./types";
 export const journalKind: KindModule = {
   id: "journal",
   label: "Journal",
+  editor: "note",
   EntryView: JournalEntry,
   contentModel: { placement: "dated", fields: ["title", "date", "tags"] },
   actions: [{ id: "new-entry", label: "New entry" }],

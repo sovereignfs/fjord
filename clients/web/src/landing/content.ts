@@ -139,7 +139,7 @@ export const questions: Question[] = [
 
 /** What a Fjord document looks like on disk: the point of "plain files". */
 export const exampleDocument = {
-  path: "Plans/Q4 plan.fj.md",
+  path: "Plans/Q4 plan.md",
   source: `---
 id: 01k8d3m2x7q9r5t1v4w6y8z0ab
 title: Q4 plan

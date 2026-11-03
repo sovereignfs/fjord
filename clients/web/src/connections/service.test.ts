@@ -325,7 +325,7 @@ describe(`using and removing a connection (${leg})`, () => {
     const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
     const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
     const deletions = new DeletionService(database);
-    for (const { id } of [one, two]) await deletions.record(id, "c".repeat(40), ALICE, [{ path: "Notes/a.md", kind: "note", blob: "b".repeat(40) }]);
+    for (const { id } of [one, two]) await deletions.record(id, "c".repeat(40), ALICE, [{ path: "Notes/a.md", kind: "doc", blob: "b".repeat(40) }]);
 
     await s.remove(ALICE, one.id);
     expect(await deletions.list(one.id, 1e12)).toEqual([]);
@@ -352,7 +352,7 @@ describe(`using and removing a connection (${leg})`, () => {
     const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
     const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
     const index = new DocIndex(database);
-    for (const { id } of [one, two]) await index.put(id, [{ path: "Notes/a.md", docId: "01jagc4k7pt8y3wqnmzv5xrb8j", kind: "note", blob: "b".repeat(40) }]);
+    for (const { id } of [one, two]) await index.put(id, [{ path: "Notes/a.md", docId: "01jagc4k7pt8y3wqnmzv5xrb8j", blob: "b".repeat(40) }]);
 
     await s.remove(ALICE, one.id);
     expect((await index.all(one.id)).size).toBe(0);

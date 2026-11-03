@@ -70,7 +70,7 @@ describe.skipIf(!available)("the format module", () => {
     });
   }
 
-  it("tells a document from a note by name, as the spec says (§8.4)", () => {
+  it("calls every Markdown file a Doc, as the spec says (§8.4): there is one kind", () => {
     const root = join(fixtures, "documents");
     const files = listing(root);
     const manifests: Record<string, string> = {};
@@ -79,8 +79,8 @@ describe.skipIf(!available)("the format module", () => {
       .discover(files, manifests)
       .vaults[0]!.files.map((file) => [file.relative, file.kind]);
     expect(kinds).toEqual([
-      ["idea.md", "note"],
-      ["plan.fj.md", "document"],
+      ["idea.md", "doc"],
+      ["plan.fj.md", "doc"],
     ]);
   });
 

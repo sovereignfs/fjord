@@ -38,10 +38,10 @@ export { MAX_MESSAGE_CHARS } from "./limits";
 /** A head that moved is read again this many times before giving up. */
 const ATTEMPTS = 2;
 
-/** `Edit <title>`: a note or a document is known by its file name without the extension (`.fj.md` for a document). */
+/** `Edit <title>`: a Doc is known by its file name without the `.md`. */
 export function defaultMessage(path: string): string {
   const leaf = path.slice(path.lastIndexOf("/") + 1);
-  return `Edit ${leaf.replace(/\.fj\.md$/i, "").replace(/\.md$/i, "")}`;
+  return `Edit ${leaf.replace(/\.md$/i, "")}`;
 }
 
 /**

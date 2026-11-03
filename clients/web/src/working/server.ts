@@ -24,7 +24,7 @@ async function editableNote(accountId: string, id: number, path: string): Promis
   if (!found.ok) return "unavailable";
   const { location } = found;
   if (location.kind !== "file") return "no";
-  if ((location.file.kind === "note" || location.file.kind === "document") && location.vault.encrypted === false) return "yes";
+  if (location.file.kind === "doc" && location.vault.encrypted === false) return "yes";
   // An encrypted file of an encrypted vault is edited as ciphertext (ROADMAP 2b.3).
   return location.file.kind === "payload" && location.vault.encrypted === true ? "encrypted" : "no";
 }

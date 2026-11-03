@@ -82,7 +82,7 @@ export async function saveGuestDraft(deps: GuestDeps, input: { cookie: string | 
   const source = await deps.sourceOf(link.connectionId);
   if (!source) return { ok: false, reason: "unavailable" };
   const { matches } = await resolveDocId({ index: deps.index, format: deps.format }, [source], input.docId);
-  const match = matches.find((candidate) => candidate.kind === "document");
+  const match = matches[0];
   const blob = match ? source.read.blobs.get(match.path) : undefined;
   if (!match || blob === undefined) return { ok: false, reason: "hidden" };
 

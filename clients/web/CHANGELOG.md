@@ -11,7 +11,13 @@ section.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: there is one kind of Doc, and the repository's kind chooses its editor** (spec §8.4, RFC 0002, ROADMAP 3e.1). A `.fj.md` name is an ordinary `.md`: every Markdown file opens at `/d/<id>`, a drive's in the document editor and a journal's or a site's in the byte-faithful Markdown editor, and *New document* is the one way to make a file (a title is optional; with none the date and time name it and are its title, and a file the app makes has an `id` from the start). `/n/<id>`, `/note/<id>` and `/doc/<id>` are sent on for good to `/d/<id>` (a 308 that drops any token). Any Doc in a plaintext vault can be shared, by account or link, where only `*.fj.md` could; renaming keeps a file's extension, whatever it is. `FileKind` from the format module is `doc`, and the `doc_index` and `deletion` tables' `kind` column says `doc` (older rows say `note` or `document` and are read as `doc`; no migration).
+
 ### Added
+
+- **The format module plans an adoption** (ROADMAP P17): `planAdopt` and `detectSite` give the web client `fjord init --adopt`'s planner, so that a directory that already has files, a vault below the root included, can be made a Fjord repository by the same bytes the CLI writes. The page for it comes with the site and drive tasks that need it (3g.1).
 
 - **Tags can be edited on any note or document, with the journal's own offered as they are typed** (ROADMAP 3b.3): the properties panel has a Tags field (`POST …/files/header` takes `tags`), written as typed and in that order, never lower-cased, and in a plaintext journal it suggests the tags the journal already uses, so `Run` is not added beside `run`.
 - **A site's unsaved changes can be previewed through its host** (ROADMAP 3d.1): *Preview* puts the person's drafts of the site's posts on a branch of their own (`fjord/preview/<person>-<time>`, cut from the default branch and given one commit), the host builds it as it builds any branch, and the page shows the address the host gives for **that commit**. The default branch is never written, nothing is forced, and a draft of a file that has changed since is left out and named. A preview lasts until *Stop previewing* deletes its branch (at most three at a time, and only a person's own can be stopped); a host that has reported nothing for three minutes is told to build no branches, rather than waited on. `Provider` gains `createBranch`, `deleteBranch` and `listBranches`. Fjord holds no credential of the host's: the address is what the host posted to the repository. `GET/POST/DELETE /api/connections/<id>/previews`.

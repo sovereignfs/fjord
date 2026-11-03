@@ -76,8 +76,8 @@ describe.skipIf(!available)(`finding a file by its id (${leg})`, () => {
   it("finds a document and a note by what their headers say, and a file with no header is nothing", async () => {
     const memory = host([REF, { "Notes/fjord.vault.json": VAULT, "Notes/Plan.fj.md": doc(A), "Notes/b.md": doc(B), "Notes/plain.md": "# no header\n" }]);
     const source = await sourceOf(memory, 1);
-    expect(await resolveDocId(deps(), [source], A)).toEqual({ matches: [{ connectionId: 1, path: "Notes/Plan.fj.md", kind: "document" }], incomplete: false });
-    expect(await resolveDocId(deps(), [source], B)).toEqual({ matches: [{ connectionId: 1, path: "Notes/b.md", kind: "note" }], incomplete: false });
+    expect(await resolveDocId(deps(), [source], A)).toEqual({ matches: [{ connectionId: 1, path: "Notes/Plan.fj.md" }], incomplete: false });
+    expect(await resolveDocId(deps(), [source], B)).toEqual({ matches: [{ connectionId: 1, path: "Notes/b.md" }], incomplete: false });
     expect((await resolveDocId(deps(), [source], "01jagc4k7pt8y3wqnmzv5xrbzz")).matches).toEqual([]);
   });
 
@@ -108,7 +108,7 @@ describe.skipIf(!available)(`finding a file by its id (${leg})`, () => {
     memory.seed(REF, { "Notes/a.md": null, "Notes/Moved/a.md": doc(A), "Notes/b.md": null });
 
     const source = await sourceOf(memory, 1);
-    expect((await resolveDocId(deps(), [source], A)).matches).toEqual([{ connectionId: 1, path: "Notes/Moved/a.md", kind: "note" }]);
+    expect((await resolveDocId(deps(), [source], A)).matches).toEqual([{ connectionId: 1, path: "Notes/Moved/a.md" }]);
     expect((await resolveDocId(deps(), [source], B)).matches).toEqual([]);
     expect([...(await index.all(1)).keys()].sort()).toEqual(["Notes/Moved/a.md"]);
   });
@@ -132,9 +132,9 @@ describe.skipIf(!available)(`finding a file by its id (${leg})`, () => {
     const both = [await sourceOf(memory, 1), await sourceOf(memory, 2, OTHER)];
     const found = await resolveDocId(deps(), both, A);
     expect(found.matches).toEqual([
-      { connectionId: 1, path: "Notes/a.md", kind: "note" },
-      { connectionId: 1, path: "Notes/copy of a.md", kind: "note" },
-      { connectionId: 2, path: "Notes/a.fj.md", kind: "document" },
+      { connectionId: 1, path: "Notes/a.md" },
+      { connectionId: 1, path: "Notes/copy of a.md" },
+      { connectionId: 2, path: "Notes/a.fj.md" },
     ]);
     expect((await resolveDocId(deps(), [both[0]!], A)).matches.map((m) => m.connectionId)).toEqual([1, 1]);
   });
@@ -156,7 +156,7 @@ describe.skipIf(!available)(`finding a file by its id (${leg})`, () => {
     const source = await sourceOf(memory, 1);
     expect(await resolveDocId(deps(), [source], A, 4)).toEqual({ matches: [], incomplete: true });
     expect(await resolveDocId(deps(), [source], A, 4)).toEqual({ matches: [], incomplete: true });
-    expect((await resolveDocId(deps(), [source], A, 4)).matches).toEqual([{ connectionId: 1, path: "Notes/n09.md", kind: "note" }]);
+    expect((await resolveDocId(deps(), [source], A, 4)).matches).toEqual([{ connectionId: 1, path: "Notes/n09.md" }]);
   });
 
   it("does not search a repository too large to list, and does not forget what it knew of it", async () => {

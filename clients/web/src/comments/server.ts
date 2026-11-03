@@ -26,7 +26,7 @@ async function viewerOf(input: { docId: string; account: { id: string; name: str
 
   if (input.account) {
     const ids = (await (await connectionService()).list(input.account.id)).map((connection) => connection.id);
-    const owned = (await new DocIndex(database).find(ids, input.docId)).find((row) => row.file.kind === "document");
+    const owned = (await new DocIndex(database).find(ids, input.docId))[0];
     if (owned) found = { connectionId: owned.connectionId, grants: [{ kind: "owner" }] };
     else {
       const shared = (await new ShareService(database).find(input.account.id, input.docId))[0];

@@ -72,6 +72,6 @@ describe("the landing page", () => {
 
   it("shows the example Fjord document as text a reader can select", () => {
     expect(html).toContain("<pre");
-    expect(html).toContain("Plans/Q4 plan.fj.md");
+    expect(html).toContain("Plans/Q4 plan.md");
   });
 });

@@ -16,7 +16,7 @@ import type { RestoreResult } from "./restore";
 const ORIGIN = "https://fjord.example.com";
 const ALICE: Caller = { accountId: "alice", name: "Alice Example", email: "alice@example.com" };
 const WHEN = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
-const valid = { vault: "Notes", folder: "Projects", kind: "note", title: "Plan", localMinute: WHEN };
+const valid = { vault: "Notes", folder: "Projects", title: "Plan", localMinute: WHEN };
 
 function stub() {
   const create = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: CreateResult | { ok: false; reason: VaultRefusal } }> => ({
@@ -121,7 +121,7 @@ describe("what may be sent", () => {
     expect(create).toHaveBeenCalledWith("alice", 1, {
       vault: "Notes",
       folder: "Projects",
-      kind: "note",
+     
       title: "Plan",
       localMinute: WHEN,
       author: { name: "Alice Example", email: "alice@example.com" },
@@ -130,9 +130,9 @@ describe("what may be sent", () => {
 
   it("takes the top of a vault, a document, and no title", async () => {
     const { deps, create } = stub();
-    expect((await handleCreate(post({ vault: "Notes", folder: "", kind: "document", title: "Q4 plan", localMinute: WHEN }), ALICE, deps, "1")).status).toBe(201);
-    expect((await handleCreate(post({ vault: "Notes", folder: "", kind: "note", localMinute: WHEN }), ALICE, deps, "1")).status).toBe(201);
-    expect((await handleCreate(post({ vault: "Notes", folder: "", kind: "note", title: null, localMinute: WHEN }), ALICE, deps, "1")).status).toBe(201);
+    expect((await handleCreate(post({ vault: "Notes", folder: "", title: "Q4 plan", localMinute: WHEN }), ALICE, deps, "1")).status).toBe(201);
+    expect((await handleCreate(post({ vault: "Notes", folder: "", localMinute: WHEN }), ALICE, deps, "1")).status).toBe(201);
+    expect((await handleCreate(post({ vault: "Notes", folder: "", title: null, localMinute: WHEN }), ALICE, deps, "1")).status).toBe(201);
     expect(create.mock.calls.map((call) => (call[2] as { title: string }).title)).toEqual(["Q4 plan", "", ""]);
   });
 
@@ -154,8 +154,6 @@ describe("what may be sent", () => {
     ["a folder out of the vault", { ...valid, folder: "../Other" }],
     ["an absolute folder", { ...valid, folder: "/Projects" }],
     ["a folder with a backslash", { ...valid, folder: "Pro\\jects" }],
-    ["no kind", { ...valid, kind: undefined }],
-    ["a kind that is not one", { ...valid, kind: "folder" }],
     ["a title that is not text", { ...valid, title: 5 }],
     ["a title with a line break", { ...valid, title: "one\ntwo" }],
     ["a title with a NUL", { ...valid, title: "a\u0000b" }],
@@ -594,7 +592,7 @@ describe("moving: what may be sent, and what they are told", () => {
 
 describe("making a file in an encrypted vault (ROADMAP 2b.4)", () => {
   const AGE = Buffer.from("age-encryption.org/v1\n-> X25519 abc\nbody").toString("base64");
-  const secret = { vault: "Secret", folder: "", kind: "note", title: "Plan", localMinute: WHEN, ciphertext: AGE };
+  const secret = { vault: "Secret", folder: "", title: "Plan", localMinute: WHEN, ciphertext: AGE };
   const send = (body: unknown, init?: Parameters<typeof post>[1]) => {
     const request = post(body, init);
     return new Request(request.url.replace("/files", "/files/encrypted"), { method: "POST", headers: request.headers, body: typeof body === "string" ? body : JSON.stringify(body) });
@@ -642,7 +640,6 @@ describe("making a file in an encrypted vault (ROADMAP 2b.4)", () => {
     ["no vault", { vault: undefined }],
     ["a vault with a slash", { vault: "a/b" }],
     ["a way up in the folder", { folder: "../x" }],
-    ["a kind that is neither", { kind: "folder" }],
     ["a title with a line break", { title: "a\nb" }],
     ["a title too long", { title: "x".repeat(MAX_TITLE_CHARS + 1) }],
     ["no date", { localMinute: undefined }],

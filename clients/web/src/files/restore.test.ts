@@ -56,7 +56,7 @@ beforeEach(async () => {
 afterEach(async () => h?.close());
 
 const seed = (files: Record<string, string> = {}) => h.seed({ "Notes/fjord.vault.json": VAULT, ...files });
-const kindOf = (path: string) => (path.endsWith(".fj.md") ? "document" : path.endsWith(".md") ? "note" : "other");
+const kindOf = (path: string) => (path.endsWith(".md") ? "doc" : "other");
 const blobOf = async (path: string) => {
   const head = await h.provider.getHead(h.repo, "main");
   if (!head.changed) throw new Error("no head");
@@ -166,8 +166,8 @@ describe.skipIf(!available)(`putting back a folder (${leg})`, () => {
     await seed({ "Notes/F/A.md": "a", "Notes/F/b.md": "b" });
     const blobs = { a: await blobOf("Notes/F/A.md"), b: await blobOf("Notes/F/b.md") };
     const ids = await deletions.record(1, "c".repeat(40), "ada", [
-      { path: "Notes/F/Same.md", kind: "note", blob: blobs.a },
-      { path: "Notes/F/same.md", kind: "note", blob: blobs.b },
+      { path: "Notes/F/Same.md", kind: "doc", blob: blobs.a },
+      { path: "Notes/F/same.md", kind: "doc", blob: blobs.b },
     ]);
     const head = await fake.branchHead();
     expect(await restore(ids)).toEqual({ ok: false, reason: "bad_path" });
@@ -178,8 +178,8 @@ describe.skipIf(!available)(`putting back a folder (${leg})`, () => {
     await seed({ "Notes/F/A.md": "a" });
     const blob = await blobOf("Notes/F/A.md");
     const ids = await deletions.record(1, "c".repeat(40), "ada", [
-      { path: "Notes/F/Same.md", kind: "note", blob },
-      { path: "Notes/F/Same.md", kind: "note", blob },
+      { path: "Notes/F/Same.md", kind: "doc", blob },
+      { path: "Notes/F/Same.md", kind: "doc", blob },
     ]);
     expect(await restore(ids)).toEqual({ ok: false, reason: "bad_path" });
   });
@@ -242,14 +242,14 @@ describe.skipIf(!available)(`somewhere else (${leg})`, () => {
     expect((await fake.filesAt((await fake.branchHead())!))["Notes/Archive/2026/Old note.md"]).toBe("bytes\r\n");
   });
 
-  it("keeps what the file is: a document stays a document and a note a note", async () => {
+  it("keeps what the file is: a Markdown file stays Markdown, whatever its name", async () => {
     await seed({ "Notes/d.fj.md": "d", "Notes/n.md": "n" });
     const [doc] = await removeFile("Notes/d.fj.md");
     const [note] = await removeFile("Notes/n.md");
-    expect(await restore([doc!], "Notes/d.md")).toEqual({ ok: false, reason: "bad_path" });
-    expect(await restore([note!], "Notes/n.fj.md")).toEqual({ ok: false, reason: "bad_path" });
     expect(await restore([note!], "Notes/n.txt")).toEqual({ ok: false, reason: "bad_path" });
-    expect(await restore([doc!], "Notes/Q4.FJ.MD")).toMatchObject({ ok: true });
+    expect(await restore([doc!], "Notes/d")).toEqual({ ok: false, reason: "bad_path" });
+    // `.fj.md` is no different from `.md` (spec §8.4): either is put back as the other.
+    expect(await restore([doc!], "Notes/Q4.MD")).toMatchObject({ ok: true });
   });
 
   it.each(["n.md", "", "Notes/a:b.md", "Notes/CON.md", "Notes/ trailing /x.md", "Notes//x.md", "Notes/x.md ", "Notes/../x.md", "Notes/./x.md", "Notes/.git/x.md", "/Notes/x.md"])("refuses the path %j as a name fjord-core would not accept", async (path) => {
@@ -314,7 +314,7 @@ describe.skipIf(!available)(`when others are writing too, and when it goes wrong
 
   it("says when git no longer has the file, and writes nothing", async () => {
     await seed({ "Notes/n.md": "x" });
-    const [id] = await deletions.record(1, "c".repeat(40), "ada", [{ path: "Notes/gone.md", kind: "note", blob: "e".repeat(40) }]);
+    const [id] = await deletions.record(1, "c".repeat(40), "ada", [{ path: "Notes/gone.md", kind: "doc", blob: "e".repeat(40) }]);
     const head = await fake.branchHead();
     expect(await restore([id!])).toEqual({ ok: false, reason: "blob_gone" });
     expect(await fake.branchHead()).toBe(head);

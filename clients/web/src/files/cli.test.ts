@@ -88,7 +88,7 @@ async function verify(): Promise<{ status: number | null; report: { counts: { er
 }
 
 const make = (input: Partial<Parameters<typeof createFile>[1]>) =>
-  createFile({ provider: h.provider, ref: h.repo, branch: "main", format: fjord() }, { vault: "Notes", folder: "", kind: "note", title: "", localMinute: WHEN, author: AUTHOR, ...input });
+  createFile({ provider: h.provider, ref: h.repo, branch: "main", format: fjord() }, { vault: "Notes", folder: "", title: "", localMinute: WHEN, author: AUTHOR, ...input });
 
 describe.skipIf(!enabled)("what the web creates, as the CLI sees it", () => {
   it("starts from a repository the CLI accepts, so that what follows is about what was made", async () => {
@@ -96,7 +96,7 @@ describe.skipIf(!enabled)("what the web creates, as the CLI sees it", () => {
     expect({ status, errors: report.counts.errors, warnings: report.counts.warnings, diagnostics: report.diagnostics }).toEqual({ status: 0, errors: 0, warnings: 0, diagnostics: [] });
   });
 
-  it("accepts every kind of note and document it makes: titled, untitled, numbered, Unicode, long, nested", async () => {
+  it("accepts every document it makes: titled, untitled, numbered, Unicode, long, nested", async () => {
     const before = notesDocs((await verify()).report);
     const made = [
       await make({ title: "Weekly review: what went well?" }),
@@ -107,19 +107,19 @@ describe.skipIf(!enabled)("what the web creates, as the CLI sees it", () => {
       await make({ title: "word ".repeat(40).trim() }), // cut at 60 characters
       await make({ title: "CON" }), // a name Windows reserves
       await make({ folder: "Projects/2026", title: "Todo" }),
-      await make({ kind: "document", title: "Q4: plan \"final\"" }),
-      await make({ kind: "document", title: "Q4: plan \"final\"" }), // numbered
-      await make({ kind: "document", title: "日本語の文書" }),
-      await make({ kind: "document", folder: "Projects/2026", title: "plan" }), // a document next to one called Plan, case aside
-      await make({ kind: "document", title: "- [ ] # a title with markers" }),
-      await make({ kind: "document", title: "x".repeat(200) }),
+      await make({ title: "Q4: plan \"final\"" }),
+      await make({ title: "Q4: plan \"final\"" }), // numbered
+      await make({ title: "日本語の文書" }),
+      await make({ folder: "Projects/2026", title: "plan" }), // a document next to one called Plan, case aside
+      await make({ title: "- [ ] # a title with markers" }),
+      await make({ title: "x".repeat(200) }),
     ];
     expect(made.every((result) => result.ok), JSON.stringify(made.filter((result) => !result.ok))).toBe(true);
 
     const { status, report } = await verify();
     expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
-    // The CLI counted the documents it found (a note with no header is not one); the web's own are among them.
-    expect(notesDocs(report)).toBe(before + made.filter((result) => result.ok && result.path.endsWith(".fj.md")).length);
+    // The CLI counted the Docs it found (a file with no header is not one): every file the web made has an id from the start.
+    expect(notesDocs(report)).toBe(before + made.filter((result) => result.ok).length);
   });
 
   it("accepts what renaming and moving leave: the same documents with the same ids, in their new places", async () => {
@@ -152,14 +152,13 @@ const module = enabled ? (createRequire(import.meta.url)(`${wasmDirectory()}/fjo
 
 describe.skipIf(!enabled)("what the web creates in an encrypted vault, as the CLI sees it (ROADMAP 2b.4)", () => {
   /** What the browser would send: the file written and encrypted to the vault's recipients, then committed by the server's rules. */
-  async function makeSecret(naming: "plain" | "id", input: { kind?: "note" | "document"; title?: string; folder?: string }) {
-    const kind = input.kind ?? "note";
+  async function makeSecret(naming: "plain" | "id", input: { title?: string; folder?: string }) {
     const title = input.title ?? "";
-    const sealed = newEncryptedFile(module!, { kind, title, naming, recipients: RECIPIENTS, when: WHEN, now: 1_800_000_000_000, random: crypto.getRandomValues(new Uint8Array(16)) });
+    const sealed = newEncryptedFile(module!, { title, naming, recipients: RECIPIENTS, when: WHEN, now: 1_800_000_000_000, random: crypto.getRandomValues(new Uint8Array(16)) });
     if (!sealed.ok) throw new Error("the title could not name a file");
     return createEncryptedFile(
       { provider: h.provider, ref: h.repo, branch: "main", format: fjord() },
-      { vault: naming === "plain" ? "Locked" : "Sealed", folder: input.folder ?? "", target: { naming, suffix: ".age" }, kind, title: naming === "plain" ? title : "", localMinute: WHEN, ciphertext: Uint8Array.from(Buffer.from(sealed.ciphertext, "base64")), author: AUTHOR },
+      { vault: naming === "plain" ? "Locked" : "Sealed", folder: input.folder ?? "", target: { naming, suffix: ".age" }, title: naming === "plain" ? title : "", localMinute: WHEN, ciphertext: Uint8Array.from(Buffer.from(sealed.ciphertext, "base64")), author: AUTHOR },
     );
   }
 
@@ -173,12 +172,12 @@ describe.skipIf(!enabled)("what the web creates in an encrypted vault, as the CL
       await makeSecret("plain", { title: "Weekly review: what went well?" }),
       await makeSecret("plain", { title: "" }),
       await makeSecret("plain", { title: "" }),
-      await makeSecret("plain", { kind: "document", title: "Q4: plan \"final\"" }),
-      await makeSecret("plain", { kind: "document", title: "Q4: plan \"final\"" }),
+      await makeSecret("plain", { title: "Q4: plan \"final\"" }),
+      await makeSecret("plain", { title: "Q4: plan \"final\"" }),
       await makeSecret("plain", { title: "日本語のノート — 🌊" }),
       await makeSecret("id", { title: "" }),
-      await makeSecret("id", { kind: "document", title: "Q4 plan" }),
-      await makeSecret("id", { kind: "document", title: "Q4 plan" }),
+      await makeSecret("id", { title: "Q4 plan" }),
+      await makeSecret("id", { title: "Q4 plan" }),
     ];
     expect(made.every((result) => result.ok), JSON.stringify(made.filter((result) => !result.ok))).toBe(true);
     const { status, report } = await verify();
@@ -197,11 +196,11 @@ describe.skipIf(!enabled || !haveAge)("what the web renames, moves, deletes and 
     return { file, recipient: `${recipient}\n` };
   }
   const deps = () => ({ provider: h.provider, ref: h.repo, branch: "main", format: fjord() });
-  const make = async (vault: "Locked" | "Sealed", recipients: string, input: { kind: "note" | "document"; title: string; folder?: string }) => {
+  const make = async (vault: "Locked" | "Sealed", recipients: string, input: { title: string; folder?: string }) => {
     const naming = vault === "Locked" ? "plain" : "id";
     const sealed = newEncryptedFile(module!, { ...input, naming, recipients, when: WHEN, now: 1_800_000_000_000, random: crypto.getRandomValues(new Uint8Array(16)) });
     if (!sealed.ok) throw new Error("bad title");
-    const made = await createEncryptedFile(deps(), { vault, folder: input.folder ?? "", target: { naming, suffix: ".age" }, kind: input.kind, title: naming === "plain" ? input.title : "", localMinute: WHEN, ciphertext: Uint8Array.from(Buffer.from(sealed.ciphertext, "base64")), author: AUTHOR });
+    const made = await createEncryptedFile(deps(), { vault, folder: input.folder ?? "", target: { naming, suffix: ".age" }, title: naming === "plain" ? input.title : "", localMinute: WHEN, ciphertext: Uint8Array.from(Buffer.from(sealed.ciphertext, "base64")), author: AUTHOR });
     if (!made.ok) throw new Error(`could not make: ${made.reason}`);
     return made.path;
   };
@@ -220,13 +219,13 @@ describe.skipIf(!enabled || !haveAge)("what the web renames, moves, deletes and 
 
   it("leaves a repository that verifies, and whose files the real age still opens, in both namings", async () => {
     const { file: key, recipient } = identity();
-    const note = await make("Locked", recipient, { kind: "note", title: "Plan" });
-    const doc = await make("Locked", recipient, { kind: "document", title: "Budget" });
-    const sealed = await make("Sealed", recipient, { kind: "document", title: "Hidden plan" });
-    const other = await make("Sealed", recipient, { kind: "note", title: "Other" });
+    const note = await make("Locked", recipient, { title: "Plan" });
+    const doc = await make("Locked", recipient, { title: "Budget" });
+    const sealed = await make("Sealed", recipient, { title: "Hidden plan" });
+    const other = await make("Sealed", recipient, { title: "Other" });
 
     await move("Locked", note, "Locked/Plan v2.md.age", false); // a rename
-    await move("Locked", doc, "Locked/Archive/Budget.fj.md.age", false); // a move into a new folder
+    await move("Locked", doc, "Locked/Archive/Budget.md.age", false); // a move into a new folder
     await move("Sealed", sealed, `Sealed/Archive/${sealed.split("/").pop()}`, true); // an id-named file moves by its identifier
     // A delete and an Undo, of an id-named vault's file: the same bytes come back under the same identifier.
     const { database } = await freshDatabase();
@@ -246,12 +245,12 @@ describe.skipIf(!enabled || !haveAge)("what the web renames, moves, deletes and 
     expect({ status, diagnostics: report.diagnostics }).toEqual({ status: 0, diagnostics: [] });
 
     // age -d recovers each file, with no help from fjord.
-    expect(new TextDecoder().decode(await decrypt(key, "Locked/Plan v2.md.age"))).toBe("# Plan\n");
-    expect(new TextDecoder().decode(await decrypt(key, "Locked/Archive/Budget.fj.md.age"))).toContain("title: Budget");
+    expect(new TextDecoder().decode(await decrypt(key, "Locked/Plan v2.md.age"))).toContain("title: Plan");
+    expect(new TextDecoder().decode(await decrypt(key, "Locked/Archive/Budget.md.age"))).toContain("title: Budget");
     const container = await decrypt(key, `Sealed/Archive/${sealed.split("/").pop()}`);
     const names = spawnSync("tar", ["-tf", "-"], { input: container, encoding: "utf8", env: { ...process.env, COPYFILE_DISABLE: "1" } });
-    expect(names.stdout.trim()).toBe("Hidden plan.fj.md"); // `age -d | tar -x` gives the real name
-    expect(new TextDecoder().decode(spawnSync("tar", ["-xOf", "-"], { input: await decrypt(key, other), env: { ...process.env, COPYFILE_DISABLE: "1" } }).stdout)).toBe("# Other\n");
+    expect(names.stdout.trim()).toBe("Hidden plan.md"); // `age -d | tar -x` gives the real name
+    expect(new TextDecoder().decode(spawnSync("tar", ["-xOf", "-"], { input: await decrypt(key, other), env: { ...process.env, COPYFILE_DISABLE: "1" } }).stdout)).toContain("# Other\n");
   });
 
   it("leaves a repository that verifies when files move into, out of and between encrypted vaults, and age still opens what it holds (ROADMAP 2b.6)", async () => {

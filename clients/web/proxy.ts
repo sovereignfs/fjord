@@ -46,10 +46,11 @@ export function proxy(request: NextRequest) {
   if (shared && searchParams.has("token")) {
     return marked(NextResponse.rewrite(new URL("/api/links/enter", request.url), { request: { headers: requestHeaders } }));
   }
-  // The routes' old names, for a bookmark or a link with no token in it: sent on for good to the short ones, with the query as it was.
-  const old = /^\/(doc|note)\/([^/]+)$/.exec(pathname);
+  // The routes' old names, for a bookmark or a link with no token in it: sent on for good to `/d/<id>`, with the query as it was. (`/note/` and `/n/`
+  // were a note's, which is no different from a document since RFC 0002: there is one kind of Doc.)
+  const old = /^\/(?:doc|note|n)\/([^/]+)$/.exec(pathname);
   if (old) {
-    const target = new URL(`/${old[1] === "doc" ? "d" : "n"}/${old[2]}`, request.url);
+    const target = new URL(`/d/${old[1]}`, request.url);
     target.search = request.nextUrl.search;
     // Nothing that is a token goes into an address by way of a redirect: a link's token is only ever swapped for a cookie, by the entry above.
     target.searchParams.delete("token");

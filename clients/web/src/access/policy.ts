@@ -9,8 +9,8 @@
  *
  * **Roles each include the ones before them** (§12): view reads; comment also comments, replies and resolves; edit also
  * edits, into the working copy. A role never allows making a version, renaming, moving, deleting, restoring or sharing: those
- * are the owner's in phase 1 (§8, §11, §12), and a share cannot be given them. **Only documents are shared** (`*.fj.md`):
- * a note, a folder or a file in an encrypted vault (shared in phase 2, as sealed copies) has no share to hold.
+ * are the owner's in phase 1 (§8, §11, §12), and a share cannot be given them. **Only a Doc is shared** (a plaintext `.md` with an `id`):
+ * a folder or a file in an encrypted vault (shared in phase 2, as sealed copies) has no share to hold.
  */
 export const ROLES = ["view", "comment", "edit"] as const;
 export type Role = (typeof ROLES)[number];
@@ -43,7 +43,7 @@ export const ACTIONS = [
 export type Action = (typeof ACTIONS)[number];
 
 /** What an action is done to. `encrypted` is a file of an encrypted vault, which phase 1 does not share. */
-export type Target = { kind: "document" | "note" | "folder"; encrypted?: boolean };
+export type Target = { kind: "document" | "folder"; encrypted?: boolean };
 
 /** Role by role, what it adds to the one before (§12). */
 const ADDED: Record<Role, readonly Action[]> = {

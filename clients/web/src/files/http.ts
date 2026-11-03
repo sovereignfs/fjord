@@ -4,7 +4,7 @@ import { isProviderError } from "../providers/errors";
 import type { Identity } from "../providers/types";
 import { type Caller, isRepositoryPath } from "../working/http";
 import { MAX_CIPHERTEXT_BYTES, fromBase64, whyNotCiphertext } from "../working/ciphertext";
-import type { CreateResult, FileKind, VaultRefusal } from "./create";
+import type { CreateResult, VaultRefusal } from "./create";
 import type { CreateEncryptedResult, EncryptedVaultRefusal } from "./create-encrypted";
 import type { TransferResult } from "./transfer";
 import { MAX_TITLE_CHARS } from "./create";
@@ -41,7 +41,7 @@ export interface Deps {
   create: (
     accountId: string,
     id: number,
-    input: { vault: string; folder: string; kind: FileKind; title: string; localMinute: LocalMinute; author: Identity },
+    input: { vault: string; folder: string; title: string; localMinute: LocalMinute; author: Identity },
   ) => Promise<{ found: false } | { found: true; result: CreateResult | { ok: false; reason: VaultRefusal } }>;
   /**
    * Make a file in an encrypted vault of one of the caller's repositories (ROADMAP 2b.4) from ciphertext the browser made. `title` is empty
@@ -50,7 +50,7 @@ export interface Deps {
   createEncrypted: (
     accountId: string,
     id: number,
-    input: { vault: string; folder: string; kind: FileKind; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
+    input: { vault: string; folder: string; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
   ) => Promise<{ found: false } | { found: true; result: CreateEncryptedResult | { ok: false; reason: EncryptedVaultRefusal | "wrong_shape" } }>;
   /**
    * Delete a note, a document or a folder of one of the caller's repositories (ROADMAP 1b.12). `found: false` if it is not the
@@ -122,7 +122,7 @@ function json(status: number, body: unknown): Response {
 const failure = (status: number, code: string, message: string, extra: Record<string, unknown> = {}) => json(status, { error: { code, message, ...extra } });
 const notFound = () => failure(404, "not_found", "There is no such connection.");
 
-/** `POST` makes a note or a document, `{ vault, folder, kind, title?, localMinute }`: one commit that adds one file. */
+/** `POST` makes a document, `{ vault, folder, title?, localMinute }`: one commit that adds one file. */
 export async function handleCreate(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
   if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
   if (!caller) return failure(401, "unauthorized", "Sign in first.");
@@ -137,10 +137,9 @@ export async function handleCreate(request: Request, caller: Caller | null, deps
     const body = parse(text);
     if (!body) return failure(400, "invalid_request", "Send a JSON object.");
 
-    const { vault, folder, kind, title, localMinute } = body;
+    const { vault, folder, title, localMinute } = body;
     if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
     if (typeof folder !== "string" || (folder !== "" && !isRepositoryPath(folder))) return failure(400, "invalid_request", "Say which folder of the vault, by its path, or \"\" for its top.");
-    if (kind !== "note" && kind !== "document") return failure(400, "invalid_request", "Say whether to make a note or a document.");
     if (title !== undefined && title !== null && (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed())) {
       return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or leave it out.`);
     }
@@ -150,7 +149,6 @@ export async function handleCreate(request: Request, caller: Caller | null, deps
     const outcome = await deps.create(caller.accountId, number, {
       vault,
       folder,
-      kind,
       title: typeof title === "string" ? title : "",
       localMinute: minute,
       author: { name: caller.name, email: caller.email },
@@ -170,7 +168,7 @@ const MAX_NEW_CIPHERTEXT_BYTES = 64 * 1024;
 const MAX_ENCRYPTED_BODY_CHARS = Math.ceil((MAX_NEW_CIPHERTEXT_BYTES * 4) / 3) + MAX_BODY_CHARS;
 
 /**
- * `POST` makes a note or a document in an **encrypted** vault, `{ vault, folder, kind, title?, localMinute, ciphertext }` (ROADMAP 2b.4): the browser wrote the
+ * `POST` makes a document in an **encrypted** vault, `{ vault, folder, title?, localMinute, ciphertext }` (ROADMAP 2b.4): the browser wrote the
  * file and encrypted it to the vault's recipients, and this commits those bytes as one new file. The server has no key. `ciphertext` is base64 and must begin
  * as an age file does; plain text is refused. A vault that names its files by id is sent no title (the name is inside the container; `wrong_shape` if it is), and one that names them
  * by their names is sent the title they are named by.
@@ -189,10 +187,9 @@ export async function handleCreateEncrypted(request: Request, caller: Caller | n
     const body = parse(text);
     if (!body) return failure(400, "invalid_request", "Send a JSON object.");
 
-    const { vault, folder, kind, title, localMinute, ciphertext } = body;
+    const { vault, folder, title, localMinute, ciphertext } = body;
     if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
     if (typeof folder !== "string" || (folder !== "" && !isRepositoryPath(folder))) return failure(400, "invalid_request", "Say which folder of the vault, by its path, or \"\" for its top.");
-    if (kind !== "note" && kind !== "document") return failure(400, "invalid_request", "Say whether to make a note or a document.");
     if (title !== undefined && title !== null && (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed())) {
       return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or leave it out.`);
     }
@@ -208,7 +205,6 @@ export async function handleCreateEncrypted(request: Request, caller: Caller | n
     const outcome = await deps.createEncrypted(caller.accountId, number, {
       vault,
       folder,
-      kind,
       title: typeof title === "string" ? title : "",
       localMinute: minute,
       ciphertext: bytes,
@@ -463,7 +459,7 @@ const TRANSFER_REFUSALS: Record<Extract<TransferResult, { ok: false }>["reason"]
   gone: { status: 409, message: "That is no longer in the repository. Nothing was moved." },
   upstream_changed: { status: 409, message: "That file changed in the repository after you looked at it, so it was not moved. Look at it again." },
   has_drafts: { status: 409, message: "This file, or a place it is going to, has unsaved changes. Save a version of them, or discard them, first. Nothing was moved." },
-  bad_path: { status: 422, message: "That is not a name or a place a file can have there. Names cannot hold characters such as : ? * or /, end in a space or a dot, or be one Windows reserves; a plaintext vault takes .md and .fj.md files." },
+  bad_path: { status: 422, message: "That is not a name or a place a file can have there. Names cannot hold characters such as : ? * or /, end in a space or a dot, or be one Windows reserves; a plaintext vault takes .md files." },
   protected: { status: 422, message: "A vault, its manifest and the repository's own files cannot be moved from here." },
   wrong_form: { status: 422, message: "What was sent is not the form the vault it goes to holds: an encrypted vault takes only encrypted files, and a plaintext one only text. Nothing was moved." },
   path_taken: { status: 409, message: "Something is at that name already, or has a name like it that differs only by letter case. Nothing was moved and nothing was replaced. Choose another name." },
@@ -537,7 +533,7 @@ const MOVE_REFUSALS: Record<Extract<MoveResult, { ok: false }>["reason"], { stat
   draft_not_saved: { status: 409, message: () => "This note has unsaved changes, and they could not be saved as a version first, so it was not moved. Open it and save a version, or discard the changes." },
   protected: { status: 422, message: () => "A vault, its manifest and the repository's own files cannot be renamed or moved from here." },
   bad_path: { status: 422, message: () => "That is not a name or a place a file can have here. Names cannot hold characters such as : ? * or /, end in a space or a dot, or be one Windows reserves." },
-  extension_changed: { status: 422, message: () => "A rename keeps the file's kind: a document stays a .fj.md and a note stays a .md (and an encrypted file keeps its .age)." },
+  extension_changed: { status: 422, message: () => "A rename keeps the file's extension: a .md stays a .md (and an encrypted file keeps its .age)." },
   id_named: { status: 422, message: () => "This vault names its files by identifier, which never changes. A file in it is renamed by changing the name kept inside it, which only your browser can do, with your identity." },
   other_vault: { status: 422, message: () => "A file does not leave an encrypted vault this way: it has to be decrypted first. Use Move to another vault on the file's page, which does that in your browser." },
   into_itself: { status: 422, message: () => "A folder cannot be moved into itself." },

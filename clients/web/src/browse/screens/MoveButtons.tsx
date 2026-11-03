@@ -25,7 +25,7 @@ export function MoveButtons({
   connectionId: number;
   vault: string;
   target: DeleteTarget;
-  /** What stays of a file's name when it is renamed: `.md` or `.fj.md`. Empty for a folder. */
+  /** What stays of a file's name when it is renamed: its extension (`.md`). Empty for a folder. */
   suffix: string;
   /** Folders of plaintext vaults, repository-relative (a vault's own directory is its top), that it can be moved to. */
   destinations: string[];

@@ -10,5 +10,5 @@ export const metadata = { title: "Document" };
  */
 export default async function DocumentByIdPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ wrong?: string | string[] }> }) {
   const { wrong } = await searchParams;
-  return <IdPage route="d" id={(await params).id} wrong={wrong === "wait" ? "wait" : wrong === undefined ? undefined : "wrong"} />;
+  return <IdPage id={(await params).id} wrong={wrong === "wait" ? "wait" : wrong === undefined ? undefined : "wrong"} />;
 }

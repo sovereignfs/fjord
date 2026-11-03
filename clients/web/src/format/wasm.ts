@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { Discovery, JournalEntrySummary, KindSetupOptions, KindSetupResult, ListedFile, LocalMinute, MergeResult, RepositoryKind, RepositoryManifest, SetupExisting, SetupOptions, SetupResult, SiteEngine, VaultOptions, VaultResult, WithKindResult } from "./types";
+import type { AdoptExisting, AdoptOptions, AdoptResult, DetectedSite, Discovery, JournalEntrySummary, KindSetupOptions, KindSetupResult, ListedFile, LocalMinute, MergeResult, RepositoryKind, RepositoryManifest, SetupExisting, SetupOptions, SetupResult, SiteEngine, VaultOptions, VaultResult, WithKindResult } from "./types";
 
 /**
  * `fjord-core` as WebAssembly, in Node (DESIGN.md §2: the server reads the format, the browser never does in
@@ -23,6 +23,8 @@ interface Module {
   planSetup(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
   planVault(optionsJson: string, manifest: string, existingJson: string, nowMs: number, random: Uint8Array): string;
   planSetupKind(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
+  planAdopt(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
+  detectSite(existingJson: string): string;
   withKind(manifest: string, kind: string, engine: string | undefined): string;
   kindRule(kind: string, encryptedJson: string): string | undefined;
   newEntry(id: string, title: string | undefined, created: string, date: string): string;
@@ -170,6 +172,21 @@ export class Fjord {
     return JSON.parse(this.module.planSetupKind(JSON.stringify(options), JSON.stringify(existing), nowMs, random)) as KindSetupResult;
   }
 
+  /**
+   * What to add to a directory that already has files to make a Fjord repository of it (RFC 0002): `fjord.json`, each chosen
+   * vault's manifest at any depth, and lines at the end of `.gitattributes` (and `.gitignore`, where something is encrypted).
+   * The CLI's `fjord init --adopt` is the same planner. Pure: the time and at least `16 * (1 + vaults)` random bytes are given.
+   * A finding is `ok: false`; a malformed call throws.
+   */
+  planAdopt(options: AdoptOptions, existing: AdoptExisting, nowMs: number, random: Uint8Array): AdoptResult {
+    return JSON.parse(this.module.planAdopt(JSON.stringify(options), JSON.stringify(existing), nowMs, random)) as AdoptResult;
+  }
+
+  /** The static site these paths are (`astro.config.*` at the root: Astro, content in `src/content`; `_config.yml`: Jekyll, `_posts`), or null. */
+  detectSite(paths: string[]): DetectedSite {
+    return JSON.parse(this.module.detectSite(JSON.stringify({ paths, gitattributes: null }))) as DetectedSite;
+  }
+
   /** `fjord.json`'s text with its kind changed (spec §3.1), every other field kept; a site's engine is written with it. */
   withKind(manifest: string, kind: RepositoryKind, engine?: SiteEngine): WithKindResult {
     return JSON.parse(this.module.withKind(manifest, kind, engine)) as WithKindResult;
@@ -294,7 +311,7 @@ export class Fjord {
     return this.module.promoteDocument(text, id, created, title);
   }
 
-  /** The title a document implies: its first level-one heading, else its file name without `.md` or `.fj.md`. */
+  /** The title a document implies: its first level-one heading, else its file name without `.md`. */
   impliedTitle(text: string, fileName: string): string {
     return this.module.impliedTitle(text, fileName);
   }

@@ -53,7 +53,7 @@ describe.skipIf(!available)("a note's or a document's header, for the page", () 
 
   it("lists the properties Fjord knows and, in the order written, every other key as it is", () => {
     const text = "---\nzeta: 1\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\ntitle: Q4 plan\ncreated: 2026-10-16T09:34:00Z\nx-future:\n  - a\n  - b\ntags: plain\n---\nBody\n";
-    const info = headerOf(fjord(), text, "Q4 plan.fj.md", NOW, random);
+    const info = headerOf(fjord(), text, "Q4 plan.md", NOW, random);
     expect(info?.properties).toEqual({
       id: "01jagc4k7pt8y3wqnmzv5xrb8j",
       title: "Q4 plan",
@@ -85,8 +85,8 @@ describe.skipIf(!available)("a note's or a document's header, for the page", () 
     expect(promoted.slice(bodyStartOf(fjord(), promoted))).toBe(`\n${text}`);
   });
 
-  it("names a document with no header by its file name without .fj.md, and a rule further down is not a header", () => {
-    const info = headerOf(fjord(), "Just text\n\n---\n\nmore\n", "Q4 plan.fj.md", NOW, random);
+  it("names a document with no header by its file name without .md, and a rule further down is not a header", () => {
+    const info = headerOf(fjord(), "Just text\n\n---\n\nmore\n", "Q4 plan.md", NOW, random);
     expect(fjord().parseDocument(`${info?.promotion?.header}x`).title).toBe("Q4 plan");
     expect(info?.bodyStart).toBe(0);
   });

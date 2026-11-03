@@ -5,7 +5,13 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking: one kind of Doc** (spec §8.4, RFC 0002, ROADMAP web P17): `discover`'s file `kind` is `doc` for any `.md`, where it was `document` for `*.fj.md` and `note` for the rest; `impliedTitle` takes only the `.md` off a name; and a vault may be at any depth (never inside another), so `manifestPaths` and `discover` find `src/content` as they find `Public`. The fixture suite adds `depth/`.
+
 ### Added
+
+- **`planAdopt` and `detectSite`** (ROADMAP web P17): `fjord_core::adopt::plan_adopt`, the files to add to a directory that already has files to make a Fjord repository of it (the vaults chosen, at any depth, of a kind), writing over nothing but lines added to `.gitattributes` and `.gitignore`, as `fjord init --adopt` does; and `detect_site`, which finds an Astro or Jekyll site and the folder its engine reads its content from. A finding about the directory is data (`ok: false`, with a code); a malformed call throws. Held to the Rust planner by `tests/js/adopt.test.mjs`. 1,442,495 bytes, 541,516 gzipped.
 
 - **Repository kinds** (ROADMAP web P12, spec §3.1): `describeRepositoryManifest` reports the `kind` to present a repository as, its
   `declaredKind` and `ssgEngine`; `planKind` plans a new repository of a kind from `fjord_core::scaffold::plan_kind_with`, as

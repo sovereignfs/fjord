@@ -23,8 +23,8 @@ export interface DraftOfNote {
 }
 
 /**
- * A note in the note editor, or a document in the document editor, kept as a draft as it is edited (ROADMAP 1b.2, 1b.3,
- * 1b.5, 1b.8). A note or a document is a header and a body, and the editors are given the body only: `header.bodyStart` is
+ * A Doc in the editor its repository's kind chooses (the document editor, or the note editor), kept as a draft as it is edited
+ * (ROADMAP 1b.2, 1b.3, 1b.5, 1b.8; RFC 0002). A Doc is a header and a body, and the editors are given the body only: `header.bodyStart` is
  * where the body begins in the text, and the header before it is put back in front of whatever the editor says, so that it is
  * never the editor's to rewrite (DESIGN.md §9). A header that cannot be read means there is no `header`, and the text is
  * edited whole. The header is shown in the properties panel, where its title can be changed; a file that has no header is
@@ -44,7 +44,7 @@ export function NoteView({
   blob,
   draft,
   header,
-  kind,
+  editor,
   docId,
   tagSuggestions,
 }: {
@@ -53,8 +53,9 @@ export function NoteView({
   label: string;
   text: string;
   blob: string;
-  kind: "note" | "document";
-  /** For a document whose header has an `id`: the key its comments are kept under (ROADMAP 1d.1). */
+  /** Which editor the repository's kind opens a Doc in (RFC 0002): the document editor, or the byte-faithful Markdown one. */
+  editor: "document" | "note";
+  /** For a Doc whose header has an `id`: the key its comments are kept under (ROADMAP 1d.1). */
   docId?: string | undefined;
   draft: DraftOfNote | null;
   /** For a file with a header that can be read, or none: where its body starts in the text shown (the draft, else the file), and its properties. */
@@ -63,7 +64,7 @@ export function NoteView({
   tagSuggestions?: string[] | undefined;
 }) {
   const start = draft?.content ?? text;
-  const { adapter, onNeedName, panel } = useComments(kind === "document" ? docId : undefined, { guest: false });
+  const { adapter, onNeedName, panel } = useComments(editor === "document" ? docId : undefined, { guest: false });
   const bodyStart = header?.bodyStart;
   // The header in front of the body, as it is now: the one the file has, the one it is promoted to, or one with a new title.
   const headerNow = useRef(bodyStart === undefined ? "" : start.slice(0, bodyStart));
@@ -243,7 +244,7 @@ export function NoteView({
       {properties ? <DocumentProperties properties={properties} pending={promotion !== undefined && !promoted} disabled={saving} onTitle={changeTitle} onDate={changeDate} onTags={changeTags} tagSuggestions={tagSuggestions} /> : null}
       {bodyStart === undefined ? (
         <NoteEditor aria-label={label} value={start} onChange={(next) => saver.change(next)} readOnly={saving} />
-      ) : kind === "document" ? (
+      ) : editor === "document" ? (
         <DocumentEditor aria-label={label} role={saving ? "view" : "edit"} value={start.slice(bodyStart)} onChange={changeBody} comments={adapter} onNeedName={onNeedName} />
       ) : (
         <NoteEditor aria-label={label} value={start.slice(bodyStart)} onChange={changeBody} readOnly={saving} />

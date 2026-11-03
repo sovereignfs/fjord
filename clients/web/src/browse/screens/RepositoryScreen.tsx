@@ -20,12 +20,13 @@ import type { TransferTarget } from "../../keys/files";
 import type { VaultListing } from "../../format/types";
 import type { EncryptedCreate } from "../screens/NewFile";
 import { editingFor, recipientsFor } from "../../encrypted/server";
+import { kindFor } from "../../kinds/registry";
 
 /**
  * One of the account's own repositories (`/repo/<connection>`), and a place inside it: `/repo/<connection>/<vault>/<folders…>`
  * is a folder, and down to a file's name is the file (ROADMAP 1a.11). Someone else's repository, a path that is not there and
- * one that tries to climb out are all a 404 and nothing more. `path` is the decoded segments. `/d/<id>` and `/n/<id>`
- * show a file the same way, once the id has been found (ROADMAP 1b.6).
+ * one that tries to climb out are all a 404 and nothing more. `path` is the decoded segments. `/d/<id>`
+ * shows a file the same way, once the id has been found (ROADMAP 1b.6).
  */
 export async function RepositoryScreen({ connection, path, view, query = {} }: { connection: string; path: string[] | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined; /** The page's query, for an entry view that pages or filters. */ query?: Record<string, string | string[] | undefined> }) {
   const { user } = await requireSession();
@@ -55,11 +56,11 @@ export async function RepositoryScreen({ connection, path, view, query = {} }: {
     } else {
       // A note or a document in a plaintext vault is shown in its editor; reading it is the only thing that touches the file.
       const file = found.location.kind === "file" ? found.location.file : undefined;
-      const note = file?.kind === "note" || file?.kind === "document" ? await readNoteFor(user.id, current, outcome.read, file.path) : undefined;
-      // Reading it tells which Doc it is, which is how `/d/<id>` and `/n/<id>` find it later (ROADMAP 1b.6).
+      const note = file?.kind === "doc" ? await readNoteFor(user.id, current, outcome.read, file.path) : undefined;
+      // Reading it tells which Doc it is, which is how `/d/<id>` finds it later (ROADMAP 1b.6).
       if (file !== undefined && note?.ok) await recordFileRead(current.id, file, note.blob, note.text);
       const docId = file !== undefined && note?.ok ? docIdOf(fjord(), note.text) : null;
-      const permalink = file !== undefined && docId !== null ? `/${file.kind === "document" ? "d" : "n"}/${docId}` : undefined;
+      const permalink = file !== undefined && docId !== null ? `/d/${docId}` : undefined;
       // What was typed here and not yet saved as a version: kept by the server (ROADMAP 1b.8), and found again here.
       const kept = file !== undefined && note?.ok ? await (await workingCopyService()).get(current.id, file.path) : undefined;
       const draft = kept ? { content: kept.content, baseBlob: kept.baseBlob, guests: [...new Set(kept.editors.flatMap((editor) => (editor.type === "guest" ? [editor.name] : [])))] } : null;
@@ -81,7 +82,7 @@ export async function RepositoryScreen({ connection, path, view, query = {} }: {
       const writtenAs = vaultOf?.encrypted === true ? checkEncryptedVault(outcome.read.discovery.vaults, outcome.read.manifests, vaultOf.directory) : undefined;
       const encryptedNaming = writtenAs?.ok ? writtenAs.target.naming : undefined;
       // Where a file can go in another vault when one of the two is encrypted (ROADMAP 2b.6): the page makes the bytes, so it is given the recipients.
-      const movable = file !== undefined && vaultOf !== undefined && fileBlob !== undefined && (file.kind === "payload" ? encryptedNaming !== undefined : (file.kind === "note" || file.kind === "document") && vaultOf.encrypted === false);
+      const movable = file !== undefined && vaultOf !== undefined && fileBlob !== undefined && (file.kind === "payload" ? encryptedNaming !== undefined : file.kind === "doc" && vaultOf.encrypted === false);
       const transferTargets = movable ? transferTargetsFor(outcome.read, vaultOf) : undefined;
       const prefix = `${segments.join("/")}/`;
       const folderFiles = found.location.kind === "folder" && !outcome.read.partial ? [...outcome.read.blobs.keys()].filter((path) => path.startsWith(prefix)).length : undefined;
@@ -90,7 +91,7 @@ export async function RepositoryScreen({ connection, path, view, query = {} }: {
       const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
       // In a plaintext journal, the tags already in use are offered while one is typed (ROADMAP 3b.3): from what its timeline knows.
       const tagSuggestions = note?.ok ? await journalTagsFor(user.id, current, outcome.read) : undefined;
-      content = <FolderView tagSuggestions={tagSuggestions} connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} encryptedCreate={encryptedCreate} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "document" ? (docId ?? undefined) : undefined} destinations={moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined)} encryptedNaming={encryptedNaming} transferTargets={transferTargets} />;
+      content = <FolderView tagSuggestions={tagSuggestions} connectionId={current.id} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} encryptedCreate={encryptedCreate} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "doc" ? (docId ?? undefined) : undefined} editor={kindFor(outcome.read.manifest).editor} destinations={moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined)} encryptedNaming={encryptedNaming} transferTargets={transferTargets} />;
     }
   }
 

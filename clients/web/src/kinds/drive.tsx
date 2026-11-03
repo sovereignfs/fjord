@@ -11,6 +11,7 @@ import type { EntryViewProps, KindModule } from "./types";
 export const driveKind: KindModule = {
   id: "drive",
   label: "Drive",
+  editor: "document",
   EntryView: DriveEntry,
   contentModel: { placement: "anywhere", fields: ["title", "tags"] },
   actions: [],

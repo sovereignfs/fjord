@@ -5,7 +5,7 @@ import * as postgresSchema from "../db/schema/postgres";
 import * as sqliteSchema from "../db/schema/sqlite";
 
 /**
- * Which Doc is at which path (DESIGN.md §9, §14, ROADMAP 1b.6): the store behind `/d/<id>` and `/n/<id>`. It records
+ * Which Doc is at which path (DESIGN.md §9, §14, ROADMAP 1b.6): the store behind `/d/<id>`. It records
  * what was read, with the blob it was read at, and is believed only where that blob is still the repository's (`ids.ts`).
  * `docId` is null for a Markdown file that was read and has no valid `id`: knowing that is as useful as knowing an id,
  * because the file is then not read again until it changes.
@@ -13,23 +13,23 @@ import * as sqliteSchema from "../db/schema/sqlite";
 export interface IndexedFile {
   path: string;
   docId: string | null;
-  kind: "note" | "document";
   blob: string;
 }
 
 const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex);
-const COLUMNS = sql.raw('path, doc_id AS "docId", kind, blob');
+const COLUMNS = sql.raw('path, doc_id AS "docId", blob');
+/** What every row's `kind` column says now: there is one kind of Doc (spec §8.4). Rows written before said `note` or `document`; nothing reads the column. */
+const KIND = "doc";
 /** Rows per insert: well under the limit on bound values either database has. */
 const BATCH = 200;
 
 interface Row {
   path: string;
   docId: string | null;
-  kind: string;
   blob: string;
 }
 
-const toFile = (row: Row): IndexedFile => ({ path: row.path, docId: row.docId ?? null, kind: row.kind === "document" ? "document" : "note", blob: row.blob });
+const toFile = (row: Row): IndexedFile => ({ path: row.path, docId: row.docId ?? null, blob: row.blob });
 
 export class DocIndex {
   constructor(
@@ -59,7 +59,7 @@ export class DocIndex {
   async put(connectionId: number, files: IndexedFile[]): Promise<void> {
     const at = this.now();
     for (let start = 0; start < files.length; start += BATCH) {
-      const rows = files.slice(start, start + BATCH).map((file) => sql`(${connectionId}, ${file.path}, ${file.docId}, ${file.kind}, ${file.blob}, ${at})`);
+      const rows = files.slice(start, start + BATCH).map((file) => sql`(${connectionId}, ${file.path}, ${file.docId}, ${KIND}, ${file.blob}, ${at})`);
       await dbRun(
         this.database,
         sql`INSERT INTO ${table(this.database)} (connection_id, path, doc_id, kind, blob, indexed_at)

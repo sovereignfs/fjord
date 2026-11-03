@@ -20,8 +20,8 @@ import { heads } from "../browse/head-cache";
 import { TreeCache } from "../browse/tree-cache";
 import { describeProblem } from "../browse/problems";
 
-/** What a Doc `id` is in one of the account's repositories now: a document, a note, or not there; the host may not answer. */
-async function documentIn(accountId: string, id: number, docId: string): Promise<"document" | "note" | "gone" | "unavailable"> {
+/** What a Doc `id` is in one of the account's repositories now: a document, or not there; the host may not answer. */
+async function documentIn(accountId: string, id: number, docId: string): Promise<"document" | "gone" | "unavailable"> {
   const service = await connectionService();
   const connection = await service.get(accountId, id);
   if (!connection) return "gone";
@@ -30,8 +30,7 @@ async function documentIn(accountId: string, id: number, docId: string): Promise
   if (!outcome.ok || !used) return "unavailable";
   const source = { connectionId: id, ref: { owner: connection.owner, name: connection.name }, read: outcome.read, provider: used.provider };
   const { matches, incomplete } = await resolveDocId({ index: new DocIndex(await getDatabase()), format: fjord() }, [source], docId);
-  if (matches.some((match) => match.kind === "document")) return "document";
-  if (matches.length > 0) return "note";
+  if (matches.length > 0) return "document";
   return incomplete ? "unavailable" : "gone";
 }
 

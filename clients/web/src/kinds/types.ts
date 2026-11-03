@@ -13,6 +13,11 @@ export interface KindModule {
   id: string;
   /** What the person sees it called. The client's, not the format's: "Drive", "Journal", "Site". */
   label: string;
+  /**
+   * Which editor opens a Doc in this kind of repository (RFC 0002; spec §8.4 gives a name no say in it): a drive's in the document
+   * editor, a journal's and a site's in the Markdown (note) editor, which keeps their text as it was written.
+   */
+  editor: "document" | "note";
   /** What the repository opens on, at `/repo/<connection>` with no path. */
   EntryView: (props: EntryViewProps) => ReactNode | Promise<ReactNode>;
   /** Where a new item goes and which frontmatter fields it has. */

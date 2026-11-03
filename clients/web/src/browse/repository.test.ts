@@ -97,11 +97,11 @@ describe.skipIf(!available)(`reading a repository's vaults (${leg})`, () => {
     });
   }
 
-  it("tells the documents from the notes in a vault, by name", async () => {
+  it("lists every Markdown file of a vault as a Doc, whatever its name", async () => {
     const read = await readRepository(deps(hostOf("documents")), CONNECTION);
     expect(read.discovery.vaults[0]!.files.map((file) => [file.relative, file.kind])).toEqual([
-      ["idea.md", "note"],
-      ["plan.fj.md", "document"],
+      ["idea.md", "doc"],
+      ["plan.fj.md", "doc"],
     ]);
   });
 

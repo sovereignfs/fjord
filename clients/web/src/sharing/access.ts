@@ -16,7 +16,7 @@ export interface AccessDeps {
   /** Whether the connection is this account's. */
   owns: (accountId: string, id: number) => Promise<boolean>;
   /** What the Doc `id` is in the connection's repository now. */
-  documentIn: (accountId: string, id: number, docId: string) => Promise<"document" | "note" | "gone" | "unavailable">;
+  documentIn: (accountId: string, id: number, docId: string) => Promise<"document" | "gone" | "unavailable">;
   /** The account with exactly this address, if there is one. */
   accountByEmail: (email: string) => Promise<{ id: string } | undefined>;
   /** The name and address of an account, if it still exists. */
@@ -37,7 +37,6 @@ export function sharingAccess(deps: AccessDeps): Pick<Deps, "share" | "list" | "
     async share(accountId, id, input): Promise<{ found: false } | { found: true; result: ShareResult }> {
       if (!(await mayShare(accountId, id))) return { found: false };
       const kind = await deps.documentIn(accountId, id, input.docId);
-      if (kind === "note") return { found: true, result: { ok: false, reason: "not_a_document" } };
       if (kind !== "document") return { found: true, result: { ok: false, reason: kind } };
       if ((await deps.shares.count(id, input.docId)) >= MAX_SHARES_PER_DOCUMENT) return { found: true, result: { ok: false, reason: "too_many" } };
       const account = await deps.accountByEmail(input.email);

@@ -1,6 +1,6 @@
 import type { LocalMinute } from "../format/types";
 import type { Identity } from "../providers/types";
-import type { CreateResult, FileKind, VaultRefusal } from "./create";
+import type { CreateResult, VaultRefusal } from "./create";
 import type { CreateEncryptedResult, EncryptedTarget, EncryptedVaultRefusal } from "./create-encrypted";
 import type { TransferResult, VaultForm } from "./transfer";
 import type { DeleteResult, DeleteTarget } from "./delete";
@@ -29,7 +29,7 @@ export interface AccessDeps {
   createEncrypted: (
     accountId: string,
     id: number,
-    input: { vault: string; folder: string; target: EncryptedTarget; kind: FileKind; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
+    input: { vault: string; folder: string; target: EncryptedTarget; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
   ) => Promise<CreateEncryptedResult>;
   /** A header with its title set or taken away, by the format module; undefined for a header that cannot be rewritten. */
   setTitle: (header: string, title: string) => string | undefined;
@@ -47,7 +47,7 @@ export interface AccessDeps {
   create: (
     accountId: string,
     id: number,
-    input: { vault: string; folder: string; kind: FileKind; title: string; localMinute: LocalMinute; author: Identity },
+    input: { vault: string; folder: string; title: string; localMinute: LocalMinute; author: Identity },
   ) => Promise<CreateResult>;
   /** Delete, through the connection's own token. Only called for a vault that is `ok` of a connection that is the caller's. */
   delete: (accountId: string, id: number, input: { vault: string; target: DeleteTarget; author: Identity }) => Promise<DeleteResult>;

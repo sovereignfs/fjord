@@ -131,7 +131,7 @@ test("a document's title is set, and taken away, and nothing else of its header 
   assert.equal(JSON.parse(wasm.parseDocument(wasm.withTitle(text, ""))).title, null);
   assert.equal(wasm.withTitle("no header\n", "T"), undefined);
   assert.equal(wasm.withTitle("---\nnever closed\n", "T"), undefined);
-  assert.equal(wasm.impliedTitle("body\n", "Q4 plan.fj.md"), "Q4 plan");
+  assert.equal(wasm.impliedTitle("body\n", "Q4 plan.fj.md"), "Q4 plan.fj"); // spec §8.4: only the .md comes off
 });
 
 test("two edits of one text merge by lines: apart cleanly, together with both sides kept between markers", () => {

@@ -26,13 +26,13 @@ describe("landing content", () => {
     for (const { question } of questions) expect(question).toMatch(/\?$/);
   });
 
-  it("shows a Fjord document that is valid: a lowercase ULID id, in a .fj.md file", () => {
+  it("shows a Fjord document that is valid: a lowercase ULID id, in a .md file", () => {
     // Spec §8.3: 26 characters of Crockford base32, lowercase, so no i, l, o or u.
     const id = /^id: (\S+)$/m.exec(exampleDocument.source)?.[1];
     expect(id).toMatch(/^[0-9a-hjkmnp-tv-z]{26}$/);
     // Spec §8.1: `created` is an RFC 3339 UTC timestamp, not a bare date.
     expect(/^created: (\S+)$/m.exec(exampleDocument.source)?.[1]).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
-    expect(exampleDocument.path).toMatch(/\.fj\.md$/);
+    expect(exampleDocument.path).toMatch(/\.md$/);
     expect(exampleDocument.source.startsWith("---\n")).toBe(true);
   });
 });

@@ -17,7 +17,7 @@ export interface DeletionRecord {
   path: string;
   /** The Doc's `id`, when it was read; null otherwise. */
   docId: string | null;
-  kind: "note" | "document" | "other";
+  kind: "doc" | "other";
   /** Its last blob. */
   blob: string;
   deletingCommit: string;
@@ -58,7 +58,8 @@ const toRecord = (row: Row): DeletionRecord => ({
   id: Number(row.id),
   path: row.path,
   docId: row.docId ?? null,
-  kind: row.kind as DeletionRecord["kind"],
+  // Rows written before there was one kind of Doc say `note` or `document`.
+  kind: row.kind === "other" ? "other" : "doc",
   blob: row.blob,
   deletingCommit: row.deletingCommit,
   deletedBy: row.deletedBy,

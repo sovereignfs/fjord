@@ -13,7 +13,7 @@ import { hashPassword } from "./password";
 export interface AccessDeps {
   owns: (accountId: string, id: number) => Promise<boolean>;
   /** What the Doc `id` is in the connection's repository now. */
-  documentIn: (accountId: string, id: number, docId: string) => Promise<"document" | "note" | "gone" | "unavailable">;
+  documentIn: (accountId: string, id: number, docId: string) => Promise<"document" | "gone" | "unavailable">;
   links: Pick<LinkService, "create" | "list" | "revoke" | "update">;
   now?: () => number;
 }
@@ -29,7 +29,6 @@ export function linksAccess(deps: AccessDeps): Pick<Deps, "create" | "list" | "r
     async create(accountId, id, input) {
       if (!(await mayShare(accountId, id))) return { found: false };
       const kind = await deps.documentIn(accountId, id, input.docId);
-      if (kind === "note") return { found: true, result: { ok: false, reason: "not_a_document" } };
       if (kind !== "document") return { found: true, result: { ok: false, reason: kind } };
       // The password is hashed here and goes no further than this: the store is given the hash, and the answer carries neither.
       const hash = input.password === null ? null : await hashPassword(input.password);

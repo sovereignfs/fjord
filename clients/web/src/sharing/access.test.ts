@@ -51,8 +51,8 @@ describe("sharing a document", () => {
     expect(shares.set).toHaveBeenCalledTimes(1);
   });
 
-  it("refuses a note, and an id that is not there, whatever the address", async () => {
-    for (const [kind, reason] of [["note", "not_a_document"], ["gone", "gone"], ["unavailable", "unavailable"]] as const) {
+  it("refuses an id that is not there, whatever the address", async () => {
+    for (const [kind, reason] of [["gone", "gone"], ["unavailable", "unavailable"]] as const) {
       const { access, accountByEmail, shares } = setup({ kind });
       expect(await access.share("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason } });
       expect(await access.share("alice", 1, { ...input, email: "nobody@example.com" })).toEqual({ found: true, result: { ok: false, reason } });

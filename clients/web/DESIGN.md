@@ -733,10 +733,11 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
 
 ## 9. Documents and notes
 
-> **Planned change ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.1–3e.3).** The distinction below is withdrawn: spec §8.4 now
-> says every Doc is one kind, and the repository's kind chooses its editor (§8). Addresses become:
+> **Changed by [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md).** The distinction below is withdrawn: spec §8.4 says every Doc is one
+> kind, and the repository's kind chooses its editor (§8). **Built (3e.1, 2026-11-03):** a Doc is always **`/d/<id>`**, owned or shared, in the
+> editor its kind's module names (`KindModule.editor`); `/n/<id>`, `/note/<id>` and `/doc/<id>` answer a 308 to it; *New document* is the one way
+> to make a file, always `.md` and with an `id`; any plaintext Doc can be shared; renames keep a file's extension. **Still planned (3e.2, 3e.3):**
 >
-> - **A Doc** (a `.md` with a valid `id`) is always **`/d/<id>`**, owned or shared; `/n/<id>` answers a 308 to it.
 > - **Anything else** (a folder, a vault file, a `.md` with no `id`, a site's file) is **`/f/<handle>`**: a random handle in the
 >   instance's database, `(connection, path) → handle`, derived and never committed, updated by Fjord's own move and rename with
 >   `doc_index`. A handle whose path is gone says "moved or gone", never a different file. `/repo/<connection>/<path>` redirects
@@ -744,7 +745,7 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
 > - **No promotion on edit.** Reversing 1b.5: a file with no header is edited as it is. An `id` is added only when sharing,
 >   publishing or commenting needs a lasting identity, after asking, and the page then moves to `/d/<id>`.
 >
-> The text below describes what is built, and is replaced when 3e is.
+> The text below is the earlier design, kept until 3e is done; where it says document and note, read Doc.
 
 **The distinction is the file name.** A document is `name.fj.md`; any other `.md` in
 a vault is a note. Both are ordinary Markdown files to every other tool: GitHub

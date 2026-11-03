@@ -40,14 +40,17 @@ const deps = (provider: Provider = h.provider, over: Partial<CreateDeps> = {}): 
   ...over,
 });
 const create = (input: Partial<Parameters<typeof createFile>[1]> = {}, provider?: Provider, over?: Partial<CreateDeps>) =>
-  createFile(deps(provider, over), { vault: "Notes", folder: "", kind: "note", title: "", localMinute: WHEN, author: ADA, ...input });
+  createFile(deps(provider, over), { vault: "Notes", folder: "", title: "", localMinute: WHEN, author: ADA, ...input });
 const seed = (files: Record<string, string> = {}) => h.seed({ "Notes/fjord.vault.json": VAULT, ...files });
 const added = async (before: string, after: string) => {
   const was = Object.keys(await fake.filesAt(before));
   return Object.keys(await fake.filesAt(after)).filter((path) => !was.includes(path));
 };
 
-describe.skipIf(!available)("a new note", () => {
+const ID = () => fjord().newUlid(1_800_000_000_000, new Uint8Array(16).fill(7));
+const CREATED = "2027-01-15T08:00:00Z";
+
+describe.skipIf(!available)("a new document", () => {
   it("is one commit that adds one file, named from its title, by the person, on top of the head", async () => {
     const before = await seed({ "Notes/other.md": "o" });
     const result = await create({ title: "Meeting notes" });
@@ -56,17 +59,25 @@ describe.skipIf(!available)("a new note", () => {
     expect(await fake.branchHead()).toBe(commit);
     expect(await fake.show(commit, "%P")).toBe(before);
     expect(await added(before, commit)).toEqual(["Notes/Meeting notes.md"]);
-    expect((await fake.filesAt(commit))["Notes/Meeting notes.md"]).toBe("# Meeting notes\n");
+    expect((await fake.filesAt(commit))["Notes/Meeting notes.md"]).toBe(fjord().newDocument(ID(), "Meeting notes", CREATED));
     expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-    expect(await fake.show(commit, "%B")).toBe("Create note “Meeting notes”\n\nNotes/Meeting notes.md\nA new note in Notes, 2 words to start with.");
+    expect(await fake.show(commit, "%B")).toBe(`Create “Meeting notes”\n\nNotes/Meeting notes.md\nA new document in Notes, 2 words to start with.\nDocument id: ${ID()}`);
     await fake.fsck();
   });
 
-  it("without a title is an empty file named by the local date and time, numbered when the minute is taken", async () => {
+  it("has a header written by fjord-core, with an id from the start, and a heading", async () => {
+    await seed();
+    const result = (await create({ title: "Q4: plan" })) as { path: string; commit: string };
+    expect(result.path).toBe("Notes/Q4 plan.md");
+    const text = (await fake.filesAt(result.commit))[result.path]!;
+    expect(text).toMatch(/^---\nid: [0-9a-z]{26}\ntitle: "Q4: plan"\ncreated: "2027-01-15T08:00:00Z"\n---\n\n# Q4: plan\n$/);
+  });
+
+  it("without a title is named by the local date and time, which is its title too, numbered when the minute is taken", async () => {
     await seed();
     const first = (await create()) as { path: string; commit: string };
     expect(first.path).toBe("Notes/2026-10-22 1430.md");
-    expect((await fake.filesAt(first.commit))[first.path]).toBe("");
+    expect((await fake.filesAt(first.commit))[first.path]).toBe(fjord().newDocument(ID(), "2026-10-22 1430", CREATED));
     expect(((await create()) as { path: string }).path).toBe("Notes/2026-10-22 1430 2.md");
   });
 
@@ -85,7 +96,7 @@ describe.skipIf(!available)("a new note", () => {
     await seed();
     const result = (await create({ title: "a/b: c?" })) as { path: string; commit: string };
     expect(result.path).toBe("Notes/a b c.md");
-    expect((await fake.filesAt(result.commit))[result.path]).toBe("# a/b: c?\n");
+    expect((await fake.filesAt(result.commit))[result.path]).toContain("# a/b: c?\n");
     const long = "word ".repeat(30).trim();
     const cut = (await create({ title: long })) as { path: string };
     expect(cut.path.length).toBeLessThanOrEqual("Notes/".length + 60 + ".md".length);
@@ -96,51 +107,24 @@ describe.skipIf(!available)("a new note", () => {
     await seed();
     const result = (await create({ title: "  Plan  \t" })) as { path: string; commit: string };
     expect(result.path).toBe("Notes/Plan.md");
-    expect((await fake.filesAt(result.commit))[result.path]).toBe("# Plan\n");
-    const doc = (await create({ kind: "document", title: "  Q4 plan " })) as { path: string; commit: string };
-    expect((await fake.filesAt(doc.commit))[doc.path]).toContain("title: Q4 plan\n");
+    expect((await fake.filesAt(result.commit))[result.path]).toContain("title: Plan\n");
   });
 
-  it("is a note the format module recognises", async () => {
-    await seed({ "Notes/a.md": "a" });
+  it("is a Doc the format module recognises, whatever else the folder holds", async () => {
+    await seed({ "Notes/Idea.fj.md": "an older name", "Notes/a.md": "a" });
     const { commit, path } = (await create({ title: "Idea" })) as { path: string; commit: string };
+    expect(path).toBe("Notes/Idea.md");
     const tree = await h.provider.getTree(h.repo, commit);
     const files = tree.entries.filter((entry) => entry.kind === "file").map((entry) => ({ path: entry.path, size: entry.size ?? 0 }));
     const found = fjord().discover(files, { "Notes/fjord.vault.json": VAULT });
-    expect(found.vaults[0]!.files.find((file) => file.path === path)).toMatchObject({ kind: "note", logical: "Idea.md" });
-  });
-});
-
-describe.skipIf(!available)("a new document", () => {
-  it("has a header written by fjord-core, a heading, and a name from its title with .fj.md", async () => {
-    await seed();
-    const result = (await create({ kind: "document", title: "Q4: plan" })) as { path: string; commit: string };
-    expect(result.path).toBe("Notes/Q4 plan.fj.md");
-    const text = (await fake.filesAt(result.commit))[result.path]!;
-    const id = fjord().newUlid(1_800_000_000_000, new Uint8Array(16).fill(7));
-    expect(text).toBe(fjord().newDocument(id, "Q4: plan", "2027-01-15T08:00:00Z"));
-    expect(text).toMatch(/^---\nid: [0-9a-z]{26}\ntitle: "Q4: plan"\ncreated: "2027-01-15T08:00:00Z"\n---\n\n# Q4: plan\n$/);
-    expect((await fake.show(result.commit, "%B")).split("\n")[0]).toBe("Create document “Q4 plan”");
+    expect(found.vaults[0]!.files.find((file) => file.path === path)).toMatchObject({ kind: "doc", logical: "Idea.md" });
+    // `.fj.md` is no different from `.md` (spec §8.4).
+    expect(found.vaults[0]!.files.find((file) => file.path === "Notes/Idea.fj.md")?.kind).toBe("doc");
   });
 
-  it("is a document the format module recognises, and a note of the same name does not stop it", async () => {
-    await seed({ "Notes/Q4 plan.md": "a note" });
-    const { commit, path } = (await create({ kind: "document", title: "Q4 plan" })) as { path: string; commit: string };
-    expect(path).toBe("Notes/Q4 plan.fj.md");
-    const tree = await h.provider.getTree(h.repo, commit);
-    const files = tree.entries.filter((entry) => entry.kind === "file").map((entry) => ({ path: entry.path, size: entry.size ?? 0 }));
-    const found = fjord().discover(files, { "Notes/fjord.vault.json": VAULT });
-    expect(found.vaults[0]!.files.find((file) => file.path === path)?.kind).toBe("document");
-  });
-
-  it("is numbered when a document of that name is there", async () => {
-    await seed({ "Notes/Q4 plan.fj.md": "d" });
-    expect(((await create({ kind: "document", title: "Q4 plan" })) as { path: string }).path).toBe("Notes/Q4 plan 2.fj.md");
-  });
-
-  it.each(["", "   ", "***", "...", "# "])("needs a title with something to name a file by: %j is refused, and nothing is written", async (title) => {
+  it.each(["***", "...", "# "])("needs a title with something to name a file by, when it has one: %j is refused, and nothing is written", async (title) => {
     const head = await seed();
-    expect(await create({ kind: "document", title })).toEqual({ ok: false, reason: "bad_title" });
+    expect(await create({ title })).toEqual({ ok: false, reason: "bad_title" });
     expect(await fake.branchHead()).toBe(head);
   });
 });
@@ -162,7 +146,7 @@ describe.skipIf(!available)("when others are writing too", () => {
     const result = (await create({ title: "Plan" })) as { path: string; commit: string };
     expect(result.path).toBe("Notes/Plan 2.md");
     expect(await fake.show(result.commit, "%P")).toBe(theirs);
-    expect(await fake.filesAt(result.commit)).toMatchObject({ "Notes/Plan.md": "theirs", "Notes/Plan 2.md": "# Plan\n" });
+    expect(await fake.filesAt(result.commit)).toMatchObject({ "Notes/Plan.md": "theirs", "Notes/Plan 2.md": expect.stringContaining("# Plan\n") });
     await fake.fsck();
   });
 

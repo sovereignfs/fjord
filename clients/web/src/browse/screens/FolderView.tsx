@@ -20,7 +20,7 @@ import { TransferControl } from "./TransferControl";
 
 /**
  * A folder of a vault, or one file of it, as a list (DESIGN.md §8). What can be opened is decided from the name alone,
- * so nothing is downloaded to draw it: a document (`*.fj.md`) and a note (any other `.md`) are links; any other file is
+ * so nothing is downloaded to draw it: a Doc (any `.md`) is a link; any other file is
  * greyed out; and an encrypted file is a link with a lock, opened in the browser with the identity kept there (phase 2).
  */
 export function FolderView({
@@ -37,6 +37,7 @@ export function FolderView({
   header,
   permalink,
   docId,
+  editor,
   destinations,
   encryptedNaming,
   transferTargets,
@@ -61,10 +62,12 @@ export function FolderView({
   folderFiles?: number | undefined;
   /** For a note or a document: where its body starts in the text shown, its properties, and the header it is given on its first edit; undefined if its header cannot be read (then it is shown whole, as Markdown). */
   header?: HeaderInfo | undefined;
-  /** For a note or a document whose header has an `id`: its address that does not depend on where it is (`/d/<id>`, `/n/<id>`). */
+  /** For a Doc whose header has an `id`: its address that does not depend on where it is (`/d/<id>`). */
   permalink?: string | undefined;
-  /** For a document whose header has an `id`: what it can be shared by (ROADMAP 1c.7). */
+  /** For a Doc whose header has an `id`: what it can be shared by (ROADMAP 1c.7). */
   docId?: string | undefined;
+  /** Which editor the repository's kind opens a Doc in (RFC 0002). */
+  editor: "document" | "note";
   /** For a note or a document: tags in use in the repository, offered while one is typed (ROADMAP 3b.3). */
   tagSuggestions?: string[] | undefined;
   /** The folders of plaintext vaults a file or folder can be moved to, repository-relative; none for a repository too large to list. */
@@ -104,8 +107,8 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
-          remove={writable && fileBlob !== undefined && (location.file.kind === "note" || location.file.kind === "document" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
+          remove={writable && fileBlob !== undefined && (location.file.kind === "doc" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
         <>
@@ -156,15 +159,14 @@ export function FolderView({
 
 /** What each kind of file is called to a person. */
 const KIND_LABEL: Record<FileKind, string> = {
-  document: "Document",
-  note: "Note",
+  doc: "Document",
   payload: "Encrypted",
   stray: "Plaintext in an encrypted vault",
   misplacedPayload: "Encrypted file in a plaintext vault",
   other: "",
 };
 
-const openable = (kind: FileKind) => kind === "document" || kind === "note";
+const openable = (kind: FileKind) => kind === "doc";
 /** An encrypted file is a link too (ROADMAP 2b.2): its page asks for the identity that opens it. */
 const decryptable = (kind: FileKind) => kind === "payload";
 const leaf = (relative: string) => relative.slice(relative.lastIndexOf("/") + 1);
@@ -211,6 +213,7 @@ function FileCard({
   header,
   permalink,
   docId,
+  editor,
   destinations,
   blob,
   encryptedEditing,
@@ -231,6 +234,7 @@ function FileCard({
   remove: { vault: string; blob: string; goTo: string[] } | undefined;
   header: HeaderInfo | undefined;
   permalink: string | undefined;
+  editor: "document" | "note";
   docId: string | undefined;
   destinations: string[];
   blob: string | undefined;
@@ -248,7 +252,7 @@ function FileCard({
         {KIND_LABEL[file.kind] || "File"}
         {file.size > 0 ? ` · ${humanSize(file.size)}` : ""}
       </p>
-      {(file.kind === "note" || file.kind === "document") && note ? (
+      {file.kind === "doc" && note ? (
         note.ok ? (
           draft && draft.baseBlob !== note.blob ? (
             <UpstreamChanged connectionId={connectionId} path={file.path} label={leaf(file.logical)} mine={draft.content} theirs={note.text} upstreamBlob={note.blob} preview={preview} />
@@ -260,7 +264,7 @@ function FileCard({
                   Address by id, which does not depend on where the file is: <a href={permalink}>{permalink}</a>
                 </p>
               ) : null}
-              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} kind={file.kind === "document" ? "document" : "note"} header={header} docId={docId} tagSuggestions={tagSuggestions} />
+              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} editor={editor} header={header} docId={docId} tagSuggestions={tagSuggestions} />
             </>
           )
         ) : (
@@ -270,7 +274,7 @@ function FileCard({
         )
       ) : openable(file.kind) ? (
         <Alert variant="info" heading="Not opened">
-          This {file.kind === "document" ? "document" : "note"} could not be read just now. Try again in a moment.
+          This document could not be read just now. Try again in a moment.
         </Alert>
       ) : file.kind === "payload" ? (
         <EncryptedFile connectionId={connectionId} path={file.path} naming={naming} logical={file.logical} blob={blob} transferTargets={transferTargets} draft={encryptedEditing?.draft ?? null} recipients={encryptedEditing?.recipients ?? { ok: false, message: "This file cannot be edited just now." }} />
@@ -281,9 +285,9 @@ function FileCard({
       )}
       {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} /> : null}
       {remove ? (
-        <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.fj\.md|\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.fj\.md$|\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
+        <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
       ) : null}
-      {remove && (file.kind === "note" || file.kind === "document") && note?.ok && transferTargets.length > 0 ? (
+      {remove && file.kind === "doc" && note?.ok && transferTargets.length > 0 ? (
         <TransferControl
           connectionId={connectionId}
           path={file.path}
@@ -296,7 +300,7 @@ function FileCard({
         />
       ) : null}
       {remove ? (
-        <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.fj\.md$/i, "").replace(/\.md$/i, "")} goTo={remove.goTo} />
+        <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
       ) : null}
     </section>
   );

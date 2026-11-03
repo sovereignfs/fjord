@@ -60,9 +60,8 @@ describe("the owner", () => {
   });
 });
 
-describe("what is not a document", () => {
+describe("what is not a Doc to share", () => {
   const targets: [string, Target][] = [
-    ["a note", { kind: "note" }],
     ["a folder", { kind: "folder" }],
     ["a document in an encrypted vault", { kind: "document", encrypted: true }],
   ];

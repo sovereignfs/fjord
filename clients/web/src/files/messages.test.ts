@@ -28,10 +28,10 @@ describe("a version of a note or a document", () => {
 
   it("says where, how much and which parts, with the subject carrying the size", () => {
     const after = "---\nid: " + ID + "\ntitle: Q4 plan\n---\n\nIntro words.\n\n## Goals\n\nGrow a lot.\nAnd fast.\n\n## Next steps\n\nShip it.\n";
-    const message = editMessage("Work/Plans/Q4 plan.fj.md", before, after);
+    const message = editMessage("Work/Plans/Q4 plan.md", before, after);
     expect(message.subject).toBe("Edit “Q4 plan” (+4 −3)");
     expect(message.body).toEqual([
-      "Work/Plans/Q4 plan.fj.md",
+      "Work/Plans/Q4 plan.md",
       "4 lines added, 3 removed · 6 → 12 words",
       "Changed: Goals · Added: Next steps · Removed: Risks",
     ]);
@@ -78,8 +78,8 @@ describe("an encrypted file never gives away what is in it", () => {
   });
 
   it("names a created file by its name, or by nothing when its name is an identifier", () => {
-    expect(createEncryptedMessage({ kind: "note", path: "Locked/Notes/Meeting.md.age" })).toMatchObject({ subject: "Create encrypted note “Meeting”" });
-    const sealed = createEncryptedMessage({ kind: "document", path: `Sealed/${ID}.age` });
+    expect(createEncryptedMessage({ path: "Locked/Notes/Meeting.md.age" })).toMatchObject({ subject: "Create encrypted “Meeting”" });
+    const sealed = createEncryptedMessage({ path: `Sealed/${ID}.age` });
     expect(sealed.subject).toBe("Create an encrypted file in Sealed");
     expect(render(sealed)).not.toContain("document “");
   });
@@ -91,14 +91,14 @@ describe("an encrypted file never gives away what is in it", () => {
 });
 
 describe("a file made", () => {
-  it("says what, where and how big, and gives a document's id", () => {
-    const note = createMessage({ kind: "note", path: "Notes/Projects/Meeting notes.md", text: "# Meeting notes\n" });
-    expect(note.subject).toBe("Create note “Meeting notes”");
-    expect(note.body).toEqual(["Notes/Projects/Meeting notes.md", "A new note in Notes/Projects, 2 words to start with."]);
-    const document = createMessage({ kind: "document", path: "Notes/Q4 plan.fj.md", text: `---\nid: ${ID}\ntitle: Q4 plan\ncreated: "2026-10-22T14:30:00Z"\n---\n\n# Q4 plan\n` });
-    expect(document.subject).toBe("Create document “Q4 plan”");
+  it("says what, where and how big, and gives the id when there is one", () => {
+    const plain = createMessage({ path: "Notes/Projects/Meeting notes.md", text: "# Meeting notes\n" });
+    expect(plain.subject).toBe("Create “Meeting notes”");
+    expect(plain.body).toEqual(["Notes/Projects/Meeting notes.md", "A new document in Notes/Projects, 2 words to start with."]);
+    const document = createMessage({ path: "Notes/Q4 plan.md", text: `---\nid: ${ID}\ntitle: Q4 plan\ncreated: "2026-10-22T14:30:00Z"\n---\n\n# Q4 plan\n` });
+    expect(document.subject).toBe("Create “Q4 plan”");
     expect(document.body).toContain(`Document id: ${ID}`);
-    expect(createMessage({ kind: "note", path: "N/2026-10-22 1430.md", text: "" }).body).toContain("A new note in N, empty to start with.");
+    expect(createMessage({ path: "N/2026-10-22 1430.md", text: "" }).body).toContain("A new document in N, empty to start with.");
   });
 });
 
@@ -131,7 +131,7 @@ describe("a move", () => {
   it("knows a name from an identifier", () => {
     expect(isIdName(`${ID}.age`)).toBe(true);
     expect(isIdName("Plan.md.age")).toBe(false);
-    expect(titleOf("a/Plan.fj.md")).toBe("Plan");
+    expect(titleOf("a/Plan.md")).toBe("Plan");
     expect(titleOf(`a/Plan.md.age`)).toBe("Plan");
   });
 });

@@ -1,5 +1,5 @@
 /**
- * The browser's side of `/api/connections/<id>/files`: what a person's "New note" or "New document" sends, and what each
+ * The browser's side of `/api/connections/<id>/files`: what a person's "New document" sends, and what each
  * answer means to the page. `createFrom` is the meaning, kept apart from `fetch` so it is tested without a browser.
  */
 export type CreateAttempt = { ok: true; path: string } | { ok: false; message: string };
@@ -10,8 +10,8 @@ export function createFrom(status: number, body: { path?: string; error?: { mess
   return { ok: false, message: body?.error?.message ?? "Could not make that just now. Nothing was made. Try again in a moment." };
 }
 
-/** Make a note or a document in a folder of a vault. The writer's own date and time goes with it, for a note with no title. */
-export async function sendCreate(connectionId: number, input: { vault: string; folder: string; kind: "note" | "document"; title: string }, now: Date = new Date()): Promise<CreateAttempt> {
+/** Make a document in a folder of a vault. The writer's own date and time goes with it, for one with no title. */
+export async function sendCreate(connectionId: number, input: { vault: string; folder: string; title: string }, now: Date = new Date()): Promise<CreateAttempt> {
   try {
     const response = await fetch(`/api/connections/${connectionId}/files`, {
       method: "POST",
@@ -29,10 +29,10 @@ export async function sendCreate(connectionId: number, input: { vault: string; f
   }
 }
 
-/** Make a note or a document in an encrypted vault (ROADMAP 2b.4) from the ciphertext this browser made. `title` is sent only for a vault that names its files by their names. */
+/** Make a document in an encrypted vault (ROADMAP 2b.4) from the ciphertext this browser made. `title` is sent only for a vault that names its files by their names. */
 export async function sendCreateEncrypted(
   connectionId: number,
-  input: { vault: string; folder: string; kind: "note" | "document"; title: string; ciphertext: string },
+  input: { vault: string; folder: string; title: string; ciphertext: string },
   now: Date = new Date(),
 ): Promise<CreateAttempt> {
   try {

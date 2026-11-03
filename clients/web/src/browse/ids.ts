@@ -7,7 +7,7 @@ import { readTextBlob } from "./note";
 import type { RepositoryRead } from "./repository";
 
 /**
- * Finding a file by its Doc `id` (DESIGN.md §9, ROADMAP 1b.6): `/d/<id>` and `/n/<id>` ask for a file without saying
+ * Finding a file by its Doc `id` (DESIGN.md §9, ROADMAP 1b.6): `/d/<id>` asks for a file without saying
  * where it is. The answer comes from the index (`doc-index.ts`), which is only a record of what was read, so it is never
  * believed on its own:
  *
@@ -31,7 +31,6 @@ export interface Source {
 export interface Found {
   connectionId: number;
   path: string;
-  kind: "note" | "document";
 }
 
 export interface Resolution {
@@ -49,14 +48,14 @@ export function isDocId(value: string): boolean {
   return /^[0-7][0-9a-hjkmnp-tv-z]{25}$/.test(value);
 }
 
-/** The notes and documents of the plaintext vaults of a read repository, by path, with the blob each has now. */
-export function plaintextDocs(read: RepositoryRead): Map<string, { kind: "note" | "document"; blob: string }> {
-  const out = new Map<string, { kind: "note" | "document"; blob: string }>();
+/** The Docs of the plaintext vaults of a read repository (any `.md`), by path, with the blob each has now. */
+export function plaintextDocs(read: RepositoryRead): Map<string, { blob: string }> {
+  const out = new Map<string, { blob: string }>();
   for (const vault of read.discovery.vaults) {
     if (vault.manifestError !== null || vault.encrypted !== false) continue;
     for (const file of vault.files) {
       const blob = read.blobs.get(file.path);
-      if (blob !== undefined && (file.kind === "note" || file.kind === "document")) out.set(file.path, { kind: file.kind, blob });
+      if (blob !== undefined && file.kind === "doc") out.set(file.path, { blob });
     }
   }
   return out;
@@ -70,8 +69,8 @@ export function docIdOf(format: Pick<Fjord, "parseDocument">, text: string): str
 
 /** Record a file that was just read for the page (reading it is the only way to know its `id`, and the page has it). */
 export async function recordRead(index: DocIndex, format: Pick<Fjord, "parseDocument">, connectionId: number, file: ClassifiedFile, blob: string, text: string): Promise<void> {
-  if (file.kind !== "note" && file.kind !== "document") return;
-  await index.put(connectionId, [{ path: file.path, docId: docIdOf(format, text), kind: file.kind, blob }]);
+  if (file.kind !== "doc") return;
+  await index.put(connectionId, [{ path: file.path, docId: docIdOf(format, text), blob }]);
 }
 
 interface Deps {
@@ -80,10 +79,10 @@ interface Deps {
 }
 
 /** Read these files and record what they say; a file that is not text, or too large, is recorded as having no `id`. */
-async function readAndRecord(deps: Deps, source: Source, wanted: [string, { kind: "note" | "document"; blob: string }][]): Promise<void> {
+async function readAndRecord(deps: Deps, source: Source, wanted: [string, { blob: string }][]): Promise<void> {
   const read = await mapLimit(wanted, AT_ONCE, async ([path, current]): Promise<IndexedFile> => {
     const text = await readTextBlob(source.provider, source.ref, current.blob);
-    return { path, kind: current.kind, blob: current.blob, docId: text.ok ? docIdOf(deps.format, text.text) : null };
+    return { path, blob: current.blob, docId: text.ok ? docIdOf(deps.format, text.text) : null };
   });
   await deps.index.put(source.connectionId, read);
 }
@@ -97,7 +96,7 @@ export async function resolveDocId(deps: Deps, sources: Source[], docId: string,
     const rows = await deps.index.find(ids, docId);
     return rows.flatMap(({ connectionId, file }) => {
       const now = current.get(connectionId)?.get(file.path);
-      return now !== undefined && now.blob === file.blob ? [{ connectionId, path: file.path, kind: file.kind }] : [];
+      return now !== undefined && now.blob === file.blob ? [{ connectionId, path: file.path }] : [];
     });
   };
 
@@ -110,7 +109,7 @@ export async function resolveDocId(deps: Deps, sources: Source[], docId: string,
     if (!now || !source) continue;
     const changed = group
       .filter(({ file }) => now.has(file.path) && now.get(file.path)?.blob !== file.blob)
-      .map(({ file }) => [file.path, now.get(file.path)!] as [string, { kind: "note" | "document"; blob: string }]);
+      .map(({ file }) => [file.path, now.get(file.path)!] as [string, { blob: string }]);
     if (changed.length > 0) await readAndRecord(deps, source, changed);
   }
   let matches = await good();

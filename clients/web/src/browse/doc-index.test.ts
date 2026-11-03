@@ -24,12 +24,12 @@ beforeEach(async () => dbRun(database, sql`DELETE FROM ${table()}`));
 
 const A = "01jagc4k7pt8y3wqnmzv5xrb8j";
 const B = "01jagc4k7pt8y3wqnmzv5xrb9k";
-const file = (path: string, docId: string | null, over: Partial<IndexedFile> = {}): IndexedFile => ({ path, docId, kind: "note", blob: "b".repeat(40), ...over });
+const file = (path: string, docId: string | null, over: Partial<IndexedFile> = {}): IndexedFile => ({ path, docId, blob: "b".repeat(40), ...over });
 
 describe(`the id index (${leg})`, () => {
   it("remembers what was read, with the blob, and says it by connection", async () => {
-    await index.put(1, [file("Notes/a.md", A), file("Notes/b.fj.md", B, { kind: "document", blob: "c".repeat(40) }), file("Notes/plain.md", null)]);
-    expect([...(await index.all(1)).values()]).toEqual(expect.arrayContaining([file("Notes/a.md", A), file("Notes/b.fj.md", B, { kind: "document", blob: "c".repeat(40) }), file("Notes/plain.md", null)]));
+    await index.put(1, [file("Notes/a.md", A), file("Notes/b.fj.md", B, { blob: "c".repeat(40) }), file("Notes/plain.md", null)]);
+    expect([...(await index.all(1)).values()]).toEqual(expect.arrayContaining([file("Notes/a.md", A), file("Notes/b.fj.md", B, { blob: "c".repeat(40) }), file("Notes/plain.md", null)]));
     expect((await index.all(1)).size).toBe(3);
     expect((await index.all(2)).size).toBe(0);
   });
@@ -48,8 +48,8 @@ describe(`the id index (${leg})`, () => {
 
   it("replaces what was recorded for a path, and keeps one row per path", async () => {
     await index.put(1, [file("Notes/a.md", null)]);
-    await index.put(1, [file("Notes/a.md", A, { kind: "document", blob: "d".repeat(40) })]);
-    expect([...(await index.all(1)).values()]).toEqual([file("Notes/a.md", A, { kind: "document", blob: "d".repeat(40) })]);
+    await index.put(1, [file("Notes/a.md", A, { blob: "d".repeat(40) })]);
+    expect([...(await index.all(1)).values()]).toEqual([file("Notes/a.md", A, { blob: "d".repeat(40) })]);
   });
 
   it("follows a file that moved: what was read of it is at its new path, and the old path is gone", async () => {

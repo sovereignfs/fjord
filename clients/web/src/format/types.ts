@@ -12,11 +12,11 @@ export interface ListedFile {
 
 /**
  * What a file in a vault is, by its name (spec §2, §6.3, §8.4): an encrypted payload; plaintext where
- * there must be none (`stray`); an encrypted file in a plaintext vault; a document (`*.fj.md`); a note
- * (any other `.md`); or anything else. Machinery (the manifest, `.gitignore`, the recipients file) is
- * not listed. Whether a document or a note is a Fjord Doc at all needs its contents.
+ * there must be none (`stray`); an encrypted file in a plaintext vault; a Doc (any `.md`: there is one kind of Doc, and
+ * its name says no more); or anything else. Machinery (the manifest, `.gitignore`, the recipients file) is not listed.
+ * Whether a `doc` is a Fjord Doc at all (has an `id`) needs its contents.
  */
-export type FileKind = "payload" | "stray" | "misplacedPayload" | "document" | "note" | "other";
+export type FileKind = "payload" | "stray" | "misplacedPayload" | "doc" | "other";
 
 export interface ClassifiedFile {
   /** Repository-relative. */
@@ -65,6 +65,33 @@ export interface SetupExisting {
   paths: string[];
   gitattributes: string | null;
 }
+
+/** A directory that already has files, as `planAdopt` wants it: `SetupExisting`, and the text of `.gitignore` if it has one. */
+export interface AdoptExisting extends SetupExisting {
+  gitignore: string | null;
+}
+
+/** What to adopt (`fjord-core`'s `adopt::plan_adopt`, RFC 0002): the vaults to make, at any depth, of a kind. */
+export type AdoptOptions = {
+  repositoryName: string;
+  generator: string;
+  vaults: { path: string; encrypted: boolean }[];
+} & ({ kind: "drive" | "journal" } | { kind: "ssg"; engine: SiteEngine });
+
+/** What `planAdopt` answers: the files to write, or why the directory cannot be adopted as asked. */
+export type AdoptResult =
+  | {
+      ok: true;
+      files: { path: string; contents: string; change: "create" | "append" }[];
+      repositoryId: string;
+      createdAt: string;
+      /** `holdsFiles` with `encrypted` is plaintext until a checkout ends (spec §6.6): a browser has nowhere to keep it, so it refuses. */
+      vaults: { path: string; id: string; encrypted: boolean; holdsFiles: boolean }[];
+    }
+  | { ok: false; error: { code: string; message: string } };
+
+/** The static site a directory already is, by its engine's files, or null. */
+export type DetectedSite = { engine: SiteEngine; content: string } | null;
 
 /**
  * A repository that is not a Fjord repository, set up as a journal or a site (`fjord-core`'s `scaffold::plan_setup_kind`, spec §3.1). A

@@ -79,9 +79,8 @@ function summary(vault: VaultListing, partial: boolean): string {
     const stray = count(vault.files, "stray");
     return [plural(locked, "encrypted file", "encrypted files"), stray > 0 ? `${plural(stray, "plaintext file", "plaintext files")} that should not be there` : ""].filter(Boolean).join(", ");
   }
-  const documents = count(vault.files, "document");
-  const notes = count(vault.files, "note");
+  const documents = count(vault.files, "doc");
   const others = count(vault.files, "other", "misplacedPayload");
-  if (documents + notes + others === 0) return "empty";
-  return [plural(documents, "document", "documents"), plural(notes, "note", "notes"), plural(others, "other file", "other files")].join(", ");
+  if (documents + others === 0) return "empty";
+  return [plural(documents, "document", "documents"), plural(others, "other file", "other files")].join(", ");
 }

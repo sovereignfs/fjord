@@ -19,6 +19,7 @@
 //! its own (the module's `getrandom` is the browser's or Node's `crypto.getRandomValues`): encrypting and
 //! generating an identity.
 
+use fjord_core::adopt::{self, AdoptKind, AdoptedVault, Adoption};
 use fjord_core::container;
 use fjord_core::crypto;
 use fjord_core::doc::{self, Parse};
@@ -74,8 +75,7 @@ fn kind_name(kind: FileKind) -> &'static str {
         FileKind::Payload => "payload",
         FileKind::Stray => "stray",
         FileKind::MisplacedPayload => "misplacedPayload",
-        FileKind::Document => "document",
-        FileKind::Note => "note",
+        FileKind::Doc => "doc",
         FileKind::Other => "other",
     }
 }
@@ -87,12 +87,12 @@ fn kind_name(kind: FileKind) -> &'static str {
 /// { "vaults": [ { "directory": "Notes", "name": "Notes", "encrypted": false, "fileNaming": "plain",
 ///                 "suffix": ".age", "manifestError": null,
 ///                 "files": [ { "path": "Notes/a.md", "relative": "a.md", "logical": "a.md",
-///                              "kind": "note", "size": 120 } ] } ],
+///                              "kind": "doc", "size": 120 } ] } ],
 ///   "nested": [ "Notes/Inner" ] }
 /// ```
 ///
-/// `kind` is `payload`, `stray`, `misplacedPayload`, `document` (`*.fj.md`), `note` (any other `.md`) or
-/// `other`, spec §8.4; machinery (the manifest,
+/// `kind` is `payload`, `stray`, `misplacedPayload`, `doc` (any `.md`: there is one kind of Doc, spec §8.4) or
+/// `other`; a vault may be at any depth below the root, never inside another (§2.3); machinery (the manifest,
 /// `.gitignore`, the recipients file) is not listed. A vault whose manifest is missing or not JSON has
 /// `manifestError` set and no files, as `fjord verify` treats it.
 pub fn discover(files_json: &str, manifests_json: &str) -> Result<String, String> {
@@ -659,6 +659,149 @@ pub fn plan_setup(
     )
 }
 
+/// What to add to a directory that already has files to make a Fjord repository of it (RFC 0002,
+/// `fjord_core::adopt::plan_adopt`), as `fjord init --adopt` does. Nothing there is changed but lines
+/// added at the end of `.gitattributes` and `.gitignore`.
+///
+/// - `options_json`: `{"repositoryName", "generator", "kind": "drive" | "journal" | "ssg", "engine":
+///   "astro" | "jekyll" (a site), "vaults": [{"path": "src/content", "encrypted": bool}]}`.
+/// - `existing_json`: `{"paths": [string], "gitattributes": string | null, "gitignore": string | null}`.
+/// - `now_ms` and `random`: the time and at least `16 * (1 + vaults)` random bytes, which the
+///   identifiers and the creation time are made from. The same inputs give the same answer.
+///
+/// `{"ok": true, "files": [{"path", "contents", "change"}], "repositoryId", "createdAt", "vaults":
+/// [{"path", "id", "encrypted", "holdsFiles"}]}`, or `{"ok": false, "error": {"code", "message"}}` with a
+/// code of `AdoptError::code`. A vault that is `encrypted` and `holdsFiles` is plaintext until a
+/// checkout (spec §6.6) ends: a browser has no disk to leave it on, so it should refuse that case.
+pub fn plan_adopt(
+    options_json: &str,
+    existing_json: &str,
+    now_ms: f64,
+    random: &[u8],
+) -> Result<String, String> {
+    let options: Value = serde_json::from_str(options_json)
+        .map_err(|err| format!("the options are not JSON: {err}"))?;
+    let text = |key: &str| -> Result<String, String> {
+        options
+            .get(key)
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .ok_or_else(|| format!("the options need a text `{key}`"))
+    };
+    let refused = |code: &str, message: String| {
+        json!({ "ok": false, "error": { "code": code, "message": message } }).to_string()
+    };
+    let kind = match text("kind")?.as_str() {
+        "drive" => AdoptKind::Drive,
+        "journal" => AdoptKind::Journal,
+        "ssg" => {
+            let engine = options.get("engine").and_then(Value::as_str).unwrap_or("");
+            match SiteEngine::parse(engine) {
+                Some(engine) => AdoptKind::Ssg(engine),
+                None => {
+                    return Ok(refused(
+                        "unknown_engine",
+                        format!("\"{engine}\" is not an engine this build can make a site for"),
+                    ))
+                }
+            }
+        }
+        other => {
+            return Ok(refused(
+                "unknown_kind",
+                format!("\"{other}\" is not a kind to adopt as"),
+            ))
+        }
+    };
+    let vaults: Vec<AdoptedVault> = options
+        .get("vaults")
+        .and_then(Value::as_array)
+        .ok_or("the options need a list of `vaults`")?
+        .iter()
+        .map(|vault| {
+            Ok(AdoptedVault {
+                path: vault
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .ok_or("a vault needs a text `path`")?
+                    .to_string(),
+                encrypted: vault
+                    .get("encrypted")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false),
+            })
+        })
+        .collect::<Result<_, &str>>()?;
+
+    let (paths, gitattributes, gitignore) = existing_with_ignore(existing_json)?;
+    if !now_ms.is_finite() || now_ms < 0.0 {
+        return Err("the time must be milliseconds since the epoch, not negative".to_string());
+    }
+    let needed = 16 * (1 + vaults.len());
+    if random.len() < needed {
+        return Err(format!("adopting these vaults needs {needed} random bytes"));
+    }
+    let id = |index: usize| {
+        let mut bytes = [0u8; 16];
+        bytes.copy_from_slice(&random[index * 16..index * 16 + 16]);
+        scalar::new_ulid_from(now_ms as u64, bytes)
+    };
+    let created_at = scalar::rfc3339_utc_from_unix((now_ms / 1000.0) as i64)
+        .ok_or("the time cannot be written as a date")?;
+    let vault_ids: Vec<String> = (1..=vaults.len()).map(id).collect();
+    let adoption = Adoption {
+        repository_name: text("repositoryName")?,
+        generator: text("generator")?,
+        kind,
+        vaults,
+    };
+
+    Ok(
+        match adopt::plan_adopt(
+            &adoption,
+            &id(0),
+            &created_at,
+            &vault_ids,
+            &paths,
+            gitattributes.as_deref(),
+            gitignore.as_deref(),
+        ) {
+            Ok(plan) => json!({
+                "ok": true,
+                "files": plan.files.iter().map(|file| json!({
+                    "path": file.path,
+                    "contents": file.contents,
+                    "change": match file.change {
+                        FileChange::Create => "create",
+                        FileChange::Append => "append",
+                    },
+                })).collect::<Vec<_>>(),
+                "repositoryId": plan.repository_id,
+                "createdAt": plan.created_at,
+                "vaults": plan.vaults.iter().map(|vault| json!({
+                    "path": vault.path,
+                    "id": vault.id,
+                    "encrypted": vault.encrypted,
+                    "holdsFiles": vault.holds_files,
+                })).collect::<Vec<_>>(),
+            })
+            .to_string(),
+            Err(error) => refused(error.code(), error.to_string()),
+        },
+    )
+}
+
+/// The static site a directory already is, from `{"paths": [...]}` (`fjord_core::adopt::detect_site`):
+/// `{"engine": "astro" | "jekyll", "content": "src/content"}` or `null`.
+pub fn detect_site(existing_json: &str) -> Result<String, String> {
+    let (paths, _) = existing(existing_json)?;
+    Ok(match adopt::detect_site(&paths) {
+        Some(site) => json!({ "engine": site.engine.as_str(), "content": site.content }),
+        None => Value::Null,
+    }
+    .to_string())
+}
+
 /// A new repository of a kind (spec §3.1), as `fjord init --kind` makes it: `fjord_core::scaffold::
 /// plan_kind_with`. The options are `{ "repositoryName", "generator", "kind": "drive" | "journal" |
 /// "ssg", "encrypted": bool (a journal; a drive's Private), "engine": "astro" | "jekyll" (a site) }`.
@@ -1002,6 +1145,21 @@ pub fn free_vault_name(preferred: &str, existing_json: &str) -> Result<String, S
     Ok(scaffold::free_vault_name(preferred, &paths))
 }
 
+/// `{"paths": [...], "gitattributes": string | null, "gitignore": string | null}`, read; the `.gitignore` only
+/// matters to [`plan_adopt`].
+fn existing_with_ignore(
+    json: &str,
+) -> Result<(Vec<String>, Option<String>, Option<String>), String> {
+    let (paths, gitattributes) = existing(json)?;
+    let value: Value = serde_json::from_str(json).map_err(|err| err.to_string())?;
+    let gitignore = match value.get("gitignore") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(text)) => Some(text.clone()),
+        Some(_) => return Err("`gitignore` must be text or null".to_string()),
+    };
+    Ok((paths, gitattributes, gitignore))
+}
+
 /// `{"paths": [...], "gitattributes": string | null}`, read.
 fn existing(json: &str) -> Result<(Vec<String>, Option<String>), String> {
     let value: Value =
@@ -1186,7 +1344,7 @@ mod tests {
         assert_eq!(notes, ["Inner/fjord.vault.json", "a.md"]);
         assert_eq!(
             vaults[0]["files"][1],
-            json!({ "path": "Notes/a.md", "relative": "a.md", "logical": "a.md", "kind": "note", "size": 12 })
+            json!({ "path": "Notes/a.md", "relative": "a.md", "logical": "a.md", "kind": "doc", "size": 12 })
         );
 
         assert_eq!(vaults[1]["encrypted"], true);
@@ -1203,7 +1361,7 @@ mod tests {
     }
 
     #[test]
-    fn the_manifests_to_fetch_are_the_roots_vaults() {
+    fn the_manifests_to_fetch_are_the_vaults_not_the_ones_inside_them() {
         let list = r#"[{"path":"B/fjord.vault.json"},{"path":"A/fjord.vault.json"},{"path":"A/deep/fjord.vault.json"},{"path":"fjord.json"}]"#;
         assert_eq!(
             parsed(&manifest_paths(list).expect("paths")),
@@ -1647,7 +1805,7 @@ mod tests {
         assert_eq!(
             free_name("Q4 plan", ".fj.md", r#"["Q4 plan.md"]"#).expect("name"),
             "Q4 plan.fj.md",
-            "a note of that name does not take a document's"
+            "a different extension is a different name"
         );
         assert!(free_name("x", ".md", "nope").is_err());
     }

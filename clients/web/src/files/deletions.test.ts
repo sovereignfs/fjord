@@ -27,15 +27,15 @@ beforeEach(async () => {
   await dbRun(database, sql`DELETE FROM ${table()}`);
 });
 
-const entry = (path: string, over: Partial<Parameters<DeletionService["record"]>[3][number]> = {}) => ({ path, kind: "note" as const, blob: "b".repeat(40), ...over });
+const entry = (path: string, over: Partial<Parameters<DeletionService["record"]>[3][number]> = {}) => ({ path, kind: "doc" as const, blob: "b".repeat(40), ...over });
 
 describe(`deletions (${leg})`, () => {
   it("remembers what was deleted, by which commit and whom, and when", async () => {
-    const ids = await service.record(1, "c".repeat(40), "alice", [entry("Notes/a.md", { docId: "01jagc4k7pt8y3wqnmzv5xrb8j", kind: "document", blob: "a".repeat(40) }), entry("Notes/b.md")]);
+    const ids = await service.record(1, "c".repeat(40), "alice", [entry("Notes/a.md", { docId: "01jagc4k7pt8y3wqnmzv5xrb8j", kind: "doc", blob: "a".repeat(40) }), entry("Notes/b.md")]);
     expect(ids).toHaveLength(2);
     expect(await service.get(1, ids)).toEqual([
-      { id: ids[0], path: "Notes/a.md", docId: "01jagc4k7pt8y3wqnmzv5xrb8j", kind: "document", blob: "a".repeat(40), deletingCommit: "c".repeat(40), deletedBy: "alice", deletedAt: clock, restoredAt: null },
-      { id: ids[1], path: "Notes/b.md", docId: null, kind: "note", blob: "b".repeat(40), deletingCommit: "c".repeat(40), deletedBy: "alice", deletedAt: clock, restoredAt: null },
+      { id: ids[0], path: "Notes/a.md", docId: "01jagc4k7pt8y3wqnmzv5xrb8j", kind: "doc", blob: "a".repeat(40), deletingCommit: "c".repeat(40), deletedBy: "alice", deletedAt: clock, restoredAt: null },
+      { id: ids[1], path: "Notes/b.md", docId: null, kind: "doc", blob: "b".repeat(40), deletingCommit: "c".repeat(40), deletedBy: "alice", deletedAt: clock, restoredAt: null },
     ]);
   });
 

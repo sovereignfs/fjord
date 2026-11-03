@@ -27,8 +27,8 @@ export interface Deps {
   origin: string;
 }
 
-export type ShareResult = { ok: true } | { ok: false; reason: "not_a_document" | "gone" | "too_many" | "unavailable" };
-export type ListResult = { ok: true; shares: { accountId: string; name: string; email: string; role: Role }[] } | { ok: false; reason: "not_a_document" | "gone" | "unavailable" };
+export type ShareResult = { ok: true } | { ok: false; reason: "gone" | "too_many" | "unavailable" };
+export type ListResult = { ok: true; shares: { accountId: string; name: string; email: string; role: Role }[] } | { ok: false; reason: "gone" | "unavailable" };
 
 const MAX_BODY_CHARS = 2_000;
 const MAX_EMAIL_CHARS = 254;
@@ -46,7 +46,6 @@ const notFound = () => failure(404, "not_found", "There is no such connection.")
 export const SHARED = { status: "ok", message: "If that address has an account here, the document is now shared with it." } as const;
 
 const REFUSALS = {
-  not_a_document: { status: 422, message: "Only documents (*.fj.md) can be shared, not notes." },
   gone: { status: 404, message: "That document is not in this repository." },
   too_many: { status: 422, message: "A document can be shared with at most 100 accounts. Stop sharing with one first." },
   unavailable: { status: 502, message: "Could not reach the git host just now. Nothing was changed. Try again in a moment." },

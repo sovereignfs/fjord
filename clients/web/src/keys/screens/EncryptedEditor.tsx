@@ -78,8 +78,8 @@ export function EncryptedEditor({
   const [renaming, setRenaming] = useState(false);
   const [newStem, setNewStem] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
-  // What stays of the name when it is renamed: a document stays a `.fj.md` and a note a `.md`, as for any file.
-  const extension = /\.fj\.md$/i.test(name) ? ".fj.md" : name.lastIndexOf(".") > 0 ? name.slice(name.lastIndexOf(".")) : "";
+  // What stays of the name when it is renamed: its extension, as for any file.
+  const extension = name.lastIndexOf(".") > 0 ? name.slice(name.lastIndexOf(".")) : "";
   const stem = name.slice(0, name.length - extension.length);
 
   useEffect(() => {

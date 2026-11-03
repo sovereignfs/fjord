@@ -17,7 +17,7 @@ import { takenPaths } from "./restore";
  *  - **Plaintext goes only to a plaintext vault, ciphertext only to an encrypted one.** The destination vault's kind is the repository's, not the request's: bytes that
  *    begin as an age file are refused for a plaintext vault, and bytes that do not are refused for an encrypted one. So the new commit holds no plaintext in an encrypted vault.
  *  - **The shape of the destination's name:** `Name.md.age` in a plain-named encrypted vault, a new identifier and `.age` in an id-named one (its real name is inside
- *    the bytes), a `.md` or `.fj.md` in a plaintext vault. Every step passes `fjord-core`'s path rules; nothing is put over anything.
+ *    the bytes), a `.md` in a plaintext vault. Every step passes `fjord-core`'s path rules; nothing is put over anything.
  *  - **What was shown is what moves:** the source only if it is still the blob the page decrypted or read, and with no draft (a draft is a different text from the one moved).
  *  - **The history is not rewritten.** Moving a file out of a plaintext vault leaves its plaintext in the repository's earlier commits; moving one out of an encrypted vault
  *    puts its plaintext in this one. The page says so before it asks.
@@ -57,7 +57,7 @@ function writable(path: string): boolean {
 
 /** The message of the commit. It names nothing that is secret: a name inside an id-named vault never appears, and a file's name only where the repository already had it. */
 export function transferMessage(source: { path: string; form: VaultForm }, destination: { path: string; form: VaultForm }): string {
-  const name = (path: string) => leaf(path).replace(/\.age$/i, "").replace(/\.fj\.md$/i, "").replace(/\.md$/i, "");
+  const name = (path: string) => leaf(path).replace(/\.age$/i, "").replace(/\.md$/i, "");
   const label = (side: { path: string; form: VaultForm }) => (side.form.form === "encrypted" && side.form.naming === "id" ? "a file" : name(side.path));
   const vault = (path: string) => path.split("/")[0];
   if (source.form.form === "plaintext") return `Move ${label(source)} into the encrypted vault ${vault(destination.path)}`;

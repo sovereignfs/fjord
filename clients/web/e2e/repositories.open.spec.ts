@@ -879,15 +879,15 @@ test("a note and a document are made in an encrypted vault, encrypted in the bro
 
     // A plain-named vault: the title names the file (that is public), and the text is encrypted before it is sent.
     await page.goto(`/repo/${id}/Open`);
-    await page.getByRole("button", { name: "New note" }).click();
+    await page.getByRole("button", { name: "New document" }).click();
     await expect(page.getByText("Its name is public")).toBeVisible();
     await page.getByLabel("Title").fill("Plain titled");
-    await page.getByRole("button", { name: "Create note" }).click();
+    await page.getByRole("button", { name: "Create document" }).click();
     await expect(page).toHaveURL(new RegExp("/Open/Plain%20titled\\.md\\.age$"), { timeout: 30_000 });
     const afterNote = (await hubs.more.branchHead())!;
     expect(await hubs.more.show(afterNote, "%P")).toBe(before);
-    expect((await hubs.more.show(afterNote, "%B")).split("\n")[0]).toBe("Create encrypted note “Plain titled”");
-    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(afterNote, "Open/Plain titled.md.age")))).toBe("# Plain titled\n");
+    expect((await hubs.more.show(afterNote, "%B")).split("\n")[0]).toBe("Create encrypted “Plain titled”");
+    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(afterNote, "Open/Plain titled.md.age")))).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Plain titled\n[\s\S]*# Plain titled\n$/);
 
     // It opens like any encrypted file (the identity is locked on this page load).
     await page.getByLabel("Passphrase").fill(PASSPHRASE);
@@ -899,9 +899,9 @@ test("a note and a document are made in an encrypted vault, encrypted in the bro
     await page.getByRole("button", { name: "New document" }).click();
     await page.getByLabel("Title").fill("Q4 plan");
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(new RegExp("/Open/Q4%20plan\\.fj\\.md\\.age$"), { timeout: 30_000 });
+    await expect(page).toHaveURL(new RegExp("/Open/Q4%20plan\\.md\\.age$"), { timeout: 30_000 });
     const afterDocument = (await hubs.more.branchHead())!;
-    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(afterDocument, "Open/Q4 plan.fj.md.age")))).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\n/);
+    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(afterDocument, "Open/Q4 plan.md.age")))).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\n/);
 
     // An id-named vault: the file is a new identifier, its real name is inside, and nothing of it is sent.
     await page.goto(`/repo/${id}/Sealed`);
@@ -915,7 +915,7 @@ test("a note and a document are made in an encrypted vault, encrypted in the bro
     const created = Object.keys(await hubs.more.filesAt(afterSealed)).filter((path) => path.startsWith("Sealed/") && !path.includes("0000") && path.endsWith(".age") && !path.includes("01jagc4k7pr9tbm3ykwx6zq2hz"));
     expect(created).toHaveLength(1);
     const unwrapped = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(afterSealed, created[0]!)));
-    expect(unwrapped.name).toBe("Hidden budget.fj.md");
+    expect(unwrapped.name).toBe("Hidden budget.md");
     expect(textOf(unwrapped.contents)).toContain("title: Hidden budget");
     await hubs.more.fsck();
 
@@ -933,13 +933,13 @@ test("a note and a document are made in an encrypted vault, encrypted in the bro
     // Anything but ciphertext is refused by the server, and a plaintext vault's way still refuses an encrypted vault.
     const refused = await page.request.post(`/api/connections/${id}/files/encrypted`, {
       headers: { origin: BASE },
-      data: { vault: "Open", folder: "", kind: "note", title: "Sneaky", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 }, ciphertext: Buffer.from("# plain").toString("base64") },
+      data: { vault: "Open", folder: "", title: "Sneaky", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 }, ciphertext: Buffer.from("# plain").toString("base64") },
       failOnStatusCode: false,
     });
     expect(refused.status()).toBe(422);
     const plainWay = await page.request.post(`/api/connections/${id}/files`, {
       headers: { origin: BASE },
-      data: { vault: "Open", folder: "", kind: "note", title: "Sneaky", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 } },
+      data: { vault: "Open", folder: "", title: "Sneaky", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 } },
       failOnStatusCode: false,
     });
     expect(plainWay.status()).toBe(422);
@@ -1288,8 +1288,8 @@ test("review of phase 2: nothing but ciphertext can be made to land in an encryp
     const before = (await hubs.more.branchHead())!;
 
     const refused: [string, Awaited<ReturnType<typeof post>>, number, string | undefined][] = [
-      ["a plain note made in an encrypted vault", await post("/files", { vault: "Open", folder: "", kind: "note", title: "Sneaky", localMinute: minute }), 422, "encrypted_vault"],
-      ["plain text sent as a new encrypted file", await post("/files/encrypted", { vault: "Open", folder: "", kind: "note", title: "Sneaky", localMinute: minute, ciphertext: AGE_B64(plain) }), 422, "not_ciphertext"],
+      ["a plain note made in an encrypted vault", await post("/files", { vault: "Open", folder: "", title: "Sneaky", localMinute: minute }), 422, "encrypted_vault"],
+      ["plain text sent as a new encrypted file", await post("/files/encrypted", { vault: "Open", folder: "", title: "Sneaky", localMinute: minute, ciphertext: AGE_B64(plain) }), 422, "not_ciphertext"],
       ["a plain draft of an encrypted file", await post("/working-copy", { path: "Open/Enc.md.age", baseBlob: "0".repeat(40), content: MARK }, "PUT"), 422, "not_editable"],
       ["plain text as an encrypted draft", await post("/working-copy", { path: "Open/Enc.md.age", baseBlob: "0".repeat(40), content: AGE_B64(plain), encrypted: true }, "PUT"), 422, "unstorable"],
       ["an encrypted draft of a plaintext note", await post("/working-copy", { path: "Notes/Plan.md", baseBlob: NOTE_BLOB, content: AGE_B64(cipher), encrypted: true }, "PUT"), 422, "not_editable"],
@@ -1324,7 +1324,7 @@ test("review of phase 2: nothing but ciphertext can be made to land in an encryp
       await theirs("/sealed-shares?share=1", "DELETE"),
       await theirs("/sealed-shares", "POST", { path: "Open/Enc.md.age", mode: "key", ciphertext: AGE_B64(cipher) }),
       await theirs("/files/transfer", "POST", { path: "Open/Enc.md.age", blob: "0".repeat(40), destination: "Notes/x.md", content: AGE_B64(plain) }),
-      await theirs("/files/encrypted", "POST", { vault: "Open", folder: "", kind: "note", title: "x", localMinute: minute, ciphertext: AGE_B64(cipher) }),
+      await theirs("/files/encrypted", "POST", { vault: "Open", folder: "", title: "x", localMinute: minute, ciphertext: AGE_B64(cipher) }),
     ];
     expect(sees.map((response) => response.status())).toEqual(sees.map(() => 404));
     await stranger.close();
@@ -1852,9 +1852,9 @@ test("a note is made from a title: one commit, by the person, named by fjord-cor
     const before = (await hubs.more.branchHead()) as string;
 
     await page.goto(`/repo/${id}/Notes`);
-    await page.getByRole("button", { name: "New note" }).click();
+    await page.getByRole("button", { name: "New document" }).click();
     await page.getByLabel("Title").fill("Weekly review: what went well?");
-    await page.getByRole("button", { name: "Create note" }).click();
+    await page.getByRole("button", { name: "Create document" }).click();
 
     // The name is fjord-core's: what a file name cannot hold becomes a space.
     await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Weekly%20review%20what%20went%20well.md`);
@@ -1862,55 +1862,55 @@ test("a note is made from a title: one commit, by the person, named by fjord-cor
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(before);
     expect(await hubs.more.show(head, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
-    expect(await hubs.more.show(head, "%B")).toMatch(/^Create note “Weekly review what went well”\n\nNotes\/Weekly review what went well\.md\nA new note in Notes, \d+ words to start with\.$/);
-    expect(await hubs.more.filesAt(head)).toEqual({ ...(await hubs.more.filesAt(before)), "Notes/Weekly review what went well.md": "# Weekly review: what went well?\n" });
+    expect(await hubs.more.show(head, "%B")).toMatch(/^Create “Weekly review what went well”\n\nNotes\/Weekly review what went well\.md\nA new document in Notes, \d+ words to start with\.\nDocument id: [0-9a-hjkmnp-tv-z]{26}$/);
+    expect(await hubs.more.filesAt(head)).toEqual({ ...(await hubs.more.filesAt(before)), "Notes/Weekly review what went well.md": expect.stringMatching(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\n[\s\S]*# Weekly review: what went well\?\n$/) });
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("a note without a title is named after the date and time and is empty, and a name that is taken is numbered", async ({ page }) => {
+test("a document without a title is named after the date and time, which is its title, and a name that is taken is numbered", async ({ page }) => {
   try {
     const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.md": "p" });
     await page.goto(`/repo/${id}/Notes`);
-    await page.getByRole("button", { name: "New note" }).click();
-    await page.getByRole("button", { name: "Create note" }).click();
+    await page.getByRole("button", { name: "New document" }).click();
+    await page.getByRole("button", { name: "Create document" }).click();
     await expect(page).toHaveURL(new RegExp(`/repo/${id}/Notes/\\d{4}-\\d{2}-\\d{2}%20\\d{4}\\.md$`));
     const head = (await hubs.more.branchHead()) as string;
     const [name] = Object.keys(await hubs.more.filesAt(head)).filter((path) => /^Notes\/\d{4}-\d{2}-\d{2} \d{4}\.md$/.test(path));
-    expect((await hubs.more.filesAt(head))[name!]).toBe("");
+    expect((await hubs.more.filesAt(head))[name!]).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: \d{4}-\d{2}-\d{2} \d{4}\n/);
 
     await page.goto(`/repo/${id}/Notes`);
-    await page.getByRole("button", { name: "New note" }).click();
+    await page.getByRole("button", { name: "New document" }).click();
     await page.getByLabel("Title").fill("plan");
-    await page.getByRole("button", { name: "Create note" }).click();
+    await page.getByRole("button", { name: "Create document" }).click();
     await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/plan%202.md`);
   } finally {
     await restoreMore();
   }
 });
 
-test("a document is made with a header, in a folder, and a note of the same name does not stop it", async ({ page }) => {
+test("a document is made with a header, in a folder, and is numbered past a file of the same name", async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Projects/Q4 plan.md": "a note", "Notes/Projects/x.md": "x" });
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Projects/Q4 plan.md": "an older file", "Notes/Projects/x.md": "x" });
     await page.goto(`/repo/${id}/Notes/Projects`);
     await page.getByRole("button", { name: "New document" }).click();
     await expect(page.getByRole("button", { name: "Create document" })).toBeVisible();
     await page.getByLabel("Title").fill("Q4 plan");
     await page.getByRole("button", { name: "Create document" }).click();
 
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Projects/Q4%20plan.fj.md`);
+    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Projects/Q4%20plan%202.md`);
     const head = (await hubs.more.branchHead()) as string;
-    const text = (await hubs.more.filesAt(head))["Notes/Projects/Q4 plan.fj.md"]!;
+    const text = (await hubs.more.filesAt(head))["Notes/Projects/Q4 plan 2.md"]!;
     expect(text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\ncreated: "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"\n---\n\n# Q4 plan\n$/);
-    expect(await hubs.more.show(head, "%B")).toMatch(/^Create document “Q4 plan”\n\nNotes\/Projects\/Q4 plan\.fj\.md\nA new document in Notes\/Projects, 2 words to start with\.\nDocument id: [0-9a-hjkmnp-tv-z]{26}$/);
+    expect(await hubs.more.show(head, "%B")).toMatch(/^Create “Q4 plan”\n\nNotes\/Projects\/Q4 plan 2\.md\nA new document in Notes\/Projects, 2 words to start with\.\nDocument id: [0-9a-hjkmnp-tv-z]{26}$/);
   } finally {
     await restoreMore();
   }
 });
 
-test("a document needs a title, and says so, and nothing is made", async ({ page }) => {
+test("a title with nothing to name a file by is refused, and says so, and nothing is made", async ({ page }) => {
   try {
     const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST });
     const head = (await hubs.more.branchHead()) as string;
@@ -1918,10 +1918,10 @@ test("a document needs a title, and says so, and nothing is made", async ({ page
     await page.getByRole("button", { name: "New document" }).click();
     await page.getByLabel("Title").fill("***");
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page.getByText("A document needs a title with some letters or digits")).toBeVisible();
+    await expect(page.getByText("A title needs some letters or digits")).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(head);
     await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByRole("button", { name: "New note" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "New document" })).toBeVisible();
   } finally {
     await restoreMore();
   }
@@ -1933,15 +1933,15 @@ test("an encrypted vault is offered the encrypted way only, and the plaintext wa
     await page.goto(`/repo/${id}/Secret`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     // Offered, but it encrypts in the browser: the form says so.
-    await page.getByRole("button", { name: "New note" }).click();
+    await page.getByRole("button", { name: "New document" }).click();
     await expect(page.getByText("The file is encrypted here, in this browser.")).toBeVisible();
     await page.goto(`/repo/${id}/Notes`);
-    await expect(page.getByRole("button", { name: "New note" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "New document" })).toBeVisible();
 
     const head = (await hubs.more.branchHead()) as string;
     const response = await page.request.post(`/api/connections/${id}/files`, {
       headers: { origin: BASE },
-      data: { vault: "Secret", folder: "", kind: "note", title: "leak", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 } },
+      data: { vault: "Secret", folder: "", title: "leak", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 } },
     });
     expect(response.status()).toBe(422);
     expect((await response.json()).error.code).toBe("encrypted_vault");
@@ -1957,7 +1957,7 @@ test("who may make a file: a signed-in person, from this site, in their own repo
     const url = `/api/connections/${id}/files`;
     const head = (await hubs.more.branchHead()) as string;
     const minute = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
-    const good = { vault: "Notes", folder: "", kind: "note", title: "Idea", localMinute: minute };
+    const good = { vault: "Notes", folder: "", title: "Idea", localMinute: minute };
     const post = (data: unknown, origin: string = BASE) => page.request.post(url, { headers: { origin }, data });
 
     expect((await post(good, "https://evil.example")).status()).toBe(403);

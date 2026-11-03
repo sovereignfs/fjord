@@ -53,8 +53,7 @@ async function readDocument(
   const source = await deps.sourceOf(connectionId);
   if (!source) return undefined;
   const { matches } = await resolveDocId({ index: deps.index, format: deps.format }, [source], docId);
-  // Only a document is shared: a note that has the id is not what was shared.
-  const match = matches.find((candidate) => candidate.kind === "document");
+  const match = matches[0];
   const blob = match ? source.read.blobs.get(match.path) : undefined;
   if (!match || blob === undefined) return undefined;
   const read = await readTextBlob(source.provider, source.ref, blob);

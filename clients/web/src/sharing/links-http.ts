@@ -27,7 +27,7 @@ export interface Deps {
   now?: () => number;
 }
 
-export type CreateResult = { ok: true; id: number; token: string } | { ok: false; reason: "not_a_document" | "gone" | "too_many" | "unavailable" };
+export type CreateResult = { ok: true; id: number; token: string } | { ok: false; reason: "gone" | "too_many" | "unavailable" };
 
 export interface LinkSummary {
   id: number;
@@ -52,7 +52,6 @@ const failure = (status: number, code: string, message: string) => json(status, 
 const notFound = () => failure(404, "not_found", "There is no such connection.");
 
 const REFUSALS = {
-  not_a_document: { status: 422, message: "Only documents (*.fj.md) can be shared by link, not notes." },
   gone: { status: 404, message: "That document is not in this repository." },
   too_many: { status: 422, message: "A document can have at most 50 links. Revoke one, or look at the ones it has." },
   unavailable: { status: 502, message: "Could not reach the git host just now. Nothing was changed. Try again in a moment." },

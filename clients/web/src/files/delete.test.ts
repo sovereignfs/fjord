@@ -65,7 +65,7 @@ const deps = (over: Partial<DeleteDeps> = {}, provider: Provider = h.provider): 
   saveDraft: noVersion,
   ...over,
 });
-const kindOf = (path: string) => (path.endsWith(".fj.md") ? "document" : path.endsWith(".md") ? "note" : "other");
+const kindOf = (path: string) => (path.endsWith(".md") ? "doc" : "other");
 const seed = (files: Record<string, string> = {}) => h.seed({ "Notes/fjord.vault.json": VAULT, ...files });
 const blobOf = async (path: string) => {
   const head = await h.provider.getHead(h.repo, "main");
@@ -90,12 +90,12 @@ describe.skipIf(!available)(`deleting a file (${leg})`, () => {
     expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
     expect(await fake.show(commit, "%B")).toBe("Delete “Weekly review”\n\nNotes/Weekly review.md\nKept in this history; Fjord Web can put it back from Recently deleted.");
     expect(await deletions.get(1, (result as { deletions: number[] }).deletions)).toEqual([
-      { id: expect.any(Number), path: "Notes/Weekly review.md", docId: null, kind: "note", blob, deletingCommit: commit, deletedBy: "ada", deletedAt: clock, restoredAt: null },
+      { id: expect.any(Number), path: "Notes/Weekly review.md", docId: null, kind: "doc", blob, deletingCommit: commit, deletedBy: "ada", deletedAt: clock, restoredAt: null },
     ]);
     await fake.fsck();
   });
 
-  it("records a document's identifier, and none for a note without a header or a file that is not one", async () => {
+  it("records a Doc's identifier, and none for one without a header or a file that is not one", async () => {
     await seed({ "Notes/doc.fj.md": DOC(ID, "Doc"), "Notes/plain.md": "# no header\n", "Notes/pic.png": "png" });
     const ids: number[] = [];
     for (const path of ["Notes/doc.fj.md", "Notes/plain.md", "Notes/pic.png"]) {
@@ -103,8 +103,8 @@ describe.skipIf(!available)(`deleting a file (${leg})`, () => {
       ids.push(...result.deletions);
     }
     expect((await deletions.get(1, ids)).map((record) => [record.path, record.kind, record.docId])).toEqual([
-      ["Notes/doc.fj.md", "document", ID],
-      ["Notes/plain.md", "note", null],
+      ["Notes/doc.fj.md", "doc", ID],
+      ["Notes/plain.md", "doc", null],
       ["Notes/pic.png", "other", null],
     ]);
   });
@@ -153,8 +153,8 @@ describe.skipIf(!available)(`deleting a folder (${leg})`, () => {
     const records = await deletions.get(1, ids);
     expect(records.map((record) => [record.path, record.kind, record.docId]).sort()).toEqual([
       ["Notes/Projects/2026/c.csv", "other", null],
-      ["Notes/Projects/a.md", "note", null],
-      ["Notes/Projects/b.fj.md", "document", null],
+      ["Notes/Projects/a.md", "doc", null],
+      ["Notes/Projects/b.fj.md", "doc", null],
     ]);
     expect(new Set(records.map((record) => record.deletingCommit))).toEqual(new Set([commit]));
     await fake.fsck();
@@ -289,8 +289,8 @@ describe.skipIf(!available)(`when others are writing too, and when it goes wrong
 });
 
 describe("what a deleted thing is called", () => {
-  it("is the name without .fj.md or .md, and a folder or another file as it is", () => {
-    expect(deletedName("Notes/Q4 plan.fj.md")).toBe("Q4 plan");
+  it("is the name without .md, and a folder or another file as it is", () => {
+    expect(deletedName("Notes/Q4 plan.md")).toBe("Q4 plan");
     expect(deletedName("Notes/Weekly review.md")).toBe("Weekly review");
     expect(deletedName("Notes/Projects")).toBe("Projects");
     expect(deletedName("Notes/pic.png")).toBe("pic.png");

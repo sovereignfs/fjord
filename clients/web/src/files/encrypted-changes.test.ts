@@ -81,19 +81,18 @@ const noPlaintext = async (commit: string) => {
 };
 
 describe("what an encrypted file is called", () => {
-  it("keeps its real kind before .age, so a rename cannot make a note a document or a file something else", () => {
+  it("keeps its real extension before .age, so a rename cannot make a file something else", () => {
     expect(suffix("Secret/Plan.md.age")).toBe(".md.age");
-    expect(suffix("Secret/Plan.fj.md.age")).toBe(".fj.md.age");
-    expect(suffix("Secret/Plan.FJ.MD.AGE")).toBe(".fj.md.age");
+    expect(suffix("Secret/Plan.fj.md.age")).toBe(".md.age");
+    expect(suffix("Secret/Plan.FJ.MD.AGE")).toBe(".md.age");
     expect(suffix("Secret/report.xlsx.age")).toBe(".xlsx.age");
     expect(suffix("Secret/01jagc4k7pr9tbm3ykwx6zq2hz.age")).toBe(".age");
     expect(suffix("Notes/Plan.md")).toBe(".md");
-    expect(suffix("Notes/Plan.fj.md")).toBe(".fj.md");
+    expect(suffix("Notes/Plan.fj.md")).toBe(".md");
   });
 
   it("is named in a message without .age", () => {
     expect(deletedName("Secret/Plan.md.age")).toBe("Plan");
-    expect(deletedName("Secret/Plan.fj.md.age")).toBe("Plan");
     expect(moveMessage("Secret/Plan.md.age", "Secret/Plan 2.md.age", 1, false)).toBe("Rename Plan to Plan 2");
   });
 });
@@ -121,12 +120,11 @@ describe.skipIf(!available)(`renaming and moving in a plain-named encrypted vaul
     expect(tree).toEqual(["Secret/Archive/Plan.fj.md.age", "Secret/Archive/x.md.age", "Secret/Plan.md.age", "Secret/fjord.vault.json", "Secret/recipients.txt"]);
   });
 
-  it("never changes what a file is: not its kind, nor its .age", async () => {
+  it("never changes what a file is: not its extension, nor its .age", async () => {
     await seedPlain();
-    expect(reason(await move(await fileTarget("Secret/Plan.md.age"), "Secret/Plan.fj.md.age", false))).toBe("extension_changed");
     expect(reason(await move(await fileTarget("Secret/Plan.md.age"), "Secret/Plan.txt.age", false))).toBe("extension_changed");
     expect(reason(await move(await fileTarget("Secret/Plan.md.age"), "Secret/Plan.md", false))).toBe("extension_changed");
-    expect(reason(await move(await fileTarget("Secret/Plan.md.age"), "Secret/Plan.fj.md.age", false))).toBe("extension_changed");
+    expect(reason(await move(await fileTarget("Secret/Plan.md.age"), "Secret/Plan", false))).toBe("extension_changed");
   });
 
   it("never goes over a file or a name like it, nor out of its vault", async () => {
@@ -209,7 +207,7 @@ describe.skipIf(!available)(`deleting and putting back in an encrypted vault (${
     await seedPlain();
     const done = await remove(await fileTarget("Secret/Plan.md.age"));
     const ids = (done as { deletions: number[] }).deletions;
-    expect(await restore(ids, "Secret/Plan.fj.md.age")).toMatchObject({ ok: false, reason: "bad_path" });
+    expect(await restore(ids, "Secret/Plan.txt.age")).toMatchObject({ ok: false, reason: "bad_path" });
     expect(await restore(ids, "Secret/Restored.md.age")).toMatchObject({ ok: true, paths: ["Secret/Restored.md.age"] });
   });
 });

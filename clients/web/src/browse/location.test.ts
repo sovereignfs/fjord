@@ -104,23 +104,23 @@ describe.skipIf(!available)(`browsing inside a vault (${leg})`, () => {
     if (location.kind !== "folder") return;
     expect(location.folders).toEqual([{ name: "Q4", files: 3 }]);
     expect(location.files.map((file) => [file.relative, file.kind])).toEqual([
-      ["a.md", "note"],
+      ["a.md", "doc"],
       ["b.png", "other"],
-      ["Z.md", "note"],
+      ["Z.md", "doc"],
     ]);
   });
 
   it("goes down a folder at a time", async () => {
     const provider = host(LAYOUT);
-    expect(shape(await at(provider, "V", "Q4"))).toEqual({ kind: "folder", folders: ["deep"], files: [["Q4/report.fj.md", "document"]] });
+    expect(shape(await at(provider, "V", "Q4"))).toEqual({ kind: "folder", folders: ["deep"], files: [["Q4/report.fj.md", "doc"]] });
     expect(shape(await at(provider, "V", "Q4", "deep"))).toEqual({ kind: "folder", folders: ["more"], files: [["Q4/deep/x.csv", "other"]] });
-    expect(shape(await at(provider, "V", "Q4", "deep", "more"))).toEqual({ kind: "folder", folders: [], files: [["Q4/deep/more/y.md", "note"]] });
+    expect(shape(await at(provider, "V", "Q4", "deep", "more"))).toEqual({ kind: "folder", folders: [], files: [["Q4/deep/more/y.md", "doc"]] });
   });
 
-  it("tells a document from a note and from any other file, by name", async () => {
+  it("calls every Markdown file a Doc, whatever its name, and tells it from any other file", async () => {
     const provider = host(LAYOUT);
-    expect(shape(await at(provider, "V", "Q4", "report.fj.md"))).toEqual({ kind: "file", file: ["Q4/report.fj.md", "document"] });
-    expect(shape(await at(provider, "V", "a.md"))).toEqual({ kind: "file", file: ["a.md", "note"] });
+    expect(shape(await at(provider, "V", "Q4", "report.fj.md"))).toEqual({ kind: "file", file: ["Q4/report.fj.md", "doc"] });
+    expect(shape(await at(provider, "V", "a.md"))).toEqual({ kind: "file", file: ["a.md", "doc"] });
     expect(shape(await at(provider, "V", "b.png"))).toEqual({ kind: "file", file: ["b.png", "other"] });
   });
 
@@ -217,7 +217,7 @@ describe.skipIf(!available)(`browsing inside a vault (${leg})`, () => {
     for (const path of ["fjord.json", "Public/fjord.vault.json", "Public/plan.fj.md", "Public/idea.md"]) files[path] = readFileSync(join(fixtures, path), "utf8");
     const whole = shape(await at(host(files), "Public"));
     const cut = shape(await atCut(host(files, 1), "Public"));
-    expect(whole).toEqual({ kind: "folder", folders: [], files: [["idea.md", "note"], ["plan.fj.md", "document"]] });
+    expect(whole).toEqual({ kind: "folder", folders: [], files: [["idea.md", "doc"], ["plan.fj.md", "doc"]] });
     expect(cut).toEqual(whole);
   });
 });

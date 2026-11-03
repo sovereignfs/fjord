@@ -127,7 +127,7 @@ describe.skipIf(!available)(`setting a repository up (${leg})`, () => {
     const read = await readRepository(deps(host), TARGET);
     expect(read.manifest).toMatchObject({ ok: true, version: 1, name: "plain" });
     expect(read.discovery.vaults.map((vault) => [vault.directory, vault.encrypted, vault.manifestError])).toEqual([["Public", false, null]]);
-    expect(read.discovery.vaults[0]?.files.map((file) => [file.relative, file.kind])).toEqual([["welcome.md", "note"]]);
+    expect(read.discovery.vaults[0]?.files.map((file) => [file.relative, file.kind])).toEqual([["welcome.md", "doc"]]);
     expect(isNotFjord(read)).toBe(false);
     expect(await textAt(host, ".gitattributes")).toContain(GUARD);
     expect(JSON.parse((await textAt(host, "fjord.json")) as string).generator).toMatch(/^fjord-web \d/);

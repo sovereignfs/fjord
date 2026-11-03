@@ -50,7 +50,7 @@ describe("links of a document", () => {
   });
 
   it("are not made for a note, or for an id that is not there", async () => {
-    for (const [kind, reason] of [["note", "not_a_document"], ["gone", "gone"], ["unavailable", "unavailable"]] as const) {
+    for (const [kind, reason] of [["gone", "gone"], ["unavailable", "unavailable"]] as const) {
       const { access, links } = setup({ kind });
       expect(await access.create("alice", 1, { docId: DOC, role: "view", expiresAt: null, password: null })).toEqual({ found: true, result: { ok: false, reason } });
       expect(links.create).not.toHaveBeenCalled();

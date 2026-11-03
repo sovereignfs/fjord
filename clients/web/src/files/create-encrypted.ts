@@ -3,7 +3,6 @@ import type { LocalMinute, VaultListing } from "../format/types";
 import { isProviderError } from "../providers/errors";
 import type { Identity, Provider, RepositoryRef } from "../providers/types";
 import { formatIdentity } from "../working/version";
-import type { FileKind } from "./create";
 
 /**
  * Making a new note or document in an **encrypted** vault (ROADMAP 2b.4, DESIGN.md §9, spec §6, §7). The browser writes the file and encrypts it to the vault's
@@ -64,14 +63,12 @@ export type CreateEncryptedResult =
   | { ok: false; reason: "folder_gone" | "bad_title" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
 
 const ATTEMPTS = 2;
-const DOCUMENT_EXTENSION = ".fj.md";
-
 export async function createEncryptedFile(
   deps: CreateEncryptedDeps,
-  input: { vault: string; folder: string; target: EncryptedTarget; kind: FileKind; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
+  input: { vault: string; folder: string; target: EncryptedTarget; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
 ): Promise<CreateEncryptedResult> {
   const title = input.title.trim();
-  if (input.target.naming === "plain" && input.kind === "document" && deps.format.titleFromText(title) == null) return { ok: false, reason: "bad_title" };
+  if (input.target.naming === "plain" && title !== "" && deps.format.titleFromText(title) == null) return { ok: false, reason: "bad_title" };
   const directory = input.folder === "" ? input.vault : `${input.vault}/${input.folder}`;
   const author = formatIdentity(input.author);
   const { suffix } = input.target;
@@ -95,7 +92,7 @@ export async function createEncryptedFile(
         const made = await deps.provider.commit(deps.ref, {
           branch: deps.branch,
           expectedHead,
-          message: render(createEncryptedMessage({ kind: input.kind, path })),
+          message: render(createEncryptedMessage({ path })),
           author,
           changes: [{ path, content: input.ciphertext }],
         });
@@ -117,7 +114,7 @@ export async function createEncryptedFile(
 }
 
 /** The file's name in the folder, and what to call it in the commit message (none in an `id`-named vault, where the name is a secret). */
-function nameFor(deps: CreateEncryptedDeps, input: { kind: FileKind; target: EncryptedTarget; localMinute: LocalMinute }, title: string, present: string[], suffix: string): { file: string; label: string | undefined } {
+function nameFor(deps: CreateEncryptedDeps, input: { target: EncryptedTarget; localMinute: LocalMinute }, title: string, present: string[], suffix: string): { file: string; label: string | undefined } {
   if (input.target.naming === "id") {
     const taken = new Set(present.map((name) => name.toLowerCase()));
     for (let tries = 0; ; tries++) {
@@ -127,6 +124,6 @@ function nameFor(deps: CreateEncryptedDeps, input: { kind: FileKind; target: Enc
   }
   // Names that are taken are the payloads' real names (the suffix off), and anything else in the folder as it is.
   const logical = present.map((name) => (name.toLowerCase().endsWith(suffix.toLowerCase()) ? name.slice(0, name.length - suffix.length) : name));
-  const name = input.kind === "note" ? deps.format.quickNoteName(title === "" ? "" : `# ${title}\n`, logical, input.localMinute) : deps.format.freeName(deps.format.titleFromText(title) as string, DOCUMENT_EXTENSION, logical);
-  return { file: `${name}${suffix}`, label: name.endsWith(DOCUMENT_EXTENSION) ? name.slice(0, -DOCUMENT_EXTENSION.length) : name.replace(/\.md$/i, "") };
+  const name = title === "" ? deps.format.quickNoteName("", logical, input.localMinute) : deps.format.freeName(deps.format.titleFromText(title) as string, ".md", logical);
+  return { file: `${name}${suffix}`, label: name.replace(/\.md$/i, "") };
 }

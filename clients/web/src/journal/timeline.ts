@@ -53,9 +53,9 @@ export interface TimelineFilter {
   to?: string;
 }
 
-/** Every summary of the vault's notes and documents at the head, read only where the index does not have it. */
+/** Every summary of the vault's Docs at the head, read only where the index does not have it. */
 export async function summaries(deps: TimelineDeps, connectionId: number, vault: VaultListing, blobs: Map<string, string>): Promise<TimelineEntry[]> {
-  const files = vault.files.filter((file) => file.kind === "note" || file.kind === "document").flatMap((file) => {
+  const files = vault.files.filter((file) => file.kind === "doc").flatMap((file) => {
     const blob = blobs.get(file.path);
     return blob === undefined ? [] : [{ path: file.path, relative: file.relative, blob, size: file.size }];
   });

@@ -33,8 +33,8 @@ beforeEach(async () => {
 afterEach(async () => h?.close());
 
 const deps = (): CreateEncryptedDeps => ({ provider: h.provider, ref: h.repo, branch: "main", format: fjord(), now: () => 1_800_000_000_000, random: () => new Uint8Array(16).fill(7) });
-const create = (target: EncryptedTarget, input: { title?: string; kind?: "note" | "document"; folder?: string; bytes?: Uint8Array } = {}) =>
-  createEncryptedFile(deps(), { vault: "Secret", folder: input.folder ?? "", target, kind: input.kind ?? "note", title: input.title ?? "", localMinute: WHEN, ciphertext: input.bytes ?? encryptedDraft("SECRET PLAINTEXT").bytes, author: ADA });
+const create = (target: EncryptedTarget, input: { title?: string; folder?: string; bytes?: Uint8Array } = {}) =>
+  createEncryptedFile(deps(), { vault: "Secret", folder: input.folder ?? "", target, title: input.title ?? "", localMinute: WHEN, ciphertext: input.bytes ?? encryptedDraft("SECRET PLAINTEXT").bytes, author: ADA });
 const seed = (naming: "plain" | "id", files: Record<string, string> = {}) => h.seed({ "Secret/fjord.vault.json": manifest(naming), "Secret/recipients.txt": "age1x\n", ...files });
 
 describe.skipIf(!available)("a new file in a plain-named encrypted vault", () => {
@@ -46,29 +46,27 @@ describe.skipIf(!available)("a new file in a plain-named encrypted vault", () =>
     const commit = (result as { commit: string }).commit;
     expect(await fake.show(commit, "%P")).toBe(before);
     expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-    expect((await fake.show(commit, "%B")).split("\n")[0]).toBe("Create encrypted note “Meeting notes”");
+    expect((await fake.show(commit, "%B")).split("\n")[0]).toBe("Create encrypted “Meeting notes”");
     expect([...(await fake.fileBytesAt(commit, "Secret/Meeting notes.md.age"))]).toEqual([...bytes]);
     expect(Object.keys(await fake.filesAt(commit)).sort()).toEqual(["Secret/Meeting notes.md.age", "Secret/fjord.vault.json", "Secret/other.md.age", "Secret/recipients.txt"]);
     await fake.fsck();
   });
 
-  it("names a document from its title with .fj.md, and numbers past what is there, case aside, by the file's real name", async () => {
-    await seed("plain", { "Secret/Plan.fj.md.age": "x", "Secret/PLAN 2.fj.md.age": "x", "Secret/Plan.md.age": "x" });
-    expect(((await create(PLAIN, { kind: "document", title: "plan" })) as { path: string }).path).toBe("Secret/plan 3.fj.md.age");
-    // A note and a document are different names (Plan.md and Plan.fj.md); a note called Plan is numbered past the note.
-    expect(((await create(PLAIN, { title: "plan" })) as { path: string }).path).toBe("Secret/plan 2.md.age");
+  it("numbers past what is there, case aside, by the file's real name", async () => {
+    await seed("plain", { "Secret/Plan.md.age": "x", "Secret/PLAN 2.md.age": "x", "Secret/Plan 3.fj.md.age": "x" });
+    expect(((await create(PLAIN, { title: "plan" })) as { path: string }).path).toBe("Secret/plan 3.md.age");
   });
 
-  it("names a note with no title by the writer's date and time, numbered when the minute is taken", async () => {
+  it("names a file with no title by the writer's date and time, numbered when the minute is taken", async () => {
     await seed("plain");
     expect(((await create(PLAIN)) as { path: string }).path).toBe("Secret/2026-10-22 1430.md.age");
     expect(((await create(PLAIN)) as { path: string }).path).toBe("Secret/2026-10-22 1430 2.md.age");
   });
 
-  it("goes into the folder asked for, and needs a title to make a document", async () => {
+  it("goes into the folder asked for, and a title it was given must have something to name the file by", async () => {
     await seed("plain", { "Secret/Projects/a.md.age": "a" });
     expect(((await create(PLAIN, { folder: "Projects", title: "Todo" })) as { path: string }).path).toBe("Secret/Projects/Todo.md.age");
-    expect(await create(PLAIN, { kind: "document", title: "?!" })).toEqual({ ok: false, reason: "bad_title" });
+    expect(await create(PLAIN, { title: "?!" })).toEqual({ ok: false, reason: "bad_title" });
     expect(await create(PLAIN, { folder: "Nowhere", title: "x" })).toEqual({ ok: false, reason: "folder_gone" });
   });
 

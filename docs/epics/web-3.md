@@ -406,7 +406,7 @@ The spec already says it (§1.3, §2.3, §3, §3.1, §6.6, §8.4, §12, as of 20
 
 ### P17 `fjord-wasm`: one kind of Doc, vaults at depth, the adoption plan
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0002, The CLI and `fjord-core`
 
@@ -414,15 +414,27 @@ The module follows P14: a file is a Doc or not, vaults are discovered at any dep
 
 **Accepts when:** the module's fixture tests agree with the CLI's `verify` on every fixture, the new ones included.
 
+- **Done as:** `FileKind::Doc` is `"doc"` in `discover`; `impliedTitle` strips only `.md`; `planAdopt(options, existing, nowMs, random)` and `detectSite(existing)` (`src/api.rs`, `src/lib.rs`) wrap `adopt::plan_adopt` and `detect_site`, with a finding as data and a malformed call as an exception, and `16 × (1 + vaults)` random bytes for the identifiers. `tests/js/adopt.test.mjs` holds them (any depth, a site, appended lines only, findings, purity, detection). The web's `src/format/` types and wrapper (`AdoptOptions`, `AdoptResult`, `planAdopt`, `detectSite`) follow. The module's JavaScript suite (192 tests) and Rust tests pass; the pure subset builds for `wasm32-unknown-unknown`.
+- **Not here:** a web page that calls `planAdopt` (it comes with 3g.1).
+
 ### 3e.1 One address and one editor per kind for a Doc
 
-**Status:** 📋 Planned
+**Status:** ✅ Done, except removing promotion on first edit, which moves to 3e.3
 
 **Design:** RFC 0002, One kind of Doc, Addresses
 
 Every Doc opens at `/d/<id>`, in the editor its repository's kind chooses (drive: the document editor; journal: the note editor in the journal's view; site: the content editor; unknown: as drive). `/n/<id>` answers a 308 to `/d/<id>`. The document and note distinction goes from the browser's table, creating (`files/create.ts`), renaming (`extension_changed`), restoring (`files/restore.ts`) and the messages. A file with no header is **no longer promoted on its first edit** (reversing 1b.5's promotion): it is edited as it is.
 
 **Accepts when:** a `.md` and a `.fj.md` in a drive open in the same editor at `/d/<id>`; an old `/n/<id>` link lands on `/d/<id>`; editing a file with no header leaves it with none; every route is in `src/access/routes.ts`.
+
+- **Done as:**
+  - **The model:** the module reports one `doc` kind; `KindModule.editor` (`"document"` for a drive, `"note"` for a journal and a site) is what `RepositoryScreen` hands `FolderView` and `NoteView`, which picks the editor and gives comments to the document editor's Docs. `IdPage` is `/d/<id>` only; `app/n/` is gone and `proxy.ts` sends `/n/`, `/note/` and `/doc/` to `/d/<id>` (a 308, no token).
+  - **Creation is one thing** (`files/create.ts`, `create-encrypted.ts`, `keys/files.ts`, `messages.ts`, `http.ts`, `client.ts`, `NewFile.tsx`): *New document*, a title optional, always `.md`, always with an `id` (`newDocument`), the date and time naming and titling an untitled one. The request has no `kind`.
+  - **Sharing and the index:** the policy's target is `document | folder`; `not_a_document` is gone from the shares' and links' replies; `DocIndex` rows and `Found` carry no kind (the column says `doc`, older rows are read as `doc`); `deletion.kind` is `doc | other`. Renaming, restoring and moving keep a file's **extension** (`suffix()`, no `.fj.md` case).
+  - **Tested:** the whole unit suite (2491 tests), against `FJORD_CLI`: what the web makes verifies with the real `fjord`, and the encrypted files open with the real `age`.
+- **Not here:**
+  - **Promotion on first edit is still there** (a file with no header is given `id`, `title` and `created` when first edited, 1b.5). The decision is to take it away and add an `id` only when sharing, publishing or commenting asks, after asking; that is one change with 3e.3's share step, so it is made there.
+  - **The e2e specs** (`e2e/repositories.open.spec.ts`) were edited for the new labels, messages and URLs (New document, no `kind`, `.md` names, the numbered `Q4 plan 2.md`) but **not run** in this session: they need a built app and Chromium.
 
 ### 3e.2 Handles: `/f/<handle>` in place of paths
 

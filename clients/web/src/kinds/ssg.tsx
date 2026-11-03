@@ -16,6 +16,7 @@ import type { EntryViewProps, KindModule } from "./types";
 export const ssgKind: KindModule = {
   id: "ssg",
   label: "Site",
+  editor: "note",
   EntryView: SiteEntry,
   contentModel: { placement: "engine", fields: ["title", "date", "tags", "draft"] },
   actions: [{ id: "new-post", label: "New post" }, { id: "build-status", label: "Build status" }, { id: "preview", label: "Preview" }],

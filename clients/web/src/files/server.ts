@@ -9,7 +9,7 @@ import { makeVersion } from "../working/server";
 import { WorkingCopyService } from "../working/service";
 import { type AccessDeps, filesAccess } from "./access";
 import { restoreWindowMs } from "./config";
-import { type CreateResult, type FileKind, checkVault, createFile } from "./create";
+import { type CreateResult, checkVault, createFile } from "./create";
 import { type CreateEncryptedResult, type EncryptedTarget, checkEncryptedVault, createEncryptedFile } from "./create-encrypted";
 import { type DeleteResult, type DeleteTarget, deletePath } from "./delete";
 import { DeletionService } from "./deletions";
@@ -40,7 +40,7 @@ async function encryptedVaultFor(accountId: string, id: number, vault: string) {
 async function createEncrypted(
   accountId: string,
   id: number,
-  input: { vault: string; folder: string; target: EncryptedTarget; kind: FileKind; title: string; localMinute: { year: number; month: number; day: number; hour: number; minute: number }; ciphertext: Uint8Array; author: Identity },
+  input: { vault: string; folder: string; target: EncryptedTarget; title: string; localMinute: { year: number; month: number; day: number; hour: number; minute: number }; ciphertext: Uint8Array; author: Identity },
 ): Promise<CreateEncryptedResult> {
   const used = await (await connectionService()).provider(accountId, id);
   if (!used) return { ok: false, reason: "unavailable" };
@@ -51,7 +51,7 @@ async function createEncrypted(
 async function create(
   accountId: string,
   id: number,
-  input: { vault: string; folder: string; kind: FileKind; title: string; localMinute: { year: number; month: number; day: number; hour: number; minute: number }; author: Identity },
+  input: { vault: string; folder: string; title: string; localMinute: { year: number; month: number; day: number; hour: number; minute: number }; author: Identity },
 ): Promise<CreateResult> {
   const used = await (await connectionService()).provider(accountId, id);
   if (!used) return { ok: false, reason: "unavailable" };
@@ -67,9 +67,9 @@ async function remove(accountId: string, id: number, input: { vault: string; tar
   if (!used) return { ok: false, reason: "unavailable" };
   const outcome = await readConnection(accountId, used.connection);
   // What a deleted file was called by its name, as the format module classified it; a repository too large to list says "other".
-  const kinds = new Map<string, "note" | "document">();
+  const kinds = new Map<string, "doc">();
   if (outcome.ok) {
-    for (const vault of outcome.read.discovery.vaults) for (const file of vault.files) if (file.kind === "note" || file.kind === "document") kinds.set(file.path, file.kind);
+    for (const vault of outcome.read.discovery.vaults) for (const file of vault.files) if (file.kind === "doc") kinds.set(file.path, "doc");
   }
   const database = await getDatabase();
   return deletePath(

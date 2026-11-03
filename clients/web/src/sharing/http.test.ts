@@ -141,7 +141,6 @@ describe("what may be sent", () => {
 
 describe("what they are told when it is refused", () => {
   it.each<[Extract<ShareResult, { ok: false }>["reason"], number]>([
-    ["not_a_document", 422],
     ["gone", 404],
     ["too_many", 422],
     ["unavailable", 502],

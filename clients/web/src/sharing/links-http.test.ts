@@ -142,7 +142,7 @@ describe("making a link", () => {
     logged.mockRestore();
   });
 
-  it.each<[Extract<CreateResult, { ok: false }>["reason"], number]>([["not_a_document", 422], ["gone", 404], ["too_many", 422], ["unavailable", 502]])(
+  it.each<[Extract<CreateResult, { ok: false }>["reason"], number]>([["gone", 404], ["too_many", 422], ["unavailable", 502]])(
     "%s is %i, with its own code and words, and no token",
     async (reason, status) => {
       const { deps, create } = stub();

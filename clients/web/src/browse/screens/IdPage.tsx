@@ -19,19 +19,18 @@ import { findDocId } from "../server";
 import { RepositoryScreen } from "./RepositoryScreen";
 
 /**
- * `/d/<id>` and `/n/<id>` (DESIGN.md §9, ROADMAP 1b.6): a file by its Doc `id`, wherever it is among the account's own
- * repositories. One match is shown as `/repo/<connection>/<path>` is, at this address; a note asked for as a document (or the
- * other way round) is sent to the address that is its own; several (an id is unique within a repository, not across them, and a
+ * `/d/<id>` (DESIGN.md §9, ROADMAP 1b.6; RFC 0002 made `/n/<id>` a redirect to it, in `proxy.ts`): a file by its Doc `id`, wherever it is
+ * among the account's own repositories. One match is shown as `/repo/<connection>/<path>` is, at this address; several (an id is unique within a repository, not across them, and a
  * copy is a copy) are listed to choose from; none is a 404, and an id that is not one is too. Another account's file is none.
  */
-export async function IdPage({ route, id, wrong }: { route: "d" | "n"; id: string; wrong?: "wrong" | "wait" | undefined }) {
+export async function IdPage({ id, wrong }: { id: string; wrong?: "wrong" | "wait" | undefined }) {
   // A share link (ROADMAP 1c.3) needs no account. Its token is in a cookie, put there when the link was first opened (1c.4) and
   // checked here against the store at every request, so revoking or expiring a link ends it at once. A token that opens nothing
   // now (never made, for another document, expired or revoked) is not told apart from none: the page is then what it is for anyone.
-  const jar = route === "d" ? await cookies() : undefined;
-  const given = jar?.get(SHARE_COOKIE)?.value;
+  const jar = await cookies();
+  const given = jar.get(SHARE_COOKIE)?.value;
   const { token, proof } = given === undefined ? { token: undefined, proof: undefined } : parseShareCookie(given);
-  if (route === "d" && token !== undefined && isDocId(id) && encryptionKeyring() !== undefined) {
+  if (token !== undefined && isDocId(id) && encryptionKeyring() !== undefined) {
     const linked = await openLinkedFor(token, id, proof);
     if (linked) {
       return (
@@ -51,8 +50,8 @@ export async function IdPage({ route, id, wrong }: { route: "d" | "n"; id: strin
     }
   }
   // A link that asks for a password (ROADMAP 1c.5): its token waits in a cookie that opens nothing, and the person is asked.
-  const waiting = jar?.get(PENDING_COOKIE)?.value;
-  if (route === "d" && waiting !== undefined && isDocId(id) && encryptionKeyring() !== undefined && (await passwordWanted(waiting, id))) {
+  const waiting = jar.get(PENDING_COOKIE)?.value;
+  if (waiting !== undefined && isDocId(id) && encryptionKeyring() !== undefined && (await passwordWanted(waiting, id))) {
     return (
       <main className={styles.page}>
         <div className={styles.account}>
@@ -76,7 +75,7 @@ export async function IdPage({ route, id, wrong }: { route: "d" | "n"; id: strin
 
   const found = await findDocId(user.id, id);
   const [only, ...others] = found.matches;
-  if (only === undefined && route === "d") {
+  if (only === undefined) {
     // Not in any repository of theirs: it may have been shared with them (ROADMAP 1c.2), and then it is shown to be read.
     const shared = await openSharedFor(user.id, id);
     if (shared) {
@@ -108,8 +107,6 @@ export async function IdPage({ route, id, wrong }: { route: "d" | "n"; id: strin
   }
 
   if (others.length === 0) {
-    const own = only.kind === "document" ? "d" : "n";
-    if (own !== route) redirect(`/${own}/${id}`);
     return <RepositoryScreen connection={String(only.connectionId)} path={only.path.split("/")} />;
   }
 
@@ -126,7 +123,7 @@ export async function IdPage({ route, id, wrong }: { route: "d" | "n"; id: strin
           <li key={`${match.connectionId}/${match.path}`}>
             <a href={repositoryHref(match.connectionId, ...match.path.split("/"))}>{match.path}</a>{" "}
             <span className={styles.itemMeta}>
-              {match.kind === "document" ? "Document" : "Note"} in {named.get(match.connectionId) ?? "a repository"}
+              Document in {named.get(match.connectionId) ?? "a repository"}
             </span>
           </li>
         ))}

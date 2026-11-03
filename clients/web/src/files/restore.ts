@@ -68,14 +68,14 @@ export type RestoreResult =
 const ATTEMPTS = 2;
 
 /**
- * What makes a file what it is: `.fj.md`, else its extension. An encrypted payload is its real file's kind with the `.age` after it
- * (`Plan.md.age`, `Plan.fj.md.age`), so a note never becomes a document, nor either something else, by a rename.
+ * What makes a file what it is: its extension. An encrypted payload is its real file's extension with the `.age` after it
+ * (`Plan.md.age`), so a Markdown file never becomes something else, nor the other way round, by a rename.
  */
 export function suffix(path: string): string {
   const name = path.slice(path.lastIndexOf("/") + 1);
   const payload = /\.age$/i.test(name) && name.length > 4;
   const real = payload ? name.slice(0, -4) : name;
-  const kind = /\.fj\.md$/i.test(real) ? ".fj.md" : real.lastIndexOf(".") > 0 ? real.slice(real.lastIndexOf(".")).toLowerCase() : "";
+  const kind = real.lastIndexOf(".") > 0 ? real.slice(real.lastIndexOf(".")).toLowerCase() : "";
   return payload ? `${kind}.age` : kind;
 }
 

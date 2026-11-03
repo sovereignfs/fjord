@@ -108,11 +108,11 @@ describe.skipIf(!available)(`opening what was shared (${leg})`, () => {
     expect(again?.body).toContain("Changed.");
   });
 
-  it("finds nothing once the document is gone, or when it was never a document", async () => {
+  it("finds nothing once the document is gone, and shares any Doc, whatever it is called (spec §8.4)", async () => {
     const { deps, host } = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan"), "Notes/idea.md": doc(NOTE_ID, "An idea") });
     await shares.set(1, ID, "bob", "view", "alice");
-    await shares.set(1, NOTE_ID, "bob", "view", "alice"); // a share of a note: shares are of documents only
-    expect(await openShared(deps, "bob", NOTE_ID)).toBeUndefined();
+    await shares.set(1, NOTE_ID, "bob", "view", "alice");
+    expect((await openShared(deps, "bob", NOTE_ID))?.title).toBe("An idea");
     host.seed(REF, { "Notes/Plan.fj.md": null });
     expect(await openShared(deps, "bob", ID)).toBeUndefined();
   });
@@ -194,10 +194,10 @@ describe.skipIf(!available)(`opening by a link (${leg})`, () => {
     expect(await openByLink(linkDeps(deps), token, ID)).toBeUndefined();
   });
 
-  it("opens no note, nothing in an encrypted vault, and nothing when the repository cannot be read", async () => {
+  it("opens any Doc, but nothing in an encrypted vault, and nothing when the repository cannot be read", async () => {
     const encrypted = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hw", name: "Secret", createdAt: "2026-10-16T09:34:00Z", encryption: { mode: "none" }, fileNaming: "plain" });
     const a = setup({ "Notes/idea.md": doc(NOTE_ID, "An idea") });
-    expect(await openByLink(linkDeps(a.deps), (await make("view", null, NOTE_ID)).token, NOTE_ID)).toBeUndefined();
+    expect((await openByLink(linkDeps(a.deps), (await make("view", null, NOTE_ID)).token, NOTE_ID))?.title).toBe("An idea");
     const b = setup({ "Secret/fjord.vault.json": encrypted, "Secret/Plan.fj.md": doc(ID, "Hidden") });
     expect(await openByLink(linkDeps(b.deps), (await make()).token, ID)).toBeUndefined();
     const c = setup({ "Notes/Plan.fj.md": doc(ID, "Q4 plan") }, { unreadable: true });

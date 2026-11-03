@@ -194,10 +194,8 @@ describe.skipIf(!available)(`editing through a link (${leg})`, () => {
     expect((await drafts.get(1, PATH))!.editors).toMatchObject([{ name: "Grace Hopper" }]);
   });
 
-  it("does not edit a note, a document in an encrypted vault, or one whose header cannot be read", async () => {
+  it("does not edit a document in an encrypted vault, or one whose header cannot be read", async () => {
     const encrypted = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hw", name: "Secret", createdAt: "2026-10-16T09:34:00Z", encryption: { mode: "none" }, fileNaming: "plain" });
-    const a = setup({ "Notes/idea.md": DOC });
-    expect(await saveGuestDraft(a.deps, edit((await link("edit")).cookie, "\nx\n"))).toEqual({ ok: false, reason: "hidden" });
     const b = setup({ "Secret/fjord.vault.json": encrypted, "Secret/Plan.fj.md": DOC });
     expect(await saveGuestDraft(b.deps, edit((await link("edit")).cookie, "\nx\n"))).toEqual({ ok: false, reason: "hidden" });
     // A header that cannot be read has no id, so it is not the document the link is of.

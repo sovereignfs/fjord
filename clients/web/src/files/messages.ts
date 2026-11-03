@@ -37,8 +37,8 @@ const parent = (path: string) => (path.includes("/") ? path.slice(0, path.lastIn
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const quote = (text: string) => `“${text}”`;
 
-/** A file known by what a person calls it: its name without `.age`, `.fj.md` or `.md`. */
-export const titleOf = (path: string): string => leaf(path).replace(/\.age$/i, "").replace(/\.fj\.md$/i, "").replace(/\.md$/i, "");
+/** A file known by what a person calls it: its name without `.age` or `.md`. */
+export const titleOf = (path: string): string => leaf(path).replace(/\.age$/i, "").replace(/\.md$/i, "");
 
 /** Whether a file in an encrypted vault is named by an identifier (spec §7.2) and so has no name to give. */
 export const isIdName = (path: string): boolean => /^[0-9a-hjkmnp-tv-z]{26}(\.age)?$/i.test(leaf(path));
@@ -200,26 +200,26 @@ export function encryptedEditMessage(path: string): Message {
 }
 
 /** A file made in a plaintext vault. `text` is what it starts as. */
-export function createMessage(input: { kind: "note" | "document"; path: string; text: string }): Message {
-  const { kind, path, text } = input;
+export function createMessage(input: { path: string; text: string }): Message {
+  const { path, text } = input;
   const body = [path];
   const where = parent(path);
   const content = split(text).body;
   const header = split(text).header;
   const counts = words(content);
-  body.push(`A new ${kind} in ${where}${counts > 0 ? `, ${plural(counts, "word")} to start with` : ", empty to start with"}.`);
+  body.push(`A new document in ${where}${counts > 0 ? `, ${plural(counts, "word")} to start with` : ", empty to start with"}.`);
   const id = /^id:[ \t]*(\S+)/m.exec(header)?.[1];
-  if (kind === "document" && id) body.push(`Document id: ${id}`);
-  return { subject: `Create ${kind} ${quote(titleOf(path))}`, body };
+  if (id) body.push(`Document id: ${id}`);
+  return { subject: `Create ${quote(titleOf(path))}`, body };
 }
 
 /** A file made in an encrypted vault. */
-export function createEncryptedMessage(input: { kind: "note" | "document"; path: string }): Message {
-  const { kind, path } = input;
+export function createEncryptedMessage(input: { path: string }): Message {
+  const { path } = input;
   const vault = path.split("/")[0] as string;
   return {
-    subject: isIdName(path) ? `Create an encrypted file in ${vault}` : `Create encrypted ${kind} ${quote(titleOf(path))}`,
-    body: [path, `A new encrypted ${kind} in ${parent(path)}.`, "Encrypted with age before it left the browser: the history holds no part of its contents."],
+    subject: isIdName(path) ? `Create an encrypted file in ${vault}` : `Create encrypted ${quote(titleOf(path))}`,
+    body: [path, `A new encrypted document in ${parent(path)}.`, "Encrypted with age before it left the browser: the history holds no part of its contents."],
   };
 }
 

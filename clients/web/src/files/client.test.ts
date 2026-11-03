@@ -29,14 +29,13 @@ describe("sendCreate", () => {
     const fetched = vi.fn(async () => new Response(JSON.stringify({ path: "Notes/Plan.md" }), { status: 201 }));
     vi.stubGlobal("fetch", fetched);
     const when = new Date(2026, 9, 22, 14, 30, 45); // local time: 22 October 2026, 14:30
-    expect(await sendCreate(7, { vault: "Notes", folder: "Projects", kind: "note", title: "Plan" }, when)).toEqual({ ok: true, path: "Notes/Plan.md" });
+    expect(await sendCreate(7, { vault: "Notes", folder: "Projects", title: "Plan" }, when)).toEqual({ ok: true, path: "Notes/Plan.md" });
     const [url, init] = fetched.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/api/connections/7/files");
     expect(init.method).toBe("POST");
     expect(JSON.parse(init.body as string)).toEqual({
       vault: "Notes",
       folder: "Projects",
-      kind: "note",
       title: "Plan",
       localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 },
     });
@@ -44,7 +43,7 @@ describe("sendCreate", () => {
 
   it("says nothing was made when the server cannot be reached", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("offline"))));
-    expect(await sendCreate(7, { vault: "Notes", folder: "", kind: "note", title: "" })).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was made/i) });
+    expect(await sendCreate(7, { vault: "Notes", folder: "", title: "" })).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was made/i) });
   });
 });
 

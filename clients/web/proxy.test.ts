@@ -43,26 +43,27 @@ describe("a share link's first request", () => {
   });
 });
 
-describe("the routes' old names (/doc/<id> and /note/<id>)", () => {
+describe("the routes' old names (/doc/<id>, /note/<id> and /n/<id>)", () => {
   const redirect = (path: string) => {
     const response = proxy(request(path));
     return { status: response.status, to: response.headers.get("location") };
   };
 
-  it("are sent on for good to /d/<id> and /n/<id>, whatever is in the query", () => {
+  it("are sent on for good to /d/<id>, whatever is in the query", () => {
     expect(redirect(`/doc/${DOC}`)).toEqual({ status: 308, to: `https://fjord.example.com/d/${DOC}` });
-    expect(redirect(`/note/${DOC}`)).toEqual({ status: 308, to: `https://fjord.example.com/n/${DOC}` });
+    expect(redirect(`/note/${DOC}`)).toEqual({ status: 308, to: `https://fjord.example.com/d/${DOC}` });
+    expect(redirect(`/n/${DOC}`)).toEqual({ status: 308, to: `https://fjord.example.com/d/${DOC}` });
     expect(redirect(`/doc/${DOC}?wrong=1`)).toEqual({ status: 308, to: `https://fjord.example.com/d/${DOC}?wrong=1` });
   });
 
-  it("never carry a token into an address by a redirect: a note has no link, and a document's token is swapped for a cookie, not passed on", () => {
+  it("never carry a token into an address by a redirect: a Doc's token is swapped for a cookie, not passed on", () => {
     const note = redirect(`/note/${DOC}?token=${TOKEN}&x=1`);
-    expect(note.to).toBe(`https://fjord.example.com/n/${DOC}?x=1`);
+    expect(note.to).toBe(`https://fjord.example.com/d/${DOC}?x=1`);
     expect(note.to).not.toContain(TOKEN);
   });
 
-  it("are only those two addresses: anything deeper, or another name, is left alone", () => {
-    for (const path of [`/doc/${DOC}/comments`, `/doc/${DOC}/draft`, "/doc/", "/doc", `/notes/${DOC}`, `/documents/${DOC}`, `/d/${DOC}`, `/n/${DOC}`]) expect(redirect(path).status, path).not.toBe(308);
+  it("are only those three addresses: anything deeper, or another name, is left alone", () => {
+    for (const path of [`/doc/${DOC}/comments`, `/doc/${DOC}/draft`, "/doc/", "/doc", `/notes/${DOC}`, `/documents/${DOC}`, `/d/${DOC}`, `/n/${DOC}/x`]) expect(redirect(path).status, path).not.toBe(308);
   });
 
   it("are sent with the page's policy too", () => {

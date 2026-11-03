@@ -139,6 +139,21 @@ pub fn plan_setup(
     api::plan_setup(options_json, existing_json, now_ms, random).map_err(thrown)
 }
 
+#[wasm_bindgen(js_name = planAdopt)]
+pub fn plan_adopt(
+    options_json: &str,
+    existing_json: &str,
+    now_ms: f64,
+    random: &[u8],
+) -> Result<String, JsError> {
+    api::plan_adopt(options_json, existing_json, now_ms, random).map_err(thrown)
+}
+
+#[wasm_bindgen(js_name = detectSite)]
+pub fn detect_site(existing_json: &str) -> Result<String, JsError> {
+    api::detect_site(existing_json).map_err(thrown)
+}
+
 #[wasm_bindgen(js_name = planVault)]
 pub fn plan_vault(
     options_json: &str,

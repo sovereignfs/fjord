@@ -17,9 +17,9 @@ export interface EncryptedCreate {
 }
 
 /**
- * "New note" and "New document" in a folder of a plaintext vault (ROADMAP 1b.7). A person gives a title, and no more: the
- * file's name and, for a document, its header are `fjord-core`'s, made on the server. A note may have no title (it is then
- * named after the date and time); a document needs one. The new file opens in its editor.
+ * "New document" in a folder of a plaintext vault (ROADMAP 1b.7). A person gives a title, and no more: the file's name and its
+ * header are `fjord-core`'s, made on the server. A title is optional (the file is then named after the date and time). The new
+ * file opens in its editor.
  *
  * In an encrypted vault (ROADMAP 2b.4, `encrypted`) the file is written and **encrypted here**, to the vault's recipients, and only the ciphertext is sent (with
  * the title, for a vault whose file names are public, as they are made from it). Encrypting needs only public keys, so it works with the identity locked; the new
@@ -37,28 +37,28 @@ export function NewFile({ connectionId, vault, folder, encrypted }: { connection
       .catch(() => setMine(null));
   }, [encrypted]);
 
-  const [kind, setKind] = useState<"note" | "document" | null>(null);
+  const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (kind === null) return;
+    if (!open) return;
     setBusy(true);
     setError(null);
     let made: Awaited<ReturnType<typeof sendCreate>>;
     if (encrypted?.recipients.ok) {
       try {
-        const sealed = newEncryptedFile(await loadModule(), { kind, title, naming: encrypted.naming, recipients: encrypted.recipients.text, when: localMinute(new Date()), now: Date.now(), random: crypto.getRandomValues(new Uint8Array(16)) });
+        const sealed = newEncryptedFile(await loadModule(), { title, naming: encrypted.naming, recipients: encrypted.recipients.text, when: localMinute(new Date()), now: Date.now(), random: crypto.getRandomValues(new Uint8Array(16)) });
         made = sealed.ok
-          ? await sendCreateEncrypted(connectionId, { vault, folder, kind, title: encrypted.naming === "plain" ? title.trim() : "", ciphertext: sealed.ciphertext })
-          : { ok: false, message: "A document needs a title with some letters or digits in it to name its file by." };
+          ? await sendCreateEncrypted(connectionId, { vault, folder, title: encrypted.naming === "plain" ? title.trim() : "", ciphertext: sealed.ciphertext })
+          : { ok: false, message: "A title needs some letters or digits in it to name its file by." };
       } catch {
         made = { ok: false, message: "The file could not be encrypted here, so nothing was made." };
       }
     } else {
-      made = await sendCreate(connectionId, { vault, folder, kind, title });
+      made = await sendCreate(connectionId, { vault, folder, title });
     }
     if (made.ok) {
       const href = repositoryHref(connectionId, ...made.path.split("/"));
@@ -78,13 +78,10 @@ export function NewFile({ connectionId, vault, folder, encrypted }: { connection
     );
   }
 
-  if (kind === null) {
+  if (!open) {
     return (
       <p>
-        <Button variant="secondary" size="sm" onClick={() => setKind("note")}>
-          New note
-        </Button>{" "}
-        <Button variant="secondary" size="sm" onClick={() => setKind("document")}>
+        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
           New document
         </Button>
       </p>
@@ -92,7 +89,7 @@ export function NewFile({ connectionId, vault, folder, encrypted }: { connection
   }
 
   return (
-    <form className={styles.form} onSubmit={onSubmit} style={{ marginTop: 0 }} aria-label={kind === "note" ? "New note" : "New document"}>
+    <form className={styles.form} onSubmit={onSubmit} style={{ marginTop: 0 }} aria-label="New document">
       {encrypted?.recipients.ok && mine !== null && !encrypted.recipients.text.includes(mine) ? (
         <div className={styles.notice}>
           <Alert variant="warning" heading="Your key is not among this vault's recipients">
@@ -101,7 +98,7 @@ export function NewFile({ connectionId, vault, folder, encrypted }: { connection
         </div>
       ) : null}
       {encrypted ? <p className={styles.itemMeta}>{encrypted.naming === "plain" ? "The file is encrypted here, in this browser. Its name is public, as every file name in this vault is; its contents are not." : "The file is encrypted here, in this browser. Its name is kept inside it; the repository sees only a new identifier."}</p> : null}
-      <FormField label="Title" hint={kind === "note" ? "Optional. It names the file; left empty, the note is named after the date and time." : "The document's title; it names the file."} required={kind === "document"}>
+      <FormField label="Title" hint="Optional. It names the file; left empty, the file is named after the date and time.">
         {(field) => <Input {...field} name="title" autoComplete="off" maxLength={200} autoFocus value={title} onChange={(e) => setTitle(e.target.value)} disabled={busy} />}
       </FormField>
       {error ? (
@@ -113,9 +110,9 @@ export function NewFile({ connectionId, vault, folder, encrypted }: { connection
       ) : null}
       <div className={styles.actions}>
         <Button type="submit" loading={busy}>
-          {kind === "note" ? "Create note" : "Create document"}
+          Create document
         </Button>
-        <Button type="button" variant="secondary" onClick={() => (setKind(null), setError(null), setTitle(""))} disabled={busy}>
+        <Button type="button" variant="secondary" onClick={() => (setOpen(false), setError(null), setTitle(""))} disabled={busy}>
           Cancel
         </Button>
       </div>

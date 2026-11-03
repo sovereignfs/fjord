@@ -66,7 +66,7 @@ const reason = (result: MoveResult) => (result.ok ? "ok" : result.reason);
 describe("a commit's message", () => {
   it("says rename when the folder is the same and move when it is not", () => {
     expect(moveMessage("Notes/a.md", "Notes/b.md", 1, false)).toBe("Rename a to b");
-    expect(moveMessage("Notes/Plan.fj.md", "Notes/Plan 2.fj.md", 1, false)).toBe("Rename Plan to Plan 2");
+    expect(moveMessage("Notes/Plan.md", "Notes/Plan 2.md", 1, false)).toBe("Rename Plan to Plan 2");
     expect(moveMessage("Notes/a.md", "Notes/Sub/a.md", 1, false)).toBe("Move a to Notes/Sub");
     expect(moveMessage("Notes/a.md", "Notes/Sub/b.md", 1, false)).toBe("Move Notes/a.md to Notes/Sub/b.md");
     expect(moveMessage("Notes/Old", "Notes/New", 3, true)).toBe("Rename Old to New\n\nMoves 3 files:");
@@ -137,11 +137,11 @@ describe.skipIf(!available)(`renaming and moving a file (${leg})`, () => {
     expect(await fake.branchHead()).toBe(before);
   });
 
-  it("keeps the extension: a document never becomes a note, nor a note a document", async () => {
+  it("keeps the extension: a Markdown file stays Markdown, and `.fj.md` is no different from `.md` (spec §8.4)", async () => {
     const before = await seed({ "Notes/Plan.fj.md": DOC, "Notes/n.md": "n" });
-    expect(reason(await run(await file("Notes/Plan.fj.md"), "Notes/Plan.md"))).toBe("extension_changed");
-    expect(reason(await run(await file("Notes/n.md"), "Notes/n.fj.md"))).toBe("extension_changed");
+    expect(reason(await run(await file("Notes/Plan.fj.md"), "Notes/Plan.txt"))).toBe("extension_changed");
     expect(reason(await run(await file("Notes/n.md"), "Notes/n.txt"))).toBe("extension_changed");
+    expect(reason(await run(await file("Notes/n.md"), "Notes/n"))).toBe("extension_changed");
     expect(await fake.branchHead()).toBe(before);
   });
 

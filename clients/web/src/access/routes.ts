@@ -50,7 +50,6 @@ export const ROUTES: RouteRule[] = [
   { route: "/d/[id]/comments", methods: { GET: owner("read"), POST: owner("comment"), PATCH: owner("resolve"), DELETE: owner("delete_own_comment") } },
   // The live stream of a document's comments: says that they changed, never what they are; who may watch is who may read them (1d.3).
   { route: "/d/[id]/comments/events", methods: { GET: owner("read") } },
-  { route: "/n/[id]", page: owner("read") },
   // A sealed copy of an encrypted file, opened by a link (2c.1): the token in the path is the way in, and the key is in the address's fragment, which no request carries.
   { route: "/s/[token]", page: { kind: "public" } },
   { route: "/deleted/[connection]", page: owner("restore") },
