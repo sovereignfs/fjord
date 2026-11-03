@@ -44,6 +44,8 @@ export const ROUTES: RouteRule[] = [
   // A repository, a folder, a file; a document or note by its id; and what was deleted from it.
   { route: "/repo/[connection]/[[...path]]", page: owner("read") },
   { route: "/d/[id]", page: owner("read") },
+  // A file or a folder with no Doc `id`, by an opaque handle (ROADMAP 3e.2): the account's own, as `/repo/…` is.
+  { route: "/f/[handle]", page: owner("read") },
   // A guest edits through a link's cookie, which is sent under `/d/<id>` and nowhere else (1c.4, 1c.6): the first route a share reaches, so the policy's `edit` is its action.
   { route: "/d/[id]/draft", methods: { PUT: owner("edit") } },
   // Comments on a document: read by anyone let in, the rest by what the policy gives each role (1d.1). Each method names the weakest action it may be; the operation inside asks its own.

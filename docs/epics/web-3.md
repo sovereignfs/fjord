@@ -438,13 +438,22 @@ Every Doc opens at `/d/<id>`, in the editor its repository's kind chooses (drive
 
 ### 3e.2 Handles: `/f/<handle>` in place of paths
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0002, Addresses
 
 A `file_handle` table (both dialects) maps a connection and a path to a random handle, made when a link to that path is first drawn. Folder lists link to `/d/<id>` where the index knows an `id` and to `/f/<handle>` otherwise. Fjord's move and rename update the handle with `doc_index`. A handle whose path is gone says "moved or gone". `/repo/<connection>/<path>` redirects once to its handle. Nothing is committed.
 
 **Accepts when:** no page's address has a file or folder name in it; a handle survives a move made in Fjord; a file moved outside Fjord gives "moved or gone" at its old handle and never another file; another account's handle is a 404; the data-layer tests pass on all three database legs.
+
+- **Done as:**
+  - **The store:** `file_handle` (migration `0017_add_file_handle`, both dialects): connection, path, a 16-character base32 handle (80 random bits, unique), `created_at`. `src/browse/handles.ts` (`FileHandles`: `forPath` gets or makes one and survives a race, `resolve`, `move` carries a path's handle and everything under a folder to the new path, escaping `LIKE`). Derived, never committed.
+  - **The addresses:** `/f/[handle]` (`app/f/[handle]/page.tsx`, `owner("read")` in `routes.ts`): the handle's repository must be the account's, else 404; `RepositoryScreen` takes `via` (`handle` or `id`). A path reached as `/repo/<connection>/<path>` is checked against the repository and **sent on** to `/d/<id>` (a Doc whose index row is current) or `/f/<handle>`; a path that is not there is a 404, and a handle is only made for a path that is, so it cannot be filled with guesses. A Doc found at a handle is sent on to `/d/<id>`. A handle whose path has nothing now says **Moved or gone**.
+  - **Following Fjord's own moves:** `files/server.ts` calls `FileHandles.move(connection, target, destination)` beside the id index's. A disconnected repository's handles are deleted with it (`ConnectionService.remove`), and a Sovereign account deletion removes them through it.
+  - **Tested** over the real databases (`handles.test.ts`: stable, per connection, nothing of the path in it, not a handle for anything that is not one, a file and a folder with what is inside it follow a move, a neighbour sharing a name prefix and LIKE characters do not); `connections/service.test.ts`; `sovereign/people.test.ts`.
+- **Not here:**
+  - **Links still draw `/repo/<connection>/<path>`**: each click is one redirect to the address that shows no path, which is what the address bar then shows. Drawing `/f/` and `/d/` directly, to save the hop, is an optimisation left.
+  - **The e2e specs** still expect `/repo/…` addresses in `toHaveURL`; they were not run, and need updating when they are.
 
 ### 3e.3 Share any drive Doc
 

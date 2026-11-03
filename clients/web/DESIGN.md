@@ -736,7 +736,8 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
 > **Changed by [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md).** The distinction below is withdrawn: spec §8.4 says every Doc is one
 > kind, and the repository's kind chooses its editor (§8). **Built (3e.1, 2026-11-03):** a Doc is always **`/d/<id>`**, owned or shared, in the
 > editor its kind's module names (`KindModule.editor`); `/n/<id>`, `/note/<id>` and `/doc/<id>` answer a 308 to it; *New document* is the one way
-> to make a file, always `.md` and with an `id`; any plaintext Doc can be shared; renames keep a file's extension. **Still planned (3e.2, 3e.3):**
+> to make a file, always `.md` and with an `id`; any plaintext Doc can be shared; renames keep a file's extension. **Built (3e.2):** anything else is
+> **`/f/<handle>`**; **still planned (3e.3):** no promotion on edit, and the share step that adds an `id`. The handle design:
 >
 > - **Anything else** (a folder, a vault file, a `.md` with no `id`, a site's file) is **`/f/<handle>`**: a random handle in the
 >   instance's database, `(connection, path) → handle`, derived and never committed, updated by Fjord's own move and rename with

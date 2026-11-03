@@ -21,6 +21,7 @@ const manifest = (kind: "drive" | "journal" | "ssg", declaredKind: string | null
 const standIn = (id: string): KindModule => ({
   id,
   label: `Stand-in ${id}`,
+  editor: "note",
   EntryView: () => <p>the {id} entry view</p>,
   contentModel: { placement: "anywhere", fields: [] },
   actions: [{ id: "wave", label: "Wave" }],

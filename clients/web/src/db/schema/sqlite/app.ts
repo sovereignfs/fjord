@@ -184,6 +184,26 @@ export const docIndex = sqliteTable(
 );
 
 /**
+ * The address of a file or a folder that has no Doc `id` (DESIGN.md §9, ROADMAP 3e.2, RFC 0002): `/f/<handle>`, so that no address shows a path.
+ * One row per path that a link was drawn to. `handle` is random and opaque; the row is **derived, never committed** (spec §2.2), and is rebuilt by
+ * making a new one. Fjord's own rename and move carry a row to the new path; one moved outside Fjord leaves its handle on a path that is no longer
+ * there, which says "moved or gone" and never shows another file. A disconnected repository's rows go with it.
+ */
+export const fileHandle = sqliteTable(
+  "file_handle",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    /** Repository-relative, with forward slashes: a file, or a folder (a vault is a folder). */
+    path: text("path").notNull(),
+    /** The opaque name in `/f/<handle>`. */
+    handle: text("handle").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("file_handle_connection_path_idx").on(table.connectionId, table.path), uniqueIndex("file_handle_handle_idx").on(table.handle)],
+);
+
+/**
  * What a plaintext journal's timeline shows of each entry (ROADMAP 3b.2): `fjord-core`'s summary of the file (its title, `date`, tags, the
  * start of its text, when it is about), by the blob it was read at and the path it was read at, since an entry with no `date` is placed by
  * its path. Derived and disposable, as `tree_cache` is: a blob never changes, so a row is never stale, and one that matches no file of the

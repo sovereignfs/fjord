@@ -17,6 +17,7 @@ section.
 
 ### Added
 
+- **No address shows a path** (ROADMAP 3e.2, RFC 0002): a file or a folder that has no Doc `id` is at `/f/<handle>`, an opaque 16-character handle kept in the instance's database (`file_handle`, migration `0017`) and never committed; a Doc is at `/d/<id>`. A place reached by its path (`/repo/<connection>/<path>`, which every link still draws) is sent on to the address that shows none, and a handle is made only for a path that is there. Fjord's own rename and move carry a handle to the new path, so the address stays; a file moved outside Fjord leaves its handle on a path where nothing is, which says *Moved or gone* and never shows another file. Another account's handle is a 404. Disconnecting a repository deletes its handles.
 - **The format module plans an adoption** (ROADMAP P17): `planAdopt` and `detectSite` give the web client `fjord init --adopt`'s planner, so that a directory that already has files, a vault below the root included, can be made a Fjord repository by the same bytes the CLI writes. The page for it comes with the site and drive tasks that need it (3g.1).
 
 - **Tags can be edited on any note or document, with the journal's own offered as they are typed** (ROADMAP 3b.3): the properties panel has a Tags field (`POST …/files/header` takes `tags`), written as typed and in that order, never lower-cased, and in a plaintext journal it suggests the tags the journal already uses, so `Run` is not added beside `run`.

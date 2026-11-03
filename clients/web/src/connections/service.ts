@@ -74,6 +74,7 @@ const table = (database: Database) => (database.dialect === "postgres" ? postgre
 const trees = (database: Database) => (database.dialect === "postgres" ? postgresSchema.treeCache : sqliteSchema.treeCache);
 const drafts = (database: Database) => (database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy);
 const docIndex = (database: Database) => (database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex);
+const fileHandles = (database: Database) => (database.dialect === "postgres" ? postgresSchema.fileHandle : sqliteSchema.fileHandle);
 const journalEntries = (database: Database) => (database.dialect === "postgres" ? postgresSchema.journalEntry : sqliteSchema.journalEntry);
 const userShares = (database: Database) => (database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser);
 const sealedShares = (database: Database) => (database.dialect === "postgres" ? postgresSchema.sealedShare : sqliteSchema.sealedShare);
@@ -223,6 +224,8 @@ export class ConnectionService {
     await dbRun(this.database, sql`DELETE FROM ${deletions(this.database)} WHERE connection_id = ${id}`);
     // And what was learnt of which Doc is where.
     await dbRun(this.database, sql`DELETE FROM ${docIndex(this.database)} WHERE connection_id = ${id}`);
+    // And the handles that were made for its paths (ROADMAP 3e.2): a handle of a repository that is gone leads nowhere.
+    await dbRun(this.database, sql`DELETE FROM ${fileHandles(this.database)} WHERE connection_id = ${id}`);
     // And what a journal's timeline knew of its entries.
     await dbRun(this.database, sql`DELETE FROM ${journalEntries(this.database)} WHERE connection_id = ${id}`);
     // And what was shared from it: the documents are not reachable any more.

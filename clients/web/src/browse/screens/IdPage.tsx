@@ -107,7 +107,7 @@ export async function IdPage({ id, wrong }: { id: string; wrong?: "wrong" | "wai
   }
 
   if (others.length === 0) {
-    return <RepositoryScreen connection={String(only.connectionId)} path={only.path.split("/")} />;
+    return <RepositoryScreen connection={String(only.connectionId)} path={only.path.split("/")} via="id" />;
   }
 
   const connections = await (await connectionService()).list(user.id);

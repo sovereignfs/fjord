@@ -1,4 +1,5 @@
 import { DocIndex } from "../browse/doc-index";
+import { FileHandles } from "../browse/handles";
 import { resolveDocId } from "../browse/ids";
 import { readConnection } from "../browse/server";
 import { connectionService } from "../connections/server";
@@ -104,6 +105,8 @@ async function move(accountId: string, id: number, input: { vault: string; targe
   );
   // What is known of which Doc is where follows the files. The move stands whatever happens to this; the next search finds them.
   if (result.ok) await new DocIndex(database).move(id, result.moved).catch(() => console.error("[fjord] files: the id index could not follow a move"));
+  // And so do the handles of the file or folder, and of what is inside it (ROADMAP 3e.2).
+  if (result.ok) await new FileHandles(database).move(id, input.target.path, input.destination).catch(() => console.error("[fjord] files: the handles could not follow a move"));
   return result;
 }
 

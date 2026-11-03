@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { Database } from "../db/client";
-import { dbAll, dbRun } from "../db/exec";
+import { dbAll, dbGet, dbRun } from "../db/exec";
 import * as postgresSchema from "../db/schema/postgres";
 import * as sqliteSchema from "../db/schema/sqlite";
 
@@ -41,6 +41,12 @@ export class DocIndex {
   async all(connectionId: number): Promise<Map<string, IndexedFile>> {
     const rows = await dbAll<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);
     return new Map(rows.map((row) => [row.path, toFile(row)]));
+  }
+
+  /** What was read of one path of a connection, if anything. Believed only where its blob is still the repository's. */
+  async at(connectionId: number, path: string): Promise<IndexedFile | undefined> {
+    const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path}`);
+    return row ? toFile(row) : undefined;
   }
 
   /** The files these connections have with this `id`, as last read: the connection's id and the file. */

@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { localAuthConfig, requireSession } from "../../auth/server";
 import { safeSegments } from "../location";
 import { entryFor } from "../../kinds/entry";
@@ -11,7 +11,10 @@ import { encryptionKeyring } from "../../crypto/server";
 import { Alert } from "../../ui";
 import { previewCombineFor, workingCopyService } from "../../working/server";
 import { headerOf } from "../document";
+import { DocIndex } from "../doc-index";
+import { FileHandles } from "../handles";
 import { docIdOf } from "../ids";
+import { getDatabase } from "../../db/boot";
 import type { RepositoryRead } from "../repository";
 import { fjord } from "../../format/wasm";
 import { DeletedUpstream } from "../screens/DeletedUpstream";
@@ -28,7 +31,7 @@ import { kindFor } from "../../kinds/registry";
  * one that tries to climb out are all a 404 and nothing more. `path` is the decoded segments. `/d/<id>`
  * shows a file the same way, once the id has been found (ROADMAP 1b.6).
  */
-export async function RepositoryScreen({ connection, path, view, query = {} }: { connection: string; path: string[] | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined; /** The page's query, for an entry view that pages or filters. */ query?: Record<string, string | string[] | undefined> }) {
+export async function RepositoryScreen({ connection, path, view, query = {}, via }: { connection: string; path: string[] | undefined; /** How the page was reached: by a `handle` (`/f/<handle>`), or by a Doc `id` (`/d/<id>`). With neither, a place by its path is sent on to its address that shows no path. */ via?: "handle" | "id" | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined; /** The page's query, for an entry view that pages or filters. */ query?: Record<string, string | string[] | undefined> }) {
   const { user } = await requireSession();
   if (!/^[1-9][0-9]{0,15}$/.test(connection) || encryptionKeyring() === undefined) notFound();
   const connections = await (await connectionService()).list(user.id);
@@ -51,9 +54,21 @@ export async function RepositoryScreen({ connection, path, view, query = {} }: {
     } else if (found.location.kind === "missing") {
       // Not in the repository any more; but if it was being edited here, those changes are not lost (ROADMAP 1b.10).
       const orphan = segments.length > 1 ? await (await workingCopyService()).get(current.id, segments.join("/")) : undefined;
-      if (!orphan) notFound();
-      content = <DeletedUpstream connectionId={current.id} path={segments.join("/")} label={segments[segments.length - 1] as string} text={orphan.content} />;
+      if (orphan) {
+        content = <DeletedUpstream connectionId={current.id} path={segments.join("/")} label={segments[segments.length - 1] as string} text={orphan.content} />;
+      } else if (via === "handle") {
+        // A handle is of a path (ROADMAP 3e.2): when nothing is there the file was moved outside Fjord or deleted, and it is not guessed at.
+        content = (
+          <Alert variant="info" heading="Moved or gone">
+            There is nothing at this address now. The file or folder it was made for was moved or deleted somewhere other than here. Browse the repository to find it.
+          </Alert>
+        );
+      } else {
+        notFound();
+      }
     } else {
+      // A place reached by its path is sent on to its address that shows no path (RFC 0002): a Doc whose `id` is known to `/d/<id>`, anything else to `/f/<handle>`.
+      if (via === undefined) redirect(await addressOf(current.id, segments.join("/"), found.location.kind === "file" ? outcome.read.blobs.get(segments.join("/")) : undefined));
       // A note or a document in a plaintext vault is shown in its editor; reading it is the only thing that touches the file.
       const file = found.location.kind === "file" ? found.location.file : undefined;
       const note = file?.kind === "doc" ? await readNoteFor(user.id, current, outcome.read, file.path) : undefined;
@@ -61,6 +76,8 @@ export async function RepositoryScreen({ connection, path, view, query = {} }: {
       if (file !== undefined && note?.ok) await recordFileRead(current.id, file, note.blob, note.text);
       const docId = file !== undefined && note?.ok ? docIdOf(fjord(), note.text) : null;
       const permalink = file !== undefined && docId !== null ? `/d/${docId}` : undefined;
+      // Reached by a handle, a Doc is at its `id` from now on.
+      if (via === "handle" && permalink !== undefined) redirect(permalink);
       // What was typed here and not yet saved as a version: kept by the server (ROADMAP 1b.8), and found again here.
       const kept = file !== undefined && note?.ok ? await (await workingCopyService()).get(current.id, file.path) : undefined;
       const draft = kept ? { content: kept.content, baseBlob: kept.baseBlob, guests: [...new Set(kept.editors.flatMap((editor) => (editor.type === "guest" ? [editor.name] : [])))] } : null;
@@ -102,6 +119,14 @@ export async function RepositoryScreen({ connection, path, view, query = {} }: {
   const landing = atTop ? entry : undefined;
   const kindLink = atTop && kind.id !== "drive" ? { label: kind.label, asFiles } : undefined;
   return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} kind={kindLink} setup={atTop ? await assessSetupFor(user.id, current, outcome) : undefined} security={localAuthConfig() !== undefined} />;
+}
+
+/** The address of a place reached by its path: `/d/<id>` for a Doc whose id was read at the blob the repository has now, else `/f/<handle>`. */
+async function addressOf(connectionId: number, path: string, blob: string | undefined): Promise<string> {
+  const database = await getDatabase();
+  const read = blob === undefined ? undefined : await new DocIndex(database).at(connectionId, path);
+  if (read?.docId && read.blob === blob) return `/d/${read.docId}`;
+  return `/f/${await new FileHandles(database).forPath(connectionId, path)}`;
 }
 
 /** A vault's own directory and every folder in it, repository-relative (a repository too large to list names none beyond the top). */

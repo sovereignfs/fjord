@@ -1,3 +1,4 @@
+import { kindFor } from "../../kinds/registry";
 import { Alert } from "../../ui";
 import type { ConnectionInfo } from "../../connections/service";
 import { defaultVault } from "../default-vault";
@@ -23,7 +24,7 @@ export async function Landing({ accountId, connection, outcome }: { accountId: s
     );
   }
   if (found.location.kind === "missing") return null;
-  return <FolderView connectionId={connection.id} repository={`${connection.owner}/${connection.name}`} location={found.location} />;
+  return <FolderView connectionId={connection.id} repository={`${connection.owner}/${connection.name}`} location={found.location} editor={kindFor(outcome.read.manifest).editor} />;
 }
 
 /** The directory of the vault a repository opens on, for the page that lists the vaults to mark it. */
