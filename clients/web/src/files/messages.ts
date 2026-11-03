@@ -213,6 +213,15 @@ export function createMessage(input: { path: string; text: string }): Message {
   return { subject: `Create ${quote(titleOf(path))}`, body };
 }
 
+/** A Doc given an identifier (ROADMAP 3e.3): nothing else about it changes. */
+export function identifyMessage(input: { path: string; docId: string }): Message {
+  const { path, docId } = input;
+  return {
+    subject: `Give ${quote(titleOf(path))} an identifier`,
+    body: [path, "Adds an id to the file's header, so that a link to it keeps working when it is renamed or moved.", `Document id: ${docId}`],
+  };
+}
+
 /** A file made in an encrypted vault. */
 export function createEncryptedMessage(input: { path: string }): Message {
   const { path } = input;

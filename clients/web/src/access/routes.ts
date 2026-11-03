@@ -87,6 +87,8 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/connections/[id]/files/encrypted", methods: { POST: owner("create") } },
   { route: "/api/connections/[id]/files/transfer", methods: { POST: owner("move") } },
   { route: "/api/connections/[id]/files/header", methods: { POST: owner("edit") } },
+  // Giving a Doc an identifier, which sharing and publishing need (3e.3): a commit to the file, so the owner's `edit`.
+  { route: "/api/connections/[id]/files/identify", methods: { POST: owner("edit") } },
   // A journal's new entry (3b.1): a file made, as `/files` is.
   { route: "/api/connections/[id]/files/entry", methods: { POST: owner("create") } },
   // A site's new post (3c.2): a file made, as an entry is.

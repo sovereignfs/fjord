@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createFrom, deleteFrom, moveFrom, restoreFrom, sendCreate, sendDelete, sendMove, sendRestore, sendTitle, titleFrom } from "./client";
+import { createFrom, deleteFrom, identifyFrom, moveFrom, restoreFrom, sendCreate, sendDelete, sendMove, sendRestore, sendTitle, titleFrom } from "./client";
 
 describe("createFrom", () => {
   it("is made, with where", () => {
@@ -190,5 +190,16 @@ describe("sendMove", () => {
   it("says nothing was moved when the server cannot be reached", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("offline"))));
     expect(await sendMove(3, "Notes", { type: "folder", path: "Notes/A", files: 2 }, "Notes/B")).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was moved/i) });
+  });
+});
+
+describe("identifyFrom", () => {
+  it("is the id on 200, the server's words on a refusal, and words for being signed out", () => {
+    expect(identifyFrom(200, { docId: "01jagc4k7pt8y3wqnmzv5xrb8j" })).toEqual({ ok: true, docId: "01jagc4k7pt8y3wqnmzv5xrb8j" });
+    expect(identifyFrom(409, { error: { message: "That file changed." } })).toEqual({ ok: false, message: "That file changed." });
+    expect(identifyFrom(401, undefined)).toMatchObject({ ok: false, message: expect.stringMatching(/signed out/i) });
+    expect(identifyFrom(502, undefined)).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was changed/i) });
+    // A 200 with no id is not a success.
+    expect(identifyFrom(200, {})).toMatchObject({ ok: false });
   });
 });

@@ -4,7 +4,7 @@ import { ProviderError } from "../providers/errors";
 import type { Caller } from "../working/http";
 import { type CreateResult, MAX_TITLE_CHARS, type VaultRefusal } from "./create";
 import type { DeleteResult } from "./delete";
-import { type Deps, handleCreate, handleCreateEncrypted, handleDelete, handleEntry, handlePost, handleTransfer, handleHeader, handleMove, handleRestore } from "./http";
+import { type Deps, handleCreate, handleCreateEncrypted, handleDelete, handleEntry, handleIdentify, handlePost, handleTransfer, handleHeader, handleMove, handleRestore } from "./http";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 
@@ -52,7 +52,12 @@ function stub() {
     found: true,
     result: { ok: true, commit: "c".repeat(40), path: "Locked/Plan.md.age" },
   }));
+  const identify = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; docId: string; commit: string | null } | { ok: false; reason: string } }> => ({
+    found: true,
+    result: { ok: true, docId: "01jagc4k7pt8y3wqnmzv5xrb8j", commit: "a".repeat(40) },
+  }));
   const deps: Deps = {
+    identify: (accountId, id, input) => identify(accountId, id, input) as ReturnType<Deps["identify"]>,
     transfer: (accountId, id, input) => transfer(accountId, id, input) as ReturnType<Deps["transfer"]>,
     createEncrypted: (accountId, id, input) => createEncrypted(accountId, id, input) as ReturnType<Deps["createEncrypted"]>,
     header: (accountId, id, input) => header(accountId, id, input),
@@ -64,7 +69,7 @@ function stub() {
     restore: (accountId, id, input) => restore(accountId, id, input),
     origin: ORIGIN,
   };
-  return { deps, create, createEncrypted, transfer, remove, restore, header, move, entry, post };
+  return { deps, identify, create, createEncrypted, transfer, remove, restore, header, move, entry, post };
 }
 
 const post = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
@@ -850,3 +855,55 @@ describe("a site's post, and a tag its engine would read as two (ROADMAP 3c.2)",
   }
 });
 
+
+describe("giving a Doc an identifier (ROADMAP 3e.3)", () => {
+  const ok = { path: "Notes/Plan.md", blob: "b".repeat(40) };
+
+  it("is asked for by a signed-in person, from this site, with the file and the version they looked at, and answers with the id", async () => {
+    const { deps, identify } = stub();
+    const response = await handleIdentify(post(ok), ALICE, deps, "1");
+    expect(response.status).toBe(200);
+    expect(await body(response)).toEqual({ docId: "01jagc4k7pt8y3wqnmzv5xrb8j", commit: "a".repeat(40) });
+    expect(identify).toHaveBeenCalledWith("alice", 1, { ...ok, author: { name: "Alice Example", email: "alice@example.com" } });
+  });
+
+  it("is not for a person who is not signed in (401), another site (403), a method other than POST (405), or another's connection (404)", async () => {
+    const { deps, identify } = stub();
+    expect((await handleIdentify(post(ok), null, deps, "1")).status).toBe(401);
+    for (const origin of ["https://evil.example", `${ORIGIN}.evil.example`, null]) expect((await handleIdentify(post(ok, { origin }), ALICE, deps, "1")).status).toBe(403);
+    expect((await handleIdentify(new Request(`${ORIGIN}/x`, { method: "GET", headers: { origin: ORIGIN } }), ALICE, deps, "1")).status).toBe(405);
+    expect(identify).not.toHaveBeenCalled();
+    identify.mockResolvedValueOnce({ found: false });
+    expect((await handleIdentify(post(ok), ALICE, deps, "1")).status).toBe(404);
+  });
+
+  it.each([
+    ["no path", { ...ok, path: undefined }],
+    ["a path at the top, which no vault can hold", { ...ok, path: "Plan.md" }],
+    ["a path that climbs out", { ...ok, path: "Notes/../x.md" }],
+    ["no version", { ...ok, blob: undefined }],
+    ["a version that is not an object id", { ...ok, blob: "main" }],
+    ["a version in capitals", { ...ok, blob: "B".repeat(40) }],
+  ])("refuses %s with 400, without asking", async (_name, sent) => {
+    const { deps, identify } = stub();
+    expect((await handleIdentify(post(sent), ALICE, deps, "1")).status).toBe(400);
+    expect(identify).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["gone", 409],
+    ["changed", 409],
+    ["not_markdown", 422],
+    ["cannot_identify", 422],
+    ["encrypted_vault", 422],
+    ["head_moved", 409],
+    ["read_only", 422],
+    ["unavailable", 502],
+  ])("%s is %i, with its own code and words", async (reason, status) => {
+    const { deps, identify } = stub();
+    identify.mockResolvedValueOnce({ found: true, result: { ok: false, reason } });
+    const response = await handleIdentify(post(ok), ALICE, deps, "1");
+    expect(response.status).toBe(status);
+    expect((await body(response)).error.code).toBe(reason);
+  });
+});

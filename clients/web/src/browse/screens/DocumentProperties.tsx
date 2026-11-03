@@ -62,7 +62,7 @@ export function DocumentProperties({
   return (
     <details className={styles.itemMeta} data-testid="document-properties">
       <summary>Properties</summary>
-      {pending ? <p>This file has no header yet. One is added, with an identifier, a title and the date, the first time you edit it. Nothing changes until then.</p> : null}
+      {pending ? <p>This file has no header, so no identifier. It is edited as it is. One is added, with an identifier, a title and the date, only when you share it, and only after you agree.</p> : null}
       <form
         className={styles.form}
         onSubmit={(event) => {

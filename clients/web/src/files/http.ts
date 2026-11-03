@@ -7,6 +7,7 @@ import { MAX_CIPHERTEXT_BYTES, fromBase64, whyNotCiphertext } from "../working/c
 import type { CreateResult, VaultRefusal } from "./create";
 import type { CreateEncryptedResult, EncryptedVaultRefusal } from "./create-encrypted";
 import type { TransferResult } from "./transfer";
+import type { IdentifyResult } from "./identify";
 import { MAX_TITLE_CHARS } from "./create";
 import type { DeleteResult, DeleteTarget } from "./delete";
 import type { MoveResult } from "./move";
@@ -52,6 +53,14 @@ export interface Deps {
     id: number,
     input: { vault: string; folder: string; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
   ) => Promise<{ found: false } | { found: true; result: CreateEncryptedResult | { ok: false; reason: EncryptedVaultRefusal | "wrong_shape" } }>;
+  /**
+   * Give a Doc of one of the caller's repositories an identifier (ROADMAP 3e.3). `found: false` if it is not the caller's (or not there).
+   */
+  identify: (
+    accountId: string,
+    id: number,
+    input: { path: string; blob: string; author: Identity },
+  ) => Promise<{ found: false } | { found: true; result: IdentifyResult | { ok: false; reason: VaultRefusal } }>;
   /**
    * Delete a note, a document or a folder of one of the caller's repositories (ROADMAP 1b.12). `found: false` if it is not the
    * caller's (or not there).
@@ -595,6 +604,44 @@ export async function handleEntry(request: Request, caller: Caller | null, deps:
     return fromError(error);
   }
 }
+
+// --- Giving a Doc an identifier (ROADMAP 3e.3) ---------------------------------------------------------------------
+
+/** `POST` gives a Doc an identifier, `{ path, blob }`: the file, and the version of it the person looked at. One commit, or none when it has one. */
+export async function handleIdentify(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  const gate = await gateway(request, caller, deps, id);
+  if (gate instanceof Response) return gate;
+  try {
+    const { body, number } = gate;
+    const { path, blob } = body;
+    if (typeof path !== "string" || path.length > MAX_PATH_CHARS || !isRepositoryPath(path) || !path.includes("/")) return failure(400, "invalid_request", "Say which file, by its path.");
+    if (typeof blob !== "string" || !/^[0-9a-f]{40}$/.test(blob)) return failure(400, "invalid_request", "Say which version of it you looked at.");
+    const outcome = await deps.identify((caller as Caller).accountId, number, { path, blob, author: { name: (caller as Caller).name, email: (caller as Caller).email } });
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (result.ok) return json(200, { docId: result.docId, commit: result.commit });
+    const refusal = IDENTIFY_REFUSALS[result.reason];
+    return failure(refusal.status, result.reason, refusal.message);
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+const IDENTIFY_REFUSALS: Record<Extract<IdentifyResult, { ok: false }>["reason"] | VaultRefusal, { status: number; message: string }> = {
+  gone: { status: 409, message: "That file is no longer in the repository. Nothing was changed." },
+  changed: { status: 409, message: "That file changed in the repository after you looked at it, so nothing was changed. Look at it again." },
+  not_markdown: { status: 422, message: "Only a Markdown file can be given an identifier." },
+  too_large: { status: 422, message: "That file is too large to be given an identifier from here." },
+  not_text: { status: 422, message: "That file is not text, so it cannot be given an identifier." },
+  cannot_identify: { status: 422, message: "That file's header cannot be added to from here: it cannot be read, or the file has Windows line endings or a byte-order mark that a new header would disturb. Nothing was changed." },
+  unknown_vault: { status: 404, message: "That vault is not in the repository." },
+  encrypted_vault: { status: 422, message: "A file in an encrypted vault is not read here: its identifier is inside it." },
+  unsupported_vault: { status: 422, message: "That vault cannot be written to from here: its manifest cannot be read, or its files are not named plainly." },
+  head_moved: REFUSALS.head_moved,
+  read_only: REFUSALS.read_only,
+  bad_token: REFUSALS.bad_token,
+  unavailable: REFUSALS.unavailable,
+};
 
 const ENTRY_REFUSALS: Record<Extract<EntryResult, { ok: false }>["reason"] | JournalRefusal, { status: number; message: string }> = {
   not_a_journal: { status: 422, message: "This repository is not a journal with one vault, so it has no entries to add to." },

@@ -14,6 +14,7 @@ import { type CreateResult, checkVault, createFile } from "./create";
 import { type CreateEncryptedResult, type EncryptedTarget, checkEncryptedVault, createEncryptedFile } from "./create-encrypted";
 import { type DeleteResult, type DeleteTarget, deletePath } from "./delete";
 import { DeletionService } from "./deletions";
+import { type IdentifyResult, identifyFile } from "./identify";
 import { type MoveResult, movePath } from "./move";
 import { type TransferResult, type VaultForm, transferFile } from "./transfer";
 import { type RestoreResult, restoreDeleted } from "./restore";
@@ -124,6 +125,15 @@ async function transfer(
   );
 }
 
+/** Give a Doc of one of the account's repositories an identifier: through the connection's own token, on its branch (ROADMAP 3e.3). */
+async function identify(accountId: string, id: number, input: { path: string; blob: string; author: Identity }): Promise<IdentifyResult> {
+  const used = await (await connectionService()).provider(accountId, id);
+  if (!used) return { ok: false, reason: "unavailable" };
+  const result = await identifyFile({ provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord() }, input);
+  // The index learns the file by its new blob on the next read; its id is the answer either way.
+  return result;
+}
+
 /** Put back deletions of one of the account's repositories, into the vaults it can still write to. */
 async function restore(accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }): Promise<RestoreResult> {
   const used = await (await connectionService()).provider(accountId, id);
@@ -214,6 +224,7 @@ export async function filesAccessFor(): Promise<ReturnType<typeof filesAccess>> 
     transfer,
     encryptedVaultFor,
     createEncrypted,
+    identify,
     delete: remove,
     move,
     restore,

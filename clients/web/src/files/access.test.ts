@@ -16,7 +16,9 @@ function setup(over: { owns?: boolean; encrypted?: Awaited<ReturnType<AccessDeps
   const encryptedVaultFor = vi.fn(async (..._args: unknown[]): Promise<{ ok: true; target: { naming: "plain" | "id"; suffix: string } } | { ok: false; reason: "unknown_vault" | "not_encrypted" | "unsupported_vault" | "unavailable" }> => over.encrypted ?? { ok: true, target: { naming: "plain", suffix: ".age" } });
   const createEncrypted = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, path: "Secret/Plan.md.age", commit: "c".repeat(40) }));
   const transfer = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "c".repeat(40), path: "Locked/Plan.md.age" }));
+  const identify = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, docId: "01jagc4k7pt8y3wqnmzv5xrb8j", commit: "a".repeat(40) as string | null }));
   const access = filesAccess({
+    identify: (a, i, x) => identify(a, i, x),
     transfer: (a, i, x) => transfer(a, i, x),
     encryptedVaultFor: (a, i, v) => encryptedVaultFor(a, i, v),
     createEncrypted: (a, i, x) => createEncrypted(a, i, x),
@@ -33,8 +35,32 @@ function setup(over: { owns?: boolean; encrypted?: Awaited<ReturnType<AccessDeps
     restore: (a, i, x) => restore(a, i, x),
     move: (a, i, x) => move(a, i, x),
   });
-  return { access, owns, vaultFor, create, remove, restore, setTitle, move, encryptedVaultFor, createEncrypted, transfer };
+  return { access, identify, owns, vaultFor, create, remove, restore, setTitle, move, encryptedVaultFor, createEncrypted, transfer };
 }
+
+describe("giving a Doc an identifier", () => {
+  const request = { path: "Notes/Plan.md", blob: "b".repeat(40), author: { name: "Ada", email: "ada@example.com" } };
+
+  it("is for the caller's own connection only: another's is not found, and nothing is read or changed", async () => {
+    const { access, vaultFor, identify } = setup({ owns: false });
+    expect(await access.identify("mallory", 1, request)).toEqual({ found: false });
+    expect(vaultFor).not.toHaveBeenCalled();
+    expect(identify).not.toHaveBeenCalled();
+  });
+
+  it("is asked of the vault the file is in, and done by the caller on the connection asked", async () => {
+    const { access, vaultFor, identify } = setup();
+    expect(await access.identify("alice", 7, request)).toEqual({ found: true, result: { ok: true, docId: "01jagc4k7pt8y3wqnmzv5xrb8j", commit: "a".repeat(40) } });
+    expect(vaultFor).toHaveBeenCalledWith("alice", 7, "Notes");
+    expect(identify).toHaveBeenCalledWith("alice", 7, request);
+  });
+
+  it.each(["unknown_vault", "encrypted_vault", "unsupported_vault", "unavailable"] as const)("is not done in a vault that is %s, and the reason is told", async (vault) => {
+    const { access, identify } = setup({ vault });
+    expect(await access.identify("alice", 1, request)).toEqual({ found: true, result: { ok: false, reason: vault } });
+    expect(identify).not.toHaveBeenCalled();
+  });
+});
 
 describe("making a file", () => {
   it("is for the caller's own connection only: another's is not found, and nothing is read or made", async () => {

@@ -28,7 +28,7 @@ export interface DraftOfNote {
  * where the body begins in the text, and the header before it is put back in front of whatever the editor says, so that it is
  * never the editor's to rewrite (DESIGN.md §9). A header that cannot be read means there is no `header`, and the text is
  * edited whole. The header is shown in the properties panel, where its title can be changed; a file that has no header is
- * given one the first time it is edited (promotion, spec §8.1), and not before. Nothing typed here goes to the
+ * edited as it is, and is given one only when sharing needs one (RFC 0002). Nothing typed here goes to the
  * repository: the text is sent to the server a moment after the last change (`DraftSaver`), where it waits until
  * **Save version** makes it one commit (1b.9). Closing the page and opening it again finds the draft, and says so.
  *
@@ -68,9 +68,9 @@ export function NoteView({
   const bodyStart = header?.bodyStart;
   // The header in front of the body, as it is now: the one the file has, the one it is promoted to, or one with a new title.
   const headerNow = useRef(bodyStart === undefined ? "" : start.slice(0, bodyStart));
-  const promotion = header?.promotion;
+  // A file with no header shows the properties it would be given, which cannot be changed until it has them.
+  const noHeader = header !== undefined && header.promotion !== undefined;
   const [properties, setProperties] = useState<Properties | undefined>(header?.properties ?? header?.promotion?.properties);
-  const [promoted, setPromoted] = useState(false);
   const base = draft?.baseBlob ?? blob;
   const saver = useMemo(() => new DraftSaver({ initial: start, send: (content) => sendDraft(connectionId, path, base, content) }), [connectionId, path, start, base]);
   const [status, setStatus] = useState<SaverStatus>(saver.status);
@@ -126,17 +126,9 @@ export function NoteView({
     };
   }, [saver]);
 
-  // What the editor says is the body; the header is put in front of it. The first edit of a file with no header adds one.
+  // What the editor says is the body; the header is put in front of it, as it is. A file with no header is edited as it is (RFC 0002): it is given an
+  // identifier only when something needs one, after the person agreed (sharing, `IdentifyAndShare`), never because it was edited.
   function changeBody(body: string) {
-    if (promotion && !promoted) {
-      headerNow.current = promotion.header;
-      setPromoted(true);
-    }
-    // Edited back to what it was, with the header still the one it was given: nothing is different, so no header is added.
-    if (promotion && headerNow.current === promotion.header && body === start.slice(bodyStart)) {
-      headerNow.current = "";
-      setPromoted(false);
-    }
     saver.change(headerNow.current + body);
   }
 
@@ -241,7 +233,7 @@ export function NoteView({
           </Alert>
         </div>
       ) : null}
-      {properties ? <DocumentProperties properties={properties} pending={promotion !== undefined && !promoted} disabled={saving} onTitle={changeTitle} onDate={changeDate} onTags={changeTags} tagSuggestions={tagSuggestions} /> : null}
+      {properties ? <DocumentProperties properties={properties} pending={noHeader} disabled={saving} onTitle={changeTitle} onDate={changeDate} onTags={changeTags} tagSuggestions={tagSuggestions} /> : null}
       {bodyStart === undefined ? (
         <NoteEditor aria-label={label} value={start} onChange={(next) => saver.change(next)} readOnly={saving} />
       ) : editor === "document" ? (

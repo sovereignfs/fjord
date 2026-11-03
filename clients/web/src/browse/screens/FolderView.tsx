@@ -8,6 +8,7 @@ import type { Preview } from "../../working/resolve";
 import { checkVault } from "../../files/create";
 import { DeleteButton } from "./DeleteButton";
 import { MoveButtons } from "./MoveButtons";
+import { IdentifyAndShare } from "../../sharing/IdentifyAndShare";
 import { SharePanel } from "../../sharing/SharePanel";
 import { NewFile, type EncryptedCreate } from "./NewFile";
 import { UndoBanner } from "./UndoBanner";
@@ -284,6 +285,7 @@ function FileCard({
         <Alert variant="info" heading="Not openable">This kind of file cannot be opened in this version; it is kept in the repository as it is.</Alert>
       )}
       {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} /> : null}
+      {remove && !docId && !encrypted && file.kind === "doc" && note?.ok ? <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} /> : null}
       {remove ? (
         <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
       ) : null}

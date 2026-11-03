@@ -4,6 +4,7 @@ import type { CreateResult, VaultRefusal } from "./create";
 import type { CreateEncryptedResult, EncryptedTarget, EncryptedVaultRefusal } from "./create-encrypted";
 import type { TransferResult, VaultForm } from "./transfer";
 import type { DeleteResult, DeleteTarget } from "./delete";
+import type { IdentifyResult } from "./identify";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 import type { Deps, JournalRefusal } from "./http";
@@ -59,6 +60,8 @@ export interface AccessDeps {
     id: number,
     input: { path: string; blob: string; destination: string; content: Uint8Array; author: Identity; source: VaultForm; target: VaultForm },
   ) => Promise<TransferResult>;
+  /** Give a Doc an identifier, through the connection's own token. Only called for a plaintext vault that is `ok` of a connection that is the caller's. */
+  identify: (accountId: string, id: number, input: { path: string; blob: string; author: Identity }) => Promise<IdentifyResult>;
   /** Put back, through the connection's own token. Only called for a connection that is the caller's; its records are checked there. */
   restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<RestoreResult>;
 }
@@ -83,7 +86,7 @@ async function changeable(deps: AccessDeps, accountId: string, id: number, vault
  */
 const isPayload = (path: string) => /\.age$/i.test(path);
 
-export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncrypted" | "transfer" | "delete" | "restore" | "header" | "move" | "entry" | "post"> {
+export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncrypted" | "transfer" | "delete" | "restore" | "header" | "move" | "entry" | "post" | "identify"> {
   const formOf = (vault: { encrypted: { idNamed: boolean } | undefined }): VaultForm => (vault.encrypted ? { form: "encrypted", naming: vault.encrypted.idNamed ? "id" : "plain" } : { form: "plaintext" });
   return {
     async transfer(accountId, id, input) {
@@ -151,6 +154,14 @@ export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncr
         if (destination !== "ok") return { found: true, result: { ok: false, reason: destination, where: "destination" } };
       }
       return { found: true, result: await deps.move(accountId, id, { ...input, ...(from.encrypted ? { encrypted: from.encrypted } : {}) }) };
+    },
+
+    async identify(accountId, id, input) {
+      if (!(await deps.owns(accountId, id))) return { found: false };
+      // A file in a plaintext vault this version writes: an encrypted one is never read here, and its `id` is inside it.
+      const vault = await deps.vaultFor(accountId, id, input.path.split("/")[0] as string);
+      if (vault !== "ok") return { found: true, result: { ok: false, reason: vault } };
+      return { found: true, result: await deps.identify(accountId, id, input) };
     },
 
     async restore(accountId, id, input) {

@@ -24,6 +24,7 @@ export async function filesContext(): Promise<{ caller: Caller | null; deps: Dep
       createEncrypted: (accountId, id, input) => (access as NonNullable<typeof access>).createEncrypted(accountId, id, input),
       move: (accountId, id, input) => (access as NonNullable<typeof access>).move(accountId, id, input),
       delete: (accountId, id, input) => (access as NonNullable<typeof access>).delete(accountId, id, input),
+      identify: (accountId, id, input) => (access as NonNullable<typeof access>).identify(accountId, id, input),
       restore: (accountId, id, input) => (access as NonNullable<typeof access>).restore(accountId, id, input),
     },
   };

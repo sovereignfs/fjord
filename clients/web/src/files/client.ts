@@ -52,6 +52,25 @@ export async function sendCreateEncrypted(
   }
 }
 
+/** What giving a Doc an identifier answers, in words for the page (ROADMAP 3e.3). */
+export type IdentifyAttempt = { ok: true; docId: string } | { ok: false; message: string };
+
+export function identifyFrom(status: number, body: { docId?: string; error?: { message?: string } } | undefined): IdentifyAttempt {
+  if (status === 200 && typeof body?.docId === "string") return { ok: true, docId: body.docId };
+  if (status === 401) return { ok: false, message: "You are signed out, so nothing was changed. Sign in again, then try again." };
+  return { ok: false, message: body?.error?.message ?? "Could not give the file an identifier just now. Nothing was changed. Try again in a moment." };
+}
+
+/** Give a Doc an identifier, once the person agreed: `blob` is the version they looked at. */
+export async function sendIdentify(connectionId: number, input: { path: string; blob: string }): Promise<IdentifyAttempt> {
+  try {
+    const response = await fetch(`/api/connections/${connectionId}/files/identify`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input), credentials: "same-origin" });
+    return identifyFrom(response.status, (await response.json().catch(() => undefined)) as { docId?: string; error?: { message?: string } } | undefined);
+  } catch {
+    return { ok: false, message: "Could not reach this server, so nothing was changed. Try again in a moment." };
+  }
+}
+
 /** The recipients of an encrypted vault (ROADMAP 2b.6), asked for when a person chooses to move a file into it. */
 export async function fetchRecipients(connectionId: number, vault: string): Promise<{ ok: true; text: string } | { ok: false; message: string }> {
   try {

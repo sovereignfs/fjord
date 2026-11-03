@@ -147,9 +147,9 @@ Planned on 2026-11-03. One kind of Doc whose editor is the kind's choice, addres
 | [P15](../../docs/epics/web-3.md#p15-cli-no-documents-and-journals-encrypted-by-default) | CLI: no documents, and journals encrypted by default | ✅ Done |
 | [P16](../../docs/epics/web-3.md#p16-cli-init---adopt) | CLI: `init --adopt` | ✅ Done |
 | [P17](../../docs/epics/web-3.md#p17-fjord-wasm-one-kind-of-doc-vaults-at-depth-the-adoption-plan) | `fjord-wasm`: one kind of Doc, vaults at depth, the adoption plan | ✅ Done |
-| [3e.1](../../docs/epics/web-3.md#3e1-one-address-and-one-editor-per-kind-for-a-doc) | One address and one editor per kind for a Doc | ✅ Done (promotion on edit moves to 3e.3) |
+| [3e.1](../../docs/epics/web-3.md#3e1-one-address-and-one-editor-per-kind-for-a-doc) | One address and one editor per kind for a Doc | ✅ Done |
 | [3e.2](../../docs/epics/web-3.md#3e2-handles-fhandle-in-place-of-paths) | Handles: `/f/<handle>` in place of paths | ✅ Done |
-| [3e.3](../../docs/epics/web-3.md#3e3-share-any-drive-doc) | Share any drive Doc | 📋 Planned |
+| [3e.3](../../docs/epics/web-3.md#3e3-share-any-drive-doc) | Share any drive Doc | ✅ Done |
 | [3f.1](../../docs/epics/web-3.md#3f1-the-journals-writing-view) | The journal's writing view | 📋 Planned |
 | [3f.2](../../docs/epics/web-3.md#3f2-new-journals-encrypted-by-default) | New journals encrypted by default | 📋 Planned |
 | [3g.1](../../docs/epics/web-3.md#3g1-a-sites-vault-below-the-root) | A site's vault below the root | 📋 Planned |

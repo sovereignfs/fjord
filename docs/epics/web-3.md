@@ -419,7 +419,7 @@ The module follows P14: a file is a Doc or not, vaults are discovered at any dep
 
 ### 3e.1 One address and one editor per kind for a Doc
 
-**Status:** ✅ Done, except removing promotion on first edit, which moves to 3e.3
+**Status:** ✅ Done (removing promotion on first edit was finished in 3e.3)
 
 **Design:** RFC 0002, One kind of Doc, Addresses
 
@@ -457,13 +457,21 @@ A `file_handle` table (both dialects) maps a connection and a path to a random h
 
 ### 3e.3 Share any drive Doc
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0002, Sharing any drive Doc, Addresses
 
 The `not_a_document` refusals go: any Doc in a drive can be shared with accounts or by link, and commented on. Sharing (or commenting on) a `.md` without an `id` asks first, then adds one through the module (the header a first edit used to give, 1b.5), and the page moves to `/d/<id>`; in a site, the question warns about the engine's `id`.
 
 **Accepts when:** a `.md` that was a note can be shared; sharing one without an `id` writes only the header, after the person agreed, and its old handle redirects; a share made before still opens.
+
+- **Done as:**
+  - **Any plaintext Doc can be shared** since 3e.1 (the `not_a_document` refusals are gone); this task is the step for a file that has no `id`.
+  - **`src/files/identify.ts`** (`identifyFile`): one commit that adds the `id` through `fjord-core`'s `promoteDocument` (a header that has none is given `id`, `title`, `created`; one that has keys keeps them, in their order), on the version the person looked at (`changed` otherwise), retried once on a moved head, never forced. A file that already has an `id` answers with it and commits nothing. A header that cannot be read, or CRLF or a byte-order mark that a new header would disturb, is `cannot_identify` and untouched. HTTP: `POST /api/connections/<id>/files/identify` (`handleIdentify`, `owner("edit")`; 401/403/405/404/400/409/422/502, each with its own code); access: the connection must be the caller's and the vault a plaintext one this version writes.
+  - **The page:** `IdentifyAndShare` replaces the sharing controls on a Doc with no `id`: it says what will be written, asks, commits, and goes to `/d/<id>` where the sharing panel is. With unsaved changes it asks for a version first.
+  - **No promotion on edit** (reversing 1b.5): `NoteView` no longer gives a file a header when it is first edited; a file with no header is edited as it is, and the properties panel says it has none and when one is added.
+  - **Tested:** `identify.test.ts` against real git (one commit, the author, only a header added in front of the body, keys kept in order, already identified, changed/gone/not-Markdown, CRLF/BOM/broken left alone, a head that moved); `http.test.ts` (who may, from where, the body, each refusal's status and code); `access.test.ts` (another's connection is not found and nothing is read, each vault refusal); `client.test.ts`. The "changed since you looked" guard was seen to fail its test with it off.
+- **Not here:** the handle of the file is not redirected to `/d/<id>` by this step itself; the next visit by path or handle is (3e.2). A file edited with unsaved changes must save a version first rather than have the identifier merged into the draft.
 
 ### 3f.1 The journal's writing view
 
