@@ -1232,11 +1232,12 @@ pub fn free_vault_name(preferred: &str, existing_json: &str) -> Result<String, S
     Ok(scaffold::free_vault_name(preferred, &paths))
 }
 
+/// The repository as [`plan_adopt`] is told of it: its paths, its `.gitattributes` and its `.gitignore`, as text if they are there.
+type ExistingWithIgnore = (Vec<String>, Option<String>, Option<String>);
+
 /// `{"paths": [...], "gitattributes": string | null, "gitignore": string | null}`, read; the `.gitignore` only
 /// matters to [`plan_adopt`].
-fn existing_with_ignore(
-    json: &str,
-) -> Result<(Vec<String>, Option<String>, Option<String>), String> {
+fn existing_with_ignore(json: &str) -> Result<ExistingWithIgnore, String> {
     let (paths, gitattributes) = existing(json)?;
     let value: Value = serde_json::from_str(json).map_err(|err| err.to_string())?;
     let gitignore = match value.get("gitignore") {
