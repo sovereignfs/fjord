@@ -563,6 +563,24 @@ pub fn has_merge_guard(text: &str) -> bool {
     })
 }
 
+/// The `.gitattributes` a repository needs once it holds an encrypted vault: `existing` (its text, or `None` for no such file) with
+/// the §9 merge guard added at the end, or `None` when it already has the guard and nothing is to be written.
+pub fn merge_guard_added(existing: Option<&str>) -> Option<String> {
+    match existing {
+        Some(text) if has_merge_guard(text) => None,
+        Some(text) => {
+            let mut next = text.to_string();
+            if !next.is_empty() && !next.ends_with('\n') {
+                next.push('\n');
+            }
+            next.push_str(MERGE_GUARD);
+            next.push('\n');
+            Some(next)
+        }
+        None => Some(format!("{MERGE_GUARD}\n")),
+    }
+}
+
 /// What to add to a repository that is not a Fjord repository.
 #[derive(Debug, Clone)]
 pub struct Setup {
@@ -1047,6 +1065,18 @@ pub enum ConvertError {
     NotEncrypted,
     /// A vault with no recipients could be written by nobody (§6.2).
     NoRecipients,
+}
+
+impl ConvertError {
+    /// A stable name for the refusal, for a client that reports it (the web's `planVaultEncryption`).
+    pub fn code(&self) -> &'static str {
+        match self {
+            ConvertError::Unreadable => "manifest_unusable",
+            ConvertError::AlreadyEncrypted => "already_encrypted",
+            ConvertError::NotEncrypted => "not_encrypted",
+            ConvertError::NoRecipients => "no_recipients",
+        }
+    }
 }
 
 /// What making a plaintext vault an encrypted one changes (spec §4.1, §6.5): its manifest, and the two files an encrypted vault
@@ -2577,5 +2607,17 @@ mod tests {
             plan_decrypt_vault(&text.into_bytes()).unwrap_err(),
             ConvertError::NotEncrypted
         );
+    }
+    #[test]
+    fn the_merge_guard_is_added_once_and_to_a_file_that_is_not_there() {
+        assert_eq!(
+            merge_guard_added(None).as_deref(),
+            Some("*.age binary -diff -merge\n")
+        );
+        assert_eq!(
+            merge_guard_added(Some("*.png binary")).as_deref(),
+            Some("*.png binary\n*.age binary -diff -merge\n")
+        );
+        assert_eq!(merge_guard_added(Some("*.age binary -diff -merge\n")), None);
     }
 }

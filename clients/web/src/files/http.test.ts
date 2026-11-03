@@ -4,7 +4,7 @@ import { ProviderError } from "../providers/errors";
 import type { Caller } from "../working/http";
 import { type CreateResult, MAX_TITLE_CHARS, type VaultRefusal } from "./create";
 import type { DeleteResult } from "./delete";
-import { type Deps, handleCreate, handleCreateEncrypted, handleDelete, handleEntry, handleIdentify, handlePost, handleTransfer, handleHeader, handleMove, handleRestore } from "./http";
+import { type Deps, handleCreate, handleCreateEncrypted, handleDelete, handleEntry, handleIdentify, handleConvert, handlePost, handleTransfer, handleHeader, handleMove, handleRestore } from "./http";
 import type { MoveResult } from "./move";
 import type { RestoreResult } from "./restore";
 
@@ -48,6 +48,10 @@ function stub() {
     found: true,
     result: { ok: true, path: "Secret/Plan.md.age", commit: "c".repeat(40) },
   }));
+  const convert = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; commit: string; files: never[] } | { ok: false; reason: "missing_files"; paths?: string[] } }> => ({
+    found: true,
+    result: { ok: true, commit: "e".repeat(40), files: [] },
+  }));
   const transfer = vi.fn(async (..._args: unknown[]): Promise<{ found: false } | { found: true; result: { ok: true; commit: string; path: string } | { ok: false; reason: string } }> => ({
     found: true,
     result: { ok: true, commit: "c".repeat(40), path: "Locked/Plan.md.age" },
@@ -59,6 +63,8 @@ function stub() {
   const deps: Deps = {
     identify: (accountId, id, input) => identify(accountId, id, input) as ReturnType<Deps["identify"]>,
     transfer: (accountId, id, input) => transfer(accountId, id, input) as ReturnType<Deps["transfer"]>,
+    convert: (accountId, id, input) => convert(accountId, id, input) as ReturnType<Deps["convert"]>,
+    snapshot: async () => ({ found: true as const, result: { ok: true as const, encrypted: false, naming: "plain" as const, files: [] } }),
     createEncrypted: (accountId, id, input) => createEncrypted(accountId, id, input) as ReturnType<Deps["createEncrypted"]>,
     header: (accountId, id, input) => header(accountId, id, input),
     entry: (accountId, id, input) => entry(accountId, id, input) as ReturnType<Deps["entry"]>,
@@ -69,7 +75,7 @@ function stub() {
     restore: (accountId, id, input) => restore(accountId, id, input),
     origin: ORIGIN,
   };
-  return { deps, identify, create, createEncrypted, transfer, remove, restore, header, move, entry, post };
+  return { deps, identify, create, createEncrypted, transfer, convert, remove, restore, header, move, entry, post };
 }
 
 const post = (body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
@@ -937,5 +943,59 @@ describe("setting one field of a header (RFC 0002)", () => {
     const { deps, header } = stub();
     expect((await handleHeader(at(sent), ALICE, deps, "1")).status).toBe(400);
     expect(header).not.toHaveBeenCalled();
+  });
+});
+
+describe("making a whole vault encrypted or plaintext (RFC 0003)", () => {
+  const BLOB = "a".repeat(40);
+  const AGE = Buffer.from("age-encryption.org/v1\n-> X25519 abc\nbody").toString("base64");
+  const valid = { vault: "Notes", direction: "encrypt", recipients: ["age1abc"], files: [{ path: "Notes/a.md", blob: BLOB, to: "Notes/a.md.age", content: AGE }] };
+  const send = (value: unknown, init?: Parameters<typeof post>[1]) => {
+    const request = post(value, init);
+    return new Request(request.url.replace("/files", "/files/convert"), { method: "POST", headers: request.headers, body: typeof value === "string" ? value : JSON.stringify(value) });
+  };
+
+  it("hands the repository's rules the vault, the direction, the keys and each file's blob, names and decoded bytes, with the caller", async () => {
+    const { deps, convert } = stub();
+    const response = await handleConvert(send(valid), ALICE, deps, "1");
+    expect(response.status).toBe(200);
+    expect(await body(response)).toEqual({ commit: "e".repeat(40), files: 0 });
+    const given = convert.mock.calls[0]![2] as { vault: string; direction: string; recipients: string[]; files: { path: string; blob: string; to: string; content: Uint8Array }[] };
+    expect([given.vault, given.direction, given.recipients]).toEqual(["Notes", "encrypt", ["age1abc"]]);
+    expect([given.files[0]!.path, given.files[0]!.blob, given.files[0]!.to]).toEqual(["Notes/a.md", BLOB, "Notes/a.md.age"]);
+    expect(Buffer.from(given.files[0]!.content).toString()).toContain("age-encryption.org/v1");
+  });
+
+  it("is for nobody signed out, nor from another site, nor a connection that is not a number, and asks nothing", async () => {
+    const { deps, convert } = stub();
+    expect((await handleConvert(send(valid), null, deps, "1")).status).toBe(401);
+    for (const origin of ["https://evil.example", "null", null]) expect((await handleConvert(send(valid, { origin }), ALICE, deps, "1")).status).toBe(403);
+    expect((await handleConvert(send(valid, { type: "text/plain" }), ALICE, deps, "1")).status).toBe(415);
+    expect((await handleConvert(send(valid), ALICE, deps, "1/../2")).status).toBe(404);
+    expect((await handleConvert(new Request(`${ORIGIN}/x`, { method: "GET" }), ALICE, deps, "1")).status).toBe(405);
+    expect(convert).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a vault that is a path", { vault: "Notes/Deep" }],
+    ["no direction", { direction: "swap" }],
+    ["recipients that are not text", { recipients: [5] }],
+    ["a file with a way up in its name", { files: [{ path: "Notes/a.md", blob: BLOB, to: "Notes/../x.age", content: AGE }] }],
+    ["a blob that is not an object id", { files: [{ path: "Notes/a.md", blob: "main", to: "Notes/a.md.age", content: AGE }] }],
+    ["content that is not base64", { files: [{ path: "Notes/a.md", blob: BLOB, to: "Notes/a.md.age", content: "nope!" }] }],
+  ])("refuses %s", async (_name, over) => {
+    const { deps, convert } = stub();
+    expect((await handleConvert(send({ ...valid, ...over }), ALICE, deps, "1")).status).toBe(400);
+    expect(convert).not.toHaveBeenCalled();
+  });
+
+  it("says what it found when the files are not the vault's, and which, and a connection that is not the caller's is not found", async () => {
+    const { deps, convert } = stub();
+    convert.mockResolvedValueOnce({ found: true, result: { ok: false, reason: "missing_files", paths: ["Notes/b.md"] } });
+    const response = await handleConvert(send(valid), ALICE, deps, "1");
+    expect(response.status).toBe(409);
+    expect(await body(response)).toMatchObject({ error: { code: "missing_files" } });
+    convert.mockResolvedValueOnce({ found: false });
+    expect((await handleConvert(send(valid), ALICE, deps, "1")).status).toBe(404);
   });
 });

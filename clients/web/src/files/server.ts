@@ -17,6 +17,7 @@ import { DeletionService } from "./deletions";
 import { type IdentifyResult, identifyFile } from "./identify";
 import { type MoveResult, movePath } from "./move";
 import { type TransferResult, type VaultForm, transferFile } from "./transfer";
+import { type ConvertResult, type ConvertedFile, type VaultSnapshot, convertVault, snapshotVault } from "./convert";
 import { type RestoreResult, restoreDeleted } from "./restore";
 import { type EntryResult, createEntry, journalVault } from "../journal/entries";
 import type { JournalRefusal } from "./http";
@@ -125,6 +126,31 @@ async function transfer(
   );
 }
 
+/** The files of one vault of one of the account's repositories, for the page to convert (RFC 0003). */
+async function snapshot(accountId: string, id: number, vault: string): Promise<VaultSnapshot> {
+  const used = await (await connectionService()).provider(accountId, id);
+  if (!used) return { ok: false, reason: "unavailable" };
+  return snapshotVault({ provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch }, vault);
+}
+
+/** Make a whole vault of one of the account's repositories encrypted or plaintext, with the files the browser converted: one commit, through the connection's own token, on its branch (RFC 0003). */
+async function convert(accountId: string, id: number, input: { vault: string; direction: "encrypt" | "decrypt"; recipients: string[]; files: ConvertedFile[]; author: Identity }): Promise<ConvertResult> {
+  const used = await (await connectionService()).provider(accountId, id);
+  if (!used) return { ok: false, reason: "unavailable" };
+  const database = await getDatabase();
+  const result = await convertVault(
+    { provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord(), drafts: new WorkingCopyService(database) },
+    { connectionId: id, ...input },
+  );
+  if (result.ok) {
+    // An encrypted vault's files are not looked for by `id` (the server cannot read them), a decrypted vault's are learned on their next read; and the handles follow the names.
+    if (input.direction === "encrypt") await new DocIndex(database).remove(id, input.files.map((file) => file.path)).catch(() => console.error("[fjord] files: the id index could not follow an encryption"));
+    const handles = new FileHandles(database);
+    for (const file of input.files) await handles.move(id, file.path, file.to).catch(() => console.error("[fjord] files: a handle could not follow a conversion"));
+  }
+  return result;
+}
+
 /** Give a Doc of one of the account's repositories an identifier: through the connection's own token, on its branch (ROADMAP 3e.3). */
 async function identify(accountId: string, id: number, input: { path: string; blob: string; author: Identity }): Promise<IdentifyResult> {
   const used = await (await connectionService()).provider(accountId, id);
@@ -223,6 +249,8 @@ export async function filesAccessFor(): Promise<ReturnType<typeof filesAccess>> 
     entry,
     create,
     transfer,
+    convert,
+    snapshot,
     encryptedVaultFor,
     createEncrypted,
     identify,

@@ -622,6 +622,20 @@ repository's default vault.
   git-backed fake GitHub, including that a second look reads no tree and no blob, that `fjord.json`'s order beats the
   directories', and that a choice is kept.
 
+### Encrypting and decrypting a whole vault (RFC 0003)
+
+A vault's top has *Encrypt this vault…* (a plaintext vault) or *Make this vault plaintext…* (an encrypted one). These are the web's
+`fjord encrypt <vault> --permanent` and `fjord decrypt <vault> --permanent`. There is no checkout (spec §6.6) in a browser: an encrypted file is
+opened, edited and sealed again one at a time, so the only thing to do with a whole vault is change what it is.
+
+The server has no key, so the browser reads the vault (`GET /api/connections/<id>/files/convert?vault=`), encrypts each file to the account's key
+and **opens it again to prove it is what it was made from** (or decrypts it), and sends the lot (`POST`, the same route). One commit holds every
+file and the vault's new manifest, recipients file and guard, which are `fjord-core`'s (`planVaultEncryption`, `planVaultDecryption`) and not the
+page's. What the server holds it to, whatever the page sent: the files are exactly the vault's, each at the blob that was shown; the bytes are
+age in a vault that will be encrypted and not age in one that will not; nothing is put over anything; no file of the vault has a draft; a site's
+content is never encrypted. Over 300 files or 32 MB it says to use the command line. The page asks first and says what is permanent: what was
+committed before stays in the history, and decrypting puts the files in a commit everyone who can read the repository can read.
+
 ### Renaming, moving and deleting
 
 Phase 1 can rename, move and delete **documents, notes and folders inside plaintext

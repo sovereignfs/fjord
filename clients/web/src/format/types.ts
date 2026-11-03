@@ -112,6 +112,17 @@ export type KindSetupResult =
 /** `fjord.json` with its kind changed, every other field kept, or why not. */
 export type WithKindResult = { ok: true; text: string } | { ok: false; error: { code: string; message: string } };
 
+/** Why a vault's encryption cannot be changed (`fjord-core`'s `scaffold::ConvertError`, and a key that is not one). */
+export type ConvertRefusalCode = "manifest_unusable" | "already_encrypted" | "not_encrypted" | "no_recipients" | "bad_recipient";
+
+/** What making a plaintext vault an encrypted one writes (RFC 0003): its manifest, the recipients file and the plaintext guard (paths inside the vault), and the repository's `.gitattributes` when it needs the merge guard (the whole new file). */
+export type VaultEncryptionPlan =
+  | { ok: true; manifest: string; files: { path: string; contents: string }[]; gitattributes: string | null }
+  | { ok: false; error: { code: ConvertRefusalCode; message: string } };
+
+/** What making an encrypted vault a plaintext one writes (RFC 0003): its manifest, and the text of the guard `.gitignore` that is removed with it, if it is that one. */
+export type VaultDecryptionPlan = { ok: true; manifest: string; guard: string } | { ok: false; error: { code: ConvertRefusalCode; message: string } };
+
 /** A vault to add to a Fjord repository (`fjord-core`'s `scaffold::plan_vault`). */
 export interface VaultOptions {
   /** The vault's directory at the root, which is also its display name. */

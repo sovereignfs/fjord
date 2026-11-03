@@ -11,6 +11,10 @@ section.
 
 ## [Unreleased]
 
+### Added
+
+- **A whole vault can be made encrypted, or plaintext again, from the browser** (RFC 0003): a vault's top shows *Encrypt this vault…* or *Make this vault plaintext…*. The page reads every file of the vault (`GET /api/connections/<id>/files/convert?vault=`), encrypts each to your key and opens it again to prove it is the file it was made from (or decrypts it), and sends the lot (`POST` to the same route) to be committed at once with the vault's new manifest, recipients file and guard, which are `fjord-core`'s and not the page's. It needs your key unlocked, asks first, and says that what was committed before stays in the history. The server refuses a request whose files are not exactly the vault's, whose blobs are not the ones shown, whose bytes are not the form the vault will hold, a draft in the vault, a site, and a vault of more than 300 files or 32 MB (the command line does those). Shares and handles follow the names. The command-line forms are `fjord encrypt <vault> --permanent` and `fjord decrypt <vault> --permanent`; the temporary decrypt of those (a checkout) has no counterpart here, because a browser opens an encrypted file, edits it and seals it again one at a time.
+
 ### Changed
 
 - **Breaking: there is one kind of Doc, and the repository's kind chooses its editor** (spec §8.4, RFC 0002, ROADMAP 3e.1). A `.fj.md` name is an ordinary `.md`: every Markdown file opens at `/d/<id>`, a drive's in the document editor and a journal's or a site's in the byte-faithful Markdown editor, and *New document* is the one way to make a file (a title is optional; with none the date and time name it and are its title, and a file the app makes has an `id` from the start). `/n/<id>`, `/note/<id>` and `/doc/<id>` are sent on for good to `/d/<id>` (a 308 that drops any token). Any Doc in a plaintext vault can be shared, by account or link, where only `*.fj.md` could; renaming keeps a file's extension, whatever it is. `FileKind` from the format module is `doc`, and the `doc_index` and `deletion` tables' `kind` column says `doc` (older rows say `note` or `document` and are read as `doc`; no migration).

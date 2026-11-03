@@ -433,16 +433,12 @@ fn commit(root: &Path, directory: &str, verb: &str) -> Result<String> {
     let git = Git::new(root);
     let mut paths: Vec<String> = vec![directory.to_string()];
     let attributes = root.join(".gitattributes");
-    let text = std::fs::read_to_string(&attributes).unwrap_or_default();
-    if verb.starts_with("Encrypt") && !scaffold::has_merge_guard(&text) {
-        let mut next = text;
-        if !next.is_empty() && !next.ends_with('\n') {
-            next.push('\n');
+    let text = std::fs::read_to_string(&attributes).ok();
+    if verb.starts_with("Encrypt") {
+        if let Some(next) = scaffold::merge_guard_added(text.as_deref()) {
+            std::fs::write(&attributes, next).context("could not write .gitattributes")?;
+            paths.push(".gitattributes".to_string());
         }
-        next.push_str(scaffold::MERGE_GUARD);
-        next.push('\n');
-        std::fs::write(&attributes, next).context("could not write .gitattributes")?;
-        paths.push(".gitattributes".to_string());
     }
     let references: Vec<&str> = paths.iter().map(String::as_str).collect();
     let message = format!("{verb} {directory}");

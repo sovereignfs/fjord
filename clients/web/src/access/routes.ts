@@ -88,6 +88,7 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/connections/[id]/recipients", methods: { GET: owner("read") } },
   { route: "/api/connections/[id]/files/encrypted", methods: { POST: owner("create") } },
   { route: "/api/connections/[id]/files/transfer", methods: { POST: owner("move") } },
+  { route: "/api/connections/[id]/files/convert", methods: { GET: owner("read"), POST: owner("move") } },
   { route: "/api/connections/[id]/files/header", methods: { POST: owner("edit") } },
   // Giving a Doc an identifier, which sharing and publishing need (3e.3): a commit to the file, so the owner's `edit`.
   { route: "/api/connections/[id]/files/identify", methods: { POST: owner("edit") } },

@@ -7,6 +7,7 @@ import { MAX_CIPHERTEXT_BYTES, fromBase64, whyNotCiphertext } from "../working/c
 import type { CreateResult, VaultRefusal } from "./create";
 import type { CreateEncryptedResult, EncryptedVaultRefusal } from "./create-encrypted";
 import type { TransferResult } from "./transfer";
+import type { ConvertResult, ConvertedFile, VaultSnapshot } from "./convert";
 import type { IdentifyResult } from "./identify";
 import { MAX_TITLE_CHARS } from "./create";
 import type { DeleteResult, DeleteTarget } from "./delete";
@@ -89,6 +90,16 @@ export interface Deps {
     id: number,
     input: { path: string; blob: string; destination: string; content: Uint8Array; author: Identity },
   ) => Promise<{ found: false } | { found: true; result: TransferResult | { ok: false; reason: VaultRefusal | "no_encryption"; where: "source" | "destination" } }>;
+  /** The files of a vault, for the page to convert (RFC 0003). `found: false` if the connection is not the caller's. */
+  snapshot: (accountId: string, id: number, vault: string) => Promise<{ found: false } | { found: true; result: VaultSnapshot }>;
+  /**
+   * Make a whole vault encrypted or plaintext (RFC 0003), with the files the browser converted. `found: false` if it is not the caller's.
+   */
+  convert: (
+    accountId: string,
+    id: number,
+    input: { vault: string; direction: "encrypt" | "decrypt"; recipients: string[]; files: ConvertedFile[]; author: Identity },
+  ) => Promise<{ found: false } | { found: true; result: ConvertResult }>;
   /** Put back deletions the caller's repository has records of, at the paths they had or, for one, the one given. */
   restore: (accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }) => Promise<{ found: false } | { found: true; result: RestoreResult }>;
   /**
@@ -475,6 +486,106 @@ export async function handleTransfer(request: Request, caller: Caller | null, de
     return fromError(error);
   }
 }
+
+/** A conversion carries every file of a vault, twice (what it was and what it is), as base64. */
+const MAX_CONVERT_FILES = 300;
+const MAX_CONVERT_BODY_CHARS = 48 * 1024 * 1024;
+const MAX_CONVERT_FILE_BYTES = 8 * 1024 * 1024;
+
+/**
+ * `POST` makes a vault encrypted or plaintext, `{ vault, direction, recipients?, files: [{ path, blob, to, content }] }` (RFC 0003): the browser encrypted or decrypted each file, and
+ * `content` (base64) is what belongs at `to`. One commit holds all of it with the vault's new manifest, which is `fjord-core`'s and not the page's. The server has no key, so it checks
+ * what it can: every file of the vault is there and still the blob that was shown, the bytes are the form the vault will hold, and nothing is put over anything.
+ */
+export async function handleConvert(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  if (!caller) return failure(401, "unauthorized", "Sign in first.");
+  if (request.headers.get("origin") !== deps.origin) return failure(403, "forbidden", "This request did not come from this site.");
+  const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
+  if (number === undefined) return notFound();
+
+  try {
+    if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");
+    const text = await request.text();
+    if (text.length > MAX_CONVERT_BODY_CHARS) return failure(413, "too_large", "That vault is too large to convert from here. Use `fjord encrypt <vault> --permanent` or `fjord decrypt <vault> --permanent`.");
+    const body = parse(text);
+    if (!body) return failure(400, "invalid_request", "Send a JSON object.");
+    const { vault, direction, recipients, files } = body;
+    if (typeof vault !== "string" || vault === "" || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+    if (direction !== "encrypt" && direction !== "decrypt") return failure(400, "invalid_request", "Say whether to encrypt or decrypt.");
+    const keys = recipients === undefined ? [] : recipients;
+    if (!Array.isArray(keys) || keys.length > 100 || keys.some((key) => typeof key !== "string" || key.length > 200)) return failure(400, "invalid_request", "Send the recipients as a list of age public keys.");
+    if (!Array.isArray(files) || files.length > MAX_CONVERT_FILES) return failure(413, "too_large", "That vault has too many files to convert from here. Use the command line.");
+    const converted: ConvertedFile[] = [];
+    for (const file of files) {
+      const entry = file as Record<string, unknown> | null;
+      if (!entry || typeof entry !== "object" || !isRepositoryPath(entry.path) || !isRepositoryPath(entry.to) || (entry.to as string).length > MAX_PATH_CHARS || !(entry.to as string).isWellFormed() || CONTROL.test(entry.to as string)) {
+        return failure(400, "invalid_request", "Each file needs the path it has and the path it will have.");
+      }
+      if (typeof entry.blob !== "string" || !OBJECT_ID.test(entry.blob)) return failure(400, "invalid_request", "Say which version of each file you were shown, by its git object id.");
+      if (typeof entry.content !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(entry.content)) return failure(400, "invalid_request", "Send each file as base64 text.");
+      const bytes = new Uint8Array(Buffer.from(entry.content, "base64"));
+      if (bytes.length > MAX_CONVERT_FILE_BYTES) return failure(413, "too_large", "A file in that vault is too large to convert from here. Use the command line.");
+      converted.push({ path: entry.path as string, blob: entry.blob, to: entry.to as string, content: bytes });
+    }
+
+    const outcome = await deps.convert(caller.accountId, number, { vault, direction, recipients: keys as string[], files: converted, author: { name: caller.name, email: caller.email } });
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (result.ok) return json(200, { commit: result.commit, files: result.files.length });
+    const refusal = CONVERT_REFUSALS[result.reason];
+    return failure(refusal.status, result.reason, result.message && refusal.status === 422 ? `${refusal.message} ${result.message}` : refusal.message, result.paths ? { paths: result.paths.slice(0, 20) } : {});
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+/** `GET ?vault=<directory>`: the vault's files, as base64 with the blob each is of, for the page to encrypt or decrypt (RFC 0003). Read-only. */
+export async function handleConvertSource(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
+  if (request.method !== "GET") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  if (!caller) return failure(401, "unauthorized", "Sign in first.");
+  const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
+  if (number === undefined) return notFound();
+  const vault = new URL(request.url).searchParams.get("vault");
+  if (!vault || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+  try {
+    const outcome = await deps.snapshot(caller.accountId, number, vault);
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (!result.ok) {
+      const refusal = CONVERT_REFUSALS[result.reason];
+      return failure(refusal.status, result.reason, refusal.message);
+    }
+    return new Response(
+      JSON.stringify({ encrypted: result.encrypted, naming: result.naming, files: result.files.map((file) => ({ path: file.path, blob: file.blob, content: Buffer.from(file.content).toString("base64") })) }),
+      { status: 200, headers: { "content-type": "application/json", "cache-control": "no-store" } },
+    );
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+const CONVERT_REFUSALS: Record<Extract<ConvertResult, { ok: false }>["reason"], { status: number; message: string }> = {
+  gone: { status: 404, message: "That vault is not in the repository any more. Nothing was changed." },
+  site: { status: 422, message: "A site's content is never encrypted: it is published." },
+  too_large: { status: 413, message: "That vault, or a file in it, is too large to convert from here. Use `fjord encrypt <vault> --permanent` or `fjord decrypt <vault> --permanent`." },
+  too_many: { status: 413, message: "That vault has too many files to convert from here. Use `fjord encrypt <vault> --permanent` or `fjord decrypt <vault> --permanent`." },
+  upstream_changed: { status: 409, message: "A file in that vault changed in the repository after you looked at it. Nothing was changed. Try again." },
+  missing_files: { status: 409, message: "The vault's files are not the ones that were converted: some were added or removed in the repository. Nothing was changed. Try again." },
+  has_drafts: { status: 409, message: "A file in that vault has unsaved changes. Save a version of them, or discard them, first. Nothing was changed." },
+  bad_path: { status: 422, message: "A file was not given a name it can have there. Nothing was changed." },
+  wrong_form: { status: 422, message: "What was sent is not the form the vault will hold: an encrypted vault takes only encrypted files, and a plaintext one only files that are not. Nothing was changed." },
+  path_taken: { status: 409, message: "A converted file would land on a name that is taken, or differs from one only by letter case. Nothing was changed." },
+  head_moved: { status: 409, message: "The repository kept changing while this was being done. Nothing was changed. Try again." },
+  read_only: { status: 422, message: "That token can read this repository but not write to it, so nothing was changed. Create the token with the repository permission “Contents: Read and write”, and connect the repository again." },
+  bad_token: { status: 422, message: "The git host did not accept this repository's token. Connect the repository again with a new one." },
+  unavailable: { status: 502, message: "Could not reach the git host just now. Nothing was changed. Try again in a moment." },
+  manifest_unusable: { status: 422, message: "That vault's manifest cannot be read, so it was not changed." },
+  already_encrypted: { status: 409, message: "That vault is already encrypted." },
+  not_encrypted: { status: 409, message: "That vault is not encrypted." },
+  no_recipients: { status: 422, message: "There is no one to encrypt to: an encrypted vault with no recipients could be written by nobody." },
+  bad_recipient: { status: 422, message: "One of the recipients is not a usable age public key." },
+};
 
 const TRANSFER_REFUSALS: Record<Extract<TransferResult, { ok: false }>["reason"], { status: number; message: string }> = {
   gone: { status: 409, message: "That is no longer in the repository. Nothing was moved." },

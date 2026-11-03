@@ -4291,3 +4291,60 @@ test("an encrypted file is decrypted in the browser, in both namings, and nothin
   expect((await page.request.get(`/api/connections/${id}/ciphertext?path=Open/recipients.txt`, { failOnStatusCode: false })).status()).toBe(404);
   expect((await page.request.get(`/api/connections/${id}/ciphertext?path=Open/note.md.age`)).status()).toBe(200);
 });
+
+// --- A whole vault made encrypted, and plaintext again (RFC 0003) ----------------------------------------------------------
+
+test("a vault is made encrypted in one commit from the browser, checked to open, and made plaintext again", async ({ page }) => {
+  test.setTimeout(300_000);
+  try {
+    const PLAIN_MANIFEST = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hq", name: "Plain", "x-future": 1, createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" });
+    const { id, secret, recipient } = await encryptedWorkbench(page, () => ({
+      "Plain/fjord.vault.json": PLAIN_MANIFEST,
+      "Plain/a.md": "SECRET PLAINTEXT a",
+      "Plain/Sub/b.md": "SECRET PLAINTEXT b",
+      "Plain/pic.png": new Uint8Array([137, 80, 78, 71, 0, 255]),
+    }));
+    const before = (await hubs.more.branchHead()) as string;
+
+    // Encrypt: the key must be unlocked (it proves each file opens), then the question that says what stays in the history.
+    await page.goto(`/repo/${id}/Plain`);
+    await page.getByRole("button", { name: "Encrypt this vault…" }).click();
+    await page.getByLabel("Passphrase").fill(PASSPHRASE);
+    await page.getByRole("button", { name: "Unlock", exact: true }).click();
+    await page.getByRole("button", { name: "Encrypt this vault", exact: true }).click();
+    await expect(page.getByText("The plain text stays in the history")).toBeVisible();
+    expect(await hubs.more.branchHead()).toBe(before); // asking is not doing
+    await page.getByRole("button", { name: "Yes, encrypt it" }).click();
+    await headSays("Encrypt vault Plain");
+
+    const head = (await hubs.more.branchHead()) as string;
+    expect(await hubs.more.show(head, "%P")).toBe(before);
+    const encrypted = await hubs.more.filesAt(head);
+    expect(Object.keys(encrypted).filter((path) => path.startsWith("Plain/")).sort()).toEqual(["Plain/.gitignore", "Plain/Sub/b.md.age", "Plain/a.md.age", "Plain/fjord.vault.json", "Plain/pic.png.age", "Plain/recipients.txt"]);
+    expect(encrypted["Plain/recipients.txt"]).toContain(recipient);
+    expect(JSON.parse(encrypted["Plain/fjord.vault.json"] as string)).toMatchObject({ id: "01jagc4k7pr9tbm3ykwx6zq2hq", "x-future": 1, encryption: { tool: "age" } });
+    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(head, "Plain/Sub/b.md.age")))).toBe("SECRET PLAINTEXT b");
+    expect([...decryptedAt(secret, await hubs.more.fileBytesAt(head, "Plain/pic.png.age"))]).toEqual([137, 80, 78, 71, 0, 255]);
+    for (const [path, text] of Object.entries(encrypted)) if (path.startsWith("Plain/")) expect(text, path).not.toContain("SECRET PLAINTEXT");
+    await hubs.more.fsck();
+
+    // And back: it is a plaintext vault again, with the files as they were.
+    await page.goto(`/repo/${id}/Plain`);
+    await page.getByRole("button", { name: "Make this vault plaintext…" }).click();
+    await page.getByLabel("Passphrase").fill(PASSPHRASE);
+    await page.getByRole("button", { name: "Unlock", exact: true }).click();
+    await page.getByRole("button", { name: "Make this vault plaintext", exact: true }).click();
+    await expect(page.getByText("This puts the plain text of every file in the repository")).toBeVisible();
+    await page.getByRole("button", { name: "Yes, make it plaintext" }).click();
+    await headSays("Decrypt vault Plain");
+
+    const after = (await hubs.more.branchHead()) as string;
+    const plain = await hubs.more.filesAt(after);
+    expect(Object.keys(plain).filter((path) => path.startsWith("Plain/")).sort()).toEqual(["Plain/Sub/b.md", "Plain/a.md", "Plain/fjord.vault.json", "Plain/pic.png"]);
+    expect(plain["Plain/a.md"]).toBe("SECRET PLAINTEXT a");
+    expect(JSON.parse(plain["Plain/fjord.vault.json"] as string).encryption).toBeNull();
+    await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});

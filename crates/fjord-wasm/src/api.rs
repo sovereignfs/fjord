@@ -1153,6 +1153,78 @@ pub fn plan_vault(
     .to_string())
 }
 
+/// `fjord_core::scaffold::plan_encrypt_vault` for the web client (RFC 0003): what making the plaintext vault whose
+/// `fjord.vault.json` is `manifest` an encrypted one writes outside its own files. `options_json` is
+/// `{"recipients": [age public keys], "gitattributes": string | null}`, the `.gitattributes` the repository has now.
+///
+/// Returns `{"ok": false, "error": {"code", "message"}}` (`manifest_unusable`, `already_encrypted`, `no_recipients`,
+/// `bad_recipient`, `recipients_unsupported`), else `{"ok": true, "manifest", "files": [{"path", "contents"}],
+/// "gitattributes": string | null}`: the paths are relative to the vault, and `gitattributes` is the repository's whole
+/// new file, or `null` when it already has the guard. `Err` is a malformed call.
+pub fn plan_vault_encryption(manifest: &str, options_json: &str) -> Result<String, String> {
+    let options: Value = serde_json::from_str(options_json)
+        .map_err(|err| format!("the options are not JSON: {err}"))?;
+    let recipients: Vec<String> = match options.get("recipients") {
+        Some(Value::Array(items)) => items
+            .iter()
+            .map(|item| {
+                item.as_str()
+                    .map(str::to_string)
+                    .ok_or("a recipient must be text")
+            })
+            .collect::<Result<_, _>>()?,
+        _ => return Err("the options need a list of `recipients`".to_string()),
+    };
+    let gitattributes = match options.get("gitattributes") {
+        None | Some(Value::Null) => None,
+        Some(Value::String(text)) => Some(text.clone()),
+        Some(_) => return Err("`gitattributes` must be text or null".to_string()),
+    };
+    for recipient in &recipients {
+        if let Err(reason) = crypto::check_recipient(recipient) {
+            return Ok(json!({
+                "ok": false,
+                "error": { "code": "bad_recipient", "message": reason },
+            })
+            .to_string());
+        }
+    }
+    Ok(
+        match scaffold::plan_encrypt_vault(manifest.as_bytes(), &recipients) {
+            Ok(plan) => json!({
+                "ok": true,
+                "manifest": plan.manifest,
+                "files": plan.files.iter().map(|file| json!({
+                    "path": file.path,
+                    "contents": file.contents,
+                })).collect::<Vec<_>>(),
+                "gitattributes": scaffold::merge_guard_added(gitattributes.as_deref()),
+            }),
+            Err(error) => json!({
+                "ok": false,
+                "error": { "code": error.code(), "message": format!("{error:?}") },
+            }),
+        }
+        .to_string(),
+    )
+}
+
+/// `fjord_core::scaffold::plan_decrypt_vault` for the web client (RFC 0003): the plaintext `fjord.vault.json` of the
+/// encrypted vault whose manifest is `manifest`, and the text of the guard `.gitignore` an encrypted vault has (a vault's
+/// own is removed with it, only if it is that one).
+///
+/// `{"ok": true, "manifest", "guard"}`, else `{"ok": false, "error": {"code", "message"}}`.
+pub fn plan_vault_decryption(manifest: &str) -> String {
+    match scaffold::plan_decrypt_vault(manifest.as_bytes()) {
+        Ok(text) => json!({ "ok": true, "manifest": text, "guard": scaffold::vault_guard() }),
+        Err(error) => json!({
+            "ok": false,
+            "error": { "code": error.code(), "message": format!("{error:?}") },
+        }),
+    }
+    .to_string()
+}
+
 /// A vault name that is free at the root of a repository (`"Public"`, else `"Public 2"`, …).
 /// `existing_json` is as for [`plan_setup`]; only its `paths` are looked at.
 pub fn free_vault_name(preferred: &str, existing_json: &str) -> Result<String, String> {
@@ -2020,5 +2092,49 @@ mod tests {
         assert!(wrap_container("dir/name.md", b"x").is_err());
         assert!(wrap_container("../name.md", b"x").is_err());
         assert!(unwrap_container(b"not a tar").is_err());
+    }
+    #[test]
+    fn a_vault_is_planned_encrypted_and_planned_plaintext_with_its_fields_kept() {
+        let manifest = r#"{"fjord":1,"id":"01jagc4k7pr9tbm3ykwx6zq2hv","name":"Notes","x-future":1,"encryption":null,"fileNaming":"plain"}"#;
+        let key = fjord_core::crypto::recipient_of(
+            &String::from_utf8(generate_identity()).expect("an identity is text"),
+        )
+        .expect("a recipient");
+        let options = json!({ "recipients": [key], "gitattributes": null }).to_string();
+        let plan: Value =
+            serde_json::from_str(&plan_vault_encryption(manifest, &options).expect("planned"))
+                .expect("json");
+        assert_eq!(plan["ok"], true, "{plan}");
+        assert_eq!(plan["gitattributes"], "*.age binary -diff -merge\n");
+        let encrypted = plan["manifest"].as_str().expect("manifest");
+        assert!(encrypted.contains("\"x-future\": 1") && encrypted.contains("\"tool\": \"age\""));
+        let paths: Vec<&str> = plan["files"]
+            .as_array()
+            .expect("files")
+            .iter()
+            .filter_map(|file| file["path"].as_str())
+            .collect();
+        assert_eq!(paths, ["recipients.txt", ".gitignore"]);
+
+        // A key that is not one, and a vault that is already what was asked for, are refused with a code.
+        let bad = json!({ "recipients": ["nope"], "gitattributes": null }).to_string();
+        let refused: Value =
+            serde_json::from_str(&plan_vault_encryption(manifest, &bad).expect("answered"))
+                .expect("json");
+        assert_eq!(refused["error"]["code"], "bad_recipient");
+        let again: Value =
+            serde_json::from_str(&plan_vault_encryption(encrypted, &options).expect("answered"))
+                .expect("json");
+        assert_eq!(again["error"]["code"], "already_encrypted");
+
+        let plain: Value = serde_json::from_str(&plan_vault_decryption(encrypted)).expect("json");
+        assert_eq!(plain["ok"], true);
+        assert!(plain["manifest"]
+            .as_str()
+            .expect("manifest")
+            .contains("\"encryption\": null"));
+        assert!(plain["guard"].as_str().expect("guard").contains("!*.age"));
+        let not: Value = serde_json::from_str(&plan_vault_decryption(manifest)).expect("json");
+        assert_eq!(not["error"]["code"], "not_encrypted");
     }
 }

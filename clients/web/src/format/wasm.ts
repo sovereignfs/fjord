@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { AdoptExisting, AdoptOptions, AdoptResult, DetectedSite, Discovery, JournalEntrySummary, KindSetupOptions, KindSetupResult, ListedFile, LocalMinute, MergeResult, RepositoryKind, RepositoryManifest, SetupExisting, SetupOptions, SetupResult, SiteEngine, VaultOptions, VaultResult, WithKindResult } from "./types";
+import type { AdoptExisting, AdoptOptions, AdoptResult, DetectedSite, Discovery, JournalEntrySummary, KindSetupOptions, KindSetupResult, ListedFile, LocalMinute, MergeResult, RepositoryKind, RepositoryManifest, SetupExisting, SetupOptions, SetupResult, SiteEngine, VaultDecryptionPlan, VaultEncryptionPlan, VaultOptions, VaultResult, WithKindResult } from "./types";
 
 /**
  * `fjord-core` as WebAssembly, in Node (DESIGN.md §2: the server reads the format, the browser never does in
@@ -22,6 +22,8 @@ interface Module {
   describeRepositoryManifest(text: string): string;
   planSetup(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
   planVault(optionsJson: string, manifest: string, existingJson: string, nowMs: number, random: Uint8Array): string;
+  planVaultEncryption(manifest: string, optionsJson: string): string;
+  planVaultDecryption(manifest: string): string;
   planSetupKind(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
   planAdopt(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
   detectSite(existingJson: string): string;
@@ -162,6 +164,16 @@ export class Fjord {
    */
   planVault(options: VaultOptions, manifest: string, existing: SetupExisting, nowMs: number, random: Uint8Array): VaultResult {
     return JSON.parse(this.module.planVault(JSON.stringify(options), manifest, JSON.stringify(existing), nowMs, random)) as VaultResult;
+  }
+
+  /** What making the plaintext vault whose manifest is `manifest` an encrypted one writes (RFC 0003), or why not. A finding is `ok: false`; a malformed call throws. */
+  planVaultEncryption(manifest: string, recipients: string[], gitattributes: string | null): VaultEncryptionPlan {
+    return JSON.parse(this.module.planVaultEncryption(manifest, JSON.stringify({ recipients, gitattributes }))) as VaultEncryptionPlan;
+  }
+
+  /** What making the encrypted vault whose manifest is `manifest` a plaintext one writes (RFC 0003), or why not. */
+  planVaultDecryption(manifest: string): VaultDecryptionPlan {
+    return JSON.parse(this.module.planVaultDecryption(manifest)) as VaultDecryptionPlan;
   }
 
   /**

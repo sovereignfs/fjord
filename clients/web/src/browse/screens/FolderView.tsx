@@ -13,6 +13,7 @@ import { IdentifyAndShare } from "../../sharing/IdentifyAndShare";
 import { SharePanel } from "../../sharing/SharePanel";
 import { NewFile, type EncryptedCreate } from "./NewFile";
 import { UndoBanner } from "./UndoBanner";
+import { VaultConversion } from "./VaultConversion";
 import type { HeaderInfo } from "../document";
 import { type DraftOfNote, NoteView } from "./NoteView";
 import { UpstreamChanged } from "./UpstreamChanged";
@@ -122,6 +123,7 @@ export function FolderView({
         <>
           {plainWritable ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} /> : null}
           {encryptedCreate ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} encrypted={encryptedCreate} /> : null}
+          {location.path === "" && site !== true && (plainWritable || encryptedNaming !== undefined) ? <VaultConversion connectionId={connectionId} vault={vault.directory} encrypted={!plainWritable} /> : null}
           {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
             <MoveButtons
               connectionId={connectionId}

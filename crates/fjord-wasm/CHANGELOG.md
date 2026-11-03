@@ -5,6 +5,10 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 
 ## [Unreleased]
 
+### Added
+
+- **`planVaultEncryption` and `planVaultDecryption`** (RFC 0003): what `fjord encrypt <vault> --permanent` and `fjord decrypt <vault> --permanent` write, from `fjord-core`'s `scaffold::plan_encrypt_vault` and `plan_decrypt_vault`, so the web client and the CLI write the same manifest, recipients file and guard. A finding (no recipients, a key that is not one, a vault already in that form) is `ok: false` with a code; the repository's `.gitattributes` comes back whole when it needs the merge guard.
+
 ### Changed
 
 - **Breaking: one kind of Doc** (spec §8.4, RFC 0002, ROADMAP web P17): `discover`'s file `kind` is `doc` for any `.md`, where it was `document` for `*.fj.md` and `note` for the rest; `impliedTitle` takes only the `.md` off a name; and a vault may be at any depth (never inside another), so `manifestPaths` and `discover` find `src/content` as they find `Public`. The fixture suite adds `depth/`.

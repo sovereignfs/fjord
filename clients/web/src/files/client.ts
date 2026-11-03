@@ -101,6 +101,38 @@ export async function sendTransfer(connectionId: number, input: { path: string; 
   }
 }
 
+/** The files of a vault, to convert (RFC 0003): whether it is encrypted, how it names files, and each file's bytes (base64) and blob. */
+export type SnapshotAttempt = { ok: true; encrypted: boolean; naming: "plain" | "id"; files: { path: string; blob: string; content: string }[] } | { ok: false; message: string };
+
+export async function fetchVaultSnapshot(connectionId: number, vault: string): Promise<SnapshotAttempt> {
+  try {
+    const response = await fetch(`/api/connections/${connectionId}/files/convert?vault=${encodeURIComponent(vault)}`, { credentials: "same-origin" });
+    const parsed = (await response.json().catch(() => undefined)) as { encrypted?: boolean; naming?: "plain" | "id"; files?: { path: string; blob: string; content: string }[]; error?: { message?: string } } | undefined;
+    if (response.status === 200 && Array.isArray(parsed?.files)) return { ok: true, encrypted: parsed.encrypted === true, naming: parsed.naming === "id" ? "id" : "plain", files: parsed.files };
+    return { ok: false, message: parsed?.error?.message ?? "Could not read that vault just now. Nothing was changed. Try again in a moment." };
+  } catch {
+    return { ok: false, message: "Could not reach this server, so nothing was changed. Try again in a moment." };
+  }
+}
+
+export type ConvertAttempt = { ok: true; files: number } | { ok: false; message: string };
+
+/** Make a whole vault encrypted or plaintext, one commit, with every file as the browser converted it (RFC 0003). */
+export async function sendConvert(
+  connectionId: number,
+  input: { vault: string; direction: "encrypt" | "decrypt"; recipients?: string[]; files: { path: string; blob: string; to: string; content: string }[] },
+): Promise<ConvertAttempt> {
+  try {
+    const response = await fetch(`/api/connections/${connectionId}/files/convert`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input), credentials: "same-origin" });
+    const parsed = (await response.json().catch(() => undefined)) as { files?: number; error?: { message?: string } } | undefined;
+    if (response.status === 200 && typeof parsed?.files === "number") return { ok: true, files: parsed.files };
+    if (response.status === 401) return { ok: false, message: "You are signed out, so nothing was changed. Sign in again, then try again." };
+    return { ok: false, message: parsed?.error?.message ?? "Could not do that just now. Nothing was changed. Try again in a moment." };
+  } catch {
+    return { ok: false, message: "Could not reach this server, so nothing was changed. Try again in a moment." };
+  }
+}
+
 // --- A header's title (ROADMAP 1b.5) -------------------------------------------------------------------------------
 
 export type TitleAttempt = { ok: true; header: string } | { ok: false; message: string };

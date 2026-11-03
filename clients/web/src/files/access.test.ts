@@ -20,6 +20,8 @@ function setup(over: { owns?: boolean; encrypted?: Awaited<ReturnType<AccessDeps
   const access = filesAccess({
     identify: (a, i, x) => identify(a, i, x),
     transfer: (a, i, x) => transfer(a, i, x),
+    snapshot: async () => ({ ok: true as const, encrypted: false, naming: "plain" as const, files: [] }),
+    convert: async () => ({ ok: true as const, commit: "c".repeat(40), files: [] }),
     encryptedVaultFor: (a, i, v) => encryptedVaultFor(a, i, v),
     createEncrypted: (a, i, x) => createEncrypted(a, i, x),
     owns: (a, i) => owns(a, i),

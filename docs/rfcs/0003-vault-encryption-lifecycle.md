@@ -40,11 +40,22 @@ Both are built on the checkout and write no plaintext into an encrypted vault an
   never removed.
 - `--commit` commits the vault, and what the conversion changed outside it, and nothing else; `--yes` is required without a terminal.
 
+## The web client
+
+The same two changes, as `Encrypt this vault…` and `Make this vault plaintext…` at a vault's top. There is no checkout: a browser opens an
+encrypted file, edits it and seals it again one at a time, and never holds a decrypted vault on a disk, so the temporary form has no
+counterpart and the permanent one is all there is.
+
+The server has no key, so the **browser** converts: it reads the vault (`GET .../files/convert?vault=`), encrypts each file to the account's key
+and opens it again to prove it is the file it was made from (the CLI's check, §6.6 (8)), or decrypts each; and sends every file to be committed
+at once (`POST`). The server makes the manifest, the recipients file and the guard with `fjord-core`'s planner (through `fjord-wasm`), and holds
+the request to what keeps the vault in one form: the files sent are exactly the vault's, each at the blob that was shown, the bytes are age in
+an encrypted vault and not age in a plaintext one, nothing is put over anything, no draft is in the vault, and a site is refused. A vault of more
+than 300 files or 32 MB is converted with the command line.
+
 ## Not here
 
 - Changing a vault to or from `id` naming (names would have to be moved into containers or out of them).
-- Converting a vault in the web client. It can make an encrypted vault and move a file into one, and a whole-vault
-  conversion would need every file rewritten in the browser; it is a task of its own.
 - Rewriting history. Neither direction does, and both say so.
 
 ## Changelog
@@ -52,4 +63,5 @@ Both are built on the checkout and write no plaintext into an encrypted vault an
 | Date | Change |
 | --- | --- |
 | 2026-11-03 | Written and implemented with the commands. |
+| 2026-11-03 | The web client does it too (the browser converts, one commit).
 | 2026-11-03 | The conversions moved from `fjord vault encrypt` and `decrypt` to `--permanent` on `encrypt` and `decrypt`: the checkout is the default. |

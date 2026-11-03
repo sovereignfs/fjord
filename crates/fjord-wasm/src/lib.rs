@@ -165,6 +165,16 @@ pub fn plan_vault(
     api::plan_vault(options_json, manifest, existing_json, now_ms, random).map_err(thrown)
 }
 
+#[wasm_bindgen(js_name = planVaultEncryption)]
+pub fn plan_vault_encryption(manifest: &str, options_json: &str) -> Result<String, JsError> {
+    api::plan_vault_encryption(manifest, options_json).map_err(thrown)
+}
+
+#[wasm_bindgen(js_name = planVaultDecryption)]
+pub fn plan_vault_decryption(manifest: &str) -> String {
+    api::plan_vault_decryption(manifest)
+}
+
 #[wasm_bindgen(js_name = freeVaultName)]
 pub fn free_vault_name(preferred: &str, existing_json: &str) -> Result<String, JsError> {
     api::free_vault_name(preferred, existing_json).map_err(thrown)
