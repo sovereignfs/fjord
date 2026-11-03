@@ -370,7 +370,7 @@ The spec already says it (§1.3, §2.3, §3, §3.1, §6.6, §8.4, §12, as of 20
 
 ### P15 CLI: no documents, and journals encrypted by default
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0002, One kind of Doc, Journals
 
@@ -379,6 +379,9 @@ The spec already says it (§1.3, §2.3, §3, §3.1, §6.6, §8.4, §12, as of 20
 - The README's sections for `init`, `new` and `ls` say so (`tests/readme_commands.rs`), and the CHANGELOG says it is breaking.
 
 **Accepts when:** `fjord init --kind journal x && cd x && fjord verify` reports only `W602` (no recipients yet), and with `--no-encrypt` nothing; `fjord new --document` is a usage error; a `.fj.md` file is listed as a Doc like any other.
+
+- **Done as:** `new --document` and `ls --json`'s `docKind` went with P14 (they could not build without it). `init --kind journal` encrypts by default (`cmd/init.rs`: `encrypt = !args.no_encrypt` for both kinds); `--encrypt` is removed, `--no-encrypt` is refused for a site only, and the terminal question defaults to yes. The README's `init`, `new` and `ls` sections and the CHANGELOG (marked **breaking**) say so; tests in `tests/kinds.rs` (a journal needs `--no-encrypt` to be plaintext; each flag for another kind is a usage error), `everyday.rs` (one kind of Doc; `--document` exits 2) and `id_naming.rs`.
+- **Not here:** `fjord new` in an encrypted journal without an identity (it refuses as it does in any encrypted vault).
 
 ### P16 CLI: `init --adopt`
 

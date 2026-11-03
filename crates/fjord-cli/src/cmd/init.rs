@@ -57,10 +57,8 @@ pub fn run(args: &InitArgs, global: &GlobalArgs) -> Result<ExitCode> {
         Some(name) => name.clone(),
         None => default_name(&target),
     };
-    let mut encrypt = match kind {
-        "journal" => args.encrypt,
-        _ => !args.no_encrypt,
-    };
+    // A drive's Private vault and a journal are encrypted unless asked otherwise (spec §3.1).
+    let mut encrypt = !args.no_encrypt;
     let mut engine = args.engine.as_deref().and_then(SiteEngine::parse);
 
     let interactive = !global.no_input && io::stdin().is_terminal();
@@ -75,8 +73,8 @@ pub fn run(args: &InitArgs, global: &GlobalArgs) -> Result<ExitCode> {
             }
             _ => {
                 name = ask_name(&mut stdin, &mut stderr, &name)?;
-                if kind == "journal" && !args.encrypt {
-                    encrypt = ask_yes_no(&mut stdin, &mut stderr, "Encrypt the journal?", false)?;
+                if kind == "journal" && !args.no_encrypt {
+                    encrypt = ask_yes_no(&mut stdin, &mut stderr, "Encrypt the journal?", true)?;
                 }
                 if kind == "ssg" && engine.is_none() {
                     engine = ask_engine(&mut stdin, &mut stderr)?;
@@ -166,20 +164,12 @@ fn misplaced_flags(kind: &str, args: &InitArgs) -> Option<String> {
     if args.engine.is_some() && kind != "ssg" {
         return Some("--engine is for --kind ssg".to_string());
     }
-    if args.encrypt && kind != "journal" {
-        return Some(match kind {
-            "ssg" => {
-                "a site's content cannot be encrypted: it is published (spec §3.1)".to_string()
-            }
-            _ => "--encrypt is for --kind journal; a drive's Private vault is encrypted unless \
-                  --no-encrypt is given"
+    if args.no_encrypt && kind == "ssg" {
+        return Some(
+            "a site's content is never encrypted: it is published (spec §3.1), so --no-encrypt \
+             has nothing to do"
                 .to_string(),
-        });
-    }
-    if args.no_encrypt && kind != "drive" {
-        return Some(format!(
-            "--no-encrypt is for a drive's Private vault; a {kind} has no Private vault"
-        ));
+        );
     }
     None
 }

@@ -202,7 +202,7 @@ fn the_parsers_read_the_help_they_are_given() {
     for expected in [
         "--kind",
         "--engine",
-        "--encrypt",
+        "--no-encrypt",
         "--no-git",
         "--no-input",
         "--json",

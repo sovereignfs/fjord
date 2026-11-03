@@ -136,10 +136,9 @@ key; that is expected, not a fault. Fix it with `fjord key new` followed by
 | Flag | Effect |
 | --- | --- |
 | `--name <text>` | Repository display name. Defaults to the directory name. |
-| `--no-encrypt` | Create `Private` as a plaintext vault. A drive only. |
+| `--no-encrypt` | Make the vault plaintext: a drive's `Private`, or a journal's (a journal is encrypted unless this is given). Refused for a site, whose content is never encrypted. |
 | `--kind <kind>` | `drive` (the default), `journal` or `ssg`. See [Repository kinds](#repository-kinds). |
 | `--engine <engine>` | `astro` or `jekyll`, for `--kind ssg`. |
-| `--encrypt` | Encrypt the journal, for `--kind journal`. |
 | `--no-git` | Skip `git init` and the first commit. |
 | `--no-input` | Never prompt; take every default. |
 | `--json` | Machine-readable summary of what was created. |
@@ -164,19 +163,20 @@ such as Fjord Web presents it. It changes no file's meaning: every repository ca
 drive, and `fjord verify` does not fail a kind it does not know.
 
 - **`drive`** is what `init` has always made: `Public` and `Private`. No `kind` is written.
-- **`journal`** is one vault, `journal/`, of dated entries. `fjord new` with no path writes one,
-  dated now in this machine's time zone (spec §8.1 keeps the local offset), at
-  `journal/YYYY/MM/DD/HHMM-slug.md`. With `--encrypt` the vault names its files by id inside a tar
+- **`journal`** is one vault, `journal/`, of dated entries, **encrypted unless `--no-encrypt` is
+  given**: a journal is personal (spec §3.1). The vault names its files by id inside a tar
   container, and entries are not put in dated folders, since folder names are never encrypted
-  (spec §11.2); it has no recipients yet, so `verify` reports `W602` until a key is added.
+  (spec §11.2); it has no recipients yet, so `verify` reports `W602` until a key is added. With
+  `--no-encrypt` the entry `fjord new` writes (with no path, dated now in this machine's time zone;
+  spec §8.1 keeps the local offset) is at `journal/YYYY/MM/DD/HHMM-slug.md`.
 - **`ssg`** is a static site: one plaintext vault, `content/`, for its posts, and the engine's own
   project around it: `package.json`, `astro.config.mjs` and `src/` for Astro, or `_config.yml`,
   `Gemfile` and `_layouts/` for Jekyll, set up to read their posts from `content/`. A site's content
   is never encrypted, because a site is published. `--engine` is required; on a terminal `init`
   asks for it.
 
-A flag for another kind (`--engine` without `--kind ssg`, `--encrypt` without `--kind journal`,
-`--no-encrypt` with either) is refused rather than ignored. Exits `2`.
+A flag for another kind (`--engine` without `--kind ssg`, `--no-encrypt` with `--kind ssg`) is refused
+rather than ignored. Exits `2`.
 
 `--identity` is **not accepted here.** Registering a recipient is
 `fjord key add`, so `init` refuses the flag rather than quietly creating a

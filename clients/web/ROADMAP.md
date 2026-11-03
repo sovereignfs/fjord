@@ -144,7 +144,7 @@ Planned on 2026-11-03. One kind of Doc whose editor is the kind's choice, addres
 | --- | --- | --- |
 | [P13](../../docs/epics/web-3.md#p13-spec-and-fixtures-one-kind-of-doc-vaults-at-any-depth-adopting-into-a-checkout) | Spec and fixtures: one kind of Doc, vaults at any depth, adopting into a checkout | ✅ Done |
 | [P14](../../docs/epics/web-3.md#p14-fjord-core-filekinddoc-vaults-at-depth-the-adoption-plan) | `fjord-core`: `FileKind::Doc`, vaults at depth, the adoption plan | 🚧 Done but for the adoption plan (with P16) |
-| [P15](../../docs/epics/web-3.md#p15-cli-no-documents-and-journals-encrypted-by-default) | CLI: no documents, and journals encrypted by default | 📋 Planned |
+| [P15](../../docs/epics/web-3.md#p15-cli-no-documents-and-journals-encrypted-by-default) | CLI: no documents, and journals encrypted by default | ✅ Done |
 | [P16](../../docs/epics/web-3.md#p16-cli-init---adopt) | CLI: `init --adopt` | 📋 Planned |
 | [P17](../../docs/epics/web-3.md#p17-fjord-wasm-one-kind-of-doc-vaults-at-depth-the-adoption-plan) | `fjord-wasm`: one kind of Doc, vaults at depth, the adoption plan | 📋 Planned |
 | [3e.1](../../docs/epics/web-3.md#3e1-one-address-and-one-editor-per-kind-for-a-doc) | One address and one editor per kind for a Doc | 📋 Planned |

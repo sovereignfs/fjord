@@ -117,7 +117,8 @@ pub struct InitArgs {
     #[arg(long)]
     pub name: Option<String>,
 
-    /// Create the Private vault unencrypted. A drive only.
+    /// Make the vault plaintext: a drive's Private vault, or a journal's (a journal is encrypted unless
+    /// this is given). Not for a site, whose content is never encrypted.
     #[arg(long)]
     pub no_encrypt: bool,
 
@@ -129,11 +130,6 @@ pub struct InitArgs {
     /// The site's engine, for `--kind ssg`. Asked for on a terminal; required with `--no-input`.
     #[arg(long, value_name = "ENGINE", value_parser = ["astro", "jekyll"])]
     pub engine: Option<String>,
-
-    /// Encrypt the journal's vault, for `--kind journal`. Its entries are then named by id, in no
-    /// dated folders (spec §11.2).
-    #[arg(long)]
-    pub encrypt: bool,
 
     /// Skip `git init` and the first commit.
     #[arg(long)]

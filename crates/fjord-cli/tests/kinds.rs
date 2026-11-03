@@ -78,12 +78,9 @@ fn each_kind_is_made_and_verifies() {
     for (arguments, kind, warnings) in [
         (vec![], "drive", vec!["W602"]),
         (vec!["--kind", "drive", "--no-encrypt"], "drive", vec![]),
-        (vec!["--kind", "journal"], "journal", vec![]),
-        (
-            vec!["--kind", "journal", "--encrypt"],
-            "journal",
-            vec!["W602"],
-        ),
+        // A journal is encrypted unless asked otherwise (RFC 0002), so it has no recipients yet.
+        (vec!["--kind", "journal"], "journal", vec!["W602"]),
+        (vec!["--kind", "journal", "--no-encrypt"], "journal", vec![]),
         (vec!["--kind", "ssg", "--engine", "astro"], "ssg", vec![]),
         (vec!["--kind", "ssg", "--engine", "jekyll"], "ssg", vec![]),
     ] {
@@ -97,6 +94,24 @@ fn each_kind_is_made_and_verifies() {
 }
 
 #[test]
+fn a_journal_is_encrypted_unless_no_encrypt_is_given() {
+    let temp = tempfile::tempdir().expect("temporary directory");
+    let target = temp.path().join("x").to_string_lossy().to_string();
+    let output = fjord(&[
+        "--no-input",
+        "--json",
+        "init",
+        &target,
+        "--kind",
+        "journal",
+        "--no-encrypt",
+        "--no-git",
+    ]);
+    assert_eq!(code(&output), 0, "{}", text(&output));
+    assert_eq!(json(&output)["vaults"][0]["encrypted"], false);
+}
+
+#[test]
 fn init_reports_the_kind_in_json() {
     let temp = tempfile::tempdir().expect("temporary directory");
     let target = temp.path().join("x").to_string_lossy().to_string();
@@ -107,7 +122,6 @@ fn init_reports_the_kind_in_json() {
         &target,
         "--kind",
         "journal",
-        "--encrypt",
         "--no-git",
     ]);
     assert_eq!(code(&output), 0, "{}", text(&output));
@@ -130,9 +144,8 @@ fn a_site_needs_an_engine_and_no_prompt_is_a_usage_error() {
 #[test]
 fn a_flag_for_another_kind_is_refused_rather_than_ignored() {
     for arguments in [
-        vec!["--kind", "ssg", "--engine", "astro", "--encrypt"],
+        vec!["--kind", "ssg", "--engine", "astro", "--no-encrypt"],
         vec!["--kind", "journal", "--engine", "astro"],
-        vec!["--kind", "journal", "--no-encrypt"],
         vec!["--encrypt"],
     ] {
         let temp = tempfile::tempdir().expect("temporary directory");
@@ -173,7 +186,7 @@ fn verify_names_a_kind_that_is_not_a_drive() {
 /// A journal entry made with no path: dated, filed by its date, and verified.
 #[test]
 fn new_with_no_path_writes_a_journal_entry() {
-    let (_temp, target) = init(&["--kind", "journal"]);
+    let (_temp, target) = init(&["--kind", "journal", "--no-encrypt"]);
     let output = fjord(&[
         "-C",
         &target,
@@ -230,7 +243,7 @@ fn new_needs_a_path_outside_a_journal() {
 
 #[test]
 fn a_date_that_is_not_rfc_3339_is_refused() {
-    let (_temp, target) = init(&["--kind", "journal"]);
+    let (_temp, target) = init(&["--kind", "journal", "--no-encrypt"]);
     let output = fjord(&["-C", &target, "new", "--no-edit", "--date", "yesterday"]);
     assert_eq!(code(&output), 2, "{}", text(&output));
     let output = fjord(&[
@@ -319,7 +332,7 @@ fn new_with_no_path_writes_a_site_s_post_as_its_engine_reads_it() {
 
 #[test]
 fn a_draft_needs_a_site_and_a_path_forbids_the_generated_options() {
-    let (_dir, journal) = init(&["--kind", "journal"]);
+    let (_dir, journal) = init(&["--kind", "journal", "--no-encrypt"]);
     let output = fjord(&["-C", &journal, "new", "--no-edit", "--draft"]);
     assert_eq!(code(&output), 2, "{}", text(&output));
     let output = fjord(&["-C", &journal, "new", "journal/a.md", "--draft"]);
