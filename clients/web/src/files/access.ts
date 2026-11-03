@@ -148,7 +148,8 @@ export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncr
       // Where it goes: the first step of the new path is its vault, which is asked of the repository as it is now. Out of an encrypted vault, or into one
       // from another, is the browser's to do (ROADMAP 2b.6): here it would need a key, or would put plaintext where there must be none.
       const to = input.destination.split("/")[0] as string;
-      if (to !== input.vault) {
+      const stays = input.destination === input.vault || input.destination.startsWith(`${input.vault}/`);
+      if (!stays) {
         if (from.encrypted) return { found: true, result: { ok: false, reason: "other_vault", where: "destination" } };
         const destination = await deps.vaultFor(accountId, id, to);
         if (destination !== "ok") return { found: true, result: { ok: false, reason: destination, where: "destination" } };
@@ -159,7 +160,7 @@ export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncr
     async identify(accountId, id, input) {
       if (!(await deps.owns(accountId, id))) return { found: false };
       // A file in a plaintext vault this version writes: an encrypted one is never read here, and its `id` is inside it.
-      const vault = await deps.vaultFor(accountId, id, input.path.split("/")[0] as string);
+      const vault = await deps.vaultFor(accountId, id, input.path);
       if (vault !== "ok") return { found: true, result: { ok: false, reason: vault } };
       return { found: true, result: await deps.identify(accountId, id, input) };
     },

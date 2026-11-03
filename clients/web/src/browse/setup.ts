@@ -42,7 +42,8 @@ export interface SetupTarget {
 export type SetupChoice =
   | { kind: "drive"; vault: string }
   | { kind: "journal"; vault: string; encrypted: boolean; recipients: string[] }
-  | { kind: "ssg"; engine: SiteEngine };
+  /** `adopt` is the folder of an existing site that its engine reads its content from, made the vault (RFC 0002): nothing of the site is changed. */
+  | { kind: "ssg"; engine: SiteEngine; adopt?: string };
 
 /** The directory a journal's vault is offered as, as `fjord init --kind journal` makes it. */
 export const DEFAULT_JOURNAL_VAULT = "journal";
@@ -62,6 +63,8 @@ export interface SetupPreview {
    * which the browser adds), and a site for each engine.
    */
   kinds: { journal: ChoicePreview; encryptedJournal: ChoicePreview; astro: ChoicePreview; jekyll: ChoicePreview };
+  /** A static site that is already here, found by its engine's files at the root, and what making its content folder the vault would write; null if there is none. */
+  adoptSite: { engine: SiteEngine; content: string; preview: ChoicePreview } | null;
   journalVault: string;
 }
 
@@ -116,6 +119,17 @@ export async function strictText(provider: Provider, ref: RepositoryRef, blob: s
 function plan(deps: SetupDeps, repositoryName: string, choice: SetupChoice, gathered: { paths: string[]; gitattributes: string | null }): Extract<SetupResult, { ok: true }> {
   const random = deps.random?.() ?? globalThis.crypto.getRandomValues(new Uint8Array(80));
   const now = deps.now?.() ?? Date.now();
+  if (choice.kind === "ssg" && choice.adopt !== undefined) {
+    const adopted = deps.format.planAdopt(
+      { repositoryName, generator: GENERATOR, kind: "ssg", engine: choice.engine, vaults: [{ path: choice.adopt, encrypted: false }] },
+      { ...gathered, gitignore: null },
+      now,
+      random,
+    );
+    if (!adopted.ok) throw kindRefusal(adopted.error);
+    const [vault] = adopted.vaults;
+    return { ok: true, files: adopted.files, repositoryId: adopted.repositoryId, vaultId: vault?.id ?? "", createdAt: adopted.createdAt };
+  }
   if (choice.kind !== "drive") {
     const made: KindSetupResult =
       choice.kind === "journal"
@@ -154,6 +168,13 @@ function kindRefusal(error: { code: string; message: string }): ConnectionError 
       return new ConnectionError("vault_name_taken", `${error.message}. Choose another name.`);
     case "file_taken":
       return new ConnectionError("file_taken", `${error.message}. Nothing was written.`);
+    case "invalid_vault_path":
+    case "nested_vaults":
+    case "duplicate_vault":
+      return new ConnectionError("invalid_vault_name", error.message);
+    case "vault_exists":
+    case "not_a_directory":
+      return new ConnectionError("vault_name_taken", `${error.message}. Nothing was written.`);
     default:
       // A key that is not one, or a choice that does not go together: the module's own words say which.
       return new ConnectionError("invalid_vault_options", error.message);
@@ -188,7 +209,10 @@ export async function assessSetup(deps: SetupDeps, target: SetupTarget & { repos
       astro: previewOf(deps, target.repositoryName, { kind: "ssg", engine: "astro" }, gathered),
       jekyll: previewOf(deps, target.repositoryName, { kind: "ssg", engine: "jekyll" }, gathered),
     };
-    return { offer: true, preview: { vault, branch: read.branch, files: made.files.map((file) => ({ path: file.path, change: file.change })), kinds, journalVault } };
+    // A site that is already here (RFC 0002): its engine's files are at the root, and its content is where the engine reads it.
+    const found = deps.format.detectSite(gathered.paths);
+    const adoptSite = found === null ? null : { ...found, preview: previewOf(deps, target.repositoryName, { kind: "ssg", engine: found.engine, adopt: found.content }, gathered) };
+    return { offer: true, preview: { vault, branch: read.branch, files: made.files.map((file) => ({ path: file.path, change: file.change })), kinds, adoptSite, journalVault } };
   } catch (error) {
     if (error instanceof ConnectionError && error.code === "gitattributes_unreadable") return { offer: false, refusal: { code: "gitattributes_unreadable", message: error.message } };
     throw error;
@@ -238,6 +262,13 @@ function setupMessage(choice: SetupChoice, appended: boolean): string {
         `Adds fjord.json, of the kind journal, and its vault "${choice.vault}"${choice.encrypted ? ", encrypted, with its recipients" : ""}, so that this repository is a Fjord journal.${guard} Nothing else that is here is changed.`,
       ].join("\n");
     case "ssg":
+      if (choice.adopt !== undefined) {
+        return [
+          `Set up Fjord: this ${choice.engine === "astro" ? "Astro" : "Jekyll"} site, with "${choice.adopt}" as its vault`,
+          "",
+          `Adds fjord.json, of the kind ssg, and the vault manifest in "${choice.adopt}", where the site's engine already reads its content.${guard} Nothing that is here is changed or moved.`,
+        ].join("\n");
+      }
       return [
         `Set up Fjord: a ${choice.engine === "astro" ? "Astro" : "Jekyll"} site`,
         "",

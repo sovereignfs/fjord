@@ -152,7 +152,6 @@ describe("what may be sent", () => {
     ["an array", "[]"],
     ["no vault", { ...valid, vault: undefined }],
     ["a vault that is not text", { ...valid, vault: 5 }],
-    ["a vault with a slash", { ...valid, vault: "Notes/Inner" }],
     ["a vault out of the repository", { ...valid, vault: ".." }],
     ["an empty vault", { ...valid, vault: "" }],
     ["no folder", { ...valid, folder: undefined }],
@@ -314,7 +313,6 @@ describe("deleting: what may be sent, and what they are told", () => {
 
   it.each([
     ["no vault", { ...delFile, vault: undefined }],
-    ["a vault with a slash", { ...delFile, vault: "Notes/Inner" }],
     ["no path", { ...delFile, path: undefined }],
     ["a path out of the repository", { ...delFile, path: "../x.md" }],
     ["no type", { ...delFile, type: undefined }],
@@ -643,7 +641,6 @@ describe("making a file in an encrypted vault (ROADMAP 2b.4)", () => {
 
   it.each([
     ["no vault", { vault: undefined }],
-    ["a vault with a slash", { vault: "a/b" }],
     ["a way up in the folder", { folder: "../x" }],
     ["a title with a line break", { title: "a\nb" }],
     ["a title too long", { title: "x".repeat(MAX_TITLE_CHARS + 1) }],

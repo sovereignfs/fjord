@@ -504,13 +504,24 @@ The web's setup and its *change kind* offer an encrypted journal first, with the
 
 ### 3g.1 A site's vault below the root
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0002, Vaults at any depth, Sites
 
 A site whose vault is the engine's own content folder (`src/content`, `_posts`), made by `init --adopt` or by the web's setup with P17's plan, opens on its posts as one made by Fjord does. The site's view lists every file of the vault as a tree.
 
 **Accepts when:** an adopted Astro and Jekyll site open on their posts; a new post goes where the engine reads it; nothing outside the vault is offered for editing from the site's view.
+
+- **Done as:**
+  - **A vault is a directory at any depth in the browser** (`browse/location.ts`: the vault whose directory is the longest prefix of the path; `files/create.ts` `checkVault` accepts a vault's directory or a path inside it; the HTTP rules no longer refuse a slash in a vault's directory; a move's destination "stays" when it is inside the vault; `identify` asks of the whole path). A path outside every vault, a neighbour that only shares a name prefix with a vault, and a folder above one are all "missing".
+  - **A post goes where the engine reads it** (`site/posts.ts`): `src/content/posts/<slug>.md` for an adopted Astro site, and straight into `_posts/` for a Jekyll vault that *is* `_posts`, not into a `_posts` inside it; a Jekyll draft there is refused (`draft_not_here`), since `_drafts` is beside the vault and outside it.
+  - **The offer** (`browse/setup.ts`, `SetupOffer`): a repository that is not Fjord's and has an engine's files at its root is offered "this looks like an Astro/Jekyll site: use `src/content` / `_posts` as the vault, nothing of it changed or moved", first, with "start a new site" second. It is `planAdopt` through the format module (the CLI's `init --adopt`'s planner); the request is `{ kind: "ssg", engine, adopt }`, checked for shape and re-planned on the repository as it is when the button is pressed. One commit of `fjord.json`, the vault manifest and the merge guard.
+  - **Tested:** browsing at depth (`location.test.ts`), the offer and the commit (`setup.test.ts`: found by its files, a repository that is not a site is offered none, the site byte for byte, read back as a site whose vault is below the root, a folder that cannot be a vault refused with nothing written), posts in both adopted layouts (`posts.test.ts`), the shape rules (`http.test.ts`, `access.test.ts`).
+- **Not here:**
+  - **A repository too large to list** is browsed a directory at a time from its root, so a vault below the root is not found in it; the listing must be whole.
+  - **Encrypted vaults below the root are read but not written** from here: moving, restoring and transferring name a vault by a path's first segment, which for them is not the vault, and those operations refuse. Plaintext vaults are complete.
+  - **The site's view is the posts list and the drive's folder view** ("Show files"), which is a tree of the vault's files; a separate tree in the site's own view is not built.
+  - **A real Astro or Jekyll build of an adopted site** was not run (neither is installed here); `fjord.vault.json` in the content folder is what the CLI's spike would test.
 
 ### 3g.2 Source and rich modes, and the frontmatter form
 

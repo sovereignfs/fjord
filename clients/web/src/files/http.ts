@@ -147,7 +147,7 @@ export async function handleCreate(request: Request, caller: Caller | null, deps
     if (!body) return failure(400, "invalid_request", "Send a JSON object.");
 
     const { vault, folder, title, localMinute } = body;
-    if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+    if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
     if (typeof folder !== "string" || (folder !== "" && !isRepositoryPath(folder))) return failure(400, "invalid_request", "Say which folder of the vault, by its path, or \"\" for its top.");
     if (title !== undefined && title !== null && (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed())) {
       return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or leave it out.`);
@@ -197,7 +197,7 @@ export async function handleCreateEncrypted(request: Request, caller: Caller | n
     if (!body) return failure(400, "invalid_request", "Send a JSON object.");
 
     const { vault, folder, title, localMinute, ciphertext } = body;
-    if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+    if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
     if (typeof folder !== "string" || (folder !== "" && !isRepositoryPath(folder))) return failure(400, "invalid_request", "Say which folder of the vault, by its path, or \"\" for its top.");
     if (title !== undefined && title !== null && (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed())) {
       return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or leave it out.`);
@@ -341,7 +341,7 @@ export async function handleDelete(request: Request, caller: Caller | null, deps
   try {
     const { body, number } = gate;
     const { vault, type, path, blob, files } = body;
-    if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+    if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
     if (!isRepositoryPath(path)) return failure(400, "invalid_request", "Say what to delete, by its path in the repository.");
     let target: DeleteTarget;
     if (type === "file") {
@@ -383,7 +383,7 @@ export async function handleMove(request: Request, caller: Caller | null, deps: 
   try {
     const { body, number } = gate;
     const { vault, type, path, blob, files, destination } = body;
-    if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+    if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
     if (!isRepositoryPath(path)) return failure(400, "invalid_request", "Say what to move, by its path in the repository.");
     if (!isRepositoryPath(destination) || destination.length > MAX_PATH_CHARS || !destination.isWellFormed() || CONTROL.test(destination)) {
       return failure(400, "invalid_request", "Say where it goes, by a path in the repository.");
@@ -693,6 +693,7 @@ const POST_REFUSALS: Record<Extract<PostResult, { ok: false }>["reason"] | SiteR
   not_a_site: { status: 422, message: "This repository is not a site with one vault, so it has no posts to add to." },
   unknown_engine: { status: 422, message: "This site's engine is not one this version knows (Astro or Jekyll), so it does not know where a post goes." },
   unsupported_site: { status: 422, message: "This site's vault cannot be written to from here: its manifest cannot be read, it is encrypted, or its files are not named plainly." },
+  draft_not_here: { status: 422, message: "This site keeps its posts in the Jekyll folder `_posts`, and a draft goes in `_drafts`, beside it and outside what Fjord manages. Make it a post, or write the draft there yourself." },
   bad_date: { status: 422, message: "That moment cannot be written as a date." },
   head_moved: REFUSALS.head_moved,
   read_only: REFUSALS.read_only,

@@ -331,6 +331,55 @@ describe.skipIf(!available)(`setting a repository up as a kind, and changing its
     }
   });
 
+  describe("a site that is already here (RFC 0002)", () => {
+    const ASTRO: Record<string, string> = {
+      ...CODE,
+      "astro.config.mjs": "export default {};\n",
+      "package.json": "{}\n",
+      "src/content/posts/hello.md": "---\ntitle: Hello\n---\nHi\n",
+      "src/layouts/Base.astro": "<slot />\n",
+    };
+
+    it("is found by its engine's files, and offered with its content folder as the vault and nothing of it changed", async () => {
+      const host = repository(ASTRO);
+      const read = await readRepository(deps(host), TARGET);
+      const assessed = await assessSetup(deps(host), TARGET, read);
+      if (!assessed.offer) throw new Error("no offer");
+      expect(assessed.preview.adoptSite).toEqual({
+        engine: "astro",
+        content: "src/content",
+        preview: { files: [{ path: "fjord.json", change: "create" }, { path: "src/content/fjord.vault.json", change: "create" }, { path: ".gitattributes", change: "create" }] },
+      });
+      // A repository that is not a site is offered none.
+      const plain = repository(CODE);
+      const other = await assessSetup(deps(plain), TARGET, await readRepository(deps(plain), TARGET));
+      expect(other.offer && other.preview.adoptSite).toBeNull();
+    });
+
+    it("is set up as it is: one commit that adds only Fjord's files, the site byte for byte, read back as a site whose vault is below the root", async () => {
+      const host = repository(ASTRO);
+      const before = await headOf(host);
+      const { commit } = await applySetup(deps(host), TARGET, { kind: "ssg", engine: "astro", adopt: "src/content" });
+      expect(commit).not.toBe(before);
+      for (const [path, text] of Object.entries(ASTRO)) expect(await textAt(host, path), path).toBe(text);
+      const read = await readRepository(deps(host), TARGET);
+      expect(read.manifest).toMatchObject({ ok: true, kind: "ssg", ssgEngine: "astro" });
+      expect(read.discovery.vaults.map((vault) => vault.directory)).toEqual(["src/content"]);
+      expect(read.discovery.vaults[0]?.files.map((file) => [file.relative, file.kind])).toEqual([["posts/hello.md", "doc"]]);
+      expect(read.discovery.nested).toEqual([]);
+    });
+
+    it("is refused for a folder that cannot be a vault, and for a repository that already is Fjord's, writing nothing", async () => {
+      const host = repository(ASTRO);
+      const before = await headOf(host);
+      for (const adopt of ["../outside", ".hidden", "src//content"]) {
+        const error = await refusal(applySetup(deps(host), TARGET, { kind: "ssg", engine: "astro", adopt }), "invalid_vault_name");
+        expect(error.message.length).toBeGreaterThan(0);
+      }
+      expect(await headOf(host), "nothing was written").toBe(before);
+    });
+  });
+
   it("changes a kind with every other field of fjord.json kept, in one commit of that file", async () => {
     const host = repository(CODE);
     await applySetup(deps(host), TARGET, "Notes");

@@ -220,4 +220,25 @@ describe.skipIf(!available)(`browsing inside a vault (${leg})`, () => {
     expect(whole).toEqual({ kind: "folder", folders: [], files: [["idea.md", "doc"], ["plan.fj.md", "doc"]] });
     expect(cut).toEqual(whole);
   });
+
+  it("finds a vault below the root by its whole directory, and the folders and files inside it (spec §2.3)", async () => {
+    const provider = host({
+      "astro.config.mjs": "export default {};",
+      "src/content/fjord.vault.json": PLAIN,
+      "src/content/posts/hello.md": "h",
+      "src/content/posts/deep/more.md": "m",
+      "src/content-old/a.md": "not inside the vault",
+      "src/layouts/Base.astro": "<slot />",
+    });
+    expect(shape(await at(provider, "src", "content"))).toEqual({ kind: "folder", folders: ["posts"], files: [] });
+    expect(shape(await at(provider, "src", "content", "posts"))).toEqual({ kind: "folder", folders: ["deep"], files: [["posts/hello.md", "doc"]] });
+    expect(shape(await at(provider, "src", "content", "posts", "hello.md"))).toEqual({ kind: "file", file: ["posts/hello.md", "doc"] });
+    const found = await at(provider, "src", "content", "posts", "hello.md");
+    expect(found.kind === "file" && found.vault.directory).toBe("src/content");
+    // The vault's own directory is not the folder above it, a neighbour sharing a name prefix is no part of it, and the site's own files are in no vault.
+    expect((await at(provider, "src")).kind).toBe("missing");
+    expect((await at(provider, "src", "content-old")).kind).toBe("missing");
+    expect((await at(provider, "src", "layouts", "Base.astro")).kind).toBe("missing");
+    expect((await at(provider, "src", "content", "nowhere")).kind).toBe("missing");
+  });
 });

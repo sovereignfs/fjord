@@ -24,7 +24,9 @@ export function SetupOffer({ connectionId, preview }: { connectionId: number; pr
   const [journalVault, setJournalVault] = useState(preview.journalVault);
   // A journal is personal, so it is offered encrypted first (spec §3.1, RFC 0002); plaintext is a choice the person makes.
   const [encrypted, setEncrypted] = useState(true);
-  const [engine, setEngine] = useState<"astro" | "jekyll">("astro");
+  const [engine, setEngine] = useState<"astro" | "jekyll">(preview.adoptSite?.engine ?? "astro");
+  // A site that is already here is offered as it is, first: nothing of it is changed or moved (RFC 0002).
+  const [adopting, setAdopting] = useState(preview.adoptSite !== null);
   const [mine, setMine] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,9 @@ export function SetupOffer({ connectionId, preview }: { connectionId: number; pr
       ? { files: renamed(preview.files, preview.vault, vault) }
       : kind === "journal"
         ? withFiles(encrypted ? preview.kinds.encryptedJournal : preview.kinds.journal, (files) => renamed(files, preview.journalVault, journalVault))
-        : preview.kinds[engine];
+        : adopting && preview.adoptSite
+          ? preview.adoptSite.preview
+          : preview.kinds[engine];
   const appends = "files" in chosen && chosen.files.some((file) => file.change === "append");
   const needsKey = kind === "journal" && encrypted && mine === null;
 
@@ -61,7 +65,9 @@ export function SetupOffer({ connectionId, preview }: { connectionId: number; pr
         ? { vault: vault.trim() }
         : kind === "journal"
           ? { kind, vault: journalVault.trim(), encrypted, recipients: encrypted && mine !== null ? [mine] : [] }
-          : { kind, engine };
+          : adopting && preview.adoptSite
+            ? { kind, engine: preview.adoptSite.engine, adopt: preview.adoptSite.content }
+            : { kind, engine };
     try {
       const response = await fetch(`/api/connections/${connectionId}/setup`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const answer = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
@@ -132,7 +138,19 @@ export function SetupOffer({ connectionId, preview }: { connectionId: number; pr
           </>
         ) : null}
 
-        {kind === "ssg" ? (
+        {kind === "ssg" && preview.adoptSite ? (
+          <fieldset style={{ border: 0, padding: 0, margin: 0 }} disabled={busy}>
+            <legend>This looks like {preview.adoptSite.engine === "astro" ? "an Astro" : "a Jekyll"} site</legend>
+            <label style={{ display: "block" }}>
+              <input type="radio" name="adopt" checked={adopting} onChange={() => setAdopting(true)} /> Use it as it is: <code>{preview.adoptSite.content}</code> becomes the vault, where the site already reads its content. Nothing of it is changed or moved.
+            </label>
+            <label style={{ display: "block" }}>
+              <input type="radio" name="adopt" checked={!adopting} onChange={() => setAdopting(false)} /> Start a new site here instead
+            </label>
+          </fieldset>
+        ) : null}
+
+        {kind === "ssg" && !adopting ? (
           <fieldset style={{ border: 0, padding: 0, margin: 0 }} disabled={busy}>
             <legend>Built with</legend>
             <label style={{ display: "block" }}>

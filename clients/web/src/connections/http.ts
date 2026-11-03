@@ -189,7 +189,8 @@ export async function handleVault(request: Request, caller: Caller | null, deps:
 
 /**
  * What the browser asks a repository to be set up as (ROADMAP 1a.10, 3a.3): `{ "vault" }` (a drive, as before kinds), `{ "kind":
- * "journal", "vault", "encrypted", "recipients": ["age1…"] }` or `{ "kind": "ssg", "engine": "astro" | "jekyll" }`. Only the shape is
+ * "journal", "vault", "encrypted", "recipients": ["age1…"] }` or `{ "kind": "ssg", "engine": "astro" | "jekyll", "adopt"?: "src/content" }` (the folder
+ * an existing site's engine reads its content from, made the vault: RFC 0002). Only the shape is
  * checked here; a key is the format module's to judge, and the plan is the server's, made on the repository as it is.
  */
 function setupChoice(body: Record<string, unknown>): SetupChoice | undefined {
@@ -205,7 +206,9 @@ function setupChoice(body: Record<string, unknown>): SetupChoice | undefined {
   if (kind === "ssg") {
     // A site's content is published: there is no encrypted site to ask for, and asking is refused rather than ignored.
     if (body.encrypted !== undefined && body.encrypted !== false) return undefined;
-    return body.engine === "astro" || body.engine === "jekyll" ? { kind: "ssg", engine: body.engine } : undefined;
+    if (body.engine !== "astro" && body.engine !== "jekyll") return undefined;
+    if (body.adopt === undefined) return { kind: "ssg", engine: body.engine };
+    return name(body.adopt) ? { kind: "ssg", engine: body.engine, adopt: body.adopt as string } : undefined;
   }
   return undefined;
 }

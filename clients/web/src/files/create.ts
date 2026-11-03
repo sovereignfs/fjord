@@ -38,7 +38,8 @@ export type VaultRefusal = "unknown_vault" | "encrypted_vault" | "unsupported_va
 
 /** Whether files may be made in the vault called `directory`, among the vaults a repository has. */
 export function checkVault(vaults: VaultListing[], directory: string): "ok" | VaultRefusal {
-  const vault = vaults.find((candidate) => candidate.directory === directory);
+  // A vault's directory, or a path inside one (a vault may be below the root, spec §2.3): the vault is the one that holds it.
+  const vault = vaults.find((candidate) => candidate.directory === directory) ?? vaults.find((candidate) => directory.startsWith(`${candidate.directory}/`));
   if (!vault) return "unknown_vault";
   if (vault.manifestError !== null) return "unsupported_vault";
   if (vault.encrypted === true) return "encrypted_vault";

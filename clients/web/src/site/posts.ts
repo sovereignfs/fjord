@@ -12,6 +12,7 @@ import { formatIdentity } from "../working/version";
  *    `_posts/YYYY-MM-DD-<slug>.md` (a name that is a rule, dated in the writer's day) or `_drafts/<slug>.md`.
  *  - **The date is the writer's**, sent as the moment and the writer's offset, as a journal entry's is.
  *  - **Never over anything**: a name that is taken takes a number.
+ *  - **Where the vault is** is the site's: `content/` in one Fjord made, or the folder the engine already reads (`src/content`, `_posts`) in one adopted (RFC 0002).
  */
 export interface PostDeps {
   provider: Provider;
@@ -22,7 +23,7 @@ export interface PostDeps {
   random?: () => Uint8Array;
 }
 
-export type PostResult = { ok: true; path: string; commit: string; date: string } | { ok: false; reason: "bad_date" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
+export type PostResult = { ok: true; path: string; commit: string; date: string } | { ok: false; reason: "bad_date" | "draft_not_here" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
 
 /** Why a site cannot have posts made in it here. */
 export type SiteRefusal = "not_a_site" | "unknown_engine" | "unsupported_site";
@@ -42,8 +43,14 @@ export async function createPost(deps: PostDeps, input: { vault: string; engine:
   const date = deps.format.entryDateFromUnix(Math.floor(input.at / 1000), input.offsetMinutes);
   if (date === undefined) return { ok: false, reason: "bad_date" };
   const title = input.title.trim();
-  const leaf = deps.format.sitePostPath(input.engine, date, title, input.draft);
+  let leaf = deps.format.sitePostPath(input.engine, date, title, input.draft);
   if (leaf === undefined) return { ok: false, reason: "bad_date" };
+  // A Jekyll site adopted where its posts already are (spec §3.1): the vault *is* `_posts`, so the post goes in it and not in a `_posts` inside it, and
+  // `_drafts`, which is beside it and outside the vault, cannot be written to.
+  if (input.engine === "jekyll" && (input.vault === "_posts" || input.vault.endsWith("/_posts"))) {
+    if (input.draft) return { ok: false, reason: "draft_not_here" };
+    leaf = leaf.replace(/^_posts\//, "");
+  }
   const now = deps.now?.() ?? Date.now();
   const id = deps.format.newUlid(now, deps.random?.() ?? globalThis.crypto.getRandomValues(new Uint8Array(16)));
   const created = deps.format.rfc3339FromUnix(Math.floor(now / 1000));

@@ -5,8 +5,8 @@ import type { Provider, RepositoryRef, TreeEntry } from "../providers/types";
 import type { RepositoryRead } from "./repository";
 
 /**
- * Where a path inside a repository leads (DESIGN.md §8): `/repo/<connection>/<vault>/<folders…>/<file>`. The first
- * segment is a vault, which is a directory at the root (spec §2.3); the rest is inside it.
+ * Where a path inside a repository leads (DESIGN.md §8): `/repo/<connection>/<vault>/<folders…>/<file>`. The path begins with
+ * a vault, a directory at any depth below the root (spec §2.3: `Public`, or `src/content`); the rest is inside it.
  *
  * Folders are derived from the paths of what they hold (git has no empty directories, and the host lists files), and
  * what a file is comes from its name: `fjord-core`, as WebAssembly, classified it when the repository was read. A
@@ -43,11 +43,13 @@ const byName = (a: { name: string }, b: { name: string }) => a.name.localeCompar
 export async function locate(deps: BrowseDeps, read: RepositoryRead, ref: RepositoryRef, rawSegments: string[]): Promise<Location> {
   const segments = safeSegments(rawSegments);
   if (!segments || segments.length === 0) return { kind: "missing" };
-  const vault = read.discovery.vaults.find((candidate) => candidate.directory === segments[0]);
+  const joined = segments.join("/");
+  // No vault is inside another (spec §2.3), so at most one contains the path.
+  const vault = read.discovery.vaults.find((candidate) => joined === candidate.directory || joined.startsWith(`${candidate.directory}/`));
   if (!vault) return { kind: "missing" };
   if (vault.manifestError !== null) return { kind: "unreadable", vault };
 
-  const inside = segments.slice(1).join("/");
+  const inside = joined === vault.directory ? "" : joined.slice(vault.directory.length + 1);
   return read.partial ? fromHost(deps, read, ref, vault, segments, inside) : fromListing(vault, vault.files, inside);
 }
 

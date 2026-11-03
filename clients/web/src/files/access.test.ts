@@ -51,7 +51,8 @@ describe("giving a Doc an identifier", () => {
   it("is asked of the vault the file is in, and done by the caller on the connection asked", async () => {
     const { access, vaultFor, identify } = setup();
     expect(await access.identify("alice", 7, request)).toEqual({ found: true, result: { ok: true, docId: "01jagc4k7pt8y3wqnmzv5xrb8j", commit: "a".repeat(40) } });
-    expect(vaultFor).toHaveBeenCalledWith("alice", 7, "Notes");
+    // The whole path is asked of: a vault may be below the root, and the one that holds the file is the answer.
+    expect(vaultFor).toHaveBeenCalledWith("alice", 7, "Notes/Plan.md");
     expect(identify).toHaveBeenCalledWith("alice", 7, request);
   });
 

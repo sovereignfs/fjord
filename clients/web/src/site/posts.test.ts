@@ -83,4 +83,34 @@ describe.skipIf(!available)("a post of a site", () => {
     expect(fjord().siteTagProblem("jekyll", "project/fjord")).toBeUndefined();
     expect(fjord().siteTagProblem("astro", "two words")).toBeUndefined();
   });
+
+  describe("in a site adopted where its engine already reads its content (RFC 0002)", () => {
+    const plain = (files: Record<string, string>) => {
+      const host = new MemoryProvider();
+      host.createRepository(REF, { canPush: true });
+      host.seed(REF, files);
+      return host;
+    };
+
+    it("goes under the engine's content folder for Astro, wherever the vault is below the root", async () => {
+      const host = plain({ "src/content/fjord.vault.json": "{}", "src/content/posts/old.md": "old" });
+      const made = await make(host, "astro", { vault: "src/content" });
+      expect(made).toMatchObject({ ok: true, path: "src/content/posts/hello-world.md" });
+      expect((await files(host))["src/content/posts/old.md"]).toBe("old");
+    });
+
+    it("goes straight into _posts for Jekyll when the vault is _posts, not into a _posts inside it", async () => {
+      const host = plain({ "_posts/fjord.vault.json": "{}", "_posts/2026-01-01-old.md": "old" });
+      const made = await make(host, "jekyll", { vault: "_posts", title: "First light" });
+      expect(made).toMatchObject({ ok: true, path: "_posts/2026-11-02-first-light.md" });
+      expect(Object.keys(await files(host))).not.toContain("_posts/_posts/2026-11-02-first-light.md");
+    });
+
+    it("cannot make a Jekyll draft there, since _drafts is beside the vault and outside it, and writes nothing", async () => {
+      const host = plain({ "_posts/fjord.vault.json": "{}" });
+      const before = Object.keys(await files(host)).sort();
+      expect(await make(host, "jekyll", { vault: "_posts", title: "Not yet", draft: true })).toEqual({ ok: false, reason: "draft_not_here" });
+      expect(Object.keys(await files(host)).sort()).toEqual(before);
+    });
+  });
 });
