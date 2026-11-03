@@ -62,5 +62,6 @@ Copy [`TEMPLATE.md`](TEMPLATE.md) to `NNNN-short-slug.md` and add a row below.
 | --- | --- | --- | --- |
 | [0001](0001-repository-kinds.md) | A repository opens as what it is for: a drive, a journal with a timeline and tags, or an Astro or Jekyll site with a content editor and previews | ✅ Complete | RFC 0001, Research 0001, `web-3.md` |
 | [0002](0002-kinds-second-pass.md) | One kind of Doc, addresses with no paths, journals encrypted by default, publishing a drive's Doc, and adopting existing files and sites | ✅ Complete | RFC 0002, `web-3.md` (P13–P17, 3e–3h) |
+| [0003](0003-signed-in-navigation-and-addresses.md) | A home page of repository tiles, a rail that shows each repository's kind, dialogs for connecting and for keys and security, addresses made of ids, short shared addresses, and a new journal layout | 📋 Planned | `clients/web/DESIGN.md`, RFC 0002 (changes it) |
 
 _Status key: ✅ Complete · ⏳ In progress · 📋 Planned · ⏸️ Paused · ❌ Stopped_
