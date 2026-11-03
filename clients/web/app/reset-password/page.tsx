@@ -16,9 +16,18 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
   // has expired or been used.
   if (!token || error) {
     return (
-      <AuthShell title="Invalid link" name={config.name} lead="It has expired, or it has been used already." footer={<AuthLink href="/sign-in">Back to sign in</AuthLink>}>
-        <AuthLink href="/forgot-password">Ask for a new link</AuthLink>
-      </AuthShell>
+      <AuthShell
+        title="Invalid link"
+        name={config.name}
+        lead="It has expired, or it has been used already."
+        footer={
+          <>
+            <AuthLink href="/forgot-password">Ask for a new link</AuthLink>
+            <br />
+            <AuthLink href="/sign-in">Back to sign in</AuthLink>
+          </>
+        }
+      />
     );
   }
 

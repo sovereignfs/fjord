@@ -14,9 +14,12 @@ export default async function SignUpPage() {
 
   if (!(await signUpAvailable())) {
     return (
-      <AuthShell title="Sign-up is closed" name={config.name} lead={`${config.name} is not taking new accounts. If you have one, sign in; otherwise ask whoever runs this instance.`}>
-        <AuthLink href="/sign-in">Go to sign in</AuthLink>
-      </AuthShell>
+      <AuthShell
+        title="Sign-up is closed"
+        name={config.name}
+        lead={`${config.name} is not taking new accounts. If you have one, sign in; otherwise ask whoever runs this instance.`}
+        footer={<AuthLink href="/sign-in">Go to sign in</AuthLink>}
+      />
     );
   }
 
