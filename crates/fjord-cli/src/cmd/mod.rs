@@ -8,6 +8,7 @@
 //! finding the repository, deciding whether to use colour, and rendering a
 //! report for a human or for CI.
 
+pub mod adopt;
 pub mod bulk;
 pub mod checkout;
 pub mod crypt;

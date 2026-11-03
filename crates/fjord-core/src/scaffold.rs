@@ -48,7 +48,7 @@ pub const PRIVATE_VAULT: &str = "Private";
 /// like.
 const README: &str = include_str!("../templates/README.md");
 const GITATTRIBUTES: &str = include_str!("../templates/gitattributes");
-const GITIGNORE: &str = include_str!("../templates/gitignore");
+pub(crate) const GITIGNORE: &str = include_str!("../templates/gitignore");
 const VAULT_GITIGNORE: &str = include_str!("../templates/vault.gitignore");
 const RECIPIENTS: &str = include_str!("../templates/recipients.txt");
 const WELCOME: &str = include_str!("../templates/welcome.md");
@@ -634,7 +634,7 @@ impl SetupError {
 }
 
 /// The names at the root of a repository, from the paths of everything in it.
-fn root_names<S: AsRef<str>>(paths: &[S]) -> Vec<&str> {
+pub(crate) fn root_names<S: AsRef<str>>(paths: &[S]) -> Vec<&str> {
     let mut names: Vec<&str> = paths
         .iter()
         .filter_map(|path| path.as_ref().split('/').find(|part| !part.is_empty()))
@@ -644,7 +644,7 @@ fn root_names<S: AsRef<str>>(paths: &[S]) -> Vec<&str> {
     names
 }
 
-fn fold(name: &str) -> String {
+pub(crate) fn fold(name: &str) -> String {
     to_nfc(name).to_lowercase()
 }
 
@@ -961,7 +961,7 @@ pub fn plan_setup_kind<S: AsRef<str>>(
 
 /// The `.gitattributes` a setup creates where there is none: only what spec §9 requires. (A new repository
 /// from [`plan_with`] gets the fuller template, which also normalises line endings.)
-const SETUP_GITATTRIBUTES: &str =
+pub(crate) const SETUP_GITATTRIBUTES: &str =
     "# Fjord: never diff or merge ciphertext (spec §9).\n*.age binary -diff -merge\n";
 
 /// The files a new vault consists of. Spec §2.3, §4.

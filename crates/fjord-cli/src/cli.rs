@@ -131,6 +131,25 @@ pub struct InitArgs {
     #[arg(long, value_name = "ENGINE", value_parser = ["astro", "jekyll"])]
     pub engine: Option<String>,
 
+    /// Make a Fjord repository of a directory that already has files (RFC 0002).
+    ///
+    /// Writes over nothing: `fjord.json`, each vault's manifest, and lines appended to `.gitattributes`
+    /// (and `.gitignore`, where something is encrypted) are all it adds. It commits only those files.
+    #[arg(long)]
+    pub adopt: bool,
+
+    /// With `--adopt`: a directory to make a vault of, at any depth (`notes`, `src/content`). Repeat for
+    /// several in a drive. A journal or a site has one; a site's is found from its engine's files if
+    /// this is left out.
+    #[arg(long, value_name = "DIR")]
+    pub vault: Vec<String>,
+
+    /// With `--adopt`: encrypt a directory that already has files in it. The files are in the clear
+    /// until `fjord encrypt <vault>` checks them in (spec §6.6), nothing can be committed meanwhile, and
+    /// git's history keeps every version already committed.
+    #[arg(long)]
+    pub encrypt_existing: bool,
+
     /// Skip `git init` and the first commit.
     #[arg(long)]
     pub no_git: bool,

@@ -34,6 +34,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_debug_implementations)]
 
+pub mod adopt;
 pub mod conformance;
 pub mod diagnostics;
 pub mod doc;

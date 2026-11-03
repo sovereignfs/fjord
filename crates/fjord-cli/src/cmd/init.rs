@@ -27,6 +27,15 @@ use std::io::{self, BufRead, IsTerminal, Write};
 use std::path::{Component, Path, PathBuf};
 
 pub fn run(args: &InitArgs, global: &GlobalArgs) -> Result<ExitCode> {
+    if args.adopt {
+        return crate::cmd::adopt::run(args, global);
+    }
+    if !args.vault.is_empty() || args.encrypt_existing {
+        return Ok(usage(
+            "--vault and --encrypt-existing are for --adopt, which makes a repository of a directory \
+             that already has files",
+        ));
+    }
     if global.identity.is_some() {
         // Registering a recipient is `key add`, which arrives with M3.
         // Accepting the flag and ignoring it would produce a repository the

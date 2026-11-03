@@ -350,7 +350,7 @@ The spec already says it (§1.3, §2.3, §3, §3.1, §6.6, §8.4, §12, as of 20
 
 ### P14 `fjord-core`: `FileKind::Doc`, vaults at depth, the adoption plan
 
-**Status:** 🚧 Done but for the adoption plan, which is built with `init --adopt` in P16
+**Status:** ✅ Done (the adoption plan with P16)
 
 **Design:** RFC 0002, One kind of Doc, Vaults at any depth, The CLI and `fjord-core`
 
@@ -366,7 +366,8 @@ The spec already says it (§1.3, §2.3, §3, §3.1, §6.6, §8.4, §12, as of 20
   - **`vault.rs`:** `discover` walks the tree (not into a vault, `.git`, the root `.fjord/` or a symlink) and asks `locate_vaults`; `containing` finds the shallowest vault above a path.
   - **`doc.rs`, `merge.rs`:** `is_document_name`, `DOCUMENT_SUFFIX` and the `.fj.md` special cases are removed. `plan.fj.md`'s title is `plan.fj`, its conflict copy `plan.fj.conflict-…md`.
   - **Checked and unchanged:** the checkout record is named by a digest of the vault's path, so `src/content` works; `rekey`, `export`, `import`, `grep`, `ls` and `new` join `vault.directory` as a string. Tests in `listing.rs`, `fixtures.rs` (a vault inside a vault at depth, a root manifest) and the existing suites.
-- **Not here:** the adoption plan (P16); the pure subset's wasm build, which `fjord-wasm` (P17) checks; `verify` still walks gitignored folders such as `node_modules/`.
+- **The adoption plan** is `adopt::plan_adopt` (see P16). The pure subset builds for `wasm32-unknown-unknown` (`cargo check -p fjord-core --no-default-features --target wasm32-unknown-unknown`).
+- **Not here:** `verify` still walks gitignored folders such as `node_modules/`.
 
 ### P15 CLI: no documents, and journals encrypted by default
 
@@ -385,7 +386,7 @@ The spec already says it (§1.3, §2.3, §3, §3.1, §6.6, §8.4, §12, as of 20
 
 ### P16 CLI: `init --adopt`
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0002, Adopting existing files
 
@@ -395,6 +396,13 @@ The spec already says it (§1.3, §2.3, §3, §3.1, §6.6, §8.4, §12, as of 20
 - Opens with a spike on a real Astro starter and a real Jekyll site: does either engine complain about, or publish, `fjord.vault.json` in its content folder (RFC 0002, open question 1)?
 
 **Accepts when:** adopting a directory with files and git history leaves every file byte for byte and the person's uncommitted changes uncommitted; `fjord verify` passes afterwards for each kind; an adopted Astro and Jekyll site still build; `--encrypt-existing` refuses every commit until the checkout ends, and ending it leaves no plaintext on disk or in the index; an existing `fjord.json` is refused.
+
+- **Done as:**
+  - **`fjord-core/src/adopt.rs`** (pure, in the wasm subset): `plan_adopt` for a drive, a journal or a site over the directories chosen. Every file of its plan is new but `.gitattributes` and `.gitignore`, which only gain lines (`FileChange::Append`, the original text first); it refuses a `fjord.json`, a vault inside another, a duplicate, a name that breaks §5 or is hidden, a file or a vault manifest that is in the way, and an encrypted site. `detect_site` reads `astro.config.*` and `_config.yml|yaml|toml` at the root. `PlannedVault::holds_files` is what tells a caller a checkout is needed.
+  - **`fjord-cli/src/cmd/adopt.rs`**: the flags (`--adopt`, `--vault`, `--encrypt-existing`), the walk of what is there, the writes (`create_new` for a new file), and git: no `git init` in a repository, `git add` and `git commit -- <paths>` of only the written files, so staged and unstaged work is untouched. `--encrypt-existing` calls `checkout::begin_adopted` (a complete record with no entries) *before* writing the manifest, makes no commit, and prints the history warning. A refusal writes nothing.
+  - **Tested** in `tests/adopt.rs` over real directories: byte for byte untouched but `.gitattributes`; one commit holding only Fjord's files while an unstaged edit and an untracked file stay as they were; a non-repository; vaults at depth; Astro and Jekyll found; a journal that must choose; the checkout end to end (`sync` refuses, `key add`, `encrypt` leaves no plaintext on disk and the history still holds it); refusals write nothing. Both of the commit-only-ours and record-the-checkout rules were seen to fail a test with them switched off.
+- **Different from the RFC:** a journal over existing notes with neither flag is a usage error even on a terminal (the RFC had it ask); and `--vault` is required to adopt more than the default, with no terminal choice among the root's directories. Both are small to add later.
+- **Not here:** the Astro and Jekyll *builds* after adoption (the spike): a `fjord.vault.json` in `src/content` or `_posts` could confuse an engine, and `scripts/check-site-scaffolds.sh` is where that would be tried; `node_modules/` is walked as any directory is.
 
 ### P17 `fjord-wasm`: one kind of Doc, vaults at depth, the adoption plan
 

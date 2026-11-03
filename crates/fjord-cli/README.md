@@ -125,7 +125,8 @@ installed.
 
 **It never writes over existing files.** The target must not exist, be
 empty, or contain nothing but a `.git` directory — so `git init && fjord
-init` works, and `fjord init` over your notes does not.
+init` works, and `fjord init` over your notes does not. To make a repository
+of a directory that already has files, use [`--adopt`](#adopting-a-directory-that-already-has-files).
 
 A fresh `Private` vault has **no recipients**, which spec §6.2 makes valid
 and deliberately unwritable. `fjord verify` reports `W602` until you add a
@@ -139,6 +140,9 @@ key; that is expected, not a fault. Fix it with `fjord key new` followed by
 | `--no-encrypt` | Make the vault plaintext: a drive's `Private`, or a journal's (a journal is encrypted unless this is given). Refused for a site, whose content is never encrypted. |
 | `--kind <kind>` | `drive` (the default), `journal` or `ssg`. See [Repository kinds](#repository-kinds). |
 | `--engine <engine>` | `astro` or `jekyll`, for `--kind ssg`. |
+| `--adopt` | Make a repository of a directory that already has files. See [Adopting](#adopting-a-directory-that-already-has-files). |
+| `--vault <dir>` | With `--adopt`: a directory to make a vault of, at any depth (`notes`, `src/content`). Repeat for several in a drive. |
+| `--encrypt-existing` | With `--adopt`: encrypt a directory that already has files in it, through a checkout. |
 | `--no-git` | Skip `git init` and the first commit. |
 | `--no-input` | Never prompt; take every default. |
 | `--json` | Machine-readable summary of what was created. |
@@ -177,6 +181,36 @@ drive, and `fjord verify` does not fail a kind it does not know.
 
 A flag for another kind (`--engine` without `--kind ssg`, `--no-encrypt` with `--kind ssg`) is refused
 rather than ignored. Exits `2`.
+
+#### Adopting a directory that already has files
+
+`fjord init --adopt [path]` turns a directory you already have into a Fjord repository (RFC 0002).
+It **writes over nothing**: it adds `fjord.json`, each vault's `fjord.vault.json`, and lines at the end
+of `.gitattributes` (spec §9's merge guard) and, where something is encrypted, `.gitignore`. It never
+moves, renames or rewrites a file, and it writes no starter note or `README.md`.
+
+- **Which directories are vaults** is yours to say: `--vault notes`, repeated for a drive, any depth
+  (`--vault src/content`). With none named, a drive gets a new, empty `Public`, a journal uses
+  `journal/`, and a site uses the folder its engine reads its content from.
+- **A site** (`--kind ssg`) is found from its engine's files: `astro.config.*` means Astro, whose
+  content is `src/content`; `_config.yml` means Jekyll, whose posts are `_posts`. Anything else needs
+  `--engine` and `--vault`. The engine's own files and the posts are not touched, and a site's vault is
+  never encrypted.
+- **Git.** In a git repository it does not run `git init`, and its commit holds **only the files it
+  wrote**: your uncommitted work stays uncommitted. Otherwise it makes the repository and commits those
+  files only. `--no-git` skips both.
+- **A journal** adopted into a directory that is empty or new is encrypted, as a new one is. One that
+  already holds notes is yours to decide: `--no-encrypt` leaves them readable as they are, and
+  `--encrypt-existing` encrypts them. With neither, `init` exits `2` and writes nothing.
+- **`--encrypt-existing`** makes the vault encrypted over the files already in it. They are plaintext
+  until they are checked in, so it begins a **checkout** (spec §6.6) before it writes anything, and it
+  makes **no commit**: nothing can be committed until the checkout ends. Add a key (`fjord key add`),
+  then `fjord encrypt <vault>` encrypts every file, checks each reads back, and removes the plaintext.
+  **git's history keeps every version already committed**, readable by anyone who can read the
+  repository (spec §11.4); only a new repository, or rewriting history, removes them. `init` says so.
+
+A directory that already has a `fjord.json`, a vault inside another, a name that breaks the path rules
+and a flag for another kind are refused, writing nothing. Exits `2`.
 
 `--identity` is **not accepted here.** Registering a recipient is
 `fjord key add`, so `init` refuses the flag rather than quietly creating a

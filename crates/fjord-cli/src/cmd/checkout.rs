@@ -157,6 +157,30 @@ fn write_record(root: &Path, record: &Record) -> Result<()> {
         .with_context(|| format!("could not write the checkout record {}", path.display()))
 }
 
+/// Begin the checkout that adopting a directory of plaintext files as an encrypted vault is (spec §6.6, RFC
+/// 0002): a complete record with **no entries**, written before the vault's manifest. The files already in
+/// the directory are plaintext nobody has encrypted yet, which check-in (`fjord encrypt <vault>`) takes as
+/// new documents, so there is nothing to read back and nothing to compare. From here every command that
+/// commits refuses until the checkout ends ([`crate::cmd::guard`]).
+pub fn begin_adopted(root: &Path, vault: &str) -> Result<()> {
+    write_record(
+        root,
+        &Record {
+            version: RECORD_VERSION,
+            vault: vault.to_string(),
+            tool: concat!("fjord ", env!("CARGO_PKG_VERSION")).to_string(),
+            created_at: scalar::now_rfc3339_utc(),
+            complete: true,
+            entries: Vec::new(),
+        },
+    )
+}
+
+/// Take back a record [`begin_adopted`] wrote, when what it was for could not be done.
+pub fn abandon_adopted(root: &Path, vault: &str) {
+    remove_record(root, vault);
+}
+
 fn remove_record(root: &Path, vault: &str) {
     let path = directory(root).join(format!("{}.json", digest16(vault.as_bytes())));
     let _ = std::fs::remove_file(path);
