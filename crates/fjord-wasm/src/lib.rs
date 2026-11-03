@@ -252,6 +252,11 @@ pub fn with_date(text: &str, date: Option<String>) -> Option<String> {
     api::with_date(text, date)
 }
 
+#[wasm_bindgen(js_name = withField)]
+pub fn with_field(text: &str, key: &str, value_json: &str) -> Result<Option<String>, JsError> {
+    api::with_field(text, key, value_json).map_err(thrown)
+}
+
 #[wasm_bindgen(js_name = withTags)]
 pub fn with_tags(text: &str, tags_json: &str) -> Result<Option<String>, JsError> {
     api::with_tags(text, tags_json).map_err(thrown)

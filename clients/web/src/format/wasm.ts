@@ -30,6 +30,7 @@ interface Module {
   newEntry(id: string, title: string | undefined, created: string, date: string): string;
   withDate(text: string, date: string | undefined): string | undefined;
   withTags(text: string, tagsJson: string): string | undefined;
+  withField(text: string, key: string, valueJson: string): string | undefined;
   journalEntry(text: string, path: string): string;
   journalEntryPath(date: string, slug: string | undefined, encrypted: boolean): string | undefined;
   journalSlug(title: string): string | undefined;
@@ -208,6 +209,11 @@ export class Fjord {
   }
 
   /** A header with its `tags` set as written (none takes them away); undefined for a header that cannot be rewritten. */
+  /** A header with one key set to text or a yes or no, or taken away with null; every other key and the body as they were. Undefined for a header that cannot be rewritten or a key a form may not set (`id`, `created`, `fjord`, a key that is not a plain word). */
+  withField(text: string, key: string, value: string | boolean | null): string | undefined {
+    return this.module.withField(text, key, JSON.stringify(value));
+  }
+
   withTags(text: string, tags: string[]): string | undefined {
     return this.module.withTags(text, JSON.stringify(tags));
   }

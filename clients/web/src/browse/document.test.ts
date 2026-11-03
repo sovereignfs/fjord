@@ -60,10 +60,13 @@ describe.skipIf(!available)("a note's or a document's header, for the page", () 
       created: "2026-10-16T09:34:00Z",
       date: null,
       tags: null,
+      draft: null,
+      description: null,
       others: [
         { key: "zeta", value: "1" },
         { key: "x-future", value: '["a","b"]' },
-        { key: "tags", value: "plain" },
+        // Text, or a yes or no, is something a form can set (RFC 0002); a number or a list is shown as written.
+        { key: "tags", value: "plain", editable: "text" },
       ],
     });
     expect(info?.promotion).toBeUndefined();

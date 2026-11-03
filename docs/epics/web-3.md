@@ -525,13 +525,20 @@ A site whose vault is the engine's own content folder (`src/content`, `_posts`),
 
 ### 3g.2 Source and rich modes, and the frontmatter form
 
-**Status:** 📋 Planned
+**Status:** ✅ Done, with a different rule for rich mode (below)
 
 **Design:** RFC 0002, Sites
 
 Each file of a site opens in source mode by default. Rich mode, with a frontmatter form (title, `date`, `tags`, draft, description, and any other key as key and value), is offered only when parse→serialise gives back the file byte for byte; otherwise it is disabled and the reason shown. The form writes through the module, keeping every key in order.
 
 **Accepts when:** a post with an MDX component or a Liquid tag cannot be opened in rich mode and says why; a post edited in rich mode changes only what was changed; an unknown frontmatter key survives the form.
+
+- **Done as:**
+  - **Source by default, rich on request.** A site's post opens in the byte-faithful Markdown editor (`KindModule.editor` is `note`); *Edit visually* (`data-testid="switch-editor"`) starts the document editor from the text as it is, and *Edit as Markdown* goes back. The switch is offered only on a site, and only for a file with a header it can split.
+  - **The rule for rich mode is the document editor's own, not "byte for byte".** RFC 0002 asked that rich mode be offered only when parse→serialise returns the file exactly. The existing guard (1b.3, 1b.4) is: the visual editor holds a text **only if its meaning survives** (`rich/meaning.ts`; raw HTML, JSX, footnotes, maths and other things it cannot hold fall back to Markdown with a notice), and a text it holds but would **reformat** is shown with the lines that would change, and edited visually only if the person agrees. A post with an MDX component therefore opens as Markdown with the reason shown; one that only needs restyling asks first. That is weaker than byte-exact (an agreed restyle does rewrite the file's style), and it is what is built; a byte-exact mode would be a stricter guard in the editor package.
+  - **The frontmatter form** (`FieldsForm`, in the properties panel): for a site, **Draft** (a checkbox) and **Description**; for any Doc, every other key whose value is text or a yes or no, editable, and **Add a field**; keys of another shape (a list, a mapping, a number) are shown as written and kept. One change is one key, written by `fjord-core` (`doc::with_field`, `withField` in the module, `POST …/files/header` with `{ header, field: { key, value } }`): every other key stays where it was, in its order, unknown ones included. `id`, `created` and `fjord`, and a key that is not a plain word, cannot be set from a form.
+  - **Tested:** `with_field` in Rust (order kept, refusals) and through the module (`kinds.test.mjs`, `wasm.test.ts`); the HTTP rules (`http.test.ts`: each accepted shape, fourteen refused ones with nothing asked); access (`access.test.ts`); the panel's markup (`DocumentProperties.test.tsx`: draft and description only for a site, text and yes/no editable, a list left alone, nothing before a header exists).
+- **Not here:** a byte-exact guard for rich mode (above); the visual switch for a drive's Docs, which already open visually; the e2e specs were not run.
 
 ### 3h.1 Publish a Doc as a page
 

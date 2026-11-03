@@ -217,6 +217,7 @@ export async function filesAccessFor(): Promise<ReturnType<typeof filesAccess>> 
     setTitle: (header, title) => fjord().withTitle(header, title),
     setDate: (header, date) => (date !== null && !fjord().isEntryDate(date) ? "bad_date" : fjord().withDate(header, date ?? undefined)),
     setTags: (header, tags) => fjord().withTags(header, tags),
+    setField: (header, key, value) => fjord().withField(header, key, value),
     tagProblem,
     post,
     entry,

@@ -11,6 +11,7 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 
 ### Added
 
+- **`withField`** (ROADMAP web 3g.2): `fjord_core::doc::with_field`, a header with one key set to text or a yes or no, or taken away, every other key and the body as they were; `undefined` for a key a form may not set (`id`, `created`, `fjord`, or one that is not a plain word) and for a header that cannot be rewritten. 1,443,992 bytes, 542,048 gzipped.
 - **`planAdopt` and `detectSite`** (ROADMAP web P17): `fjord_core::adopt::plan_adopt`, the files to add to a directory that already has files to make a Fjord repository of it (the vaults chosen, at any depth, of a kind), writing over nothing but lines added to `.gitattributes` and `.gitignore`, as `fjord init --adopt` does; and `detect_site`, which finds an Astro or Jekyll site and the folder its engine reads its content from. A finding about the directory is data (`ok: false`, with a code); a malformed call throws. Held to the Rust planner by `tests/js/adopt.test.mjs`. 1,442,495 bytes, 541,516 gzipped.
 
 - **Repository kinds** (ROADMAP web P12, spec §3.1): `describeRepositoryManifest` reports the `kind` to present a repository as, its

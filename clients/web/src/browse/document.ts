@@ -29,8 +29,12 @@ export interface Properties {
   date: string | null;
   /** `tags`, when they are a list of text, as written (spec §8.1). Tags of another shape are among `others`. */
   tags: string[] | null;
-  /** Every other key, in the order written, with its value as text: Fjord shows what it does not know and keeps it. */
-  others: { key: string; value: string }[];
+  /** `draft`, when it is a yes or no (a site's post, RFC 0002). Another shape is among `others`. */
+  draft: boolean | null;
+  /** `description`, when it is text. Another shape is among `others`. */
+  description: string | null;
+  /** Every other key, in the order written, with its value as text: Fjord shows what it does not know and keeps it. `editable` says whether a form can set it: text or a yes or no. */
+  others: { key: string; value: string; editable?: "text" | "flag" }[];
 }
 
 /**
@@ -63,9 +67,18 @@ function propertiesOf(parsed: ReturnType<Reader["parseDocument"]>): Properties {
     created: typeof raw.created === "string" ? raw.created : null,
     date: typeof raw.date === "string" ? raw.date : null,
     tags: tagList(raw.tags),
+    draft: typeof raw.draft === "boolean" ? raw.draft : null,
+    description: typeof raw.description === "string" ? raw.description : null,
     others: Object.entries(raw)
-      .filter(([key, value]) => !KNOWN.has(key) && !(key === "date" && typeof value === "string") && !(key === "tags" && tagList(value) !== null))
-      .map(([key, value]) => ({ key, value: typeof value === "string" ? value : JSON.stringify(value) })),
+      .filter(
+        ([key, value]) =>
+          !KNOWN.has(key) &&
+          !(key === "date" && typeof value === "string") &&
+          !(key === "tags" && tagList(value) !== null) &&
+          !(key === "draft" && typeof value === "boolean") &&
+          !(key === "description" && typeof value === "string"),
+      )
+      .map(([key, value]) => ({ key, value: typeof value === "string" ? value : JSON.stringify(value), ...(typeof value === "string" ? { editable: "text" as const } : typeof value === "boolean" ? { editable: "flag" as const } : {}) })),
   };
 }
 

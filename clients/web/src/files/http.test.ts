@@ -904,3 +904,38 @@ describe("giving a Doc an identifier (ROADMAP 3e.3)", () => {
     expect((await body(response)).error.code).toBe(reason);
   });
 });
+
+describe("setting one field of a header (RFC 0002)", () => {
+  const HEADER = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n---\n";
+  const at = (body: unknown) => post(body);
+
+  it("passes the field, as text, a yes or no, or null, with the header, and answers the header the module wrote", async () => {
+    const { deps, header } = stub();
+    for (const field of [{ key: "description", value: "A first post." }, { key: "draft", value: false }, { key: "layout", value: null }]) {
+      const response = await handleHeader(at({ header: HEADER, field }), ALICE, deps, "1");
+      expect(response.status, JSON.stringify(field)).toBe(200);
+      expect(header).toHaveBeenLastCalledWith("alice", 1, { header: HEADER, field });
+    }
+  });
+
+  it.each([
+    ["a field and a title together", { header: HEADER, title: "x", field: { key: "draft", value: true } }],
+    ["no key", { header: HEADER, field: { value: true } }],
+    ["a key that is not a plain word", { header: HEADER, field: { key: "has space", value: "x" } }],
+    ["a key with a colon", { header: HEADER, field: { key: "a:b", value: "x" } }],
+    ["a key too long", { header: HEADER, field: { key: "k".repeat(65), value: "x" } }],
+    ["the identifier", { header: HEADER, field: { key: "id", value: "x" } }],
+    ["the day it was made", { header: HEADER, field: { key: "created", value: "x" } }],
+    ["a client's own state", { header: HEADER, field: { key: "fjord", value: "x" } }],
+    ["a list", { header: HEADER, field: { key: "draft", value: ["a"] } }],
+    ["a number", { header: HEADER, field: { key: "draft", value: 7 } }],
+    ["text with a line break", { header: HEADER, field: { key: "description", value: "a\nb" } }],
+    ["text that is too long", { header: HEADER, field: { key: "description", value: "x".repeat(2001) } }],
+    ["a field that is not an object", { header: HEADER, field: "draft" }],
+    ["a field that is null", { header: HEADER, field: null }],
+  ])("refuses %s with 400, without asking", async (_name, sent) => {
+    const { deps, header } = stub();
+    expect((await handleHeader(at(sent), ALICE, deps, "1")).status).toBe(400);
+    expect(header).not.toHaveBeenCalled();
+  });
+});

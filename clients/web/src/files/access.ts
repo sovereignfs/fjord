@@ -38,6 +38,8 @@ export interface AccessDeps {
   setDate: (header: string, date: string | null) => string | undefined | "bad_date";
   /** A header with its `tags` set as written; undefined for one that cannot be rewritten. */
   setTags: (header: string, tags: string[]) => string | undefined;
+  /** A header with one field set to text or a yes or no, or taken away; undefined for one that cannot be rewritten or a key a form may not set. */
+  setField: (header: string, key: string, value: string | boolean | null) => string | undefined;
   /** Why these tags cannot be the tags of a file of this connection's repository, in words for a person, or undefined (Jekyll reads a tag with a space as two). */
   tagProblem: (accountId: string, id: number, tags: string[]) => Promise<string | undefined>;
   /** Make a post in the connection's site, if it is one a post can be made in here: or why not. Only called for a connection that is the caller's. */
@@ -117,7 +119,8 @@ export function filesAccess(deps: AccessDeps): Pick<Deps, "create" | "createEncr
         const problem = await deps.tagProblem(accountId, id, input.tags);
         if (problem !== undefined) return { found: true, result: { ok: false, reason: "bad_tag", message: problem } };
       }
-      const header = "title" in input ? deps.setTitle(input.header, input.title) : "date" in input ? deps.setDate(input.header, input.date) : deps.setTags(input.header, input.tags);
+      const header =
+        "title" in input ? deps.setTitle(input.header, input.title) : "date" in input ? deps.setDate(input.header, input.date) : "field" in input ? deps.setField(input.header, input.field.key, input.field.value) : deps.setTags(input.header, input.tags);
       if (header === "bad_date") return { found: true, result: { ok: false, reason: "bad_date" } };
       return { found: true, result: header === undefined ? { ok: false, reason: "unreadable" } : { ok: true, header } };
     },

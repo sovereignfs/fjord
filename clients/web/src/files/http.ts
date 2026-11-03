@@ -16,7 +16,7 @@ import type { EntryResult } from "../journal/entries";
 import type { PostResult, SiteRefusal } from "../site/posts";
 
 /** One key of a header to change (ROADMAP 1b.5, 3b.1, 3b.3): its title, its `date` (null takes it away) or its `tags`. */
-export type HeaderChange = { header: string } & ({ title: string } | { date: string | null } | { tags: string[] });
+export type HeaderChange = { header: string } & ({ title: string } | { date: string | null } | { tags: string[] } | { field: { key: string; value: string | boolean | null } });
 
 /** Why a journal entry cannot be made here: the repository is not a journal, its journal is encrypted (entries are made in the browser), or not one this version writes. */
 export type JournalRefusal = "not_a_journal" | "encrypted_journal" | "unsupported_journal";
@@ -230,6 +230,8 @@ export async function handleCreateEncrypted(request: Request, caller: Caller | n
 }
 
 const MAX_HEADER_CHARS = 64_000;
+/** A field's text is a line of a header: a description, a layout, a slug. */
+const MAX_FIELD_CHARS = 2000;
 const MAX_TAGS = 64;
 const MAX_TAG_CHARS = 200;
 
@@ -250,11 +252,11 @@ export async function handleHeader(request: Request, caller: Caller | null, deps
     if (text.length > MAX_HEADER_CHARS + MAX_BODY_CHARS) return failure(413, "too_large", "That request is too large.");
     const body = parse(text);
     if (!body) return failure(400, "invalid_request", "Send a JSON object.");
-    const { header, title, date, tags } = body;
+    const { header, title, date, tags, field } = body;
     if (typeof header !== "string" || header.length > MAX_HEADER_CHARS || !header.isWellFormed()) return failure(400, "invalid_request", "Send the header as text.");
     // Exactly one key is changed at a time.
-    const given = [title, date, tags].filter((value) => value !== undefined).length;
-    if (given !== 1) return failure(400, "invalid_request", "Send one of the title, the date or the tags to change.");
+    const given = [title, date, tags, field].filter((value) => value !== undefined).length;
+    if (given !== 1) return failure(400, "invalid_request", "Send one of the title, the date, the tags or a field to change.");
     let change: HeaderChange;
     if (title !== undefined) {
       if (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed()) {
@@ -264,6 +266,16 @@ export async function handleHeader(request: Request, caller: Caller | null, deps
     } else if (date !== undefined) {
       if (date !== null && (typeof date !== "string" || date.length > 64 || CONTROL.test(date))) return failure(400, "invalid_request", "Send the date as text, or null to take it away.");
       change = { header, date };
+    } else if (field !== undefined) {
+      const given = field as { key?: unknown; value?: unknown } | null;
+      const named = typeof given === "object" && given !== null && !Array.isArray(given);
+      const key = named ? given.key : undefined;
+      const value = named ? given.value : undefined;
+      if (typeof key !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(key) || ["id", "created", "fjord"].includes(key)) return failure(400, "invalid_request", "Send the field's name: letters, digits, - and _, and not id, created or fjord.");
+      if (value !== null && typeof value !== "boolean" && (typeof value !== "string" || value.length > MAX_FIELD_CHARS || CONTROL.test(value) || !value.isWellFormed())) {
+        return failure(400, "invalid_request", `Send the field's value as one line of at most ${MAX_FIELD_CHARS} characters, as true or false, or as null to take it away.`);
+      }
+      change = { header, field: { key, value: value as string | boolean | null } };
     } else {
       if (!Array.isArray(tags) || tags.length > MAX_TAGS || !tags.every((tag) => typeof tag === "string" && tag !== "" && tag.length <= MAX_TAG_CHARS && !CONTROL.test(tag) && tag.isWellFormed())) {
         return failure(400, "invalid_request", `Send the tags as a list of at most ${MAX_TAGS}, each one line of text.`);

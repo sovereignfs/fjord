@@ -170,3 +170,20 @@ test("an entry's title is its header's before its heading or its file name (spec
   assert.equal(summary("---\ndate: 2026-11-02\n---\n\nx\n", "posts/hello-world.md").title, "hello-world");
 });
 
+
+test("a header field is set where it was, a flag or text, and taken away, without touching another key or the body", () => {
+  const text = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nlayout: post\ntitle: Hello\ndraft: true\n---\n\nBody\n";
+  const keys = (t) => t.split("\n").slice(1, t.split("\n").indexOf("---", 1)).map((line) => line.split(":")[0]);
+  const flagged = wasm.withField(text, "draft", "false");
+  assert.ok(flagged.includes("draft: false\n"));
+  assert.deepEqual(keys(flagged), ["id", "layout", "title", "draft"]);
+  assert.ok(flagged.endsWith("---\n\nBody\n"));
+  const described = wasm.withField(text, "description", JSON.stringify('A: "post"'));
+  assert.deepEqual(keys(described), ["id", "layout", "title", "draft", "description"]);
+  assert.deepEqual(keys(wasm.withField(text, "draft", "null")), ["id", "layout", "title"]);
+  // Keys a form may not set, and texts it cannot rewrite, are refused as nothing; a value of another shape is an exception.
+  for (const key of ["id", "created", "fjord", "", "a b"]) assert.equal(wasm.withField(text, key, "true"), undefined, key);
+  assert.equal(wasm.withField("no header\n", "draft", "true"), undefined);
+  assert.throws(() => wasm.withField(text, "draft", "[1]"));
+  assert.throws(() => wasm.withField(text, "draft", "7"));
+});

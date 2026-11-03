@@ -5,6 +5,7 @@ import { Alert, Button, FormField, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { MAX_TITLE_CHARS } from "../../files/limits";
 import type { Properties } from "../document";
+import { FieldsForm } from "./FieldsForm";
 
 /**
  * The Document properties panel (ROADMAP 1b.5, DESIGN.md §9): what the header of a note or a document says, beside the editor
@@ -19,6 +20,8 @@ export function DocumentProperties({
   onTitle,
   onDate,
   onTags,
+  onField,
+  site = false,
   tagSuggestions = [],
 }: {
   properties: Properties;
@@ -31,6 +34,10 @@ export function DocumentProperties({
   onDate?: (date: string | null) => Promise<string | null>;
   /** Ask for the `tags` to be set as written (spec §8.1); the answer is a message when they could not be. */
   onTags?: (tags: string[]) => Promise<string | null>;
+  /** Ask for one field to be set, to text or a yes or no, or taken away with null (RFC 0002); the answer is a message when it could not be. */
+  onField?: (key: string, value: string | boolean | null) => Promise<string | null>;
+  /** Whether this is a site's post: `draft` and `description` are offered by name. */
+  site?: boolean;
   /** Tags already in use in this repository, as first written, the most used first: offered while one is typed (ROADMAP 3b.3). */
   tagSuggestions?: string[];
 }) {
@@ -166,6 +173,7 @@ export function DocumentProperties({
           </div>
         </form>
       ) : null}
+      {onField && !pending ? <FieldsForm properties={properties} site={site} disabled={disabled} onField={onField} /> : null}
       <dl>
         <dt>Identifier</dt>
         <dd>
@@ -173,7 +181,7 @@ export function DocumentProperties({
         </dd>
         <dt>Created</dt>
         <dd>{properties.created ?? "not recorded"}</dd>
-        {properties.others.map(({ key, value }) => (
+        {properties.others.filter((other) => !onField || pending || other.editable === undefined).map(({ key, value }) => (
           <div key={key} data-testid="other-property">
             <dt>{key}</dt>
             <dd>

@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { useComments } from "../../comments/Comments";
-import { sendDate, sendTags, sendTitle } from "../../files/client";
+import { sendDate, sendField, sendTags, sendTitle } from "../../files/client";
 import { discardDraft, sendDraft, sendVersion } from "../../working/client";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
 import { MAX_MESSAGE_CHARS } from "../../working/limits";
@@ -45,6 +45,7 @@ export function NoteView({
   draft,
   header,
   editor,
+  site = false,
   docId,
   tagSuggestions,
 }: {
@@ -55,6 +56,8 @@ export function NoteView({
   blob: string;
   /** Which editor the repository's kind opens a Doc in (RFC 0002): the document editor, or the byte-faithful Markdown one. */
   editor: "document" | "note";
+  /** Whether this is a site's post (RFC 0002): it offers `draft` and `description`, and a visual mode beside the Markdown. */
+  site?: boolean;
   /** For a Doc whose header has an `id`: the key its comments are kept under (ROADMAP 1d.1). */
   docId?: string | undefined;
   draft: DraftOfNote | null;
@@ -71,6 +74,15 @@ export function NoteView({
   // A file with no header shows the properties it would be given, which cannot be changed until it has them.
   const noHeader = header !== undefined && header.promotion !== undefined;
   const [properties, setProperties] = useState<Properties | undefined>(header?.properties ?? header?.promotion?.properties);
+  // A site's posts are written as Markdown, which is kept as it was, and may be edited visually when the person asks: the visual editor holds only what it
+  // can without changing what it means, and says so for the rest (`DocumentEditor`). Switching starts the other editor from the text as it is now.
+  const [visual, setVisual] = useState(false);
+  const [switched, setSwitched] = useState<string | null>(null);
+  const bodyNow = switched ?? (bodyStart === undefined ? start : start.slice(bodyStart));
+  function switchEditor() {
+    setSwitched(saver.text.slice(headerNow.current.length));
+    setVisual((now) => !now);
+  }
   const base = draft?.baseBlob ?? blob;
   const saver = useMemo(() => new DraftSaver({ initial: start, send: (content) => sendDraft(connectionId, path, base, content) }), [connectionId, path, start, base]);
   const [status, setStatus] = useState<SaverStatus>(saver.status);
@@ -163,6 +175,26 @@ export function NoteView({
     return null;
   }
 
+  async function changeField(key: string, value: string | boolean | null): Promise<string | null> {
+    const answer = await sendField(connectionId, headerNow.current, key, value);
+    if (!answer.ok) return answer.message;
+    const body = saver.text.slice(headerNow.current.length);
+    headerNow.current = answer.header;
+    setProperties((now) => {
+      if (!now) return now;
+      if (key === "draft" && typeof value === "boolean") return { ...now, draft: value };
+      if (key === "draft" && value === null) return { ...now, draft: null };
+      if (key === "description" && (typeof value === "string" || value === null)) return { ...now, description: value };
+      const others = now.others.filter((other) => other.key !== key);
+      if (value === null) return { ...now, others };
+      const entry = { key, value: String(value), editable: typeof value === "boolean" ? ("flag" as const) : ("text" as const) };
+      const at = now.others.findIndex((other) => other.key === key);
+      return { ...now, others: at === -1 ? [...others, entry] : now.others.map((other) => (other.key === key ? entry : other)) };
+    });
+    saver.change(answer.header + body);
+    return null;
+  }
+
   async function discard() {
     setDiscarding(true);
     setDiscardFailed(false);
@@ -233,13 +265,20 @@ export function NoteView({
           </Alert>
         </div>
       ) : null}
-      {properties ? <DocumentProperties properties={properties} pending={noHeader} disabled={saving} onTitle={changeTitle} onDate={changeDate} onTags={changeTags} tagSuggestions={tagSuggestions} /> : null}
+      {properties ? <DocumentProperties properties={properties} pending={noHeader} disabled={saving} onTitle={changeTitle} onDate={changeDate} onTags={changeTags} onField={changeField} site={site} tagSuggestions={tagSuggestions} /> : null}
+      {site && editor === "note" && bodyStart !== undefined ? (
+        <p>
+          <Button type="button" variant="secondary" size="sm" onClick={switchEditor} disabled={saving} data-testid="switch-editor">
+            {visual ? "Edit as Markdown" : "Edit visually"}
+          </Button>
+        </p>
+      ) : null}
       {bodyStart === undefined ? (
         <NoteEditor aria-label={label} value={start} onChange={(next) => saver.change(next)} readOnly={saving} />
-      ) : editor === "document" ? (
-        <DocumentEditor aria-label={label} role={saving ? "view" : "edit"} value={start.slice(bodyStart)} onChange={changeBody} comments={adapter} onNeedName={onNeedName} />
+      ) : editor === "document" || visual ? (
+        <DocumentEditor key="rich" aria-label={label} role={saving ? "view" : "edit"} value={bodyNow} onChange={changeBody} comments={adapter} onNeedName={onNeedName} />
       ) : (
-        <NoteEditor aria-label={label} value={start.slice(bodyStart)} onChange={changeBody} readOnly={saving} />
+        <NoteEditor key="source" aria-label={label} value={bodyNow} onChange={changeBody} readOnly={saving} />
       )}
       {panel}
       <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="draft-status">

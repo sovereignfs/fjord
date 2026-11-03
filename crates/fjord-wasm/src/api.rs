@@ -429,6 +429,21 @@ pub fn with_tags(text: &str, tags_json: &str) -> Result<Option<String>, String> 
     Ok(doc::with_tags(text, &tags))
 }
 
+/// A Doc's text with one key of its header set (`fjord_core::doc::with_field`): `value_json` is JSON text (`"a post"`), a yes or no (`true`), or `null` to take
+/// the key away. Every other key and the body are as they were; `None` for a text with no readable header, and for a key a form may not set (`id`, `created`, `fjord`,
+/// or one that is not a plain word). A value of another shape is an error.
+pub fn with_field(text: &str, key: &str, value_json: &str) -> Result<Option<String>, String> {
+    let value: Value = serde_json::from_str(value_json)
+        .map_err(|err| format!("the value must be JSON text, true, false or null: {err}"))?;
+    let field = match &value {
+        Value::Null => None,
+        Value::String(text) => Some(doc::FieldValue::Text(text.clone())),
+        Value::Bool(flag) => Some(doc::FieldValue::Flag(*flag)),
+        _ => return Err("the value must be JSON text, true, false or null".to_string()),
+    };
+    Ok(doc::with_field(text, key, field.as_ref()))
+}
+
 /// What a journal's timeline shows of an entry, `fjord_core::journal::summary`: `{ "docId", "title", "date", "dateInvalid", "tags",
 /// "when": { "day", "time", "source": "date" | "path" | "created" } | null, "excerpt" }`. `path` is relative to the vault.
 pub fn journal_entry(text: &str, path: &str) -> String {

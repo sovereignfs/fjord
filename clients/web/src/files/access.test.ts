@@ -26,6 +26,7 @@ function setup(over: { owns?: boolean; encrypted?: Awaited<ReturnType<AccessDeps
     setTitle: (header, title) => setTitle(header, title),
     setDate: (header, date) => (date === "yesterday" ? "bad_date" : `${header}date: ${date}\n`),
     setTags: (header, tags) => `${header}tags: ${tags.join(",")}\n`,
+    setField: (header, key, value) => (key === "id" ? undefined : `${header}${key}: ${String(value)}\n`),
     entry: async () => ({ ok: true, path: "journal/2026/11/02/0100.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" }),
     post: async () => ({ ok: true, path: "content/posts/a.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" }),
     tagProblem: async (_account, _id, tags) => (tags.some((tag) => tag.includes(" ")) ? "Jekyll reads a tag with a space as two." : undefined),
@@ -149,6 +150,8 @@ describe("changing a header's title", () => {
     const { access } = setup();
     expect(await access.header("alice", 1, { header: "---\n", title: "x" })).toEqual({ found: true, result: { ok: true, header: "---\ntitle: x\n" } });
     expect(await access.header("alice", 1, { header: "broken", title: "x" })).toEqual({ found: true, result: { ok: false, reason: "unreadable" } });
+    expect(await access.header("alice", 1, { header: "---\n", field: { key: "draft", value: true } })).toEqual({ found: true, result: { ok: true, header: "---\ndraft: true\n" } });
+    expect(await access.header("alice", 1, { header: "---\n", field: { key: "id", value: "x" } })).toEqual({ found: true, result: { ok: false, reason: "unreadable" } });
     expect(await access.header("alice", 1, { header: "---\n", date: "2026-11-02" })).toEqual({ found: true, result: { ok: true, header: "---\ndate: 2026-11-02\n" } });
     expect(await access.header("alice", 1, { header: "---\n", date: "yesterday" })).toEqual({ found: true, result: { ok: false, reason: "bad_date" } });
     expect(await access.header("alice", 1, { header: "---\n", tags: ["a", "b"] })).toEqual({ found: true, result: { ok: true, header: "---\ntags: a,b\n" } });

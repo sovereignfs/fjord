@@ -242,6 +242,41 @@ pub fn with_tags(text: &str, tags: &[String]) -> Option<String> {
     with_key(text, key::TAGS, value)
 }
 
+/// A value a form sets in a header: text, or a yes or no (a post's `draft`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FieldValue {
+    Text(String),
+    Flag(bool),
+}
+
+/// Whether a form may set the key `name`: a plain word, at most 64 characters, and not `id` (immutable, §8.2), `created` (set once, §8.1)
+/// or `fjord` (a client's own state, §8.1). Any other key a file has is the person's, and a site's engine may read it.
+pub fn is_settable_key(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 64
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+        && !matches!(name, key::ID | key::CREATED | "fjord")
+}
+
+/// A Doc's text with one key of its header set to text or a yes or no, or taken away with `None`, every other key and the body as they
+/// were (spec §8.2: unknown keys MUST survive, in their order). `None` as [`with_title`] gives it, and for a key a form may not set
+/// ([`is_settable_key`]).
+pub fn with_field(text: &str, name: &str, value: Option<&FieldValue>) -> Option<String> {
+    if !is_settable_key(name) {
+        return None;
+    }
+    with_key(
+        text,
+        name,
+        value.map(|value| match value {
+            FieldValue::Text(text) => Value::String(text.clone()),
+            FieldValue::Flag(flag) => Value::Bool(*flag),
+        }),
+    )
+}
+
 /// The header of `text` with one key set (where it was, or at the end) or taken away, and nothing else changed.
 fn with_key(text: &str, name: &str, value: Option<Value>) -> Option<String> {
     let (frontmatter, body_offset) = match parse(text) {
@@ -812,5 +847,45 @@ mod tests {
         // values.
         assert_eq!(round_tripped.raw().keys().collect::<Vec<&String>>(), keys);
         assert_eq!(round_tripped.raw(), first.raw());
+    }
+
+    #[test]
+    fn a_field_is_set_where_it_was_or_at_the_end_and_nothing_else_moves() {
+        let keys = |text: &str| -> Vec<String> {
+            text.lines()
+                .skip(1)
+                .take_while(|line| *line != "---")
+                .filter(|line| !line.starts_with(' ') && !line.starts_with('-'))
+                .filter_map(|line| line.split(':').next())
+                .map(String::from)
+                .collect()
+        };
+        let text = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nlayout: post\ntitle: Hello\ndraft: true\nx-future: [1, 2]\n---\n\nBody\n";
+        let flagged = with_field(text, "draft", Some(&FieldValue::Flag(false))).expect("set");
+        assert!(flagged.contains("draft: false\n") && !flagged.contains("draft: true"));
+        assert_eq!(keys(&flagged), ["id", "layout", "title", "draft", "x-future"]);
+        assert!(flagged.ends_with("---\n\nBody\n"));
+
+        let described = with_field(text, "description", Some(&FieldValue::Text("A: \"post\"".into()))).expect("set");
+        assert_eq!(keys(&described), ["id", "layout", "title", "draft", "x-future", "description"]);
+        match parse(&described) {
+            Parse::Present { frontmatter, .. } => assert_eq!(frontmatter.raw().get("description"), Some(&Value::String("A: \"post\"".into()))),
+            other => panic!("not a header: {other:?}"),
+        }
+        // Taken away.
+        let removed = with_field(text, "draft", None).expect("removed");
+        assert_eq!(keys(&removed), ["id", "layout", "title", "x-future"]);
+    }
+
+    #[test]
+    fn a_field_is_refused_for_a_key_a_form_may_not_set_and_for_a_file_with_no_header() {
+        let text = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n---\nbody\n";
+        for name in ["id", "created", "fjord", "", "has space", "a.b", "x:y", "é"] {
+            assert!(!is_settable_key(name), "{name:?}");
+            assert_eq!(with_field(text, name, Some(&FieldValue::Flag(true))), None, "{name:?}");
+        }
+        assert!(is_settable_key("description") && is_settable_key("draft") && is_settable_key("x-future_2"));
+        assert_eq!(with_field("no header\n", "draft", Some(&FieldValue::Flag(true))), None);
+        assert_eq!(with_field("---\nbroken: [\n---\nbody\n", "draft", Some(&FieldValue::Flag(true))), None);
     }
 }

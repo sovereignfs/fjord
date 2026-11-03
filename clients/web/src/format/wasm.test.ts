@@ -190,4 +190,15 @@ describe.skipIf(!available)("the format module", () => {
   it("is loaded once, whatever asks", () => {
     expect(fjord()).toBe(fjord());
   });
+
+  it("sets one header field, to text or a yes or no, and refuses a key a form may not set (RFC 0002)", () => {
+    const text = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nlayout: post\ndraft: true\n---\n\nBody\n";
+    const module = fjord();
+    expect(module.withField(text, "draft", false)).toContain("draft: false\n");
+    expect(module.withField(text, "description", "A: post")).toContain("description:");
+    expect(module.withField(text, "draft", null)).not.toContain("draft");
+    expect(module.withField(text, "layout", "page")?.indexOf("layout")).toBeLessThan(module.withField(text, "layout", "page")?.indexOf("draft") ?? 0);
+    for (const key of ["id", "created", "fjord", "a b"]) expect(module.withField(text, key, "x"), key).toBeUndefined();
+    expect(module.withField("no header\n", "draft", true)).toBeUndefined();
+  });
 });

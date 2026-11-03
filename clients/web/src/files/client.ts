@@ -137,6 +137,11 @@ export async function sendTags(connectionId: number, header: string, tags: strin
   return sendHeaderChange(connectionId, { header, tags }, "the tags were not changed");
 }
 
+/** Ask the server to set one field of a header, to text or a yes or no, or with null to take it away (RFC 0002); as `sendTitle`. */
+export async function sendField(connectionId: number, header: string, key: string, value: string | boolean | null): Promise<TitleAttempt> {
+  return sendHeaderChange(connectionId, { header, field: { key, value } }, `${key} was not changed`);
+}
+
 async function sendHeaderChange(connectionId: number, body: Record<string, unknown>, what: string): Promise<TitleAttempt> {
   try {
     const response = await fetch(`/api/connections/${connectionId}/files/header`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), credentials: "same-origin" });

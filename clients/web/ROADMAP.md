@@ -153,7 +153,7 @@ Planned on 2026-11-03. One kind of Doc whose editor is the kind's choice, addres
 | [3f.1](../../docs/epics/web-3.md#3f1-the-journals-writing-view) | The journal's writing view | ✅ Done |
 | [3f.2](../../docs/epics/web-3.md#3f2-new-journals-encrypted-by-default) | New journals encrypted by default | ✅ Done |
 | [3g.1](../../docs/epics/web-3.md#3g1-a-sites-vault-below-the-root) | A site's vault below the root | ✅ Done |
-| [3g.2](../../docs/epics/web-3.md#3g2-source-and-rich-modes-and-the-frontmatter-form) | Source and rich modes, and the frontmatter form | 📋 Planned |
+| [3g.2](../../docs/epics/web-3.md#3g2-source-and-rich-modes-and-the-frontmatter-form) | Source and rich modes, and the frontmatter form | ✅ Done (rich mode uses the editor's meaning guard) |
 | [3h.1](../../docs/epics/web-3.md#3h1-publish-a-doc-as-a-page) | Publish a Doc as a page | 📋 Planned |
 | [3h.2](../../docs/epics/web-3.md#3h2-publish-from-an-encrypted-vault) | Publish from an encrypted vault | 📋 Planned |
 

@@ -40,6 +40,7 @@ export function FolderView({
   docId,
   editor,
   writing,
+  site,
   destinations,
   encryptedNaming,
   transferTargets,
@@ -72,6 +73,8 @@ export function FolderView({
   editor: "document" | "note";
   /** Whether a Doc opens as a quiet writing view (a journal's): the editor and the properties, the rest under "More". */
   writing?: boolean | undefined;
+  /** Whether the repository is a site (RFC 0002): its posts offer `draft` and `description`, and a visual editor beside the Markdown. */
+  site?: boolean | undefined;
   /** For a note or a document: tags in use in the repository, offered while one is typed (ROADMAP 3b.3). */
   tagSuggestions?: string[] | undefined;
   /** The folders of plaintext vaults a file or folder can be moved to, repository-relative; none for a repository too large to list. */
@@ -111,7 +114,7 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} site={site === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
           remove={writable && fileBlob !== undefined && (location.file.kind === "doc" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -219,6 +222,7 @@ function FileCard({
   docId,
   editor,
   writing,
+  site,
   destinations,
   blob,
   encryptedEditing,
@@ -241,6 +245,7 @@ function FileCard({
   permalink: string | undefined;
   editor: "document" | "note";
   writing: boolean;
+  site: boolean;
   docId: string | undefined;
   destinations: string[];
   blob: string | undefined;
@@ -272,7 +277,7 @@ function FileCard({
                   Address by id, which does not depend on where the file is: <a href={permalink}>{permalink}</a>
                 </p>
               ) : null}
-              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} editor={editor} header={header} docId={docId} tagSuggestions={tagSuggestions} />
+              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} editor={editor} site={site} header={header} docId={docId} tagSuggestions={tagSuggestions} />
             </>
           )
         ) : (
