@@ -23,7 +23,7 @@ const put = (body: unknown, init: { origin?: string | null; type?: string | null
   if (init.type !== null) headers["content-type"] = init.type ?? "application/json";
   if (init.cookie !== null) headers.cookie = init.cookie ?? COOKIE;
   const method = init.method ?? "PUT";
-  return new Request(`${ORIGIN}/doc/${DOC}/draft`, { method, headers, ...(method === "GET" ? {} : { body: typeof body === "string" ? body : JSON.stringify(body) }) });
+  return new Request(`${ORIGIN}/d/${DOC}/draft`, { method, headers, ...(method === "GET" ? {} : { body: typeof body === "string" ? body : JSON.stringify(body) }) });
 };
 const good = { name: "Grace Hopper", body: "# Plan\n\nText.\n" };
 const text = async (response: Response) => JSON.parse(await response.text());

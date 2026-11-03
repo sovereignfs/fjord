@@ -5,7 +5,7 @@ import * as postgresSchema from "../db/schema/postgres";
 import * as sqliteSchema from "../db/schema/sqlite";
 
 /**
- * Which Doc is at which path (DESIGN.md §9, §14, ROADMAP 1b.6): the store behind `/doc/<id>` and `/note/<id>`. It records
+ * Which Doc is at which path (DESIGN.md §9, §14, ROADMAP 1b.6): the store behind `/d/<id>` and `/n/<id>`. It records
  * what was read, with the blob it was read at, and is believed only where that blob is still the repository's (`ids.ts`).
  * `docId` is null for a Markdown file that was read and has no valid `id`: knowing that is as useful as knowing an id,
  * because the file is then not read again until it changes.

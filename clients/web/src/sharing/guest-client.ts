@@ -1,7 +1,7 @@
 import type { Attempt } from "../working/saver";
 
 /**
- * The browser's side of `PUT /doc/<id>/draft` (ROADMAP 1c.6): what the saver sends through when someone edits through a link, and what
+ * The browser's side of `PUT /d/<id>/draft` (ROADMAP 1c.6): what the saver sends through when someone edits through a link, and what
  * each answer means to it. `guestAttemptFrom` is the meaning, kept apart from `fetch` so that it is tested without a browser.
  */
 const KEEPALIVE_LIMIT = 40_000;
@@ -32,7 +32,7 @@ export function guestAttemptFrom(status: number, body: { error?: { code?: string
 export async function sendGuestDraft(docId: string, name: string, body: string): Promise<Attempt> {
   const payload = JSON.stringify({ name, body });
   try {
-    const response = await fetch(`/doc/${docId}/draft`, {
+    const response = await fetch(`/d/${docId}/draft`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: payload,

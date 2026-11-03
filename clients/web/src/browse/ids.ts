@@ -7,7 +7,7 @@ import { readTextBlob } from "./note";
 import type { RepositoryRead } from "./repository";
 
 /**
- * Finding a file by its Doc `id` (DESIGN.md §9, ROADMAP 1b.6): `/doc/<id>` and `/note/<id>` ask for a file without saying
+ * Finding a file by its Doc `id` (DESIGN.md §9, ROADMAP 1b.6): `/d/<id>` and `/n/<id>` ask for a file without saying
  * where it is. The answer comes from the index (`doc-index.ts`), which is only a record of what was read, so it is never
  * believed on its own:
  *

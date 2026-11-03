@@ -36,7 +36,7 @@ function controllable(initial = 5, holder = "account:alice") {
   };
 }
 const depsFor = (watch: Watch, extra: Partial<EventDeps> = {}): EventDeps => ({ open: async () => ({ ok: true, watch }), pollMs: 20, recheckMs: 40, ...extra });
-const get = (signal?: AbortSignal) => new Request(`${ORIGIN}/doc/${DOC}/comments/events`, { headers: { cookie: COOKIE }, ...(signal ? { signal } : {}) });
+const get = (signal?: AbortSignal) => new Request(`${ORIGIN}/d/${DOC}/comments/events`, { headers: { cookie: COOKIE }, ...(signal ? { signal } : {}) });
 
 /** The messages of a stream so far, read until `until` holds or the stream ends. */
 async function messages(response: Response, until: (text: string) => boolean, timeoutMs = 2000): Promise<string> {

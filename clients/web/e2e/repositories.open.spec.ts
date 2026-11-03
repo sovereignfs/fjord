@@ -2599,7 +2599,7 @@ const ID_DOC = "01jagc4k7pt8y3wqnmzv5xrb8j";
 const ID_NOTE = "01jagc4k7pt8y3wqnmzv5xrb9k";
 const withId = (id: string, body: string) => `---\nid: ${id}\ntitle: T\n---\n\n${body}\n`;
 
-test("a document opens at /doc/<id> and a note at /note/<id>, wherever they are, and the other route sends to the right one", async ({ page }) => {
+test("a document opens at /d/<id> and a note at /n/<id>, wherever they are, and the other route sends to the right one", async ({ page }) => {
   try {
     const id = await repositoryWith(page, {
       "Notes/fjord.vault.json": VAULT_MANIFEST,
@@ -2609,25 +2609,25 @@ test("a document opens at /doc/<id> and a note at /note/<id>, wherever they are,
     });
 
     // Nothing has been opened, so the first lookup searches; the address stays the one that was asked for.
-    expect((await page.goto(`/doc/${ID_DOC}`))?.status()).toBe(200);
+    expect((await page.goto(`/d/${ID_DOC}`))?.status()).toBe(200);
     await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan.");
-    await expect(page).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+    await expect(page).toHaveURL(`${BASE}/d/${ID_DOC}`);
     await expect(page.getByRole("heading", { name: "acme/more" })).toBeVisible();
 
-    await page.goto(`/note/${ID_NOTE}`);
+    await page.goto(`/n/${ID_NOTE}`);
     await expect(noteEditor(page, "idea.md")).toContainText("The idea.");
-    await expect(page).toHaveURL(`${BASE}/note/${ID_NOTE}`);
+    await expect(page).toHaveURL(`${BASE}/n/${ID_NOTE}`);
 
     // A note asked for as a document, and a document as a note, are sent to the address that is theirs.
-    await page.goto(`/doc/${ID_NOTE}`);
-    await expect(page).toHaveURL(`${BASE}/note/${ID_NOTE}`);
+    await page.goto(`/d/${ID_NOTE}`);
+    await expect(page).toHaveURL(`${BASE}/n/${ID_NOTE}`);
     await expect(noteEditor(page, "idea.md")).toBeVisible();
-    await page.goto(`/note/${ID_DOC}`);
-    await expect(page).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+    await page.goto(`/n/${ID_DOC}`);
+    await expect(page).toHaveURL(`${BASE}/d/${ID_DOC}`);
 
     // The page of a file by its path says the address by id, and it is the one that works.
     await page.goto(`/repo/${id}/Notes/Deep/idea.md`);
-    await expect(page.getByRole("link", { name: `/note/${ID_NOTE}` })).toHaveAttribute("href", `/note/${ID_NOTE}`);
+    await expect(page.getByRole("link", { name: `/n/${ID_NOTE}` })).toHaveAttribute("href", `/n/${ID_NOTE}`);
     await page.goto(`/repo/${id}/Notes/plain.md`);
     await expect(page.getByText("Address by id")).toHaveCount(0);
   } finally {
@@ -2638,10 +2638,10 @@ test("a document opens at /doc/<id> and a note at /note/<id>, wherever they are,
 test("an id that is not there, is not an id, or is another person's is a 404 that says nothing about which", async ({ page, browser }) => {
   try {
     const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/idea.md": withId(ID_NOTE, "mine") });
-    await page.goto(`/note/${ID_NOTE}`);
+    await page.goto(`/n/${ID_NOTE}`);
     await expect(noteEditor(page, "idea.md")).toBeVisible();
 
-    for (const path of ["/note/01jagc4k7pt8y3wqnmzv5xrbzz", "/doc/01jagc4k7pt8y3wqnmzv5xrbzz", "/note/not-an-id", `/note/${ID_NOTE.toUpperCase()}`, `/doc/${ID_NOTE}%2F..`, `/note/${ID_NOTE}0`]) {
+    for (const path of ["/n/01jagc4k7pt8y3wqnmzv5xrbzz", "/d/01jagc4k7pt8y3wqnmzv5xrbzz", "/n/not-an-id", `/n/${ID_NOTE.toUpperCase()}`, `/d/${ID_NOTE}%2F..`, `/n/${ID_NOTE}0`]) {
       expect((await page.goto(path))?.status(), path).toBe(404);
     }
 
@@ -2649,14 +2649,14 @@ test("an id that is not there, is not an id, or is another person's is a 404 tha
     const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.9" } });
     const otherPage = await other.newPage();
     await signUp(otherPage, `visitor-${Date.now()}@example.com`, "Grace Hopper");
-    expect((await otherPage.goto(`/note/${ID_NOTE}`))?.status()).toBe(404);
-    expect((await otherPage.goto(`/note/01jagc4k7pt8y3wqnmzv5xrbzz`))?.status()).toBe(404);
+    expect((await otherPage.goto(`/n/${ID_NOTE}`))?.status()).toBe(404);
+    expect((await otherPage.goto(`/n/01jagc4k7pt8y3wqnmzv5xrbzz`))?.status()).toBe(404);
     await other.close();
 
     // And nobody signed out is shown anything.
     const signedOut = await browser.newContext({ baseURL: BASE });
     const anonymous = await signedOut.newPage();
-    await anonymous.goto(`/note/${ID_NOTE}`);
+    await anonymous.goto(`/n/${ID_NOTE}`);
     await expect(anonymous).toHaveURL(/\/sign-in/);
     await signedOut.close();
     expect(id).toBeGreaterThan(0);
@@ -2668,17 +2668,17 @@ test("an id that is not there, is not an id, or is another person's is a 404 tha
 test("a file that moves is still found by its id, and one that is deleted is not", async ({ page }) => {
   try {
     await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/idea.md": withId(ID_NOTE, "the idea") });
-    await page.goto(`/note/${ID_NOTE}`);
+    await page.goto(`/n/${ID_NOTE}`);
     await expect(noteEditor(page, "idea.md")).toBeVisible();
 
     // Moved and changed from another tool: the index still says the old place, and is not believed.
     await hubs.more.commitFiles({ "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Archive/old idea.md": withId(ID_NOTE, "the idea, moved") }, { replace: true });
-    await page.goto(`/note/${ID_NOTE}`);
+    await page.goto(`/n/${ID_NOTE}`);
     await expect(noteEditor(page, "old idea.md")).toContainText("the idea, moved");
-    await expect(page).toHaveURL(`${BASE}/note/${ID_NOTE}`);
+    await expect(page).toHaveURL(`${BASE}/n/${ID_NOTE}`);
 
     await hubs.more.commitFiles({ "Notes/fjord.vault.json": VAULT_MANIFEST }, { replace: true });
-    expect((await page.goto(`/note/${ID_NOTE}`))?.status()).toBe(404);
+    expect((await page.goto(`/n/${ID_NOTE}`))?.status()).toBe(404);
   } finally {
     await restoreMore();
   }
@@ -2691,7 +2691,7 @@ test("an id that two files have is not guessed at: the person chooses", async ({
       "Notes/idea.md": withId(ID_NOTE, "the first"),
       "Notes/copy of idea.md": withId(ID_NOTE, "the second"),
     });
-    await page.goto(`/note/${ID_NOTE}`);
+    await page.goto(`/n/${ID_NOTE}`);
     await expect(page.getByRole("heading", { name: "More than one file has this id" })).toBeVisible();
     const choices = page.getByRole("list", { name: "Files with this id" }).getByRole("link");
     await expect(choices).toHaveText(["Notes/copy of idea.md", "Notes/idea.md"]);
@@ -2709,7 +2709,7 @@ test("an id in an encrypted vault is not looked for: nothing of one is read", as
     const encrypted = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hw", name: "Secret", createdAt: "2026-10-16T09:34:00Z", encryption: { mode: "none" }, fileNaming: "plain" });
     await repositoryWith(page, { "Secret/fjord.vault.json": encrypted, "Secret/readme.md": withId(ID_NOTE, "stray plaintext in an encrypted vault") });
     hubs.more.requests.length = 0;
-    expect((await page.goto(`/note/${ID_NOTE}`))?.status()).toBe(404);
+    expect((await page.goto(`/n/${ID_NOTE}`))?.status()).toBe(404);
     // Only the vault manifests are ever read, never the stray note in the encrypted vault (a manifest is at most one blob).
     expect(hubs.more.requests.filter((request) => request.path.includes("/git/blobs/")).length).toBeLessThanOrEqual(1);
   } finally {
@@ -2757,7 +2757,7 @@ test("a document moved to another folder is still found by its id, and its heade
       "Notes/Plan.fj.md": `${MOVE_DOC_HEADER}\n# Plan\n`,
       "Notes/Archive/old.md": "old",
     });
-    await page.goto(`/doc/${ID_DOC}`);
+    await page.goto(`/d/${ID_DOC}`);
     await expect(noteEditor(page, "Plan.fj.md")).toContainText("Plan");
 
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
@@ -2774,9 +2774,9 @@ test("a document moved to another folder is still found by its id, and its heade
     expect((await hubs.more.filesAt(head))["Other/Plan.fj.md"]).toBe(`${MOVE_DOC_HEADER}\n# Plan\n`);
 
     // The address by id follows the file: nothing about it said where it was.
-    await page.goto(`/doc/${ID_DOC}`);
+    await page.goto(`/d/${ID_DOC}`);
     await expect(noteEditor(page, "Plan.fj.md")).toContainText("Plan");
-    await expect(page.getByRole("link", { name: `/doc/${ID_DOC}` })).toBeVisible();
+    await expect(page.getByRole("link", { name: `/d/${ID_DOC}` })).toBeVisible();
     await hubs.more.fsck();
   } finally {
     await restoreMore();
@@ -2942,7 +2942,7 @@ test("a document shared with a named account opens for them to read, and for no 
     await signUp(mallory, `mallory-${Date.now()}@example.com`, "Mallory");
 
     // Nobody has been given anything yet.
-    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(404);
+    expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(404);
 
     // The owner shares it with an address that has an account, and with one that has none: the same answer, word for word.
     const known = await share(page.request, { doc: ID_DOC, email: graceEmail, role: "view" });
@@ -2952,7 +2952,7 @@ test("a document shared with a named account opens for them to read, and for no 
     expect(await unknown.text()).toBe(await known.text());
 
     // Grace reads it, at the plain address; the header and the file's place are not shown to her.
-    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(200);
+    expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(200);
     await expect(grace.getByRole("heading", { name: "Q4 plan" })).toBeVisible();
     await expect(grace.getByText("Shared with you by Ada Lovelace")).toBeVisible();
     await expect(grace.getByText("Can view")).toBeVisible();
@@ -2961,25 +2961,25 @@ test("a document shared with a named account opens for them to read, and for no 
     await expect(editor).toHaveAttribute("contenteditable", "false");
     const text = await grace.locator("main").innerText();
     expect(text).not.toMatch(/x-secret|not for the reader|Deep|Plan\.fj\.md|acme\/more/);
-    await expect(grace).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+    await expect(grace).toHaveURL(`${BASE}/d/${ID_DOC}`);
 
     // Nothing else of the owner's is hers: not the repository, not another document, not the note, nor the owner's routes.
-    for (const path of [`/repo/${id}`, `/repo/${id}/Notes/Deep/Plan.fj.md`, `/doc/01jagc4k7pt8y3wqnmzv5xrbzz`, `/note/${ID_NOTE}`, `/note/${ID_DOC}`]) expect((await grace.goto(path))?.status(), path).toBe(404);
+    for (const path of [`/repo/${id}`, `/repo/${id}/Notes/Deep/Plan.fj.md`, `/d/01jagc4k7pt8y3wqnmzv5xrbzz`, `/n/${ID_NOTE}`, `/n/${ID_DOC}`]) expect((await grace.goto(path))?.status(), path).toBe(404);
     expect((await share(grace.request, { doc: ID_DOC, email: graceEmail, role: "edit" })).status()).toBe(404);
     expect((await grace.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)).status()).toBe(404);
     // And not a person with no share.
-    expect((await mallory.goto(`/doc/${ID_DOC}`))?.status()).toBe(404);
+    expect((await mallory.goto(`/d/${ID_DOC}`))?.status()).toBe(404);
 
     // The owner sees who it is shared with; it follows the file when it is moved; and taking the share away ends it at once.
     const listed = await (await page.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)).json();
     expect(listed.shares).toEqual([{ accountId: expect.any(String), name: "Grace Hopper", email: graceEmail, role: "view" }]);
     await hubs.more.commitFiles({ "Notes/Deep/Plan.fj.md": null, "Notes/Moved/Q4 plan.fj.md": SHARE_DOC });
-    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(200);
+    expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(200);
     await expect(grace.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
 
     const gone = await unshare(page.request, { doc: ID_DOC, accountId: listed.shares[0].accountId });
     expect(await gone.json()).toEqual({ removed: true });
-    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(404);
+    expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(404);
     await other.close();
     await stranger.close();
   } finally {
@@ -3021,7 +3021,7 @@ test("a link opens a document for anyone who has it, until it expires or is revo
     const visitor = await reader.newPage();
 
     const link = await make({ role: "view" });
-    expect(link.url).toBe(`${BASE}/doc/${ID_DOC}?token=${link.token}`);
+    expect(link.url).toBe(`${BASE}/d/${ID_DOC}?token=${link.token}`);
 
     // Someone with no account and no session reads it: the title and the text, read-only, and nothing of where it is.
     expect((await visitor.goto(link.url))?.status()).toBe(200);
@@ -3036,7 +3036,7 @@ test("a link opens a document for anyone who has it, until it expires or is revo
     // (Someone who has not been given the link, so a context with no cookie of its own.)
     const cold = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.3.5" } });
     const outsider = await cold.newPage();
-    for (const url of [`/doc/01jagc4k7pt8y3wqnmzv5xrbzz?token=${link.token}`, `/doc/${ID_DOC}`, `/doc/${ID_DOC}?token=${"A".repeat(43)}`, `/doc/${ID_DOC}?token=short`, `/note/${ID_DOC}?token=${link.token}`]) {
+    for (const url of [`/d/01jagc4k7pt8y3wqnmzv5xrbzz?token=${link.token}`, `/d/${ID_DOC}`, `/d/${ID_DOC}?token=${"A".repeat(43)}`, `/d/${ID_DOC}?token=short`, `/n/${ID_DOC}?token=${link.token}`]) {
       await outsider.goto(url);
       await expect(outsider, url).toHaveURL(/\/sign-in/);
       await expect(outsider.getByRole("heading", { name: "Q4 plan" }), url).toHaveCount(0);
@@ -3104,6 +3104,38 @@ test("only the owner makes links, only for a document, from this site, and the t
   }
 });
 
+test("the routes' old names still work: /doc/<id> and /note/<id> go to /d/<id> and /n/<id>, and a link given before the change still opens the document", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "An idea") });
+    // The owner's bookmarks: the old address is sent on for good, to the short one.
+    const old = await page.goto(`/doc/${ID_DOC}`);
+    expect(page.url()).toBe(`${BASE}/d/${ID_DOC}`);
+    expect(old?.request().redirectedFrom()?.url()).toBe(`${BASE}/doc/${ID_DOC}`);
+    expect((await old!.request().redirectedFrom()!.response())!.status()).toBe(308);
+    await page.goto(`/note/${ID_NOTE}`);
+    expect(page.url()).toBe(`${BASE}/n/${ID_NOTE}`);
+
+    // A share link as it was given before the routes were shortened: it opens the document, and ends on the short address with the token gone.
+    const made = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "view" } });
+    const link = (await made.json()) as { token: string; url: string };
+    expect(link.url).toBe(`${BASE}/d/${ID_DOC}?token=${link.token}`);
+    const reader = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.4.9" } });
+    const visitor = await reader.newPage();
+    const final = await visitor.goto(`${BASE}/doc/${ID_DOC}?token=${link.token}`);
+    expect(final?.status()).toBe(200);
+    expect(visitor.url()).toBe(`${BASE}/d/${ID_DOC}`);
+    expect(visitor.url()).not.toContain(link.token);
+    const first = (await final!.request().redirectedFrom()!.response())!;
+    expect(first.status()).toBe(303);
+    expect(JSON.stringify(first.headers())).not.toContain(link.token);
+    const cookie = (await reader.cookies(`${BASE}/d/${ID_DOC}`)).find((candidate) => candidate.name === "fjord_share")!;
+    expect(cookie).toMatchObject({ value: link.token, httpOnly: true, path: `/d/${ID_DOC}` });
+    await reader.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
 test("a link's token is swapped for a cookie of that document and gone from the address, and ends when the link does", async ({ page, browser }) => {
   try {
     const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/Other.fj.md": withId("01jagc4k7pt8y3wqnmzv5xrbzz", "private") });
@@ -3118,12 +3150,12 @@ test("a link's token is swapped for a cookie of that document and gone from the 
     // The first request is not a page: it is answered with a redirect to the clean address, and the cookie.
     const final = await visitor.goto(link.url);
     expect(final?.status()).toBe(200);
-    expect(visitor.url()).toBe(`${BASE}/doc/${ID_DOC}`);
+    expect(visitor.url()).toBe(`${BASE}/d/${ID_DOC}`);
     expect(visitor.url()).not.toContain(link.token);
     const first = final!.request().redirectedFrom()!;
     const redirect = (await first.response())!;
     expect(redirect.status()).toBe(303);
-    expect(redirect.headers()["location"]).toBe(`/doc/${ID_DOC}`);
+    expect(redirect.headers()["location"]).toBe(`/d/${ID_DOC}`);
     expect(JSON.stringify(redirect.headers())).not.toContain(link.token); // not in a header either: Next puts a rewrite there
     expect(redirect.headers()["referrer-policy"]).toBe("no-referrer");
     expect(final?.headers()["referrer-policy"]).toBe("no-referrer");
@@ -3133,23 +3165,23 @@ test("a link's token is swapped for a cookie of that document and gone from the 
     expect(await visitor.evaluate(() => performance.getEntriesByType("navigation").map((entry) => entry.name).join(" "))).not.toContain("token=");
 
     // The cookie: that document's path only, out of reach of the page's script, short-lived, and the only place the token is.
-    const cookies = await reader.cookies(`${BASE}/doc/${ID_DOC}`);
+    const cookies = await reader.cookies(`${BASE}/d/${ID_DOC}`);
     const share = cookies.find((cookie) => cookie.name === "fjord_share")!;
-    expect(share).toMatchObject({ value: link.token, httpOnly: true, sameSite: "Lax", path: `/doc/${ID_DOC}` });
+    expect(share).toMatchObject({ value: link.token, httpOnly: true, sameSite: "Lax", path: `/d/${ID_DOC}` });
     expect(share.expires - Date.now() / 1000).toBeGreaterThan(3500);
     expect(share.expires - Date.now() / 1000).toBeLessThanOrEqual(3600);
     expect(await visitor.evaluate(() => document.cookie)).not.toContain("fjord_share");
-    expect((await reader.cookies(`${BASE}/doc/01jagc4k7pt8y3wqnmzv5xrbzz`)).some((cookie) => cookie.name === "fjord_share")).toBe(false);
+    expect((await reader.cookies(`${BASE}/d/01jagc4k7pt8y3wqnmzv5xrbzz`)).some((cookie) => cookie.name === "fjord_share")).toBe(false);
     expect((await reader.cookies(`${BASE}/repo/${id}`)).some((cookie) => cookie.name === "fjord_share")).toBe(false);
 
     // It goes on working at the clean address, with the cookie, and for that document only.
     await visitor.reload();
     await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
-    expect((await visitor.goto(`/doc/01jagc4k7pt8y3wqnmzv5xrbzz`))?.status()).toBe(200);
+    expect((await visitor.goto(`/d/01jagc4k7pt8y3wqnmzv5xrbzz`))?.status()).toBe(200);
     await expect(visitor).toHaveURL(/\/sign-in/);
 
     // Taking the link away ends it for the holder of the cookie on their next request.
-    await visitor.goto(`/doc/${ID_DOC}`);
+    await visitor.goto(`/d/${ID_DOC}`);
     await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toBeVisible();
     await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } });
     await visitor.reload();
@@ -3158,15 +3190,15 @@ test("a link's token is swapped for a cookie of that document and gone from the 
     // A link that ends in a minute gives a cookie that ends with it.
     const brief = await make({ role: "view", expiresAt: Date.now() + 60_000 });
     await visitor.goto(brief.url);
-    await expect(visitor).toHaveURL(`${BASE}/doc/${ID_DOC}`);
-    const short = (await reader.cookies(`${BASE}/doc/${ID_DOC}`)).find((cookie) => cookie.name === "fjord_share")!;
+    await expect(visitor).toHaveURL(`${BASE}/d/${ID_DOC}`);
+    const short = (await reader.cookies(`${BASE}/d/${ID_DOC}`)).find((cookie) => cookie.name === "fjord_share")!;
     expect(short.value).toBe(brief.token);
     expect(short.expires - Date.now() / 1000).toBeLessThanOrEqual(60);
 
     // A link that does not work gets the same redirect, and no cookie.
     const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.4.5" } });
     const other = await stranger.newPage();
-    await other.goto(`/doc/${ID_DOC}?token=${link.token}`); // the revoked one
+    await other.goto(`/d/${ID_DOC}?token=${link.token}`); // the revoked one
     await expect(other).toHaveURL(/\/sign-in/);
     expect((await stranger.cookies()).some((cookie) => cookie.name === "fjord_share")).toBe(false);
     await stranger.close();
@@ -3201,14 +3233,14 @@ test("a link with a password lets nobody in with the token alone, slows wrong tr
     const visitor = await reader.newPage();
     const open = async () => {
       await visitor.goto(link.url);
-      await expect(visitor).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+      await expect(visitor).toHaveURL(`${BASE}/d/${ID_DOC}`);
     };
 
     // The token alone shows a question, not the document; and the cookie it left opens nothing.
     await open();
     await expect(visitor.getByRole("heading", { name: "This document needs a password" })).toBeVisible();
     await expect(visitor.getByText("The plan, for reading.")).toHaveCount(0);
-    const names = async () => (await reader.cookies(`${BASE}/doc/${ID_DOC}`)).map((cookie) => cookie.name);
+    const names = async () => (await reader.cookies(`${BASE}/d/${ID_DOC}`)).map((cookie) => cookie.name);
     expect(await names()).toContain("fjord_share_pending");
     expect(await names()).not.toContain("fjord_share");
     expect(await visitor.content()).not.toContain(link.token);
@@ -3229,10 +3261,10 @@ test("a link with a password lets nobody in with the token alone, slows wrong tr
     await visitor.waitForTimeout(1300);
     await give(PASSWORD);
     await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
-    await expect(visitor).toHaveURL(`${BASE}/doc/${ID_DOC}`);
-    const share = (await reader.cookies(`${BASE}/doc/${ID_DOC}`)).find((cookie) => cookie.name === "fjord_share")!;
+    await expect(visitor).toHaveURL(`${BASE}/d/${ID_DOC}`);
+    const share = (await reader.cookies(`${BASE}/d/${ID_DOC}`)).find((cookie) => cookie.name === "fjord_share")!;
     expect(share.value.startsWith(`${link.token}.`)).toBe(true);
-    expect(share).toMatchObject({ httpOnly: true, sameSite: "Lax", path: `/doc/${ID_DOC}` });
+    expect(share).toMatchObject({ httpOnly: true, sameSite: "Lax", path: `/d/${ID_DOC}` });
     expect(await names()).not.toContain("fjord_share_pending");
     await visitor.reload();
     await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
@@ -3245,12 +3277,12 @@ test("a link with a password lets nobody in with the token alone, slows wrong tr
     // Someone who has the link and sets the cookie for themselves, with the token and no proof, is not let in.
     const live = await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "view", password: PASSWORD } })).json();
     const forger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.5.6" } });
-    await forger.addCookies([{ name: "fjord_share", value: live.token, url: `${BASE}/doc/${ID_DOC}` }]);
+    await forger.addCookies([{ name: "fjord_share", value: live.token, url: `${BASE}/d/${ID_DOC}` }]);
     const forged = await forger.newPage();
-    await forged.goto(`/doc/${ID_DOC}`);
+    await forged.goto(`/d/${ID_DOC}`);
     await expect(forged).toHaveURL(/\/sign-in/);
-    await forger.addCookies([{ name: "fjord_share", value: `${live.token}.${"A".repeat(43)}`, url: `${BASE}/doc/${ID_DOC}` }]);
-    await forged.goto(`/doc/${ID_DOC}`);
+    await forger.addCookies([{ name: "fjord_share", value: `${live.token}.${"A".repeat(43)}`, url: `${BASE}/d/${ID_DOC}` }]);
+    await forged.goto(`/d/${ID_DOC}`);
     await expect(forged).toHaveURL(/\/sign-in/);
     await forger.close();
     await reader.close();
@@ -3284,7 +3316,7 @@ test("someone with an edit link gives a name, edits the working copy, and the ow
     const guest = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.6.6" } });
     const visitor = await guest.newPage();
     await visitor.goto(link.url);
-    await expect(visitor).toHaveURL(`${BASE}/doc/${ID_DOC}`);
+    await expect(visitor).toHaveURL(`${BASE}/d/${ID_DOC}`);
     await expect(visitor.getByText("Can edit")).toBeVisible();
 
     // A name comes first: until it is given the document can only be read.
@@ -3335,7 +3367,7 @@ test("a view link or a comment link cannot edit, and an edit link that is revoke
     const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
     const make = async (role: string) => (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role } })).json()) as { id: number; token: string; url: string };
     const put = (request: import("@playwright/test").APIRequestContext, data: unknown, origin: string | null = BASE) =>
-      request.put(`/doc/${ID_DOC}/draft`, { headers: origin === null ? {} : { origin }, data });
+      request.put(`/d/${ID_DOC}/draft`, { headers: origin === null ? {} : { origin }, data });
     const before = (await hubs.more.branchHead()) as string;
 
     for (const role of ["view", "comment"]) {
@@ -3414,7 +3446,7 @@ test("the owner sees and controls every share of a document from its page: peopl
     await expect(row).toHaveCount(1);
 
     // She reads it; the owner makes it comment, and she is told; then stops sharing, and she is not.
-    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(200);
+    expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(200);
     await expect(grace.getByText("Can view")).toBeVisible();
     await panel.getByLabel("Role of Grace Hopper").selectOption("comment");
     await expect.poll(async () => (await page.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`).then((r) => r.json())).shares[0].role).toBe("comment");
@@ -3425,7 +3457,7 @@ test("the owner sees and controls every share of a document from its page: peopl
     await expect(page.getByTestId("share-panel").getByLabel("Role of Grace Hopper")).toHaveValue("comment"); // what the page shows is what is kept
     await page.getByTestId("share-panel").getByRole("button", { name: "Stop sharing" }).click();
     await expect(page.getByTestId("share-panel").getByText("Not shared with anyone.")).toBeVisible();
-    expect((await grace.goto(`/doc/${ID_DOC}`))?.status()).toBe(404);
+    expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(404);
 
     // Links: made with a role and a password; the address is shown once and can be copied; it asks for the password.
     const links = page.getByTestId("share-panel");
@@ -3435,7 +3467,7 @@ test("the owner sees and controls every share of a document from its page: peopl
     const fresh = links.getByTestId("new-link");
     await expect(fresh).toContainText("This is the only time its address is shown.");
     const address = await fresh.getByLabel("The new link's address").inputValue();
-    expect(address).toMatch(new RegExp(`^${BASE}/doc/${ID_DOC}\\?token=[A-Za-z0-9_-]{43}$`));
+    expect(address).toMatch(new RegExp(`^${BASE}/d/${ID_DOC}\\?token=[A-Za-z0-9_-]{43}$`));
     await fresh.getByRole("button", { name: "Copy link" }).click();
     await expect(fresh.getByRole("button", { name: "Copied" })).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(address);
@@ -3614,8 +3646,8 @@ test("threads, replies, resolving, editing and deleting, by role, in the editor 
     await guest.reload();
     await expect(guestPanel.getByText("Comments are closed")).toBeVisible();
     await expect(guestPanel.getByRole("button", { name: /Reply|Resolve|Reopen/ })).toHaveCount(0);
-    const threadId = ((await (await guestContext.request.get(`/doc/${ID_DOC}/comments`)).json()) as { threads: { id: number }[] }).threads[0]!.id;
-    const refused = await guestContext.request.post(`/doc/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "reply", thread: threadId, body: "late", name: "Grace Hopper", clientId: "abcdefgh12345" } });
+    const threadId = ((await (await guestContext.request.get(`/d/${ID_DOC}/comments`)).json()) as { threads: { id: number }[] }).threads[0]!.id;
+    const refused = await guestContext.request.post(`/d/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "reply", thread: threadId, body: "late", name: "Grace Hopper", clientId: "abcdefgh12345" } });
     expect(refused.status()).toBe(409);
     await panel.getByRole("button", { name: "Open comments" }).click();
     await expect(panel.getByText("Comments are closed")).toHaveCount(0);
@@ -3636,7 +3668,7 @@ test("a named account it is shared with comments as itself, and a revoked link s
     await page.request.post(`/api/connections/${id}/shares`, { headers: { origin: BASE }, data: { doc: ID_DOC, email: graceEmail, role: "comment" } });
 
     // She is signed in, so she is herself: no name is asked, and nothing says guest.
-    await grace.goto(`/doc/${ID_DOC}`);
+    await grace.goto(`/d/${ID_DOC}`);
     const panel = grace.getByTestId("comments-panel");
     await expect(grace.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
     await selectText(grace, "plan, for");
@@ -3653,11 +3685,11 @@ test("a named account it is shared with comments as itself, and a revoked link s
     await expect(page.getByTestId("comments-panel").getByText("As myself.")).toBeVisible();
     const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "comment" } })).json()) as { id: number; url: string };
     const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.4" } });
-    const threadId = ((await (await page.request.get(`/doc/${ID_DOC}/comments`)).json()) as { threads: { id: number }[] }).threads[0]!.id;
+    const threadId = ((await (await page.request.get(`/d/${ID_DOC}/comments`)).json()) as { threads: { id: number }[] }).threads[0]!.id;
     const post = (request: import("@playwright/test").APIRequestContext, origin: string | null = BASE) =>
-      request.post(`/doc/${ID_DOC}/comments`, { headers: origin === null ? {} : { origin }, data: { op: "reply", thread: threadId, body: "x", name: "Mallory", clientId: "abcdefgh12345" } });
+      request.post(`/d/${ID_DOC}/comments`, { headers: origin === null ? {} : { origin }, data: { op: "reply", thread: threadId, body: "x", name: "Mallory", clientId: "abcdefgh12345" } });
     expect((await post(stranger.request)).status()).toBe(404);
-    expect((await stranger.request.get(`/doc/${ID_DOC}/comments`)).status()).toBe(404);
+    expect((await stranger.request.get(`/d/${ID_DOC}/comments`)).status()).toBe(404);
     expect((await post(graceContext.request, "https://evil.example")).status()).toBe(403);
 
     const guestContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.5" } });
@@ -3667,11 +3699,11 @@ test("a named account it is shared with comments as itself, and a revoked link s
     expect((await post(guestContext.request)).status()).toBe(201);
     await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } });
     expect((await post(guestContext.request)).status()).toBe(404);
-    expect((await guestContext.request.get(`/doc/${ID_DOC}/comments`)).status()).toBe(404);
+    expect((await guestContext.request.get(`/d/${ID_DOC}/comments`)).status()).toBe(404);
 
     // A note has no comments to be had.
-    expect((await stranger.request.get(`/doc/${ID_NOTE}/comments`)).status()).toBe(404);
-    expect((await page.request.get(`/doc/${ID_NOTE}/comments`)).status()).toBe(404);
+    expect((await stranger.request.get(`/d/${ID_NOTE}/comments`)).status()).toBe(404);
+    expect((await page.request.get(`/d/${ID_NOTE}/comments`)).status()).toBe(404);
     for (const context of [graceContext, stranger, guestContext]) await context.close();
   } finally {
     await restoreMore();
@@ -3723,7 +3755,7 @@ test("when a document is changed elsewhere, a thread follows the words around wh
 
     // The server keeps the words the second thread is on now, so that the next change is compared with those.
     const stored = async () => {
-      const listing = (await (await page.request.get(`/doc/${ID_DOC}/comments`)).json()) as { threads: { body: string; anchor: { quote: string } }[] };
+      const listing = (await (await page.request.get(`/d/${ID_DOC}/comments`)).json()) as { threads: { body: string; anchor: { quote: string } }[] };
       return Object.fromEntries(listing.threads.map((thread) => [thread.body.split(":")[0], thread.anchor.quote]));
     };
     await expect.poll(stored, { timeout: 10_000 }).toEqual({
@@ -3824,7 +3856,7 @@ test("comments are written only so fast by a browser and by a link, whatever nam
     await expect(guest.getByTestId("comments-panel")).toBeVisible();
     const anchor = { type: "text-quote", quote: "plan", prefix: "The ", suffix: ", for reading.", position: 4 };
     const write = (browserId: string, n: number) =>
-      context.request.post(`/doc/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor, body: `thread ${browserId} ${n}`, name: "Someone", clientId: browserId } });
+      context.request.post(`/d/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor, body: `thread ${browserId} ${n}`, name: "Someone", clientId: browserId } });
 
     // One browser: twenty a minute, then it is told to wait, and how long.
     for (let n = 0; n < 20; n++) expect((await write("browser-aaaaaaaa", n)).status(), `write ${n}`).toBe(201);
@@ -3839,15 +3871,15 @@ test("comments are written only so fast by a browser and by a link, whatever nam
     expect((await write("browser-dddddddd", 0)).status()).toBe(429);
 
     // What was refused was not written; what was let through was.
-    const listing = (await (await context.request.get(`/doc/${ID_DOC}/comments`)).json()) as { threads: { body: string }[] };
+    const listing = (await (await context.request.get(`/d/${ID_DOC}/comments`)).json()) as { threads: { body: string }[] };
     expect(listing.threads).toHaveLength(60);
     expect(listing.threads.some((thread) => thread.body === "thread browser-aaaaaaaa 20")).toBe(false);
 
     // The owner has an account's own count, and comments as itself, whatever the link's guests have used.
-    const mine = await page.request.post(`/doc/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor, body: "from the owner" } });
+    const mine = await page.request.post(`/d/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor, body: "from the owner" } });
     expect(mine.status()).toBe(201);
     // Reading is not held back.
-    expect((await context.request.get(`/doc/${ID_DOC}/comments`)).status()).toBe(200);
+    expect((await context.request.get(`/d/${ID_DOC}/comments`)).status()).toBe(200);
     await context.close();
   } finally {
     await restoreMore();
@@ -3963,8 +3995,8 @@ test("what other people wrote, in a document, a comment or a name, is shown as t
 
     // A guest writes the payload as a comment (a name with markup in it is refused), and the owner reads it, as text.
     await guest.goto(link.url);
-    expect((await guest.context().request.post(`/doc/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor: { type: "text-quote", quote: "Plain text", prefix: "", suffix: "", position: 0 }, body: payload, name: "<img src=x onerror=alert(1)>", clientId: "browser-hostile1" } })).status()).toBe(400);
-    expect((await guest.context().request.post(`/doc/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor: { type: "text-quote", quote: "Plain text", prefix: "", suffix: "", position: 0 }, body: payload, name: "Mallory", clientId: "browser-hostile1" } })).status()).toBe(201);
+    expect((await guest.context().request.post(`/d/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor: { type: "text-quote", quote: "Plain text", prefix: "", suffix: "", position: 0 }, body: payload, name: "<img src=x onerror=alert(1)>", clientId: "browser-hostile1" } })).status()).toBe(400);
+    expect((await guest.context().request.post(`/d/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor: { type: "text-quote", quote: "Plain text", prefix: "", suffix: "", position: 0 }, body: payload, name: "Mallory", clientId: "browser-hostile1" } })).status()).toBe(201);
 
     for (const [who, target, address] of [["the owner", page, `/repo/${id}/Notes/Plan.fj.md`], ["a guest", guest, link.url]] as const) {
       await target.goto(address);
@@ -4028,7 +4060,7 @@ test("every route that changes something refuses another site's request, even fr
     await signUp(mallory, `mallory-${Date.now()}@example.com`, "Mallory");
     const nobody = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.72" } });
 
-    const address = (route: string) => route.replace("/api/connections/[id]", `/api/connections/${id}`).replace("/doc/[id]", `/doc/${ID_DOC}`).replace("/note/[id]", `/note/${ID_DOC}`);
+    const address = (route: string) => route.replace("/api/connections/[id]", `/api/connections/${id}`).replace("/d/[id]", `/d/${ID_DOC}`).replace("/n/[id]", `/n/${ID_DOC}`);
     const sent = async (request: import("@playwright/test").APIRequestContext, method: string, route: string, origin: string | null) => {
       const response = await request.fetch(address(route), { method, ...(origin === null ? {} : { headers: { origin, "content-type": "application/json" } }), ...(method === "GET" ? {} : { data: {} }), maxRedirects: 0, failOnStatusCode: false });
       return response.status();
@@ -4088,11 +4120,11 @@ test("the git host's token and the instance's secrets are in nothing that reache
     watch(page, "owner");
 
     const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "edit" } })).json()) as { url: string };
-    for (const address of ["/", "/home", "/repositories", "/account/security", `/repo/${id}`, `/repo/${id}/Notes`, `/repo/${id}/Notes/idea.md`, `/repo/${id}/Notes/Plan.fj.md`, `/doc/${ID_DOC}`, `/deleted/${id}`]) {
+    for (const address of ["/", "/home", "/repositories", "/account/security", `/repo/${id}`, `/repo/${id}/Notes`, `/repo/${id}/Notes/idea.md`, `/repo/${id}/Notes/Plan.fj.md`, `/d/${ID_DOC}`, `/deleted/${id}`]) {
       await page.goto(address);
       await page.waitForLoadState("networkidle");
     }
-    for (const address of ["/api/connections", `/api/connections/${id}/links?doc=${ID_DOC}`, `/api/connections/${id}/shares?doc=${ID_DOC}`, `/doc/${ID_DOC}/comments`, "/api/health"]) {
+    for (const address of ["/api/connections", `/api/connections/${id}/links?doc=${ID_DOC}`, `/api/connections/${id}/shares?doc=${ID_DOC}`, `/d/${ID_DOC}/comments`, "/api/health"]) {
       const response = await page.request.get(address);
       const body = await response.text();
       const headers = JSON.stringify(response.headers());

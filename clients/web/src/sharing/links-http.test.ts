@@ -82,7 +82,7 @@ describe("making a link", () => {
     const { deps, create } = stub();
     const response = await handleLinks(req("POST", { ...good, role: "comment", author: "mallory", token: "chosen" }), ALICE, deps, "1");
     expect(response.status).toBe(201);
-    expect(await body(response)).toEqual({ id: 7, token: TOKEN, url: `${ORIGIN}/doc/${DOC}?token=${TOKEN}`, passwordProtected: false });
+    expect(await body(response)).toEqual({ id: 7, token: TOKEN, url: `${ORIGIN}/d/${DOC}?token=${TOKEN}`, passwordProtected: false });
     expect(create).toHaveBeenCalledWith("alice", 1, { docId: DOC, role: "comment", expiresAt: null, password: null });
   });
 
@@ -156,8 +156,8 @@ describe("making a link", () => {
   );
 
   it("builds the address on the instance's own origin, whatever slash it ends in", () => {
-    expect(linkUrl("https://f.example/", DOC, TOKEN)).toBe(`https://f.example/doc/${DOC}?token=${TOKEN}`);
-    expect(linkUrl("https://f.example", DOC, TOKEN)).toBe(`https://f.example/doc/${DOC}?token=${TOKEN}`);
+    expect(linkUrl("https://f.example/", DOC, TOKEN)).toBe(`https://f.example/d/${DOC}?token=${TOKEN}`);
+    expect(linkUrl("https://f.example", DOC, TOKEN)).toBe(`https://f.example/d/${DOC}?token=${TOKEN}`);
   });
 });
 

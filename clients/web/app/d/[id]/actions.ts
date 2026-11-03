@@ -20,10 +20,10 @@ export async function unlockAction(formData: FormData): Promise<void> {
   const result = await unlockFor(docId, typeof password === "string" ? password : undefined, jar.get(PENDING_COOKIE)?.value);
   if (result.ok) {
     const config = authConfig();
-    const options = { httpOnly: true, sameSite: "lax", secure: config.enabled && config.url.startsWith("https://"), path: `/doc/${docId}` } as const;
+    const options = { httpOnly: true, sameSite: "lax", secure: config.enabled && config.url.startsWith("https://"), path: `/d/${docId}` } as const;
     jar.set(SHARE_COOKIE, result.value, { ...options, maxAge: result.maxAgeSeconds });
     jar.set(PENDING_COOKIE, "", { ...options, maxAge: 0 });
-    redirect(`/doc/${docId}`);
+    redirect(`/d/${docId}`);
   }
-  redirect(result.reason === "gone" ? `/doc/${docId}` : `/doc/${docId}?wrong=${result.reason === "wait" ? "wait" : "1"}`);
+  redirect(result.reason === "gone" ? `/d/${docId}` : `/d/${docId}?wrong=${result.reason === "wait" ? "wait" : "1"}`);
 }

@@ -5,7 +5,7 @@ import { shareCookieOf } from "../sharing/guest-http";
 import type { Caller } from "./http";
 
 /**
- * Live updates (`GET /doc/<id>/comments/events`, DESIGN.md §13, ROADMAP 1d.3): a server-sent stream that says *that* a document's comments changed,
+ * Live updates (`GET /d/<id>/comments/events`, DESIGN.md §13, ROADMAP 1d.3): a server-sent stream that says *that* a document's comments changed,
  * and never what they are. The page, told so, reads them again through the ordinary route, which checks who is asking every time; so the stream
  * carries nothing a person who lost access could learn but a number going up.
  *

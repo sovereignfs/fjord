@@ -133,7 +133,7 @@ export const deletion = app.table(
 );
 
 /**
- * Which Doc is at which path of a repository (DESIGN.md §9, §14, ROADMAP 1b.6), so that `/doc/<id>` and `/note/<id>` can find
+ * Which Doc is at which path of a repository (DESIGN.md §9, §14, ROADMAP 1b.6), so that `/d/<id>` and `/n/<id>` can find
  * a file without listing every repository. One row per Markdown file of a plaintext vault that has been **read**: `doc_id`
  * is the `id` of its header (spec §8.3), or null when it has none, which is still worth knowing (the file is not read again
  * until its blob changes). `blob` is the file's git object id when it was read, and the index is trusted only where it still

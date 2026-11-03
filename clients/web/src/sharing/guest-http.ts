@@ -6,7 +6,7 @@ import { MAX_NAME_CHARS, type GuestSave } from "./guest";
 import { SHARE_COOKIE } from "./redact";
 
 /**
- * The HTTP face of editing through a link (`PUT /doc/<id>/draft`, DESIGN.md §12, ROADMAP 1c.6). It is under `/doc/<id>` because that is the
+ * The HTTP face of editing through a link (`PUT /d/<id>/draft`, DESIGN.md §12, ROADMAP 1c.6). It is under `/d/<id>` because that is the
  * path the link's cookie is scoped to (1c.4): the browser sends the cookie here and nowhere else of the app.
  *
  *  - **There is no session**: the caller is whoever holds the cookie, and what it lets them do is the link's, decided by the policy.

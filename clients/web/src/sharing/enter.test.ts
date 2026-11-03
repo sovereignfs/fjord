@@ -25,7 +25,7 @@ describe("a token that works", () => {
     const { deps: d } = deps(link());
     const response = await handleEnter(enter(TOKEN), d);
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(`/doc/${DOC}`);
+    expect(response.headers.get("location")).toBe(`/d/${DOC}`);
     expect(await response.text()).toBe("");
     const everythingElse = [...response.headers.entries()].filter(([name]) => name !== "set-cookie").flat().join(" ");
     expect(everythingElse).not.toContain(TOKEN);
@@ -36,7 +36,7 @@ describe("a token that works", () => {
   it("sets a cookie the page's script cannot read, for that document's path alone, that lasts an hour at most", async () => {
     const { deps: d } = deps(link());
     const cookie = (await handleEnter(enter(TOKEN), d)).headers.get("set-cookie")!;
-    expect(cookie).toBe(`fjord_share=${TOKEN}; Path=/doc/${DOC}; Max-Age=${COOKIE_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`);
+    expect(cookie).toBe(`fjord_share=${TOKEN}; Path=/d/${DOC}; Max-Age=${COOKIE_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`);
     expect(COOKIE_MAX_AGE_SECONDS).toBe(3600);
   });
 
@@ -52,7 +52,7 @@ describe("a token that works", () => {
   });
 
   it("builds the cookie as a function of the document and the token alone", () => {
-    expect(shareCookie(DOC, "abc", 60, true)).toBe(`fjord_share=abc; Path=/doc/${DOC}; Max-Age=60; HttpOnly; SameSite=Lax; Secure`);
+    expect(shareCookie(DOC, "abc", 60, true)).toBe(`fjord_share=abc; Path=/d/${DOC}; Max-Age=60; HttpOnly; SameSite=Lax; Secure`);
   });
 });
 
@@ -62,9 +62,9 @@ describe("a link with a password", () => {
   it("gets no cookie that opens it: its token waits ten minutes in a pending one, for that document, and the redirect is the clean address", async () => {
     const response = await handleEnter(enter(TOKEN), deps(protectedLink()).deps);
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(`/doc/${DOC}`);
+    expect(response.headers.get("location")).toBe(`/d/${DOC}`);
     const cookies = response.headers.getSetCookie();
-    expect(cookies).toEqual([`fjord_share_pending=${TOKEN}; Path=/doc/${DOC}; Max-Age=${PENDING_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`]);
+    expect(cookies).toEqual([`fjord_share_pending=${TOKEN}; Path=/d/${DOC}; Max-Age=${PENDING_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`]);
     expect(PENDING_MAX_AGE_SECONDS).toBe(600);
     expect(cookies.join(" ")).not.toMatch(/fjord_share=/);
   });
@@ -80,8 +80,8 @@ describe("a link with a password", () => {
   });
 
   it("builds the pending cookie, and the one that ends it, for the document alone", () => {
-    expect(pendingCookie(DOC, "abc", 60, true)).toBe(`fjord_share_pending=abc; Path=/doc/${DOC}; Max-Age=60; HttpOnly; SameSite=Lax; Secure`);
-    expect(clearPendingCookie(DOC, false)).toBe(`fjord_share_pending=; Path=/doc/${DOC}; Max-Age=0; HttpOnly; SameSite=Lax`);
+    expect(pendingCookie(DOC, "abc", 60, true)).toBe(`fjord_share_pending=abc; Path=/d/${DOC}; Max-Age=60; HttpOnly; SameSite=Lax; Secure`);
+    expect(clearPendingCookie(DOC, false)).toBe(`fjord_share_pending=; Path=/d/${DOC}; Max-Age=0; HttpOnly; SameSite=Lax`);
   });
 });
 
@@ -99,7 +99,7 @@ describe("a token that does not", () => {
     const { deps: d } = deps(found);
     const response = await handleEnter(enter(token), d);
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(`/doc/${DOC}`);
+    expect(response.headers.get("location")).toBe(`/d/${DOC}`);
     expect(response.headers.get("set-cookie")).toBeNull();
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect([...response.headers.values()].join(" ")).not.toContain(TOKEN);
@@ -121,15 +121,20 @@ describe("a token that does not", () => {
 
 describe("the address it is given", () => {
   it("names the document by its path as well, for a server that hands over the address as asked for", async () => {
-    const response = await handleEnter(new Request(`https://fjord.example.com/doc/${DOC}?token=${TOKEN}`), deps(link()).deps);
+    // A link given before the route was shortened enters too, and lands on the short address with a cookie for it.
+    const old = await handleEnter(new Request(`https://fjord.example.com/doc/${DOC}?token=${TOKEN}`), deps(link()).deps);
+    expect(old.status).toBe(303);
+    expect(old.headers.get("location")).toBe(`/d/${DOC}`);
+    expect(old.headers.get("set-cookie")).toContain(`Path=/d/${DOC}`);
+    const response = await handleEnter(new Request(`https://fjord.example.com/d/${DOC}?token=${TOKEN}`), deps(link()).deps);
     expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe(`/doc/${DOC}`);
-    expect(response.headers.get("set-cookie")).toContain(`Path=/doc/${DOC}`);
+    expect(response.headers.get("location")).toBe(`/d/${DOC}`);
+    expect(response.headers.get("set-cookie")).toContain(`Path=/d/${DOC}`);
   });
 
   it("takes the path's document over a `doc`, which is for a request made to the route itself, and nothing else for a document", async () => {
-    const response = await handleEnter(new Request(`https://fjord.example.com/doc/${DOC}?doc=${OTHER}&token=${TOKEN}`), deps(link()).deps);
-    expect(response.headers.get("location")).toBe(`/doc/${DOC}`);
+    const response = await handleEnter(new Request(`https://fjord.example.com/d/${DOC}?doc=${OTHER}&token=${TOKEN}`), deps(link()).deps);
+    expect(response.headers.get("location")).toBe(`/d/${DOC}`);
     expect((await handleEnter(new Request(`https://fjord.example.com/elsewhere/${DOC}?token=${TOKEN}`), deps(link()).deps)).status).toBe(404);
   });
 });

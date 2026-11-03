@@ -24,7 +24,7 @@ const req = (method: string, body?: unknown, init: { origin?: string | null; typ
   if (init.origin !== null && method !== "GET") headers.origin = init.origin ?? ORIGIN;
   if (body !== undefined && init.type !== null) headers["content-type"] = init.type ?? "application/json";
   if (init.cookie !== null) headers.cookie = init.cookie ?? COOKIE;
-  return new Request(`${ORIGIN}/doc/${DOC}/comments${init.query ?? ""}`, { method, headers, ...(body === undefined || method === "GET" ? {} : { body: typeof body === "string" ? body : JSON.stringify(body) }) });
+  return new Request(`${ORIGIN}/d/${DOC}/comments${init.query ?? ""}`, { method, headers, ...(body === undefined || method === "GET" ? {} : { body: typeof body === "string" ? body : JSON.stringify(body) }) });
 };
 const body = async (response: Response) => JSON.parse(await response.text());
 

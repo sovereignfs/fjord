@@ -9,7 +9,7 @@ import { proofIsRight } from "./password";
 import type { ShareService } from "./shares";
 
 /**
- * A document opened by someone it was shared with (DESIGN.md §12, ROADMAP 1c.2): `/doc/<id>` for a signed-in account that has
+ * A document opened by someone it was shared with (DESIGN.md §12, ROADMAP 1c.2): `/d/<id>` for a signed-in account that has
  * a named share on it, with no connection of its own. The share names the connection and the Doc `id`, not the path, so the
  * document is found as it is now, wherever it has been moved to; it is read with the owner's token and shown as it is in the
  * repository (a draft the owner has not saved as a version is not shown). The policy is asked, for the role the share has,

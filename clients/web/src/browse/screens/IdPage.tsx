@@ -8,7 +8,7 @@ import { connectionService } from "../../connections/server";
 import { encryptionKeyring } from "../../crypto/server";
 import { Alert, Badge, Card } from "../../ui";
 import { PasswordForm } from "../../sharing/PasswordForm";
-import { unlockAction } from "../../../app/doc/[id]/actions";
+import { unlockAction } from "../../../app/d/[id]/actions";
 import { parseShareCookie } from "../../sharing/unlock";
 import { PENDING_COOKIE, SHARE_COOKIE } from "../../sharing/redact";
 import { SharedBody } from "../../sharing/SharedBody";
@@ -19,19 +19,19 @@ import { findDocId } from "../server";
 import { RepositoryScreen } from "./RepositoryScreen";
 
 /**
- * `/doc/<id>` and `/note/<id>` (DESIGN.md §9, ROADMAP 1b.6): a file by its Doc `id`, wherever it is among the account's own
+ * `/d/<id>` and `/n/<id>` (DESIGN.md §9, ROADMAP 1b.6): a file by its Doc `id`, wherever it is among the account's own
  * repositories. One match is shown as `/repo/<connection>/<path>` is, at this address; a note asked for as a document (or the
  * other way round) is sent to the address that is its own; several (an id is unique within a repository, not across them, and a
  * copy is a copy) are listed to choose from; none is a 404, and an id that is not one is too. Another account's file is none.
  */
-export async function IdPage({ route, id, wrong }: { route: "doc" | "note"; id: string; wrong?: "wrong" | "wait" | undefined }) {
+export async function IdPage({ route, id, wrong }: { route: "d" | "n"; id: string; wrong?: "wrong" | "wait" | undefined }) {
   // A share link (ROADMAP 1c.3) needs no account. Its token is in a cookie, put there when the link was first opened (1c.4) and
   // checked here against the store at every request, so revoking or expiring a link ends it at once. A token that opens nothing
   // now (never made, for another document, expired or revoked) is not told apart from none: the page is then what it is for anyone.
-  const jar = route === "doc" ? await cookies() : undefined;
+  const jar = route === "d" ? await cookies() : undefined;
   const given = jar?.get(SHARE_COOKIE)?.value;
   const { token, proof } = given === undefined ? { token: undefined, proof: undefined } : parseShareCookie(given);
-  if (route === "doc" && token !== undefined && isDocId(id) && encryptionKeyring() !== undefined) {
+  if (route === "d" && token !== undefined && isDocId(id) && encryptionKeyring() !== undefined) {
     const linked = await openLinkedFor(token, id, proof);
     if (linked) {
       return (
@@ -52,7 +52,7 @@ export async function IdPage({ route, id, wrong }: { route: "doc" | "note"; id: 
   }
   // A link that asks for a password (ROADMAP 1c.5): its token waits in a cookie that opens nothing, and the person is asked.
   const waiting = jar?.get(PENDING_COOKIE)?.value;
-  if (route === "doc" && waiting !== undefined && isDocId(id) && encryptionKeyring() !== undefined && (await passwordWanted(waiting, id))) {
+  if (route === "d" && waiting !== undefined && isDocId(id) && encryptionKeyring() !== undefined && (await passwordWanted(waiting, id))) {
     return (
       <main className={styles.page}>
         <div className={styles.account}>
@@ -76,7 +76,7 @@ export async function IdPage({ route, id, wrong }: { route: "doc" | "note"; id: 
 
   const found = await findDocId(user.id, id);
   const [only, ...others] = found.matches;
-  if (only === undefined && route === "doc") {
+  if (only === undefined && route === "d") {
     // Not in any repository of theirs: it may have been shared with them (ROADMAP 1c.2), and then it is shown to be read.
     const shared = await openSharedFor(user.id, id);
     if (shared) {
@@ -108,7 +108,7 @@ export async function IdPage({ route, id, wrong }: { route: "doc" | "note"; id: 
   }
 
   if (others.length === 0) {
-    const own = only.kind === "document" ? "doc" : "note";
+    const own = only.kind === "document" ? "d" : "n";
     if (own !== route) redirect(`/${own}/${id}`);
     return <RepositoryScreen connection={String(only.connectionId)} path={only.path.split("/")} />;
   }

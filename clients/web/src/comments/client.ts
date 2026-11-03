@@ -3,7 +3,7 @@ import { cleanGuestName } from "../sharing/guest-name";
 import type { TextQuoteAnchor } from "./service";
 
 /**
- * The browser's side of `/doc/<id>/comments` (ROADMAP 1d.1): the requests the comments panel makes, and what each answer means to it. The `*From`
+ * The browser's side of `/d/<id>/comments` (ROADMAP 1d.1): the requests the comments panel makes, and what each answer means to it. The `*From`
  * functions are the meaning, kept apart from `fetch` so that they are tested without a browser. Every failure comes back as words for the person.
  */
 export interface ThreadView {
@@ -90,7 +90,7 @@ export function keepName(name: string): void {
   }
 }
 
-const address = (docId: string) => `/doc/${docId}/comments`;
+const address = (docId: string) => `/d/${docId}/comments`;
 
 /** Where the live stream of a document's comments is (ROADMAP 1d.3). */
 export const eventsAddress = (docId: string) => `${address(docId)}/events`;

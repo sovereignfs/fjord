@@ -9,7 +9,7 @@ import type { Action } from "./policy";
  *  - `account`: a signed-in account, and only its own data (its connections, its settings). Another's is a 404.
  *  - `resource`: something that belongs to a connection's owner, done for the `action` the policy names (`policy.ts`). Most of these
  *    routes are keyed by the connection, which a share never holds, so only its owner is let in. A share is let in at the
- *    routes keyed by a document: `/doc/<id>/draft` is the first (a link's holder edits, 1c.6), and the comments' come with 1d. The action
+ *    routes keyed by a document: `/d/<id>/draft` is the first (a link's holder edits, 1c.6), and the comments' come with 1d. The action
  *    each asks is named in the same way, so the policy, not the route, says which role may.
  */
 export type RouteAccess =
@@ -43,14 +43,14 @@ export const ROUTES: RouteRule[] = [
   { route: "/account/keys", page: { kind: "account" } },
   // A repository, a folder, a file; a document or note by its id; and what was deleted from it.
   { route: "/repo/[connection]/[[...path]]", page: owner("read") },
-  { route: "/doc/[id]", page: owner("read") },
-  // A guest edits through a link's cookie, which is sent under `/doc/<id>` and nowhere else (1c.4, 1c.6): the first route a share reaches, so the policy's `edit` is its action.
-  { route: "/doc/[id]/draft", methods: { PUT: owner("edit") } },
+  { route: "/d/[id]", page: owner("read") },
+  // A guest edits through a link's cookie, which is sent under `/d/<id>` and nowhere else (1c.4, 1c.6): the first route a share reaches, so the policy's `edit` is its action.
+  { route: "/d/[id]/draft", methods: { PUT: owner("edit") } },
   // Comments on a document: read by anyone let in, the rest by what the policy gives each role (1d.1). Each method names the weakest action it may be; the operation inside asks its own.
-  { route: "/doc/[id]/comments", methods: { GET: owner("read"), POST: owner("comment"), PATCH: owner("resolve"), DELETE: owner("delete_own_comment") } },
+  { route: "/d/[id]/comments", methods: { GET: owner("read"), POST: owner("comment"), PATCH: owner("resolve"), DELETE: owner("delete_own_comment") } },
   // The live stream of a document's comments: says that they changed, never what they are; who may watch is who may read them (1d.3).
-  { route: "/doc/[id]/comments/events", methods: { GET: owner("read") } },
-  { route: "/note/[id]", page: owner("read") },
+  { route: "/d/[id]/comments/events", methods: { GET: owner("read") } },
+  { route: "/n/[id]", page: owner("read") },
   // A sealed copy of an encrypted file, opened by a link (2c.1): the token in the path is the way in, and the key is in the address's fragment, which no request carries.
   { route: "/s/[token]", page: { kind: "public" } },
   { route: "/deleted/[connection]", page: owner("restore") },
@@ -58,7 +58,7 @@ export const ROUTES: RouteRule[] = [
   // APIs
   { route: "/api/health", methods: { GET: { kind: "public" } } },
   { route: "/api/auth/[...all]", methods: { GET: { kind: "public" }, POST: { kind: "public" } } },
-  // Entering by a share link: the proxy sends `/doc/<id>?token=` here for the cookie and the redirect (1c.4); a token that works is the only way in.
+  // Entering by a share link: the proxy sends `/d/<id>?token=` here for the cookie and the redirect (1c.4); a token that works is the only way in.
   { route: "/api/links/enter", methods: { GET: { kind: "public" } } },
   // Installing the GitHub App (1a.6): a signed-in person leaves for GitHub and comes back, with a `state` this browser was given. The webhook is GitHub's, not a person's: it is let in by its signature alone.
   { route: "/api/github-app/install", methods: { GET: { kind: "account" } } },

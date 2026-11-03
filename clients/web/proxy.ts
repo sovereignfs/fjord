@@ -11,8 +11,8 @@ import { HSTS, contentSecurityPolicy, newNonce } from "./src/security/csp";
  *
  * **Every page is sent with a Content-Security-Policy** with a nonce of its own (`src/security/csp.ts`), so every page is rendered per request, the landing page too.
  *
- * **A share link's first request is not a page** (DESIGN.md §12, ROADMAP 1c.4): `/doc/<id>?token=…` is handed to
- * `/api/links/enter`, which swaps the token for a cookie scoped to that document and redirects to the clean `/doc/<id>`, so the
+ * **A share link's first request is not a page** (DESIGN.md §12, ROADMAP 1c.4): `/d/<id>?token=…` is handed to
+ * `/api/links/enter`, which swaps the token for a cookie scoped to that document and redirects to the clean `/d/<id>`, so the
  * token does not stay in the address bar, the history or a `Referer`. Nothing is looked up here: the proxy only sees that
  * there is a token. **The rewrite names no token**: Next puts the rewritten address in a response header (`x-middleware-rewrite`),
  * where a token would be sent back out, so the entry reads the document and the token from the address as it was asked for.
@@ -40,9 +40,20 @@ export function proxy(request: NextRequest) {
   if (pathname === "/" && getSessionCookie(request, { cookiePrefix: "fjord" })) {
     return marked(NextResponse.rewrite(new URL("/home", request.url), { request: { headers: requestHeaders } }));
   }
-  const doc = /^\/doc\/([^/]+)$/.exec(pathname);
-  if (doc && searchParams.has("token")) {
+  // A share link: `/d/<id>?token=`, or `/doc/<id>?token=` as links were given before the routes were shortened. Either way the entry swaps the token for a
+  // cookie and sends the person to `/d/<id>`, so a link already in someone's hands keeps working.
+  const shared = /^\/(?:d|doc)\/([^/]+)$/.exec(pathname);
+  if (shared && searchParams.has("token")) {
     return marked(NextResponse.rewrite(new URL("/api/links/enter", request.url), { request: { headers: requestHeaders } }));
+  }
+  // The routes' old names, for a bookmark or a link with no token in it: sent on for good to the short ones, with the query as it was.
+  const old = /^\/(doc|note)\/([^/]+)$/.exec(pathname);
+  if (old) {
+    const target = new URL(`/${old[1] === "doc" ? "d" : "n"}/${old[2]}`, request.url);
+    target.search = request.nextUrl.search;
+    // Nothing that is a token goes into an address by way of a redirect: a link's token is only ever swapped for a cookie, by the entry above.
+    target.searchParams.delete("token");
+    return marked(NextResponse.redirect(target, 308));
   }
   return marked(NextResponse.next({ request: { headers: requestHeaders } }));
 }

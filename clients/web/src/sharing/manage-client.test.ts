@@ -24,7 +24,7 @@ describe("what an answer means", () => {
   });
 
   it("hands on a new link's token and address, from the 201 alone", () => {
-    expect(createdFrom(201, { id: 7, token: "T", url: "https://x/doc/d?token=T", passwordProtected: true })).toEqual({ ok: true, id: 7, token: "T", url: "https://x/doc/d?token=T", passwordProtected: true });
+    expect(createdFrom(201, { id: 7, token: "T", url: "https://x/d/d?token=T", passwordProtected: true })).toEqual({ ok: true, id: 7, token: "T", url: "https://x/d/d?token=T", passwordProtected: true });
     expect(createdFrom(200, { id: 7, token: "T", url: "u" })).toMatchObject({ ok: false });
     expect(createdFrom(201, { id: 7 })).toMatchObject({ ok: false });
     expect(createdFrom(201, { id: 7, token: "T", url: "u" })).toMatchObject({ ok: true, passwordProtected: false });

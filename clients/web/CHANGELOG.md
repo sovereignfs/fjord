@@ -36,6 +36,8 @@ section.
 
 ### Changed
 
+- **A document's address is `/d/<id>` and a note's is `/n/<id>`**, shortened from `/doc/<id>` and `/note/<id>`. The comments, the guest edit route and a share link's cookie are under `/d/<id>` too, and the share link `POST …/links` makes is `/d/<id>?token=…`. **The old addresses still work:** `/doc/<id>` and `/note/<id>` are sent on to the new ones for good, and a share link given before this (`/doc/<id>?token=…`) still opens the document and ends on `/d/<id>`. A reader who held a link's cookie when this was installed is not sent it at the new address and opens their link again. If your proxy's access log is kept clean of tokens by a pattern on `/doc/`, add `/d/` (`deploy/README.md`).
+
 - **Building the image needs the port, which `sovereign.manifest.json` now writes and nothing else does.** The image is built with
   `eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest.mjs docker-args) -t fjord-web ."`, which gives it the
   port and its label; a plain `docker build` stops at once and prints that command. The Compose files, which build from a checkout, pass the

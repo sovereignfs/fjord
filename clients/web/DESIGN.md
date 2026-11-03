@@ -58,8 +58,8 @@ Phase 1 ships in slices (§16), each usable on its own.
 5. **Browsing** shows names, paths and sizes only, nothing downloaded (§8).
    Documents and notes are clearly openable; other files are shown greyed out.
    Encrypted vaults show a lock; a file in one opens and is edited in the browser with the person's own age identity, and new files are made there (phase 2).
-6. **Opening** a document (`name.fj.md`) goes to `/doc/<id>` and the document editor;
-   opening a note (any other `.md`) goes to `/note/<id>` and the note editor (§9, §10).
+6. **Opening** a document (`name.fj.md`) goes to `/d/<id>` and the document editor;
+   opening a note (any other `.md`) goes to `/n/<id>` and the note editor (§9, §10).
 7. **Editing** saves continuously to a working copy on the server; a version (a git
    commit) is made on "Save version" or after a quiet period (§11).
    **Renaming, moving and deleting** a document, note or folder is one commit each;
@@ -460,8 +460,8 @@ browsed read-only, with an offer to initialise it (decided, §19 #3; ROADMAP 1a.
 
   | File | Shown as | Opens in |
   | --- | --- | --- |
-  | `*.fj.md` | Document | Document editor, `/doc/<id>` |
-  | `*.md` (any other) | Note | Note editor, `/note/<id>` |
+  | `*.fj.md` | Document | Document editor, `/d/<id>` |
+  | `*.md` (any other) | Note | Note editor, `/n/<id>` |
   | anything else | greyed out | — (phase 1) |
   | anything in an encrypted vault | greyed out, with a lock | — (phase 2) |
 
@@ -608,7 +608,7 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
 - **Who:** the owner, in phase 1 (as for sharing, §12). An edit share edits content;
   it does not rename, move or delete.
 - **Identity survives a rename or move.** A Doc's `id` is in its frontmatter, so
-  `/doc/<id>`, `/note/<id>`, shares, comments and the id index follow the file; only its
+  `/d/<id>`, `/n/<id>`, shares, comments and the id index follow the file; only its
   path changes. A note without an id keeps none: a rename is not an edit of its
   content, so the file moves byte for byte (spec §8.2) and its path route changes.
 - **The extension stays.** The rename field edits the name before `.fj.md` or
@@ -666,7 +666,7 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
   stops if the file or folder is not what was shown. A file with unsaved changes has them saved as a version first; a folder
   with any, or a place that has a draft of its own, is refused. The page offers *Rename* (the name before the extension) and
   *Move* (a folder from the plaintext vaults the repository lists, up to 300) beside Delete. The id index is moved with the
-  files, so `/doc/<id>` and `/note/<id>` work at once; shares and comments, which follow an `id`, need nothing from a move
+  files, so `/d/<id>` and `/n/<id>` work at once; shares and comments, which follow an `id`, need nothing from a move
   and do not exist yet. Not here: converting a note to a document, and undoing a move (it is one commit, and moving back is
   another).
 - **Deleting asks for confirmation**, naming what will go (for a folder, how many
@@ -719,12 +719,12 @@ show it). This needs a one-sentence spec amendment and CLI support (ROADMAP,
 
 **Identifiers and routes.**
 
-- `/doc/<id>` for documents, `/note/<id>` for notes, where `<id>` is the Doc's `id`
+- `/d/<id>` for documents, `/n/<id>` for notes, where `<id>` is the Doc's `id`
   (spec §8.3, a lowercase ULID).
 - **A note without frontmatter has no id**, and the spec forbids adding one merely
   because the file was opened (§8.2). Until its first edit it is addressed by path,
   `/repo/<connection>/<path>`; the first edit gives it frontmatter and an `id` (§8.2
-  allows that on an explicit edit), and the page moves to `/note/<id>`. A new
+  allows that on an explicit edit), and the page moves to `/n/<id>`. A new
   document is created with an id.
 - **Resolving an id** uses a server-side index of `id → connection, path`, filled
   as files are read and by a background pass over each connection's Markdown files,
@@ -752,7 +752,7 @@ The blank line the module puts between the header and the body is the body's, so
 carriage return or a byte order mark is not promoted (its endings would mix, or the mark would leave the first byte); a
 header that cannot be read is not split, rewritten or shown in the panel, and the file is shown whole.
 
-*As built (ROADMAP 1b.6).* **`/doc/<id>` and `/note/<id>`** show the file with that `id` among the signed-in account's own
+*As built (ROADMAP 1b.6).* **`/d/<id>` and `/n/<id>`** show the file with that `id` among the signed-in account's own
 repositories, in place and at that address (the page is the one `/repo/<connection>/<path>` shows, which is the same
 screen); a note asked for as a document, or the other way round, is sent to the address that is its own. The id must be a
 lowercase ULID, else it is a 404 before anything is looked up. **One match** opens; **several** (an id is unique within a
@@ -760,7 +760,7 @@ repository, spec E401, not across them, and a copy is a copy) are listed to choo
 404, and another account's file is none, which says nothing about whether the id exists. If a repository could not be read,
 or the search stopped at its limit, the page says so instead of 404: a file that could not be looked for is not reported absent.
 The lists of folders still link by path, since a listing reads no file and so knows no id; a file's page says its address by
-id (`/note/<id>`) once it has been read, and that is the one to keep, because it is the one a rename or a move leaves true
+id (`/n/<id>`) once it has been read, and that is the one to keep, because it is the one a rename or a move leaves true
 (1b.11). The first edit of a note stays at the address it was opened at: its new id is in the draft, and is in the
 repository, and so in the index, from the version after.
 
@@ -1125,16 +1125,20 @@ Documents (`*.fj.md`) can be shared in phase 1. Notes cannot.
   role, an optional expiry, and can be revoked; a document can have several links,
   for example a comment link for reviewers and an edit link for collaborators.
 
-**Link URLs** are `/doc/<id>?token=<token>`. A document id is not a secret (it is in
+**Link URLs** are `/d/<id>?token=<token>`. A document id is not a secret (it is in
 the file's frontmatter, so in the repository, its history and its commits), so a
 link carries its own random token. On first use the server swaps the token for a
-short-lived cookie scoped to that share and redirects to the clean `/doc/<id>`, so
+short-lived cookie scoped to that share and redirects to the clean `/d/<id>`, so
 the token does not stay in the address bar, history or `Referer`. Pages send
 `Referrer-Policy: no-referrer`; tokens are redacted from logs. A password-protected
 link asks for its password at that swap; passwords are hashed with Argon2id and
 attempts are rate-limited.
 
-**Signed-in users with a named share** use the plain `/doc/<id>`.
+**Links given before the routes were shortened** (2026-11-03) are `/doc/<id>?token=…`. They still enter, and end on `/d/<id>`
+with the cookie for it, so a link in someone's hands keeps working. A reader who already held a link's cookie (it was for
+`/doc/<id>`) is not sent it at `/d/<id>`, and opens their link again.
+
+**Signed-in users with a named share** use the plain `/d/<id>`.
 
 **Anonymous link users** choose a display name before they comment or switch to
 edit mode; it is kept in the browser and shown on their comments and edits.
@@ -1165,7 +1169,7 @@ are named), naming oneself stores nothing and says the same, and the cap of 100 
 is looked up so that it cannot tell them apart either. The address is compared whole and without regard to case, never as a
 prefix or pattern. The owner's list names the accounts a document is shared with (it is their own sharing, and the design allows
 them to read it); an address that has no account never appears in it. A share is keyed by the connection and the Doc `id`, so it
-follows the file when it is renamed or moved (1b.11). The account it was shared with opens it at the plain `/doc/<id>` (when it is
+follows the file when it is renamed or moved (1b.11). The account it was shared with opens it at the plain `/d/<id>` (when it is
 none of theirs): read with the owner's token, as it is in the repository now (a draft the owner has not saved is not shown), as the
 title and the body in the document editor with the `view` role, saying who shared it and at what role. The header, the path
 and the repository are not shown, nothing else of the owner's is reachable, and taking the share away ends it on the next
@@ -1178,7 +1182,7 @@ stored, so a copy of the database opens no link. `GET …/links?doc=<id>` lists 
 become of each (`active`, `expired`, `revoked`) and never a token; `DELETE` with `{ doc, linkId }` revokes one and no other. Several
 links per document (50 at most), each its own. The owner only (policy `manage_shares`; another's connection is a 404), writes from
 this site, documents only, and an expiry must be in the future and within ten years. A link is of the connection and the Doc `id`, so
-it follows the file when it is renamed or moved. `/doc/<id>?token=<token>` opens the document for **whoever has the link, signed in
+it follows the file when it is renamed or moved. `/d/<id>?token=<token>` opens the document for **whoever has the link, signed in
 or not**: the token must be one that was made, for **that** document (a link to one opens no other), and live: the policy is given its
 role, expiry and revocation, and a link that has expired (from the moment of its expiry) or been revoked is as if it had never
 been. A token that opens nothing now is not told apart from none given, so the page is then what it is for anyone: the sign-in.
@@ -1188,8 +1192,8 @@ name before commenting or editing (1c.6), the screen for managing links (1c.7).
 
 *As built (ROADMAP 1c.4), token handling.* A link's address carries its token, and a token left in the address bar stays in the
 history, a bookmark, a screenshot and any log of the address, so **the first request is not a page**. `proxy.ts` hands
-`/doc/<id>?token=…` to `/api/links/enter` (the rewrite names no token, since Next sends a rewritten address back in a response header),
-which answers **a 303 to the clean `/doc/<id>` and a cookie**: `fjord_share=<token>`, `Path=/doc/<id>` (that document only),
+`/d/<id>?token=…` to `/api/links/enter` (the rewrite names no token, since Next sends a rewritten address back in a response header),
+which answers **a 303 to the clean `/d/<id>` and a cookie**: `fjord_share=<token>`, `Path=/d/<id>` (that document only),
 `HttpOnly`, `SameSite=Lax`, `Secure` on https, and an hour at most and no longer than the link has to live. The page checks the cookie's
 token against the store at every request, so **revoking or expiring a link ends what it opened on the next request**, with no session to
 find and end. The answer is the same for a token that works and one that does not (the redirect, without the cookie); the token is
@@ -1222,7 +1226,7 @@ link's password or expiry after it is made, and the screen for managing links (1
 *As built (ROADMAP 1c.6), editing through a link.* A link whose role is **edit** opens the document in the document editor, **with a name asked for
 first**: until the person has given one (one line, up to 40 characters, no control characters or angle brackets, kept in their
 browser) the editor can only be read, and the name is shown beside it. What they type is kept as the document's **working copy**,
-the same draft the owner sees (a second after they stop, as for the owner), by `PUT /doc/<id>/draft`. That route is under `/doc/<id>` because
+the same draft the owner sees (a second after they stop, as for the owner), by `PUT /d/<id>/draft`. That route is under `/d/<id>` because
 the link's cookie (1c.4) is sent there and nowhere else; there is no session, and the cookie is the credential: it must hold a token of a link of
 *this* document that is live, whose role may `edit`, and for a link with a password the proof that it was given. A cookie that is absent,
 wrong, for another document, expired or revoked is a 404 (not told apart from there being no document); a good one on a view or comment
@@ -1304,9 +1308,9 @@ Threads, replies, resolving, editing, deleting and closing are built, and so is 
 (1d.3) and the limits (1d.4), below.
 
 - **Where the comments are:** a panel beside the document, for the owner (on the document's page), for an account it is shared with and for
-  anyone with a link (on `/doc/<id>`). They are kept per connection and Doc `id` (`comment_thread`, `comment_reply`, `comment_activity`,
+  anyone with a link (on `/d/<id>`). They are kept per connection and Doc `id` (`comment_thread`, `comment_reply`, `comment_activity`,
   `comment_closed`; migration `0012`), so they follow the file through a rename or a move, and go with a disconnected repository.
-- **The API** is `/doc/<id>/comments`, under `/doc/<id>` because that is where a link's cookie is sent; a session works there too. `GET` lists
+- **The API** is `/d/<id>/comments`, under `/d/<id>` because that is where a link's cookie is sent; a session works there too. `GET` lists
   (`?name=&client=` lets a guest see which are theirs); `POST` `{ op: "thread", anchor, body }` or `{ op: "reply", thread, body }`; `PATCH`
   `{ op: "resolve", thread, resolved }`, `{ op: "edit", kind, id, body }` or `{ op: "close", closed }`; `DELETE` `{ kind, id }`. Writes come
   from this site only. A caller who is let in nowhere is told "not found", one who is let in but not to this "forbidden".
@@ -1344,7 +1348,7 @@ same plain text of the rendered document that the marks are drawn on). Whenever 
   moved onto text it was not about, and found again by the same anchor if the words come back.
 
 The editor tells the app each thread's fate (`CommentsAdapter.anchored`). For an `edited` thread the app, once the new place has stayed for a moment (a
-person typing inside the text changes it at every key), asks the server to keep it: `PATCH /doc/<id>/comments` `{ op: "reanchor", thread, from, to }`, so
+person typing inside the text changes it at every key), asks the server to keep it: `PATCH /d/<id>/comments` `{ op: "reanchor", thread, from, to }`, so
 that the next change is compared with the words as they are now and not with the words from long ago. The server does what it can check without the text:
 it moves a thread only **from the anchor it was found with** (a page that did not see an earlier move changes nothing, `409 stale`) and only onto a quote **like
 the old one** (within 40%, `422 bad_anchor`), so that one request cannot move a thread onto unrelated text. It needs the right to comment but no name (the
@@ -1357,7 +1361,7 @@ no more than what they can do to the thread by resolving or deleting it, and is 
 A page showing a document's comments is told when they change, and reads them again; two people looking at one document see each other's comments, replies,
 resolving, editing, deleting and closing without reloading.
 
-- **The stream** is `GET /doc/<id>/comments/events`, server-sent events (under `/doc/<id>` for a link's cookie, like the comments). It says *that*
+- **The stream** is `GET /d/<id>/comments/events`, server-sent events (under `/d/<id>` for a link's cookie, like the comments). It says *that*
   something changed and never *what*: `version` first (where the comments are up to), `changed` with the new number whenever it moves, `gone` once when the
   watcher may no longer read them, and a comment line every 20 seconds so nothing in between closes an idle connection. A page that holds the number it was given
   with its comments reads them again, through the ordinary route (which checks who is asking each time), only when the number is not that one. The stream
@@ -1798,7 +1802,7 @@ standalone output would otherwise prune it.
 | 2026-10-22 | Document editor on MDXEditor; note editor minimal and byte-faithful; both in `packages/fjord-editor` | — |
 | 2026-10-22 | Server-side working copies; versions on save or after a quiet period | A commit per save; copy-and-approve |
 | 2026-10-22 | Shares: named users and links (public or password); view, comment, edit; until revoked, expiry optional | Expiring anonymous shares |
-| 2026-10-22 | Link URL `/doc/<id>?token=…`, swapped for a cookie on first use | A separate share route |
+| 2026-10-22 | Link URL `/d/<id>?token=…`, swapped for a cookie on first use | A separate share route |
 | 2026-10-22 | `fjord-core` as WebAssembly, in Node and (phase 2) the browser | A TypeScript reimplementation of the format |
 | 2026-10-22 | `clients/web` is AGPL-3.0-or-later and open | Dual-licensing the design system; tokens only |
 | 2026-10-22 | Phase 1 is plaintext only; encryption phase 2; collaborative editing phase 3 | — |
@@ -1822,3 +1826,4 @@ standalone output would otherwise prune it.
 | 2026-11-02 | Phase 3 is repository kinds (`drive`, `journal`, `ssg`, on the repository, proposed in RFC 0001); collaborative editing moves to phase 4 | Collaborative editing first (it was an outline with no tasks; kinds were wanted sooner); a kind per vault (one repository is one thing to the person, and a site is deployed per repository) |
 | 2026-11-02 | Every variable `FJORD_`, named as Sovereign's `contracts/env.md` names it (`FJORD_DB_DIALECT` = `sqld`, `sqlite` or `postgres`; `FJORD_POSTGRES_URL[_FILE]`; `FJORD_SMTP_*`; `FJORD_CORE_URL`, `_CLIENT_ID`, `_CLIENT_SECRET`), the old names still read, with a warning, and an error beside their new ones; so an instance can host Fjord Web with the variables it gives every app | Keeping the unprefixed names (an instance's `suite.yml` cannot set them); prefixing only, with `sqlite` still covering sqld and a file; dropping the old names at once (0.1 deployments would stop) |
 | 2026-11-02 | A kind is a module of the client (`src/kinds/`): entry view, scaffold, content model, actions, chosen by a registry from the kind the format module answers, falling back to the drive; every kind can be shown as files (`?view=files`) (3a.1) | Branching on the kind in the pages (every new kind would touch them all); parsing `kind` in TypeScript (the format is `fjord-core`'s); a separate route per kind (the folder and file pages are the same for every kind) |
+| 2026-11-03 | The routes are shortened to `/d/<id>` and `/n/<id>`, the owner's decision reversing the choice of 2026-10-26. `/repo/<connection>/<path>` is unchanged. The old `/doc/<id>` and `/note/<id>` are sent on for good (a 308, dropping any `token`), and a `/doc/<id>?token=` link still enters and ends on the short address | Keeping the spelled-out routes, which read better in a link someone shares (the 2026-10-26 reason); no redirect (every link already given would stop working) |

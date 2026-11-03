@@ -24,7 +24,7 @@ import { editingFor, recipientsFor } from "../../encrypted/server";
 /**
  * One of the account's own repositories (`/repo/<connection>`), and a place inside it: `/repo/<connection>/<vault>/<folders…>`
  * is a folder, and down to a file's name is the file (ROADMAP 1a.11). Someone else's repository, a path that is not there and
- * one that tries to climb out are all a 404 and nothing more. `path` is the decoded segments. `/doc/<id>` and `/note/<id>`
+ * one that tries to climb out are all a 404 and nothing more. `path` is the decoded segments. `/d/<id>` and `/n/<id>`
  * show a file the same way, once the id has been found (ROADMAP 1b.6).
  */
 export async function RepositoryScreen({ connection, path, view, query = {} }: { connection: string; path: string[] | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined; /** The page's query, for an entry view that pages or filters. */ query?: Record<string, string | string[] | undefined> }) {
@@ -56,10 +56,10 @@ export async function RepositoryScreen({ connection, path, view, query = {} }: {
       // A note or a document in a plaintext vault is shown in its editor; reading it is the only thing that touches the file.
       const file = found.location.kind === "file" ? found.location.file : undefined;
       const note = file?.kind === "note" || file?.kind === "document" ? await readNoteFor(user.id, current, outcome.read, file.path) : undefined;
-      // Reading it tells which Doc it is, which is how `/doc/<id>` and `/note/<id>` find it later (ROADMAP 1b.6).
+      // Reading it tells which Doc it is, which is how `/d/<id>` and `/n/<id>` find it later (ROADMAP 1b.6).
       if (file !== undefined && note?.ok) await recordFileRead(current.id, file, note.blob, note.text);
       const docId = file !== undefined && note?.ok ? docIdOf(fjord(), note.text) : null;
-      const permalink = file !== undefined && docId !== null ? `/${file.kind === "document" ? "doc" : "note"}/${docId}` : undefined;
+      const permalink = file !== undefined && docId !== null ? `/${file.kind === "document" ? "d" : "n"}/${docId}` : undefined;
       // What was typed here and not yet saved as a version: kept by the server (ROADMAP 1b.8), and found again here.
       const kept = file !== undefined && note?.ok ? await (await workingCopyService()).get(current.id, file.path) : undefined;
       const draft = kept ? { content: kept.content, baseBlob: kept.baseBlob, guests: [...new Set(kept.editors.flatMap((editor) => (editor.type === "guest" ? [editor.name] : [])))] } : null;

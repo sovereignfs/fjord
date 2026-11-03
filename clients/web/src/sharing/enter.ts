@@ -5,11 +5,11 @@ import { PENDING_COOKIE, SHARE_COOKIE } from "./redact";
 import { TOKEN_PATTERN } from "./tokens";
 
 /**
- * Entering by a share link (DESIGN.md §12, ROADMAP 1c.4). A link's address is `/doc/<id>?token=<token>`, and a token left in the
+ * Entering by a share link (DESIGN.md §12, ROADMAP 1c.4). A link's address is `/d/<id>?token=<token>`, and a token left in the
  * address bar stays in the history, in a bookmark, in a screenshot and in any log of the address. So the first request is
- * not a page: `proxy.ts` hands it here, and the answer is a cookie and a redirect to the clean `/doc/<id>`.
+ * not a page: `proxy.ts` hands it here, and the answer is a cookie and a redirect to the clean `/d/<id>`.
  *
- *  - **The cookie is for that document and no other** (its path is `/doc/<id>`), `HttpOnly` (a script on the page cannot read it),
+ *  - **The cookie is for that document and no other** (its path is `/d/<id>`), `HttpOnly` (a script on the page cannot read it),
  *    `SameSite=Lax`, `Secure` when the instance is on https, and **short-lived**: an hour at most, and no longer than the link has to
  *    live. It holds the token, which the page checks against the store on every request, so revoking a link, or its expiry,
  *    ends what it opened on the next one.
@@ -35,31 +35,32 @@ export const PENDING_MAX_AGE_SECONDS = 10 * 60;
 
 /** The `Set-Cookie` of a token for a document: exported for the page's tests and for `e2e`'s reading of it. `value` is the token, and for a link with a password the token and the proof that the password was given (`password.ts`). */
 export function shareCookie(docId: string, value: string, maxAgeSeconds: number, secure: boolean): string {
-  return `${SHARE_COOKIE}=${value}; Path=/doc/${docId}; Max-Age=${maxAgeSeconds}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+  return `${SHARE_COOKIE}=${value}; Path=/d/${docId}; Max-Age=${maxAgeSeconds}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
 }
 
 /** The cookie a password link's token waits in while its password is asked for (ROADMAP 1c.5): the same scope, and shorter. It lets nobody in. */
 export function pendingCookie(docId: string, token: string, maxAgeSeconds: number, secure: boolean): string {
-  return `${PENDING_COOKIE}=${token}; Path=/doc/${docId}; Max-Age=${maxAgeSeconds}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+  return `${PENDING_COOKIE}=${token}; Path=/d/${docId}; Max-Age=${maxAgeSeconds}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
 }
 
 /** A cookie that ends the pending one, once the password is right. */
 export function clearPendingCookie(docId: string, secure: boolean): string {
-  return `${PENDING_COOKIE}=; Path=/doc/${docId}; Max-Age=0; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+  return `${PENDING_COOKIE}=; Path=/d/${docId}; Max-Age=0; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
 }
 
 export async function handleEnter(request: Request, deps: EnterDeps): Promise<Response> {
   if (request.method !== "GET" && request.method !== "HEAD") return new Response(null, { status: 405, headers: { allow: "GET, HEAD" } });
   const url = new URL(request.url);
   const params = url.searchParams;
-  // The proxy rewrites `/doc/<id>?token=` to this route and the route is handed the address as it was asked for (the rewrite names
+  // The proxy rewrites `/d/<id>?token=` to this route and the route is handed the address as it was asked for (the rewrite names
   // no token, since Next sends the rewritten address back in a response header), so the document is the path's. A request made
   // to this route directly names it as `doc`.
-  const docId = /^\/doc\/([^/]+)$/.exec(url.pathname)?.[1] ?? params.get("doc") ?? null;
+  // `/doc/<id>` is the address links were given before the route was shortened to `/d/<id>`; they still enter, and land on the short one.
+  const docId = /^\/(?:d|doc)\/([^/]+)$/.exec(url.pathname)?.[1] ?? params.get("doc") ?? null;
   const token = params.get("token");
   if (docId === null || !isDocId(docId)) return new Response(null, { status: 404, headers: { "referrer-policy": "no-referrer", "cache-control": "no-store" } });
 
-  const headers = new Headers({ location: `/doc/${docId}`, "referrer-policy": "no-referrer", "cache-control": "no-store" });
+  const headers = new Headers({ location: `/d/${docId}`, "referrer-policy": "no-referrer", "cache-control": "no-store" });
   const now = deps.now?.() ?? Date.now();
   const link = token !== null && TOKEN_PATTERN.test(token) ? await deps.links.byToken(token) : undefined;
   if (token !== null && link && link.docId === docId) {

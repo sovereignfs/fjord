@@ -6,7 +6,7 @@ import { type Operation, type Outcome } from "./access";
 import { cleanAnchor } from "./service";
 
 /**
- * The HTTP face of a document's comments (`/doc/<id>/comments`, DESIGN.md §13, ROADMAP 1d.1). It is under `/doc/<id>` because that is the path a
+ * The HTTP face of a document's comments (`/d/<id>/comments`, DESIGN.md §13, ROADMAP 1d.1). It is under `/d/<id>` because that is the path a
  * link's cookie is sent to (1c.4); a signed-in person's session cookie goes everywhere. Like the other routes, written against `Request` and
  * `Response` and handed the caller, so the rules are tested directly.
  *

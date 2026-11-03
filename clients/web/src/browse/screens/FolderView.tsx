@@ -61,7 +61,7 @@ export function FolderView({
   folderFiles?: number | undefined;
   /** For a note or a document: where its body starts in the text shown, its properties, and the header it is given on its first edit; undefined if its header cannot be read (then it is shown whole, as Markdown). */
   header?: HeaderInfo | undefined;
-  /** For a note or a document whose header has an `id`: its address that does not depend on where it is (`/doc/<id>`, `/note/<id>`). */
+  /** For a note or a document whose header has an `id`: its address that does not depend on where it is (`/d/<id>`, `/n/<id>`). */
   permalink?: string | undefined;
   /** For a document whose header has an `id`: what it can be shared by (ROADMAP 1c.7). */
   docId?: string | undefined;

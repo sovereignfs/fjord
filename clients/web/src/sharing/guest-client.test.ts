@@ -33,7 +33,7 @@ describe("sendGuestDraft", () => {
     vi.stubGlobal("fetch", fetchMock);
     expect(await sendGuestDraft("01jagc4k7pt8y3wqnmzv5xrb8j", "Grace Hopper", "# Plan\n")).toEqual({ kind: "kept" });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("/doc/01jagc4k7pt8y3wqnmzv5xrb8j/draft");
+    expect(url).toBe("/d/01jagc4k7pt8y3wqnmzv5xrb8j/draft");
     expect(init.method).toBe("PUT");
     expect(JSON.parse(String(init.body))).toEqual({ name: "Grace Hopper", body: "# Plan\n" });
     expect(init.credentials).toBe("same-origin");

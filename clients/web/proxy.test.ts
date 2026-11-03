@@ -13,26 +13,60 @@ const rewrittenTo = (response: Response) => {
 
 describe("a share link's first request", () => {
   it("is rewritten to the entry, and the rewrite names neither the document nor the token (Next sends it back out in a response header)", () => {
-    const response = proxy(request(`/doc/${DOC}?token=${TOKEN}`));
+    const response = proxy(request(`/d/${DOC}?token=${TOKEN}`));
     expect(rewrittenTo(response)).toBe("/api/links/enter");
     expect([...response.headers.entries()].flat().join(" ")).not.toContain(TOKEN);
   });
 
   it("is that whatever else is in the query, and even if the token is empty (the entry then does nothing)", () => {
-    expect(rewrittenTo(proxy(request(`/doc/${DOC}?a=1&token=${TOKEN}&b=2`)))).toBe("/api/links/enter");
-    expect(rewrittenTo(proxy(request(`/doc/${DOC}?token=`)))).toBe("/api/links/enter");
+    expect(rewrittenTo(proxy(request(`/d/${DOC}?a=1&token=${TOKEN}&b=2`)))).toBe("/api/links/enter");
+    expect(rewrittenTo(proxy(request(`/d/${DOC}?token=`)))).toBe("/api/links/enter");
+  });
+
+  it("is also a link given before the route was shortened: /doc/<id>?token= still enters", () => {
+    const response = proxy(request(`/doc/${DOC}?token=${TOKEN}`));
+    expect(rewrittenTo(response)).toBe("/api/links/enter");
+    expect(response.status).not.toBe(308);
+    expect([...response.headers.entries()].flat().join(" ")).not.toContain(TOKEN);
   });
 
   it("is only a document's own address with a token: anything else goes on as it was", () => {
-    for (const path of [`/doc/${DOC}`, `/doc/${DOC}?x=1`, `/note/${DOC}?token=${TOKEN}`, `/doc/${DOC}/more?token=${TOKEN}`, "/doc/?token=x"]) expect(rewrittenTo(proxy(request(path))), path).toBeNull();
+    for (const path of [`/d/${DOC}`, `/d/${DOC}?x=1`, `/n/${DOC}?token=${TOKEN}`, `/d/${DOC}/more?token=${TOKEN}`, "/d/?token=x"]) expect(rewrittenTo(proxy(request(path))), path).toBeNull();
   });
 
   it("is looked for on every request but the build's static files and prefetches, which cannot carry a nonce", () => {
     const [matcher] = config.matcher as { source: string; missing: unknown[] }[];
     const matches = (path: string) => new RegExp(`^${matcher!.source}$`).test(path);
-    for (const path of ["/", `/doc/${DOC}`, `/doc/${DOC}/comments`, "/api/health", "/sign-in", `/repo/1/Notes/a.md`]) expect(matches(path), path).toBe(true);
+    for (const path of ["/", `/d/${DOC}`, `/d/${DOC}/comments`, `/doc/${DOC}`, "/api/health", "/sign-in", `/repo/1/Notes/a.md`]) expect(matches(path), path).toBe(true);
     for (const path of ["/_next/static/chunks/a.js", "/_next/image", "/favicon.ico", "/icon.svg"]) expect(matches(path), path).toBe(false);
     expect(matcher!.missing).toEqual([{ type: "header", key: "next-router-prefetch" }, { type: "header", key: "purpose", value: "prefetch" }]);
+  });
+});
+
+describe("the routes' old names (/doc/<id> and /note/<id>)", () => {
+  const redirect = (path: string) => {
+    const response = proxy(request(path));
+    return { status: response.status, to: response.headers.get("location") };
+  };
+
+  it("are sent on for good to /d/<id> and /n/<id>, whatever is in the query", () => {
+    expect(redirect(`/doc/${DOC}`)).toEqual({ status: 308, to: `https://fjord.example.com/d/${DOC}` });
+    expect(redirect(`/note/${DOC}`)).toEqual({ status: 308, to: `https://fjord.example.com/n/${DOC}` });
+    expect(redirect(`/doc/${DOC}?wrong=1`)).toEqual({ status: 308, to: `https://fjord.example.com/d/${DOC}?wrong=1` });
+  });
+
+  it("never carry a token into an address by a redirect: a note has no link, and a document's token is swapped for a cookie, not passed on", () => {
+    const note = redirect(`/note/${DOC}?token=${TOKEN}&x=1`);
+    expect(note.to).toBe(`https://fjord.example.com/n/${DOC}?x=1`);
+    expect(note.to).not.toContain(TOKEN);
+  });
+
+  it("are only those two addresses: anything deeper, or another name, is left alone", () => {
+    for (const path of [`/doc/${DOC}/comments`, `/doc/${DOC}/draft`, "/doc/", "/doc", `/notes/${DOC}`, `/documents/${DOC}`, `/d/${DOC}`, `/n/${DOC}`]) expect(redirect(path).status, path).not.toBe(308);
+  });
+
+  it("are sent with the page's policy too", () => {
+    expect(proxy(request(`/doc/${DOC}`)).headers.get("content-security-policy")).toContain("nonce-");
   });
 });
 
@@ -48,7 +82,7 @@ describe("the Content-Security-Policy (ROADMAP 1d.5)", () => {
   const nonceOf = (policy: string) => /'nonce-([^']+)'/.exec(policy)![1]!;
 
   it("is sent with every page, with a nonce that is in the request's copy too, for Next and the layout to use", () => {
-    for (const path of ["/", `/doc/${DOC}`, "/sign-in", "/repo/1"]) {
+    for (const path of ["/", `/d/${DOC}`, "/sign-in", "/repo/1"]) {
       const response = proxy(request(path));
       const policy = policyOf(response);
       expect(policy, path).toContain("script-src 'self' 'nonce-");
@@ -70,6 +104,6 @@ describe("the Content-Security-Policy (ROADMAP 1d.5)", () => {
 
   it("is sent with the rewrites too: the signed-in landing page, and the first request of a share link", () => {
     expect(policyOf(proxy(request("/", { headers: { cookie: "fjord.session_token=abc.def" } })))).toContain("nonce-");
-    expect(policyOf(proxy(request(`/doc/${DOC}?token=${TOKEN}`)))).toContain("nonce-");
+    expect(policyOf(proxy(request(`/d/${DOC}?token=${TOKEN}`)))).toContain("nonce-");
   });
 });

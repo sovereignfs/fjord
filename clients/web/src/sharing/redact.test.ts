@@ -9,12 +9,12 @@ const DOC = "01jagc4k7pt8y3wqnmzv5xrb8j";
 describe("redacting a token", () => {
   it("finds it in an address, in a cookie and in JSON, wherever it sits in the line", () => {
     for (const line of [
-      `GET /doc/${DOC}?token=${TOKEN} 200`,
-      `GET https://fjord.example.com/doc/${DOC}?a=1&token=${TOKEN}&b=2`,
-      `GET /doc/${DOC}?TOKEN=${TOKEN}#top`,
+      `GET /d/${DOC}?token=${TOKEN} 200`,
+      `GET https://fjord.example.com/d/${DOC}?a=1&token=${TOKEN}&b=2`,
+      `GET /d/${DOC}?TOKEN=${TOKEN}#top`,
       `cookie: theme=dark; ${SHARE_COOKIE}=${TOKEN}; other=1`,
       `{"doc":"${DOC}","token":"${TOKEN}"}`,
-      `Error: fetch failed for /doc/${DOC}?token=${TOKEN}\n    at x (y.js:1:1)`,
+      `Error: fetch failed for /d/${DOC}?token=${TOKEN}\n    at x (y.js:1:1)`,
     ]) {
       const out = redactTokens(line);
       expect(out, line).not.toContain(TOKEN);
@@ -23,7 +23,7 @@ describe("redacting a token", () => {
   });
 
   it("leaves the rest of the line as it was, and a line with no token alone", () => {
-    expect(redactTokens(`GET /doc/${DOC}?token=${TOKEN}&x=1 200`)).toBe(`GET /doc/${DOC}?token=[redacted]&x=1 200`);
+    expect(redactTokens(`GET /d/${DOC}?token=${TOKEN}&x=1 200`)).toBe(`GET /d/${DOC}?token=[redacted]&x=1 200`);
     expect(redactTokens(`cookie: ${SHARE_COOKIE}=${TOKEN}; a=b`)).toBe(`cookie: ${SHARE_COOKIE}=[redacted]; a=b`);
     const plain = `[fjord] database: ready; blob ${"a".repeat(40)} doc ${DOC} sha ${"B".repeat(43)}`;
     expect(redactTokens(plain)).toBe(plain);
@@ -48,7 +48,7 @@ describe("the console", () => {
     const { target, calls } = fake();
     installLogRedaction(target);
     for (const method of ["log", "info", "warn", "error", "debug"] as const) {
-      target[method](`GET /doc/${DOC}?token=${TOKEN}`, new Error(`failed: /doc/${DOC}?token=${TOKEN}`), { kept: "as it is" }, 7);
+      target[method](`GET /d/${DOC}?token=${TOKEN}`, new Error(`failed: /d/${DOC}?token=${TOKEN}`), { kept: "as it is" }, 7);
     }
     const printed = Object.values(calls).flat(2);
     expect(JSON.stringify(printed.map(String))).not.toContain(TOKEN);
@@ -80,7 +80,7 @@ describe("redacting a sealed share's token (ROADMAP 2c.1)", () => {
   });
 
   it("leaves other addresses alone, and a path of the same length that is not a sealed share's", () => {
-    expect(redactTokens(`GET /doc/${DOC} 200`)).toBe(`GET /doc/${DOC} 200`);
+    expect(redactTokens(`GET /d/${DOC} 200`)).toBe(`GET /d/${DOC} 200`);
     expect(redactTokens(`GET /repo/1/${"A".repeat(43)} 200`)).toBe(`GET /repo/1/${"A".repeat(43)} 200`);
     expect(redactTokens("GET /s/short 200")).toBe("GET /s/short 200");
   });

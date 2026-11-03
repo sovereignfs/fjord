@@ -28,7 +28,7 @@ describe("what an answer means", () => {
 
 describe("the live stream", () => {
   it("is under the document's comments, where a link's cookie is sent", () => {
-    expect(eventsAddress(DOC)).toBe(`/doc/${DOC}/comments/events`);
+    expect(eventsAddress(DOC)).toBe(`/d/${DOC}/comments/events`);
   });
 
   it("says a version, or nothing for what does not say one", () => {
@@ -54,10 +54,10 @@ describe("what is sent", () => {
   it("asks for the comments at the document's own address, saying who it is only if it can", async () => {
     let fetchMock = stub(200, { threads: [], closed: false, viewer: {} });
     await loadComments(DOC, claim);
-    expect(sent(fetchMock)).toMatchObject({ url: `/doc/${DOC}/comments?name=Grace&client=abcdefgh`, method: "GET", credentials: "same-origin" });
+    expect(sent(fetchMock)).toMatchObject({ url: `/d/${DOC}/comments?name=Grace&client=abcdefgh`, method: "GET", credentials: "same-origin" });
     fetchMock = stub(200, { threads: [], closed: false, viewer: {} });
     await loadComments(DOC, {});
-    expect(sent(fetchMock).url).toBe(`/doc/${DOC}/comments`);
+    expect(sent(fetchMock).url).toBe(`/d/${DOC}/comments`);
   });
 
   it("starts a thread, replies, resolves, edits, deletes and closes, each with what it needs and who is asking", async () => {

@@ -69,7 +69,7 @@ function parse(text: string): Record<string, unknown> | undefined {
 }
 
 /** The address a link is opened at: the document's own, with the token. */
-export const linkUrl = (origin: string, docId: string, token: string): string => `${origin.replace(/\/+$/, "")}/doc/${docId}?token=${token}`;
+export const linkUrl = (origin: string, docId: string, token: string): string => `${origin.replace(/\/+$/, "")}/d/${docId}?token=${token}`;
 
 /**
  * `GET ?doc=<id>` lists a document's links; `POST { doc, role, expiresAt?, password? }` makes one; `DELETE { doc, linkId }` revokes one;

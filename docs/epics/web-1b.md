@@ -64,7 +64,7 @@ Via `fjord-core`; Document properties panel; unknown keys shown and kept; promot
 **Accepts when:** A header with keys Fjord does not know round-trips byte for byte.
 
 - **Done as:** the editors are given the body only for notes as well as documents, the header is kept in front of it and a body edit leaves it byte for byte (comments too); a **Document properties** panel shows `id`, `created`, every other key as written, and sets the `title` through the format module (`with_title`, new in `fjord-core`, via a header-only endpoint), which writes the header again, losing only comments; the first edit of a file with no header gives it one (`id`, `title`, `created`) and editing back to the original takes it off again; text with carriage returns or a byte order mark is not promoted; an unreadable header is shown whole. `implied_title` now strips `.fj.md`.
-- **Not here:** `/note/<id>` and `/doc/<id>` (1b.6), renaming the file with the title (1b.11).
+- **Not here:** `/n/<id>` and `/d/<id>` (1b.6), renaming the file with the title (1b.11).
 
 ## 1b.6 Routes and the id index
 
@@ -72,11 +72,11 @@ Via `fjord-core`; Document properties panel; unknown keys shown and kept; promot
 
 **Design:** §9
 
-`/doc/<id>`, `/note/<id>`, `/repo/<connection>/<path>`; index filled on read and by the worker; chooser for duplicates.
+`/d/<id>`, `/n/<id>`, `/repo/<connection>/<path>`; index filled on read and by the worker; chooser for duplicates.
 
 **Accepts when:** Each route opens the right file; a duplicate id shows the chooser.
 
-- **Done as:** `/doc/<id>` and `/note/<id>` show the file in place (the same screen as the path route; the wrong one of the two is sent to the right one), 404 for an id that is malformed, absent or another account's, a chooser for several, and "still looking" or "some repositories could not be read" instead of a false 404. The `doc_index` table (both dialects, migration `0008`) is filled when a file is read and by a bounded search on a miss (300 files, repeatable); a row is believed only where its blob is still the repository's, so moves, edits and deletions made elsewhere are found; encrypted vaults are never read; disconnecting forgets it. A file's page says its address by id.
+- **Done as:** `/d/<id>` and `/n/<id>` show the file in place (the same screen as the path route; the wrong one of the two is sent to the right one), 404 for an id that is malformed, absent or another account's, a chooser for several, and "still looking" or "some repositories could not be read" instead of a false 404. The `doc_index` table (both dialects, migration `0008`) is filled when a file is read and by a bounded search on a miss (300 files, repeatable); a row is believed only where its blob is still the repository's, so moves, edits and deletions made elsewhere are found; encrypted vaults are never read; disconnecting forgets it. A file's page says its address by id.
 - **Not here:** the worker's background pass (1b.13), and the folder lists linking by id (a listing reads no file).
 
 ## 1b.7 Create
@@ -137,9 +137,9 @@ Webhook flags; both versions shown; keep mine / take theirs / combine (`fjord_co
 
 Files and folders within plaintext vaults; names checked by `fjord-core`; extension kept; pending working copy saved first; ids, shares, comments and the index follow; into an encrypted vault refused.
 
-**Accepts when:** One commit per action; `/doc/<id>` and shares still work after a move; a case-only clash and an encrypted destination are refused; the CLI verifies the result.
+**Accepts when:** One commit per action; `/d/<id>` and shares still work after a move; a case-only clash and an encrypted destination are refused; the CLI verifies the result.
 
-- **Done as:** *Rename* and *Move* on a file's and a folder's page; one commit that puts the same blobs at the new paths (bytes, headers, ids and the executable bit untouched), named `Rename a to b` or `Move a to folder`; names checked by `fjord-core`; never over anything, a name alike by case refused (but a file's own case may change); a folder never onto one that is there or into itself; the extension kept; unsaved changes saved as a version first; the id index follows, so `/doc/<id>` works at once; into an encrypted vault refused. The CLI's `verify` accepts the result (a test).
+- **Done as:** *Rename* and *Move* on a file's and a folder's page; one commit that puts the same blobs at the new paths (bytes, headers, ids and the executable bit untouched), named `Rename a to b` or `Move a to folder`; names checked by `fjord-core`; never over anything, a name alike by case refused (but a file's own case may change); a folder never onto one that is there or into itself; the extension kept; unsaved changes saved as a version first; the id index follows, so `/d/<id>` works at once; into an encrypted vault refused. The CLI's `verify` accepts the result (a test).
 - **Not here:** shares and comments (1c, 1d, which follow the `id` and need nothing of a move), converting a note to a document, undo.
 
 ## 1b.12 Delete and restore

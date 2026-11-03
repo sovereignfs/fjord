@@ -5,7 +5,7 @@ import { LinkService } from "../../../../src/sharing/links";
 
 export const dynamic = "force-dynamic";
 
-/** Entering by a share link: a cookie and a redirect to the clean address (ROADMAP 1c.4). `proxy.ts` sends `/doc/<id>?token=` here. */
+/** Entering by a share link: a cookie and a redirect to the clean address (ROADMAP 1c.4). `proxy.ts` sends `/d/<id>?token=` here. */
 export async function GET(request: Request): Promise<Response> {
   const config = authConfig();
   if (!config.enabled) return new Response(null, { status: 404 });
