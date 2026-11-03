@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { AuthShell } from "../../src/auth/screens/AuthShell";
 import { SignUpForm } from "../../src/auth/screens/SignUpForm";
+import { AuthLink } from "../../src/ui";
 import { getSession, localAuthConfig, signUpAvailable } from "../../src/auth/server";
 
 export const dynamic = "force-dynamic";
@@ -13,19 +14,19 @@ export default async function SignUpPage() {
 
   if (!(await signUpAvailable())) {
     return (
-      <AuthShell title="Sign-up is closed" lead={`${config.name} is not taking new accounts. If you have one, sign in; otherwise ask whoever runs this instance.`}>
-        <a href="/sign-in">Go to sign in</a>
+      <AuthShell title="Sign-up is closed" name={config.name} lead={`${config.name} is not taking new accounts. If you have one, sign in; otherwise ask whoever runs this instance.`}>
+        <AuthLink href="/sign-in">Go to sign in</AuthLink>
       </AuthShell>
     );
   }
 
   return (
     <AuthShell
-      title="Create an account"
-      lead={`Start using ${config.name}.`}
+      title="Create your account"
+      name={config.name}
       footer={
         <>
-          Already have an account? <a href="/sign-in">Sign in</a>
+          Already have an account? <AuthLink href="/sign-in">Sign in</AuthLink>
         </>
       }
     >

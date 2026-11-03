@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { AuthShell } from "../../src/auth/screens/AuthShell";
 import { ResetPasswordForm } from "../../src/auth/screens/ResetForms";
+import { AuthLink } from "../../src/ui";
 import { localAuthConfig } from "../../src/auth/server";
 
 export const dynamic = "force-dynamic";
@@ -15,14 +16,14 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
   // has expired or been used.
   if (!token || error) {
     return (
-      <AuthShell title="That link does not work" lead="It has expired, or it has been used already." footer={<a href="/sign-in">Back to sign in</a>}>
-        <a href="/forgot-password">Ask for a new link</a>
+      <AuthShell title="Invalid link" name={config.name} lead="It has expired, or it has been used already." footer={<AuthLink href="/sign-in">Back to sign in</AuthLink>}>
+        <AuthLink href="/forgot-password">Ask for a new link</AuthLink>
       </AuthShell>
     );
   }
 
   return (
-    <AuthShell title="Choose a new password">
+    <AuthShell title="Choose a new password" name={config.name} footer={<AuthLink href="/sign-in">Back to sign in</AuthLink>}>
       <ResetPasswordForm token={token} minLength={config.passwordMinLength} />
     </AuthShell>
   );

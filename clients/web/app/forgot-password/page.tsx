@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { AuthShell } from "../../src/auth/screens/AuthShell";
 import { ForgotPasswordForm } from "../../src/auth/screens/ResetForms";
+import { AuthLink } from "../../src/ui";
 import { getSession, localAuthConfig } from "../../src/auth/server";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export default async function ForgotPasswordPage() {
   if (await getSession()) redirect("/");
 
   return (
-    <AuthShell title="Forgot your password?" lead="Enter your email address and we will send you a link to choose a new one." footer={<a href="/sign-in">Back to sign in</a>}>
+    <AuthShell title="Reset password" name={config.name} lead="Enter your account email and we will send a link to choose a new password. The link works for an hour." footer={<AuthLink href="/sign-in">Back to sign in</AuthLink>}>
       <ForgotPasswordForm />
     </AuthShell>
   );

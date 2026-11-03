@@ -12,7 +12,7 @@ export default async function TwoFactorPage() {
   if (await getSession()) redirect("/");
 
   return (
-    <AuthShell title="Check it is you" lead="Your password was right. One more step." footer={<a href="/sign-in">Back to sign in</a>}>
+    <AuthShell title="Two-factor verification" name={config.name} lead="Your password was right. One more step.">
       <TwoFactorForm />
     </AuthShell>
   );
