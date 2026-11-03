@@ -68,7 +68,8 @@ export async function RepositoryScreen({ connection, path, view, query = {}, via
       }
     } else {
       // A place reached by its path is sent on to its address that shows no path (RFC 0002): a Doc whose `id` is known to `/d/<id>`, anything else to `/f/<handle>`.
-      if (via === undefined) {
+      // The one place that shows a path: the file a person picked from among several that claim one `id`, where an address by id cannot say which.
+      if (via === undefined && query.pick !== "1") {
         // A Doc is read here, once, so that its address is `/d/<id>` in one hop and not `/f/<handle>` and then `/d/<id>`: reading it is also how the index learns its id.
         if (found.location.kind === "file" && found.location.file.kind === "doc") {
           const read = await readNoteFor(user.id, current, outcome.read, found.location.file.path);

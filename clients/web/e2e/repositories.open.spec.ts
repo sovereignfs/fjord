@@ -290,20 +290,20 @@ test("a vault is opened to its folders and files, and what can be opened is told
   await expect(contents.getByRole("listitem").first()).toContainText("2 files");
   await expect(contents.getByRole("link", { name: "plan.fj.md" })).toBeVisible();
   await expect(contents.getByRole("listitem").filter({ hasText: "plan.fj.md" })).toContainText("Document");
-  await expect(contents.getByRole("listitem").filter({ hasText: "idea.md" })).toContainText("Note");
+  await expect(contents.getByRole("listitem").filter({ hasText: "idea.md" })).toContainText("Document");
   // Any other file is greyed out: named, not a link.
   await expect(contents.getByText("photo.png")).toBeVisible();
   await expect(contents.getByRole("link", { name: "photo.png" })).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Path" })).toContainText("acme/notes");
 
   await contents.getByRole("link", { name: "Q4" }).click();
-  await expect(page).toHaveURL(/\/Public\/Q4$/);
+  await expect(page).toHaveURL(/\/f\/[0-9a-z]+$/);
   const inside = page.getByRole("list", { name: "Folder contents" });
   await expect(inside.getByRole("link", { name: "report.fj.md" })).toBeVisible();
   await expect(inside.getByRole("link", { name: "data.csv" })).toHaveCount(0);
 
   await inside.getByRole("link", { name: "report.fj.md" }).click();
-  await expect(page).toHaveURL(/\/Public\/Q4\/report\.fj\.md$/);
+  await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/);
   await expect(page.getByRole("heading", { name: "report.fj.md", level: 2 })).toBeVisible();
   await expect(noteEditor(page, "report.fj.md")).toContainText("Report"); // a document opens in its editor
   // The way back is in the path above it.
@@ -884,7 +884,7 @@ test("a note and a document are made in an encrypted vault, encrypted in the bro
     await expect(page.getByText("Its name is public")).toBeVisible();
     await page.getByLabel("Title").fill("Plain titled");
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(new RegExp("/Open/Plain%20titled\\.md\\.age$"), { timeout: 30_000 });
+    await headSays("Create encrypted “Plain titled”");
     const afterNote = (await hubs.more.branchHead())!;
     expect(await hubs.more.show(afterNote, "%P")).toBe(before);
     expect((await hubs.more.show(afterNote, "%B")).split("\n")[0]).toBe("Create encrypted “Plain titled”");
@@ -900,7 +900,7 @@ test("a note and a document are made in an encrypted vault, encrypted in the bro
     await page.getByRole("button", { name: "New document" }).click();
     await page.getByLabel("Title").fill("Q4 plan");
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(new RegExp("/Open/Q4%20plan\\.md\\.age$"), { timeout: 30_000 });
+    await headHas("Open/Q4 plan.md.age");
     const afterDocument = (await hubs.more.branchHead())!;
     expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(afterDocument, "Open/Q4 plan.md.age")))).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\n/);
 
@@ -910,7 +910,7 @@ test("a note and a document are made in an encrypted vault, encrypted in the bro
     await expect(page.getByText("Its name is kept inside it")).toBeVisible();
     await page.getByLabel("Title").fill("Hidden budget");
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(new RegExp("/Sealed/[0-9a-hjkmnp-tv-z]{26}\\.age$"), { timeout: 30_000 });
+    await headSays("Create an encrypted file in Sealed");
     const afterSealed = (await hubs.more.branchHead())!;
     expect((await hubs.more.show(afterSealed, "%B")).split("\n")[0]).toBe("Create an encrypted file in Sealed");
     const created = Object.keys(await hubs.more.filesAt(afterSealed)).filter((path) => path.startsWith("Sealed/") && !path.includes("0000") && path.endsWith(".age") && !path.includes("01jagc4k7pr9tbm3ykwx6zq2hz"));
@@ -968,7 +968,7 @@ test("encrypted files are renamed, moved, deleted and put back as the bytes they
     await expect(page.getByText("It stays .md.age.")).toBeVisible();
     await page.getByLabel("New name").fill("Renamed");
     await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(page).toHaveURL(new RegExp("/Open/Renamed\\.md\\.age$"), { timeout: 30_000 });
+    await headHas("Open/Renamed.md.age");
     let head = (await hubs.more.branchHead())!;
     expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Rename note to Renamed");
     expect(await blobAt(head, "Open/Renamed.md.age")).toBe(original);
@@ -980,7 +980,7 @@ test("encrypted files are renamed, moved, deleted and put back as the bytes they
     expect(places.every((place) => place === "Open" || place.startsWith("Open/"))).toBe(true);
     await page.getByLabel("Move to").selectOption("Open/Sub");
     await page.getByRole("button", { name: "Move", exact: true }).click();
-    await expect(page).toHaveURL(new RegExp("/Open/Sub/Renamed\\.md\\.age$"), { timeout: 30_000 });
+    await headHas("Open/Sub/Renamed.md.age");
     head = (await hubs.more.branchHead())!;
     expect(await blobAt(head, "Open/Sub/Renamed.md.age")).toBe(original);
 
@@ -1000,18 +1000,18 @@ test("encrypted files are renamed, moved, deleted and put back as the bytes they
     await page.getByRole("button", { name: "Rename folder" }).click();
     await page.getByLabel("New name").fill("Archive");
     await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(page).toHaveURL(new RegExp("/Open/Archive$"), { timeout: 30_000 });
+    await headHas("Open/Archive/Renamed.md.age");
     expect(Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!)).filter((path) => path.startsWith("Open/Archive/")).sort()).toEqual(["Open/Archive/Renamed.md.age", "Open/Archive/other.md.age"]);
 
     // The server was never sent a key or a word of the text, and it opens with the identity as before.
     expect(record.join("\n")).not.toContain("SECRET PLAINTEXT");
     expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt((await hubs.more.branchHead())!, "Open/Archive/other.md.age")))).toBe("SECRET PLAINTEXT other");
 
-    // Out of its vault, and a kind changed, are refused by the server whatever the page says.
+    // Out of its vault, and an extension changed, are refused by the server whatever the page says (RFC 0002: there is no longer a kind in the name).
     const moveVia = (destination: string, path = "Open/Archive/other.md.age") =>
       page.request.post(`/api/connections/${id}/files/move`, { headers: { origin: BASE }, data: { vault: "Open", type: "file", path, blob: "0".repeat(40), destination }, failOnStatusCode: false });
     expect((await moveVia("Sealed/other.md.age")).status()).toBe(422);
-    expect((await (await moveVia("Open/other.fj.md.age")).json()).error.code).toBe("extension_changed");
+    expect((await (await moveVia("Open/other.txt.age")).json()).error.code).toBe("extension_changed");
   } finally {
     await restoreMore();
   }
@@ -1061,7 +1061,7 @@ test("a file of an id-named encrypted vault is renamed by the name inside it, ke
     await page.getByRole("button", { name: "Move", exact: true }).click();
     await page.getByLabel("Move to").selectOption("Sealed/Sub");
     await page.getByRole("button", { name: "Move", exact: true }).click();
-    await expect(page).toHaveURL(new RegExp(`/Sealed/Sub/${name}\\.age$`), { timeout: 30_000 });
+    await headHas(`Sealed/Sub/${name}.age`);
     const moved = (await hubs.more.branchHead())!;
     expect(textOf(wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(moved, `Sealed/Sub/${name}.age`))).contents)).toBe("# Plan\n\nSECRET PLAINTEXT");
 
@@ -1100,7 +1100,7 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
     const before = await hubs.more.branchHead();
     expect(await hubs.more.branchHead()).toBe(before); // asking is not doing
     await page.getByRole("button", { name: "Yes, move it" }).click();
-    await expect(page).toHaveURL(new RegExp("/Open/Plan\\.md\\.age$"), { timeout: 30_000 });
+    await headSays("Move Plan into the encrypted vault Open");
     let head = (await hubs.more.branchHead())!;
     expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Plan into the encrypted vault Open");
     expect(await filesAt()).not.toContain("Notes/Plan.md");
@@ -1114,7 +1114,7 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
     await expect(page.getByLabel("Name")).toHaveCount(0); // the name is kept inside
     await page.getByRole("button", { name: "Move", exact: true }).click();
     await page.getByRole("button", { name: "Yes, move it" }).click();
-    await expect(page).toHaveURL(new RegExp("/Sealed/[0-7][0-9a-hjkmnp-tv-z]{25}\\.age$"), { timeout: 30_000 });
+    await headSays("Move Other into the encrypted vault Sealed");
     head = (await hubs.more.branchHead())!;
     const made = (await filesAt()).find((path) => path.startsWith("Sealed/") && path.endsWith(".age") && !path.includes(sealedId))!;
     const inside = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(head, made)));
@@ -1133,7 +1133,7 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
     const asked = await hubs.more.branchHead();
     expect(await filesAt()).toContain("Open/Enc.md.age"); // nothing yet
     await page.getByRole("button", { name: "Yes, decrypt and move" }).click();
-    await expect(page).toHaveURL(new RegExp("/Notes/Enc\\.md$"), { timeout: 30_000 });
+    await headSays("Move Enc out of the encrypted vault Open");
     head = (await hubs.more.branchHead())!;
     expect(head).not.toBe(asked);
     expect((await hubs.more.filesAt(head))["Notes/Enc.md"]).toBe("SECRET PLAINTEXT encrypted note");
@@ -1149,7 +1149,7 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
     await choose(page, "Open (encrypted)");
     await page.getByRole("button", { name: "Move", exact: true }).click();
     await page.getByRole("button", { name: "Yes, move it" }).click();
-    await expect(page).toHaveURL(new RegExp("/Open/Inner\\.md\\.age$"), { timeout: 30_000 });
+    await headHas("Open/Inner.md.age");
     head = (await hubs.more.branchHead())!;
     expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(head, "Open/Inner.md.age")))).toBe("SECRET PLAINTEXT inner");
     expect(await filesAt()).not.toContain(`Sealed/${sealedId}.age`);
@@ -1411,9 +1411,21 @@ async function repositoryWith(page: import("@playwright/test").Page, files: Reco
 }
 
 const VAULT_MANIFEST = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "Notes", createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" });
+/** The repository's head holds the file, whatever the page's address says: an encrypted file's address is `/f/<handle>` (RFC 0002), before and after. */
+const headHas = (path: string) => expect.poll(async () => Object.keys(await hubs.more.filesAt((await hubs.more.branchHead()) as string)), { timeout: 30_000 }).toContain(path);
+/** The first line of the head commit's message: what the commit was, when the address cannot say that it was made. */
+const headSays = (subject: string | RegExp) => expect.poll(async () => ((await hubs.more.show((await hubs.more.branchHead()) as string, "%B")) as string).split("\n")[0], { timeout: 30_000 })[typeof subject === "string" ? "toBe" : "toMatch"](subject as never);
+
+/**
+ * A repository whose kind has the note editor (RFC 0002: a drive has the document editor, a journal and a site have this one), with the vault
+ * the working-copy tests write to. The mechanics under test - drafts, versions, the changed and the deleted - are the same whatever the editor.
+ */
+const SITE_ROOT = JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3mx", name: "Site", createdAt: "2026-10-16T09:34:00Z", kind: "ssg", ssg: { engine: "astro" }, vaults: [{ path: "Notes", id: "01jagc4k7pr9tbm3ykwx6zq2hv" }] });
+const siteWith = (page: import("@playwright/test").Page, files: Record<string, string | Uint8Array>, who?: { email: string; name: string }) =>
+  repositoryWith(page, { "fjord.json": SITE_ROOT, ...files }, who);
 const noteEditor = (page: import("@playwright/test").Page, name: string) => page.getByRole("textbox", { name, exact: true });
 
-test("a note opens in the note editor, and reads the file once", async ({ page }) => {
+test("a file opens in its kind's editor, and is read once by its address", async ({ page }) => {
   const id = await connected(page);
   await page.goto(`/repo/${id}/Public`);
   hubs.notes.requests.length = 0;
@@ -1421,13 +1433,14 @@ test("a note opens in the note editor, and reads the file once", async ({ page }
 
   const editor = noteEditor(page, "idea.md");
   await expect(editor).toBeVisible();
-  await expect(editor).toContainText("# Idea");
+  await expect(editor).toContainText("Idea"); // a drive has the document editor, which shows the heading and not its marker
   await expect(editor).toHaveAttribute("contenteditable", "true");
   await expect(page.getByTestId("draft-status")).toHaveText("No changes yet. What you type is kept as a draft.");
 
-  // The file was read, once, by its blob; nothing else was (finding a draft asks our own database, not the host).
+  // The file was read by its blob, and nothing else was (finding a draft asks our own database, not the host). A path with no id is read once to
+  // find its address and once by the page there (RFC 0002).
   const blobReads = hubs.notes.requests.filter((request) => request.path.includes("/git/blobs/"));
-  expect(blobReads).toHaveLength(1);
+  expect(blobReads).toHaveLength(2);
   expect(hubs.notes.requests.filter((request) => request.path.includes("/git/trees/"))).toEqual([]);
 });
 
@@ -1437,7 +1450,7 @@ const status = (page: import("@playwright/test").Page) => page.getByTestId("draf
 
 test("what is typed in a note is kept as a draft, found again on opening it, and never committed", async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "# Title\n\nbody\n" });
+    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "# Title\n\nbody\n" });
     const head = await hubs.more.branchHead();
 
     await page.goto(`/repo/${id}/Notes/n.md`);
@@ -1539,7 +1552,7 @@ test("drafts are kept only for the caller's own repository, from this site, for 
 test("Save version makes one commit of the draft, authored by the person, and the note is then the repository's", async ({ page }) => {
   try {
     const who = { email: `grace-${Date.now()}@example.com`, name: "Grace Hopper" };
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "# Title\n", "Notes/other.md": "untouched" }, who);
+    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "# Title\n", "Notes/other.md": "untouched" }, who);
     const before = (await hubs.more.branchHead()) as string;
 
     await page.goto(`/repo/${id}/Notes/n.md`);
@@ -1558,7 +1571,7 @@ test("Save version makes one commit of the draft, authored by the person, and th
     expect(await hubs.more.show(head, "%P")).toBe(before);
     expect(await hubs.more.show(head, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
     expect(await hubs.more.show(head, "%B")).toMatch(/^Add a line\n\n.+\n\d+ lines? added, \d+ removed/);
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": promoted("Title", "# Title\nA new line, saved at once."), "Notes/other.md": "untouched" });
+    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "# Title\nA new line, saved at once.", "Notes/other.md": "untouched" });
     await hubs.more.fsck();
 
     // The draft is gone: the note is what the repository has, and nothing says there are unsaved changes.
@@ -1590,7 +1603,7 @@ test("a version without a message is called Edit and the note's name", async ({ 
 
 test("a version is not made on top of a note that changed in the repository: both versions are shown instead", async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
+    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
     await page.goto(`/repo/${id}/Notes/n.md`);
     await noteEditor(page, "n.md").click();
     await page.keyboard.type("MINE ");
@@ -1662,7 +1675,7 @@ const FIVE = "one\ntwo\nthree\nfour\nfive\n";
 
 test("when the note changed in the repository, both versions are shown, and taking theirs throws the draft away", async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
+    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
     await typeAtStart(page, id, "n.md", "MINE ");
     const theirs = await hubs.more.commitFiles({ "Notes/n.md": "changed elsewhere\n" });
 
@@ -1687,7 +1700,7 @@ test("when the note changed in the repository, both versions are shown, and taki
 
 test("keeping mine puts the draft on their version, and the next version is on top of theirs, which stays in the history", async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
+    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
     await typeAtStart(page, id, "n.md", "MINE ");
     const theirs = await hubs.more.commitFiles({ "Notes/n.md": "changed elsewhere\n" });
 
@@ -1702,7 +1715,7 @@ test("keeping mine puts the draft on their version, and the next version is on t
     await expect(page.getByText("Version saved")).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(theirs);
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": promoted("n", "MINE original\n") });
+    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "MINE original\n" });
     expect(await hubs.more.filesAt(theirs)).toMatchObject({ "Notes/n.md": "changed elsewhere\n" });
     await hubs.more.fsck();
   } finally {
@@ -1712,7 +1725,7 @@ test("keeping mine puts the draft on their version, and the next version is on t
 
 test("combining edits in different places keeps both, as a draft, and the version has both", async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": FIVE });
+    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": FIVE });
     await typeAtStart(page, id, "n.md", "ZERO ");
     const theirs = await hubs.more.commitFiles({ "Notes/n.md": FIVE.replace("five", "FIVE") });
 
@@ -1730,7 +1743,7 @@ test("combining edits in different places keeps both, as a draft, and the versio
     await expect(page.getByText("Version saved")).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(theirs);
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": promoted("n", "ZERO one\ntwo\nthree\nfour\nFIVE\n") });
+    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "ZERO one\ntwo\nthree\nfour\nFIVE\n" });
   } finally {
     await restoreMore();
   }
@@ -1738,7 +1751,7 @@ test("combining edits in different places keeps both, as a draft, and the versio
 
 test("combining edits of the same line keeps both between markers, which the person settles before saving", async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "a\nsame\nz\n" });
+    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "a\nsame\nz\n" });
     await page.goto(`/repo/${id}/Notes/n.md`);
     await noteEditor(page, "n.md").click();
     await page.keyboard.press("ControlOrMeta+a");
@@ -1767,7 +1780,7 @@ test("combining edits of the same line keeps both between markers, which the per
     await expect(page.getByText("Version saved")).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(theirs);
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": promoted("n", "a\nmine and theirs\nz\n") });
+    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "a\nmine and theirs\nz\n" });
   } finally {
     await restoreMore();
   }
@@ -1775,7 +1788,7 @@ test("combining edits of the same line keeps both between markers, which the per
 
 test("a note deleted in the repository does not lose the draft: it is shown, and can be thrown away", async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n", "Notes/keep.md": "k" });
+    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n", "Notes/keep.md": "k" });
     await typeAtStart(page, id, "n.md", "UNSAVED ");
     await hubs.more.commitFiles({ "Notes/n.md": null });
 
@@ -1859,7 +1872,7 @@ test("a note is made from a title: one commit, by the person, named by fjord-cor
 
     // The name is fjord-core's: what a file name cannot hold becomes a space.
     await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
-    await expect(noteEditor(page, "Weekly review what went well.md")).toContainText("# Weekly review: what went well?");
+    await expect(noteEditor(page, "Weekly review what went well.md")).toContainText("Weekly review: what went well?"); // the document editor shows the heading, not its marker
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(before);
     expect(await hubs.more.show(head, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
@@ -1874,10 +1887,11 @@ test("a note is made from a title: one commit, by the person, named by fjord-cor
 test("a document without a title is named after the date and time, which is its title, and a name that is taken is numbered", async ({ page }) => {
   try {
     const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.md": "p" });
+    const before = await hubs.more.branchHead();
     await page.goto(`/repo/${id}/Notes`);
     await page.getByRole("button", { name: "New document" }).click();
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+    await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
     const head = (await hubs.more.branchHead()) as string;
     const [name] = Object.keys(await hubs.more.filesAt(head)).filter((path) => /^Notes\/\d{4}-\d{2}-\d{2} \d{4}\.md$/.test(path));
     expect((await hubs.more.filesAt(head))[name!]).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: \d{4}-\d{2}-\d{2} \d{4}\n/);
@@ -1901,11 +1915,11 @@ test("a document is made with a header, in a folder, and is numbered past a file
     await page.getByLabel("Title").fill("Q4 plan");
     await page.getByRole("button", { name: "Create document" }).click();
 
-    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+    await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
     const head = (await hubs.more.branchHead()) as string;
     const text = (await hubs.more.filesAt(head))["Notes/Projects/Q4 plan 2.md"]!;
     expect(text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\ncreated: "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"\n---\n\n# Q4 plan\n$/);
-    expect(await hubs.more.show(head, "%B")).toMatch(/^Create “Q4 plan”\n\nNotes\/Projects\/Q4 plan 2\.md\nA new document in Notes\/Projects, 2 words to start with\.\nDocument id: [0-9a-hjkmnp-tv-z]{26}$/);
+    expect(await hubs.more.show(head, "%B")).toMatch(/^Create “Q4 plan 2”\n\nNotes\/Projects\/Q4 plan 2\.md\nA new document in Notes\/Projects, 2 words to start with\.\nDocument id: [0-9a-hjkmnp-tv-z]{26}$/);
   } finally {
     await restoreMore();
   }
@@ -2287,8 +2301,9 @@ test("a document opens in the visual editor, an edit is kept as a draft, and a v
 test("the house style: a document written the same way is edited line for line, and one written another way says which lines would change and waits for the person to choose", async ({ page }) => {
   try {
     const styled = "\n# Plan\n\nThe quick brown fox.\n\n- one\n- two\n\n1. first\n1. second\n";
+    const otherHeader = DOC_HEADER.replace("b8j", "b8k"); // its own id: with the same one, its path would lead to the chooser (RFC 0002)
     const elsewhere = "\nPlan\n====\n\nThe quick brown fox.\n\n* one\n* two\n\n1. first\n2. second\n";
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Styled.fj.md": DOC_HEADER + styled, "Notes/Elsewhere.fj.md": DOC_HEADER + elsewhere });
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Styled.fj.md": DOC_HEADER + styled, "Notes/Elsewhere.fj.md": otherHeader + elsewhere });
 
     // In the house style: nothing is asked, and the version differs from the file in the edited line alone.
     await page.goto(`/repo/${id}/Notes/Styled.fj.md`);
@@ -2321,7 +2336,7 @@ test("the house style: a document written the same way is edited line for line, 
     await expect(status(page)).toHaveText("Changes kept as a draft.");
     await page.getByRole("button", { name: "Save version" }).click();
     await expect(page.getByText("Version saved")).toBeVisible();
-    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Elsewhere.fj.md"]).toBe(DOC_HEADER + styled.replace("fox.", "fox. Jumps higher."));
+    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Elsewhere.fj.md"]).toBe(otherHeader + styled.replace("fox.", "fox. Jumps higher."));
     await hubs.more.fsck();
   } finally {
     await restoreMore();
@@ -2380,9 +2395,9 @@ test("a document made from a title opens ready to edit, and edits in the toolbar
     await page.getByRole("button", { name: "New document" }).click();
     await page.getByLabel("Title").fill("Fresh document");
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+    await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
 
-    const editor = noteEditor(page, "Fresh document.fj.md");
+    const editor = noteEditor(page, "Fresh document.md");
     await expect(editor).toContainText("Fresh document");
     await typeAtEndOf(page, editor.locator("h1"), "");
     await page.keyboard.press("Enter");
@@ -2394,7 +2409,7 @@ test("a document made from a title opens ready to edit, and edits in the toolbar
     await page.getByRole("button", { name: "Save version" }).click();
     await expect(page.getByText("Version saved")).toBeVisible();
 
-    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Fresh document.fj.md"]!;
+    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Fresh document.md"]!;
     expect(saved).toMatch(/^---\nid: [0-9a-z]{26}\ntitle: Fresh document\ncreated: .+\n---\n\n# Fresh document\n\n- first\n- second\n$/);
   } finally {
     await restoreMore();
@@ -2454,29 +2469,33 @@ test("a file that is not text, or is too large, is not shown as a note", async (
 });
 
 test("the editor wears the design system's tokens, in light and in dark", async ({ page }) => {
-  const id = await connected(page);
-  const surfaces = async () =>
-    page.evaluate(() => {
-      const editor = document.querySelector(".cm-editor") as HTMLElement;
-      return { editor: getComputedStyle(editor).backgroundColor, page: getComputedStyle(document.body).backgroundColor, text: getComputedStyle(editor).color, font: getComputedStyle(editor.querySelector(".cm-scroller") as HTMLElement).fontFamily };
-    });
+  try {
+    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/idea.md": "# Idea\n" });
+    const surfaces = async () =>
+      page.evaluate(() => {
+        const editor = document.querySelector(".cm-editor") as HTMLElement;
+        return { editor: getComputedStyle(editor).backgroundColor, page: getComputedStyle(document.body).backgroundColor, text: getComputedStyle(editor).color, font: getComputedStyle(editor.querySelector(".cm-scroller") as HTMLElement).fontFamily };
+      });
 
-  await page.emulateMedia({ colorScheme: "light" });
-  await page.goto(`/repo/${id}/Public/idea.md`);
-  await expect(noteEditor(page, "idea.md")).toBeVisible();
-  const light = await surfaces();
-  // The editor's surface is the page's: it took the token and not its own default (which is white in both).
-  expect(light.editor).toBe(light.page);
-  // Its font is the design system's monospace, not the browser's.
-  expect(light.font).toMatch(/mono/i);
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.goto(`/repo/${id}/Notes/idea.md`);
+    await expect(noteEditor(page, "idea.md")).toBeVisible();
+    const light = await surfaces();
+    // The editor's surface is the page's: it took the token and not its own default (which is white in both).
+    expect(light.editor).toBe(light.page);
+    // Its font is the design system's monospace, not the browser's.
+    expect(light.font).toMatch(/mono/i);
 
-  await page.emulateMedia({ colorScheme: "dark" });
-  await page.reload();
-  await expect(noteEditor(page, "idea.md")).toBeVisible();
-  const dark = await surfaces();
-  expect(dark.editor).toBe(dark.page);
-  expect(dark.editor).not.toBe(light.editor);
-  expect(dark.text).not.toBe(light.text);
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.reload();
+    await expect(noteEditor(page, "idea.md")).toBeVisible();
+    const dark = await surfaces();
+    expect(dark.editor).toBe(dark.page);
+    expect(dark.editor).not.toBe(light.editor);
+    expect(dark.text).not.toBe(light.text);
+  } finally {
+    await restoreMore();
+  }
 });
 
 // --- Document properties (ROADMAP 1b.5) ----------------------------------------------------------------------------------
@@ -2484,7 +2503,7 @@ test("the editor wears the design system's tokens, in light and in dark", async 
 test("the properties panel shows the header, keys Fjord does not know included, and a note's body edit leaves the header byte for byte", async ({ page }) => {
   try {
     const header = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n# a comment the writer left\nzeta: 1\ntitle: Weekly\nx-future:\n  - kept\n  - as is\ncreated: 2026-10-16T09:34:00Z\n---\n";
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/weekly.md": `${header}\nThe plan.\n` });
+    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/weekly.md": `${header}\nThe plan.\n` });
     await page.goto(`/repo/${id}/Notes/weekly.md`);
 
     // The header is beside the editor and not in it.
@@ -2550,32 +2569,30 @@ test("the title is changed from the panel: it is the only thing in the header th
   }
 });
 
-test("the first edit of a note with no header gives it one, and opening it, or editing back to what it was, does not", async ({ page }) => {
+test("a file with no header is edited as it is: opening it, or editing it, adds no header (RFC 0002)", async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/plain.md": "# A plain note\n\nText.\n" });
+    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/plain.md": "# A plain note\n\nText.\n" });
     await page.goto(`/repo/${id}/Notes/plain.md`);
     const editor = noteEditor(page, "plain.md");
     const panel = page.getByTestId("document-properties");
     await panel.getByText("Properties", { exact: true }).click();
-    await expect(panel.getByText(/no header yet/i)).toBeVisible();
+    await expect(panel.getByText(/no header, so no identifier/i)).toBeVisible();
     await expect(panel.getByRole("button", { name: "Set title" })).toBeDisabled();
 
     // Typing and deleting it again: no header, no draft.
     await editor.click();
     await page.keyboard.press("ControlOrMeta+End");
     await page.keyboard.type("x");
-    await expect(panel.getByText(/no header yet/i)).toHaveCount(0);
+    await expect(panel.getByText(/no header, so no identifier/i)).toBeVisible();
     await page.keyboard.press("Backspace");
-    await expect(panel.getByText(/no header yet/i)).toBeVisible();
 
     await page.keyboard.type(" And more.");
     await expect(status(page)).toHaveText("Changes kept as a draft.");
-    await expect(panel.getByLabel("Title")).toHaveValue("A plain note");
     await page.getByRole("button", { name: "Save version" }).click();
     await expect(page.getByText("Version saved")).toBeVisible();
 
     const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/plain.md"]!;
-    expect(saved).toEqual(promoted("A plain note", "# A plain note\n\nText.\n And more."));
+    expect(saved).toBe("# A plain note\n\nText.\n And more.");
     await hubs.more.fsck();
   } finally {
     await restoreMore();
@@ -2626,10 +2643,11 @@ test("a Doc opens at /d/<id> wherever it is, and /n/<id> sends to it (RFC 0002)"
     await page.goto(`/n/${ID_DOC}`);
     await expect(page).toHaveURL(`${BASE}/d/${ID_DOC}`);
 
-    // The page of a file by its path says the address by id, and it is the one that works.
+    // A file by its path is sent to its address: a Doc to its id, any other file to its handle, which shows no path.
     await page.goto(`/repo/${id}/Notes/Deep/idea.md`);
-    await expect(page.getByRole("link", { name: `/n/${ID_NOTE}` })).toHaveAttribute("href", `/n/${ID_NOTE}`);
+    await expect(page).toHaveURL(`${BASE}/d/${ID_NOTE}`);
     await page.goto(`/repo/${id}/Notes/plain.md`);
+    await expect(page).toHaveURL(/\/f\/[0-9a-z]+$/);
     await expect(page.getByText("Address by id")).toHaveCount(0);
   } finally {
     await restoreMore();
@@ -2699,7 +2717,8 @@ test("an id that two files have is not guessed at: the person chooses", async ({
 
     await choices.last().click();
     await expect(noteEditor(page, "idea.md")).toContainText("the first");
-    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+    // The one address with a path: an address by id could not say which of the two is meant.
+    await expect(page).toHaveURL(/\/Notes\/idea\.md\?pick=1$/);
   } finally {
     await restoreMore();
   }
@@ -2935,7 +2954,7 @@ const SHARE_DOC = `---\nid: ${ID_DOC}\ntitle: Q4 plan\nx-secret: not for the rea
 
 test("a document shared with a named account opens for them to read, and for no one else, and stops when the share does", async ({ page, browser }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Deep/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "a note"), "Notes/other.fj.md": withId("01jagc4k7pt8y3wqnmzv5xrbzz", "private") });
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Deep/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note", "Notes/other.fj.md": withId("01jagc4k7pt8y3wqnmzv5xrbzz", "private") });
     const share = (request: typeof page.request, data: unknown, origin: string | null = BASE) =>
       request.post(`/api/connections/${id}/shares`, { headers: origin === null ? {} : { origin }, data });
     const unshare = (request: typeof page.request, data: unknown) => request.delete(`/api/connections/${id}/shares`, { headers: { origin: BASE }, data });
@@ -2971,7 +2990,7 @@ test("a document shared with a named account opens for them to read, and for no 
     await expect(grace).toHaveURL(`${BASE}/d/${ID_DOC}`);
 
     // Nothing else of the owner's is hers: not the repository, not another document, not the note, nor the owner's routes.
-    for (const path of [`/repo/${id}`, `/repo/${id}/Notes/Deep/Plan.fj.md`, `/d/01jagc4k7pt8y3wqnmzv5xrbzz`, `/n/${ID_NOTE}`, `/n/${ID_DOC}`]) expect((await grace.goto(path))?.status(), path).toBe(404);
+    for (const path of [`/repo/${id}`, `/repo/${id}/Notes/Deep/Plan.fj.md`, `/d/01jagc4k7pt8y3wqnmzv5xrbzz`, `/n/${ID_NOTE}`]) expect((await grace.goto(path))?.status(), path).toBe(404);
     expect((await share(grace.request, { doc: ID_DOC, email: graceEmail, role: "edit" })).status()).toBe(404);
     expect((await grace.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)).status()).toBe(404);
     // And not a person with no share.
@@ -2996,11 +3015,11 @@ test("a document shared with a named account opens for them to read, and for no 
 
 test("only a document can be shared, only by its owner, from this site", async ({ page, browser }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "a note") });
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note" });
     const send = (request: typeof page.request, data: unknown, origin: string | null = BASE) => request.post(`/api/connections/${id}/shares`, { headers: origin === null ? {} : { origin }, data });
     const good = { doc: ID_DOC, email: "someone@example.com", role: "view" };
 
-    expect((await send(page.request, { ...good, doc: ID_NOTE })).status()).toBe(422); // a note
+    expect((await send(page.request, { ...good, doc: ID_NOTE })).status()).toBe(404); // a file with no id is not a Doc to share (RFC 0002: any Doc can be shared, there is no longer a note)
     expect((await send(page.request, { ...good, doc: "01jagc4k7pt8y3wqnmzv5xrbzz" })).status()).toBe(404); // not there
     for (const bad of [{ ...good, role: "owner" }, { ...good, email: "no-at-sign" }, { ...good, doc: "nope" }]) expect((await send(page.request, bad)).status(), JSON.stringify(bad)).toBe(400);
     expect((await send(page.request, good, "https://evil.example")).status()).toBe(403);
@@ -3082,11 +3101,11 @@ test("a link opens a document for anyone who has it, until it expires or is revo
 
 test("only the owner makes links, only for a document, from this site, and the token is shown once", async ({ page, browser }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "a note") });
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note" });
     const send = (request: typeof page.request, data: unknown, origin: string | null = BASE) => request.post(`/api/connections/${id}/links`, { headers: origin === null ? {} : { origin }, data });
     const good = { doc: ID_DOC, role: "view" };
 
-    expect((await send(page.request, { ...good, doc: ID_NOTE })).status()).toBe(422);
+    expect((await send(page.request, { ...good, doc: ID_NOTE })).status()).toBe(404); // RFC 0002: a file with no id is not there to be shared
     expect((await send(page.request, { ...good, doc: "01jagc4k7pt8y3wqnmzv5xrbzz" })).status()).toBe(404);
     for (const bad of [{ ...good, role: "owner" }, { ...good, expiresAt: Date.now() - 1000 }, { ...good, expiresAt: "tomorrow" }, { ...good, doc: "nope" }]) expect((await send(page.request, bad)).status(), JSON.stringify(bad)).toBe(400);
     expect((await send(page.request, good, "https://evil.example")).status()).toBe(403);
@@ -3422,7 +3441,7 @@ test("a view link or a comment link cannot edit, and an edit link that is revoke
 
 test("the owner sees and controls every share of a document from its page: people, roles, links, copy, change, revoke", async ({ page, browser }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "a note") });
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note" });
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
 
     const graceEmail = `grace-${Date.now()}@example.com`;
@@ -3430,9 +3449,10 @@ test("the owner sees and controls every share of a document from its page: peopl
     const grace = await graceContext.newPage();
     await signUp(grace, graceEmail, "Grace Hopper");
 
-    // A note has no sharing; a document has the panel, closed, with nothing shared.
+    // A file with no id has the offer to add one (and nothing is shared before that); a Doc has the panel, closed, with nothing shared.
     await page.goto(`/repo/${id}/Notes/idea.md`);
     await expect(page.getByTestId("share-panel")).toHaveCount(0);
+    await expect(page.getByTestId("identify-panel")).toBeVisible();
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
     const panel = page.getByTestId("share-panel");
     await panel.getByText("Sharing", { exact: true }).click();
@@ -3667,7 +3687,7 @@ test("threads, replies, resolving, editing and deleting, by role, in the editor 
 
 test("a named account it is shared with comments as itself, and a revoked link stops commenting", async ({ page, browser }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "a note") });
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note" });
     const graceEmail = `grace-${Date.now()}@example.com`;
     const graceContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.3" } });
     const grace = await graceContext.newPage();

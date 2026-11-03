@@ -121,7 +121,7 @@ export async function IdPage({ id, wrong }: { id: string; wrong?: "wrong" | "wai
       <ul aria-label="Files with this id">
         {found.matches.map((match) => (
           <li key={`${match.connectionId}/${match.path}`}>
-            <a href={repositoryHref(match.connectionId, ...match.path.split("/"))}>{match.path}</a>{" "}
+            <a href={`${repositoryHref(match.connectionId, ...match.path.split("/"))}?pick=1`}>{match.path}</a>{" "}
             <span className={styles.itemMeta}>
               Document in {named.get(match.connectionId) ?? "a repository"}
             </span>
