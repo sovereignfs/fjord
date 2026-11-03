@@ -20,29 +20,6 @@ pub fn run(command: &VaultCommand, global: &GlobalArgs) -> Result<ExitCode> {
             commit,
         } => add(name, *encrypted, *id_naming, recipient, *commit, global),
         VaultCommand::List => list(global),
-        VaultCommand::Encrypt {
-            vault,
-            recipient,
-            yes,
-            commit,
-        } => crate::cmd::convert::encrypt(
-            vault,
-            &crate::cmd::convert::Options {
-                recipients: recipient,
-                yes: *yes,
-                commit: *commit,
-            },
-            global,
-        ),
-        VaultCommand::Decrypt { vault, yes, commit } => crate::cmd::convert::decrypt(
-            vault,
-            &crate::cmd::convert::Options {
-                recipients: &[],
-                yes: *yes,
-                commit: *commit,
-            },
-            global,
-        ),
     }
 }
 

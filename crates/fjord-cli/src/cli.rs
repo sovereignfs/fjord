@@ -69,10 +69,10 @@ pub enum Command {
     /// Decrypt a document, open $EDITOR, re-encrypt on change.
     Open(OpenArgs),
 
-    /// Encrypt a file, or check an encrypted vault back in. (`fjord vault encrypt` makes a vault encrypted.)
+    /// Encrypt a file, check a decrypted vault back in, or (--permanent) make a plaintext vault an encrypted one.
     Encrypt(EncryptArgs),
 
-    /// Decrypt a file to stdout, or check an encrypted vault out to work on. (`fjord vault decrypt` makes it plaintext.)
+    /// Decrypt a file to stdout, check an encrypted vault out to edit, or (--permanent) make it plaintext for good.
     Decrypt(DecryptArgs),
 
     /// Create a Fjord Doc with valid frontmatter.
@@ -214,6 +214,23 @@ pub struct EncryptArgs {
     /// end the checkout.
     #[arg(long)]
     pub discard: bool,
+
+    /// Vault only: make a *plaintext* vault an encrypted one, for good (RFC 0003).
+    ///
+    /// Encrypts every file, proves each opens to what it was made from, and only then removes the plain ones. Anything already
+    /// committed stays in the history in the clear. Without this, `fjord encrypt <vault>` checks a decrypted vault back in.
+    #[arg(long)]
+    pub permanent: bool,
+
+    /// With --permanent: an age public key to encrypt to. Repeat for several. Without one, your identity's own.
+    ///
+    /// A *public* key (`age1…`), never an identity.
+    #[arg(long, value_name = "KEY")]
+    pub recipient: Vec<String>,
+
+    /// With --permanent: commit the vault, and only the vault, when it is done.
+    #[arg(long)]
+    pub commit: bool,
 }
 
 #[derive(Debug, Args)]
@@ -228,6 +245,22 @@ pub struct DecryptArgs {
     /// content must never be written into one.
     #[arg(long, short, value_name = "PATH")]
     pub out: Option<PathBuf>,
+
+    /// Vault only: make an *encrypted* vault a plaintext one, for good (RFC 0003).
+    ///
+    /// Not a checkout: the vault stops being encrypted, its encrypted files are removed, and its files are readable by anyone who
+    /// can read the repository, and stay so in the history once committed. Without this, `fjord decrypt <vault>` only decrypts
+    /// it for editing, and `fjord encrypt <vault>` puts it back.
+    #[arg(long)]
+    pub permanent: bool,
+
+    /// With --permanent: do not ask first.
+    #[arg(long, short = 'y')]
+    pub yes: bool,
+
+    /// With --permanent: commit the vault, and only the vault, when it is done.
+    #[arg(long)]
+    pub commit: bool,
 }
 
 #[derive(Debug, Args)]
@@ -364,47 +397,6 @@ pub enum VaultCommand {
 
     /// List vaults.
     List,
-
-    /// Make a plaintext vault an encrypted one, in one step (RFC 0003).
-    ///
-    /// Encrypts every file in it to the recipients, proves each encrypted file opens to what it was made from, and only then
-    /// removes the plain ones. Encrypting does not unpublish anything already committed: it stays in the history. Work on the
-    /// vault afterwards with `fjord decrypt <vault>` and `fjord encrypt <vault>`, or `fjord open <file>`.
-    Encrypt {
-        /// The vault's directory, as `fjord vault list` shows it.
-        vault: String,
-
-        /// An age public key to encrypt to. Repeat for several. Without one, the public key of your identity.
-        ///
-        /// A *public* key (`age1…`), never an identity.
-        #[arg(long, value_name = "KEY")]
-        recipient: Vec<String>,
-
-        /// Do not ask first.
-        #[arg(long, short = 'y')]
-        yes: bool,
-
-        /// Commit the vault, and only the vault, when it is done.
-        #[arg(long)]
-        commit: bool,
-    },
-
-    /// Make an encrypted vault a plaintext one again, for good (RFC 0003).
-    ///
-    /// Not a checkout: the vault stops being encrypted, its encrypted files are removed, and its files are readable by anyone
-    /// who can read the repository. To work on an encrypted vault and keep it encrypted, use `fjord decrypt <vault>`.
-    Decrypt {
-        /// The vault's directory, as `fjord vault list` shows it.
-        vault: String,
-
-        /// Do not ask first.
-        #[arg(long, short = 'y')]
-        yes: bool,
-
-        /// Commit the vault, and only the vault, when it is done.
-        #[arg(long)]
-        commit: bool,
-    },
 }
 
 #[derive(Debug, Args)]

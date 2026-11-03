@@ -242,7 +242,7 @@ pub fn decrypt(
     if !vault.is_encrypted() {
         return Ok(usage(format!(
             "the {} vault is not encrypted, so there is nothing to decrypt. Its files are \
-             already readable",
+             already readable. `fjord encrypt <vault> --permanent` makes it an encrypted vault",
             vault.directory
         )));
     }
@@ -418,7 +418,7 @@ pub fn decrypt(
         println!();
         println!(
             "  {}",
-            style.warning("Until you do, `fjord sync`, `rekey` and `vault add --commit` refuse.")
+            style.warning("Until you do, nothing commits or syncs: `fjord sync`, `rekey` and every `--commit` refuse.")
         );
         println!(
             "  {}",
@@ -522,7 +522,8 @@ pub fn encrypt(
     }
     if !vault.is_encrypted() {
         return Ok(usage(format!(
-            "the {} vault is not encrypted, so there is nothing to check in",
+            "the {0} vault is not encrypted, so there is nothing to check in. \
+             `fjord encrypt {0} --permanent` makes it an encrypted vault",
             vault.directory
         )));
     }

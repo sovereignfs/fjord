@@ -31,7 +31,35 @@ pub fn encrypt(args: &EncryptArgs, global: &GlobalArgs) -> Result<ExitCode> {
 
     // A vault's own directory means a checkout (spec §6.6), not one file.
     if let Some(vault) = crate::cmd::checkout::vault_named(&root, &relative)? {
+        if args.permanent {
+            if args.keep || args.dry_run || args.discard {
+                return Ok(usage(
+                    "--keep, --dry-run and --discard are for a checkout. --permanent makes the vault an \
+                     encrypted one, for good",
+                ));
+            }
+            return crate::cmd::convert::encrypt(
+                &vault.directory,
+                &crate::cmd::convert::Options {
+                    recipients: &args.recipient,
+                    yes: args.yes,
+                    commit: args.commit,
+                },
+                global,
+            );
+        }
+        if !args.recipient.is_empty() || args.commit {
+            return Ok(usage(
+                "--recipient and --commit go with --permanent, which makes a plaintext vault an \
+                 encrypted one. Without it, `fjord encrypt <vault>` checks a decrypted vault back in",
+            ));
+        }
         return crate::cmd::checkout::encrypt(&root, &vault, args, global);
+    }
+    if args.permanent || !args.recipient.is_empty() || args.commit {
+        return Ok(usage(
+            "--permanent, --recipient and --commit apply to a vault: name its directory",
+        ));
     }
     if args.dry_run || args.yes || args.discard {
         return Ok(usage(
@@ -186,7 +214,29 @@ pub fn decrypt(args: &DecryptArgs, global: &GlobalArgs) -> Result<ExitCode> {
                  payloads (spec §6.6)",
             ));
         }
+        if args.permanent {
+            return crate::cmd::convert::decrypt(
+                &vault.directory,
+                &crate::cmd::convert::Options {
+                    recipients: &[],
+                    yes: args.yes,
+                    commit: args.commit,
+                },
+                global,
+            );
+        }
+        if args.yes || args.commit {
+            return Ok(usage(
+                "--yes and --commit go with --permanent, which makes an encrypted vault a plaintext \
+                 one. Without it, `fjord decrypt <vault>` only decrypts the vault for editing",
+            ));
+        }
         return crate::cmd::checkout::decrypt(&root, &vault, args, global);
+    }
+    if args.permanent || args.yes || args.commit {
+        return Ok(usage(
+            "--permanent, --yes and --commit apply to a vault: name its directory",
+        ));
     }
 
     let vault = match encrypted_vault(&root, &relative)? {

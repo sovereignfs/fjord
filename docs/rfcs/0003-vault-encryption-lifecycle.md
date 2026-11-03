@@ -2,13 +2,14 @@
 
 **Status:** Implemented
 **Amends:** spec §6 (adds §6.7)
-**Touches:** `fjord-core` (`scaffold`), `fjord-cli` (`fjord vault encrypt`, `fjord vault decrypt`)
+**Touches:** `fjord-core` (`scaffold`), `fjord-cli` (`fjord encrypt --permanent`, `fjord decrypt --permanent`)
 
 ## Summary
 
-`fjord vault encrypt <vault>` makes a plaintext vault an encrypted one in one command, and `fjord vault decrypt <vault>` makes an
-encrypted vault a plaintext one again. Between them the existing `fjord decrypt <vault>` and `fjord encrypt <vault>` (a checkout, spec
-§6.6) and `fjord open <file>` are how one works on an encrypted vault.
+`fjord encrypt <vault> --permanent` makes a plaintext vault an encrypted one in one command, and `fjord decrypt <vault> --permanent`
+makes an encrypted vault a plaintext one again. **Without the flag, `fjord decrypt <vault>` and `fjord encrypt <vault>` stay what they
+were: the checkout (spec §6.6), which decrypts a vault for editing and puts it back, and changes nothing about what the vault is.** The
+flag is never the default.
 
 ## Motivation
 
@@ -21,11 +22,12 @@ checkout that ends in `fjord encrypt`, and `export` writes a copy elsewhere. The
 
 | Gap | Closed by |
 | --- | --- |
-| No way to encrypt an existing plaintext vault in one command | `fjord vault encrypt` |
-| No way to make an encrypted vault plaintext | `fjord vault decrypt` |
+| No way to encrypt an existing plaintext vault in one command | `fjord encrypt <vault> --permanent` |
+| No way to make an encrypted vault plaintext | `fjord decrypt <vault> --permanent` |
 | Whether the manifest, recipients file, guard and merge guard are all right was the user's to get right | `fjord_core::scaffold::plan_encrypt_vault`, `plan_decrypt_vault`: the same files as `vault add`, with the vault's own fields kept |
 | The spec had no rule for either direction | spec §6.7 |
-| `encrypt` and `decrypt` meant two things | their help and the README say which is which; the README has one section for the lifecycle |
+| `encrypt` and `decrypt` of a vault were a checkout and could not be told from a conversion | the checkout is the default and `--permanent` the conversion, in the help and the README |
+| `fjord open --commit` could commit during a checkout (spec §6.6 (6)) | it refuses, as `sync`, `rekey` and `vault add --commit` do |
 
 ## Design
 
@@ -50,3 +52,4 @@ Both are built on the checkout and write no plaintext into an encrypted vault an
 | Date | Change |
 | --- | --- |
 | 2026-11-03 | Written and implemented with the commands. |
+| 2026-11-03 | The conversions moved from `fjord vault encrypt` and `decrypt` to `--permanent` on `encrypt` and `decrypt`: the checkout is the default. |

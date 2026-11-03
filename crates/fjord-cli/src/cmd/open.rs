@@ -54,6 +54,14 @@ pub fn run(args: &OpenArgs, global: &GlobalArgs) -> Result<ExitCode> {
         return Ok(code);
     }
 
+    // Spec §6.6 (6): no client commits while any checkout exists, `--commit` of one document included. The document is
+    // another vault's, and the commit takes only it, but the rule is the repository's.
+    if args.commit {
+        if let Some(code) = crate::cmd::guard::ensure_nothing_in_the_clear(&root)? {
+            return Ok(code);
+        }
+    }
+
     let editor = match resolve_editor(args.editor.as_deref()) {
         Some(editor) => editor,
         None => {

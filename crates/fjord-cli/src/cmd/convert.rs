@@ -2,7 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-//! `fjord vault encrypt` and `fjord vault decrypt` — make a vault encrypted, or plaintext again (RFC 0003, spec §6.7).
+//! `fjord encrypt <vault> --permanent` and `fjord decrypt <vault> --permanent` — make a vault encrypted, or plaintext again
+//! (RFC 0003, spec §6.7). Without `--permanent` those two commands are the checkout (spec §6.6, [`crate::cmd::checkout`]).
 //!
 //! Both are built on the checkout (spec §6.6) and never write plaintext into an encrypted vault any other way:
 //!
@@ -130,7 +131,7 @@ pub fn encrypt(name: &str, options: &Options<'_>, global: &GlobalArgs) -> Result
     };
     if vault.is_encrypted() {
         return Ok(usage(format!(
-            "the {0} vault is already encrypted. `fjord key add` adds a recipient, `fjord rekey {0}` re-encrypts it to the current ones, and `fjord decrypt {0}` checks it out to work on",
+            "the {0} vault is already encrypted. `fjord key add` adds a recipient, `fjord rekey {0}` re-encrypts it to the current ones, and `fjord decrypt {0}` decrypts it to work on",
             vault.directory
         )));
     }
@@ -236,6 +237,9 @@ pub fn encrypt(name: &str, options: &Options<'_>, global: &GlobalArgs) -> Result
         dry_run: false,
         yes: true,
         discard: false,
+        permanent: false,
+        recipient: Vec::new(),
+        commit: false,
     };
     let code = checkout::encrypt(&root, &converted, &args, &quiet)?;
     if !matches!(code, ExitCode::Ok) {
@@ -269,7 +273,7 @@ pub fn encrypt(name: &str, options: &Options<'_>, global: &GlobalArgs) -> Result
             println!(
                 "  {}",
                 style.dim(&format!(
-                    "work on it with `fjord decrypt {0}`, then `fjord encrypt {0}`; or `fjord open <file>`",
+                    "to edit it as plaintext: `fjord decrypt {0}`, then `fjord encrypt {0}` when done; or `fjord open <file>`",
                     converted.directory
                 ))
             );
@@ -339,6 +343,9 @@ pub fn decrypt(name: &str, options: &Options<'_>, global: &GlobalArgs) -> Result
     let args = DecryptArgs {
         path: PathBuf::from(&vault.directory),
         out: None,
+        permanent: false,
+        yes: false,
+        commit: false,
     };
     let code = checkout::decrypt(&root, &vault, &args, &quiet)?;
     if !matches!(code, ExitCode::Ok) {
