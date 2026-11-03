@@ -29,7 +29,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@libsql/client": "^0.18.0",
     "@sovereignfs/sdk": "2.1.0",
-    "@sovereignfs/ui": "0.90.0",
+    "@sovereignfs/ui": "0.91.0",
     "better-auth": "~1.7.14",
     "drizzle-orm": "^0.45.4",
     "fjord-editor": "link:../../packages/fjord-editor",
