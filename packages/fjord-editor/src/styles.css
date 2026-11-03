@@ -316,3 +316,20 @@
 ::highlight(fe-thread-active) {
   background-color: var(--fe-mark-active-bg, rgba(250, 204, 21, 0.75));
 }
+
+/* Why a document is shown as Markdown: each spot the visual editor would write differently. */
+.fe-issues {
+  display: grid;
+  gap: var(--fe-space, 0.5rem);
+}
+.fe-issues p {
+  margin: 0;
+}
+.fe-issue-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+.fe-issue-list code {
+  font-family: var(--fe-font-mono, ui-monospace, monospace);
+  overflow-wrap: anywhere;
+}

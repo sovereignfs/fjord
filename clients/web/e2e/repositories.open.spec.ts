@@ -2350,6 +2350,8 @@ test("a document the visual editor cannot keep as written is shown as Markdown, 
     await page.goto(`/repo/${id}/Notes/Raw.fj.md`);
 
     await expect(page.getByRole("note")).toContainText("shown as Markdown");
+    // It says where, so that it can be fixed: the first spot the visual editor could not keep, by line.
+    await expect(page.getByRole("region", { name: "Why it is shown as Markdown" })).toContainText(/Line \d+:/);
     const editor = noteEditor(page, "Raw.fj.md");
     await expect(editor).toContainText("<details>");
     await expect(page.getByRole("toolbar").filter({ hasText: "Block type" })).toHaveCount(0); // no formatting toolbar (the comments have their own)

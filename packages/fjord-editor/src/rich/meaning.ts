@@ -68,6 +68,123 @@ export function sameMeaning(a: string, b: string): boolean {
   return a === b || meaningOf(a) === meaningOf(b);
 }
 
+/** One place where what the visual editor would write is not what was written, for the person to look at and fix. */
+export interface Difference {
+  /** The line it starts on, counted in the text the editor was given (a document's body, below its header). */
+  line: number;
+  /** What is written there, trimmed to the part that matters. */
+  written: string;
+  /** What the visual editor would write instead; `null` when it would drop it. */
+  becomes: string | null;
+}
+
+/** Why the visual editor cannot hold a text, for the person to read. */
+export type Unsafe =
+  | { reason: "line-endings" }
+  | { reason: "meaning"; differences: Difference[] }
+  /** Raw HTML, which the visual editor does not hold: where it is. */
+  | { reason: "html"; spots: { line: number; written: string }[] }
+  | { reason: "unreadable"; detail: string };
+
+const WINDOW_BEFORE = 24;
+const WINDOW_AFTER = 56;
+const WHOLE_UP_TO = 140;
+
+/** A piece of `source` for a person to read, one line, starting a little before `at` when given. */
+function excerpt(source: string, start: number, end: number, at = 0): string {
+  // A short piece is shown whole; a long one from a little before where it first differs.
+  const whole = end - start <= WHOLE_UP_TO;
+  const from = whole ? start : Math.max(start, start + at - WINDOW_BEFORE);
+  const to = whole ? end : Math.min(end, start + at + WINDOW_AFTER);
+  const flat = source.slice(from, to).replace(/\s+/g, " ").trim();
+  return `${from > start ? "…" : ""}${flat}${to < end ? "…" : ""}`;
+}
+
+type Node = { type?: string; value?: string; children?: Node[]; position?: { start: { line: number; offset?: number }; end: { offset?: number } } } & Record<string, unknown>;
+
+const bounds = (node: Node) => ({ start: node.position?.start.offset ?? 0, end: node.position?.end.offset ?? 0 });
+/** What is in a node besides its children and where it is: what it is, to compare apart from what is in it. */
+const self = (node: Node, source: string) => JSON.stringify(describe(Object.fromEntries(Object.entries(node).filter(([key]) => key !== "children" && key !== "position")), source));
+
+/**
+ * Where `written`, the text the visual editor would write for `original`, is not `original` by meaning (`sameMeaning`): the deepest nodes that differ,
+ * each with the line it starts on in `original`, what is written there and what would be written instead. At most `limit` are returned, since a
+ * person fixes them one at a time and a document that is all one difference is not helped by a thousand lines of it.
+ */
+export function differences(original: string, written: string, limit = 12): Difference[] {
+  const a = fromMarkdown(original, OPTIONS) as unknown as Node;
+  const b = fromMarkdown(written, OPTIONS) as unknown as Node;
+  const found: Difference[] = [];
+  const report = (before: Node, after: Node | undefined) => {
+    if (found.length >= limit) return;
+    const left = bounds(before);
+    // Text is shown from where it first differs, since a paragraph is long and the difference is a word of it.
+    let at = 0;
+    let atAfter = 0;
+    if (before.type === "text" && after?.type === "text") {
+      const right = bounds(after);
+      const x = original.slice(left.start, left.end);
+      const y = written.slice(right.start, right.end);
+      while (at < x.length && at < y.length && x[at] === y[at]) at++;
+      atAfter = at;
+    }
+    found.push({
+      line: before.position?.start.line ?? 1,
+      written: excerpt(original, left.start, left.end, at),
+      becomes: after === undefined ? null : excerpt(written, bounds(after).start, bounds(after).end, atAfter),
+    });
+  };
+  const walk = (before: Node, after: Node | undefined) => {
+    if (found.length >= limit) return;
+    if (after === undefined) return report(before, undefined);
+    if (JSON.stringify(describe(before, original)) === JSON.stringify(describe(after, written))) return;
+    const left = before.children;
+    const right = after.children;
+    if (before.type === after.type && Array.isArray(left) && Array.isArray(right) && self(before, original) === self(after, written)) {
+      if (left.length === right.length) {
+        for (const [index, child] of left.entries()) walk(child, right[index]);
+        return;
+      }
+      // A different number of children: the first one that is not the other's is where they part.
+      const index = left.findIndex((child, at) => right[at] === undefined || JSON.stringify(describe(child, original)) !== JSON.stringify(describe(right[at], written)));
+      if (index >= 0 && left[index] !== undefined) return walk(left[index] as Node, right[index]);
+      return report(before, after);
+    }
+    report(before, after);
+  };
+  walk(a, b);
+  return found;
+}
+
+/** Every piece of raw HTML in the text, with its line: what the visual editor cannot hold, found by the parser that finds nothing else. */
+export function htmlSpots(markdown: string, limit = 12): { line: number; written: string }[] {
+  const found: { line: number; written: string }[] = [];
+  const walk = (node: Node) => {
+    if (found.length >= limit) return;
+    if (node.type === "html") {
+      const { start, end } = bounds(node);
+      found.push({ line: node.position?.start.line ?? 1, written: excerpt(markdown, start, end) });
+      return;
+    }
+    for (const child of node.children ?? []) walk(child);
+  };
+  walk(fromMarkdown(markdown, OPTIONS) as unknown as Node);
+  return found;
+}
+
+/**
+ * What the visual editor said when it could not read a text (a library's own message), as something to tell the person: raw HTML, which is found, or
+ * the structure it named, or what it said.
+ */
+export function unreadable(markdown: string, message: string): Unsafe {
+  const named = /"type":"([A-Za-z]+)"/.exec(message)?.[1];
+  if (named === "html") {
+    const spots = htmlSpots(markdown);
+    if (spots.length > 0) return { reason: "html", spots };
+  }
+  return { reason: "unreadable", detail: named ? `it contains a ${named} that it cannot hold` : "the visual editor could not read it" };
+}
+
 /**
  * The editor writes a document without its last line break (a document in a file has one) and without the blank lines it
  * began with (a body that follows a header does: the blank line between them). Give back what was given at both ends:

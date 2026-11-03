@@ -34,7 +34,9 @@ The visual editor rewrites a document in its own style (`-` for bullets, `*` for
 it refuses or normalises what it does not model. So `DocumentEditor` opens a text in it only if what it would write back
 parses to **the same tree, with each paragraph's text as it was written**, and has no carriage returns; any other text is
 shown as Markdown, in the editor below, with a notice. That keeps raw HTML, footnotes, maths, reference-style links, loose lists
-and CRLF documents exactly as they were, and lets a plain document be edited visually. It is decided when the text is
+and CRLF documents exactly as they were, and lets a plain document be edited visually. The notice says why: each spot the editor would
+write differently, by line, with what is written and what would be written instead, the raw HTML it does not hold, or the line endings;
+and *Check again* tries the visual editor again once the text is fixed. It is decided when the text is
 opened, and again when the app sets a different one. Opening a document tells the app nothing; an edit is the whole new body;
 an edit undone gives back the text the app gave, byte for byte; and the blank lines a body begins and ends with are kept. The
 header (`---` … `---`) is not given to the editor: the app keeps it.

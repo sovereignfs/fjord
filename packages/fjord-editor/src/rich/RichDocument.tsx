@@ -30,7 +30,7 @@ import {
 } from "@mdxeditor/editor";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { EditorHandle } from "../types.js";
-import { keepsLineEndings, sameMeaning, withEdgesLike } from "./meaning.js";
+import { type Unsafe, differences, keepsLineEndings, sameMeaning, unreadable, withEdgesLike } from "./meaning.js";
 import { type RestylePreview, describeRestyle } from "./restyle.js";
 import { HOUSE_STYLE, withReadableDelimiters } from "./style.js";
 
@@ -59,8 +59,8 @@ export interface RichDocumentProps {
   className?: string | undefined;
   /** The person edited: this is the whole new text. Resolves whether the app took it. */
   onEdit: (text: string) => Promise<boolean>;
-  /** The text cannot be held by the visual editor without a change of meaning. */
-  onUnsafe: () => void;
+  /** The text cannot be held by the visual editor without a change of meaning, and why: for the person to fix. */
+  onUnsafe: (why: Unsafe) => void;
   /** What editing this text here would restyle, once the editor has read it; `null` when it would restyle nothing. */
   onRestyle?: ((preview: RestylePreview | null) => void) | undefined;
 }
@@ -113,11 +113,10 @@ export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function
     [container],
   );
 
-  const unsafe = onUnsafe;
 
   // Opening a document: one whose line breaks the editor would rewrite is not for it, whatever else it holds.
   useEffect(() => {
-    if (!keepsLineEndings(value)) onUnsafe();
+    if (!keepsLineEndings(value)) onUnsafe({ reason: "line-endings" });
   }, [value, onUnsafe]);
 
   // The app sets a different text (a conflict settled, a draft discarded): the editor starts again from it, which is also how
@@ -162,7 +161,7 @@ export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function
         className="fe-mdx"
         contentEditableClassName="fe-rich-content"
         translation={(key, defaultValue) => (key === "contentArea.editableMarkdown" && label !== undefined ? label : defaultValue)}
-        onError={unsafe}
+        onError={(payload) => onUnsafe(unreadable(held.current, typeof payload?.error === "string" ? payload.error : ""))}
         onChange={(markdown, initialNormalize) => {
           // The editor says, once it has read what it was given, what it would write back if that were saved. That is not an
           // edit. It is the check: the text it would write must mean what the text it read does, or it is not for this editor.
@@ -170,7 +169,7 @@ export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function
           // asking it for its text at the moment it is made gives back the text it was made with.)
           if (initialNormalize) {
             const restyled = withEdgesLike(held.current, withReadableDelimiters(markdown));
-            if (!sameMeaning(held.current, restyled)) unsafe();
+            if (!sameMeaning(held.current, restyled)) onUnsafe({ reason: "meaning", differences: differences(held.current, restyled) });
             else onRestyle?.(restyled === held.current ? null : describeRestyle(held.current, restyled));
             return;
           }

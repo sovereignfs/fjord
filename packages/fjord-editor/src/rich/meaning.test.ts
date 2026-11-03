@@ -80,3 +80,58 @@ describe("line endings", () => {
     expect(keepsLineEndings("mostly\nlf\r\n")).toBe(false);
   });
 });
+
+describe("where two texts differ", () => {
+  it("says the line, what is written, and what would be written, for the spot and not the whole paragraph", async () => {
+    const { differences } = await import("./meaning.js");
+    const original = "# Title\n\nA first paragraph that is fine.\n\n&#91;embedded content: roadmap\\]\n\nEnd.\n";
+    const written = "# Title\n\nA first paragraph that is fine.\n\n\\[embedded content: roadmap]\n\nEnd.\n";
+    expect(sameMeaning(original, written)).toBe(false);
+    expect(differences(original, written)).toEqual([{ line: 5, written: "&#91;embedded content: roadmap\\]", becomes: "\\[embedded content: roadmap]" }]);
+  });
+
+  it("finds the word in a long line, and every spot when there are several", async () => {
+    const { differences } = await import("./meaning.js");
+    const filler = "word ".repeat(40);
+    const found = differences(`${filler}[[Other note]] and more.\n\n- one\n- two\n\nTail [[Again]].\n`, `${filler}\\[\\[Other note]] and more.\n\n- one\n- two\n\nTail \\[\\[Again]].\n`);
+    expect(found).toHaveLength(2);
+    expect(found[0]!.line).toBe(1);
+    expect(found[0]!.written).toContain("[[Other note]]");
+    expect(found[0]!.written.length).toBeLessThan(120);
+    expect(found[1]).toMatchObject({ line: 6, written: expect.stringContaining("[[Again]]") });
+  });
+
+  it("says a block that would be dropped is dropped, and says nothing for texts that mean the same", async () => {
+    const { differences } = await import("./meaning.js");
+    expect(differences("text\n\n[ref]: http://x.example\n", "text\n")).toEqual([{ line: 3, written: "[ref]: http://x.example", becomes: null }]);
+    expect(differences("- a\n- b\n", "* a\n* b\n")).toEqual([]);
+  });
+
+  it("is limited, since a person fixes them one at a time", async () => {
+    const { differences } = await import("./meaning.js");
+    const many = Array.from({ length: 30 }, (_, i) => `See [[Note ${i}]].`).join("\n\n");
+    const escaped = Array.from({ length: 30 }, (_, i) => `See \\[\\[Note ${i}]].`).join("\n\n");
+    expect(differences(many, escaped, 5)).toHaveLength(5);
+  });
+});
+
+describe("what the visual editor cannot read", () => {
+  it("is raw HTML, found by line, when that is what the editor named", async () => {
+    const { unreadable } = await import("./meaning.js");
+    const text = "Intro.\n\n<details>\n<summary>More</summary>\n\nInside.\n\n</details>\n\nA <b>bold</b> word.\n";
+    const why = unreadable(text, 'Parsing of the following markdown structure failed: {"type":"html","name":"N/A"}');
+    expect(why.reason).toBe("html");
+    expect((why as { spots: { line: number; written: string }[] }).spots.map((spot) => [spot.line, spot.written])).toEqual([
+      [3, "<details> <summary>More</summary>"],
+      [8, "</details>"],
+      [10, "<b>"],
+      [10, "</b>"],
+    ]);
+  });
+
+  it("is the structure it named, otherwise, and a plain sentence when it named nothing", async () => {
+    const { unreadable } = await import("./meaning.js");
+    expect(unreadable("x", 'failed: {"type":"mdxJsxFlowElement"}')).toEqual({ reason: "unreadable", detail: "it contains a mdxJsxFlowElement that it cannot hold" });
+    expect(unreadable("x", "")).toEqual({ reason: "unreadable", detail: "the visual editor could not read it" });
+  });
+});

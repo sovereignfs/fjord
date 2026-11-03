@@ -8,6 +8,7 @@ import { type MarkedThread, caretAt, paintMarks, threadAt } from "./marks.js";
 import { useNameGate } from "./name-gate.js";
 import { NoteEditor } from "./NoteEditor.js";
 import { offsetsOfSelectedText } from "./selection.js";
+import type { Unsafe } from "./rich/meaning.js";
 import type { RestylePreview } from "./rich/restyle.js";
 import type { DocumentEditorProps, EditorHandle, ThreadMark } from "./types.js";
 
@@ -34,6 +35,8 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
   const editable = role === "edit";
   /** The visual editor could not hold this text, so it is shown as Markdown. */
   const [asMarkdown, setAsMarkdown] = useState(false);
+  /** Why the visual editor could not hold it, for the person to read and fix (the first reason it gave). */
+  const [why, setWhy] = useState<Unsafe | null>(null);
   /** The person chose Markdown for a text the visual editor could hold but would restyle (ROADMAP 1b.4). */
   const [chosenMarkdown, setChosenMarkdown] = useState(false);
   /** What editing the text here would restyle, as the visual editor reported it. */
@@ -191,6 +194,25 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
           <p className="fe-notice" role="note">
             {chosenMarkdown ? "You chose to edit this document as Markdown, so it is shown exactly as written." : "This document has Markdown the visual editor cannot keep exactly as written, so it is shown as Markdown."}
           </p>
+          {!chosenMarkdown && why !== null ? (
+            <section className="fe-notice fe-issues" aria-label="Why it is shown as Markdown">
+              <Issues why={why} />
+              <p>
+                {why.reason === "meaning" || why.reason === "html" ? `Fix ${(why.reason === "meaning" ? why.differences.length : why.spots.length) === 1 ? "it" : "them"}` : "Change it"} below, then{" "}
+                <button
+                  type="button"
+                  className="fe-button"
+                  onClick={() => {
+                    setWhy(null);
+                    setAsMarkdown(false);
+                  }}
+                >
+                  Check again
+                </button>{" "}
+                to edit it visually.
+              </p>
+            </section>
+          ) : null}
           <NoteEditor
             key={restarts}
             ref={handle}
@@ -207,7 +229,7 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
         </>
       ) : (
         <Suspense fallback={<p className="fe-status">Loading the editor…</p>}>
-          <RichDocument ref={handle} value={value} editable={editable && pendingRestyle === null} aria-label={label} onEdit={edit} onUnsafe={() => setAsMarkdown(true)} onRestyle={setRestyle} />
+          <RichDocument ref={handle} value={value} editable={editable && pendingRestyle === null} aria-label={label} onEdit={edit} onUnsafe={(reason) => (setWhy((first) => first ?? reason), setAsMarkdown(true))} onRestyle={setRestyle} />
         </Suspense>
       )}
       {comments ? (
@@ -218,6 +240,49 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
     </div>
   );
 });
+
+/** What stops the visual editor, in words, and for a text it would write differently, each spot: where, what is written, and what would be. */
+function Issues({ why }: { why: Unsafe }) {
+  if (why.reason === "line-endings") {
+    return <p>This document uses carriage-return line endings (a Windows or an old Mac file). The visual editor writes every line break as a line feed, which would change every line. Convert it to line feeds to edit it visually.</p>;
+  }
+  if (why.reason === "html") {
+    return (
+      <>
+        <p>The visual editor does not hold raw HTML, which this document has:</p>
+        <ul className="fe-issue-list">
+          {why.spots.map((spot, index) => (
+            <li key={`${spot.line}-${index}`}>
+              Line {spot.line}: <code>{spot.written}</code>
+            </li>
+          ))}
+        </ul>
+      </>
+    );
+  }
+  if (why.reason === "unreadable") return <p>The visual editor could not read this document: {why.detail}.</p>;
+  const shown = why.differences.slice(0, 8);
+  return (
+    <>
+      <p>
+        {why.differences.length === 1 ? "The visual editor would write this differently, in a way that could change what it means:" : "The visual editor would write these differently, in ways that could change what they mean:"}
+      </p>
+      <ul className="fe-issue-list">
+        {shown.map((item, index) => (
+          <li key={`${item.line}-${index}`}>
+            Line {item.line}: <code>{item.written}</code>
+            {item.becomes === null ? " would be dropped." : (
+              <>
+                {" "}would become <code>{item.becomes}</code>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+      {why.differences.length > shown.length ? <p>…and more.</p> : null}
+    </>
+  );
+}
 
 /** "3 lines would change", "1 line would go and 2 would come": what a restyle does, in words. */
 function changes(preview: RestylePreview): string {

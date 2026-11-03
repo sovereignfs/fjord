@@ -5,6 +5,10 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
 
 ## [Unreleased]
 
+### Changed
+
+- **A document shown as Markdown says why** (the document editor's notice). When the visual editor cannot keep a text exactly as written, the notice lists each spot by line: what is written there and what the editor would write instead (for a text whose meaning would change), the raw HTML it does not hold, or that the line endings are carriage returns; and a *Check again* button tries the visual editor again once it is fixed. `rich/meaning.ts` gains `differences`, `htmlSpots` and `unreadable`, and `RichDocument`'s `onUnsafe` now says why. Nothing about which documents the visual editor holds has changed.
+
 ### Added
 
 - **The house style, and a preview of what an edit would restyle** (ROADMAP 1b.4): the visual document editor writes `-` bullets, `*` emphasis and strong, `---` rules, `1.` on every numbered item,
