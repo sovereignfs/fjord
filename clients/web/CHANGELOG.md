@@ -11,6 +11,14 @@ section.
 
 ## [Unreleased]
 
+### Changed
+
+- **A signed-in page has a rail down its left side and fills the rest**, as Sovereign's own shell does: the page is at least the height of the viewport, and the rail (64px, on a narrow screen a bar along the top) has, from the top, the instance's mark, the Index (the repository `/` opens on), an icon for each connected repository to move between them (its tooltip says which is the default), and *Connect a repository*; at the foot, Keys, Security (where there is a password to manage), Sign out and who is signed in. It is on the repository pages (`/`, `/repo/<id>`, a file or folder, `/d/<id>`) and *Repositories*; the other account pages keep their header until they move too. The list of *Your repositories* that sat under a repository's page is the rail now. The shell is Fjord's own (`src/ui/AppShell.tsx`): worth offering to `@sovereignfs/ui` once a second app wants it.
+
+### Fixed
+
+- **In development, Next's own indicator (the round *N* at the bottom left) is styled again.** The page's Content-Security-Policy refused the inline styles it is drawn with, leaving a bare grey box. `next dev` now allows inline style elements; the policy production sends is unchanged.
+
 ### Added
 
 - **The sign-in screens are the design system's own**, the ones Sovereign's sign-in uses, so Fjord's and Sovereign's look the same: a centred card with the instance's mark (the first two letters of `FJORD_NAME`, "Fj"), *Sign in to <name>*, labels above their boxes with no asterisk, *Forgot password?* beside the password's label, *or* between the ways in, and *New to <name>? Create account* under them. The same goes for sign-up, the reset pages and the second step, whose code is now one box for each digit (paste fills them, backspace goes back). The passkey button is shown only where the browser supports passkeys. There are no privacy or terms links, because this app has no such pages yet. The screens that are only a message and a link (sign-up closed, a link that does not work, a page that is not there) put the link under it, spaced and centred like the other small print. Needs `@sovereignfs/ui` with the auth components (`AuthCard`, `AuthField`, `AuthCodeInput` and the rest) and `BrandBadge`'s `mark`.

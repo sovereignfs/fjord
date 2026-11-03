@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AuthCard, AuthFooter, BrandBadge } from "../../ui";
+import { markOf } from "../../ui/brand";
 
 /**
  * The frame of a screen before sign-in: the design system's card (the one Sovereign's own
@@ -32,10 +33,4 @@ export function AuthShell({
       {footer ? <AuthFooter {...(footerAlign ? { align: footerAlign } : {})}>{footer}</AuthFooter> : null}
     </AuthCard>
   );
-}
-
-/** The first two letters of the name, the first a capital: "Fjord" is "Fj". */
-function markOf(name: string): string {
-  const [first = "F", second = ""] = [...name.trim()];
-  return `${first.toUpperCase()}${second}`;
 }

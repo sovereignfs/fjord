@@ -1,0 +1,162 @@
+/* The frame of every signed-in page: a narrow rail down the left and the page filling the rest, as Sovereign's own shell is.
+   The rail's measurements are the legacy shell's (`sovereign-legacy/runtime/app/(platform)/shell.module.css`). */
+.shell {
+  --sv-shell-sidebar-width: 64px;
+  display: grid;
+  grid-template-columns: var(--sv-shell-sidebar-width) 1fr;
+  /* dvh avoids clipping by a mobile browser's own bars; vh for engines without it. */
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.sidebar {
+  /* Stays at the top of the viewport while the page scrolls. The repositories scroll on their own, so that the brand and the
+     account's controls stay where they are however many there are. `overflow` stays visible on the rail itself so a tooltip or
+     a menu is not clipped. */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sv-space-4);
+  padding: var(--sv-space-4) 0;
+  background-color: var(--sv-color-surface);
+  border-right: 1px solid var(--sv-color-border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--sv-radius-md);
+  text-decoration: none;
+}
+
+.divider {
+  width: 32px;
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--sv-color-border);
+  flex: none;
+}
+
+.top,
+.chrome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sv-space-2);
+}
+
+.repositories {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sv-space-2);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  overflow-x: visible;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sv-radius-md);
+  color: var(--sv-color-text-primary);
+  background-color: var(--sv-color-surface-sunken);
+  font: inherit;
+  font-size: var(--sv-font-size-sm);
+  font-weight: var(--sv-font-weight-semibold);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.icon:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .icon:hover {
+    background-color: var(--sv-color-border);
+  }
+}
+
+.iconActive {
+  background-color: var(--sv-color-border);
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--sv-radius-full);
+  background-color: var(--sv-color-accent);
+  color: var(--sv-color-text-on-accent);
+  font-size: var(--sv-font-size-xs);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+/* The page: edge to edge in its column, with its own gutter. */
+.content {
+  min-width: 0;
+  padding: var(--sv-space-8);
+}
+
+/* On a narrow screen the rail lies along the top instead, in a row that scrolls sideways. */
+@media (max-width: 768px) {
+  .shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .sidebar {
+    flex-direction: row;
+    height: auto;
+    padding: var(--sv-space-3) var(--sv-space-4);
+    border-right: 0;
+    border-bottom: 1px solid var(--sv-color-border);
+    overflow-x: auto;
+  }
+
+  .top,
+  .chrome {
+    flex-direction: row;
+  }
+
+  /* The whole bar scrolls, not the repositories alone, so none of the icons is squeezed out of reach. */
+  .repositories {
+    flex: none;
+    flex-direction: row;
+    width: auto;
+    overflow: visible;
+  }
+
+  .divider {
+    width: 0;
+    height: 32px;
+    border-top: 0;
+    border-left: 1px solid var(--sv-color-border);
+  }
+
+  .content {
+    padding: var(--sv-space-5);
+  }
+}

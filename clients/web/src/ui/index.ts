@@ -31,3 +31,4 @@ export {
   Icon,
   Input,
 } from "@sovereignfs/ui";
+export type { IconName } from "@sovereignfs/ui";

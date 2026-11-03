@@ -32,6 +32,14 @@ describe("styles", () => {
   });
 });
 
+describe("styles in development", () => {
+  it("allow inline style elements, which `next dev`'s own overlay is drawn with, and only there", () => {
+    expect(directive(policy({ development: true }), "style-src-elem")).toBe("style-src-elem 'self' 'unsafe-inline'");
+    expect(directive(policy({ development: true }), "style-src")).toBe("style-src 'self' 'unsafe-inline'");
+    expect(policy()).not.toMatch(/style-src(-elem)? [^;]*unsafe-inline/);
+  });
+});
+
 describe("the styles libraries make", () => {
   it("are allowed by their hash and nothing else without the nonce: a handful of fixed strings, each a sha256", () => {
     expect(LIBRARY_STYLE_HASHES.length).toBeGreaterThan(0);

@@ -127,7 +127,7 @@ Node 24 and the pnpm version in `package.json`. A change to a dependency commits
 | --- | --- |
 | `app/` | Next.js routes and layouts (App Router) |
 | `src/` | Everything that is not a route: the data layer, providers, auth, the format glue. Tested with Vitest, `*.test.ts` beside the code |
-| `src/ui/` | The design system's client boundary, and components of ours that match it (`LinkButton`) |
+| `src/ui/` | The design system's client boundary, and components of ours that match it (`LinkButton`, and `AppShell`: the rail and page of every signed-in screen, filled by `auth/screens/SignedInShell.tsx`; both are candidates for `@sovereignfs/ui`) |
 | `src/landing/` | The landing page at `/`: its content as typed data, the component and its styles |
 | `src/theme/` | The script that sets `data-theme` from the visitor's colour scheme, before first paint |
 | `src/auth/` | Sign-in, local and Sovereign: its settings, the better-auth instance, the client, the screens (`screens/`), the test harness, and a fake Sovereign (`testing/`) with a recording of a real one's discovery (`fixtures/`) |

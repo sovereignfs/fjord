@@ -191,7 +191,9 @@ test("with two repositories, the first stays the default until another is chosen
   const switcher = page.getByRole("list", { name: "Your repositories" });
   await switcher.getByRole("link", { name: "acme/more" }).click();
   await expect(page.getByRole("heading", { name: "acme/more", level: 1 })).toBeVisible();
-  await expect(page.getByText("Default", { exact: true })).toHaveCount(1);
+  // Exactly one repository is the default, and the rail says which in its tooltip.
+  await expect(switcher.getByRole("link", { name: "acme/notes" })).toHaveAttribute("title", "acme/notes (default)");
+  await expect(switcher.getByRole("link", { name: "acme/more" })).toHaveAttribute("title", "acme/more");
   await page.getByRole("button", { name: "Make this my default" }).click();
   await expect(page.getByRole("button", { name: "Make this my default" })).toHaveCount(0);
 

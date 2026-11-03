@@ -1,5 +1,5 @@
-import { AccountHeader } from "../../src/auth/screens/AccountHeader";
-import { localAuthConfig, requireSession } from "../../src/auth/server";
+import { SignedInShell } from "../../src/auth/screens/SignedInShell";
+import { requireSession } from "../../src/auth/server";
 import { connectionService } from "../../src/connections/server";
 import { ConnectForm } from "../../src/connections/screens/ConnectForm";
 import { ConnectionList } from "../../src/connections/screens/ConnectionList";
@@ -22,9 +22,8 @@ export default async function RepositoriesPage({ searchParams }: { searchParams:
   const connections = canConnect ? await (await connectionService()).list(user.id) : [];
 
   return (
-    <main className={styles.page}>
-      <AccountHeader name={user.name} email={user.email} security={localAuthConfig() !== undefined} />
-      <div className={styles.account}>
+    <SignedInShell user={user} connections={connections} place="repositories">
+      <div className={styles.workspace}>
         <h1 className={styles.title}>Repositories</h1>
         {canConnect ? (
           <>
@@ -49,6 +48,6 @@ export default async function RepositoriesPage({ searchParams }: { searchParams:
           </Card>
         )}
       </div>
-    </main>
+    </SignedInShell>
   );
 }

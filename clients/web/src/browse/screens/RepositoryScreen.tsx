@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { localAuthConfig, requireSession } from "../../auth/server";
+import { requireSession } from "../../auth/server";
 import { safeSegments } from "../location";
 import { entryFor } from "../../kinds/entry";
 import { journalTagsFor } from "../../journal/server";
@@ -130,7 +130,7 @@ export async function RepositoryScreen({ connection, path, view, query = {}, via
   const { kind, entry } = entryFor(user.id, current, outcome, asFiles, query);
   const landing = atTop ? entry : undefined;
   const kindLink = atTop && kind.id !== "drive" ? { label: kind.label, asFiles } : undefined;
-  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} kind={kindLink} setup={atTop ? await assessSetupFor(user.id, current, outcome) : undefined} security={localAuthConfig() !== undefined} />;
+  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} kind={kindLink} setup={atTop ? await assessSetupFor(user.id, current, outcome) : undefined} />;
 }
 
 /** The address of a place reached by its path: `/d/<id>` for a Doc whose id was read at the blob the repository has now, else `/f/<handle>`. */

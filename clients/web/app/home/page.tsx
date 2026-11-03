@@ -1,4 +1,4 @@
-import { localAuthConfig, requireSession } from "../../src/auth/server";
+import { requireSession } from "../../src/auth/server";
 import { FirstRun } from "../../src/connections/screens/FirstRun";
 import { entryFor } from "../../src/kinds/entry";
 import { assessSetupFor, readConnection } from "../../src/browse/server";
@@ -16,12 +16,11 @@ export const metadata = { title: "Home" };
  */
 export default async function HomePage() {
   const { user } = await requireSession();
-  const security = localAuthConfig() !== undefined;
   const canConnect = encryptionKeyring() !== undefined;
   const connections = canConnect ? await (await connectionService()).list(user.id) : [];
   const current = connections.find((connection) => connection.isDefault);
-  if (!current) return <FirstRun user={user} canConnect={canConnect} security={security} />;
+  if (!current) return <FirstRun user={user} canConnect={canConnect} />;
   const outcome = await readConnection(user.id, current);
   const { kind, entry } = entryFor(user.id, current, outcome);
-  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} landing={entry} kind={kind.id === "drive" ? undefined : { label: kind.label, asFiles: false }} setup={await assessSetupFor(user.id, current, outcome)} security={security} />;
+  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} landing={entry} kind={kind.id === "drive" ? undefined : { label: kind.label, asFiles: false }} setup={await assessSetupFor(user.id, current, outcome)} home />;
 }

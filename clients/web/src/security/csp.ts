@@ -37,11 +37,15 @@ export const LIBRARY_STYLE_HASHES = ["sha256-441zG27rExd4/il+NvIqyL8zFx5XmyNQtE3
 
 export function contentSecurityPolicy({ nonce, secure, development }: PolicyOptions): string {
   const hashes = LIBRARY_STYLE_HASHES.map((hash) => `'${hash}'`).join(" ");
+  // `next dev`'s own overlay (the indicator at the bottom left, its menus and error dialog) draws itself with a dozen inline `<style>` elements inside a shadow
+  // root, none of which can be given a nonce, so under the production policy it is left unstyled (a bare grey box). Development only, and a nonce or a hash in
+  // the list would make browsers ignore `'unsafe-inline'`, so it stands alone: the production policy below is the one that is tested and shipped.
+  const styles = development ? "'self' 'unsafe-inline'" : `'self' 'nonce-${nonce}' ${hashes}`;
   const directives = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${development ? " 'unsafe-eval'" : ""}`,
-    `style-src 'self' 'nonce-${nonce}' ${hashes}`,
-    `style-src-elem 'self' 'nonce-${nonce}' ${hashes}`,
+    `style-src ${styles}`,
+    `style-src-elem ${styles}`,
     "style-src-attr 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",

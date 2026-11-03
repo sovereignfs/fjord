@@ -1,4 +1,4 @@
-import { AccountHeader } from "../../auth/screens/AccountHeader";
+import { SignedInShell } from "../../auth/screens/SignedInShell";
 import { Alert, Card } from "../../ui";
 import { ConnectForm } from "./ConnectForm";
 import styles from "../../auth/screens/screens.module.css";
@@ -7,11 +7,10 @@ import styles from "../../auth/screens/screens.module.css";
  * What someone sees at `/` before they have connected a repository: the one thing to do next. The
  * first one they connect becomes their default, and `/` is that repository from then on.
  */
-export function FirstRun({ user, canConnect, security }: { user: { name: string; email: string }; canConnect: boolean; security: boolean }) {
+export function FirstRun({ user, canConnect }: { user: { name: string; email: string }; canConnect: boolean }) {
   return (
-    <main className={styles.page}>
-      <AccountHeader name={user.name} email={user.email} security={security} />
-      <div className={styles.account}>
+    <SignedInShell user={user} connections={[]} place="index">
+      <div className={styles.workspace}>
         <h1 className={styles.title}>Hello, {user.name}</h1>
         <p className={styles.lead}>You are signed in as {user.email}. Fjord works on a Git repository of yours: connect your first one to begin.</p>
         <Card as="div" padding="lg">
@@ -25,6 +24,6 @@ export function FirstRun({ user, canConnect, security }: { user: { name: string;
           )}
         </Card>
       </div>
-    </main>
+    </SignedInShell>
   );
 }

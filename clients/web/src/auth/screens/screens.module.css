@@ -130,6 +130,14 @@
   text-align: center;
 }
 
+/* The page of a signed-in screen inside the shell (src/ui/AppShell.tsx): the width of its column. */
+.workspace {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-5);
+}
+
 /* Account pages */
 .account {
   width: 100%;

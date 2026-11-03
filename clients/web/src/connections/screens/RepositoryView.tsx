@@ -1,4 +1,4 @@
-import { AccountHeader } from "../../auth/screens/AccountHeader";
+import { SignedInShell } from "../../auth/screens/SignedInShell";
 import type { ReactNode } from "react";
 import { SetupOffer } from "../../browse/screens/SetupOffer";
 import type { Assessment } from "../../browse/setup";
@@ -11,9 +11,8 @@ import { ChangeKind } from "../../kinds/screens/ChangeKind";
 import styles from "../../auth/screens/screens.module.css";
 
 /**
- * A repository's page: which one it is, its vaults and what is in them (ROADMAP 1a.11), and a way to move
- * between the account's repositories. `/` shows the default repository's, and `/repo/<id>` any of the
- * account's own. What the git host or the setup got wrong is said, not thrown.
+ * A repository's page: which one it is, its vaults and what is in them (ROADMAP 1a.11). `/` shows the default repository's, and `/repo/<id>` any of the
+ * account's own. The rail of the shell has an icon for each, to move between them. What the git host or the setup got wrong is said, not thrown.
  */
 export function RepositoryView({
   user,
@@ -23,8 +22,8 @@ export function RepositoryView({
   content,
   landing,
   setup,
-  security,
   kind,
+  home = false,
 }: {
   user: { name: string; email: string };
   connections: ConnectionInfo[];
@@ -41,13 +40,13 @@ export function RepositoryView({
   kind?: { label: string; asFiles: boolean } | undefined;
   /** For a repository that is not a Fjord repository: the offer to set it up, or why there is none (ROADMAP 1a.10). */
   setup?: Assessment | undefined;
-  security: boolean;
+  /** It is the page at `/`, which opens on the default repository: the Index's icon in the rail is the current one, not the repository's. */
+  home?: boolean;
 }) {
   const label = `${current.owner}/${current.name}`;
   return (
-    <main className={styles.page}>
-      <AccountHeader name={user.name} email={user.email} security={security} />
-      <div className={styles.account}>
+    <SignedInShell user={user} connections={connections} place={home ? "index" : { repository: current.id }}>
+      <div className={styles.workspace}>
         <h1 className={styles.title}>{label}</h1>
         <p className={styles.lead}>
           Branch {current.branch}
@@ -91,29 +90,12 @@ export function RepositoryView({
           )}
           {current.isDefault ? null : <MakeDefaultButton id={current.id} label={label} />}
         </Card>
-        {connections.length > 1 ? (
-          <Card as="div" padding="lg">
-            <h2 className={styles.title} style={{ fontSize: "var(--sv-font-size-lg)" }}>
-              Your repositories
-            </h2>
-            <ul className={styles.list} aria-label="Your repositories">
-              {connections.map((connection) => (
-                <li key={connection.id} className={styles.item}>
-                  <a href={`/repo/${connection.id}`} aria-current={connection.id === current.id ? "page" : undefined}>
-                    {connection.owner}/{connection.name}
-                  </a>
-                  {connection.isDefault ? <Badge>Default</Badge> : null}
-                </li>
-              ))}
-            </ul>
-          </Card>
-        ) : null}
         <p>
           <a href={`/deleted/${current.id}`}>Recently deleted</a>
           {" · "}
           <a href="/repositories">Connect or disconnect repositories</a>
         </p>
       </div>
-    </main>
+    </SignedInShell>
   );
 }
