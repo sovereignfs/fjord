@@ -387,11 +387,9 @@ not even for the instant between creating a file and encrypting it.
 `.md` is added if you leave it off. Another extension is refused, since a
 PDF cannot carry frontmatter — bring those in with `fjord encrypt`.
 
-A Fjord Doc is a **document** if its name ends in `.fj.md` and a **note** if it
-ends in plain `.md` (spec §8.4): the same format, told apart by name, so an
-editor can treat a long-form document differently. `--document` makes it one —
-`plan` and `plan.md` become `plan.fj.md` — and a name that already ends in
-`.fj.md` is a document without the flag.
+There is one kind of Fjord Doc (spec §8.4): a `.fj.md` name is an ordinary
+`.md` name, and how a client edits a Doc is its repository's kind's business,
+not the name's. (`--document`, which named a file `*.fj.md`, is gone.)
 
 Names are checked against the path rules of spec §5 *before* anything is
 written, so a document that could not be checked out on Windows or macOS is
@@ -399,8 +397,7 @@ never created in the first place.
 
 | Flag | Effect |
 | --- | --- |
-| `--title <text>` | Set the title. Defaults to the file stem (without `.md` or `.fj.md`). |
-| `--document` | Make it a document: name it `*.fj.md`. |
+| `--title <text>` | Set the title. Defaults to the file stem (without `.md`). |
 | `--no-edit` | Create the file without opening an editor. |
 | `--draft` | For a post made in a site with no path: a draft, not for the site yet (Astro: `draft: true`; Jekyll: a file in `_drafts`). |
 | `--date <date>` | For a journal entry made with no path: its `date`, RFC 3339 with an offset. Defaults to now. |
@@ -430,8 +427,8 @@ an identity they list what they can and say what they could not read.
 
 | Flag | Effect |
 | --- | --- |
-| `--json` | Machine-readable output. A Fjord Doc has `"kind": "doc"` and `"docKind": "document"` or `"note"` (spec §8.4); anything else has `"docKind": null`. |
-| `--long` | Show size, date, and for a Fjord Doc its kind (`document` or `note`), id and title. |
+| `--json` | Machine-readable output. A Fjord Doc has `"kind": "doc"`; a Markdown file with no valid `id` is `"file"`. |
+| `--long` | Show size, date, and for a Fjord Doc its id and title. |
 | `-R`, `--recursive` | Recurse into subdirectories. |
 
 ### `fjord grep <pattern> [path]`

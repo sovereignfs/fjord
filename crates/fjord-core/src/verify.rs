@@ -174,7 +174,7 @@ pub fn verify(root: &Path, options: &Options) -> Result<Report, Error> {
     let walk = walk_repository(&root)?;
     check_names(&root, &walk, &mut report);
 
-    let vaults = root_vaults(&root, &walk, &mut report);
+    let vaults = vaults_on_disk(&root, &walk, &mut report);
     reconcile_manifest(&root, &manifest, &vaults, &mut report);
     check_kind(&manifest, &vaults, &mut report)?;
 
@@ -553,12 +553,12 @@ struct DiscoveredVault {
     abs: PathBuf,
 }
 
-/// Vaults at the repository root, which are the only permitted ones.
-/// Anything deeper is reported and then ignored. Spec §2.3.
+/// Vaults at any depth below the repository root. A manifest at the root, or inside another vault,
+/// is reported and then ignored. Spec §2.3.
 ///
 /// Which directories those are is [`listing::locate_vaults`]'s to say, on the walk as a list of its
 /// files: the rule is written once, for every client.
-fn root_vaults(root: &Path, walk: &Walk, report: &mut Report) -> Vec<DiscoveredVault> {
+fn vaults_on_disk(root: &Path, walk: &Walk, report: &mut Report) -> Vec<DiscoveredVault> {
     let files: Vec<ListedFile> = walk
         .entries
         .iter()
@@ -575,7 +575,7 @@ fn root_vaults(root: &Path, walk: &Walk, report: &mut Report) -> Vec<DiscoveredV
     for nested in located.nested {
         report.push(
             Diagnostic::at(Code::NestedVault, nested)
-                .with_detail("a vault must be a directory at the repository root"),
+                .with_detail("a vault cannot be the repository root, or inside another vault"),
         );
     }
 
@@ -1014,7 +1014,7 @@ fn classify_content(
             }
             FileKind::Other => summary.files += 1,
             // A document and a note are the same format (§8.4): both are Docs if their frontmatter says so.
-            FileKind::Document | FileKind::Note => match check_markdown(entry, report)? {
+            FileKind::Doc => match check_markdown(entry, report)? {
                 Some(id) => {
                     summary.docs += 1;
                     match seen_ids.get(&id) {

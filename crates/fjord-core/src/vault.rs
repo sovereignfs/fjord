@@ -230,46 +230,79 @@ fn collect(
     Ok(())
 }
 
-/// Every vault at the repository root, in directory order.
+/// Every vault, at any depth below the repository root, in directory order. Spec §2.3.
 ///
-/// Vaults deeper in the tree are not returned: §2.3 does not permit them,
-/// and `fjord verify` reports them as [`Code::NestedVault`][c].
+/// A vault inside another vault, and a manifest at the root, are not returned: §2.3 does not permit
+/// them, and `fjord verify` reports them as [`Code::NestedVault`][c]. The walk does not go into a
+/// vault, so what it finds is exactly what [`listing::locate_vaults`] would say of a listing of
+/// every manifest.
 ///
 /// [c]: crate::diagnostics::Code::NestedVault
 pub fn discover(root: &Path) -> Result<Vec<Vault>, Error> {
-    let entries = match fs::read_dir(root) {
+    let mut manifests = Vec::new();
+    find_manifests(root, "", &mut manifests)?;
+    let files: Vec<listing::ListedFile> = manifests
+        .into_iter()
+        .map(|path| listing::ListedFile { path, size: 0 })
+        .collect();
+
+    listing::locate_vaults(&files)
+        .vaults
+        .into_iter()
+        .map(|directory| read(root, &directory))
+        .collect()
+}
+
+/// The repository-relative path of every `fjord.vault.json` below `root`, not going into `.git`, the
+/// root `.fjord/`, symbolic links, or a directory that is a vault.
+fn find_manifests(base: &Path, relative: &str, found: &mut Vec<String>) -> Result<(), Error> {
+    let directory = base.join(relative);
+    let entries = match fs::read_dir(&directory) {
         Ok(entries) => entries,
         Err(source) => {
             return Err(Error::Io {
-                path: root.display().to_string(),
+                path: directory.display().to_string(),
                 source,
             })
         }
     };
 
-    let mut directories = Vec::new();
+    let mut subdirectories = Vec::new();
     for entry in entries {
         let entry = entry.map_err(|source| Error::Io {
-            path: root.display().to_string(),
+            path: directory.display().to_string(),
             source,
         })?;
         let name = entry.file_name().to_string_lossy().to_string();
-        if name == ".git" || name == RESERVED_DIRECTORY {
+        if name == ".git" || (relative.is_empty() && name == RESERVED_DIRECTORY) {
             continue;
         }
-        let manifest = format!("{name}/{VAULT_MANIFEST}");
-        if entry.path().join(VAULT_MANIFEST).is_file()
-            && listing::vault_manifest_at(&manifest) == ManifestAt::Vault(name.clone())
-        {
-            directories.push(name);
+        let child = if relative.is_empty() {
+            name.clone()
+        } else {
+            format!("{relative}/{name}")
+        };
+        let metadata = fs::symlink_metadata(entry.path()).map_err(|source| Error::Io {
+            path: entry.path().display().to_string(),
+            source,
+        })?;
+        if name == VAULT_MANIFEST && metadata.is_file() {
+            // The root's own is recorded too, so that the rule that refuses it is `listing`'s.
+            found.push(child);
+            if !relative.is_empty() {
+                // A vault: what is inside is its content, not more vaults.
+                return Ok(());
+            }
+        } else if metadata.is_dir() && !metadata.file_type().is_symlink() {
+            subdirectories.push(child);
         }
     }
-    directories.sort();
 
-    directories
-        .into_iter()
-        .map(|directory| read(root, &directory))
-        .collect()
+    subdirectories.sort();
+    for child in subdirectories {
+        find_manifests(base, &child, found)?;
+    }
+    Ok(())
 }
 
 /// The vault addressed by `name`, matched against the directory first and
@@ -285,23 +318,27 @@ pub fn find(root: &Path, name: &str) -> Result<Option<Vault>, Error> {
     Ok(vaults.into_iter().find(|vault| vault.label() == Some(name)))
 }
 
-/// The vault containing `relative`, a repository-relative path.
+/// The vault containing `relative`, a repository-relative path (or the vault itself, if it is its
+/// directory).
 ///
-/// A path that is not inside any vault — a file at the repository root, say
-/// — yields `None` rather than an error: that is an ordinary file, not a
-/// mistake.
+/// A path that is not inside any vault — a file at the repository root, say — yields `None` rather
+/// than an error: that is an ordinary file, not a mistake.
 pub fn containing(root: &Path, relative: &str) -> Result<Option<Vault>, Error> {
-    let first = match relative.split('/').next() {
-        Some(first) if !first.is_empty() => first,
-        _ => return Ok(None),
-    };
-    let manifest = format!("{first}/{VAULT_MANIFEST}");
-    if !root.join(first).join(VAULT_MANIFEST).is_file()
-        || listing::vault_manifest_at(&manifest) != ManifestAt::Vault(first.to_string())
-    {
-        return Ok(None);
+    let mut directory = String::new();
+    for component in relative.split('/').filter(|part| !part.is_empty()) {
+        if !directory.is_empty() {
+            directory.push('/');
+        }
+        directory.push_str(component);
+        let manifest = format!("{directory}/{VAULT_MANIFEST}");
+        // The shallowest wins; a vault inside it is not permitted anyway.
+        if root.join(&directory).join(VAULT_MANIFEST).is_file()
+            && listing::vault_manifest_at(&manifest) == ManifestAt::Vault(directory.clone())
+        {
+            return read(root, &directory).map(Some);
+        }
     }
-    read(root, first).map(Some)
+    Ok(None)
 }
 
 fn read(root: &Path, directory: &str) -> Result<Vault, Error> {

@@ -38,7 +38,7 @@ pub fn run(args: &NewArgs, global: &GlobalArgs) -> Result<ExitCode> {
                      a Doc at a path is dated by editing its `date`",
                 ));
             }
-            match destination(&root, path, args.document) {
+            match destination(&root, path) {
                 Ok(relative) => (relative, None, None),
                 Err(message) => return Ok(usage(message)),
             }
@@ -219,7 +219,7 @@ fn generated(root: &Path, args: &NewArgs) -> Result<std::result::Result<Generate
         None => now_here(),
     };
 
-    let (mut leaf, post) = if kind == Kind::Ssg {
+    let (leaf, post) = if kind == Kind::Ssg {
         let engine =
             match manifest.ssg_engine() {
                 Some(engine @ (Engine::Astro | Engine::Jekyll)) => engine,
@@ -245,20 +245,12 @@ fn generated(root: &Path, args: &NewArgs) -> Result<std::result::Result<Generate
             None => return Ok(Err(format!("{date} cannot name an entry"))),
         }
     };
-    if args.document {
-        leaf = format!("{}{}", leaf.trim_end_matches(".md"), doc::DOCUMENT_SUFFIX);
-    }
-
     // Two in one minute (or with one title): the second takes a number, as a copy does.
     let base = format!("{}/{leaf}", vault.directory);
     let mut relative = base.clone();
     let mut number = 2;
     while root.join(&relative).exists() {
-        let (stem, extension) = match base.strip_suffix(doc::DOCUMENT_SUFFIX) {
-            Some(stem) => (stem.to_string(), doc::DOCUMENT_SUFFIX),
-            None => (base.trim_end_matches(".md").to_string(), ".md"),
-        };
-        relative = format!("{stem}-{number}{extension}");
+        relative = format!("{}-{number}.md", base.trim_end_matches(".md"));
         number += 1;
     }
     Ok(Ok(Generated {
@@ -302,7 +294,7 @@ fn write_new(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 /// Accepts the same two spellings as every other command — relative to the
 /// working directory, or to the repository root — preferring whichever has
 /// an existing parent directory, and the repository root when neither does.
-fn destination(root: &Path, input: &Path, document: bool) -> std::result::Result<String, String> {
+fn destination(root: &Path, input: &Path) -> std::result::Result<String, String> {
     let canonical_root = std::fs::canonicalize(root)
         .map_err(|err| format!("could not resolve {}: {err}", root.display()))?;
 
@@ -317,7 +309,7 @@ fn destination(root: &Path, input: &Path, document: bool) -> std::result::Result
 
     for candidate in &candidates {
         if let Ok(relative) = candidate.strip_prefix(&canonical_root) {
-            let relative = with_markdown_extension(&relative.to_string_lossy(), document)?;
+            let relative = with_markdown_extension(&relative.to_string_lossy())?;
             return Ok(relative);
         }
     }
@@ -331,31 +323,10 @@ fn destination(root: &Path, input: &Path, document: bool) -> std::result::Result
 
 /// A Fjord Doc is a `.md` file (§8), so a bare name gains the extension and
 /// anything else is refused rather than silently made into a vault file
-/// with frontmatter nobody will read.
-///
-/// With `document`, the name ends in `.fj.md` (§8.4): `plan` and `plan.md` become `plan.fj.md`, and a
-/// name that already is one is kept. Without it, `plan.fj.md` is still a document: the name decides, and
-/// nothing here has to be told.
-fn with_markdown_extension(relative: &str, document: bool) -> std::result::Result<String, String> {
+/// with frontmatter nobody will read. (`.fj.md` is no different from `.md`: spec §8.4.)
+fn with_markdown_extension(relative: &str) -> std::result::Result<String, String> {
     let relative = relative.replace('\\', "/");
     let name = relative.rsplit('/').next().unwrap_or(&relative);
-
-    if document && !doc::is_document_name(name) {
-        let directory = &relative[..relative.len() - name.len()];
-        let stem = match name.rsplit_once('.') {
-            // A Markdown name loses its `.md` to gain `.fj.md`. (A dotfile such as `.md` has no stem.)
-            Some((stem, "md")) if !stem.is_empty() => stem,
-            Some((_, extension)) if extension != "md" && !name.starts_with('.') => {
-                return Err(format!(
-                    "a Fjord Doc is a Markdown file (spec §8), so `.{extension}` cannot carry \
-                     frontmatter. Create it with your editor and bring it in with \
-                     `fjord encrypt`"
-                ))
-            }
-            _ => name,
-        };
-        return Ok(format!("{directory}{stem}{}", doc::DOCUMENT_SUFFIX));
-    }
 
     match name.rsplit_once('.') {
         Some((_, "md")) => Ok(relative),
@@ -405,15 +376,10 @@ fn offending_component(relative: &str) -> Option<String> {
     None
 }
 
-/// The title a file name implies: `sync-design.md` and `sync-design.fj.md` both become `sync-design`.
+/// The title a file name implies: `sync-design.md` becomes `sync-design`.
 fn default_title(relative: &str) -> String {
     let name = relative.rsplit('/').next().unwrap_or(relative);
-    let stem = if doc::is_document_name(name) {
-        name.strip_suffix(doc::DOCUMENT_SUFFIX)
-    } else {
-        name.strip_suffix(".md")
-    };
-    stem.unwrap_or(name).to_string()
+    name.strip_suffix(".md").unwrap_or(name).to_string()
 }
 
 #[cfg(test)]
@@ -422,19 +388,16 @@ mod tests {
 
     #[test]
     fn a_bare_name_becomes_markdown() {
+        assert_eq!(with_markdown_extension("notes"), Ok("notes.md".to_string()));
         assert_eq!(
-            with_markdown_extension("notes", false),
-            Ok("notes.md".to_string())
-        );
-        assert_eq!(
-            with_markdown_extension("Public/notes.md", false),
+            with_markdown_extension("Public/notes.md"),
             Ok("Public/notes.md".to_string())
         );
     }
 
     #[test]
     fn another_extension_is_refused_with_a_way_forward() {
-        match with_markdown_extension("Private/report.pdf", false) {
+        match with_markdown_extension("Private/report.pdf") {
             Err(message) => {
                 assert!(message.contains("§8"), "{message}");
                 assert!(message.contains("fjord encrypt"), "{message}");
@@ -446,7 +409,7 @@ mod tests {
     #[test]
     fn a_dotfile_still_gains_the_extension() {
         assert_eq!(
-            with_markdown_extension("Public/.notes", false),
+            with_markdown_extension("Public/.notes"),
             Ok("Public/.notes.md".to_string())
         );
     }
@@ -479,39 +442,16 @@ mod tests {
     }
 
     #[test]
-    fn a_document_is_named_fj_md() {
-        let named = |name: &str| with_markdown_extension(name, true);
-        assert_eq!(named("plan"), Ok("plan.fj.md".to_string()));
-        assert_eq!(named("plan.md"), Ok("plan.fj.md".to_string()));
+    fn a_name_ending_in_fj_md_is_an_ordinary_markdown_name() {
         assert_eq!(
-            named("Public/Q4/plan.md"),
-            Ok("Public/Q4/plan.fj.md".to_string())
-        );
-        assert_eq!(
-            named("Public/plan.fj.md"),
-            Ok("Public/plan.fj.md".to_string())
-        );
-        assert_eq!(
-            named("Public/.notes"),
-            Ok("Public/.notes.fj.md".to_string())
-        );
-        // Still refused, with the same way forward, for what cannot carry frontmatter.
-        assert!(named("Public/report.pdf")
-            .unwrap_err()
-            .contains("fjord encrypt"));
-    }
-
-    #[test]
-    fn a_name_ending_in_fj_md_is_a_document_without_being_told() {
-        assert_eq!(
-            with_markdown_extension("Public/plan.fj.md", false),
+            with_markdown_extension("Public/plan.fj.md"),
             Ok("Public/plan.fj.md".to_string())
         );
     }
 
     #[test]
-    fn a_documents_title_does_not_keep_its_suffix() {
-        assert_eq!(default_title("Public/sync-design.fj.md"), "sync-design");
+    fn only_the_md_comes_off_a_title() {
+        assert_eq!(default_title("Public/sync-design.fj.md"), "sync-design.fj");
         assert_eq!(default_title("Public/sync-design.md"), "sync-design");
         assert_eq!(default_title("Public/fj.md"), "fj");
     }

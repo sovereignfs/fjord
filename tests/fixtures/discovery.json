@@ -164,6 +164,39 @@
       "kind": "ssg"
     }
   },
+  "depth": {
+    "discover": [
+      {
+        "directory": "src/content",
+        "label": "Content",
+        "encrypted": false,
+        "suffix": ".age",
+        "machinery": [
+          "fjord.vault.json",
+          ".gitignore"
+        ],
+        "contents": [
+          {
+            "relative": "posts/hello.md",
+            "logical": "posts/hello.md",
+            "is_payload": false,
+            "size": 147
+          }
+        ]
+      }
+    ],
+    "verify": {
+      "nested": [],
+      "vaults": [
+        {
+          "path": "src/content",
+          "docs": 1,
+          "files": 0
+        }
+      ],
+      "kind": "ssg"
+    }
+  },
   "broken/E101": {
     "discover": [
       {

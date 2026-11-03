@@ -90,6 +90,7 @@ fn the_golden_file_covers_every_committed_fixture() {
         "documents".to_string(),
         "journal".to_string(),
         "ssg".to_string(),
+        "depth".to_string(),
     ];
     for entry in std::fs::read_dir(fixtures().join("broken")).expect("broken") {
         expected.push(format!(

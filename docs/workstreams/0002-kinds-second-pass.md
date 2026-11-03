@@ -20,7 +20,7 @@ Astro or Jekyll site, can make it a Fjord repository without a file moved or rew
 
 ## Definition of done
 
-- [ ] The fixtures and `fjord-core` agree with the spec text already written: one kind of Doc, vaults at any depth, `E113`, a
+- [ ] The fixtures and `fjord-core` agree with the spec text already written: one kind of Doc, vaults at any depth (`E207` for a vault inside one), a
       checkout begun by adoption (P13, P14).
 - [ ] The CLI has no documents, makes journals encrypted by default, and adopts existing directories of each kind (P15, P16).
 - [ ] `fjord-wasm` agrees with the CLI on every fixture, and plans an adoption for the web (P17).
@@ -48,7 +48,7 @@ without asking.
 | What a journal entry is | Any `.md` in the journal's vault, dated by `date`, else the path, else its first commit | Only Docs (an adopted journal of plain notes would show nothing) |
 | Site editing | The vault's files as a tree. Source mode by default; rich mode with a frontmatter form only when the round trip is byte for byte | Rich mode always (destroys MDX, Liquid, shortcodes) |
 | Publishing | A drive's Doc as a sanitised, read-only page: public at `/p/<token>`, private through shares and links. From an encrypted vault: privately by sealed link; publicly only after a warning, as a plaintext copy the browser gives the server | Rendering `.html` files from the repository (untrusted script, needs a separate origin) |
-| Vault location | Any depth below the root, never inside another vault, never under `.fjord/`, `.git/` or an ignored directory; one vault for journal and site stays | Site vaults only below the root; root-only (blocks adopting sites) |
+| Vault location | Any depth below the root, never inside another vault, never under `.fjord/` or `.git/`; one vault for journal and site stays | Site vaults only below the root; root-only (blocks adopting sites) |
 | Adoption | `fjord init --adopt`, every kind now: writes over nothing, commits only its own files, merges `.gitattributes` and `.gitignore`, refuses an existing `fjord.json`, detects a site's engine and content folder | Drive and journal only, sites later |
 | Encrypting adopted plaintext | Only with `--encrypt-existing`, as a checkout (§6.6) that `key add` and `encrypt <vault>` end, after a warning that Git's history keeps every committed version. A journal with existing files needs `--no-encrypt` or `--encrypt-existing` | Encrypting silently; refusing outright |
 | The spec | Written now, with the RFC, at the owner's request; the tasks bring the code to it | The spec changing with each task, the usual rule (`docs/rfcs/README.md`) |

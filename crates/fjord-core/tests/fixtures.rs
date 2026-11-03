@@ -284,9 +284,9 @@ fn e503_reserved_device_name() {
 // --- Documents and notes (spec §8.4) -------------------------------------
 
 #[test]
-fn the_documents_fixture_conforms_and_has_one_of_each() {
-    // `documents/` is a conforming repository whose Public vault holds a document (`plan.fj.md`) and a note
-    // (`idea.md`): the same format, told apart by name alone (spec §8.4).
+fn the_documents_fixture_conforms_and_counts_both_names_as_docs() {
+    // `documents/` is a conforming repository whose Public vault holds `plan.fj.md` and `idea.md`: since
+    // spec §8.4 was withdrawn, both are Docs of one kind, and the name `.fj.md` means nothing more.
     let report = run(&fixtures().join("documents"));
     assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
     let public = report
@@ -307,6 +307,41 @@ fn the_journal_fixture_conforms() {
     assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
     assert_eq!(report.vaults.len(), 1);
     assert_eq!((report.vaults[0].docs, report.vaults[0].files), (3, 0));
+}
+
+#[test]
+fn a_vault_below_the_root_conforms() {
+    // Spec §2.3: `depth/` is an Astro site whose vault is `src/content`, where the engine reads its
+    // content. Nothing about it is a finding, and the engine's files are outside the vault.
+    let report = run(&fixtures().join("depth"));
+    assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+    assert_eq!(report.vaults.len(), 1);
+    assert_eq!(report.vaults[0].path, "src/content");
+    assert_eq!((report.vaults[0].docs, report.vaults[0].files), (1, 0));
+}
+
+#[test]
+fn a_vault_inside_a_vault_is_e207_at_any_depth() {
+    let dir = scaffold();
+    let inner = dir.path().join("Public/a/b");
+    std::fs::create_dir_all(&inner).expect("mkdir");
+    std::fs::copy(
+        dir.path().join("Public/fjord.vault.json"),
+        inner.join("fjord.vault.json"),
+    )
+    .expect("copy");
+    assert_eq!(codes(dir.path()), ["E207"]);
+}
+
+#[test]
+fn a_vault_manifest_at_the_root_is_e207() {
+    let dir = scaffold();
+    std::fs::copy(
+        dir.path().join("Public/fjord.vault.json"),
+        dir.path().join("fjord.vault.json"),
+    )
+    .expect("copy");
+    assert!(codes(dir.path()).contains(&"E207".to_string()));
 }
 
 #[test]

@@ -28,19 +28,6 @@ use indexmap::IndexMap;
 /// The fence that opens and closes a frontmatter block. Spec §8.1.
 pub const FENCE: &str = "---";
 
-/// What a document's file name ends in; any other Fjord Doc is a note. Spec §8.4.
-pub const DOCUMENT_SUFFIX: &str = ".fj.md";
-
-/// Whether a file name makes a Fjord Doc a *document* rather than a *note*: it ends in `.fj.md`, with at
-/// least one character before it. Spec §8.4.
-///
-/// By name alone, which is why a listing can say it without reading a file. Whether the file is a Doc at all
-/// is the frontmatter's to say (§8): a `.fj.md` file with no valid `id` is a vault file, as any `.md` is.
-/// `name` is a leaf name, not a path.
-pub fn is_document_name(name: &str) -> bool {
-    name.len() > DOCUMENT_SUFFIX.len() && name.ends_with(DOCUMENT_SUFFIX)
-}
-
 /// Keys the specification fixes. Spec §8.1.
 pub mod key {
     pub const ID: &str = "id";
@@ -324,7 +311,7 @@ pub fn promote(text: &str, id: &str, created: &str, title: &str) -> Option<Strin
 }
 
 /// The title a document implies: its first level-one heading, else the file
-/// name without its extension (`.fj.md` for a document, `.md` for a note). Spec §8.2.
+/// name without its `.md`. Spec §8.2.
 pub fn implied_title(text: &str, file_name: &str) -> String {
     for line in text.lines() {
         if let Some(heading) = line.strip_prefix("# ") {
@@ -334,12 +321,10 @@ pub fn implied_title(text: &str, file_name: &str) -> String {
             }
         }
     }
-    let stem = if is_document_name(file_name) {
-        file_name.strip_suffix(DOCUMENT_SUFFIX)
-    } else {
-        file_name.strip_suffix(".md")
-    };
-    stem.unwrap_or(file_name).to_string()
+    file_name
+        .strip_suffix(".md")
+        .unwrap_or(file_name)
+        .to_string()
 }
 
 /// Advance one line, returning the line without its terminator and the
@@ -696,12 +681,9 @@ mod tests {
     }
 
     #[test]
-    fn a_document_is_titled_by_its_name_without_the_whole_suffix() {
-        assert_eq!(implied_title("body\n", "Q4 plan.fj.md"), "Q4 plan");
-        assert_eq!(implied_title("body\n", "a.fj.md"), "a");
-        // `.fj.md` alone is not a document's name (§8.4), so it is a note named `.fj`.
-        assert_eq!(implied_title("body\n", ".fj.md"), ".fj");
-        // A note that has `.fj` in the middle of its name keeps it.
+    fn a_fj_md_name_is_titled_like_any_other_markdown_file() {
+        // Spec §8.4: `.fj.md` means nothing more than `.md`, so only the `.md` comes off.
+        assert_eq!(implied_title("body\n", "Q4 plan.fj.md"), "Q4 plan.fj");
         assert_eq!(implied_title("body\n", "notes.fj.txt.md"), "notes.fj.txt");
     }
 
@@ -830,18 +812,5 @@ mod tests {
         // values.
         assert_eq!(round_tripped.raw().keys().collect::<Vec<&String>>(), keys);
         assert_eq!(round_tripped.raw(), first.raw());
-    }
-
-    #[test]
-    fn a_document_is_a_name_ending_in_fj_md_with_something_before_it() {
-        assert!(is_document_name("plan.fj.md"));
-        assert!(is_document_name("a.fj.md"));
-        assert!(is_document_name("Q4 plan.fj.md"));
-        assert!(!is_document_name("plan.md"));
-        assert!(!is_document_name(".fj.md"));
-        assert!(!is_document_name("fj.md"));
-        assert!(!is_document_name("plan.fj.md.md"));
-        assert!(!is_document_name("plan.fj"));
-        assert!(!is_document_name(""));
     }
 }

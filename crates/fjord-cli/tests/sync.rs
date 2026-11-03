@@ -348,7 +348,7 @@ fn an_unresolvable_merge_keeps_both_versions_and_exits_one() {
 /// to be named like one. (`.fj.md` is the whole extension, spec §8.4; splitting at the last dot made `plan.fj.md`
 /// into `plan.fj.conflict-<id>.md`, which a client reads as a note, with no shares or comments.)
 #[test]
-fn the_copy_of_a_conflicted_document_is_still_a_document() {
+fn the_copy_of_a_conflicted_doc_is_still_markdown() {
     let world = world();
     let document =
         |line: &str, id: &str| format!("---\nid: {id}\ntitle: Plan\n---\n\n# Plan\n\n{line}\n");
@@ -384,8 +384,8 @@ fn the_copy_of_a_conflicted_document_is_still_a_document() {
         .collect();
     assert_eq!(names.len(), 1, "{names:?}");
     assert!(
-        names[0].starts_with("plan.conflict-") && names[0].ends_with(".fj.md"),
-        "the copy of a document must stay a document: {names:?}"
+        names[0].starts_with("plan.fj.conflict-") && names[0].ends_with(".md"),
+        "the copy is beside the original and is Markdown: {names:?}"
     );
 
     let copy = std::fs::read_to_string(world.second.join("Public").join(&names[0])).expect("read");

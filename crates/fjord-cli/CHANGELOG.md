@@ -14,6 +14,9 @@ tagging it.
 
 ### Changed
 
+- **Breaking: there is one kind of Fjord Doc** (spec §8.4, RFC 0002). A `.fj.md` name no longer makes a *document*; every Doc is a `.md` file and a repository's kind decides how a client edits it. `fjord new --document` is gone (exit 2), `fjord ls --json` no longer has `docKind` (`kind` is still `doc` for a Fjord Doc), `ls --long` no longer says `document` or `note`, and a title or a conflict copy treats `.fj.md` like any other name (`plan.fj.md` conflicts into `plan.fj.conflict-…md`). `fjord_core::listing::FileKind::Document` and `Note` are now `Doc`, and `doc::is_document_name` and `DOCUMENT_SUFFIX` are removed. No file in a repository has to change.
+- **A vault may be at any depth below the repository root** (spec §2.3): `src/content` can be a vault, so a site's engine can keep reading its content where it always did. A vault inside another vault, and a manifest at the root, are still `E207`. `fjord_core::vault::discover` and `containing` walk the tree (not into a vault, `.git` or the root `.fjord/`), `listing::locate_vaults` and `Discovery::vault_containing` say the same of a listing, and a new fixture, `tests/fixtures/depth/`, holds an Astro site that is one.
+
 - **`fjord vault add --encrypted` adds the merge guard** (`*.age binary -diff -merge`, spec §9) to `.gitattributes` when the repository lacks it, and `--commit` commits that file with the vault. The command now asks the same planner (`fjord_core::scaffold::plan_vault`) as the web client's *Add a vault*, so the two make the same files; its flags and messages are unchanged. `--json` lists the files outside the vault it changed under `changed`.
 
 ### Added

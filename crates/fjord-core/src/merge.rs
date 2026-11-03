@@ -458,15 +458,9 @@ fn shortest_edit(a: &[u32], b: &[u32]) -> Option<Vec<Step>> {
 
 // --- Keeping both sides ----------------------------------------------------------------------------------
 
-/// How a file is split into what names it and how it ends: `.fj.md` is one
-/// extension (a document; spec §8.4), otherwise the last `.`, if it is not
-/// the first character.
+/// How a file is split into what names it and how it ends: at the last `.`, if it is not the first
+/// character. (`.fj.md` is no extension of its own: spec §8.4.)
 pub(crate) fn split_extension(name: &str) -> (&str, &str) {
-    if let Some(stem) = name.strip_suffix(doc::DOCUMENT_SUFFIX) {
-        if !stem.is_empty() {
-            return (stem, &name[stem.len()..]);
-        }
-    }
     match name.rfind('.') {
         Some(at) if at > 0 => (&name[..at], &name[at..]),
         _ => (name, ""),
@@ -479,8 +473,7 @@ pub(crate) fn split_extension(name: &str) -> (&str, &str) {
 ///
 /// `path` is the repository-relative path of the file as it is on disk and
 /// `suffix` the encryption suffix of its vault (`".age"`, or `""` for a
-/// plaintext vault), which stays last. A document keeps `.fj.md` (so it stays
-/// a document), the stem is shortened if the name would pass 255 bytes
+/// plaintext vault), which stays last. The stem is shortened if the name would pass 255 bytes
 /// (spec §5 rule 5), and `existing`, the names in that folder, is respected
 /// case-insensitively: a taken name gets `-2`, `-3`, … after the id.
 pub fn conflict_copy_path<S: AsRef<str>>(
@@ -833,19 +826,12 @@ mod tests {
     }
 
     #[test]
-    fn a_document_stays_a_document() {
+    fn a_fj_md_name_is_split_at_its_last_dot_like_any_other() {
         let id = "01jagc4k7pt8y3wqnmzv5xrb8j";
         assert_eq!(
             conflict_copy_path("plan.fj.md", "", id, NONE),
-            "plan.conflict-zv5xrb8j.fj.md"
+            "plan.fj.conflict-zv5xrb8j.md"
         );
-        assert!(doc::is_document_name(&conflict_copy_path(
-            "plan.fj.md",
-            "",
-            id,
-            NONE
-        )));
-        // `.fj.md` alone has no stem to be a document by: it is a name with the extension `.md`.
         assert_eq!(
             conflict_copy_path(".fj.md", "", id, NONE),
             ".fj.conflict-zv5xrb8j.md"
@@ -861,7 +847,7 @@ mod tests {
         );
         assert_eq!(
             conflict_copy_path("Private/plan.fj.md.age", ".age", id, NONE),
-            "Private/plan.conflict-zv5xrb8j.fj.md.age"
+            "Private/plan.fj.conflict-zv5xrb8j.md.age"
         );
     }
 
@@ -956,13 +942,13 @@ mod tests {
     }
 
     #[test]
-    fn a_document_keeps_its_extension_when_it_moves() {
+    fn a_fj_md_name_is_numbered_before_its_last_extension_like_any_other() {
         let a = DOC_A;
         let b = DOC_B;
         assert_eq!(
             add_add("plan.fj.md", a, b, NONE),
             AddAdd::Distinct {
-                ours_path: "plan 2.fj.md".to_string()
+                ours_path: "plan.fj 2.md".to_string()
             }
         );
     }

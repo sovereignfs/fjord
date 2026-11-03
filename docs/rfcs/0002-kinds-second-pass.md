@@ -178,13 +178,13 @@ not offered sharing by their kind's views; they can still be shared from "Show f
 
 ### Vaults at any depth
 
-- **§2.3** now allows a vault at any depth below the root, never inside another vault, never under `/.fjord/` or `.git/`, and not in a
-  directory Git ignores. `fjord.json`'s `vaults[].path` is the path from the root (`src/content`).
-- **Discovery** looks for `fjord.vault.json` throughout the tracked tree. For the CLI this is the walk it already makes (with
-  `ignore`, which respects `.gitignore`); for the web it is the listing it already has. `fjord-core`'s discovery from a listing
-  already takes every path.
-- **A vault inside a vault** gets a diagnostic of its own, proposed as `E113`. The number is assigned by P14 and, once released,
-  never changes.
+- **§2.3** now allows a vault at any depth below the root, never inside another vault, and never under `/.fjord/` or `.git/`. `fjord.json`'s `vaults[].path` is the path from the root (`src/content`).
+- **Discovery** looks for `fjord.vault.json` throughout the tree. For the CLI this is the walk `verify` already makes, and
+  `vault::discover` now makes the same one, not going into a vault; for the web it is the listing it already has.
+  `fjord-core`'s `listing::locate_vaults` is the one place the rule is written, so the two cannot disagree. (A gitignored folder
+  such as `node_modules/` is walked: a vault in one would be found. No such vault is expected, and `.gitignore` is git's.)
+- **A vault inside a vault**, and a manifest at the root, are the existing `E207`, whose meaning ("nested vaults are not
+  permitted in version 1") is unchanged. No new code is needed.
 - **What else depends on a vault being at the root**: the `.gitattributes` rule (`*.age`) is path-free and unchanged; an
   encrypted vault's guard `.gitignore` is the vault's own; a checkout's record names the vault by path. Each is checked by P14.
 - **RFC 0001's rule of exactly one vault** for a journal or a site stays.
@@ -221,19 +221,19 @@ undo the past: the files are already on disk, and may already be in Git's histor
 
 ## The CLI and `fjord-core`
 
-- **`fjord-core`** (P14): `FileKind::Doc`; discovery and the path checks with vaults at depth; `E113`; the adoption plan beside
+- **`fjord-core`** (P14): `FileKind::Doc`; discovery with vaults at depth; the adoption plan beside
   `plan_setup`. All of it except reading a disk is in the pure subset, so `fjord-wasm` (P17) exposes it.
 - **The CLI** (P15, P16): `new` and `ls` without documents; the journal encrypted by default; `init --adopt`. The README's command
-  sections change with the flags (`tests/readme_commands.rs`), and its diagnostics table with `E113` (`readme_diagnostics.rs`).
-- **`fjord verify`** accepts vaults at depth and reports `E113`. A `.fj.md` file is no longer classified apart.
+  sections change with the flags (`tests/readme_commands.rs`), and nothing in its diagnostics table (`E207` already says it).
+- **`fjord verify`** accepts vaults at depth and reports `E207` for a vault inside one. A `.fj.md` file is no longer classified apart.
 
 ## Diagnostics
 
 | Code | Meaning |
 | --- | --- |
-| `E113` (proposed) | A vault inside another vault: a directory with `fjord.vault.json` below another one |
+| `E207` (existing) | A vault inside another vault, or a manifest at the repository root |
 
-Nothing is removed: no code was about `.fj.md`.
+None is added or removed: no code was about `.fj.md`.
 
 ## Alternatives considered
 

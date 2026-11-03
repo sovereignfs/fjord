@@ -214,7 +214,7 @@ fn the_parsers_read_the_help_they_are_given() {
     }
     // The long help of `new` wraps its descriptions; a wrapped line is not an option.
     let new = flags_of(&help(&["new"]));
-    for expected in ["--draft", "--date", "--document", "--title"] {
+    for expected in ["--draft", "--date", "--title"] {
         assert!(
             new.iter().any(|flag| flag == expected),
             "{expected} is not read from `fjord new --help`: {new:?}"

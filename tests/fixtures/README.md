@@ -3,10 +3,14 @@
 `conforming/` is one valid repository. `fjord verify` must exit 0 against it
 with **no diagnostics at all** — not even a warning.
 
-`documents/` is a second valid repository, with the one thing `conforming/` leaves out: a **document**
-(`Public/plan.fj.md`) and a **note** (`Public/idea.md`), the two kinds of Fjord Doc told apart by file name
-alone (spec §8.4). It must verify with no diagnostics and count both as Docs. (It is separate from
-`conforming/` because `fjord init` must produce exactly what `conforming/` describes.)
+`documents/` is a second valid repository, with the one thing `conforming/` leaves out: a Doc named
+`Public/plan.fj.md` beside one named `Public/idea.md`. Since spec §8.4 was withdrawn (RFC 0002) there is one kind
+of Doc and `.fj.md` means nothing more than `.md`, so it must verify with no diagnostics and count both as Docs.
+(It is separate from `conforming/` because `fjord init` must produce exactly what `conforming/` describes.)
+
+`depth/` is a valid `ssg` repository whose one vault is `src/content`, below the root (spec §2.3): an Astro
+site that already existed, adopted where its engine reads its content. The engine's files and its `src/layouts/`
+are outside the vault. It must verify with no diagnostics.
 
 `journal/` and `ssg/` are valid repositories of the two kinds that are not drives (spec §3.1), each
 with exactly one vault. `journal/` has entries at the conventional dated paths and one that is not, a

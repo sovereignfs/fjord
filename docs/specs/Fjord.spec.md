@@ -120,13 +120,12 @@ wherever a vault is:
   MUST NOT have an ancestor directory that also contains one. Nested vaults are not permitted in version 1 (§12): what a file's
   encryption is would otherwise depend on which manifest a client found
   first.
-- **Never in reserved or untracked places.** A vault MUST NOT be `/.fjord/`
-  or under it (§2.2), nor under `.git/`. A `fjord.vault.json` in a directory
-  Git ignores is not a vault, for the same reason a gitignored file is not
-  vault content: it is not in the repository.
+- **Never in reserved places.** A vault MUST NOT be `/.fjord/` or under it
+  (§2.2), nor under `.git/`. Neither is part of the repository's content.
 
 Discovery (§2.1) therefore looks for `fjord.vault.json` throughout the tree
-Git tracks, not only at the root. A vault's path in `fjord.json` (§3) is its
+outside those two, not only at the root. The root itself is never a vault: a
+`fjord.vault.json` beside `fjord.json` is as wrong as one inside another vault. A vault's path in `fjord.json` (§3) is its
 path from the root, such as `src/content`.
 
 The directories above a vault are ordinary directories of the repository,

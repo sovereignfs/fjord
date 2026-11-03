@@ -1,0 +1,16 @@
+{
+  "fjord": 1,
+  "id": "01jagc4k7pqw2xn8rvty5zb3md",
+  "name": "Adopted site",
+  "createdAt": "2026-11-03T00:55:00Z",
+  "kind": "ssg",
+  "ssg": {
+    "engine": "astro"
+  },
+  "vaults": [
+    {
+      "path": "src/content",
+      "id": "01jagc4k7pr9tbm3ykwx6zq2hv"
+    }
+  ]
+}

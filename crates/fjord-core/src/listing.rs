@@ -21,8 +21,8 @@
 //!
 //! Whether a Markdown file is a Doc (has an `id` in its frontmatter) needs its contents, not its
 //! name. A listing classifies by name only: a file that *could* carry frontmatter is a
-//! [`FileKind::Document`] (`*.fj.md`) or a [`FileKind::Note`] (any other `.md`), spec §8.4, and a client
-//! reads it, lazily, to find out whether it is one.
+//! [`FileKind::Doc`] (any `.md`; there is one kind of Doc, spec §8.4), and a client reads it, lazily,
+//! to find out whether it is one.
 
 use crate::manifest::{self, EncryptionField, Manifest};
 use crate::{RESERVED_DIRECTORY, VAULT_MANIFEST};
@@ -53,15 +53,16 @@ fn ignored(path: &str) -> bool {
 pub enum ManifestAt {
     /// Not a vault manifest.
     NotAManifest,
-    /// The manifest of the vault in this directory at the repository root. §2.1, §2.3.
+    /// The manifest of the vault in this directory, at any depth below the root. §2.1, §2.3. (Whether
+    /// another vault contains it is for [`locate_vaults`], which sees the whole listing.)
     Vault(String),
-    /// A vault manifest where §2.3 does not permit one: at the repository root (which would make the
-    /// root a vault), or deeper than one directory down. Holds what to report it at: the file for the
-    /// first, the directory for the second.
+    /// A vault manifest at the repository root, which would make the root a vault. §2.3. Holds the
+    /// file, which is what to report it at.
     Nested(String),
 }
 
-/// Whether `path` is a vault manifest, and if so whether it is where one may be.
+/// Whether `path` is a vault manifest, and if so whether it is where one may be: anywhere but the
+/// repository root, and not under `.git` or the root `.fjord/`.
 pub fn vault_manifest_at(path: &str) -> ManifestAt {
     if ignored(path) {
         return ManifestAt::NotAManifest;
@@ -75,7 +76,6 @@ pub fn vault_manifest_at(path: &str) -> ManifestAt {
     }
     match parent {
         None => ManifestAt::Nested(path.to_string()),
-        Some(parent) if parent.contains('/') => ManifestAt::Nested(parent.to_string()),
         Some(parent) => ManifestAt::Vault(parent.to_string()),
     }
 }
@@ -83,33 +83,55 @@ pub fn vault_manifest_at(path: &str) -> ManifestAt {
 /// The vaults in a listing, and the manifests that are where they should not be.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Located {
-    /// Directories at the repository root that hold a vault manifest, sorted.
+    /// Directories that hold a vault manifest and are inside no other vault, sorted. At any depth.
     pub vaults: Vec<String>,
-    /// Where nested vault manifests are, in path order. §2.3 does not permit them in version 1.
+    /// Where vault manifests are that may not be, in path order: at the repository root, which would
+    /// make the root a vault (the file is reported), and inside another vault (the directory is). §2.3.
     pub nested: Vec<String>,
 }
 
 /// Which directories are vaults. A directory is a vault **if and only if** it contains
-/// `fjord.vault.json`, and in version 1 vaults are directories at the repository root. §2.1, §2.3.
+/// `fjord.vault.json`; it may be at any depth below the root, and none is inside another. §2.1, §2.3.
 pub fn locate_vaults(files: &[ListedFile]) -> Located {
     let mut sorted: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
     sorted.sort_unstable();
 
     let mut located = Located::default();
+    let mut candidates = Vec::new();
     for path in sorted {
         match vault_manifest_at(path) {
             ManifestAt::NotAManifest => {}
-            ManifestAt::Vault(directory) => located.vaults.push(directory),
+            ManifestAt::Vault(directory) => candidates.push(directory),
             ManifestAt::Nested(at) => located.nested.push(at),
         }
     }
-    located.vaults.sort();
-    located.vaults.dedup();
+    candidates.sort();
+    candidates.dedup();
+
+    // Sorted, a directory comes before everything inside it, so the last vault kept is the only one
+    // that can contain the next candidate.
+    for directory in candidates {
+        let inside = located
+            .vaults
+            .last()
+            .is_some_and(|outer| is_inside(&directory, outer));
+        if inside {
+            located.nested.push(directory);
+        } else {
+            located.vaults.push(directory);
+        }
+    }
+    located.nested.sort();
     located
 }
 
-/// The repository-relative paths of the manifests a client has to read to go on: the vault manifests
-/// at the root. (`fjord.json` is the repository's own, and is always at `fjord.json`.)
+/// Whether `path` is `directory` or something inside it.
+fn is_inside(path: &str, directory: &str) -> bool {
+    path.strip_prefix(directory)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+}
+
+/// The repository-relative paths of the manifests a client has to read to go on: the vault manifests. (`fjord.json` is the repository's own, and is always at `fjord.json`.)
 pub fn manifest_paths(files: &[ListedFile]) -> Vec<String> {
     locate_vaults(files)
         .vaults
@@ -172,11 +194,10 @@ pub enum FileKind {
     /// A file in a plaintext vault that ends in the encryption suffix. Reported as
     /// [`crate::diagnostics::Code::EncryptedFileInPlaintextVault`].
     MisplacedPayload,
-    /// A file in a plaintext vault named `*.fj.md`: a **document**, if its frontmatter has a valid `id`
-    /// (whether it does is for its contents to say, §8). §8.4.
-    Document,
-    /// Any other `.md` file in a plaintext vault: a **note**, on the same condition. §8.4.
-    Note,
+    /// A `.md` file in a plaintext vault: a **Doc**, if its frontmatter has a valid `id` (whether it
+    /// does is for its contents to say, §8). There is one kind of Doc, and its name says nothing more
+    /// about it. §8.4.
+    Doc,
     /// Any other file in a plaintext vault.
     Other,
 }
@@ -195,15 +216,7 @@ pub fn classify(relative: &str, settings: &VaultSettings) -> Option<FileKind> {
         (true, true) => FileKind::Payload,
         (true, false) => FileKind::Stray,
         (false, true) => FileKind::MisplacedPayload,
-        (false, false) if relative.ends_with(".md") => {
-            // The leaf name decides, not the folders above it.
-            let leaf = relative.rsplit('/').next().unwrap_or(relative);
-            if crate::doc::is_document_name(leaf) {
-                FileKind::Document
-            } else {
-                FileKind::Note
-            }
-        }
+        (false, false) if relative.ends_with(".md") => FileKind::Doc,
         (false, false) => FileKind::Other,
     })
 }
@@ -276,18 +289,19 @@ pub struct VaultListing {
 /// What a listing says about a repository's vaults.
 #[derive(Debug, Clone, Default)]
 pub struct Discovery {
-    /// The vaults at the repository root, sorted by directory.
+    /// The vaults, at any depth, sorted by directory.
     pub vaults: Vec<VaultListing>,
-    /// Vault manifests where they may not be. See [`ManifestAt::Nested`].
+    /// Vault manifests where they may not be. See [`Located::nested`].
     pub nested: Vec<String>,
 }
 
 impl Discovery {
-    /// The vault a repository-relative path is inside, if any. A file at the root is in no vault,
-    /// which is not a mistake.
+    /// The vault a repository-relative path is inside (or is), if any. A file outside every vault is in
+    /// none, which is not a mistake.
     pub fn vault_containing(&self, path: &str) -> Option<&VaultListing> {
-        let first = path.split('/').next().filter(|first| !first.is_empty())?;
-        self.vaults.iter().find(|vault| vault.directory == first)
+        self.vaults
+            .iter()
+            .find(|vault| is_inside(path, &vault.directory))
     }
 }
 
@@ -367,17 +381,56 @@ mod tests {
     }
 
     #[test]
-    fn a_manifest_at_the_root_or_deeper_than_one_directory_is_nested_and_is_not_a_vault() {
+    fn a_manifest_at_the_root_or_inside_another_vault_is_nested_and_is_not_a_vault() {
         let files = listed(&[
             "fjord.vault.json",
             "Notes/fjord.vault.json",
             "Notes/Inner/fjord.vault.json",
-            "A/B/C/fjord.vault.json",
+            "Notes/Inner/Deeper/fjord.vault.json",
         ]);
         let located = locate_vaults(&files);
         assert_eq!(located.vaults, ["Notes"]);
-        // The root one is reported at the file, the deeper ones at their directory, in path order.
-        assert_eq!(located.nested, ["A/B/C", "Notes/Inner", "fjord.vault.json"]);
+        // The root one is reported at the file, the others at their directory, in path order.
+        assert_eq!(
+            located.nested,
+            ["Notes/Inner", "Notes/Inner/Deeper", "fjord.vault.json"]
+        );
+    }
+
+    #[test]
+    fn a_vault_may_be_at_any_depth_below_the_root() {
+        let files = listed(&[
+            "src/content/fjord.vault.json",
+            "src/content/posts/a.md",
+            "Private/fjord.vault.json",
+            "A/B/C/fjord.vault.json",
+        ]);
+        let located = locate_vaults(&files);
+        assert_eq!(located.vaults, ["A/B/C", "Private", "src/content"]);
+        assert!(located.nested.is_empty());
+    }
+
+    #[test]
+    fn a_directory_that_only_shares_a_name_prefix_with_a_vault_is_not_inside_it() {
+        // `Notes-old` is beside `Notes`, not inside it.
+        let files = listed(&["Notes/fjord.vault.json", "Notes-old/fjord.vault.json"]);
+        let located = locate_vaults(&files);
+        assert_eq!(located.vaults, ["Notes", "Notes-old"]);
+        assert!(located.nested.is_empty());
+    }
+
+    #[test]
+    fn a_path_is_in_the_vault_that_contains_it_at_any_depth() {
+        let files = listed(&["src/content/fjord.vault.json", "src/content/posts/a.md"]);
+        let mut manifests = BTreeMap::new();
+        manifests.insert("src/content/fjord.vault.json".to_string(), PLAIN.to_vec());
+        let found = discover(&files, &manifests);
+        let of = |path: &str| found.vault_containing(path).map(|v| v.directory.as_str());
+        assert_eq!(of("src/content/posts/a.md"), Some("src/content"));
+        assert_eq!(of("src/content"), Some("src/content"));
+        assert_eq!(of("src/layouts/a.astro"), None);
+        assert_eq!(of("src/content-old/a.md"), None);
+        assert_eq!(of("README.md"), None);
     }
 
     #[test]
@@ -395,7 +448,7 @@ mod tests {
         // `.fjord` is only reserved at the root: a vault may have a directory of that name.
         assert_eq!(
             vault_manifest_at("V/.fjord/fjord.vault.json"),
-            ManifestAt::Nested("V/.fjord".to_string())
+            ManifestAt::Vault("V/.fjord".to_string())
         );
         assert_eq!(vault_manifest_at(".fjord"), ManifestAt::NotAManifest);
     }
@@ -458,13 +511,10 @@ mod tests {
     #[test]
     fn files_are_classified_by_name_and_by_the_vault_they_are_in() {
         let plain = VaultSettings::from_manifest(&Manifest::parse(PLAIN).unwrap());
-        assert_eq!(classify("a.md", &plain), Some(FileKind::Note));
-        assert_eq!(classify("deep/er/a.md", &plain), Some(FileKind::Note));
-        assert_eq!(classify("a.fj.md", &plain), Some(FileKind::Document));
-        assert_eq!(
-            classify("deep/er/a.fj.md", &plain),
-            Some(FileKind::Document)
-        );
+        assert_eq!(classify("a.md", &plain), Some(FileKind::Doc));
+        assert_eq!(classify("deep/er/a.md", &plain), Some(FileKind::Doc));
+        assert_eq!(classify("a.fj.md", &plain), Some(FileKind::Doc));
+        assert_eq!(classify("deep/er/a.fj.md", &plain), Some(FileKind::Doc));
         assert_eq!(classify("photo.png", &plain), Some(FileKind::Other));
         assert_eq!(
             classify("a.md.age", &plain),
@@ -525,7 +575,7 @@ mod tests {
         assert_eq!(found[1].path, "Notes/sub/b.md");
         assert!(found
             .iter()
-            .all(|f| f.kind == FileKind::Note && f.size == 10));
+            .all(|f| f.kind == FileKind::Doc && f.size == 10));
     }
 
     #[test]
@@ -583,20 +633,19 @@ mod tests {
     }
 
     #[test]
-    fn a_document_is_known_by_its_leaf_name_alone() {
+    fn a_fj_md_name_means_nothing_more_than_md() {
         let plain = VaultSettings::from_manifest(&Manifest::parse(PLAIN).unwrap());
-        // The folders above it do not matter, nor does a `.fj.md` in the middle of a name.
-        assert_eq!(classify("a.fj.md/b.md", &plain), Some(FileKind::Note));
-        assert_eq!(classify("notes.fj.md.md", &plain), Some(FileKind::Note));
-        assert_eq!(classify("fj.md", &plain), Some(FileKind::Note));
-        // With nothing before the suffix it is not a document's name.
-        assert_eq!(classify(".fj.md", &plain), Some(FileKind::Note));
-        // And a `.fj` that is not Markdown is not a document.
+        // Spec §8.4: the name says only that it is Markdown, whatever is in it.
+        assert_eq!(classify("a.fj.md", &plain), Some(FileKind::Doc));
+        assert_eq!(classify("a.fj.md/b.md", &plain), Some(FileKind::Doc));
+        assert_eq!(classify("fj.md", &plain), Some(FileKind::Doc));
+        assert_eq!(classify(".fj.md", &plain), Some(FileKind::Doc));
+        // And a `.fj` that is not Markdown is not a Doc.
         assert_eq!(classify("a.fj", &plain), Some(FileKind::Other));
     }
 
     #[test]
-    fn a_vault_with_both_kinds_lists_each_for_what_it_is() {
+    fn a_vault_lists_every_markdown_file_as_a_doc_whatever_its_name() {
         let files = listed(&[
             "Notes/fjord.vault.json",
             "Notes/plan.fj.md",
@@ -612,9 +661,9 @@ mod tests {
         assert_eq!(
             kinds,
             [
-                ("idea.md", FileKind::Note),
-                ("plan.fj.md", FileKind::Document),
-                ("sub/deep.fj.md", FileKind::Document)
+                ("idea.md", FileKind::Doc),
+                ("plan.fj.md", FileKind::Doc),
+                ("sub/deep.fj.md", FileKind::Doc)
             ]
         );
     }

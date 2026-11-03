@@ -321,7 +321,7 @@ Planned on 2026-11-03. [RFC 0002](../rfcs/0002-kinds-second-pass.md) is the desi
 | # | Task |
 | --- | --- |
 | P13 | Spec and fixtures: one kind of Doc, vaults at any depth, adopting into a checkout |
-| P14 | `fjord-core`: `FileKind::Doc`, vaults at depth, `E113`, the adoption plan |
+| P14 | `fjord-core`: `FileKind::Doc`, vaults at depth, the adoption plan |
 | P15 | CLI: no documents, and journals encrypted by default |
 | P16 | CLI: `init --adopt` |
 | P17 | `fjord-wasm`: one kind of Doc, vaults at depth, the adoption plan |
@@ -337,26 +337,36 @@ Planned on 2026-11-03. [RFC 0002](../rfcs/0002-kinds-second-pass.md) is the desi
 
 ### P13 Spec and fixtures: one kind of Doc, vaults at any depth, adopting into a checkout
 
-**Status:** 📋 Planned (the spec text is written; the fixtures are not)
+**Status:** ✅ Done
 
 **Design:** RFC 0002, One kind of Doc, Vaults at any depth, Adopting existing files
 
-The spec already says it (§1.3, §2.3, §3, §3.1, §6.6, §8.4, §12, as of 2026-11-03). This task checks that text against what P14 finds while building it, corrects it where the code shows it wrong, and adds the fixtures: `tests/fixtures/broken/E113/` (a vault inside a vault), a conforming repository with a vault below the root (`src/content`), and the conforming fixtures' `.fj.md` files left as they are, now ordinary Docs.
+The spec already says it (§1.3, §2.3, §3, §3.1, §6.6, §8.4, §12, as of 2026-11-03). This task checks that text against what P14 finds while building it, corrects it where the code shows it wrong, and adds the fixtures: `tests/fixtures/depth/` (a conforming Astro site whose vault is `src/content`), with `broken/E207/` (a vault inside a vault) still emitting exactly its code, and the conforming fixtures' `.fj.md` files left as they are, now ordinary Docs.
 
-**Accepts when:** the new broken fixture emits exactly `E113` once P14 exists, and nothing else; the conforming fixtures, old and new, emit nothing; RFC 0002's status says the spec was implemented by P13 and P14.
+**Accepts when:** `depth/` emits nothing and `broken/E207/` still emits exactly `E207`; the conforming fixtures, old and new, emit nothing; RFC 0002's status says the spec was implemented by P13 and P14.
 
-### P14 `fjord-core`: `FileKind::Doc`, vaults at depth, `E113`, the adoption plan
+- **Done as:** the spec text needed two corrections once the code was written: the rule against a vault in a gitignored folder is gone (`verify` walks every folder, and `.gitignore` is git's), and the "no new code" outcome: a vault inside another is the existing **`E207`**, so RFC 0002's proposed `E113` was never needed. New fixture `tests/fixtures/depth/` (an Astro site whose vault is `src/content`), its entry in `discovery.json`, and `tests/fixtures/README.md`. `broken/E207/` is unchanged and still emits exactly its code.
+- **Not here:** the CLI README's diagnostics table (nothing changed in it); fixtures for adoption, which P16 builds from a real directory.
 
-**Status:** 📋 Planned
+### P14 `fjord-core`: `FileKind::Doc`, vaults at depth, the adoption plan
+
+**Status:** 🚧 Done but for the adoption plan, which is built with `init --adopt` in P16
 
 **Design:** RFC 0002, One kind of Doc, Vaults at any depth, The CLI and `fjord-core`
 
 - `listing.rs`'s `FileKind::Document` and `FileKind::Note` become `FileKind::Doc`; the `.fj.md` cases in `naming.rs` (`free_name`) and `merge.rs` go.
-- Discovery, from the disk and from a listing, finds `fjord.vault.json` at any depth, never under `.fjord/` or `.git/` or in an ignored directory. A vault inside another is `E113` (a new code in `diagnostics.rs`, and the CLI README's table, held by `readme_diagnostics.rs`). The path checks of `fjord.json`'s `vaults` accept `/` and still refuse `..`.
+- Discovery, from the disk and from a listing, finds `fjord.vault.json` at any depth, never under `.fjord/` or `.git/`. A vault inside another is the existing `E207` (no new code). The path checks of `fjord.json`'s `vaults` accept `/` and still refuse `..`.
 - Every place that assumes a vault is a root directory is found and fixed: the checkout's record, `rekey`, `export` and `import`, `vault add`'s planner.
 - An adoption plan beside `scaffold::plan_setup`: given a listing and the chosen directories, the files to write and the lines to append, writing over nothing; for a site, the engine detected (`astro.config.*` → `src/content`, `_config.yml` → `_posts`); for `--encrypt-existing`, the vault encrypted and its checkout record.
 
-**Accepts when:** the fixtures of P13 pass; a property test of discovery: a vault anywhere is found, and any vault under another is `E113`; the adoption plan, applied to a directory, leaves every existing file byte for byte; the pure subset still builds for `wasm32-unknown-unknown`.
+**Accepts when:** the fixtures of P13 pass; a test of discovery: a vault anywhere is found, and any vault under another is `E207`; the adoption plan, applied to a directory, leaves every existing file byte for byte; the pure subset still builds for `wasm32-unknown-unknown`.
+
+- **Done as:**
+  - **`listing.rs`:** `FileKind::Document` and `Note` are `Doc`; `vault_manifest_at` accepts any depth (only the root is refused); `locate_vaults` takes the shallowest vault of each branch and reports a vault inside another, and a root manifest, as `nested` (`E207`); `Discovery::vault_containing` matches at any depth.
+  - **`vault.rs`:** `discover` walks the tree (not into a vault, `.git`, the root `.fjord/` or a symlink) and asks `locate_vaults`; `containing` finds the shallowest vault above a path.
+  - **`doc.rs`, `merge.rs`:** `is_document_name`, `DOCUMENT_SUFFIX` and the `.fj.md` special cases are removed. `plan.fj.md`'s title is `plan.fj`, its conflict copy `plan.fj.conflict-…md`.
+  - **Checked and unchanged:** the checkout record is named by a digest of the vault's path, so `src/content` works; `rekey`, `export`, `import`, `grep`, `ls` and `new` join `vault.directory` as a string. Tests in `listing.rs`, `fixtures.rs` (a vault inside a vault at depth, a root manifest) and the existing suites.
+- **Not here:** the adoption plan (P16); the pure subset's wasm build, which `fjord-wasm` (P17) checks; `verify` still walks gitignored folders such as `node_modules/`.
 
 ### P15 CLI: no documents, and journals encrypted by default
 

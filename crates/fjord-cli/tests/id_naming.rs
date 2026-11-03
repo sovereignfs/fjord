@@ -113,10 +113,10 @@ fn repo() -> Repo {
 
 // --- The acceptance criteria ---------------------------------------------
 
-/// §8.4 in an `id` vault: the name on disk is the identifier, so a document is known by the name inside
-/// the container, which `ls` reads.
+/// In an `id` vault the name on disk is the identifier, so `ls` shows the real name from inside the
+/// container, and every Fjord Doc is just a `doc` (spec §8.4).
 #[test]
-fn a_document_in_an_id_vault_is_still_a_document() {
+fn ls_shows_the_name_inside_the_container_in_an_id_vault() {
     let repo = repo();
     for name in ["plan.fj.md", "idea.md"] {
         let created = repo.run(&["new", &format!("Secret/{name}"), "--no-edit"]);
@@ -126,32 +126,19 @@ fn a_document_in_an_id_vault_is_still_a_document() {
     assert_eq!(code(&listed), 0, "{}", err(&listed));
     let rows: serde_json::Value =
         serde_json::from_str(&String::from_utf8_lossy(&listed.stdout)).expect("json");
-    let mut kinds: Vec<(String, String)> = rows
-        .as_array()
-        .expect("array")
-        .iter()
-        .map(|row| {
-            (
-                row["title"].as_str().unwrap_or_default().to_string(),
-                row["docKind"].as_str().unwrap_or("none").to_string(),
-            )
-        })
-        .collect();
-    kinds.sort();
+    let rows = rows.as_array().expect("array");
     // The title column carries the real name (and the title when it differs) in an `id` vault.
-    assert_eq!(kinds.len(), 2, "{kinds:?}");
-    assert!(
-        kinds
-            .iter()
-            .any(|(title, kind)| title.contains("plan.fj.md") && kind == "document"),
-        "{kinds:?}"
-    );
-    assert!(
-        kinds
-            .iter()
-            .any(|(title, kind)| title.contains("idea.md") && kind == "note"),
-        "{kinds:?}"
-    );
+    assert_eq!(rows.len(), 2, "{rows:?}");
+    for name in ["plan.fj.md", "idea.md"] {
+        assert!(
+            rows.iter().any(|row| row["title"]
+                .as_str()
+                .is_some_and(|title| title.contains(name))
+                && row["kind"] == "doc"
+                && row.get("docKind").is_none()),
+            "{name}: {rows:?}"
+        );
+    }
 }
 
 /// "A vault in id mode round-trips a file whose name contains a space."
