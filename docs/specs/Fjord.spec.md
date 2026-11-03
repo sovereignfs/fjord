@@ -426,6 +426,45 @@ removes the plaintext from version control as well as from the disk.
 Other clients see a checked-out vault as a vault with files in the clear
 (§6.5), and report it as such. That is accurate.
 
+### 6.7 Changing a vault's encryption
+
+A client MAY make a plaintext vault an encrypted one, or an encrypted vault a
+plaintext one, at the user's explicit request naming the vault. The vault is
+the same vault afterwards: its `id`, its `name` and every other field of its
+manifest, known or not (§10.1), are kept.
+
+To **encrypt** a plaintext vault the client:
+
+1. MUST refuse unless it has at least one recipient to encrypt to (§6.2), and
+   MUST refuse a vault of a repository whose kind forbids it (§3.1: a site's
+   content is never encrypted).
+2. MUST tell the user, before it begins, that every version of the vault's
+   files already committed stays readable in Git's history (§11.4).
+3. MUST write the vault's recipients file and its plaintext guard (§6.5), set
+   `encryption` as §4.1 describes, and set `fileNaming` to `"plain"`, and MUST
+   begin the checkout of §6.6 for adopting a directory *before* the manifest
+   says the vault is encrypted: the plaintext then in the vault is what that
+   checkout is for.
+4. MUST end that checkout as §6.6 requires (rules 7 to 9), which is what
+   encrypts the files and removes the plaintext.
+
+To **decrypt** an encrypted vault the client:
+
+1. MUST begin an ordinary checkout (§6.6), which decrypts every document
+   before it writes any, and MUST tell the user, before it begins, that the
+   files will be readable by anyone who can read the repository, that they stay
+   so in the history once committed, and that the encrypted copies stay there
+   too.
+2. MUST NOT remove a file in the clear. It then sets `encryption` to `null` and
+   `fileNaming` to `"plain"`, removes the payloads and, if it is the one §6.5
+   describes, the guard, removes the recipients file, and only then removes
+   the checkout's record. An interruption leaves every document readable and
+   the record in place.
+
+Neither is a checkout that the user can work in: both are over when the
+command ends, and a vault that is still checked out is not one that either
+accepts.
+
 ---
 
 ## 7. File naming

@@ -227,5 +227,8 @@ fn the_parsers_read_the_help_they_are_given() {
         commands_of(&help(&["key"])),
         ["new", "add", "list", "remove"]
     );
-    assert_eq!(commands_of(&help(&["vault"])), ["add", "list"]);
+    assert_eq!(
+        commands_of(&help(&["vault"])),
+        ["add", "list", "encrypt", "decrypt"]
+    );
 }

@@ -1031,6 +1031,89 @@ pub fn with_vault_entry(
     Ok(pretty(&serde_json::Value::Object(raw)))
 }
 
+/// The text of the §6.5 plaintext guard `.gitignore` an encrypted vault has, so that a client can tell its own from one a person wrote.
+pub fn vault_guard() -> &'static str {
+    VAULT_GITIGNORE
+}
+
+/// Why a vault's encryption cannot be changed (RFC 0003). Nothing is written when one is returned.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConvertError {
+    /// `fjord.vault.json` is not a JSON object.
+    Unreadable,
+    /// Encrypting a vault that is already encrypted.
+    AlreadyEncrypted,
+    /// Decrypting a vault that is not encrypted.
+    NotEncrypted,
+    /// A vault with no recipients could be written by nobody (§6.2).
+    NoRecipients,
+}
+
+/// What making a plaintext vault an encrypted one changes (spec §4.1, §6.5): its manifest, and the two files an encrypted vault
+/// has. Paths are relative to the vault's directory. The vault's own files are not touched here: they are encrypted by a checkout
+/// (§6.6), which is how plaintext leaves a vault.
+#[derive(Debug, Clone)]
+pub struct EncryptPlan {
+    /// The vault's `fjord.vault.json`, with `encryption` set and every other field, known or not, where it was.
+    pub manifest: String,
+    /// The recipients file and the §6.5 plaintext guard.
+    pub files: Vec<PlannedFile>,
+}
+
+/// `manifest` (a vault's `fjord.vault.json`) as an encrypted vault's: `encryption` set to age with the conventional recipients
+/// file, plain file naming. The caller has validated `recipients` with [`crate::crypto::check_recipient`].
+pub fn plan_encrypt_vault(
+    manifest: &[u8],
+    recipients: &[String],
+) -> Result<EncryptPlan, ConvertError> {
+    let parsed =
+        crate::manifest::Manifest::parse(manifest).map_err(|_| ConvertError::Unreadable)?;
+    if matches!(
+        parsed.encryption(),
+        crate::manifest::EncryptionField::Object(_)
+    ) {
+        return Err(ConvertError::AlreadyEncrypted);
+    }
+    if recipients.is_empty() {
+        return Err(ConvertError::NoRecipients);
+    }
+    let mut raw = parsed.raw().clone();
+    raw.insert(
+        field::ENCRYPTION.to_string(),
+        json!({
+            field::TOOL: TOOL_AGE,
+            field::RECIPIENTS: CONVENTIONAL_RECIPIENTS_FILE,
+            field::SUFFIX: SUFFIX_AGE,
+            field::CONTAINER: "none",
+            field::ARMOR: false,
+        }),
+    );
+    raw.insert(field::FILE_NAMING.to_string(), json!("plain"));
+
+    let mut files = vault_files("", "", "", true, "plain", recipients);
+    files.remove(0); // the manifest it would make is not this vault's: this vault keeps its id, name and every other field
+    Ok(EncryptPlan {
+        manifest: pretty(&serde_json::Value::Object(raw)),
+        files,
+    })
+}
+
+/// `manifest` as a plaintext vault's: `encryption` null, plain file naming, every other field where it was.
+pub fn plan_decrypt_vault(manifest: &[u8]) -> Result<String, ConvertError> {
+    let parsed =
+        crate::manifest::Manifest::parse(manifest).map_err(|_| ConvertError::Unreadable)?;
+    if !matches!(
+        parsed.encryption(),
+        crate::manifest::EncryptionField::Object(_)
+    ) {
+        return Err(ConvertError::NotEncrypted);
+    }
+    let mut raw = parsed.raw().clone();
+    raw.insert(field::ENCRYPTION.to_string(), serde_json::Value::Null);
+    raw.insert(field::FILE_NAMING.to_string(), json!("plain"));
+    Ok(pretty(&serde_json::Value::Object(raw)))
+}
+
 /// `fjord.json` with its kind changed to `kind` (spec §3.1), every other field kept where it was, settings objects of other kinds
 /// included (§3.1 and §10.1 keep them). A site's `engine` is written into its `ssg` object, whose other fields are kept too. Whether
 /// the repository then keeps the kind's rules is [`crate::manifest::kind_rule`]'s to say, before this is written.
@@ -2437,5 +2520,62 @@ mod tests {
             );
             assert_eq!(report.vaults.len(), 2);
         }
+    }
+    #[test]
+    fn encrypting_a_vault_keeps_its_id_and_every_field_it_does_not_know() {
+        let manifest = br#"{"fjord":1,"id":"01jagc4k7pr9tbm3ykwx6zq2hv","name":"Notes","x-future":{"a":1},"encryption":null,"fileNaming":"plain","createdAt":"2026-10-16T09:34:00Z"}"#;
+        let plan = plan_encrypt_vault(manifest, &["age1abc".to_string()]).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&plan.manifest).unwrap();
+        assert_eq!(value["id"], "01jagc4k7pr9tbm3ykwx6zq2hv");
+        assert_eq!(value["x-future"]["a"], 1);
+        assert_eq!(value["encryption"]["tool"], "age");
+        assert_eq!(value["encryption"]["recipients"], "recipients.txt");
+        let order: Vec<&String> = value.as_object().unwrap().keys().collect();
+        assert_eq!(
+            order,
+            [
+                "fjord",
+                "id",
+                "name",
+                "x-future",
+                "encryption",
+                "fileNaming",
+                "createdAt"
+            ]
+        );
+        let paths: Vec<&str> = plan.files.iter().map(|file| file.path.as_str()).collect();
+        assert_eq!(paths, ["recipients.txt", ".gitignore"]);
+        assert!(plan.files[0].contents.contains("age1abc"));
+    }
+
+    #[test]
+    fn a_vault_is_encrypted_only_if_it_is_not_and_has_someone_to_write_it() {
+        let encrypted = br#"{"fjord":1,"encryption":{"tool":"age"}}"#;
+        assert_eq!(
+            plan_encrypt_vault(encrypted, &["age1abc".to_string()]).unwrap_err(),
+            ConvertError::AlreadyEncrypted
+        );
+        assert_eq!(
+            plan_encrypt_vault(br#"{"fjord":1,"encryption":null}"#, &[]).unwrap_err(),
+            ConvertError::NoRecipients
+        );
+        assert_eq!(
+            plan_encrypt_vault(b"[]", &["age1abc".to_string()]).unwrap_err(),
+            ConvertError::Unreadable
+        );
+    }
+
+    #[test]
+    fn decrypting_a_vault_is_the_manifest_of_a_plaintext_one() {
+        let manifest = br#"{"fjord":1,"id":"X","encryption":{"tool":"age","container":"tar"},"fileNaming":"id","x":2}"#;
+        let text = plan_decrypt_vault(manifest).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&text).unwrap();
+        assert!(value["encryption"].is_null());
+        assert_eq!(value["fileNaming"], "plain");
+        assert_eq!(value["x"], 2);
+        assert_eq!(
+            plan_decrypt_vault(&text.into_bytes()).unwrap_err(),
+            ConvertError::NotEncrypted
+        );
     }
 }

@@ -94,7 +94,7 @@ Each command has its own section below. Every command takes the options listed u
 | `fjord decrypt` | Decrypts a file to stdout, or a whole vault in place. |
 | `fjord key` | Makes an identity, and adds, lists and removes a vault's recipients. |
 | `fjord rekey` | Re-encrypts a whole vault to its current recipients. |
-| `fjord vault` | Creates and lists vaults, plaintext or encrypted. |
+| `fjord vault` | Creates and lists vaults, plaintext or encrypted, and makes a vault encrypted (`vault encrypt`) or plaintext again (`vault decrypt`) in one command. |
 | `fjord export` | Decrypts a vault into a plain directory. |
 | `fjord import` | Brings a directory of files into a vault as documents. |
 | `fjord sync` | Pulls, resolves conflicts by decrypting and merging, and pushes. Both sides survive an unresolvable merge. |
@@ -300,7 +300,8 @@ fjord decrypt Private/notes.md.age -o ~/notes.md
 ```
 
 Give it a **vault** instead of a file and it starts a checkout — see
-[Working on a whole vault](#working-on-a-whole-vault).
+[Working on a whole vault](#working-on-a-whole-vault). That is temporary: the vault stays encrypted. To make a vault
+plaintext for good, use [`fjord vault decrypt`](#encrypting-and-decrypting-a-vault).
 
 ### Working on a whole vault
 
@@ -714,6 +715,47 @@ it (RUSTSEC-2023-0071).
 `--id-naming` requires `--encrypted`: naming files by id on a plaintext
 vault conceals nothing and makes the vault unbrowsable, which spec §7.2
 requires clients to reject. See [File naming](#file-naming) below.
+
+#### Encrypting and decrypting a vault
+
+```bash
+fjord vault encrypt Private --commit        # plaintext → encrypted, in one command
+fjord decrypt Private                       # work on it: decrypted copies beside the payloads
+fjord encrypt Private                       # … and check it back in
+fjord vault decrypt Private --commit        # encrypted → plaintext, for good
+```
+
+Four commands, two different things. `fjord vault encrypt` and `fjord vault decrypt` change **what the vault is**. `fjord
+decrypt <vault>` and `fjord encrypt <vault>` change nothing about that: they check an encrypted vault out for editing and back in
+([Working on a whole vault](#working-on-a-whole-vault)). `fjord open <file>` edits one document.
+
+**`fjord vault encrypt <vault>`** needs a plaintext vault, and the identity that will open it (`--identity`, or the default at
+`fjord key new`'s path). It encrypts to the keys given with `--recipient`, or, with none, to your identity's own public key. It then:
+
+- writes the vault's recipients file and its plaintext guard `.gitignore`, and makes its manifest an encrypted one's: the vault keeps
+  its id and every field it has, known or not;
+- encrypts every file, **proves each payload opens to what it was made from**, and only then removes the plain files: it is a
+  checkout that begins empty and is checked in at once (spec §6.6, §6.7), so nothing can commit the plaintext in between;
+- with `--commit`, commits the vault, and what it changed outside it (`.gitattributes` gains the §9 merge guard), as
+  `Encrypt vault <name>`, and nothing else you had staged.
+
+It asks first, and with `--no-input` or no terminal that is a usage error unless you pass `--yes`, because **encrypting does not
+unpublish anything**: what was committed in the clear stays in the repository's history, and anyone who cloned it has it. It refuses a
+site's content (never encrypted, spec §3.1), a vault that is already encrypted, a vault with a checkout, and a vault that already has a
+`recipients.txt` or a `.gitignore` of its own. If a step fails after the vault became an encrypted one, the vault is a checked-out
+encrypted vault, and the message says to finish with `fjord encrypt <vault>`.
+
+**`fjord vault decrypt <vault>`** needs an encrypted vault and an identity that opens it. It decrypts every document before writing
+any, then makes the manifest a plaintext one's, removes the encrypted copies, the recipients file and the guard, and ends the checkout.
+Plaintext is never removed, so an interruption leaves the files readable. It asks first, because the files become readable by
+anyone who can read the repository and stay in its history once committed; the encrypted copies stay there too. `--commit` records it
+as `Decrypt vault <name>`. A journal is encrypted by default (spec §3.1), and decrypting one is allowed, with that question.
+
+| Flag | Effect |
+| --- | --- |
+| `--recipient <key>` | `vault encrypt`: an age **public** key to encrypt to. Repeat for several. Without one, your identity's. |
+| `--yes` | Do not ask first. Needed with `--no-input` or without a terminal. |
+| `--commit` | Commit the vault, and only what the conversion changed. Needs a git repository. |
 
 ### File naming
 

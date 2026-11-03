@@ -11,6 +11,7 @@
 pub mod adopt;
 pub mod bulk;
 pub mod checkout;
+pub mod convert;
 pub mod crypt;
 pub mod grep;
 pub mod guard;
@@ -258,7 +259,7 @@ pub fn load_identities(global: &GlobalArgs) -> Result<crypto::Identities> {
     crypto::parse_identities(&text).with_context(|| format!("{label} is not a usable identity"))
 }
 
-fn read_identity(path: &Path) -> Result<Zeroizing<String>> {
+pub(crate) fn read_identity(path: &Path) -> Result<Zeroizing<String>> {
     let bytes = Zeroizing::new(
         std::fs::read(path).with_context(|| format!("could not read {}", path.display()))?,
     );
