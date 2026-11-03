@@ -27,7 +27,7 @@ export interface CryptoModule {
   rfc3339FromUnix(seconds: number): string | undefined;
   // A journal's entries (ROADMAP 3b), written and read here when the journal is encrypted: their dates, titles and tags are never the server's.
   newEntry(id: string, title: string | undefined, created: string, date: string): string;
-  journalEntryPath(date: string, slug: string | undefined, encrypted: boolean): string | undefined;
+  journalEntryPath(date: string): string | undefined;
   journalSlug(title: string): string | undefined;
   entryDateFromUnix(seconds: number, offsetMinutes: number): string | undefined;
   journalEntry(text: string, path: string): string;

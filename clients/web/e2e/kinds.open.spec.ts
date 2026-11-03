@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { expect, signUp, test, DOC_PLACE, PLACE } from "./helpers";
+import { expect, signUp, test, DOC_PLACE, NOTE_PLACE, PLACE } from "./helpers";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
 /**
@@ -83,19 +83,19 @@ test("a journal opens on its timeline, placed by date, and takes an entry dated 
   await page.getByRole("button", { name: "Show everything" }).click();
   await expect(page.getByTestId("timeline-entry")).toHaveCount(3);
 
-  // A new entry, in one action: dated now, with this browser's offset, in the dated folder of the writer's own day. It opens at its address by id
-  // (RFC 0002), as a writing view: the editor and the properties, the rest under "More".
+  // A new entry, in one action: dated now, with this browser's offset, in the dated folder of the writer's own day. It opens at its note address
+  // (`/repo/<repo>/n/<id>`, workstream 0003), as a writing view: the editor and the properties, the rest under "More".
   await page.getByRole("button", { name: "New entry" }).click();
-  await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 });
+  await expect(page).toHaveURL(NOTE_PLACE, { timeout: 30_000 });
   await expect(page.getByTestId("more")).toBeVisible();
 
   const head = (await hubs.notes.branchHead())!;
   const files = await hubs.notes.filesAt(head);
   const day0 = new Date();
-  const dated = `journal/${day0.getFullYear()}/${String(day0.getMonth() + 1).padStart(2, "0")}/${String(day0.getDate()).padStart(2, "0")}/`;
-  const made = Object.keys(files).find((path) => path.startsWith(dated) && /\/\d{4}\.md$/.test(path))!;
+  const dated = `journal/${day0.getFullYear()}-${String(day0.getMonth() + 1).padStart(2, "0")}-${String(day0.getDate()).padStart(2, "0")}/`;
+  const made = Object.keys(files).find((path) => path.startsWith(dated) && /\/\d\d-\d\d\.md$/.test(path))!;
   const day = new Date();
-  const folder = `journal/${day.getFullYear()}/${String(day.getMonth() + 1).padStart(2, "0")}/${String(day.getDate()).padStart(2, "0")}/`;
+  const folder = `journal/${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}/`;
   expect(made.startsWith(folder)).toBe(true);
   expect(files[made]).toMatch(/date: "\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:Z|[+-]\d\d:\d\d)"/);
 
@@ -106,6 +106,43 @@ test("a journal opens on its timeline, placed by date, and takes an entry dated 
   await expect(page.getByRole("link", { name: /Journal/ }).first()).toBeVisible();
   await page.getByRole("link", { name: /Show as journal/ }).click();
   await expect(page.getByTestId("timeline")).toBeVisible();
+});
+
+test("a journal's note is at /repo/<repo>/n/<id>, is shared at /n/<id>, and an old address by path or by id is sent to it", async ({ page, browser }) => {
+  await signUp(page);
+  const id = await connect(page, "acme/notes");
+  const NOTE = "01jagc4k7pt8y3wqnmzv5xrb9c";
+  const here = new RegExp(`/repo/${id}/n/${NOTE}$`);
+  await page.goto(`/repo/${id}`);
+  await page.getByRole("link", { name: /Morning run/ }).click();
+  await expect(page).toHaveURL(here);
+  await expect(page.getByRole("heading", { name: "2026-11-02/08-14.md" })).toHaveCount(0);
+
+  // An old address by its path (the entry is filed the old way), and the address by id, end there.
+  await page.goto(`/repo/${id}/journal/2026/11/02/0814-morning-run.md`);
+  await expect(page).toHaveURL(here);
+  await page.goto(`/n/${NOTE}`);
+  await expect(page).toHaveURL(here);
+  await page.goto(`/d/${NOTE}`);
+  await expect(page).toHaveURL(here);
+
+  // A link to a note is given at /n/<id>, and opens it there for someone with no account, with the token gone from the address.
+  const made = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: "http://localhost:3201" }, data: { doc: NOTE, role: "view", address: "n" } });
+  expect(made.status()).toBe(201);
+  const link = (await made.json()) as { url: string };
+  expect(link.url).toMatch(new RegExp(`^http://localhost:3201/n/${NOTE}\\?token=`));
+  const visitor = await browser.newContext({ baseURL: "http://localhost:3201" });
+  const guest = await visitor.newPage();
+  await guest.goto(link.url);
+  await expect(guest).toHaveURL(`http://localhost:3201/n/${NOTE}`);
+  await expect(guest.getByRole("heading", { name: "Morning run", level: 1 })).toBeVisible();
+  // Without the link, the same address is nothing to a stranger.
+  const stranger = await browser.newContext({ baseURL: "http://localhost:3201" });
+  const nobody = await stranger.newPage();
+  await nobody.goto(`/n/${NOTE}`);
+  await expect(nobody).toHaveURL(/\/sign-in/);
+  await visitor.close();
+  await stranger.close();
 });
 
 test("a repository that is not a Fjord repository is set up as a site, takes a post and shows the host's build", async ({ page }) => {

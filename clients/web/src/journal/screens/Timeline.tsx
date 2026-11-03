@@ -17,8 +17,8 @@ import { TimelineView } from "./TimelineView";
  * A plaintext journal's timeline (ROADMAP 3b.2, 3b.3), arranged on the server from what is known of each entry by its blob: the page reads
  * from the host only the entries it has not read before. `query` is the page's: `page`, `tag` (any number), `from` and `to`.
  */
-export async function Timeline({ accountId, connection, read, vault, query, empty }: {
-  empty?: string; accountId: string; connection: ConnectionInfo; read: RepositoryRead; vault: VaultListing; query: Record<string, string | string[] | undefined> }) {
+export async function Timeline({ accountId, connection, read, vault, query, empty, docBase }: {
+  empty?: string; docBase?: "n"; accountId: string; connection: ConnectionInfo; read: RepositoryRead; vault: VaultListing; query: Record<string, string | string[] | undefined> }) {
   const used = await (await connectionService()).provider(accountId, connection.id);
   if (!used) return null;
   let entries;
@@ -50,7 +50,7 @@ export async function Timeline({ accountId, connection, read, vault, query, empt
   return (
     <>
       <QueryTagFilter base={base} tags={timeline.tags} chosen={filter.tags ?? []} range={range} />
-      <TimelineView connectionId={connection.id} timeline={timeline} tagHref={tagHref} {...(empty ? { empty } : {})} />
+      <TimelineView connectionId={connection.id} timeline={timeline} tagHref={tagHref} {...(empty ? { empty } : {})} {...(docBase ? { docBase } : {})} />
       {timeline.pages > 1 ? (
         <p className={styles.actions}>
           {timeline.page > 1 ? <a href={address({ page: String(timeline.page - 1) })}>Newer</a> : null}

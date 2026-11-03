@@ -390,10 +390,10 @@ pub fn entry_date_from_unix(seconds: f64, offset_minutes: f64) -> Option<String>
 
 // --- Journals and tags (spec §3.1, §8.1) ----------------------------------------------------------
 
-/// Where a journal's new entry dated `date` goes, relative to the vault: `YYYY/MM/DD/HHMM[-slug].md`, or
-/// at the vault's root in an encrypted journal (spec §11.2). `None` when `date` is not a date-time.
-pub fn journal_entry_path(date: &str, slug: Option<String>, encrypted: bool) -> Option<String> {
-    journal::entry_path(date, slug.as_deref(), journal::Layout::for_vault(encrypted))
+/// Where a journal's new entry dated `date` goes, relative to the vault: `YYYY-MM-DD/hh-mm.md`, in an encrypted journal
+/// too (spec §11.2). `None` when `date` is not a date-time.
+pub fn journal_entry_path(date: &str) -> Option<String> {
+    journal::entry_path(date)
 }
 
 /// The slug a title gives an entry's name, or `None` when it gives none.

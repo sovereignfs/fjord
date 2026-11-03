@@ -30,8 +30,15 @@ describe("a share link's first request", () => {
     expect([...response.headers.entries()].flat().join(" ")).not.toContain(TOKEN);
   });
 
+  it("is also a journal's note at /n/<id>, which the entry sends back to /n/<id>", () => {
+    const response = proxy(request(`/n/${DOC}?token=${TOKEN}`));
+    expect(rewrittenTo(response)).toBe("/api/links/enter");
+    expect(response.status).not.toBe(308);
+    expect([...response.headers.entries()].flat().join(" ")).not.toContain(TOKEN);
+  });
+
   it("is only a document's own address with a token: anything else goes on as it was", () => {
-    for (const path of [`/d/${DOC}`, `/d/${DOC}?x=1`, `/n/${DOC}?token=${TOKEN}`, `/d/${DOC}/more?token=${TOKEN}`, "/d/?token=x"]) expect(rewrittenTo(proxy(request(path))), path).toBeNull();
+    for (const path of [`/d/${DOC}`, `/d/${DOC}?x=1`, `/n/${DOC}`, `/d/${DOC}/more?token=${TOKEN}`, `/n/${DOC}/more?token=${TOKEN}`, "/d/?token=x"]) expect(rewrittenTo(proxy(request(path))), path).toBeNull();
   });
 
   it("is looked for on every request but the build's static files and prefetches, which cannot carry a nonce", () => {
@@ -43,7 +50,7 @@ describe("a share link's first request", () => {
   });
 });
 
-describe("the routes' old names (/doc/<id>, /note/<id> and /n/<id>)", () => {
+describe("the routes' old names (/doc/<id> and /note/<id>; /n/<id> is a journal's note since workstream 0003)", () => {
   const redirect = (path: string) => {
     const response = proxy(request(path));
     return { status: response.status, to: response.headers.get("location") };
@@ -52,7 +59,8 @@ describe("the routes' old names (/doc/<id>, /note/<id> and /n/<id>)", () => {
   it("are sent on for good to /d/<id>, whatever is in the query", () => {
     expect(redirect(`/doc/${DOC}`)).toEqual({ status: 308, to: `https://fjord.example.com/d/${DOC}` });
     expect(redirect(`/note/${DOC}`)).toEqual({ status: 308, to: `https://fjord.example.com/d/${DOC}` });
-    expect(redirect(`/n/${DOC}`)).toEqual({ status: 308, to: `https://fjord.example.com/d/${DOC}` });
+    // `/n/<id>` is a page now, and is not sent on.
+    expect(redirect(`/n/${DOC}`).status).not.toBe(308);
     expect(redirect(`/doc/${DOC}?wrong=1`)).toEqual({ status: 308, to: `https://fjord.example.com/d/${DOC}?wrong=1` });
   });
 

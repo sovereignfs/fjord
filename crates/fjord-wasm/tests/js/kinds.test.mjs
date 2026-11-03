@@ -74,12 +74,9 @@ test("an entry is dated at the writer's offset and filed by the writer's day", (
   // Half past midnight in Colombo is still the 1st in UTC.
   assert.equal(wasm.entryDateFromUnix(1_793_559_600, 330), "2026-11-02T00:30:00+05:30");
   assert.equal(wasm.entryDateFromUnix(1_793_559_600, 0.5), undefined);
-  assert.equal(
-    wasm.journalEntryPath("2026-11-02T00:30:00+05:30", wasm.journalSlug("Morning run"), false),
-    "2026/11/02/0030-morning-run.md",
-  );
-  assert.equal(wasm.journalEntryPath("2026-11-02T00:30:00+05:30", undefined, true), "2026-11-02-0030.md");
-  assert.equal(wasm.journalEntryPath("2026-11-02", undefined, false), undefined);
+  // A folder for the day and a file named by the minute, in an encrypted journal too; nothing of the title.
+  assert.equal(wasm.journalEntryPath("2026-11-02T00:30:00+05:30"), "2026-11-02/00-30.md");
+  assert.equal(wasm.journalEntryPath("2026-11-02"), undefined);
   assert.equal(wasm.journalSlug("?!"), undefined);
   assert.equal(wasm.isEntryDate("2026-11-02"), true);
   assert.equal(wasm.isEntryDate("2026-11-02 08:14:00 +0530"), false);

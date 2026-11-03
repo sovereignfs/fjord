@@ -33,10 +33,11 @@ describe("a token that works", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("sets a cookie the page's script cannot read, for that document's path alone, that lasts an hour at most", async () => {
+  it("sets a cookie the page's script cannot read, for that document's paths alone, that lasts an hour at most", async () => {
     const { deps: d } = deps(link());
-    const cookie = (await handleEnter(enter(TOKEN), d)).headers.get("set-cookie")!;
-    expect(cookie).toBe(`fjord_share=${TOKEN}; Path=/d/${DOC}; Max-Age=${COOKIE_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`);
+    // For both addresses the document has: `/d/<id>`, and `/n/<id>` for a journal's note.
+    const cookies = (await handleEnter(enter(TOKEN), d)).headers.getSetCookie();
+    expect(cookies).toEqual([`fjord_share=${TOKEN}; Path=/d/${DOC}; Max-Age=${COOKIE_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`, `fjord_share_n=${TOKEN}; Path=/n/${DOC}; Max-Age=${COOKIE_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`]);
     expect(COOKIE_MAX_AGE_SECONDS).toBe(3600);
   });
 
@@ -64,7 +65,7 @@ describe("a link with a password", () => {
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(`/d/${DOC}`);
     const cookies = response.headers.getSetCookie();
-    expect(cookies).toEqual([`fjord_share_pending=${TOKEN}; Path=/d/${DOC}; Max-Age=${PENDING_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`]);
+    expect(cookies).toEqual([`fjord_share_pending=${TOKEN}; Path=/d/${DOC}; Max-Age=${PENDING_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`, `fjord_share_pending_n=${TOKEN}; Path=/n/${DOC}; Max-Age=${PENDING_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`]);
     expect(PENDING_MAX_AGE_SECONDS).toBe(600);
     expect(cookies.join(" ")).not.toMatch(/fjord_share=/);
   });
@@ -152,5 +153,17 @@ describe("what is asked of it", () => {
   it("is a GET (or a HEAD), and nothing else", async () => {
     for (const method of ["POST", "PUT", "DELETE", "PATCH"]) expect((await handleEnter(at(`?doc=${DOC}&token=${TOKEN}`, method), deps(link()).deps)).status).toBe(405);
     expect((await handleEnter(at(`?doc=${DOC}&token=${TOKEN}`, "HEAD"), deps(link()).deps)).status).toBe(303);
+  });
+});
+
+describe("a link entered at a journal's note address", () => {
+  it("is sent back to /n/<id>, which is where its cookie is for too, and a link entered anywhere else lands on /d/<id>", async () => {
+    const { deps: d } = deps(link());
+    const atNote = await handleEnter(new Request(`https://fjord.example.com/n/${DOC}?token=${TOKEN}`), d);
+    expect(atNote.status).toBe(303);
+    expect(atNote.headers.get("location")).toBe(`/n/${DOC}`);
+    expect(atNote.headers.getSetCookie().map((cookie) => /Path=([^;]+)/.exec(cookie)?.[1])).toEqual([`/d/${DOC}`, `/n/${DOC}`]);
+    const atDoc = await handleEnter(new Request(`https://fjord.example.com/d/${DOC}?token=${TOKEN}`), d);
+    expect(atDoc.headers.get("location")).toBe(`/d/${DOC}`);
   });
 });

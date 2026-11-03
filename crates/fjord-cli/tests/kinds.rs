@@ -183,7 +183,7 @@ fn verify_names_a_kind_that_is_not_a_drive() {
     );
 }
 
-/// A journal entry made with no path: dated, filed by its date, and verified.
+/// A journal entry made with no path: dated, filed by its date (a folder for the day, a file named by the minute), and verified.
 #[test]
 fn new_with_no_path_writes_a_journal_entry() {
     let (_temp, target) = init(&["--kind", "journal", "--no-encrypt"]);
@@ -198,7 +198,7 @@ fn new_with_no_path_writes_a_journal_entry() {
         "2026-11-02T00:30:00+05:30",
     ]);
     assert_eq!(code(&output), 0, "{}", text(&output));
-    let entry = Path::new(&target).join("journal/2026/11/02/0030-morning-run.md");
+    let entry = Path::new(&target).join("journal/2026-11-02/00-30.md");
     let written = std::fs::read_to_string(&entry).expect("the entry, at the writer's day");
     assert!(
         written.contains("date: \"2026-11-02T00:30:00+05:30\""),
@@ -219,7 +219,7 @@ fn new_with_no_path_writes_a_journal_entry() {
     ]);
     assert_eq!(code(&again), 0, "{}", text(&again));
     assert!(Path::new(&target)
-        .join("journal/2026/11/02/0030-morning-run-2.md")
+        .join("journal/2026-11-02/00-30-2.md")
         .is_file());
 
     // Dated now, with no title and no date given.

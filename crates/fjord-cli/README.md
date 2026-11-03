@@ -169,10 +169,10 @@ drive, and `fjord verify` does not fail a kind it does not know.
 - **`drive`** is what `init` has always made: `Public` and `Private`. No `kind` is written.
 - **`journal`** is one vault, `journal/`, of dated entries, **encrypted unless `--no-encrypt` is
   given**: a journal is personal (spec §3.1). The vault names its files by id inside a tar
-  container, and entries are not put in dated folders, since folder names are never encrypted
-  (spec §11.2); it has no recipients yet, so `verify` reports `W602` until a key is added. With
+  container, and entries are filed in a folder for each day, whose names are not encrypted, so the days with
+  entries can be seen (spec §11.2); it has no recipients yet, so `verify` reports `W602` until a key is added. With
   `--no-encrypt` the entry `fjord new` writes (with no path, dated now in this machine's time zone;
-  spec §8.1 keeps the local offset) is at `journal/YYYY/MM/DD/HHMM-slug.md`.
+  spec §8.1 keeps the local offset) is at `journal/YYYY-MM-DD/hh-mm.md`.
 - **`ssg`** is a static site: one plaintext vault, `content/`, for its posts, and the engine's own
   project around it: `package.json`, `astro.config.mjs` and `src/` for Astro, or `_config.yml`,
   `Gemfile` and `_layouts/` for Jekyll, set up to read their posts from `content/`. A site's content

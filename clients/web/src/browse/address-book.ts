@@ -1,5 +1,5 @@
 import { getDatabase } from "../db/boot";
-import { placeAddress, vaultAddress } from "./addresses";
+import { noteAddress, placeAddress, vaultAddress } from "./addresses";
 import { FileHandles } from "./handles";
 import { repositoryHref } from "./links";
 
@@ -28,6 +28,13 @@ export class AddressBook {
   docHref(path: string, docId: string): string {
     if (this.vault.id === null) return repositoryHref(this.connectionId, ...path.split("/"));
     return placeAddress(this.connectionId, this.vault.id, { doc: docId }, this.parentOf(path));
+  }
+
+  /** A journal's note: by its `id` when it has one, else by its handle (an encrypted entry's id is in the ciphertext). */
+  noteHref(path: string, docId: string | null): string {
+    if (docId !== null) return noteAddress(this.connectionId, { doc: docId });
+    const handle = this.handles.get(path);
+    return handle === undefined ? repositoryHref(this.connectionId, ...path.split("/")) : noteAddress(this.connectionId, { handle });
   }
 
   /** A static HTML page by its handle. */

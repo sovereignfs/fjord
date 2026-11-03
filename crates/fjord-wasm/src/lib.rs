@@ -238,8 +238,8 @@ pub fn kind_rule(kind: &str, encrypted_json: &str) -> Result<Option<String>, JsE
 }
 
 #[wasm_bindgen(js_name = journalEntryPath)]
-pub fn journal_entry_path(date: &str, slug: Option<String>, encrypted: bool) -> Option<String> {
-    api::journal_entry_path(date, slug, encrypted)
+pub fn journal_entry_path(date: &str) -> Option<String> {
+    api::journal_entry_path(date)
 }
 
 #[wasm_bindgen(js_name = journalSlug)]

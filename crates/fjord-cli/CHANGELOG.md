@@ -14,6 +14,10 @@ tagging it.
 
 ### Changed
 
+- **`fjord new` in a journal files an entry at `YYYY-MM-DD/hh-mm.md`**, a folder for each day and a file named by the minute (a second in the same minute is `hh-mm-2.md`), and the title is no longer in the name; it was `YYYY/MM/DD/HHMM-slug.md`, or flat in an encrypted journal. An encrypted journal has the day folders too, whose names are visible; its files are still named by id. Entries filed the old way are read as before.
+
+### Changed
+
 - **Breaking: a journal is encrypted unless `--no-encrypt` is given** (spec §3.1, RFC 0002). `fjord init --kind journal` makes an encrypted vault (`id` naming, a tar container, no recipients yet, so `W602` until `fjord key add`); `--no-encrypt` makes it plaintext, as `--kind drive --no-encrypt` does for `Private`. `--encrypt` is removed (exit 2). On a terminal the question "Encrypt the journal?" now defaults to yes. `--no-encrypt` with `--kind ssg` is refused: a site is never encrypted.
 - **Breaking: there is one kind of Fjord Doc** (spec §8.4, RFC 0002). A `.fj.md` name no longer makes a *document*; every Doc is a `.md` file and a repository's kind decides how a client edits it. `fjord new --document` is gone (exit 2), `fjord ls --json` no longer has `docKind` (`kind` is still `doc` for a Fjord Doc), `ls --long` no longer says `document` or `note`, and a title or a conflict copy treats `.fj.md` like any other name (`plan.fj.md` conflicts into `plan.fj.conflict-…md`). `fjord_core::listing::FileKind::Document` and `Note` are now `Doc`, and `doc::is_document_name` and `DOCUMENT_SUFFIX` are removed. No file in a repository has to change.
 - **A vault may be at any depth below the repository root** (spec §2.3): `src/content` can be a vault, so a site's engine can keep reading its content where it always did. A vault inside another vault, and a manifest at the root, are still `E207`. `fjord_core::vault::discover` and `containing` walk the tree (not into a vault, `.git` or the root `.fjord/`), `listing::locate_vaults` and `Discovery::vault_containing` say the same of a listing, and a new fixture, `tests/fixtures/depth/`, holds an Astro site that is one.

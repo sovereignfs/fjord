@@ -1,15 +1,15 @@
 import { decide } from "../access/policy";
 import { isDocId } from "../browse/ids";
 import type { LinkService } from "./links";
-import { PENDING_COOKIE, SHARE_COOKIE } from "./redact";
+import { cookieNames } from "./redact";
 import { TOKEN_PATTERN } from "./tokens";
 
 /**
- * Entering by a share link (DESIGN.md §12, ROADMAP 1c.4). A link's address is `/d/<id>?token=<token>`, and a token left in the
+ * Entering by a share link (DESIGN.md §12, ROADMAP 1c.4). A link's address is `/d/<id>?token=<token>` (`/n/<id>` for a journal's note), and a token left in the
  * address bar stays in the history, in a bookmark, in a screenshot and in any log of the address. So the first request is
  * not a page: `proxy.ts` hands it here, and the answer is a cookie and a redirect to the clean `/d/<id>`.
  *
- *  - **The cookie is for that document and no other** (its path is `/d/<id>`), `HttpOnly` (a script on the page cannot read it),
+ *  - **The cookie is for that document and no other** (its path is `/d/<id>`, and `/n/<id>`, its other address), `HttpOnly` (a script on the page cannot read it),
  *    `SameSite=Lax`, `Secure` when the instance is on https, and **short-lived**: an hour at most, and no longer than the link has to
  *    live. It holds the token, which the page checks against the store on every request, so revoking a link, or its expiry,
  *    ends what it opened on the next one.
@@ -34,18 +34,24 @@ export const COOKIE_MAX_AGE_SECONDS = 60 * 60;
 export const PENDING_MAX_AGE_SECONDS = 10 * 60;
 
 /** The `Set-Cookie` of a token for a document: exported for the page's tests and for `e2e`'s reading of it. `value` is the token, and for a link with a password the token and the proof that the password was given (`password.ts`). */
-export function shareCookie(docId: string, value: string, maxAgeSeconds: number, secure: boolean): string {
-  return `${SHARE_COOKIE}=${value}; Path=/d/${docId}; Max-Age=${maxAgeSeconds}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+export function shareCookie(docId: string, value: string, maxAgeSeconds: number, secure: boolean, scope: "d" | "n" = "d"): string {
+  return `${cookieNames(scope).share}=${value}; Path=/${scope}/${docId}; Max-Age=${maxAgeSeconds}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
 }
 
+/**
+ * The two addresses a document is shared at: `/d/<id>`, and `/n/<id>` for a journal's note (workstream 0003). A cookie is scoped to one path, so a link
+ * is given the cookie for both: it is the same document and the same token, and the page at either checks it against the store.
+ */
+export const SHARE_SCOPES = ["d", "n"] as const;
+
 /** The cookie a password link's token waits in while its password is asked for (ROADMAP 1c.5): the same scope, and shorter. It lets nobody in. */
-export function pendingCookie(docId: string, token: string, maxAgeSeconds: number, secure: boolean): string {
-  return `${PENDING_COOKIE}=${token}; Path=/d/${docId}; Max-Age=${maxAgeSeconds}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+export function pendingCookie(docId: string, token: string, maxAgeSeconds: number, secure: boolean, scope: "d" | "n" = "d"): string {
+  return `${cookieNames(scope).pending}=${token}; Path=/${scope}/${docId}; Max-Age=${maxAgeSeconds}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
 }
 
 /** A cookie that ends the pending one, once the password is right. */
-export function clearPendingCookie(docId: string, secure: boolean): string {
-  return `${PENDING_COOKIE}=; Path=/d/${docId}; Max-Age=0; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+export function clearPendingCookie(docId: string, secure: boolean, scope: "d" | "n" = "d"): string {
+  return `${cookieNames(scope).pending}=; Path=/${scope}/${docId}; Max-Age=0; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
 }
 
 export async function handleEnter(request: Request, deps: EnterDeps): Promise<Response> {
@@ -56,11 +62,14 @@ export async function handleEnter(request: Request, deps: EnterDeps): Promise<Re
   // no token, since Next sends the rewritten address back in a response header), so the document is the path's. A request made
   // to this route directly names it as `doc`.
   // `/doc/<id>` is the address links were given before the route was shortened to `/d/<id>`; they still enter, and land on the short one.
-  const docId = /^\/(?:d|doc)\/([^/]+)$/.exec(url.pathname)?.[1] ?? params.get("doc") ?? null;
+  const asked = /^\/(d|doc|n)\/([^/]+)$/.exec(url.pathname);
+  const docId = asked?.[2] ?? params.get("doc") ?? null;
+  // Asked for at `/n/<id>` (a journal's note), it is sent back to `/n/<id>`; any other way in lands on `/d/<id>`.
+  const base = asked?.[1] === "n" ? "n" : "d";
   const token = params.get("token");
   if (docId === null || !isDocId(docId)) return new Response(null, { status: 404, headers: { "referrer-policy": "no-referrer", "cache-control": "no-store" } });
 
-  const headers = new Headers({ location: `/d/${docId}`, "referrer-policy": "no-referrer", "cache-control": "no-store" });
+  const headers = new Headers({ location: `/${base}/${docId}`, "referrer-policy": "no-referrer", "cache-control": "no-store" });
   const now = deps.now?.() ?? Date.now();
   const link = token !== null && TOKEN_PATTERN.test(token) ? await deps.links.byToken(token) : undefined;
   if (token !== null && link && link.docId === docId) {
@@ -69,7 +78,7 @@ export async function handleEnter(request: Request, deps: EnterDeps): Promise<Re
       const remaining = link.expiresAt === null ? COOKIE_MAX_AGE_SECONDS : Math.floor((link.expiresAt - now) / 1000);
       // A link with a password lets nobody in with its token alone: the token waits in a cookie that opens nothing, and the page asks.
       const age = Math.min(link.hasPassword ? PENDING_MAX_AGE_SECONDS : COOKIE_MAX_AGE_SECONDS, remaining);
-      if (age > 0) headers.append("set-cookie", link.hasPassword ? pendingCookie(docId, token, age, deps.secure) : shareCookie(docId, token, age, deps.secure));
+      if (age > 0) for (const scope of SHARE_SCOPES) headers.append("set-cookie", link.hasPassword ? pendingCookie(docId, token, age, deps.secure, scope) : shareCookie(docId, token, age, deps.secure, scope));
     }
   }
   return new Response(null, { status: 303, headers });

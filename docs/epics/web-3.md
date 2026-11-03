@@ -10,6 +10,7 @@ The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients
 
 - **A repository opens as what it is for.** `fjord.json`'s `kind` (`drive`, `journal` or `ssg`) chooses the landing page: a file explorer, a timeline, a site's content editor. Every repository can still be opened as a drive, and one of a kind a client does not know *is* opened as a drive.
 - **One format.** A journal's entries and a site's posts are Fjord Docs like any other. Editing, versions, sharing, comments and encryption are phases 1 and 2's, unchanged.
+- > **Changed by workstream 0003 (2026-11-03):** an encrypted journal is now filed in a folder for each day, `YYYY-MM-DD/<id>.age`, by the owner's choice; the days with entries are visible, and the paragraph below describes what was built before.
 - **An encrypted journal reveals no more than an encrypted vault does** (spec §11.2): entries are not put in dated folders, and the timeline and tags of an encrypted journal are derived where it is decrypted, never committed and never on the server in plaintext.
 - **Not in this phase:** Fjord building a site itself (3d.2 is an outline), Fjord publishing one (never; spec §12), importing an existing site whose content is not in one root vault (RFC 0001, open question 1), the new kinds in Fjord Mobile and `fjord-mcp` (they open them as drives).
 

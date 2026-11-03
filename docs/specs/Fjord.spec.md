@@ -703,9 +703,12 @@ metadata protection it does not provide.
 
 A client that chooses paths for the user in an encrypted vault SHOULD NOT
 put in them what the encryption is meant to hide. A journal's entries, for
-instance, are not filed in dated directories in an encrypted vault, because
-`2026/11/02/` would show which days have entries; they sit at the vault's
-root with `fileNaming` `"id"` (§7.2), and their dates stay inside them.
+instance, filed in a directory for each day (`2026-11-02/`) in an encrypted
+vault show which days have entries, since directory names are never
+encrypted; with `fileNaming` `"id"` (§7.2) the entries inside are named by
+their ids, so only the day is shown and not the time or what an entry says.
+A client MAY file them so when its owner chooses to accept that (Fjord does,
+as `YYYY-MM-DD/<id>.age`), and one that does not puts them at the vault's root.
 
 ### 11.3 Identities
 

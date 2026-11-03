@@ -68,7 +68,7 @@ function parse(text: string): Record<string, unknown> | undefined {
 }
 
 /** The address a link is opened at: the document's own, with the token. */
-export const linkUrl = (origin: string, docId: string, token: string): string => `${origin.replace(/\/+$/, "")}/d/${docId}?token=${token}`;
+export const linkUrl = (origin: string, docId: string, token: string, address: "d" | "n" = "d"): string => `${origin.replace(/\/+$/, "")}/${address}/${docId}?token=${token}`;
 
 /**
  * `GET ?doc=<id>` lists a document's links; `POST { doc, role, expiresAt?, password? }` makes one; `DELETE { doc, linkId }` revokes one;
@@ -112,7 +112,7 @@ export async function handleLinks(request: Request, caller: Caller | null, deps:
       const outcome = await deps.create(caller.accountId, number, { docId: body.doc, role: body.role as Role, expiresAt: typeof expiry === "number" ? expiry : null, password: typeof password === "string" ? password : null });
       if (!outcome.found) return notFound();
       if (!outcome.result.ok) return failure(REFUSALS[outcome.result.reason].status, outcome.result.reason, REFUSALS[outcome.result.reason].message);
-      return json(201, { id: outcome.result.id, token: outcome.result.token, url: linkUrl(deps.origin, body.doc, outcome.result.token), passwordProtected: typeof password === "string" });
+      return json(201, { id: outcome.result.id, token: outcome.result.token, url: linkUrl(deps.origin, body.doc, outcome.result.token, body.address === "n" ? "n" : "d"), passwordProtected: typeof password === "string" });
     }
 
     if (typeof body.linkId !== "number" || !Number.isSafeInteger(body.linkId) || body.linkId < 1) return failure(400, "invalid_request", "Say which link, by its number.");

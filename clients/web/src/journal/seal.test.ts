@@ -11,7 +11,7 @@ const available = wasmAvailable();
 const load = () => createRequire(import.meta.url)(join(wasmDirectory(), "fjord_wasm.js")) as CryptoModule;
 
 describe.runIf(available)("an encrypted journal's new entry", () => {
-  it("has no dated folder, and its date, title and name are only inside the ciphertext", () => {
+  it("is filed in the writer's day folder, which is all of it that is public: its date, time, title and name are inside the ciphertext", () => {
     const module = load();
     const identity = module.generateIdentity();
     const recipients = `${module.identityRecipient(identity)}\n`;
@@ -22,14 +22,15 @@ describe.runIf(available)("an encrypted journal's new entry", () => {
     expect(sealed.date).toBe("2026-11-02T01:00:00+05:30");
     const bytes = fromBase64(sealed.ciphertext);
     const visible = Buffer.from(bytes).toString("latin1");
-    for (const secret of ["2026-11-02", "Night walk", "night-walk"]) expect(visible).not.toContain(secret);
+    for (const secret of ["2026-11-02", "01-00", "Night walk", "night-walk"]) expect(visible).not.toContain(secret);
+    // The day folder is the one thing the server is told (a directory name is never encrypted, and the owner chose that, workstream 0003).
+    expect(sealed.folder).toBe("2026-11-02");
 
     const opened = openCiphertext(module, { with: (use) => use(identity) }, bytes, "id", "01x.age");
     expect(opened.kind).toBe("text");
     if (opened.kind !== "text") return;
-    // Filed flat, by the writer's day: what is inside the container, which only a key opens.
-    expect(opened.name).toBe("2026-11-02-0100-night-walk.md");
-    expect(opened.name).not.toContain("/");
+    // Named by the writer's day and minute: what is inside the container, which only a key opens. Nothing of the title.
+    expect(opened.name).toBe("01-00.md");
     expect(opened.text).toContain('date: "2026-11-02T01:00:00+05:30"');
     expect(opened.text).toContain("title: Night walk");
   });

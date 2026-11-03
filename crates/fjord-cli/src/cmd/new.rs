@@ -238,9 +238,7 @@ fn generated(root: &Path, args: &NewArgs) -> Result<std::result::Result<Generate
         if args.draft {
             return Ok(Err("--draft is for a post in a site".to_string()));
         }
-        let slug = args.title.as_deref().and_then(journal::slug);
-        let layout = journal::Layout::for_vault(vault.is_encrypted());
-        match journal::entry_path(&date, slug.as_deref(), layout) {
+        match journal::entry_path(&date) {
             Some(leaf) => (leaf, None),
             None => return Ok(Err(format!("{date} cannot name an entry"))),
         }

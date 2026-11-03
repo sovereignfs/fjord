@@ -31,14 +31,13 @@ tags: [health, running]
 Five kilometres before the rain.
 ```
 
-In a plaintext journal Fjord files a new entry at `journal/YYYY/MM/DD/HHMM-slug.md`.
+Fjord files a new entry at `journal/YYYY-MM-DD/hh-mm.md`: a folder for each day, and a file named by the time it was made.
 That is a convention, not a rule: move an entry anywhere in `journal/` and its
 `date` still places it. Tags are compared without regard to case, and `/`
 nests them: `project/fjord` is under `project`.
 
-If `journal/` is encrypted, entries are not put in dated folders, because
-folder names are never encrypted: they sit at the root of `journal/`, each
-named by its id, and their dates stay inside them. Every file is encrypted
+If `journal/` is encrypted the day folders are still there, and **folder names are never encrypted**, so anyone who can read this repository can see
+which days have entries. The files in them are named by their ids, so the time and everything else about an entry stays inside it. Every file is encrypted
 with [age](https://age-encryption.org) to the keys in `journal/recipients.txt`,
 and each holds a tar archive of one file, so `age -d -i key.txt FILE.age | tar -x`
 recovers an entry under its real name.

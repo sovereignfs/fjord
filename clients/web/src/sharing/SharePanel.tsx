@@ -26,7 +26,7 @@ import {
  */
 const ROLE_WORDS: Record<Role, string> = { view: "Can view", comment: "Can comment", edit: "Can edit" };
 
-export function SharePanel({ connectionId, docId }: { connectionId: number; docId: string }) {
+export function SharePanel({ connectionId, docId, note = false }: { connectionId: number; docId: string; /** A journal's note: its links are given at `/n/<id>`, as a document's are at `/d/<id>`. */ note?: boolean }) {
   const [loaded, setLoaded] = useState(false);
   const [people, setPeople] = useState<SharedWith[]>([]);
   const [links, setLinks] = useState<LinkEntry[]>([]);
@@ -57,7 +57,7 @@ export function SharePanel({ connectionId, docId }: { connectionId: number; docI
         </div>
       ) : null}
       <People connectionId={connectionId} docId={docId} people={people} changed={load} />
-      <Links connectionId={connectionId} docId={docId} links={links} changed={load} />
+      <Links connectionId={connectionId} docId={docId} note={note} links={links} changed={load} />
     </details>
   );
 }
@@ -154,7 +154,7 @@ function People({ connectionId, docId, people, changed }: { connectionId: number
   );
 }
 
-function Links({ connectionId, docId, links, changed }: { connectionId: number; docId: string; links: LinkEntry[]; changed: () => Promise<void> }) {
+function Links({ connectionId, docId, note, links, changed }: { connectionId: number; docId: string; note: boolean; links: LinkEntry[]; changed: () => Promise<void> }) {
   const [role, setRole] = useState<Role>("view");
   const [expires, setExpires] = useState("");
   const [password, setPassword] = useState("");
@@ -170,7 +170,7 @@ function Links({ connectionId, docId, links, changed }: { connectionId: number; 
     setError(null);
     setMade(null);
     setCopied(false);
-    const done = await createLink(connectionId, docId, { role, expiresAt, password: password === "" ? null : password });
+    const done = await createLink(connectionId, docId, { role, expiresAt, password: password === "" ? null : password, note });
     setBusy(false);
     if (!done.ok) return setError(done.message);
     setMade({ url: done.url, passwordProtected: done.passwordProtected });

@@ -9,16 +9,18 @@ import { formatIdentity } from "../working/version";
  *
  *  - **The date is the writer's**, sent as the moment and the writer's offset from UTC, and written by the format module, offset and
  *    all: an entry made just after midnight belongs to that day, whatever the day is in UTC.
- *  - **Where it goes is `fjord-core`'s** (`journalEntryPath`): `YYYY/MM/DD/HHMM-slug.md` in a plaintext journal. A second entry in the
- *    same minute takes a number, as a copy does. A folder that is not there yet is simply made by the commit: git has no folders.
- *  - **Plaintext only.** An encrypted journal's entry is written and encrypted in the browser, with no dated folder, and is made by
- *    the encrypted files' route like any file of an encrypted vault (`files/create-encrypted.ts`): its date is never the server's to see.
+ *  - **Where it goes is `fjord-core`'s** (`journalEntryPath`): `YYYY-MM-DD/hh-mm.md`, a folder for the day and a file named by the minute, with
+ *    nothing of the title. A second entry in the same minute takes a number, as a copy does. A folder that is not there yet is simply made by
+ *    the commit: git has no folders.
+ *  - **Plaintext only.** An encrypted journal's entry is written and encrypted in the browser, in the same day folder (whose name is public, by
+ *    the owner's choice: workstream 0003), and is made by the encrypted files' route like any file of an encrypted vault
+ *    (`files/create-encrypted.ts`): its time and title are never the server's to see.
  */
 export interface EntryDeps {
   provider: Provider;
   ref: RepositoryRef;
   branch: string;
-  format: Pick<Fjord, "entryDateFromUnix" | "journalEntryPath" | "journalSlug" | "newEntry" | "newUlid" | "rfc3339FromUnix">;
+  format: Pick<Fjord, "entryDateFromUnix" | "journalEntryPath" | "newEntry" | "newUlid" | "rfc3339FromUnix">;
   now?: () => number;
   random?: () => Uint8Array;
 }
@@ -40,7 +42,7 @@ export async function createEntry(deps: EntryDeps, input: { vault: string; at: n
   const date = deps.format.entryDateFromUnix(Math.floor(input.at / 1000), input.offsetMinutes);
   if (date === undefined) return { ok: false, reason: "bad_date" };
   const title = input.title.trim();
-  const leaf = deps.format.journalEntryPath(date, title === "" ? undefined : deps.format.journalSlug(title), false);
+  const leaf = deps.format.journalEntryPath(date);
   if (leaf === undefined) return { ok: false, reason: "bad_date" };
   const now = deps.now?.() ?? Date.now();
   const id = deps.format.newUlid(now, deps.random?.() ?? globalThis.crypto.getRandomValues(new Uint8Array(16)));

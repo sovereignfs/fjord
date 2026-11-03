@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseAddress, placeAddress, repositoryAddress, vaultAddress } from "./addresses";
+import { noteAddress, parseAddress, placeAddress, repositoryAddress, vaultAddress } from "./addresses";
 
 /** The addresses of a repository's places (workstream 0003): each shape, written out from the design and not from the code. */
 const VAULT = "01jagc4k7pr9tbm3ykwx6zq2hv";
@@ -23,6 +23,15 @@ describe("parsing an address", () => {
     expect(parseAddress(["v", VAULT, FOLDER, "html", FILE])).toEqual({ kind: "place", vault: VAULT, parent: FOLDER, target: { html: FILE } });
     expect(parseAddress(["v", VAULT, "html", "x"]).kind).toBe("invalid");
     expect(placeAddress(7, VAULT, { html: FILE }, FOLDER)).toBe(`/repo/7/v/${VAULT}/${FOLDER}/html/${FILE}`);
+  });
+
+  it("knows a journal's note by its id or, with none, its handle, and takes n with anything else for the old form", () => {
+    expect(parseAddress(["n", DOC])).toEqual({ kind: "note", target: { doc: DOC } });
+    expect(parseAddress(["n", FILE])).toEqual({ kind: "note", target: { handle: FILE } });
+    expect(parseAddress(["n", "plan.md"])).toEqual({ kind: "legacy", segments: ["n", "plan.md"] });
+    expect(parseAddress(["n"])).toEqual({ kind: "legacy", segments: ["n"] });
+    expect(noteAddress(7, { doc: DOC })).toBe(`/repo/7/n/${DOC}`);
+    expect(noteAddress(7, { handle: FILE })).toBe(`/repo/7/n/${FILE}`);
   });
 
   it("is what the builders make, for every shape", () => {

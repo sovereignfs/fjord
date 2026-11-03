@@ -49,7 +49,7 @@ async function JournalEntry({ accountId, connection, read, query }: EntryViewPro
       ) : writable === "unsupported" ? null : read.partial ? (
         <Alert variant="info">This journal is too large to list at once, so its timeline cannot be shown here. Show its files to browse it.</Alert>
       ) : (
-        <Timeline accountId={accountId} connection={connection} read={read} vault={vault} query={query} />
+        <Timeline accountId={accountId} connection={connection} read={read} vault={vault} query={query} docBase="n" />
       )}
     </section>
   );

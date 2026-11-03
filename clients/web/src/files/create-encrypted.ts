@@ -63,6 +63,8 @@ export type CreateEncryptedResult =
   | { ok: false; reason: "folder_gone" | "bad_title" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
 
 const ATTEMPTS = 2;
+/** `YYYY-MM-DD`: the folder a journal files a day's entries in (`fjord-core`'s `journal::entry_path`). */
+const DAY_FOLDER = /^\d{4}-\d{2}-\d{2}$/;
 export async function createEncryptedFile(
   deps: CreateEncryptedDeps,
   input: { vault: string; folder: string; target: EncryptedTarget; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
@@ -83,7 +85,8 @@ export async function createEncryptedFile(
         if (isProviderError(error, "not_found")) return [];
         throw error;
       });
-      if (entries.length === 0) return { ok: false, reason: "folder_gone" };
+      // A journal's day folder is made by its first entry: git has no empty folders, so there is nothing to find. Only that shape, in a vault whose names are ids; any other folder that is not there is gone.
+      if (entries.length === 0 && !(input.target.naming === "id" && DAY_FOLDER.test(input.folder))) return { ok: false, reason: "folder_gone" };
       const present = entries.map((entry) => entry.path.slice(directory.length + 1));
 
       const { file, label } = nameFor(deps, input, title, present, suffix);

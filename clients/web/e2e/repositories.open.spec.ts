@@ -3206,11 +3206,15 @@ test("a link opens a document for anyone who has it, until it expires or is revo
     // (Someone who has not been given the link, so a context with no cookie of its own.)
     const cold = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.3.5" } });
     const outsider = await cold.newPage();
-    for (const url of [`/d/01jagc4k7pt8y3wqnmzv5xrbzz?token=${link.token}`, `/d/${ID_DOC}`, `/d/${ID_DOC}?token=${"A".repeat(43)}`, `/d/${ID_DOC}?token=short`, `/n/${ID_DOC}?token=${link.token}`]) {
+    for (const url of [`/d/01jagc4k7pt8y3wqnmzv5xrbzz?token=${link.token}`, `/d/${ID_DOC}`, `/d/${ID_DOC}?token=${"A".repeat(43)}`, `/d/${ID_DOC}?token=short`, `/n/${ID_DOC}`, `/n/${ID_DOC}?token=${"A".repeat(43)}`]) {
       await outsider.goto(url);
       await expect(outsider, url).toHaveURL(/\/sign-in/);
       await expect(outsider.getByRole("heading", { name: "Q4 plan" }), url).toHaveCount(0);
     }
+    // A link is the same document at its other address, `/n/<id>` (a journal's note, workstream 0003), and enters there with the token gone from the address.
+    await outsider.goto(`/n/${ID_DOC}?token=${link.token}`);
+    await expect(outsider).toHaveURL(`${BASE}/n/${ID_DOC}`);
+    await expect(outsider.getByRole("heading", { name: "Q4 plan" })).toBeVisible();
     await cold.close();
 
     // The owner's list says what links there are, with no token; it follows the file when it moves.

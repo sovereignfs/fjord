@@ -15,29 +15,6 @@
 
 use crate::path::to_nfc;
 
-/// How a journal files its entries.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Layout {
-    /// `YYYY/MM/DD/HHMM[-slug].md`, for a plaintext journal.
-    Dated,
-    /// `YYYY-MM-DD-HHMM[-slug].md` at the vault's root, for an encrypted journal: directory names are
-    /// never encrypted (§11.2), and dated folders would show which days have entries. With
-    /// `fileNaming` `"id"` this name is the one inside the container, which only a reader with the key
-    /// sees.
-    Flat,
-}
-
-impl Layout {
-    /// The layout for a journal whose vault is, or is not, encrypted.
-    pub fn for_vault(encrypted: bool) -> Self {
-        if encrypted {
-            Layout::Flat
-        } else {
-            Layout::Dated
-        }
-    }
-}
-
 /// The longest slug [`slug`] makes, in characters: enough to say what an entry is, short enough to keep
 /// the path well under spec §5's limits.
 pub const SLUG_MAX_CHARS: usize = 60;
@@ -75,11 +52,12 @@ pub fn slug(title: &str) -> Option<String> {
     }
 }
 
-/// Where a new entry dated `date` goes, relative to the journal's vault, or `None` when `date` is not
-/// an RFC 3339 date-time. A full-date alone has no time to name the entry by.
-///
-/// `slug` is used as it is given; make one with [`slug`].
-pub fn entry_path(date: &str, slug: Option<&str>, layout: Layout) -> Option<String> {
+/// Where a new entry dated `date` goes, relative to the journal's vault, or `None` when `date` is not an RFC 3339 date-time (a
+/// full-date alone has no time to name the entry by): `YYYY-MM-DD/hh-mm.md`, a folder for each day and a file named by the minute the
+/// entry was made, both in the writer's own time. The same name is used in an encrypted journal, where it is the name inside the
+/// container and the folder is the one directory name that is not hidden (§11.2): the days with entries are visible, by the owner's
+/// choice, and nothing else about them is. The title is not in the path: it is in the entry.
+pub fn entry_path(date: &str) -> Option<String> {
     use time::format_description::well_known::Rfc3339;
 
     let at = time::OffsetDateTime::parse(date, &Rfc3339).ok()?;
@@ -87,15 +65,11 @@ pub fn entry_path(date: &str, slug: Option<&str>, layout: Layout) -> Option<Stri
     if !(0..=9999).contains(&year) {
         return None;
     }
-    let time = format!("{:02}{:02}", at.hour(), at.minute());
-    let leaf = match slug.filter(|slug| !slug.is_empty()) {
-        Some(slug) => format!("{time}-{slug}.md"),
-        None => format!("{time}.md"),
-    };
-    Some(match layout {
-        Layout::Dated => format!("{year:04}/{month:02}/{day:02}/{leaf}"),
-        Layout::Flat => format!("{year:04}-{month:02}-{day:02}-{leaf}"),
-    })
+    Some(format!(
+        "{year:04}-{month:02}-{day:02}/{:02}-{:02}.md",
+        at.hour(),
+        at.minute()
+    ))
 }
 
 /// Where an entry falls on a journal's timeline: its day and, if known, its time, both in the writer's own time, and what said so.
@@ -164,14 +138,29 @@ pub fn when(date: Option<&str>, path: &str, created: Option<&str>) -> Option<Whe
     Some(at(&created, WhenSource::Created))
 }
 
-/// The day and time a path is filed under by [`entry_path`]'s convention, in either layout.
+/// The day and time a path is filed under by [`entry_path`]'s convention, or by the layouts journals were filed in before it.
 fn from_path(path: &str) -> Option<When> {
     let digits = |text: &str, length: usize| {
         text.len() == length && text.bytes().all(|b| b.is_ascii_digit())
     };
     let parts: Vec<&str> = path.split('/').collect();
-    // `YYYY/MM/DD/HHMM…` at the end of the path, or `YYYY-MM-DD-HHMM…` as its last part.
+    // `YYYY-MM-DD/HH-MM…` (what [`entry_path`] makes), `YYYY/MM/DD/HHMM…` at the end of the path, or `YYYY-MM-DD-HHMM…` as its last part:
+    // the last two are what journals made before were filed by, and still read.
     let (year, month, day, rest) = match parts.as_slice() {
+        [.., folder, leaf]
+            if folder.len() == 10
+                && digits(&folder[0..4], 4)
+                && &folder[4..5] == "-"
+                && digits(&folder[5..7], 2)
+                && &folder[7..8] == "-"
+                && digits(&folder[8..10], 2)
+                && leaf.len() >= 5
+                && digits(&leaf[0..2], 2)
+                && &leaf[2..3] == "-"
+                && digits(&leaf[3..5], 2) =>
+        {
+            (&folder[0..4], &folder[5..7], &folder[8..10], *leaf)
+        }
         [.., year, month, day, leaf] if digits(year, 4) && digits(month, 2) && digits(day, 2) => {
             (*year, *month, *day, *leaf)
         }
@@ -196,13 +185,17 @@ fn from_path(path: &str) -> Option<When> {
     if !crate::scalar::is_full_date(&full) {
         return None;
     }
+    // `HH-MM` or `HHMM`, at the start of the leaf.
     let time = rest
-        .get(0..4)
-        .filter(|hhmm| digits(hhmm, 4))
-        .and_then(|hhmm| {
-            let (hour, minute) = (&hhmm[0..2], &hhmm[2..4]);
-            (hour < "24" && minute < "60").then(|| format!("{hour}:{minute}"))
-        });
+        .get(0..5)
+        .filter(|hhmm| digits(&hhmm[0..2], 2) && &hhmm[2..3] == "-" && digits(&hhmm[3..5], 2))
+        .map(|hhmm| (&hhmm[0..2], &hhmm[3..5]))
+        .or_else(|| {
+            rest.get(0..4)
+                .filter(|hhmm| digits(hhmm, 4))
+                .map(|hhmm| (&hhmm[0..2], &hhmm[2..4]))
+        })
+        .and_then(|(hour, minute)| (hour < "24" && minute < "60").then(|| format!("{hour}:{minute}")));
     Some(When {
         day: full,
         time,
@@ -315,17 +308,12 @@ mod tests {
     #[test]
     fn an_entry_is_filed_by_the_writer_s_day_and_time() {
         assert_eq!(
-            entry_path(
-                "2026-11-02T08:14:00+05:30",
-                Some("morning-run"),
-                Layout::Dated
-            )
-            .as_deref(),
-            Some("2026/11/02/0814-morning-run.md")
+            entry_path("2026-11-03T14:30:59+05:30").as_deref(),
+            Some("2026-11-03/14-30.md")
         );
         assert_eq!(
-            entry_path("2026-11-02T08:14:59+05:30", None, Layout::Dated).as_deref(),
-            Some("2026/11/02/0814.md")
+            entry_path("2026-11-02T08:14:00+05:30").as_deref(),
+            Some("2026-11-02/08-14.md")
         );
     }
 
@@ -334,34 +322,42 @@ mod tests {
     #[test]
     fn just_after_midnight_is_the_new_day_whatever_the_utc_date() {
         assert_eq!(
-            entry_path("2026-11-02T00:30:00+05:30", None, Layout::Dated).as_deref(),
-            Some("2026/11/02/0030.md")
+            entry_path("2026-11-02T00:30:00+05:30").as_deref(),
+            Some("2026-11-02/00-30.md")
         );
         assert_eq!(
-            entry_path("2026-11-01T23:30:00-08:00", None, Layout::Dated).as_deref(),
-            Some("2026/11/01/2330.md")
+            entry_path("2026-11-01T23:30:00-08:00").as_deref(),
+            Some("2026-11-01/23-30.md")
         );
     }
 
     #[test]
-    fn an_encrypted_journal_has_no_dated_folders() {
-        assert_eq!(Layout::for_vault(true), Layout::Flat);
-        assert_eq!(
-            entry_path("2026-11-02T08:14:00+05:30", Some("run"), Layout::Flat).as_deref(),
-            Some("2026-11-02-0814-run.md")
-        );
-        let path = entry_path("2026-11-02T08:14:00+05:30", None, Layout::Flat).unwrap_or_default();
-        assert!(!path.contains('/'));
+    fn the_path_has_one_folder_and_a_file_named_by_the_time_and_nothing_of_the_title() {
+        let path = entry_path("2026-11-02T08:14:00+05:30").unwrap_or_default();
+        assert_eq!(path.matches('/').count(), 1);
+        assert!(path.ends_with("08-14.md"));
     }
 
     #[test]
     fn a_date_with_no_time_names_no_entry() {
-        assert_eq!(entry_path("2026-11-02", None, Layout::Dated), None);
+        assert_eq!(entry_path("2026-11-02"), None);
+        assert_eq!(entry_path("2026-11-02 08:14:00 +0530"), None);
+        assert_eq!(entry_path(""), None);
+    }
+
+    #[test]
+    fn a_path_is_read_in_the_layout_it_is_made_in_and_in_the_two_before_it() {
+        let at = |path| when(None, path, None).map(|w| (w.sort_key(), w.source));
+        let path = Some(("2026-11-02T08:14".to_string(), WhenSource::Path));
+        assert_eq!(at("2026-11-02/08-14.md"), path);
+        assert_eq!(at("journal/2026-11-02/08-14.md"), path);
+        assert_eq!(at("2026/11/02/0814-run.md"), path);
+        assert_eq!(at("2026-11-02-0814-run.md"), path);
         assert_eq!(
-            entry_path("2026-11-02 08:14:00 +0530", None, Layout::Dated),
-            None
+            at("2026-11-02/notes.md"),
+            None,
+            "a folder named by a day is not enough to name a time"
         );
-        assert_eq!(entry_path("", None, Layout::Dated), None);
     }
 
     #[test]

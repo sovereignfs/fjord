@@ -31,25 +31,25 @@ async function text(host: MemoryProvider, path: string) {
 describe.skipIf(!available)("a journal entry", () => {
   const deps = (host: MemoryProvider) => ({ provider: host, ref: REF, branch: "main", format: fjord(), now: () => AT, random: () => new Uint8Array(16).fill(7) });
 
-  it("is on the writer's local day, whatever the day is in UTC, with its date's offset kept", async () => {
+  it("is on the writer's local day, whatever the day is in UTC, with its date's offset kept, named by the minute and not by the title", async () => {
     const host = journal();
     // 19:30 UTC on the 1st is 01:00 on the 2nd at +05:30.
     const made = await createEntry(deps(host), { vault: "journal", at: AT, offsetMinutes: 330, title: "Late thoughts", author: AUTHOR });
-    expect(made).toMatchObject({ ok: true, path: "journal/2026/11/02/0100-late-thoughts.md", date: "2026-11-02T01:00:00+05:30" });
-    const written = await text(host, "journal/2026/11/02/0100-late-thoughts.md");
+    expect(made).toMatchObject({ ok: true, path: "journal/2026-11-02/01-00.md", date: "2026-11-02T01:00:00+05:30" });
+    const written = await text(host, "journal/2026-11-02/01-00.md");
     expect(written).toContain('date: "2026-11-02T01:00:00+05:30"');
     expect(written).toContain("title: Late thoughts");
     // The same moment in Los Angeles is still the 1st.
     const there = await createEntry(deps(host), { vault: "journal", at: AT, offsetMinutes: -480, title: "", author: AUTHOR });
-    expect(there).toMatchObject({ ok: true, path: "journal/2026/11/01/1130.md" });
+    expect(there).toMatchObject({ ok: true, path: "journal/2026-11-01/11-30.md" });
   });
 
   it("is never written over: a second one in the same minute takes a number", async () => {
     const host = journal();
     const first = await createEntry(deps(host), { vault: "journal", at: AT, offsetMinutes: 0, title: "Run", author: AUTHOR });
     const second = await createEntry(deps(host), { vault: "journal", at: AT, offsetMinutes: 0, title: "Run", author: AUTHOR });
-    expect(first).toMatchObject({ ok: true, path: "journal/2026/11/01/1930-run.md" });
-    expect(second).toMatchObject({ ok: true, path: "journal/2026/11/01/1930-run-2.md" });
+    expect(first).toMatchObject({ ok: true, path: "journal/2026-11-01/19-30.md" });
+    expect(second).toMatchObject({ ok: true, path: "journal/2026-11-01/19-30-2.md" });
     expect(first.ok && second.ok && first.commit !== second.commit).toBe(true);
   });
 

@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { authConfig } from "../../../src/auth/server";
 import { isDocId } from "../../../src/browse/ids";
-import { PENDING_COOKIE, SHARE_COOKIE } from "../../../src/sharing/redact";
+import { SHARE_SCOPES } from "../../../src/sharing/enter";
+import { cookieNames } from "../../../src/sharing/redact";
 import { unlockFor } from "../../../src/sharing/server";
 
 /**
@@ -15,15 +16,19 @@ import { unlockFor } from "../../../src/sharing/server";
 export async function unlockAction(formData: FormData): Promise<void> {
   const docId = String(formData.get("doc") ?? "");
   if (!isDocId(docId)) redirect("/");
+  // The address it was asked at: `/d/<id>`, or `/n/<id>` for a journal's note.
+  const base = formData.get("base") === "n" ? "n" : "d";
   const password = formData.get("password");
   const jar = await cookies();
-  const result = await unlockFor(docId, typeof password === "string" ? password : undefined, jar.get(PENDING_COOKIE)?.value);
+  const result = await unlockFor(docId, typeof password === "string" ? password : undefined, jar.get(cookieNames(base).pending)?.value);
   if (result.ok) {
     const config = authConfig();
-    const options = { httpOnly: true, sameSite: "lax", secure: config.enabled && config.url.startsWith("https://"), path: `/d/${docId}` } as const;
-    jar.set(SHARE_COOKIE, result.value, { ...options, maxAge: result.maxAgeSeconds });
-    jar.set(PENDING_COOKIE, "", { ...options, maxAge: 0 });
-    redirect(`/d/${docId}`);
+    for (const scope of SHARE_SCOPES) {
+      const options = { httpOnly: true, sameSite: "lax", secure: config.enabled && config.url.startsWith("https://"), path: `/${scope}/${docId}` } as const;
+      jar.set(cookieNames(scope).share, result.value, { ...options, maxAge: result.maxAgeSeconds });
+      jar.set(cookieNames(scope).pending, "", { ...options, maxAge: 0 });
+    }
+    redirect(`/${base}/${docId}`);
   }
-  redirect(result.reason === "gone" ? `/d/${docId}` : `/d/${docId}?wrong=${result.reason === "wait" ? "wait" : "1"}`);
+  redirect(result.reason === "gone" ? `/${base}/${docId}` : `/${base}/${docId}?wrong=${result.reason === "wait" ? "wait" : "1"}`);
 }

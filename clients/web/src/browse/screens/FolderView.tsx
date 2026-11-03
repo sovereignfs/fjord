@@ -291,7 +291,7 @@ function FileCard({
   // What a file's page also offers besides the editor: sharing, publishing, rename and move, delete. A journal's writing view keeps them one step away.
   const extras = (
     <>
-      {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} /> : null}
+      {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} note={writing === true} /> : null}
       {remove && docId && !encrypted ? <PublishPanel connectionId={connectionId} docId={docId} /> : null}
       {remove && !docId && !encrypted && file.kind === "doc" && note?.ok ? <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} /> : null}
       {remove ? (

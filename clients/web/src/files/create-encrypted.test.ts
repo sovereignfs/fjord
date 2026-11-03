@@ -70,6 +70,17 @@ describe.skipIf(!available)("a new file in a plain-named encrypted vault", () =>
     expect(await create(PLAIN, { folder: "Nowhere", title: "x" })).toEqual({ ok: false, reason: "folder_gone" });
   });
 
+  it("makes a journal's day folder with its first entry, in a vault named by ids, and no other folder that is not there", async () => {
+    await seed("id", { "Secret/2026-10-21/01jagc4k7pt8y3wqnmzv5xrb8a.age": "x" });
+    const made = (await create(BY_ID, { folder: "2026-10-22" })) as { ok: true; path: string };
+    expect(made.path).toMatch(/^Secret\/2026-10-22\/[0-9a-z]{26}\.age$/);
+    // Only that shape: any other folder that is not there is gone, and a plain-named vault has no such folder to make.
+    expect(await create(BY_ID, { folder: "Nowhere" })).toEqual({ ok: false, reason: "folder_gone" });
+    expect(await create(BY_ID, { folder: "2026-10-22/deeper" })).toEqual({ ok: false, reason: "folder_gone" });
+    await seed("plain");
+    expect(await create(PLAIN, { folder: "2026-10-23" })).toEqual({ ok: false, reason: "folder_gone" });
+  });
+
   it("is the file `fjord-core` says is an encrypted payload with that name, and no plaintext of it is anywhere", async () => {
     await seed("plain");
     const { commit, path } = (await create(PLAIN, { title: "Idea" })) as { path: string; commit: string };

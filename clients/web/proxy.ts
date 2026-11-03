@@ -45,13 +45,13 @@ export function proxy(request: NextRequest) {
   }
   // A share link: `/d/<id>?token=`, or `/doc/<id>?token=` as links were given before the routes were shortened. Either way the entry swaps the token for a
   // cookie and sends the person to `/d/<id>`, so a link already in someone's hands keeps working.
-  const shared = /^\/(?:d|doc)\/([^/]+)$/.exec(pathname);
+  const shared = /^\/(?:d|doc|n)\/([^/]+)$/.exec(pathname);
   if (shared && searchParams.has("token")) {
     return marked(NextResponse.rewrite(new URL("/api/links/enter", request.url), { request: { headers: requestHeaders } }));
   }
   // The routes' old names, for a bookmark or a link with no token in it: sent on for good to `/d/<id>`, with the query as it was. (`/note/` and `/n/`
   // were a note's, which is no different from a document since RFC 0002: there is one kind of Doc.)
-  const old = /^\/(?:doc|note|n)\/([^/]+)$/.exec(pathname);
+  const old = /^\/(?:doc|note)\/([^/]+)$/.exec(pathname);
   if (old) {
     const target = new URL(`/d/${old[1]}`, request.url);
     target.search = request.nextUrl.search;

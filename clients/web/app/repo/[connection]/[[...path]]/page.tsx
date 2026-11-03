@@ -18,7 +18,7 @@ export default async function RepositoryPage({ params, searchParams }: { params:
   if (path !== undefined && path.length > 0 && decoded === undefined) notFound();
   const parsed = parseAddress(decoded ?? []);
   if (parsed.kind === "invalid") notFound();
-  if (parsed.kind === "vault" || parsed.kind === "place") {
+  if (parsed.kind === "vault" || parsed.kind === "place" || parsed.kind === "note") {
     return <RepositoryScreen connection={connection} address={parsed} requested={`/repo/${connection}/${(decoded ?? []).map(encodeURIComponent).join("/")}`} via="address" view={view} query={query} />;
   }
   const segments = parsed.kind === "legacy" ? parsed.segments : undefined;

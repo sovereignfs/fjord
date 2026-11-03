@@ -25,6 +25,8 @@ describe("redacting a token", () => {
   it("leaves the rest of the line as it was, and a line with no token alone", () => {
     expect(redactTokens(`GET /d/${DOC}?token=${TOKEN}&x=1 200`)).toBe(`GET /d/${DOC}?token=[redacted]&x=1 200`);
     expect(redactTokens(`cookie: ${SHARE_COOKIE}=${TOKEN}; a=b`)).toBe(`cookie: ${SHARE_COOKIE}=[redacted]; a=b`);
+    // The cookies of a journal's note at /n/<id> are masked the same.
+    expect(redactTokens(`cookie: fjord_share_n=${TOKEN}; fjord_share_pending_n=${TOKEN}; a=b`)).toBe("cookie: fjord_share_n=[redacted]; fjord_share_pending_n=[redacted]; a=b");
     const plain = `[fjord] database: ready; blob ${"a".repeat(40)} doc ${DOC} sha ${"B".repeat(43)}`;
     expect(redactTokens(plain)).toBe(plain);
   });

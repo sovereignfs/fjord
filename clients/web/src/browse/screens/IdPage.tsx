@@ -10,7 +10,7 @@ import { Alert, Badge, Card } from "../../ui";
 import { PasswordForm } from "../../sharing/PasswordForm";
 import { unlockAction } from "../../../app/d/[id]/actions";
 import { parseShareCookie } from "../../sharing/unlock";
-import { PENDING_COOKIE, SHARE_COOKIE } from "../../sharing/redact";
+import { cookieNames } from "../../sharing/redact";
 import { SharedBody } from "../../sharing/SharedBody";
 import { openLinkedFor, openSharedFor, passwordWanted } from "../../sharing/server";
 import { isDocId } from "../ids";
@@ -23,12 +23,12 @@ import { RepositoryScreen } from "./RepositoryScreen";
  * among the account's own repositories. One match is shown as `/repo/<connection>/<path>` is, at this address; several (an id is unique within a repository, not across them, and a
  * copy is a copy) are listed to choose from; none is a 404, and an id that is not one is too. Another account's file is none.
  */
-export async function IdPage({ id, wrong }: { id: string; wrong?: "wrong" | "wait" | undefined }) {
+export async function IdPage({ id, wrong, base = "d" }: { id: string; wrong?: "wrong" | "wait" | undefined; /** The address it was reached at: `/d/<id>`, or `/n/<id>` for a journal's note (workstream 0003). Both show the same document and take the same links. */ base?: "d" | "n" }) {
   // A share link (ROADMAP 1c.3) needs no account. Its token is in a cookie, put there when the link was first opened (1c.4) and
   // checked here against the store at every request, so revoking or expiring a link ends it at once. A token that opens nothing
   // now (never made, for another document, expired or revoked) is not told apart from none: the page is then what it is for anyone.
   const jar = await cookies();
-  const given = jar.get(SHARE_COOKIE)?.value;
+  const given = jar.get(cookieNames(base).share)?.value;
   const { token, proof } = given === undefined ? { token: undefined, proof: undefined } : parseShareCookie(given);
   if (token !== undefined && isDocId(id) && encryptionKeyring() !== undefined) {
     const linked = await openLinkedFor(token, id, proof);
@@ -50,7 +50,7 @@ export async function IdPage({ id, wrong }: { id: string; wrong?: "wrong" | "wai
     }
   }
   // A link that asks for a password (ROADMAP 1c.5): its token waits in a cookie that opens nothing, and the person is asked.
-  const waiting = jar.get(PENDING_COOKIE)?.value;
+  const waiting = jar.get(cookieNames(base).pending)?.value;
   if (waiting !== undefined && isDocId(id) && encryptionKeyring() !== undefined && (await passwordWanted(waiting, id))) {
     return (
       <main className={styles.page}>
@@ -64,7 +64,7 @@ export async function IdPage({ id, wrong }: { id: string; wrong?: "wrong" | "wai
                 </Alert>
               </div>
             ) : null}
-            <PasswordForm docId={id} action={unlockAction} />
+            <PasswordForm docId={id} action={unlockAction} base={base} />
           </Card>
         </div>
       </main>

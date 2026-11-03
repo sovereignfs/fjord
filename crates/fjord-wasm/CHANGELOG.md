@@ -5,6 +5,10 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 
 ## [Unreleased]
 
+### Changed
+
+- **`journalEntryPath(date)`** says `YYYY-MM-DD/hh-mm.md` (it was `journalEntryPath(date, slug, encrypted)`, `YYYY/MM/DD/HHMM-slug.md` or flat): a folder for the day and a file named by the minute, for an encrypted journal too, and nothing of the title.
+
 ### Added
 
 - **`discover` says each vault's `id`** (the manifest's, or `null`), which the web client's addresses are made of (`/repo/<repo>/v/<vault-id>`).

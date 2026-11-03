@@ -35,7 +35,7 @@ import { kindFor } from "../../kinds/registry";
  * one that tries to climb out are all a 404 and nothing more. `path` is the decoded segments. `/d/<id>`
  * shows a file the same way, once the id has been found (ROADMAP 1b.6).
  */
-export async function RepositoryScreen({ connection, path: urlPath, address, requested, view, query = {}, via }: { connection: string; /** The path, for the old forms: `/repo/<repo>/<path…>`, a handle's, a Doc id's. */ path?: string[] | undefined; /** The place an address of ids names (`/repo/<repo>/v/<vault>/…`), which the page resolves to a path; with this, `path` is not given. */ address?: Extract<Address, { kind: "vault" | "place" }> | undefined; /** The address as it was asked for, to tell whether it is the one the place has now; if it is not the person is sent to that. */ requested?: string | undefined; /** How the page was reached: by a `handle` (`/f/<handle>`), or by an address of ids. With none (the old address by path), the place is sent on to its address of ids. */ via?: "handle" | "address" | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined; /** The page's query, for an entry view that pages or filters. */ query?: Record<string, string | string[] | undefined> }) {
+export async function RepositoryScreen({ connection, path: urlPath, address, requested, view, query = {}, via }: { connection: string; /** The path, for the old forms: `/repo/<repo>/<path…>`, a handle's, a Doc id's. */ path?: string[] | undefined; /** The place an address of ids names (`/repo/<repo>/v/<vault>/…`), which the page resolves to a path; with this, `path` is not given. */ address?: Extract<Address, { kind: "vault" | "place" | "note" }> | undefined; /** The address as it was asked for, to tell whether it is the one the place has now; if it is not the person is sent to that. */ requested?: string | undefined; /** How the page was reached: by a `handle` (`/f/<handle>`), or by an address of ids. With none (the old address by path), the place is sent on to its address of ids. */ via?: "handle" | "address" | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined; /** The page's query, for an entry view that pages or filters. */ query?: Record<string, string | string[] | undefined> }) {
   const { user } = await requireSession();
   if (!/^[1-9][0-9]{0,15}$/.test(connection) || encryptionKeyring() === undefined) notFound();
   const connections = await (await connectionService()).list(user.id);
@@ -50,8 +50,13 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
       const vault = outcome.read.discovery.vaults.find((candidate) => candidate.id === address.vault);
       if (!vault) notFound();
       path = [vault.directory];
-    } else if ("handle" in address.target || "html" in address.target) {
-      const place = await new FileHandles(await getDatabase()).resolve("html" in address.target ? address.target.html : address.target.handle);
+    } else if (address.kind === "note" && "doc" in address.target) {
+      const found = await findDocIdIn(user.id, current, outcome.read, address.target.doc);
+      if (found === undefined) notFound();
+      path = found.split("/");
+    } else if (address.kind === "note" || "handle" in address.target || "html" in address.target) {
+      const target = address.target as { handle: string } | { html: string };
+      const place = await new FileHandles(await getDatabase()).resolve("html" in target ? target.html : target.handle);
       // Another repository's handle is nothing here.
       if (!place || place.connectionId !== current.id) notFound();
       path = place.path.split("/");
@@ -103,7 +108,9 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
         const place = segments.join("/");
         const book = await addressBookFor(current.id, found.location.vault, [place]);
         // A static HTML page of a plaintext vault is at its own `html` address, where it is shown in a sandbox.
-        const target = docId !== null && file !== undefined ? book.docHref(place, docId) : isHtmlPage(found.location) ? book.htmlHref(place) : book.href(place);
+        // A journal's entries are notes (`/repo/<repo>/n/<id>`, by handle when the id is in the ciphertext); a drive's and a site's Docs are where they are.
+        const journal = outcome.ok && outcome.read.manifest?.ok === true && outcome.read.manifest.kind === "journal";
+        const target = file !== undefined && journal && (file.kind === "doc" || file.kind === "payload") ? book.noteHref(place, docId) : docId !== null && file !== undefined ? book.docHref(place, docId) : isHtmlPage(found.location) ? book.htmlHref(place) : book.href(place);
         if (target !== (requested ?? "")) redirect(target);
       }
       // What was typed here and not yet saved as a version: kept by the server (ROADMAP 1b.8), and found again here.

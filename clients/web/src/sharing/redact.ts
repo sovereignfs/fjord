@@ -9,10 +9,19 @@
 export const SHARE_COOKIE = "fjord_share";
 /** The cookie that holds a password link's token while its password is asked for (ROADMAP 1c.5). */
 export const PENDING_COOKIE = "fjord_share_pending";
+/**
+ * The same two for a journal's note at `/n/<id>` (workstream 0003): a cookie is scoped to a path, and a browser keeps one cookie of a name for a path, but a server action can
+ * set only one cookie of a name, so the second address has names of its own rather than the same names at another path.
+ */
+export const SHARE_COOKIE_N = "fjord_share_n";
+export const PENDING_COOKIE_N = "fjord_share_pending_n";
+
+/** The cookie names for a document's address: `/d/<id>`, or `/n/<id>`. */
+export const cookieNames = (scope: "d" | "n"): { share: string; pending: string } => (scope === "n" ? { share: SHARE_COOKIE_N, pending: PENDING_COOKIE_N } : { share: SHARE_COOKIE, pending: PENDING_COOKIE });
 
 const PATTERNS: [RegExp, string][] = [
   [/([?&]token=)[^&\s"'#<>]+/gi, "$1[redacted]"],
-  [new RegExp(`((?:${SHARE_COOKIE}|${PENDING_COOKIE})=)[^;\\s"'<>]+`, "g"), "$1[redacted]"],
+  [new RegExp(`((?:${SHARE_COOKIE}|${PENDING_COOKIE}|${SHARE_COOKIE_N}|${PENDING_COOKIE_N})=)[^;\\s"'<>]+`, "g"), "$1[redacted]"],
   [/("token"\s*:\s*")[^"]+/gi, "$1[redacted]"],
   // A sealed share's address carries its token in the path (ROADMAP 2c.1): `/s/<token>`, `/api/sealed/<token>`. Its key is in the fragment, which no request carries and so no log can.
   [/(\/(?:s|api\/sealed)\/)[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/g, "$1[redacted]"],

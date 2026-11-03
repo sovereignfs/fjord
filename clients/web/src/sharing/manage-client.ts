@@ -97,8 +97,8 @@ export async function listLinks(connectionId: number, doc: string) {
   return answer ? linksFrom(answer.status, answer.body) : unreachable("the links");
 }
 
-export async function createLink(connectionId: number, doc: string, input: { role: Role; expiresAt: number | null; password: string | null }) {
-  const answer = await call("POST", links(connectionId), { doc, role: input.role, ...(input.expiresAt === null ? {} : { expiresAt: input.expiresAt }), ...(input.password === null ? {} : { password: input.password }) });
+export async function createLink(connectionId: number, doc: string, input: { role: Role; expiresAt: number | null; password: string | null; /** A journal's note is given a link at `/n/<id>`, any other Doc at `/d/<id>`. */ note?: boolean }) {
+  const answer = await call("POST", links(connectionId), { doc, role: input.role, ...(input.note ? { address: "n" } : {}), ...(input.expiresAt === null ? {} : { expiresAt: input.expiresAt }), ...(input.password === null ? {} : { password: input.password }) });
   return answer ? createdFrom(answer.status, answer.body) : unreachable("the links");
 }
 

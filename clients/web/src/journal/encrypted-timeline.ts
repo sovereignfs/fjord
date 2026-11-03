@@ -28,8 +28,11 @@ export async function readEncryptedEntries(deps: EncryptedTimelineDeps, files: {
       const file = files[next++] as { path: string };
       try {
         const opened = deps.open(await deps.fetchCiphertext(file.path));
-        if (opened && /\.md$/i.test(opened.name)) entries.push({ ...deps.summarise(opened.text, opened.name), path: file.path });
-        else if (!opened) unreadable += 1;
+        if (opened && /\.md$/i.test(opened.name)) {
+          // Its day is the folder it is filed in, which is public; the name inside the container is the minute. Together they are the path a plaintext journal files it by.
+          const folder = file.path.split("/").slice(-2, -1)[0];
+          entries.push({ ...deps.summarise(opened.text, folder === undefined ? opened.name : `${folder}/${opened.name}`), path: file.path });
+        } else if (!opened) unreadable += 1;
       } catch {
         unreadable += 1;
       }

@@ -35,7 +35,7 @@ export function NewEntry({ connectionId, vault, encrypted }: { connectionId: num
     if (encrypted?.ok) {
       try {
         const sealed = newEncryptedEntry(await loadModule(), { title: "", recipients: encrypted.text, now: new Date(), random: crypto.getRandomValues(new Uint8Array(16)) });
-        made = await sendCreateEncrypted(connectionId, { vault, folder: "", title: "", ciphertext: sealed.ciphertext });
+        made = await sendCreateEncrypted(connectionId, { vault, folder: sealed.folder, title: "", ciphertext: sealed.ciphertext });
       } catch {
         made = { ok: false, message: "The entry could not be encrypted here, so nothing was made." };
       }

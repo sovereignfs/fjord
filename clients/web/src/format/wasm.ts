@@ -34,7 +34,7 @@ interface Module {
   withTags(text: string, tagsJson: string): string | undefined;
   withField(text: string, key: string, valueJson: string): string | undefined;
   journalEntry(text: string, path: string): string;
-  journalEntryPath(date: string, slug: string | undefined, encrypted: boolean): string | undefined;
+  journalEntryPath(date: string): string | undefined;
   journalSlug(title: string): string | undefined;
   entryDateFromUnix(seconds: number, offsetMinutes: number): string | undefined;
   isEntryDate(text: string): boolean;
@@ -236,8 +236,8 @@ export class Fjord {
   }
 
   /** Where an entry dated `date` goes in its vault (dated folders, or flat in an encrypted journal); undefined for a date with no time. */
-  journalEntryPath(date: string, slug: string | undefined, encrypted: boolean): string | undefined {
-    return this.module.journalEntryPath(date, slug, encrypted);
+  journalEntryPath(date: string): string | undefined {
+    return this.module.journalEntryPath(date);
   }
 
   journalSlug(title: string): string | undefined {
