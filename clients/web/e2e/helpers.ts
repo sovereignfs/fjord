@@ -79,3 +79,13 @@ export async function enableTwoFactor(page: Page) {
   await page.getByRole("button", { name: "I have saved them" }).click();
   return { secret, backupCodes };
 }
+
+/**
+ * The addresses of places in a repository (workstream 0003): `/repo/<repo>/v/<vault>/[<folder>/]<file>` by handle, or `…/[<folder>/]d/<doc>` for a Doc, never a path.
+ * `PLACE` is any of them, a vault's too, `DOC_PLACE` only a Doc's, `FILE_PLACE` only a file or folder's by its handle.
+ */
+const ULID = "[0-9a-hjkmnp-tv-z]{26}";
+const HANDLE = "[0-9a-z]{16}";
+export const DOC_PLACE = new RegExp(`/repo/\\d+/v/${ULID}/(?:${HANDLE}/)?d/${ULID}$`);
+export const FILE_PLACE = new RegExp(`/repo/\\d+/v/${ULID}/(?:${HANDLE}/)?${HANDLE}$`);
+export const PLACE = new RegExp(`/repo/\\d+/v/${ULID}(?:/(?:${HANDLE}/)?(?:d/${ULID}|${HANDLE}))?$`);

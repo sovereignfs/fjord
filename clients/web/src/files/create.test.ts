@@ -173,7 +173,7 @@ describe.skipIf(!available)("what goes wrong", () => {
 });
 
 describe("which vaults are written to", () => {
-  const vault = (over: Partial<VaultListing>): VaultListing => ({ directory: "Notes", name: "Notes", encrypted: false, fileNaming: "plain", suffix: null, manifestError: null, files: [], ...over });
+  const vault = (over: Partial<VaultListing>): VaultListing => ({ directory: "Notes", id: null, name: "Notes", encrypted: false, fileNaming: "plain", suffix: null, manifestError: null, files: [], ...over });
 
   it("a plaintext vault with plain names, and no other", () => {
     expect(checkVault([vault({})], "Notes")).toBe("ok");

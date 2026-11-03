@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { expect, signUp, test } from "./helpers";
+import { expect, signUp, test, DOC_PLACE, PLACE } from "./helpers";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
 /**
@@ -86,7 +86,7 @@ test("a journal opens on its timeline, placed by date, and takes an entry dated 
   // A new entry, in one action: dated now, with this browser's offset, in the dated folder of the writer's own day. It opens at its address by id
   // (RFC 0002), as a writing view: the editor and the properties, the rest under "More".
   await page.getByRole("button", { name: "New entry" }).click();
-  await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 });
+  await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 });
   await expect(page.getByTestId("more")).toBeVisible();
 
   const head = (await hubs.notes.branchHead())!;
@@ -132,7 +132,7 @@ test("a repository that is not a Fjord repository is set up as a site, takes a p
   await page.getByRole("button", { name: "New post" }).click();
   await page.getByLabel("Title").fill("Hello, World!");
   await page.getByRole("button", { name: "Write it" }).click();
-  await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 }); // a post has an id from the start, so its address shows no path
+  await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 }); // a post has an id from the start, so its address shows no path
   const post = (await hubs.more.filesAt((await hubs.more.branchHead())!))["content/posts/hello-world.md"]!;
   expect(post).toContain("draft: true");
   expect(post).toMatch(/date: "\d{4}-\d\d-\d\d/);
@@ -169,7 +169,7 @@ test("a tag with a space is refused on a Jekyll site, with the engine's reason, 
   await page.getByLabel("Title").fill("First light");
   await page.getByLabel(/A draft/).uncheck();
   await page.getByRole("button", { name: "Write it" }).click();
-  await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 });
+  await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 });
 
   await page.getByText("Properties").click();
   await page.getByLabel("Tags").fill("two words");

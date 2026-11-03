@@ -54,7 +54,7 @@ describe.skipIf(!available)("a journal entry", () => {
   });
 
   it("is made only in a journal's one plaintext vault", () => {
-    const vault = (directory: string, encrypted: boolean | null, fileNaming = "plain") => ({ directory, name: directory, encrypted, fileNaming, suffix: ".age", manifestError: null, files: [] });
+    const vault = (directory: string, encrypted: boolean | null, fileNaming = "plain") => ({ directory, id: null, name: directory, encrypted, fileNaming, suffix: ".age", manifestError: null, files: [] });
     expect(journalVault([])).toBe("none");
     expect(journalVault([vault("a", false), vault("b", false)])).toBe("none");
     expect(journalVault([vault("j", true, "id")])).toBe("encrypted");

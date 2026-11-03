@@ -69,7 +69,7 @@ describe.skipIf(!available)("a post of a site", () => {
   });
 
   it("is made only in a site's one plaintext vault, whose engine is known", () => {
-    const vault = (encrypted: boolean | null, fileNaming = "plain") => ({ directory: "content", name: "Content", encrypted, fileNaming, suffix: ".age", manifestError: null, files: [] });
+    const vault = (encrypted: boolean | null, fileNaming = "plain") => ({ directory: "content", id: null, name: "Content", encrypted, fileNaming, suffix: ".age", manifestError: null, files: [] });
     expect(siteVault([], "astro")).toBe("not_a_site");
     expect(siteVault([vault(false)], "hugo")).toBe("unknown_engine");
     expect(siteVault([vault(false)], null)).toBe("unknown_engine");

@@ -32,6 +32,8 @@ export interface ClassifiedFile {
 export interface VaultListing {
   /** The vault's address: a directory at the repository root. */
   directory: string;
+  /** The manifest's `id` (spec §8.3), which addresses in the web client are made of; null when the manifest has none or could not be read. */
+  id: string | null;
   /** The manifest's `name`. */
   name: string | null;
   /** Null when the manifest could not be read. */

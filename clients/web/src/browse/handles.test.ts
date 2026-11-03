@@ -82,4 +82,21 @@ describe(`file handles (${leg})`, () => {
     // Nothing calls `move` for a file Git moved elsewhere. The handle is of the path, and the repository says there is nothing there.
     expect(await handles.resolve(handle)).toEqual({ connectionId: 1, path: "Notes/a.md" });
   });
+
+  it("makes the handles of many paths at once: those that have one keep it, the rest are made, and asking again changes nothing", async () => {
+    // Real randomness here: the stand-in above repeats after a few dozen handles, which is not what 450 need.
+    const handles = new FileHandles(database);
+    const had = await handles.forPath(1, "Notes/a.md");
+    const paths = ["Notes/a.md", "Notes/b.md", "Notes/Projects", ...Array.from({ length: 450 }, (_, n) => `Notes/Projects/file-${n}.md`)];
+    const made = await handles.forPaths(1, paths);
+    expect(made.size).toBe(paths.length);
+    expect(made.get("Notes/a.md")).toBe(had);
+    expect(new Set(made.values()).size).toBe(paths.length);
+    for (const handle of made.values()) expect(isHandle(handle)).toBe(true);
+    expect(await handles.forPaths(1, paths)).toEqual(made);
+    expect(await handles.forPath(1, "Notes/b.md")).toBe(made.get("Notes/b.md"));
+    // Each connection has its own.
+    expect((await handles.forPaths(2, ["Notes/a.md"])).get("Notes/a.md")).not.toBe(had);
+    expect((await handles.forPaths(1, [])).size).toBe(0);
+  });
 });

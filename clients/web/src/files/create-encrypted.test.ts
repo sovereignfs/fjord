@@ -110,7 +110,7 @@ describe.skipIf(!available)("when the repository moves", () => {
 });
 
 describe("which encrypted vaults can be written to", () => {
-  const vault = (over: Partial<VaultListing> = {}): VaultListing => ({ directory: "Secret", name: "Secret", encrypted: true, fileNaming: "plain", suffix: ".age", manifestError: null, files: [], ...over });
+  const vault = (over: Partial<VaultListing> = {}): VaultListing => ({ directory: "Secret", id: null, name: "Secret", encrypted: true, fileNaming: "plain", suffix: ".age", manifestError: null, files: [], ...over });
   const manifests = (naming: string, over: Record<string, unknown> = {}) => ({ "Secret/fjord.vault.json": manifest(naming, over) });
 
   it("is a vault of age with binary files and the container its naming needs", () => {

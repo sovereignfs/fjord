@@ -206,3 +206,15 @@ export async function findDocId(accountId: string, docId: string): Promise<Resol
   const resolution = await resolveDocId({ index: new DocIndex(await getDatabase()), format: fjord() }, sources, docId);
   return { ...resolution, unreachable };
 }
+
+/**
+ * Where a Doc `id` is within one repository, for an address that names it (`/repo/<repo>/v/<vault>/d/<id>`): the path of the file, or nothing. An id is unique
+ * within a repository (spec E401), so there is at most one; the index, then a bounded search, find it, as for `findDocId`.
+ */
+export async function findDocIdIn(accountId: string, connection: ConnectionInfo, read: RepositoryRead, docId: string): Promise<string | undefined> {
+  const used = await (await connectionService()).provider(accountId, connection.id);
+  if (!used) return undefined;
+  const source: Source = { connectionId: connection.id, ref: { owner: connection.owner, name: connection.name }, read, provider: used.provider };
+  const resolution = await resolveDocId({ index: new DocIndex(await getDatabase()), format: fjord() }, [source], docId);
+  return resolution.matches[0]?.path;
+}

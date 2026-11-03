@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Discovery, RepositoryManifest, VaultListing } from "../format/types";
 import { defaultVault } from "./default-vault";
 
-const vault = (directory: string): VaultListing => ({ directory, name: directory, encrypted: false, fileNaming: "plain", suffix: ".age", manifestError: null, files: [] });
+const vault = (directory: string): VaultListing => ({ directory, id: null, name: directory, encrypted: false, fileNaming: "plain", suffix: ".age", manifestError: null, files: [] });
 const found = (...directories: string[]): Discovery => ({ vaults: directories.map(vault), nested: [] });
 const manifest = (...paths: (string | null)[]): RepositoryManifest => ({
   ok: true,

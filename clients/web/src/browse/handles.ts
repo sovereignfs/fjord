@@ -55,6 +55,34 @@ export class FileHandles {
     throw new Error("a handle could not be made");
   }
 
+  /**
+   * The handles of many paths at once, made for those that have none: one read, and one insert for the missing, so that drawing a folder's listing is two
+   * statements and not one for each file. A path another request made a handle for meanwhile has that one.
+   */
+  async forPaths(connectionId: number, paths: string[]): Promise<Map<string, string>> {
+    const found = new Map<string, string>();
+    const unique = [...new Set(paths)];
+    // A statement can bind only so many values.
+    const CHUNK = 200;
+    const read = async (batch: string[]) => {
+      if (batch.length === 0) return;
+      const rows = await dbAll<{ path: string; handle: string }>(this.database, sql`SELECT path, handle FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path IN (${sql.join(batch.map((path) => sql`${path}`), sql`, `)})`);
+      for (const row of rows) found.set(row.path, row.handle);
+    };
+    for (let i = 0; i < unique.length; i += CHUNK) await read(unique.slice(i, i + CHUNK));
+    const missing = unique.filter((path) => !found.has(path));
+    for (let i = 0; i < missing.length; i += CHUNK) {
+      const batch = missing.slice(i, i + CHUNK);
+      const values = batch.map((path) => sql`(${connectionId}, ${path}, ${newHandle(this.random())}, ${this.now()})`);
+      // The unique indexes refuse a clash (of a path made meanwhile, or, not expected of 80 random bits, a handle); what is refused is read back below.
+      await dbRun(this.database, sql`INSERT INTO ${table(this.database)} (connection_id, path, handle, created_at) VALUES ${sql.join(values, sql`, `)} ON CONFLICT DO NOTHING`);
+      await read(batch);
+    }
+    // A path still without one lost a clash of handles: that one is made alone, with the retries `forPath` has.
+    for (const path of unique) if (!found.has(path)) found.set(path, await this.forPath(connectionId, path));
+    return found;
+  }
+
   /** Where a handle points, or nothing if there is no such handle. Whether anything is there is for the repository to say. */
   async resolve(handle: string): Promise<{ connectionId: number; path: string } | undefined> {
     if (!isHandle(handle)) return undefined;

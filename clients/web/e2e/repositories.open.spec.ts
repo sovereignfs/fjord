@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { ROUTES } from "../src/access/routes";
-import { alertOn, expect, signUp, test } from "./helpers";
+import { alertOn, expect, signUp, test, DOC_PLACE, FILE_PLACE, PLACE } from "./helpers";
 import { wasmDirectory } from "../src/format/wasm";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
@@ -58,6 +58,12 @@ test.beforeAll(async () => {
   await hubs.more.commitFiles({ "fjord.json": "{}" }, { replace: true });
 });
 test.afterAll(async () => hubs.stop());
+
+/** The repository's own page (`/repo/<repo>`: its vaults, and the top of the one that opens first), by the home page's tile for it. */
+async function openRepository(page: Page, repository = "acme/notes") {
+  await page.goto("/");
+  await page.getByRole("list", { name: "Repositories", exact: true }).getByRole("link", { name: new RegExp(repository.replace("/", "\\/")) }).click();
+}
 
 async function connect(page: import("@playwright/test").Page, repository: string) {
   await page.getByRole("textbox", { name: "Repository" }).fill(repository);
@@ -278,7 +284,7 @@ test("the repository page lists its vaults and what is in each, from names alone
   await connect(page, "acme/notes");
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
 
-  await page.goto("/open");
+  await openRepository(page);
   const vaults = page.getByRole("list", { name: "Vaults" });
   const publicVault = vaults.getByRole("listitem").filter({ hasText: "Public notes" });
   await expect(publicVault).toContainText("3 documents, 2 other files");
@@ -293,12 +299,12 @@ test("looking at a repository again reads no tree and no document from the host"
   await connect(page, "acme/notes");
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
 
-  await page.goto("/open");
+  await openRepository(page);
   await expect(page.getByRole("list", { name: "Vaults" })).toBeVisible();
   hubs.notes.requests.length = 0;
   await page.reload();
   await expect(page.getByRole("list", { name: "Vaults" })).toBeVisible();
-  await page.goto("/open");
+  await openRepository(page);
   await expect(page.getByRole("list", { name: "Vaults" })).toBeVisible();
 
   // The head is asked for each time; the commit's tree and the vaults' manifests were kept.
@@ -314,7 +320,7 @@ test("when GitHub stops accepting the token, the page says so and what to do", a
   await connect(page, "acme/notes");
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
 
-  hubs.notes.fail(/git\/ref\/heads/, { status: 401, body: { message: "Bad credentials" }, times: 1 });
+  hubs.notes.fail(/git\/ref\/heads/, { status: 401, body: { message: "Bad credentials" }, times: 2 }); // /open reads once to find the default vault, and the repository page it lands on reads again
   await page.goto("/open");
   await expect(alertOn(page)).toContainText("no longer accepts this repository's token");
   expect(await page.getByRole("main").innerText()).not.toContain("Bad credentials");
@@ -326,9 +332,9 @@ test("a vault is opened to its folders and files, and what can be opened is told
   await connect(page, "acme/notes");
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
 
-  await page.goto("/open");
+  await openRepository(page);
   await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
-  await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+  await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
 
   const contents = page.getByRole("list", { name: "Folder contents" });
   // A folder first, with how many files are in it; then the files.
@@ -343,18 +349,18 @@ test("a vault is opened to its folders and files, and what can be opened is told
   await expect(page.getByRole("navigation", { name: "Path" })).toContainText("acme/notes");
 
   await contents.getByRole("link", { name: "Q4" }).click();
-  await expect(page).toHaveURL(/\/f\/[0-9a-z]+$/);
+  await expect(page).toHaveURL(FILE_PLACE);
   const inside = page.getByRole("list", { name: "Folder contents" });
   await expect(inside.getByRole("link", { name: "report.fj.md" })).toBeVisible();
   await expect(inside.getByRole("link", { name: "data.csv" })).toHaveCount(0);
 
   await inside.getByRole("link", { name: "report.fj.md" }).click();
-  await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/);
+  await expect(page).toHaveURL(PLACE);
   await expect(page.getByRole("heading", { name: "report.fj.md", level: 2 })).toBeVisible();
   await expect(noteEditor(page, "report.fj.md")).toContainText("Report"); // a document opens in its editor
   // The way back is in the path above it.
   await page.getByRole("navigation", { name: "Path" }).getByRole("link", { name: "Public notes" }).click();
-  await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+  await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
 });
 
 async function connected(page: import("@playwright/test").Page): Promise<number> {
@@ -365,21 +371,53 @@ async function connected(page: import("@playwright/test").Page): Promise<number>
   return (await (await page.request.get("/api/connections")).json()).connections[0].id;
 }
 
+test("places have addresses made of ids; a path, an address with a stale vault and one that is not made of ids are answered by the one that is right, or by a 404", async ({ page }) => {
+  const id = await connected(page);
+  const PUBLIC = "01jagc4k7pr9tbm3ykwx6zq2hv";
+  const PRIVATE = "01jagc4k7pr9tbm3ykwx6zq2hw";
+
+  // The old address by path is sent to the vault's own, and a folder's to a handle in the vault's address.
+  await page.goto(`/repo/${id}/Public`);
+  await expect(page).toHaveURL(`${BASE}/repo/${id}/v/${PUBLIC}`);
+  await page.goto(`/repo/${id}/Public/Q4`);
+  await expect(page).toHaveURL(FILE_PLACE);
+  const folder = new URL(page.url()).pathname;
+  await expect(page.getByRole("list", { name: "Folder contents" }).getByRole("link", { name: "report.fj.md" })).toBeVisible();
+
+  // Opened again by that address it stays, and from the folder the file is one level in: the folder's handle, then the Doc's id.
+  await page.goto(folder);
+  await expect(page).toHaveURL(`${BASE}${folder}`);
+  await page.getByRole("link", { name: "report.fj.md" }).click();
+  await expect(page).toHaveURL(new RegExp(`${folder.replace(/\//g, "\\/")}/d/[0-9a-hjkmnp-tv-z]{26}$`));
+
+  // The vault in front of an address only describes it: a stale one is corrected, by the id that decides what is shown.
+  const wrongVault = folder.replace(PUBLIC, PRIVATE);
+  await page.goto(wrongVault);
+  await expect(page).toHaveURL(`${BASE}${folder}`);
+
+  // A vault that is not there, and a path where ids are, are a 404 that says nothing more.
+  expect((await page.goto(`/repo/${id}/v/01jagc4k7pr9tbm3ykwx6zq2hz`))?.status()).toBe(404);
+  expect((await page.goto(`/repo/${id}/v/${PUBLIC}/Q4`))?.status()).toBe(404);
+  expect((await page.goto(`/repo/${id}/v/${PUBLIC}/0123456789abcdef`))?.status()).toBe(404);
+});
+
 test("a repository opens on the first vault its fjord.json lists, not the first by name", async ({ page }) => {
   const id = await connected(page);
-  for (const path of ["/open", `/repo/${id}`]) {
-    await page.goto(path);
-    const vaults = page.getByRole("list", { name: "Vaults" });
-    // The directories sort Private before Public; fjord.json lists Public first.
-    await expect(vaults.getByRole("listitem").filter({ hasText: "Public notes" })).toContainText("Opens first");
-    await expect(vaults.getByRole("listitem").filter({ hasText: "Private" })).not.toContainText("Opens first");
-    await expect(page.getByRole("list", { name: "Folder contents" }).getByRole("link", { name: "plan.fj.md" })).toBeVisible();
-  }
+  await page.goto(`/repo/${id}`);
+  const vaults = page.getByRole("list", { name: "Vaults" });
+  // The directories sort Private before Public; fjord.json lists Public first.
+  await expect(vaults.getByRole("listitem").filter({ hasText: "Public notes" })).toContainText("Opens first");
+  await expect(vaults.getByRole("listitem").filter({ hasText: "Private" })).not.toContainText("Opens first");
+  await expect(page.getByRole("list", { name: "Folder contents" }).getByRole("link", { name: "plan.fj.md" })).toBeVisible();
+  // Signing in lands in that vault (`/open`), at its own address.
+  await page.goto("/open");
+  await expect(page).toHaveURL(`${BASE}/repo/${id}/v/01jagc4k7pr9tbm3ykwx6zq2hv`);
+  await expect(page.getByRole("list", { name: "Folder contents" }).getByRole("link", { name: "plan.fj.md" })).toBeVisible();
 });
 
 test("choosing another vault changes where the repository opens, and the choice is kept", async ({ page }) => {
   await connected(page);
-  await page.goto("/open");
+  await openRepository(page);
   const vaults = page.getByRole("list", { name: "Vaults" });
   await vaults.getByRole("listitem").filter({ hasText: "Private" }).getByRole("button", { name: "Open this one first" }).click();
 
@@ -421,7 +459,7 @@ test("an encrypted vault's files are shown by name, with a lock, and open to an 
   await connect(page, "acme/notes");
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
 
-  await page.goto("/open");
+  await openRepository(page);
   await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Private" }).click();
   const contents = page.getByRole("list", { name: "Folder contents" });
   // The name without the `.age` it is stored under, a lock, and a way to its page, which asks for the identity that opens it (2b.2).
@@ -1917,7 +1955,7 @@ test("a note is made from a title: one commit, by the person, named by fjord-cor
     await page.getByRole("button", { name: "Create document" }).click();
 
     // The name is fjord-core's: what a file name cannot hold becomes a space.
-    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+    await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
     await expect(noteEditor(page, "Weekly review what went well.md")).toContainText("Weekly review: what went well?"); // the document editor shows the heading, not its marker
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(before);
@@ -1937,7 +1975,7 @@ test("a document without a title is named after the date and time, which is its 
     await page.goto(`/repo/${id}/Notes`);
     await page.getByRole("button", { name: "New document" }).click();
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
+    await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
     const head = (await hubs.more.branchHead()) as string;
     const [name] = Object.keys(await hubs.more.filesAt(head)).filter((path) => /^Notes\/\d{4}-\d{2}-\d{2} \d{4}\.md$/.test(path));
     expect((await hubs.more.filesAt(head))[name!]).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: \d{4}-\d{2}-\d{2} \d{4}\n/);
@@ -1946,7 +1984,7 @@ test("a document without a title is named after the date and time, which is its 
     await page.getByRole("button", { name: "New document" }).click();
     await page.getByLabel("Title").fill("plan");
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+    await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
   } finally {
     await restoreMore();
   }
@@ -1961,7 +1999,7 @@ test("a document is made with a header, in a folder, and is numbered past a file
     await page.getByLabel("Title").fill("Q4 plan");
     await page.getByRole("button", { name: "Create document" }).click();
 
-    await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
+    await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
     const head = (await hubs.more.branchHead()) as string;
     const text = (await hubs.more.filesAt(head))["Notes/Projects/Q4 plan 2.md"]!;
     expect(text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\ncreated: "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"\n---\n\n# Q4 plan\n$/);
@@ -2443,7 +2481,7 @@ test("a document made from a title opens ready to edit, and edits in the toolbar
     await page.getByRole("button", { name: "New document" }).click();
     await page.getByLabel("Title").fill("Fresh document");
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
+    await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
 
     const editor = noteEditor(page, "Fresh document.md");
     await expect(editor).toContainText("Fresh document");
@@ -2691,11 +2729,12 @@ test("a Doc opens at /d/<id> wherever it is, and /n/<id> sends to it (RFC 0002)"
     await page.goto(`/n/${ID_DOC}`);
     await expect(page).toHaveURL(`${BASE}/d/${ID_DOC}`);
 
-    // A file by its path is sent to its address: a Doc to its id, any other file to its handle, which shows no path.
+    // A file by its path is sent to its address of ids (workstream 0003): a Doc to its id, any other file to its handle, which shows no path.
     await page.goto(`/repo/${id}/Notes/Deep/idea.md`);
-    await expect(page).toHaveURL(`${BASE}/d/${ID_NOTE}`);
+    await expect(page).toHaveURL(DOC_PLACE);
+    await expect(page).toHaveURL(new RegExp(`/d/${ID_NOTE}$`));
     await page.goto(`/repo/${id}/Notes/plain.md`);
-    await expect(page).toHaveURL(/\/f\/[0-9a-z]+$/);
+    await expect(page).toHaveURL(FILE_PLACE);
     await expect(page.getByText("Address by id")).toHaveCount(0);
   } finally {
     await restoreMore();
@@ -2801,7 +2840,7 @@ test("a note is renamed in one commit, byte for byte, keeping its extension", as
     await expect(page.getByText("It stays .md.")).toBeVisible();
     await page.getByLabel("New name").fill("A better idea");
     await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+    await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
     await expect(noteEditor(page, "A better idea.md")).toContainText("Idea");
 
     const head = (await hubs.more.branchHead()) as string;
@@ -2835,7 +2874,7 @@ test("a document moved to another folder is still found by its id, and its heade
     await expect(place.locator("option")).toHaveText(["Other", "Notes/Archive"]);
     await place.selectOption("Other");
     await page.getByRole("button", { name: "Move", exact: true }).click();
-    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+    await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
 
     // The folder page is already at /f/<handle>, so the address cannot say the commit is made.
     await expect.poll(async () => (await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).split("\n")[0], { timeout: 30_000 }).toMatch(/^(Move|Rename) /);
@@ -2866,7 +2905,7 @@ test("a folder is renamed with everything in it, in one commit", async ({ page }
     await page.getByRole("button", { name: "Rename folder" }).click();
     await page.getByLabel("New name").fill("Older");
     await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+    await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
     await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("Deep");
 
     // The folder page is already at /f/<handle>, so the address cannot say the commit is made.
@@ -2891,7 +2930,7 @@ test("a name that is taken, or taken but for letter case, is refused and says so
       await page.getByLabel("New name").fill(name);
       await page.getByRole("button", { name: "Rename", exact: true }).click();
       await expect(page.getByRole("alert").filter({ hasText: "The file was not changed" })).toBeVisible();
-      await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+      await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
     }
     await expect(page.getByRole("alert").filter({ hasText: "not a name or a place" })).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(before);
@@ -2913,7 +2952,7 @@ test("what is typed and not yet saved is saved as a version first, then moved wi
     await page.getByRole("button", { name: "Rename", exact: true }).click();
     await page.getByLabel("New name").fill("renamed");
     await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
+    await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
 
     // The folder page is already at /f/<handle>, so the address cannot say the commit is made.
     await expect.poll(async () => (await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).split("\n")[0], { timeout: 30_000 }).toMatch(/^(Move|Rename) /);

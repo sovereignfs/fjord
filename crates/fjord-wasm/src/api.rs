@@ -115,16 +115,18 @@ pub fn discover(files_json: &str, manifests_json: &str) -> Result<String, String
         .vaults
         .iter()
         .map(|vault| {
-            let (name, file_naming, manifest_error) = match &vault.manifest {
+            let (id, name, file_naming, manifest_error) = match &vault.manifest {
                 Ok(manifest) => (
+                    manifest.string(field::ID).map(str::to_string),
                     manifest.string(field::NAME).map(str::to_string),
                     Some(manifest.file_naming().unwrap_or("plain").to_string()),
                     None,
                 ),
-                Err(problem) => (None, None, Some(problem.clone())),
+                Err(problem) => (None, None, None, Some(problem.clone())),
             };
             json!({
                 "directory": vault.directory,
+                "id": id,
                 "name": name,
                 "encrypted": vault.settings.as_ref().map(|s| s.encrypted),
                 "fileNaming": file_naming,
@@ -1421,6 +1423,9 @@ mod tests {
 
         assert_eq!(vaults[0]["directory"], "Notes");
         assert_eq!(vaults[0]["name"], "Notes");
+        // The vault's own id, which the web client's addresses are made of; a manifest with none (SECRET has none) says null.
+        assert_eq!(vaults[0]["id"], "01j8z3k9t2v4w5x6y7z8a9b0c1");
+        assert!(vaults[1]["id"].is_null());
         assert_eq!(vaults[0]["encrypted"], false);
         // A nested vault manifest is reported in `nested`, and, being inside a vault, is also one of its files.
         let notes: Vec<&str> = vaults[0]["files"]

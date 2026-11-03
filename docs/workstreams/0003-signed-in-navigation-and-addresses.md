@@ -1,6 +1,6 @@
 # Workstream 0003 — Signed-in navigation and addresses
 
-**Status:** 🚧 In progress: legs 1 and 2 done (the owner said on 2026-11-03 to commit each leg and go straight on, with no gate between, and to push everything once the last is done); the owner's answers are under [Answered questions](#answered-questions)\
+**Status:** 🚧 In progress: legs 1, 2 and 3 done (the owner said on 2026-11-03 to commit each leg and go straight on, with no gate between, and to push everything once the last is done); the owner's answers are under [Answered questions](#answered-questions)\
 **Date:** November 2026\
 **Author:** Claude Code, from a design conversation with the owner\
 **Goal owner:** the repository's owner (kasunben)\
@@ -79,7 +79,7 @@ Settled with the owner on 2026-11-03, except those marked *proposed*, which are 
 | Home | `/` is the tile grid, for everyone signed in | `/` opening the default repository, as now: the owner wants the Index to be a launcher |
 | Where signing in lands | `/open`, a new page that redirects to the default vault of the default repository; `/` if there is none yet. Every sign-in, not only the first (*proposed*) | Tracking "first login" per account: a column for no benefit, and the owner said "always" |
 | A journal or site as default | `/repo/<repo-id>`, since their one vault is never shown (workstream 0001) (*proposed*) | Their vault's address, which would show them as a drive |
-| `/repo/<repo-id>` for a drive | The list of vaults only; the vault's contents move to its own address (*proposed*) | The list and the first vault together, as now: then a vault has two addresses |
+| `/repo/<repo-id>` for a drive | Unchanged: the list of vaults and the top of the one that opens first. Built so in leg 3, to keep the blast radius down; `/open` is what lands in the vault's own address | The list only: the owner's spec names the repository page and the vault page separately, and the list-only page can follow once the rest is in |
 | Ids in addresses | Handles for folders and non-Doc files | Adding folder ids to the format: a format change for a client's URLs, and an encrypted vault's folders could not carry one |
 | Nesting | Only the immediate parent, per the owner | The whole chain of folders |
 | The kind in the rail | A derived column, `connection.repo_kind`, refreshed whenever the repository is read and when its kind is changed; null shows `hard-drive` | Reading every repository's manifest from the git host on every page: one API call per repository per page |

@@ -2,6 +2,7 @@ import { Alert, Badge, Icon } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import type { ClassifiedFile, FileKind } from "../../format/types";
 import { repositoryHref } from "../links";
+import { addressBookFor } from "../address-book";
 import type { Location } from "../location";
 import type { NoteText } from "../note";
 import type { Preview } from "../../working/resolve";
@@ -26,7 +27,7 @@ import { TransferControl } from "./TransferControl";
  * so nothing is downloaded to draw it: a Doc (any `.md`) is a link; any other file is
  * greyed out; and an encrypted file is a link with a lock, opened in the browser with the identity kept there (phase 2).
  */
-export function FolderView({
+export async function FolderView({
   connectionId,
   repository,
   location,
@@ -86,10 +87,13 @@ export function FolderView({
   /** For a file: where it can be moved to in another vault when one of the two is encrypted (ROADMAP 2b.6). */
   transferTargets?: TransferTarget[] | undefined;
 }) {
-  const here = (...segments: string[]) => repositoryHref(connectionId, ...segments);
   const vault = location.vault;
   const inside = location.kind === "folder" ? location.path : location.kind === "file" ? location.file.relative.split("/").slice(0, -1).join("/") : "";
   const folders = inside === "" ? [] : inside.split("/");
+  // The links of this page are drawn from ids (workstream 0003): the handles of the folders above, the folders and files listed, are made in one go.
+  const listed = location.kind === "folder" ? [...location.folders.map((folder) => [vault.directory, ...folders, folder.name].join("/")), ...location.files.map((file) => file.path)] : [];
+  const book = await addressBookFor(connectionId, vault, [...folders.map((_, index) => [vault.directory, ...folders.slice(0, index + 1)].join("/")), ...listed]);
+  const here = (...segments: string[]) => (segments.length === 0 ? repositoryHref(connectionId) : book.href(segments.join("/")));
   const plainWritable = checkVault([vault], vault.directory) === "ok";
   const writable = plainWritable || encryptedNaming !== undefined;
 
@@ -156,7 +160,7 @@ export function FolderView({
               ))}
               {location.files.map((file) => (
                 <li key={`f:${file.relative}`} className={styles.item}>
-                  <FileRow connectionId={connectionId} vault={vault.directory} file={file} />
+                  <FileRow href={book.href(file.path)} file={file} />
                 </li>
               ))}
             </ul>
@@ -181,14 +185,14 @@ const openable = (kind: FileKind) => kind === "doc";
 const decryptable = (kind: FileKind) => kind === "payload";
 const leaf = (relative: string) => relative.slice(relative.lastIndexOf("/") + 1);
 
-function FileRow({ connectionId, vault, file }: { connectionId: number; vault: string; file: ClassifiedFile }) {
+function FileRow({ href, file }: { href: string; file: ClassifiedFile }) {
   const name = leaf(file.logical);
   const size = file.size > 0 ? <span className={styles.itemMeta}> · {humanSize(file.size)}</span> : null;
 
   if (openable(file.kind)) {
     return (
       <span>
-        <Icon name="file-text" aria-hidden /> <a href={repositoryHref(connectionId, vault, ...file.relative.split("/"))}>{name}</a> <Badge>{KIND_LABEL[file.kind]}</Badge>
+        <Icon name="file-text" aria-hidden /> <a href={href}>{name}</a> <Badge>{KIND_LABEL[file.kind]}</Badge>
         {size}
       </span>
     );
@@ -196,7 +200,7 @@ function FileRow({ connectionId, vault, file }: { connectionId: number; vault: s
   if (decryptable(file.kind)) {
     return (
       <span>
-        <Icon name="lock" aria-label="Encrypted" /> <a href={repositoryHref(connectionId, vault, ...file.relative.split("/"))}>{name}</a> <Badge>{KIND_LABEL[file.kind]}</Badge>
+        <Icon name="lock" aria-label="Encrypted" /> <a href={href}>{name}</a> <Badge>{KIND_LABEL[file.kind]}</Badge>
         {size}
       </span>
     );

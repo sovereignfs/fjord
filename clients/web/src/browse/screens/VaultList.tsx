@@ -2,6 +2,7 @@ import { Alert, Badge, Icon } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import type { ClassifiedFile, VaultListing } from "../../format/types";
 import { repositoryHref } from "../links";
+import { vaultAddress } from "../addresses";
 import type { RepositoryRead } from "../repository";
 import { ChooseVaultButton } from "./ChooseVaultButton";
 
@@ -34,7 +35,7 @@ export function VaultList({ read, connectionId, opensOn }: { read: RepositoryRea
           {discovery.vaults.map((vault) => (
             <li key={vault.directory} className={styles.item}>
               <span>
-                <a href={repositoryHref(connectionId, vault.directory)}>
+                <a href={vault.id === null ? repositoryHref(connectionId, vault.directory) : vaultAddress(connectionId, vault.id)}>
                   <strong>{vault.name ?? vault.directory}</strong>
                 </a>
                 {vault.name !== null && vault.name !== vault.directory ? <span className={styles.itemMeta}> · {vault.directory}</span> : null}
