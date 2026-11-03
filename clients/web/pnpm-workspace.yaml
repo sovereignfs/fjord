@@ -7,5 +7,5 @@ allowBuilds:
   # way, so the script is not needed. (drizzle-kit generate is exercised in CI.)
   esbuild: false
 minimumReleaseAgeExclude:
-  - '@sovereignfs/ui@0.89.1'
+  - '@sovereignfs/ui@0.90.0'
   - '@sovereignfs/sdk@2.1.0'
