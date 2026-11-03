@@ -136,6 +136,29 @@ Planned on 2026-11-02. `fjord.json`'s `kind` (`drive`, `journal`, `ssg`) chooses
 
 Order: P9–P12, then 3a, then 3b, then 3c, then 3d.1. 3a needs P12; 3c.1 opens with the spike that settles Research 0001's open points.
 
+### Kinds, second pass
+
+Planned on 2026-11-03. One kind of Doc whose editor is the kind's choice, addresses with no path in them, journals encrypted by default, publishing a drive's Doc as a page, vaults at any depth, and adopting existing files. The design is [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), the tasks are at the end of [`web-3.md`](../../docs/epics/web-3.md#kinds-second-pass-rfc-0002), and the order is [workstream 0002](../../docs/workstreams/0002-kinds-second-pass.md). The spec text is already written; the prerequisites bring the code to it.
+
+| # | Task | Status |
+| --- | --- | --- |
+| [P13](../../docs/epics/web-3.md#p13-spec-and-fixtures-one-kind-of-doc-vaults-at-any-depth-adopting-into-a-checkout) | Spec and fixtures: one kind of Doc, vaults at any depth, adopting into a checkout | 📋 Planned |
+| [P14](../../docs/epics/web-3.md#p14-fjord-core-filekinddoc-vaults-at-depth-e113-the-adoption-plan) | `fjord-core`: `FileKind::Doc`, vaults at depth, `E113`, the adoption plan | 📋 Planned |
+| [P15](../../docs/epics/web-3.md#p15-cli-no-documents-and-journals-encrypted-by-default) | CLI: no documents, and journals encrypted by default | 📋 Planned |
+| [P16](../../docs/epics/web-3.md#p16-cli-init---adopt) | CLI: `init --adopt` | 📋 Planned |
+| [P17](../../docs/epics/web-3.md#p17-fjord-wasm-one-kind-of-doc-vaults-at-depth-the-adoption-plan) | `fjord-wasm`: one kind of Doc, vaults at depth, the adoption plan | 📋 Planned |
+| [3e.1](../../docs/epics/web-3.md#3e1-one-address-and-one-editor-per-kind-for-a-doc) | One address and one editor per kind for a Doc | 📋 Planned |
+| [3e.2](../../docs/epics/web-3.md#3e2-handles-fhandle-in-place-of-paths) | Handles: `/f/<handle>` in place of paths | 📋 Planned |
+| [3e.3](../../docs/epics/web-3.md#3e3-share-any-drive-doc) | Share any drive Doc | 📋 Planned |
+| [3f.1](../../docs/epics/web-3.md#3f1-the-journals-writing-view) | The journal's writing view | 📋 Planned |
+| [3f.2](../../docs/epics/web-3.md#3f2-new-journals-encrypted-by-default) | New journals encrypted by default | 📋 Planned |
+| [3g.1](../../docs/epics/web-3.md#3g1-a-sites-vault-below-the-root) | A site's vault below the root | 📋 Planned |
+| [3g.2](../../docs/epics/web-3.md#3g2-source-and-rich-modes-and-the-frontmatter-form) | Source and rich modes, and the frontmatter form | 📋 Planned |
+| [3h.1](../../docs/epics/web-3.md#3h1-publish-a-doc-as-a-page) | Publish a Doc as a page | 📋 Planned |
+| [3h.2](../../docs/epics/web-3.md#3h2-publish-from-an-encrypted-vault) | Publish from an encrypted vault | 📋 Planned |
+
+Order: P13–P17 (the CLI first), then 3e, 3f, 3g, 3h. Every web task needs P17; 3g.1 needs P16's adoption.
+
 ## Phase 4 — collaborative editing
 
 In outline.

@@ -56,16 +56,20 @@ Phase 1 ships in slices (§16), each usable on its own.
 4. **Each visit after that**, `/` is the default repository's view: its vaults, as
    in a file manager. The user switches repository from the header.
 5. **Browsing** shows names, paths and sizes only, nothing downloaded (§8).
-   Documents and notes are clearly openable; other files are shown greyed out.
+   Markdown files are clearly openable; other files are shown greyed out.
    Encrypted vaults show a lock; a file in one opens and is edited in the browser with the person's own age identity, and new files are made there (phase 2).
 6. **Opening** a document (`name.fj.md`) goes to `/d/<id>` and the document editor;
    opening a note (any other `.md`) goes to `/n/<id>` and the note editor (§9, §10).
+   *Planned ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.1):* there is one kind of Doc, every Doc opens at
+   `/d/<id>` in the editor its repository's kind chooses, and anything else at
+   `/f/<handle>`; no address shows a path.
 7. **Editing** saves continuously to a working copy on the server; a version (a git
    commit) is made on "Save version" or after a quiet period (§11).
    **Renaming, moving and deleting** a document, note or folder is one commit each;
    a deletion can be undone or restored later (§8).
 8. **Sharing** a document: publicly by link, by link with a password, or with named
-   users of the instance; each as view, comment or edit (§12).
+   users of the instance; each as view, comment or edit (§12). *Planned (RFC 0002,
+   3e.3, 3h):* any Doc in a drive, and **publishing** one as a read-only page.
 9. **Comments**: anyone with comment or edit access can select text, comment, reply
    and resolve, and sees others' comments as they arrive (§13).
 10. **Someone opening a shared link** sees the document; if the link allows editing
@@ -80,8 +84,9 @@ Phase 1 ships in slices (§16), each usable on its own.
 | **Account** | A user of an instance. |
 | **Connection** | An account's link to one repository through a provider (§7). |
 | **Default repository / vault** | Where `/` lands, per account; and which vault opens first, per connection. |
-| **Document** | A file named `*.fj.md`: a long-form Fjord Doc, edited in the document editor. |
-| **Note** | Any other `.md` file in a vault: a short text, edited in the note editor. |
+| **Document** | A file named `*.fj.md`: a long-form Fjord Doc, edited in the document editor. *Withdrawn by [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md) (spec §8.4): every Doc is one kind, and the repository's kind chooses its editor.* |
+| **Note** | Any other `.md` file in a vault: a short text, edited in the note editor. *Withdrawn with Document.* |
+| **Handle** | *Planned (RFC 0002).* The opaque identifier in `/f/<handle>` of a file or folder that has no Doc `id`, kept in the instance's database and never committed. |
 | **Working copy** | The server-side draft of a file being edited, not yet committed. |
 | **Version** | A commit that changed the file. |
 | **Share** | Access to one document granted by its owner: to named users, or by link. |
@@ -465,6 +470,10 @@ browsed read-only, with an offer to initialise it (decided, §19 #3; ROADMAP 1a.
   | anything else | greyed out | — (phase 1) |
   | anything in an encrypted vault | greyed out, with a lock | — (phase 2) |
 
+  *Planned ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.1, 3e.2):* the first two rows become one, **`*.md`: a Doc,
+  opened at `/d/<id>`** (or `/f/<handle>` while it has no `id`) in the editor its
+  repository's kind chooses; folders and other files link by handle.
+
 - **Metadata beyond the listing** (a document's title, the last commit to touch a
   file) costs a blob read or a history query per file, so it is loaded lazily, for
   what is on screen, and cached by blob id.
@@ -526,6 +535,21 @@ alternatives are [RFC 0001](../../docs/rfcs/0001-repository-kinds.md), and the `
 - **The timeline and tag indexes are derived, never committed** (spec §2.2): for a plaintext journal built on the server from the
   listing and the entries' headers, and for an encrypted one built in the browser from what it decrypts, kept there and never
   sent to the server (3b.2, 3b.3).
+
+#### Kinds, second pass (planned, [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md))
+
+Not built yet; the tasks are P13–P17 and 3e–3h in [`web-3.md`](../../docs/epics/web-3.md#kinds-second-pass-rfc-0002).
+
+- **The kind chooses the editor**, since a Doc's name no longer does (spec §8.4): a drive's Docs in the document editor, a
+  journal's in the note editor inside a writing view (3f.1), a site's in the content editor, a kind with no module as a drive.
+- **A journal is encrypted by default** when it is set up (3f.2); plaintext is the person's choice. Saving is unchanged: working
+  copies and idle versions already make one commit per writing session (§11).
+- **An entry is any `.md`** in the journal's vault, dated by `date`, else its path, else its first commit, so an adopted journal of
+  plain daily notes has a timeline (3f.1).
+- **A site's vault may be the engine's own content folder** (`src/content`, `_posts`; spec §2.3 allows a vault at any depth), as
+  `fjord init --adopt` or the setup makes it (3g.1). The site's view lists the vault's files as a tree.
+- **A site's file opens in source mode**, and in **rich mode with a frontmatter form** only when parse→serialise gives it back byte
+  for byte, the same test the document editor's guard makes (3g.2).
 
 ### Browsing, as built (ROADMAP 1a.11: the vaults, browsing them, and the default vault)
 
@@ -709,6 +733,19 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
 
 ## 9. Documents and notes
 
+> **Planned change ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.1–3e.3).** The distinction below is withdrawn: spec §8.4 now
+> says every Doc is one kind, and the repository's kind chooses its editor (§8). Addresses become:
+>
+> - **A Doc** (a `.md` with a valid `id`) is always **`/d/<id>`**, owned or shared; `/n/<id>` answers a 308 to it.
+> - **Anything else** (a folder, a vault file, a `.md` with no `id`, a site's file) is **`/f/<handle>`**: a random handle in the
+>   instance's database, `(connection, path) → handle`, derived and never committed, updated by Fjord's own move and rename with
+>   `doc_index`. A handle whose path is gone says "moved or gone", never a different file. `/repo/<connection>/<path>` redirects
+>   once to its handle. No address shows a path.
+> - **No promotion on edit.** Reversing 1b.5: a file with no header is edited as it is. An `id` is added only when sharing,
+>   publishing or commenting needs a lasting identity, after asking, and the page then moves to `/d/<id>`.
+>
+> The text below describes what is built, and is replaced when 3e is.
+
 **The distinction is the file name.** A document is `name.fj.md`; any other `.md` in
 a vault is a note. Both are ordinary Markdown files to every other tool: GitHub
 renders both, Obsidian opens both, and both are Fjord Docs to the CLI when they
@@ -795,7 +832,7 @@ Roughly:
 The package has its own tests and stories, and a **round-trip corpus**: real
 Markdown in, Markdown out, compared.
 
-### Document editor (`*.fj.md`)
+### Document editor (`*.fj.md`; planned: a drive's Docs, RFC 0002)
 
 - **Core: [MDXEditor](https://mdxeditor.dev/)** (MIT; React 18/19; built on
   **Lexical**, with `mdast` for Markdown and CodeMirror for code blocks).
@@ -845,7 +882,7 @@ style asks again. Changing any of this later is a change to `HOUSE_STYLE` and to
   package interface is what lets us extend MDXEditor, or replace it, when we get
   there.
 
-### Note editor (`*.md`)
+### Note editor (`*.md`; planned: a journal's Docs, and a site's in source mode, RFC 0002)
 
 - **Minimal and byte-faithful**: CodeMirror 6 editing the Markdown source, with
   light styling. A note is often edited by hand or in Obsidian too, so an edit
@@ -1106,7 +1143,15 @@ When the file at the branch's head is not the blob a draft started from, the not
 
 ## 12. Sharing and permissions
 
-Documents (`*.fj.md`) can be shared in phase 1. Notes cannot.
+Documents (`*.fj.md`) can be shared in phase 1. Notes cannot. *Planned ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.3):*
+any Doc in a drive can be shared, and sharing a `.md` without an `id` asks before adding one.
+
+**Publishing** (*planned, RFC 0002, 3h*). A drive's Doc can be published as a sanitised, read-only page: **public** at
+`/p/<token>` (no account; the token hashed and redacted, as a link's is; unpublishing ends it at once), or **private** through the
+shares and links below, which gain the same rendering. It is rendered from the Doc's current version, never a draft. From an
+encrypted vault, the server has no key: privately the sealed link (2c.1) is the answer; publicly, only after a warning that the
+browser gives the server a plaintext copy of that version, readable by anyone with the address. A publication is a row in the
+database, not the format (spec §12).
 
 **Roles**, each including the ones before it:
 
@@ -1826,4 +1871,5 @@ standalone output would otherwise prune it.
 | 2026-11-02 | Phase 3 is repository kinds (`drive`, `journal`, `ssg`, on the repository, proposed in RFC 0001); collaborative editing moves to phase 4 | Collaborative editing first (it was an outline with no tasks; kinds were wanted sooner); a kind per vault (one repository is one thing to the person, and a site is deployed per repository) |
 | 2026-11-02 | Every variable `FJORD_`, named as Sovereign's `contracts/env.md` names it (`FJORD_DB_DIALECT` = `sqld`, `sqlite` or `postgres`; `FJORD_POSTGRES_URL[_FILE]`; `FJORD_SMTP_*`; `FJORD_CORE_URL`, `_CLIENT_ID`, `_CLIENT_SECRET`), the old names still read, with a warning, and an error beside their new ones; so an instance can host Fjord Web with the variables it gives every app | Keeping the unprefixed names (an instance's `suite.yml` cannot set them); prefixing only, with `sqlite` still covering sqld and a file; dropping the old names at once (0.1 deployments would stop) |
 | 2026-11-02 | A kind is a module of the client (`src/kinds/`): entry view, scaffold, content model, actions, chosen by a registry from the kind the format module answers, falling back to the drive; every kind can be shown as files (`?view=files`) (3a.1) | Branching on the kind in the pages (every new kind would touch them all); parsing `kind` in TypeScript (the format is `fjord-core`'s); a separate route per kind (the folder and file pages are the same for every kind) |
+| 2026-11-03 | One kind of Doc: `*.fj.md` is withdrawn (spec §8.4), and the repository's kind chooses the editor; a Doc is always `/d/<id>`, anything else `/f/<handle>` from the instance's database; no promotion on edit, an `id` added only when sharing, publishing or commenting asks for it; journals encrypted by default; a drive's Doc publishable; vaults at any depth (RFC 0002, planned) | `.fj.md` as a journal's marker (two signals for one choice); an index committed to the repository (§2.1, §2.2, conflicts, leaks names); the path encoded in the address (longer, changes on rename, decodable) |
 | 2026-11-03 | The routes are shortened to `/d/<id>` and `/n/<id>`, the owner's decision reversing the choice of 2026-10-26. `/repo/<connection>/<path>` is unchanged. The old `/doc/<id>` and `/note/<id>` are sent on for good (a 308, dropping any `token`), and a `/doc/<id>?token=` link still enters and ends on the short address | Keeping the spelled-out routes, which read better in a link someone shares (the 2026-10-26 reason); no redirect (every link already given would stop working) |

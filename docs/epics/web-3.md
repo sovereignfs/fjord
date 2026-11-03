@@ -4,6 +4,8 @@ The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients
 
 **Status of the whole phase:** ✅ built 2026-11-02 to 2026-11-03, except 3d.2 (a build in Fjord), which is an outline that needs its own RFC and a security review. The order of the work was [workstream 0001](../workstreams/0001-repository-kinds.md), and every task below says how it was done and what was left out.
 
+**A second pass** ([RFC 0002](../rfcs/0002-kinds-second-pass.md), [workstream 0002](../workstreams/0002-kinds-second-pass.md)) is planned at the [end of this file](#kinds-second-pass-rfc-0002): P13–P17, then 3e–3h.
+
 ## What the phase promises, and what it does not
 
 - **A repository opens as what it is for.** `fjord.json`'s `kind` (`drive`, `journal` or `ssg`) chooses the landing page: a file explorer, a timeline, a site's content editor. Every repository can still be opened as a drive, and one of a kind a client does not know *is* opened as a drive.
@@ -309,3 +311,174 @@ The head commit's statuses, checks and deployments, read through the `Provider`,
 **Design:** Research 0001, *Build status and preview*, point 4
 
 An outline only. A sandboxed build of the site, served from another origin, behind the `ssg` module's actions. Not started before its RFC is accepted.
+
+## Kinds, second pass (RFC 0002)
+
+Planned on 2026-11-03. [RFC 0002](../rfcs/0002-kinds-second-pass.md) is the design, and the order of work, leg by leg, is [workstream 0002](../workstreams/0002-kinds-second-pass.md). The spec text was written with the RFC, at the owner's request, so the prerequisites bring the fixtures and the code to it rather than change it. **The CLI's tasks come first:** every web task needs the format module to agree with them.
+
+**What this part promises:** one kind of Doc, whose editor is the repository kind's choice; addresses with no real path in them; a journal encrypted unless asked otherwise; a drive's Doc publishable as a page; vaults at any depth; and `fjord init --adopt` for a directory that already has files. **Not in it:** rendering `.html` files from a repository, a CMS for sites beyond editing the vault's files, readable slugs, nested vaults.
+
+| # | Task |
+| --- | --- |
+| P13 | Spec and fixtures: one kind of Doc, vaults at any depth, adopting into a checkout |
+| P14 | `fjord-core`: `FileKind::Doc`, vaults at depth, `E113`, the adoption plan |
+| P15 | CLI: no documents, and journals encrypted by default |
+| P16 | CLI: `init --adopt` |
+| P17 | `fjord-wasm`: one kind of Doc, vaults at depth, the adoption plan |
+| 3e.1 | One address and one editor per kind for a Doc |
+| 3e.2 | Handles: `/f/<handle>` in place of paths |
+| 3e.3 | Share any drive Doc |
+| 3f.1 | The journal's writing view |
+| 3f.2 | New journals encrypted by default |
+| 3g.1 | A site's vault below the root |
+| 3g.2 | Source and rich modes, and the frontmatter form |
+| 3h.1 | Publish a Doc as a page |
+| 3h.2 | Publish from an encrypted vault |
+
+### P13 Spec and fixtures: one kind of Doc, vaults at any depth, adopting into a checkout
+
+**Status:** 📋 Planned (the spec text is written; the fixtures are not)
+
+**Design:** RFC 0002, One kind of Doc, Vaults at any depth, Adopting existing files
+
+The spec already says it (§1.3, §2.3, §3, §3.1, §6.6, §8.4, §12, as of 2026-11-03). This task checks that text against what P14 finds while building it, corrects it where the code shows it wrong, and adds the fixtures: `tests/fixtures/broken/E113/` (a vault inside a vault), a conforming repository with a vault below the root (`src/content`), and the conforming fixtures' `.fj.md` files left as they are, now ordinary Docs.
+
+**Accepts when:** the new broken fixture emits exactly `E113` once P14 exists, and nothing else; the conforming fixtures, old and new, emit nothing; RFC 0002's status says the spec was implemented by P13 and P14.
+
+### P14 `fjord-core`: `FileKind::Doc`, vaults at depth, `E113`, the adoption plan
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, One kind of Doc, Vaults at any depth, The CLI and `fjord-core`
+
+- `listing.rs`'s `FileKind::Document` and `FileKind::Note` become `FileKind::Doc`; the `.fj.md` cases in `naming.rs` (`free_name`) and `merge.rs` go.
+- Discovery, from the disk and from a listing, finds `fjord.vault.json` at any depth, never under `.fjord/` or `.git/` or in an ignored directory. A vault inside another is `E113` (a new code in `diagnostics.rs`, and the CLI README's table, held by `readme_diagnostics.rs`). The path checks of `fjord.json`'s `vaults` accept `/` and still refuse `..`.
+- Every place that assumes a vault is a root directory is found and fixed: the checkout's record, `rekey`, `export` and `import`, `vault add`'s planner.
+- An adoption plan beside `scaffold::plan_setup`: given a listing and the chosen directories, the files to write and the lines to append, writing over nothing; for a site, the engine detected (`astro.config.*` → `src/content`, `_config.yml` → `_posts`); for `--encrypt-existing`, the vault encrypted and its checkout record.
+
+**Accepts when:** the fixtures of P13 pass; a property test of discovery: a vault anywhere is found, and any vault under another is `E113`; the adoption plan, applied to a directory, leaves every existing file byte for byte; the pure subset still builds for `wasm32-unknown-unknown`.
+
+### P15 CLI: no documents, and journals encrypted by default
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, One kind of Doc, Journals
+
+- `fjord new --document` goes; `ls --json` drops `docKind`, and a Fjord Doc is `"kind": "doc"` as before.
+- `fjord init --kind journal` encrypts its vault; `--no-encrypt` makes it plaintext (it was a drive's only); `--encrypt` goes.
+- The README's sections for `init`, `new` and `ls` say so (`tests/readme_commands.rs`), and the CHANGELOG says it is breaking.
+
+**Accepts when:** `fjord init --kind journal x && cd x && fjord verify` reports only `W602` (no recipients yet), and with `--no-encrypt` nothing; `fjord new --document` is a usage error; a `.fj.md` file is listed as a Doc like any other.
+
+### P16 CLI: `init --adopt`
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, Adopting existing files
+
+- `fjord init --adopt [--kind <kind>] [--vault <dir>]… [--engine <engine>]`, interactive on a terminal and scriptable with `--no-input`, with P14's plan.
+- In a git repository: no `git init`, and a commit of only the files it wrote. Elsewhere: `git init` as today. `--no-git` as today.
+- A journal with existing files needs `--no-encrypt` or `--encrypt-existing`; with `--no-input` and neither, exit `2`. `--encrypt-existing` warns about history (§6.6, §11.4) before writing anything, and leaves a checkout that `fjord key add` and `fjord encrypt <vault>` end.
+- Opens with a spike on a real Astro starter and a real Jekyll site: does either engine complain about, or publish, `fjord.vault.json` in its content folder (RFC 0002, open question 1)?
+
+**Accepts when:** adopting a directory with files and git history leaves every file byte for byte and the person's uncommitted changes uncommitted; `fjord verify` passes afterwards for each kind; an adopted Astro and Jekyll site still build; `--encrypt-existing` refuses every commit until the checkout ends, and ending it leaves no plaintext on disk or in the index; an existing `fjord.json` is refused.
+
+### P17 `fjord-wasm`: one kind of Doc, vaults at depth, the adoption plan
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, The CLI and `fjord-core`
+
+The module follows P14: a file is a Doc or not, vaults are discovered at any depth, and the web's setup (1a.10, 3a.3) can plan an adoption with existing directories as vaults.
+
+**Accepts when:** the module's fixture tests agree with the CLI's `verify` on every fixture, the new ones included.
+
+### 3e.1 One address and one editor per kind for a Doc
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, One kind of Doc, Addresses
+
+Every Doc opens at `/d/<id>`, in the editor its repository's kind chooses (drive: the document editor; journal: the note editor in the journal's view; site: the content editor; unknown: as drive). `/n/<id>` answers a 308 to `/d/<id>`. The document and note distinction goes from the browser's table, creating (`files/create.ts`), renaming (`extension_changed`), restoring (`files/restore.ts`) and the messages. A file with no header is **no longer promoted on its first edit** (reversing 1b.5's promotion): it is edited as it is.
+
+**Accepts when:** a `.md` and a `.fj.md` in a drive open in the same editor at `/d/<id>`; an old `/n/<id>` link lands on `/d/<id>`; editing a file with no header leaves it with none; every route is in `src/access/routes.ts`.
+
+### 3e.2 Handles: `/f/<handle>` in place of paths
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, Addresses
+
+A `file_handle` table (both dialects) maps a connection and a path to a random handle, made when a link to that path is first drawn. Folder lists link to `/d/<id>` where the index knows an `id` and to `/f/<handle>` otherwise. Fjord's move and rename update the handle with `doc_index`. A handle whose path is gone says "moved or gone". `/repo/<connection>/<path>` redirects once to its handle. Nothing is committed.
+
+**Accepts when:** no page's address has a file or folder name in it; a handle survives a move made in Fjord; a file moved outside Fjord gives "moved or gone" at its old handle and never another file; another account's handle is a 404; the data-layer tests pass on all three database legs.
+
+### 3e.3 Share any drive Doc
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, Sharing any drive Doc, Addresses
+
+The `not_a_document` refusals go: any Doc in a drive can be shared with accounts or by link, and commented on. Sharing (or commenting on) a `.md` without an `id` asks first, then adds one through the module (the header a first edit used to give, 1b.5), and the page moves to `/d/<id>`; in a site, the question warns about the engine's `id`.
+
+**Accepts when:** a `.md` that was a note can be shared; sharing one without an `id` writes only the header, after the person agreed, and its old handle redirects; a share made before still opens.
+
+### 3f.1 The journal's writing view
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, Journals
+
+Opening a journal offers today's entry, or a new one, in the note editor with the date and tags and nothing else on screen; the timeline is one step away. Any `.md` in the journal's vault is an entry, dated by `date`, else its path, else its first commit, so an adopted journal of plain daily notes has a timeline.
+
+**Accepts when:** a new entry can be typed into within one action of opening the journal; a vault of `.md` files with no frontmatter shows on the timeline by their paths' dates; nothing is written to a file that was only opened.
+
+### 3f.2 New journals encrypted by default
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, Journals
+
+The web's setup and its *change kind* offer an encrypted journal first, with the browser's identity, or ask for one to be made (as 2d.1 does). A plaintext journal is a choice the person makes.
+
+**Accepts when:** a journal set up with the defaults is encrypted and passes the real `fjord verify` (`FJORD_CLI`); with no identity in the browser, the setup asks for one before it offers *encrypted*, and never makes a plaintext journal without being told to.
+
+### 3g.1 A site's vault below the root
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, Vaults at any depth, Sites
+
+A site whose vault is the engine's own content folder (`src/content`, `_posts`), made by `init --adopt` or by the web's setup with P17's plan, opens on its posts as one made by Fjord does. The site's view lists every file of the vault as a tree.
+
+**Accepts when:** an adopted Astro and Jekyll site open on their posts; a new post goes where the engine reads it; nothing outside the vault is offered for editing from the site's view.
+
+### 3g.2 Source and rich modes, and the frontmatter form
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, Sites
+
+Each file of a site opens in source mode by default. Rich mode, with a frontmatter form (title, `date`, `tags`, draft, description, and any other key as key and value), is offered only when parse→serialise gives back the file byte for byte; otherwise it is disabled and the reason shown. The form writes through the module, keeping every key in order.
+
+**Accepts when:** a post with an MDX component or a Liquid tag cannot be opened in rich mode and says why; a post edited in rich mode changes only what was changed; an unknown frontmatter key survives the form.
+
+### 3h.1 Publish a Doc as a page
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, Publishing a drive's Doc
+
+A drive's Doc can be published at `/p/<token>`: rendered from its current version on the default branch, sanitised, read-only, with no account, `noindex` by default. It can be unpublished, which ends the address at once. Private publishing is today's shares and password links, which gain the same rendering. The token is hashed in the store and redacted from logs, as a share's is.
+
+**Accepts when:** a published page opens in a private window with no cookies; raw HTML and script in the Doc do not reach the page; unpublishing turns the address into a 404; a draft is never what is published; who may publish is the policy's (`src/access/policy.ts`) and tested.
+
+### 3h.2 Publish from an encrypted vault
+
+**Status:** 📋 Planned
+
+**Design:** RFC 0002, Publishing a drive's Doc
+
+The sealed link (2c.1) gains 3h.1's rendering for private publishing. Public publishing of an encrypted Doc is offered only after a warning that the browser will give the server a plaintext copy of this version, readable by anyone with the address; the copy is kept until it is unpublished, and a later version is published again.
+
+**Accepts when:** nothing is published from an encrypted vault without the warning being accepted; the server never receives a key; unpublishing deletes the copy.

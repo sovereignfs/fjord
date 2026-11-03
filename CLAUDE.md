@@ -90,7 +90,7 @@ Where this differs from `sovereign`, on purpose:
 | `crates/fjord-cli/` | The CLI: package `fjord-cli`, binary `fjord`. **Its [`README.md`](crates/fjord-cli/README.md) is the one command reference, for people and for agents**: "Commands at a glance" first, then a section per command. `tests/readme_commands.rs` fails if a command or flag is not in it | MPL-2.0 | `fjord-cli-vX.Y.Z` |
 | `crates/fjord-wasm/` | `fjord-core`'s pure subset for WebAssembly (`wasm-bindgen`): vault discovery from a listing, manifests, path rules, frontmatter, identifiers from a supplied clock and randomness. Its own workspace and lockfile, built into the web client and not released on its own. See its [`README.md`](crates/fjord-wasm/README.md) | MPL-2.0 | — |
 | `clients/web` | The hosted web client (Next.js, pnpm). **Phase 1 is built (sign in, browse, write, share, comment):** [`DESIGN.md`](clients/web/DESIGN.md), [`ROADMAP.md`](clients/web/ROADMAP.md), and its own [`CLAUDE.md`](clients/web/CLAUDE.md) | AGPL-3.0-or-later (it bundles `@sovereignfs/ui`) | `web-vX.Y.Z` |
-| `packages/fjord-editor` | The document and note editors, shared by the clients: the interface, the note editor (CodeMirror) and a text area behind the document editor so far (`clients/web/DESIGN.md` §10; its own [`CLAUDE.md`](packages/fjord-editor/CLAUDE.md)). Its own pnpm project, built and tested alone | MPL-2.0, and independent of `@sovereignfs/ui` (`clients/web/DESIGN.md` §18) | with its users |
+| `packages/fjord-editor` | The document and note editors, shared by the clients: the interface, the note editor (CodeMirror) and the document editor (MDXEditor, with the note editor's Markdown for what it cannot hold) (`clients/web/DESIGN.md` §10; RFC 0002 makes the repository's kind choose between them; its own [`CLAUDE.md`](packages/fjord-editor/CLAUDE.md)). Its own pnpm project, built and tested alone | MPL-2.0, and independent of `@sovereignfs/ui` (`clients/web/DESIGN.md` §18) | with its users |
 | `clients/mobile` | The iOS and Android client (Expo). **Design only so far:** [`DESIGN.md`](clients/mobile/DESIGN.md), [`ROADMAP.md`](clients/mobile/ROADMAP.md) | MPL-2.0 | `mobile-vX.Y.Z` |
 | `clients/engine` | The Rust engine for the native clients (`fjord-client`, `fjord-ffi`) and the `fjord-mcp` binary, its own Cargo workspace. Not created yet | MPL-2.0 | with its users |
 | `clients/mcp` | `fjord-mcp`, the MCP server for Claude and later ChatGPT. **Design only so far:** [`DESIGN.md`](clients/mcp/DESIGN.md), [`ROADMAP.md`](clients/mcp/ROADMAP.md) | MPL-2.0 | `mcp-vX.Y.Z` |
@@ -126,9 +126,11 @@ Breaking any of these is a release blocker, not a refactor.
    Decrypted content lives in a tempdir outside the repository or in memory.
    The single exception is spec §6.6: `fjord decrypt <vault>` at the user's
    explicit request, recorded under `.fjord/local/`, with every command that
-   commits refusing until `fjord encrypt <vault>` ends it. Nothing else may
-   write a decrypted file into a vault, and `fjord decrypt <file> --out` into
-   one stays refused.
+   commits refusing until `fjord encrypt <vault>` ends it. §6.6 also lets a
+   checkout begin when an existing plaintext directory is made an encrypted
+   vault (`fjord init --adopt --encrypt-existing`, RFC 0002), under the same
+   record and the same refusals. Nothing else may write a decrypted file into
+   a vault, and `fjord decrypt <file> --out` into one stays refused.
 2. **Never put a secret in `argv` or an environment variable the tool
    prints.** Identities arrive as a file path or on stdin. `ps` output and
    shell history are public.

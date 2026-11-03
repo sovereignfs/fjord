@@ -4,7 +4,7 @@
 
 **Version:** 1 (draft)
 **Status:** Draft. Not yet stable; breaking changes possible until declared stable.
-**Date:** 2026-11-02
+**Date:** 2026-11-03
 **Licence:** [CC0 1.0](#licence) (public domain)
 
 ---
@@ -50,10 +50,8 @@ RECOMMENDED, MAY and OPTIONAL are to be interpreted as described in
 | --- | --- |
 | **Repository** | A Git repository containing `fjord.json` at its root. |
 | **Kind** | What a repository is for: `drive`, `journal` or `ssg`. Changes presentation only. See §3.1. |
-| **Vault** | A top-level directory containing `fjord.vault.json`. The unit of encryption. |
+| **Vault** | A directory containing `fjord.vault.json`, at any depth but never inside another vault. The unit of encryption. See §2.3. |
 | **Fjord Doc** | A `.md` file in a vault whose frontmatter contains a valid `id`. |
-| **Document** | A Fjord Doc whose file name ends in `.fj.md`. See §8.4. |
-| **Note** | Any other Fjord Doc. See §8.4. |
 | **Vault file** | Any other file in a vault. First-class, synced and encrypted, but carries no Fjord metadata. |
 | **Client** | Any software that reads or writes a repository. |
 | **Identity** | An age private key, held by a user, never stored in the repository. |
@@ -69,7 +67,7 @@ RECOMMENDED, MAY and OPTIONAL are to be interpreted as described in
 ├── .gitattributes          REQUIRED
 ├── .gitignore              RECOMMENDED
 ├── .fjord/                 RESERVED
-├── <Vault>/                zero or more
+├── <Vault>/                zero or more, at any depth (§2.3)
 │   ├── fjord.vault.json    REQUIRED
 │   ├── recipients.txt      REQUIRED if encrypted
 │   ├── .gitignore          REQUIRED if encrypted
@@ -113,8 +111,27 @@ caches, decrypted working copies — MUST NOT be committed.
 ### 2.3 Vaults
 
 A repository MAY contain any number of vaults, each independently encrypted
-or not. Vaults MUST be directories at the repository root; nested vaults are
-not permitted in version 1.
+or not. A vault MAY be a directory at any depth below the root: `Private/`
+beside `fjord.json`, or `src/content/` in a site whose engine reads its
+content there (§3.1). The root itself is never a vault. Two rules hold
+wherever a vault is:
+
+- **No vault inside another.** A directory that contains `fjord.vault.json`
+  MUST NOT have an ancestor directory that also contains one. Nested vaults are not permitted in version 1 (§12): what a file's
+  encryption is would otherwise depend on which manifest a client found
+  first.
+- **Never in reserved or untracked places.** A vault MUST NOT be `/.fjord/`
+  or under it (§2.2), nor under `.git/`. A `fjord.vault.json` in a directory
+  Git ignores is not a vault, for the same reason a gitignored file is not
+  vault content: it is not in the repository.
+
+Discovery (§2.1) therefore looks for `fjord.vault.json` throughout the tree
+Git tracks, not only at the root. A vault's path in `fjord.json` (§3) is its
+path from the root, such as `src/content`.
+
+The directories above a vault are ordinary directories of the repository,
+outside every vault (§2), and their names are plaintext like every
+directory name (§11.2).
 
 A vault's directory name is its address. Its `name` field is its label. The
 two need not match.
@@ -148,7 +165,7 @@ Plaintext, at the repository root, UTF-8, no BOM.
 | `generator` | string | no | Tool and version that created the repository. |
 | `kind` | string | no | What the repository is for. See §3.1. Absent means `"drive"`. |
 | `<kind>` | object | no | Settings for the kind, under a key named after it, such as `ssg`. See §3.1. |
-| `vaults` | array | yes | Objects with `path` (relative, no `..`, no leading `/`) and `id` matching that vault's own `id`. |
+| `vaults` | array | yes | Objects with `path` (the vault's directory from the root, such as `Private` or `src/content`: relative, `/`-separated, no `..`, no leading `/`) and `id` matching that vault's own `id`. |
 
 ### 3.1 Kinds
 
@@ -174,8 +191,10 @@ website's content. This revision defines three.
 }
 ```
 
-A kind changes how a repository is presented, never what its files mean, as
-the name of a document does for one file (§8.4):
+A kind changes how a repository is presented, never what its files mean. It
+is also what decides how a client presents each Doc in it: a drive's Docs as
+documents to write at length, a journal's as entries, a site's as posts and
+pages. Nothing in a file's name or content says which (§8.4). For every kind:
 
 - A client that does not know a repository's kind, or the `engine` of an
   `ssg` repository, MUST treat the repository as a `drive`. A kind added by a
@@ -188,15 +207,22 @@ the name of a document does for one file (§8.4):
   repository then has to meet the new kind's rules.
 
 The vault of a `journal` or an `ssg` repository is found as every vault is,
-by its `fjord.vault.json` (§2.1). Its directory name is not fixed; the one
-vault is the kind's content, and a client SHOULD present the repository as
-that content rather than as a list of one vault. With one vault, choosing its
-encryption is choosing the repository's.
+by its `fjord.vault.json` (§2.1). Its directory name and its depth are not
+fixed (§2.3); the one vault is the kind's content, and a client SHOULD present
+the repository as that content rather than as a list of one vault. With one
+vault, choosing its encryption is choosing the repository's.
+
+A journal is personal by nature. A client that creates one SHOULD encrypt its
+vault unless the user asks otherwise. This is a default, not a rule: a
+plaintext journal conforms.
 
 An `ssg` repository is a static site whose engine builds it from the vault.
-The engine's own files (its configuration, layouts and package files) are
-files outside any vault (§2). The vault is plaintext because a site is
-published: one built from ciphertext would need its key in the build.
+The vault MAY be the folder the engine already reads its content from, such
+as `src/content` for Astro or `_posts` for Jekyll, so that an existing site
+can become a Fjord repository without moving a file. The engine's own files
+(its configuration, layouts and package files) are files outside any vault
+(§2). The vault is plaintext because a site is published: one built from
+ciphertext would need its key in the build.
 
 A repository that breaks its kind's rules is still readable, and a client
 SHOULD say which rule it breaks rather than refuse it.
@@ -389,6 +415,15 @@ A client that offers a checkout:
 9. SHOULD tell the user that the contents are readable by anything with
    access to the directory for as long as the checkout lasts.
 
+A checkout MAY also begin when a client makes an existing directory of
+plaintext files an encrypted vault, at the user's explicit request naming
+that directory. There are then no payloads yet, and rule 2's refusal of
+files in the clear does not apply; rules 4 to 9 do, from before the
+manifest is written. The client MUST tell the user, before it begins, that
+every version of those files already committed stays readable in Git's
+history (§11.4). Ending the checkout encrypts every file (rule 7) and
+removes the plaintext from version control as well as from the disk.
+
 Other clients see a checked-out vault as a vault with files in the clear
 (§6.5), and report it as such. That is accurate.
 
@@ -532,27 +567,17 @@ repositories do not conform to this revision.
 
 ---
 
-### 8.4 Documents and notes
+### 8.4 One kind of Doc
 
-A Fjord Doc is a **document** if its file name ends in `.fj.md`, with at least
-one character before it, and a **note** otherwise. The two are the same
-format: they have the same frontmatter, the same rules (§8.1, §8.2) and the
-same identifiers, and a `.fj.md` file with no valid `id` is a vault file like
-any other `.md` file (§8.2). The name is the only difference, and what it is
-for is presentation: a client MAY offer a different way of editing a document
-(long-form writing, say) from a note, and MAY treat them differently in other
-ways it documents. A client MUST NOT infer anything about a file's content from
-the distinction.
+Every Fjord Doc is the same kind of file. A client MUST NOT infer anything
+about a Doc from its name beyond §8: how it is edited or presented is decided
+by the repository's kind (§3.1) and by the client, never by an extension.
 
-A file changes from one to the other only by changing its name, which is an
-ordinary rename: its `id` is immutable (§8.2) and does not change with it.
-
-Every `.md` Fjord Doc written before this section existed is a note, and
-nothing in a repository has to change.
-
-In an encrypted vault the name that counts is the file's real name: the name
-without the suffix (§6.3), or, with `fileNaming` `"id"`, the name inside the
-container (§6.4), which a client that has not opened the container does not have.
+Drafts of this specification from 2026-10-23 to 2026-11-02 called a Doc whose
+name ends in `.fj.md` a *document* and any other a *note*. That distinction
+is withdrawn. A `.fj.md` file is a `.md` file like any other: a Fjord Doc if
+its frontmatter has a valid `id`, a vault file otherwise, and nothing in a
+repository has to change.
 
 ## 9. Git requirements
 
@@ -681,7 +706,7 @@ Reserved, with no defined layout or behaviour yet:
 - Sharing a vault or document with another person.
 - Publishing a plaintext vault to the web.
 - Non-Git storage.
-- Nested vaults.
+- Nested vaults: a vault inside another vault (§2.3).
 - Metadata for vault files that are not Markdown.
 
 A later version may define these. Version 1 clients MUST ignore, and

@@ -73,4 +73,5 @@ The acceptance criteria of each milestone are in [`CLAUDE.md`](CLAUDE.md), under
 | M0.5: hold the README diagnostics tables to `diagnostics::Code` (checked by a test, not generated) | ✅ Done | [Detail](docs/epics/cli.md#groundwork--m0) |
 | Replace `unsafe-libyaml` as the frontmatter parser | ✅ Done | [Detail](docs/epics/cli.md#beyond-the-milestones) |
 | Publish to crates.io | ✅ Done: `fjord-core` and `fjord-cli` 0.4.0 are on crates.io | [Detail](docs/epics/cli.md#beyond-the-milestones) |
+| Kinds, second pass: one kind of Doc, vaults at any depth, journals encrypted by default, `init --adopt` (RFC 0002, P13–P16) | 📋 Planned | [Detail](docs/epics/web-3.md#kinds-second-pass-rfc-0002) · [Workstream](docs/workstreams/0002-kinds-second-pass.md) |
 | Frontmatter comment preservation | ❌ Out of scope for v1 (needs an AST-level YAML parser) | [Detail](docs/epics/cli.md#out-of-scope) |

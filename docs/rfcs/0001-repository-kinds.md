@@ -10,6 +10,7 @@
 | **Research** | [Research 0001 — The `ssg` kind](../research/0001-ssg-kind.md) |
 | **Workstream** | [0001 — Repository kinds](../workstreams/0001-repository-kinds.md) |
 | **Supersedes** | Nothing. Fjord Web's phase 3 (collaborative editing, an outline) becomes phase 4 |
+| **Amended by** | [RFC 0002](0002-kinds-second-pass.md) (draft): `.fj.md` is withdrawn, so a journal's entries are `.md` and the kind chooses the editor (open question 2); vaults may be below the root, so an existing site is adopted where its content is (open question 1 and the site layout rule); a journal is encrypted by default |
 
 ## Summary
 
@@ -290,3 +291,4 @@ journal is an obvious thing to ask Claude about, and that is for its own roadmap
 | 1.0 | 2026-11-02 | Accepted by the owner as drafted; workstream 0001 started |
 | 1.1 | 2026-11-02 | P9: tags are compared by Unicode's default lowercase mapping after NFC, not by case folding, so that every client's standard library gives the same answer (JavaScript has `toLowerCase` and no case folding); `date` written in the spec as an RFC 3339 date-time with any offset, or a full-date |
 | 1.2 | 2026-11-03 | Implemented. Built as designed, with these differences: `date` and tag comparison as in 1.1; an encrypted journal's entries are named `YYYY-MM-DD-HHMM[-slug].md` inside the container (flat, no dated folder); a site's content model is title, `date`, `tags` and draft, with pages and publishing a draft left to the files view; a preview is a branch per preview, kept until stopped |
+| 1.3 | 2026-11-03 | Amended by RFC 0002 (draft), noted above; the text of this RFC is left as it was accepted |
