@@ -401,7 +401,8 @@ test("browsing reads no tree and no file from the host, and a path that is not t
   // ...and opening a file reads that file, once, and no tree.
   await page.goto(`/repo/${id}/Public/Q4/report.fj.md`);
   await expect(noteEditor(page, "report.fj.md")).toContainText("Report");
-  expect(reads().filter((path) => path.startsWith("GET /git/blobs/"))).toHaveLength(1);
+  // RFC 0002: a path with no id is read once to find its address (/f/<handle>) and once by the page there; an address is read once.
+  expect(reads().filter((path) => path.startsWith("GET /git/blobs/"))).toHaveLength(2);
   expect(reads().filter((path) => path.startsWith("GET /git/trees/"))).toEqual([]);
 
   for (const path of ["Public/nope", "Nope", "Public/Q4/nope.md", "Public/%2e%2e%2fPrivate", "Public/a%5Cb"]) {
@@ -2769,8 +2770,10 @@ test("a document moved to another folder is still found by its id, and its heade
     await page.getByRole("button", { name: "Move", exact: true }).click();
     await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
 
+    // The folder page is already at /f/<handle>, so the address cannot say the commit is made.
+    await expect.poll(async () => (await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).split("\n")[0], { timeout: 30_000 }).toMatch(/^(Move|Rename) /);
     const head = (await hubs.more.branchHead()) as string;
-    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Plan to Other");
+    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Plan.fj to Other");
     expect((await hubs.more.filesAt(head))["Other/Plan.fj.md"]).toBe(`${MOVE_DOC_HEADER}\n# Plan\n`);
 
     // The address by id follows the file: nothing about it said where it was.
@@ -2799,6 +2802,8 @@ test("a folder is renamed with everything in it, in one commit", async ({ page }
     await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
     await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("Deep");
 
+    // The folder page is already at /f/<handle>, so the address cannot say the commit is made.
+    await expect.poll(async () => (await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).split("\n")[0], { timeout: 30_000 }).toMatch(/^(Move|Rename) /);
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(before);
     expect(await hubs.more.show(head, "%B")).toMatch(/^Rename Old to Older\n\nMoves 2 files:\nNotes\/Old\/.* → Notes\/Older\//);
@@ -2843,11 +2848,13 @@ test("what is typed and not yet saved is saved as a version first, then moved wi
     await page.getByRole("button", { name: "Rename", exact: true }).click();
     await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
 
+    // The folder page is already at /f/<handle>, so the address cannot say the commit is made.
+    await expect.poll(async () => (await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).split("\n")[0], { timeout: 30_000 }).toMatch(/^(Move|Rename) /);
     const head = (await hubs.more.branchHead()) as string;
     const version = (await hubs.more.show(head, "%P")) as string;
     expect(await hubs.more.show(version, "%P")).toBe(before);
     expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Rename n to renamed");
-    expect((await hubs.more.filesAt(head))["Notes/renamed.md"]).toMatch(/typed, not saved$/);
+    expect((await hubs.more.filesAt(head))["Notes/renamed.md"]).toMatch(/typed, not saved\n$/);
     // The draft went with the version; the renamed note opens clean.
     await expect(page.getByText("Your changes were kept")).toHaveCount(0);
     await hubs.more.fsck();
