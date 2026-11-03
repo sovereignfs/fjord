@@ -863,13 +863,27 @@ mod tests {
         let text = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nlayout: post\ntitle: Hello\ndraft: true\nx-future: [1, 2]\n---\n\nBody\n";
         let flagged = with_field(text, "draft", Some(&FieldValue::Flag(false))).expect("set");
         assert!(flagged.contains("draft: false\n") && !flagged.contains("draft: true"));
-        assert_eq!(keys(&flagged), ["id", "layout", "title", "draft", "x-future"]);
+        assert_eq!(
+            keys(&flagged),
+            ["id", "layout", "title", "draft", "x-future"]
+        );
         assert!(flagged.ends_with("---\n\nBody\n"));
 
-        let described = with_field(text, "description", Some(&FieldValue::Text("A: \"post\"".into()))).expect("set");
-        assert_eq!(keys(&described), ["id", "layout", "title", "draft", "x-future", "description"]);
+        let described = with_field(
+            text,
+            "description",
+            Some(&FieldValue::Text("A: \"post\"".into())),
+        )
+        .expect("set");
+        assert_eq!(
+            keys(&described),
+            ["id", "layout", "title", "draft", "x-future", "description"]
+        );
         match parse(&described) {
-            Parse::Present { frontmatter, .. } => assert_eq!(frontmatter.raw().get("description"), Some(&Value::String("A: \"post\"".into()))),
+            Parse::Present { frontmatter, .. } => assert_eq!(
+                frontmatter.raw().get("description"),
+                Some(&Value::String("A: \"post\"".into()))
+            ),
             other => panic!("not a header: {other:?}"),
         }
         // Taken away.
@@ -882,10 +896,28 @@ mod tests {
         let text = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n---\nbody\n";
         for name in ["id", "created", "fjord", "", "has space", "a.b", "x:y", "é"] {
             assert!(!is_settable_key(name), "{name:?}");
-            assert_eq!(with_field(text, name, Some(&FieldValue::Flag(true))), None, "{name:?}");
+            assert_eq!(
+                with_field(text, name, Some(&FieldValue::Flag(true))),
+                None,
+                "{name:?}"
+            );
         }
-        assert!(is_settable_key("description") && is_settable_key("draft") && is_settable_key("x-future_2"));
-        assert_eq!(with_field("no header\n", "draft", Some(&FieldValue::Flag(true))), None);
-        assert_eq!(with_field("---\nbroken: [\n---\nbody\n", "draft", Some(&FieldValue::Flag(true))), None);
+        assert!(
+            is_settable_key("description")
+                && is_settable_key("draft")
+                && is_settable_key("x-future_2")
+        );
+        assert_eq!(
+            with_field("no header\n", "draft", Some(&FieldValue::Flag(true))),
+            None
+        );
+        assert_eq!(
+            with_field(
+                "---\nbroken: [\n---\nbody\n",
+                "draft",
+                Some(&FieldValue::Flag(true))
+            ),
+            None
+        );
     }
 }
