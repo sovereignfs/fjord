@@ -107,7 +107,8 @@ export async function IdPage({ id, wrong }: { id: string; wrong?: "wrong" | "wai
   }
 
   if (others.length === 0) {
-    return <RepositoryScreen connection={String(only.connectionId)} path={only.path.split("/")} via="id" />;
+    // The owner's own file is shown at its address inside its repository, where its vault and folder are (workstream 0003); `/d/<id>` is the address a share is given.
+    return <RepositoryScreen connection={String(only.connectionId)} path={only.path.split("/")} />;
   }
 
   const connections = await (await connectionService()).list(user.id);

@@ -89,3 +89,5 @@ const HANDLE = "[0-9a-z]{16}";
 export const DOC_PLACE = new RegExp(`/repo/\\d+/v/${ULID}/(?:${HANDLE}/)?d/${ULID}$`);
 export const FILE_PLACE = new RegExp(`/repo/\\d+/v/${ULID}/(?:${HANDLE}/)?${HANDLE}$`);
 export const PLACE = new RegExp(`/repo/\\d+/v/${ULID}(?:/(?:${HANDLE}/)?(?:d/${ULID}|${HANDLE}))?$`);
+/** A Doc's address inside its repository, with its id: where the owner's `/d/<id>` leads. */
+export const docPlace = (id: string) => new RegExp(`/repo/\\d+/v/${ULID}/(?:${HANDLE}/)?d/${id}$`);

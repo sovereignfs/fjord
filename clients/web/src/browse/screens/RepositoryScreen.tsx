@@ -34,7 +34,7 @@ import { kindFor } from "../../kinds/registry";
  * one that tries to climb out are all a 404 and nothing more. `path` is the decoded segments. `/d/<id>`
  * shows a file the same way, once the id has been found (ROADMAP 1b.6).
  */
-export async function RepositoryScreen({ connection, path: urlPath, address, requested, view, query = {}, via }: { connection: string; /** The path, for the old forms: `/repo/<repo>/<path…>`, a handle's, a Doc id's. */ path?: string[] | undefined; /** The place an address of ids names (`/repo/<repo>/v/<vault>/…`), which the page resolves to a path; with this, `path` is not given. */ address?: Extract<Address, { kind: "vault" | "place" }> | undefined; /** The address as it was asked for, to tell whether it is the one the place has now; if it is not the person is sent to that. */ requested?: string | undefined; /** How the page was reached: by a `handle` (`/f/<handle>`), by a Doc `id` (`/d/<id>`), or by an address of ids. With none (the old address by path), the place is sent on to its address of ids. */ via?: "handle" | "id" | "address" | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined; /** The page's query, for an entry view that pages or filters. */ query?: Record<string, string | string[] | undefined> }) {
+export async function RepositoryScreen({ connection, path: urlPath, address, requested, view, query = {}, via }: { connection: string; /** The path, for the old forms: `/repo/<repo>/<path…>`, a handle's, a Doc id's. */ path?: string[] | undefined; /** The place an address of ids names (`/repo/<repo>/v/<vault>/…`), which the page resolves to a path; with this, `path` is not given. */ address?: Extract<Address, { kind: "vault" | "place" }> | undefined; /** The address as it was asked for, to tell whether it is the one the place has now; if it is not the person is sent to that. */ requested?: string | undefined; /** How the page was reached: by a `handle` (`/f/<handle>`), or by an address of ids. With none (the old address by path), the place is sent on to its address of ids. */ via?: "handle" | "address" | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined; /** The page's query, for an entry view that pages or filters. */ query?: Record<string, string | string[] | undefined> }) {
   const { user } = await requireSession();
   if (!/^[1-9][0-9]{0,15}$/.test(connection) || encryptionKeyring() === undefined) notFound();
   const connections = await (await connectionService()).list(user.id);
@@ -97,8 +97,8 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
       const permalink = file !== undefined && docId !== null ? `/d/${docId}` : undefined;
       // The place is at one address (workstream 0003): its vault, the folder it is in and its own id, or for a Doc its `id`. Reached any other way (the old address by
       // path, a handle's, one whose vault or folder is not where it is now) the person is sent there. The one place that shows a path is the file picked from among several
-      // that claim one `id`, where an address by id cannot say which, and the page for a file by its id, which is the address a share is given.
-      if (via !== "id" && !(via === undefined && query.pick === "1")) {
+      // that claim one `id`, where an address by id cannot say which.
+      if (!(via === undefined && query.pick === "1")) {
         const place = segments.join("/");
         const book = await addressBookFor(current.id, found.location.vault, [place]);
         const target = docId !== null && file !== undefined ? book.docHref(place, docId) : book.href(place);

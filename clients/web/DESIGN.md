@@ -752,7 +752,7 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
 > `…/<folder>/d/<doc-id>`; only the folder a thing is in appears, and **only the last id decides what is shown**, so a stale vault or folder in an address is corrected
 > by redirect, and a moved file is still found. Pure parsing and building is `src/browse/addresses.ts`; a page draws its links from `AddressBook`
 > (`address-book.ts`, handles for a whole listing in two statements). The old `/repo/<repo>/<path…>`, `/f/<handle>` and `?pick=1`'s path still arrive. `/open` (where signing in lands) is
-> the default vault's address. `/d/<id>` is for now what it was; leg 4 makes it the *shared* address. What follows describes the earlier design.
+> the default vault's address. **`/d/<id>` is the *shared* address** (leg 4): the owner's `/d/<id>` is sent on to the Doc's address in its repository, and a share by account, a share link, a password and the comments and draft routes keep it. What follows describes the earlier design.
 
 > **Changed by [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md).** The distinction below is withdrawn: spec §8.4 says every Doc is one
 > kind, and the repository's kind chooses its editor (§8). **Built (3e.1, 2026-11-03):** a Doc is always **`/d/<id>`**, owned or shared, in the

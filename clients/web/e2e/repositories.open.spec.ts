@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { ROUTES } from "../src/access/routes";
-import { alertOn, expect, signUp, test, DOC_PLACE, FILE_PLACE, PLACE } from "./helpers";
+import { alertOn, expect, signUp, test, DOC_PLACE, FILE_PLACE, PLACE, docPlace } from "./helpers";
 import { wasmDirectory } from "../src/format/wasm";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
@@ -2712,27 +2712,26 @@ test("a Doc opens at /d/<id> wherever it is, and /n/<id> sends to it (RFC 0002)"
       "Notes/plain.md": "# no header\n",
     });
 
-    // Nothing has been opened, so the first lookup searches; the address stays the one that was asked for.
+    // Nothing has been opened, so the first lookup searches; the owner is then sent to the Doc's address inside its repository (workstream 0003).
     expect((await page.goto(`/d/${ID_DOC}`))?.status()).toBe(200);
     await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan.");
-    await expect(page).toHaveURL(`${BASE}/d/${ID_DOC}`);
+    await expect(page).toHaveURL(docPlace(ID_DOC));
     await expect(page.getByRole("heading", { name: "acme/more" })).toBeVisible();
 
     await page.goto(`/n/${ID_NOTE}`);
     await expect(noteEditor(page, "idea.md")).toContainText("The idea.");
-    await expect(page).toHaveURL(`${BASE}/d/${ID_NOTE}`);
+    await expect(page).toHaveURL(docPlace(ID_NOTE));
 
     // A note asked for as a document, and a document as a note, are sent to the address that is theirs.
     await page.goto(`/d/${ID_NOTE}`);
-    await expect(page).toHaveURL(`${BASE}/d/${ID_NOTE}`);
+    await expect(page).toHaveURL(docPlace(ID_NOTE));
     await expect(noteEditor(page, "idea.md")).toBeVisible();
     await page.goto(`/n/${ID_DOC}`);
-    await expect(page).toHaveURL(`${BASE}/d/${ID_DOC}`);
+    await expect(page).toHaveURL(docPlace(ID_DOC));
 
     // A file by its path is sent to its address of ids (workstream 0003): a Doc to its id, any other file to its handle, which shows no path.
     await page.goto(`/repo/${id}/Notes/Deep/idea.md`);
-    await expect(page).toHaveURL(DOC_PLACE);
-    await expect(page).toHaveURL(new RegExp(`/d/${ID_NOTE}$`));
+    await expect(page).toHaveURL(docPlace(ID_NOTE));
     await page.goto(`/repo/${id}/Notes/plain.md`);
     await expect(page).toHaveURL(FILE_PLACE);
     await expect(page.getByText("Address by id")).toHaveCount(0);
@@ -2781,7 +2780,7 @@ test("a file that moves is still found by its id, and one that is deleted is not
     await hubs.more.commitFiles({ "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Archive/old idea.md": withId(ID_NOTE, "the idea, moved") }, { replace: true });
     await page.goto(`/n/${ID_NOTE}`);
     await expect(noteEditor(page, "old idea.md")).toContainText("the idea, moved");
-    await expect(page).toHaveURL(`${BASE}/d/${ID_NOTE}`);
+    await expect(page).toHaveURL(docPlace(ID_NOTE));
 
     await hubs.more.commitFiles({ "Notes/fjord.vault.json": VAULT_MANIFEST }, { replace: true });
     expect((await page.goto(`/n/${ID_NOTE}`))?.status()).toBe(404);
@@ -3222,11 +3221,14 @@ test("the routes' old names still work: /doc/<id> and /note/<id> go to /d/<id> a
     const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "An idea") });
     // The owner's bookmarks: the old address is sent on for good, to the short one.
     const old = await page.goto(`/doc/${ID_DOC}`);
-    expect(page.url()).toBe(`${BASE}/d/${ID_DOC}`);
-    expect(old?.request().redirectedFrom()?.url()).toBe(`${BASE}/doc/${ID_DOC}`);
-    expect((await old!.request().redirectedFrom()!.response())!.status()).toBe(308);
+    expect(page.url()).toMatch(docPlace(ID_DOC)); // and from the short one, to the Doc's address inside its repository
+    // The chain is /doc/<id>, then /d/<id> (a 308), then the Doc's address inside its repository: the first hop is the one that is for good.
+    let firstHop = old!.request();
+    while (firstHop.redirectedFrom()) firstHop = firstHop.redirectedFrom()!;
+    expect(firstHop.url()).toBe(`${BASE}/doc/${ID_DOC}`);
+    expect((await firstHop.response())!.status()).toBe(308);
     await page.goto(`/note/${ID_NOTE}`);
-    expect(page.url()).toBe(`${BASE}/d/${ID_NOTE}`);
+    expect(page.url()).toMatch(docPlace(ID_NOTE));
 
     // A share link as it was given before the routes were shortened: it opens the document, and ends on the short address with the token gone.
     const made = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "view" } });
