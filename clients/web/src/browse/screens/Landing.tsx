@@ -24,7 +24,7 @@ export async function Landing({ accountId, connection, outcome }: { accountId: s
     );
   }
   if (found.location.kind === "missing") return null;
-  return <FolderView connectionId={connection.id} repository={`${connection.owner}/${connection.name}`} location={found.location} editor={kindFor(outcome.read.manifest).editor} />;
+  return <FolderView connectionId={connection.id} repository={`${connection.owner}/${connection.name}`} location={found.location} editor={kindFor(outcome.read.manifest).editor} writing={kindFor(outcome.read.manifest).writingView} />;
 }
 
 /** The directory of the vault a repository opens on, for the page that lists the vaults to mark it. */

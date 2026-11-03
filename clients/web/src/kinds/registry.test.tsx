@@ -22,6 +22,7 @@ const standIn = (id: string): KindModule => ({
   id,
   label: `Stand-in ${id}`,
   editor: "note",
+  writingView: false,
   EntryView: () => <p>the {id} entry view</p>,
   contentModel: { placement: "anywhere", fields: [] },
   actions: [{ id: "wave", label: "Wave" }],

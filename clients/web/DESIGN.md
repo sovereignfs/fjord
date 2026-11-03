@@ -536,9 +536,9 @@ alternatives are [RFC 0001](../../docs/rfcs/0001-repository-kinds.md), and the `
   listing and the entries' headers, and for an encrypted one built in the browser from what it decrypts, kept there and never
   sent to the server (3b.2, 3b.3).
 
-#### Kinds, second pass (planned, [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md))
+#### Kinds, second pass ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md))
 
-Not built yet; the tasks are P13–P17 and 3e–3h in [`web-3.md`](../../docs/epics/web-3.md#kinds-second-pass-rfc-0002).
+Built as far as the epic says (P13–P17, 3e, 3f); a site's (3g) and publishing (3h) are in [`web-3.md`](../../docs/epics/web-3.md#kinds-second-pass-rfc-0002).
 
 - **The kind chooses the editor**, since a Doc's name no longer does (spec §8.4): a drive's Docs in the document editor, a
   journal's in the note editor inside a writing view (3f.1), a site's in the content editor, a kind with no module as a drive.

@@ -39,6 +39,7 @@ export function FolderView({
   permalink,
   docId,
   editor,
+  writing,
   destinations,
   encryptedNaming,
   transferTargets,
@@ -69,6 +70,8 @@ export function FolderView({
   docId?: string | undefined;
   /** Which editor the repository's kind opens a Doc in (RFC 0002). */
   editor: "document" | "note";
+  /** Whether a Doc opens as a quiet writing view (a journal's): the editor and the properties, the rest under "More". */
+  writing?: boolean | undefined;
   /** For a note or a document: tags in use in the repository, offered while one is typed (ROADMAP 3b.3). */
   tagSuggestions?: string[] | undefined;
   /** The folders of plaintext vaults a file or folder can be moved to, repository-relative; none for a repository too large to list. */
@@ -108,7 +111,7 @@ export function FolderView({
         </Alert>
       ) : null}
 
-      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
+      {location.kind === "file" ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
           remove={writable && fileBlob !== undefined && (location.file.kind === "doc" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -215,6 +218,7 @@ function FileCard({
   permalink,
   docId,
   editor,
+  writing,
   destinations,
   blob,
   encryptedEditing,
@@ -236,6 +240,7 @@ function FileCard({
   header: HeaderInfo | undefined;
   permalink: string | undefined;
   editor: "document" | "note";
+  writing: boolean;
   docId: string | undefined;
   destinations: string[];
   blob: string | undefined;
@@ -249,10 +254,12 @@ function FileCard({
       <h2 id="file-title" className={styles.title} style={{ fontSize: "var(--sv-font-size-lg)" }}>
         {leaf(file.logical)}
       </h2>
-      <p className={styles.itemMeta}>
-        {KIND_LABEL[file.kind] || "File"}
-        {file.size > 0 ? ` · ${humanSize(file.size)}` : ""}
-      </p>
+      {writing ? null : (
+        <p className={styles.itemMeta}>
+          {KIND_LABEL[file.kind] || "File"}
+          {file.size > 0 ? ` · ${humanSize(file.size)}` : ""}
+        </p>
+      )}
       {file.kind === "doc" && note ? (
         note.ok ? (
           draft && draft.baseBlob !== note.blob ? (
@@ -260,7 +267,7 @@ function FileCard({
           ) : (
             <>
               <p className={styles.itemMeta}>Your changes are kept as a draft as you type. Save a version to put them in the repository.</p>
-              {permalink ? (
+              {permalink && !writing ? (
                 <p className={styles.itemMeta}>
                   Address by id, which does not depend on where the file is: <a href={permalink}>{permalink}</a>
                 </p>
@@ -284,6 +291,9 @@ function FileCard({
       ) : (
         <Alert variant="info" heading="Not openable">This kind of file cannot be opened in this version; it is kept in the repository as it is.</Alert>
       )}
+      {writing ? (
+        <details className={styles.itemMeta} data-testid="more">
+          <summary>More</summary>
       {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} /> : null}
       {remove && !docId && !encrypted && file.kind === "doc" && note?.ok ? <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} /> : null}
       {remove ? (
@@ -304,6 +314,31 @@ function FileCard({
       {remove ? (
         <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
       ) : null}
+        </details>
+      ) : (
+        <>
+      {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} /> : null}
+      {remove && !docId && !encrypted && file.kind === "doc" && note?.ok ? <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} /> : null}
+      {remove ? (
+        <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
+      ) : null}
+      {remove && file.kind === "doc" && note?.ok && transferTargets.length > 0 ? (
+        <TransferControl
+          connectionId={connectionId}
+          path={file.path}
+          blob={note.blob}
+          name={leaf(file.path)}
+          text={note.text}
+          sourceEncrypted={false}
+          targets={transferTargets}
+          blocked={draft ? "This file has unsaved changes. Save a version of them, or discard them, to move it to another vault." : undefined}
+        />
+      ) : null}
+      {remove ? (
+        <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
+      ) : null}
+        </>
+      )}
     </section>
   );
 }

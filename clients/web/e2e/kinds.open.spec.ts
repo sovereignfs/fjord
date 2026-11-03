@@ -62,15 +62,17 @@ test("a journal opens on its timeline, placed by date, and takes an entry dated 
   await page.getByRole("button", { name: "Show everything" }).click();
   await expect(page.getByTestId("timeline-entry")).toHaveCount(3);
 
-  // A new entry: dated now, with this browser's offset, in the dated folder of the writer's own day.
+  // A new entry, in one action: dated now, with this browser's offset, in the dated folder of the writer's own day. It opens at its address by id
+  // (RFC 0002), as a writing view: the editor and the properties, the rest under "More".
   await page.getByRole("button", { name: "New entry" }).click();
-  await page.getByLabel("Title").fill("Written in the test");
-  await page.getByRole("button", { name: "Write it" }).click();
-  await expect(page).toHaveURL(/\/repo\/\d+\/journal\/\d{4}\/\d\d\/\d\d\/\d{4}-written-in-the-test\.md$/);
+  await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 });
+  await expect(page.getByTestId("more")).toBeVisible();
 
   const head = (await hubs.notes.branchHead())!;
   const files = await hubs.notes.filesAt(head);
-  const made = Object.keys(files).find((path) => path.endsWith("-written-in-the-test.md"))!;
+  const day0 = new Date();
+  const dated = `journal/${day0.getFullYear()}/${String(day0.getMonth() + 1).padStart(2, "0")}/${String(day0.getDate()).padStart(2, "0")}/`;
+  const made = Object.keys(files).find((path) => path.startsWith(dated) && /\/\d{4}\.md$/.test(path))!;
   const day = new Date();
   const folder = `journal/${day.getFullYear()}/${String(day.getMonth() + 1).padStart(2, "0")}/${String(day.getDate()).padStart(2, "0")}/`;
   expect(made.startsWith(folder)).toBe(true);

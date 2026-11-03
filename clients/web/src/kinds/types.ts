@@ -18,6 +18,11 @@ export interface KindModule {
    * editor, a journal's and a site's in the Markdown (note) editor, which keeps their text as it was written.
    */
   editor: "document" | "note";
+  /**
+   * Whether a file of this kind opens as a quiet writing view (RFC 0002, a journal's) rather than a file page: the editor, the properties and nothing
+   * else on screen, with what a file page also offers (sharing, rename, move, delete) one step away under "More".
+   */
+  writingView: boolean;
   /** What the repository opens on, at `/repo/<connection>` with no path. */
   EntryView: (props: EntryViewProps) => ReactNode | Promise<ReactNode>;
   /** Where a new item goes and which frontmatter fields it has. */

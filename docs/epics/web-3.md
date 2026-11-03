@@ -475,7 +475,7 @@ The `not_a_document` refusals go: any Doc in a drive can be shared with accounts
 
 ### 3f.1 The journal's writing view
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0002, Journals
 
@@ -483,15 +483,24 @@ Opening a journal offers today's entry, or a new one, in the note editor with th
 
 **Accepts when:** a new entry can be typed into within one action of opening the journal; a vault of `.md` files with no frontmatter shows on the timeline by their paths' dates; nothing is written to a file that was only opened.
 
+- **Done as:**
+  - **One action:** *New entry* makes the entry at once, dated now in the browser's own time, and opens it (`journal/screens/NewEntry.tsx`; plaintext on the server, encrypted in the browser as before). It has no title field: the title and the date are the properties panel's. Opening the journal writes nothing.
+  - **A writing view:** `KindModule.writingView` (true for a journal). In it a file's page shows the editor and the properties and drops the kind and size line and the address by id; sharing, rename, move and delete are one step away under **More** (`data-testid="more"`). The editor is the byte-faithful Markdown one (`KindModule.editor`).
+  - **Any `.md` is an entry** since 3e.1, because the timeline lists every Doc of the vault; one with no `date` is placed by the day its path is filed under (`journal::when`), else by `created`.
+- **Not here:** dating an entry by its **first commit** (RFC 0002 named it): the timeline has no git history to read, so an entry with neither a `date`, a dated path nor `created` is listed without a day. The e2e spec's journal step was edited for the one-action flow and not run.
+
 ### 3f.2 New journals encrypted by default
 
-**Status:** 📋 Planned
+**Status:** ✅ Done
 
 **Design:** RFC 0002, Journals
 
 The web's setup and its *change kind* offer an encrypted journal first, with the browser's identity, or ask for one to be made (as 2d.1 does). A plaintext journal is a choice the person makes.
 
 **Accepts when:** a journal set up with the defaults is encrypted and passes the real `fjord verify` (`FJORD_CLI`); with no identity in the browser, the setup asks for one before it offers *encrypted*, and never makes a plaintext journal without being told to.
+
+- **Done as:** `SetupOffer` offers a journal **encrypted first and selected**, plaintext as the second, explicit choice; with no key in the browser it says to make or import one and keeps *Set up* disabled until there is one or plaintext is chosen, so a plaintext journal is never made by default. The plan is unchanged and `fjord-core`'s (`planSetupKind`, tested against the real `fjord verify` since 3a.3). *Change kind* does not touch encryption, which is the vault's.
+- **Not here:** an encrypted journal made with **no recipient** (the old behaviour with no key) is no longer reachable from the offer; the CLI still makes one (`W602` until `key add`).
 
 ### 3g.1 A site's vault below the root
 

@@ -17,6 +17,7 @@ export const ssgKind: KindModule = {
   id: "ssg",
   label: "Site",
   editor: "note",
+  writingView: false,
   EntryView: SiteEntry,
   contentModel: { placement: "engine", fields: ["title", "date", "tags", "draft"] },
   actions: [{ id: "new-post", label: "New post" }, { id: "build-status", label: "Build status" }, { id: "preview", label: "Preview" }],

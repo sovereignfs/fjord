@@ -22,7 +22,8 @@ export function SetupOffer({ connectionId, preview }: { connectionId: number; pr
   const [kind, setKind] = useState<Kind>("drive");
   const [vault, setVault] = useState(preview.vault);
   const [journalVault, setJournalVault] = useState(preview.journalVault);
-  const [encrypted, setEncrypted] = useState(false);
+  // A journal is personal, so it is offered encrypted first (spec §3.1, RFC 0002); plaintext is a choice the person makes.
+  const [encrypted, setEncrypted] = useState(true);
   const [engine, setEngine] = useState<"astro" | "jekyll">("astro");
   const [mine, setMine] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -117,15 +118,15 @@ export function SetupOffer({ connectionId, preview }: { connectionId: number; pr
             <fieldset style={{ border: 0, padding: 0, margin: 0 }} disabled={busy}>
               <legend>Who can read it</legend>
               <label style={{ display: "block" }}>
-                <input type="radio" name="protection" checked={!encrypted} onChange={() => setEncrypted(false)} /> Anyone who can read the repository (plaintext)
+                <input type="radio" name="protection" checked={encrypted} onChange={() => setEncrypted(true)} /> Only you, with your key (encrypted: no entry's date, title or tags shows)
               </label>
               <label style={{ display: "block" }}>
-                <input type="radio" name="protection" checked={encrypted} onChange={() => setEncrypted(true)} /> Only you, with your key (encrypted: no entry's date, title or tags shows)
+                <input type="radio" name="protection" checked={!encrypted} onChange={() => setEncrypted(false)} /> Anyone who can read the repository (plaintext)
               </label>
             </fieldset>
             {needsKey ? (
               <p className={styles.itemMeta}>
-                You have no key in this browser yet. <a href="/account/keys">Make or import one</a>: an encrypted journal is written to it.
+                You have no key in this browser yet. <a href="/account/keys">Make or import one</a>: an encrypted journal is written to it. Until you have, choose plaintext to set it up now.
               </p>
             ) : null}
           </>

@@ -12,6 +12,7 @@ export const driveKind: KindModule = {
   id: "drive",
   label: "Drive",
   editor: "document",
+  writingView: false,
   EntryView: DriveEntry,
   contentModel: { placement: "anywhere", fields: ["title", "tags"] },
   actions: [],

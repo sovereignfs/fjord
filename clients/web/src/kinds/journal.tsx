@@ -16,6 +16,7 @@ export const journalKind: KindModule = {
   id: "journal",
   label: "Journal",
   editor: "note",
+  writingView: true,
   EntryView: JournalEntry,
   contentModel: { placement: "dated", fields: ["title", "date", "tags"] },
   actions: [{ id: "new-entry", label: "New entry" }],
