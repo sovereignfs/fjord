@@ -54,7 +54,7 @@ with short-lived branches, and `CONTRIBUTING.md` is the same rules for people.
 - **Docs are part of the change.** A change to the format updates `docs/specs/Fjord.spec.md`,
   the fixtures under `tests/fixtures/` and the code in the same PR. A change to
   behaviour adds a line under `## [Unreleased]` in the component's CHANGELOG.
-  A README or ROADMAP statement that the change makes false is fixed in it. A finished task is marked done in its roadmap row
+  A README or ROADMAP statement that the change makes false is fixed in it. A new command or flag goes in the CLI README's section for it (a test fails otherwise), and a new command also in its "Commands at a glance". A finished task is marked done in its roadmap row
   and its epic under `docs/epics/` says how it was done (what, where, what was left out).
 - **Verify before claiming done.** Run `cargo fmt --check`,
   `cargo clippy --workspace --all-targets -- -D warnings` and
@@ -87,7 +87,7 @@ Where this differs from `sovereign`, on purpose:
 | `docs/` | `specs/Fjord.spec.md`, the format, canonical (CC0, the licence is in the file itself); `epics/`, the detail of every task of every roadmap; `rfcs/`, `research/` and `workstreams/`, proposals, investigations and cross-component runs of tasks (see `CONTRIBUTING.md`); the security reviews | CC0 for the spec, MPL-2.0 for the rest | with whatever needs it |
 | `schema/`, `tests/fixtures/` | The `verify --json` schema, and the conformance fixtures **every** client must pass | MPL-2.0 | — |
 | `crates/fjord-core/` | The format as a library | MPL-2.0 | with the CLI |
-| `crates/fjord-cli/` | The CLI: package `fjord-cli`, binary `fjord` | MPL-2.0 | `fjord-cli-vX.Y.Z` |
+| `crates/fjord-cli/` | The CLI: package `fjord-cli`, binary `fjord`. **Its [`README.md`](crates/fjord-cli/README.md) is the one command reference, for people and for agents**: "Commands at a glance" first, then a section per command. `tests/readme_commands.rs` fails if a command or flag is not in it | MPL-2.0 | `fjord-cli-vX.Y.Z` |
 | `crates/fjord-wasm/` | `fjord-core`'s pure subset for WebAssembly (`wasm-bindgen`): vault discovery from a listing, manifests, path rules, frontmatter, identifiers from a supplied clock and randomness. Its own workspace and lockfile, built into the web client and not released on its own. See its [`README.md`](crates/fjord-wasm/README.md) | MPL-2.0 | — |
 | `clients/web` | The hosted web client (Next.js, pnpm). **Phase 1 is built (sign in, browse, write, share, comment):** [`DESIGN.md`](clients/web/DESIGN.md), [`ROADMAP.md`](clients/web/ROADMAP.md), and its own [`CLAUDE.md`](clients/web/CLAUDE.md) | AGPL-3.0-or-later (it bundles `@sovereignfs/ui`) | `web-vX.Y.Z` |
 | `packages/fjord-editor` | The document and note editors, shared by the clients: the interface, the note editor (CodeMirror) and a text area behind the document editor so far (`clients/web/DESIGN.md` §10; its own [`CLAUDE.md`](packages/fjord-editor/CLAUDE.md)). Its own pnpm project, built and tested alone | MPL-2.0, and independent of `@sovereignfs/ui` (`clients/web/DESIGN.md` §18) | with its users |
