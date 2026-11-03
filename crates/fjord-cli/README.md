@@ -77,6 +77,42 @@ git remote add origin git@github.com:you/Fjord.git
 fjord sync                       # commits, pushes, and sets up tracking
 ```
 
+## Commands at a glance
+
+Each command has its own section below. Every command takes the options listed under [Options every command takes](#options-every-command-takes).
+
+| Command | What it does |
+| --- | --- |
+| `fjord init` | Creates a repository, runs `git init` and makes the first commit. Of a kind: a drive (the default), a journal, or a site (`--kind`). |
+| `fjord verify` | Checks the repository against the specification and reports coded diagnostics. Changes nothing, unless `--fix` repairs `fjord.json`. |
+| `fjord status` | Repository health and sync state. |
+| `fjord new` | Creates a document with valid frontmatter. In a journal or a site, with no path, it writes today's entry or a new post where the kind files it. |
+| `fjord open` | Decrypts a document, opens your editor, and re-encrypts only if it changed. |
+| `fjord ls` | Lists documents and vault files. |
+| `fjord grep` | Searches document contents, encrypted vaults included. |
+| `fjord encrypt` | Encrypts a file in place inside an encrypted vault, or checks a decrypted vault back in. |
+| `fjord decrypt` | Decrypts a file to stdout, or a whole vault in place. |
+| `fjord key` | Makes an identity, and adds, lists and removes a vault's recipients. |
+| `fjord rekey` | Re-encrypts a whole vault to its current recipients. |
+| `fjord vault` | Creates and lists vaults, plaintext or encrypted. |
+| `fjord export` | Decrypts a vault into a plain directory. |
+| `fjord import` | Brings a directory of files into a vault as documents. |
+| `fjord sync` | Pulls, resolves conflicts by decrypting and merging, and pushes. Both sides survive an unresolvable merge. |
+
+**What it does not do.** The CLI makes and checks repositories of each kind, but it does not change a repository's kind (edit `fjord.json`, then `fjord verify`), list a journal by date or tag, build or preview a site, show a build's status, or publish. The first three are in Fjord Web. Publishing is the git host's: Fjord never deploys. It also cannot import an existing Astro or Jekyll site as one, because a site's content has to be in a root vault.
+
+**Keeping this page true.** `tests/readme_commands.rs` fails when a command, a subcommand or a flag that `fjord --help` reports is not written about here, so adding one to the CLI means documenting it in the same change.
+
+### Options every command takes
+
+| Option | Effect |
+| --- | --- |
+| `-C, --repo <path>` | Repository root. Defaults to the nearest ancestor containing `fjord.json`. |
+| `--identity <path>` | The age identity file (also `FJORD_IDENTITY`). A key is never passed as an argument. |
+| `--no-input` | Never prompt. A prompt becomes a usage error (exit `2`), never a hang. |
+| `--json` | Machine-readable output, for the commands that report. |
+| `-q, --quiet` | Suppress informational output. Errors still print. |
+
 ## Commands
 
 ### `fjord init [path]`
@@ -205,7 +241,12 @@ only the header is parsed, and the command says so.
 
 | Flag | Effect |
 | --- | --- |
-| `--keep` | Leave the plaintext in place. It then sits in the clear inside an encrypted vault, which `fjord verify` reports as `E201`. |
+| `--keep` | Leave the plaintext in place. It then sits in the clear inside an encrypted vault, which `fjord verify` reports as `E201`. Not for a vault. |
+| `--dry-run` | Vault only: say what would be re-encrypted, added and removed, and change nothing. |
+| `--yes`, `-y` | Vault only: do not ask before removing the payloads of documents deleted while the vault was decrypted. |
+| `--discard` | Vault only: throw the decrypted copies away without saving them, and end the checkout. |
+
+The three vault flags are explained in [Working on a whole vault](#working-on-a-whole-vault).
 
 Refused if the vault has no recipients: spec §6.2 requires a client to
 refuse rather than store plaintext.
@@ -361,6 +402,7 @@ never created in the first place.
 | `--title <text>` | Set the title. Defaults to the file stem (without `.md` or `.fj.md`). |
 | `--document` | Make it a document: name it `*.fj.md`. |
 | `--no-edit` | Create the file without opening an editor. |
+| `--draft` | For a post made in a site with no path: a draft, not for the site yet (Astro: `draft: true`; Jekyll: a file in `_drafts`). |
 | `--date <date>` | For a journal entry made with no path: its `date`, RFC 3339 with an offset. Defaults to now. |
 
 **In a journal the path may be left out** (`fjord new --title "Morning run"`): the new entry is dated
@@ -523,7 +565,7 @@ fjord key remove <recipient> --vault Private
 ```
 
 `fjord key new` writes the identity to `~/.config/fjord/identity.txt` (or
-`$FJORD_CONFIG_DIR`), readable only by you, and prints its **public key**.
+`$FJORD_CONFIG_DIR`, or the path given with `--out <path>`), readable only by you, and prints its **public key**.
 The secret is never printed: a terminal is scrollback, a CI log, and
 sometimes a screen share. It is in the file, which you own.
 
