@@ -1,10 +1,9 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { authClient } from "../client";
 import { messageFor } from "../messages";
-import { Alert, Button, FormField, Input } from "../../ui";
-import styles from "./screens.module.css";
+import { AuthButton, AuthDivider, AuthError, AuthField, AuthFooter, AuthForm, AuthLink, AuthNotice, Input } from "../../ui";
 
 /**
  * The ways this instance offers: email and password or a passkey (two-factor, if the account has
@@ -16,17 +15,23 @@ export function SignInForm({
   sovereign,
   notice,
   initialError,
+  instanceName,
 }: {
   local?: { canReset: boolean; canSignUp: boolean };
   sovereign: boolean;
   notice?: string;
   /** What went wrong on the way back from Sovereign, if anything. */
   initialError?: string;
+  instanceName: string;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(initialError ?? null);
   const [busy, setBusy] = useState<"password" | "passkey" | "sovereign" | null>(null);
+  // Known only in the browser, so it is read after the first render, never during it.
+  const [passkeysSupported, setPasskeysSupported] = useState(false);
+
+  useEffect(() => setPasskeysSupported(typeof window.PublicKeyCredential === "function"), []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -57,7 +62,8 @@ export function SignInForm({
     window.location.assign("/");
   }
 
-  async function onSovereign() {
+  async function onSovereign(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     setBusy("sovereign");
     setError(null);
     // On success the browser is sent to Sovereign, so there is nothing to do after the call;
@@ -69,57 +75,68 @@ export function SignInForm({
     }
   }
 
-  const sovereignButton = sovereign ? (
-    <div className={styles.form}>
-      <Button variant={local ? "secondary" : "primary"} size="lg" onClick={onSovereign} loading={busy === "sovereign"} disabled={busy !== null}>
-        Sign in with Sovereign
-      </Button>
-    </div>
-  ) : null;
+  const sovereignButton = (
+    <AuthButton type={local ? "button" : "submit"} variant={local ? "secondary" : "primary"} onClick={local ? () => void onSovereign() : undefined} loading={busy === "sovereign"} disabled={busy !== null}>
+      Sign in with Sovereign
+    </AuthButton>
+  );
 
   return (
     <>
-      {notice ? (
-        <div className={styles.notice}>
-          <Alert variant="success">{notice}</Alert>
-        </div>
-      ) : null}
-      {error ? (
-        <div className={styles.notice}>
-          <Alert variant="error">{error}</Alert>
-        </div>
-      ) : null}
+      {notice ? <AuthNotice>{notice}</AuthNotice> : null}
       {local ? (
         <>
-          <form className={styles.form} onSubmit={onSubmit} noValidate={false}>
-            <FormField label="Email" required>
+          <AuthForm onSubmit={(event) => void onSubmit(event)}>
+            <AuthField label="Email">
               {(field) => (
-                <Input {...field} type="email" name="email" autoComplete="username webauthn" value={email} onChange={(e) => setEmail(e.target.value)} disabled={busy !== null} />
+                <Input {...field} type="email" name="email" autoComplete="username webauthn" required disabled={busy !== null} value={email} onChange={(e) => setEmail(e.target.value)} />
               )}
-            </FormField>
-            <FormField label="Password" required>
+            </AuthField>
+            <AuthField label="Password" aside={local.canReset ? <a href="/forgot-password">Forgot password?</a> : undefined}>
               {(field) => (
-                <Input {...field} type="password" name="password" autoComplete="current-password webauthn" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy !== null} />
+                <Input
+                  {...field}
+                  type="password"
+                  name="password"
+                  autoComplete="current-password webauthn"
+                  required
+                  disabled={busy !== null}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
               )}
-            </FormField>
-            <Button type="submit" size="lg" loading={busy === "password"} disabled={busy !== null}>
+            </AuthField>
+            {error ? <AuthError>{error}</AuthError> : null}
+            <AuthButton type="submit" loading={busy === "password"} disabled={busy !== null}>
               Sign in
-            </Button>
-          </form>
-          <div className={styles.divider}>or</div>
-          <div className={styles.form}>
-            <Button variant="secondary" size="lg" onClick={onPasskey} loading={busy === "passkey"} disabled={busy !== null}>
-              Sign in with a passkey
-            </Button>
-          </div>
-          <div className={styles.links} style={{ marginTop: "var(--sv-space-5)" }}>
-            {local.canReset ? <a href="/forgot-password">Forgot your password?</a> : <span />}
-            {local.canSignUp ? <a href="/sign-up">Create an account</a> : null}
-          </div>
+            </AuthButton>
+          </AuthForm>
+          {passkeysSupported ? (
+            <>
+              <AuthDivider />
+              <AuthButton variant="secondary" onClick={() => void onPasskey()} loading={busy === "passkey"} disabled={busy !== null}>
+                Sign in with a passkey
+              </AuthButton>
+            </>
+          ) : null}
+          {sovereign ? (
+            <>
+              <AuthDivider />
+              {sovereignButton}
+            </>
+          ) : null}
+          {local.canSignUp ? (
+            <AuthFooter>
+              New to {instanceName}? <AuthLink href="/sign-up">Create account</AuthLink>
+            </AuthFooter>
+          ) : null}
         </>
+      ) : sovereign ? (
+        <AuthForm onSubmit={(event) => void onSovereign(event)}>
+          {error ? <AuthError>{error}</AuthError> : null}
+          {sovereignButton}
+        </AuthForm>
       ) : null}
-      {local && sovereign ? <div className={styles.divider}>or</div> : null}
-      {sovereignButton}
     </>
   );
 }

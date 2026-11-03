@@ -1,4 +1,4 @@
-import { PASSWORD, enableTwoFactor, expect, signIn, signOut, signUp, test, uniqueEmail, alertOn } from "./helpers";
+import { PASSWORD, enableTwoFactor, enterCode, expect, signIn, signOut, signUp, test, uniqueEmail, alertOn } from "./helpers";
 import { totp } from "../src/auth/totp";
 
 test.describe("an account", () => {
@@ -41,7 +41,7 @@ test.describe("an account", () => {
 
   test("does not offer a password reset when the instance cannot send email", async ({ page }) => {
     await page.goto("/sign-in");
-    await expect(page.getByRole("link", { name: "Forgot your password?" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Forgot password?" })).toHaveCount(0);
     expect((await page.goto("/forgot-password"))?.status()).toBe(404);
   });
 
@@ -79,15 +79,15 @@ test.describe("two-factor", () => {
 
     await signIn(page, email);
     await expect(page).toHaveURL(/\/sign-in\/two-factor$/);
-    await expect(page.getByRole("heading", { name: "Check it is you" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Two-factor verification" })).toBeVisible();
 
-    await page.getByLabel("Code from your authenticator app").fill("000000");
-    await page.getByRole("button", { name: "Continue" }).click();
+    await enterCode(page, "000000");
+    await page.getByRole("button", { name: "Verify" }).click();
     await expect(alertOn(page)).toContainText("not right");
     await expect(page).toHaveURL(/\/sign-in\/two-factor$/);
 
-    await page.getByLabel("Code from your authenticator app").fill(totp(secret));
-    await page.getByRole("button", { name: "Continue" }).click();
+    await enterCode(page, totp(secret));
+    await page.getByRole("button", { name: "Verify" }).click();
     await expect(page.getByRole("heading", { name: /Hello/ })).toBeVisible();
   });
 
@@ -97,25 +97,25 @@ test.describe("two-factor", () => {
     await signOut(page);
 
     await signIn(page, email);
-    await page.getByRole("button", { name: "I cannot use my authenticator app" }).click();
+    await page.getByRole("button", { name: "Use a backup code" }).click();
     await page.getByLabel("Backup code").fill(backupCodes[0]!);
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Verify" }).click();
     await expect(page.getByRole("heading", { name: /Hello/ })).toBeVisible();
     await signOut(page);
 
     // The same code again, from a new sign-in.
     await signIn(page, email);
-    await page.getByRole("button", { name: "I cannot use my authenticator app" }).click();
+    await page.getByRole("button", { name: "Use a backup code" }).click();
     await page.getByLabel("Backup code").fill(backupCodes[0]!);
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Verify" }).click();
     await expect(alertOn(page)).toContainText("used already");
 
     // A different one still works.
     await page.getByRole("link", { name: "Back to sign in" }).click();
     await signIn(page, email);
-    await page.getByRole("button", { name: "I cannot use my authenticator app" }).click();
+    await page.getByRole("button", { name: "Use a backup code" }).click();
     await page.getByLabel("Backup code").fill(backupCodes[1]!);
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Verify" }).click();
     await expect(page.getByRole("heading", { name: /Hello/ })).toBeVisible();
     void browser;
   });

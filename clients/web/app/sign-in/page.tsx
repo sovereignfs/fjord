@@ -17,10 +17,11 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
   const local = localAuthConfig();
 
   return (
-    <AuthShell title="Sign in" lead={`Welcome back to ${instance.name}.`}>
+    <AuthShell title={`Sign in to ${instance.name}`} name={instance.name}>
       <SignInForm
         {...(local ? { local: { canReset: local.smtp !== undefined, canSignUp: await signUpAvailable() } } : {})}
         sovereign={sovereignAuthConfig() !== undefined}
+        instanceName={instance.name}
         {...(reset === "1" && local ? { notice: "Your password is changed. Sign in with the new one." } : {})}
         {...(oauthErrorMessage(error) ? { initialError: oauthErrorMessage(error) as string } : {})}
       />

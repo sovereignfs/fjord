@@ -45,6 +45,12 @@ export async function signIn(page: Page, email: string, password = PASSWORD) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
+/** Type a one-time code into the boxes of the second sign-in step: focus moves on by itself after each digit. */
+export async function enterCode(page: Page, code: string) {
+  await page.getByLabel("Digit 1").click();
+  await page.keyboard.type(code);
+}
+
 export async function signOut(page: Page) {
   await page.getByRole("button", { name: "Sign out" }).click();
   await expect(page.getByRole("heading", { name: /Documents and notes/ })).toBeVisible();

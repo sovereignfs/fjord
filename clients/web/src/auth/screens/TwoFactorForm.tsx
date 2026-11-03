@@ -3,8 +3,7 @@
 import { type FormEvent, useState } from "react";
 import { authClient } from "../client";
 import { messageFor } from "../messages";
-import { Alert, Button, FormField, Input } from "../../ui";
-import styles from "./screens.module.css";
+import { AuthButton, AuthCodeInput, AuthError, AuthField, AuthFooter, AuthForm, AuthLink, AuthLinkButton, Input } from "../../ui";
 
 /** The second step of signing in: a code from the authenticator app, or a backup code. */
 export function TwoFactorForm() {
@@ -29,48 +28,34 @@ export function TwoFactorForm() {
 
   return (
     <>
-      {error ? (
-        <div className={styles.notice}>
-          <Alert variant="error">{error}</Alert>
-        </div>
-      ) : null}
-      <form className={styles.form} onSubmit={onSubmit}>
-        <FormField
-          label={useBackup ? "Backup code" : "Code from your authenticator app"}
-          hint={useBackup ? "Each backup code works once." : "Six digits. They change every 30 seconds."}
-          required
-          className={styles.codeInput}
-        >
-          {(field) => (
-            <Input
-              {...field}
-              name="code"
-              inputMode={useBackup ? "text" : "numeric"}
-              autoComplete="one-time-code"
-              autoFocus
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              disabled={busy}
-            />
-          )}
-        </FormField>
-        <Button type="submit" size="lg" loading={busy}>
-          Continue
-        </Button>
-      </form>
-      <p className={styles.footer} style={{ marginTop: "var(--sv-space-5)" }}>
-        <button
-          type="button"
-          className={styles.linkButton}
+      <AuthForm onSubmit={onSubmit}>
+        {useBackup ? (
+          <AuthField label="Backup code" hint="Each backup code works once.">
+            {(field) => <Input {...field} name="code" autoComplete="off" required autoFocus value={code} onChange={(e) => setCode(e.target.value)} disabled={busy} />}
+          </AuthField>
+        ) : (
+          <AuthCodeInput label="Code from your authenticator app" value={code} onChange={setCode} disabled={busy} invalid={error !== null} />
+        )}
+        {error ? <AuthError>{error}</AuthError> : null}
+        <AuthButton type="submit" loading={busy} disabled={!useBackup && code.length < 6}>
+          Verify
+        </AuthButton>
+      </AuthForm>
+      <AuthFooter>
+        {useBackup ? "Have your authenticator app? " : "Lost access to your authenticator? "}
+        <AuthLinkButton
           onClick={() => {
             setUseBackup(!useBackup);
             setCode("");
             setError(null);
           }}
         >
-          {useBackup ? "Use my authenticator app" : "I cannot use my authenticator app"}
-        </button>
-      </p>
+          {useBackup ? "Use the authenticator app instead" : "Use a backup code"}
+        </AuthLinkButton>
+      </AuthFooter>
+      <AuthFooter>
+        <AuthLink href="/sign-in">Back to sign in</AuthLink>
+      </AuthFooter>
     </>
   );
 }
