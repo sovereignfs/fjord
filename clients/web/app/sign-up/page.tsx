@@ -19,6 +19,7 @@ export default async function SignUpPage() {
         name={config.name}
         lead={`${config.name} is not taking new accounts. If you have one, sign in; otherwise ask whoever runs this instance.`}
         footer={<AuthLink href="/sign-in">Go to sign in</AuthLink>}
+        footerAlign="start"
       />
     );
   }

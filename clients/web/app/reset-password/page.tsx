@@ -27,6 +27,7 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
             <AuthLink href="/sign-in">Back to sign in</AuthLink>
           </>
         }
+        footerAlign="start"
       />
     );
   }

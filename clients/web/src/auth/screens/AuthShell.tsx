@@ -12,6 +12,7 @@ export function AuthShell({
   lead,
   children,
   footer,
+  footerAlign,
   wide,
   name = "Fjord",
 }: {
@@ -19,6 +20,8 @@ export function AuthShell({
   lead?: string;
   children?: ReactNode;
   footer?: ReactNode;
+  /** `start` for a screen that is only a message and a link, so the link lines up under the text. */
+  footerAlign?: "start";
   wide?: boolean;
   /** The instance's name (`FJORD_NAME`), whose first two letters are the mark: "Fj". */
   name?: string;
@@ -26,7 +29,7 @@ export function AuthShell({
   return (
     <AuthCard brand={<BrandBadge name={name} mark={markOf(name)} />} title={title} {...(lead ? { lead } : {})} legal={false} wide={wide === true}>
       {children}
-      {footer ? <AuthFooter>{footer}</AuthFooter> : null}
+      {footer ? <AuthFooter {...(footerAlign ? { align: footerAlign } : {})}>{footer}</AuthFooter> : null}
     </AuthCard>
   );
 }
