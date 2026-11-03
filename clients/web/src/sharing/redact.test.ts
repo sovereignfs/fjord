@@ -77,6 +77,10 @@ describe("redacting a sealed share's token (ROADMAP 2c.1)", () => {
       expect(out, line).toContain("[redacted]");
     }
     expect(redactTokens(`GET /s/${TOKEN}?x=1 200`)).toBe("GET /s/[redacted]?x=1 200");
+    // A published page (ROADMAP 3h.1).
+    expect(redactTokens(`GET /p/${TOKEN} 200`)).toBe("GET /p/[redacted] 200");
+    expect(redactTokens(`GET https://fjord.example.com/p/${TOKEN}?x=1`)).toBe("GET https://fjord.example.com/p/[redacted]?x=1");
+    expect(redactTokens("GET /p/short 200")).toBe("GET /p/short 200");
   });
 
   it("leaves other addresses alone, and a path of the same length that is not a sealed share's", () => {

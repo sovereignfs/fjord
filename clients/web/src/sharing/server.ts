@@ -21,7 +21,7 @@ import { TreeCache } from "../browse/tree-cache";
 import { describeProblem } from "../browse/problems";
 
 /** What a Doc `id` is in one of the account's repositories now: a document, or not there; the host may not answer. */
-async function documentIn(accountId: string, id: number, docId: string): Promise<"document" | "gone" | "unavailable"> {
+export async function documentIn(accountId: string, id: number, docId: string): Promise<"document" | "gone" | "unavailable"> {
   const service = await connectionService();
   const connection = await service.get(accountId, id);
   if (!connection) return "gone";
@@ -93,7 +93,7 @@ export async function unlockFor(docId: string, password: unknown, pendingToken: 
 }
 
 /** A repository read with its owner's token, for a share or a link that names it; undefined if it cannot be read. */
-async function sourceOfOwner() {
+export async function sourceOfOwner() {
   const database = await getDatabase();
   const service = await connectionService();
   return async (connectionId: number) => {

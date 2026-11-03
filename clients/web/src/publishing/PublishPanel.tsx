@@ -1,0 +1,109 @@
+"use client";
+
+import { useState } from "react";
+import { Alert, Button } from "../ui";
+import styles from "../auth/screens/screens.module.css";
+import { getStatus, publish, unpublish } from "./client";
+
+/**
+ * "Publish as a page" (DESIGN.md §12, ROADMAP 3h.1): the Doc as a read-only page at an address anyone can open, no account needed. It is the owner's choice, said in
+ * words first: the page shows the saved version, a change shows on it after the next version is saved, and anyone who has the address can read it. The address is shown
+ * **once**, when it is made; publishing again makes a new address and ends the old one, and *Unpublish* ends it at once.
+ */
+export function PublishPanel({ connectionId, docId }: { connectionId: number; docId: string }) {
+  const [loaded, setLoaded] = useState(false);
+  const [published, setPublished] = useState(false);
+  const [url, setUrl] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function load() {
+    const status = await getStatus(connectionId, docId);
+    if (status.ok) setPublished(status.published);
+    else setProblem(status.message);
+    setLoaded(true);
+  }
+
+  async function make() {
+    setBusy(true);
+    setProblem(null);
+    const made = await publish(connectionId, docId);
+    setBusy(false);
+    if (made.ok) {
+      setUrl(new URL(made.url, window.location.origin).href);
+      setPublished(true);
+      setAsking(false);
+    } else setProblem(made.message);
+  }
+
+  async function end() {
+    setBusy(true);
+    setProblem(null);
+    const ended = await unpublish(connectionId, docId);
+    setBusy(false);
+    if (ended.ok) {
+      setPublished(false);
+      setUrl(null);
+    } else setProblem(ended.message);
+  }
+
+  return (
+    <details
+      className={styles.itemMeta}
+      data-testid="publish-panel"
+      onToggle={(event) => {
+        if ((event.currentTarget as HTMLDetailsElement).open && !loaded) void load();
+      }}
+    >
+      <summary>Publish as a page</summary>
+      {problem ? (
+        <div className={styles.notice}>
+          <Alert variant="error" heading="Publishing">
+            {problem}
+          </Alert>
+        </div>
+      ) : null}
+      {url ? (
+        <div className={styles.notice}>
+          <Alert variant="success" heading="Published">
+            Anyone with this address can read the page. It is shown only now; keep it, or publish again for a new one.
+            <br />
+            <code data-testid="page-address">{url}</code>
+          </Alert>
+        </div>
+      ) : null}
+      {published ? (
+        <>
+          {url ? null : <p>This document is published. Its address was shown when it was made and is not kept; publish again for a new one, which ends the old.</p>}
+          <div className={styles.actions}>
+            <Button type="button" variant="secondary" size="sm" loading={busy} onClick={() => void end()}>
+              Unpublish
+            </Button>
+            <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={() => setAsking(true)}>
+              Publish again
+            </Button>
+          </div>
+        </>
+      ) : null}
+      {!published || asking ? (
+        <>
+          <p>
+            A published page shows this document&apos;s saved version, read-only, to anyone with its address, with no account. Raw HTML in it is shown as text, and pictures and
+            scripts are not loaded. A change shows on the page after you save a version.
+          </p>
+          <div className={styles.actions}>
+            <Button type="button" loading={busy} onClick={() => void make()}>
+              {published ? "Publish with a new address" : "Publish"}
+            </Button>
+            {asking ? (
+              <Button type="button" variant="secondary" disabled={busy} onClick={() => setAsking(false)}>
+                Cancel
+              </Button>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+    </details>
+  );
+}

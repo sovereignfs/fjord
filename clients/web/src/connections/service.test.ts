@@ -15,6 +15,7 @@ import { FakeGitHub } from "../providers/testing/fake-github";
 import { TreeCache } from "../browse/tree-cache";
 import { DocIndex } from "../browse/doc-index";
 import { FileHandles } from "../browse/handles";
+import { PublicationService } from "../publishing/publications";
 import { CommentService } from "../comments/service";
 import { SealedShareService } from "../sealed/service";
 import { LinkService } from "../sharing/links";
@@ -74,6 +75,7 @@ beforeEach(async () => {
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.fileHandle : sqliteSchema.fileHandle}`);
+  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.publication : sqliteSchema.publication}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.shareLink : sqliteSchema.shareLink}`);
   await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.sealedShare : sqliteSchema.sealedShare}`);
@@ -376,6 +378,23 @@ describe(`using and removing a connection (${leg})`, () => {
     await s.remove(ALICE, one.id);
     expect(await handles.resolve(gone)).toBeUndefined();
     expect(await handles.resolve(kept)).toEqual({ connectionId: two.id, path: "Notes/a.md" });
+  });
+
+  it("ends the pages published from a repository when it is disconnected, and no other's", async () => {
+    const memory = new MemoryProvider();
+    for (const name of ["one", "two"]) {
+      memory.createRepository({ owner: "acme", name });
+      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    }
+    const s = new ConnectionService({ database, credentials, github: () => memory });
+    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const pages = new PublicationService(database);
+    const [gone, kept] = [await pages.publish(one.id, "01jagc4k7pt8y3wqnmzv5xrb8j", ALICE), await pages.publish(two.id, "01jagc4k7pt8y3wqnmzv5xrb8j", ALICE)];
+
+    await s.remove(ALICE, one.id);
+    expect(await pages.find(gone.token)).toBeUndefined();
+    expect(await pages.find(kept.token)).toEqual({ connectionId: two.id, docId: "01jagc4k7pt8y3wqnmzv5xrb8j" });
   });
 
   it("forgets what was shared from a repository when it is disconnected, and for no other's", async () => {

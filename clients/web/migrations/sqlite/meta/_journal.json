@@ -127,6 +127,20 @@
       "when": 1793712674601,
       "tag": "0017_add_file_handle",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1793714512847,
+      "tag": "0018_add_publication",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1793714772690,
+      "tag": "0019_publication_copy",
+      "breakpoints": true
     }
   ]
 }

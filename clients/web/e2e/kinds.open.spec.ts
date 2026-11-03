@@ -111,7 +111,7 @@ test("a repository that is not a Fjord repository is set up as a site, takes a p
   await page.getByRole("button", { name: "New post" }).click();
   await page.getByLabel("Title").fill("Hello, World!");
   await page.getByRole("button", { name: "Write it" }).click();
-  await expect(page).toHaveURL(/\/repo\/\d+\/content\/posts\/hello-world\.md$/);
+  await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 }); // a post has an id from the start, so its address shows no path
   const post = (await hubs.more.filesAt((await hubs.more.branchHead())!))["content/posts/hello-world.md"]!;
   expect(post).toContain("draft: true");
   expect(post).toMatch(/date: "\d{4}-\d\d-\d\d/);
@@ -148,7 +148,7 @@ test("a tag with a space is refused on a Jekyll site, with the engine's reason, 
   await page.getByLabel("Title").fill("First light");
   await page.getByLabel(/A draft/).uncheck();
   await page.getByRole("button", { name: "Write it" }).click();
-  await expect(page).toHaveURL(/\/repo\/\d+\/content\/_posts\/\d{4}-\d\d-\d\d-first-light\.md$/);
+  await expect(page).toHaveURL(/\/d\/[0-9a-hjkmnp-tv-z]{26}$/, { timeout: 30_000 });
 
   await page.getByText("Properties").click();
   await page.getByLabel("Tags").fill("two words");

@@ -13,4 +13,4 @@ kept in step with the table below.
 | RFC | Title | Status |
 | --- | --- | --- |
 | [0001](0001-repository-kinds.md) | Repository kinds: Drive, Journal and SSG | Implemented |
-| [0002](0002-kinds-second-pass.md) | Kinds, second pass: one kind of Doc, addresses, adoption | Draft |
+| [0002](0002-kinds-second-pass.md) | Kinds, second pass: one kind of Doc, addresses, adoption | Implemented |

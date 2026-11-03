@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **Status** | Draft, for the owner's review |
+| **Status** | Implemented, 2026-11-03 ([workstream 0002](../workstreams/0002-kinds-second-pass.md)), with the differences listed in the changelog below |
 | **Date** | November 2026 |
 | **Author** | Claude Code, from a design conversation with the owner (2026-11-03) |
 | **Scope** | [`docs/specs/Fjord.spec.md`](../specs/Fjord.spec.md) §1.3, §2.3, §3, §3.1, §6.6, §8.4, §12 (a format change, not additive: §8.4 is withdrawn); `fjord-core`, `fjord-cli`, `fjord-wasm`; Fjord Web ([`clients/web/DESIGN.md`](../../clients/web/DESIGN.md) §8, §9, §10, §12) |
@@ -279,3 +279,4 @@ None is added or removed: no code was about `.fj.md`.
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-11-03 | Initial draft, from a design conversation with the owner. The spec text (§1.3, §2.3, §3, §3.1, §6.6, §8.4, §12) written with it, at the owner's request |
+| 1.0 | 2026-11-03 | Implemented. Built as designed, with these differences: **no new diagnostic** (`E207` already says a vault inside another; `E113` was never needed), and a vault in a gitignored folder is not excluded (`verify` walks every folder, and `.gitignore` is git's; the spec's sentence went); **`init --adopt` takes no terminal prompts** for the vaults or for a journal's encryption (flags only, and a journal over existing notes with neither `--no-encrypt` nor `--encrypt-existing` is a usage error on a terminal too); **an entry is not dated by its first commit** (the timeline has no history; one with no `date`, dated path or `created` is listed without a day); **rich mode for a site** uses the document editor's meaning-preserving guard and its ask-before-reformatting notice, not a byte-for-byte round trip; the **sealed link and the shares keep their read-only editor view**, not the published page's renderer; the browser is told a vault below the root only from a **whole listing** (a repository too large to list does not find one), and **encrypted vaults below the root are read, not written**, by the web; `/n/<id>` is sent to `/d/<id>` by the proxy rather than by a page. Also added, from the work: `fjord-core`'s `doc::with_field` and the web's front-matter form (3g.2), the `file_handle` and `publication` tables (migrations `0017`–`0019`), and the Markdown parser packages as web dependencies |

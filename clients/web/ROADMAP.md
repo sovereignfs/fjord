@@ -138,7 +138,7 @@ Order: P9–P12, then 3a, then 3b, then 3c, then 3d.1. 3a needs P12; 3c.1 opens 
 
 ### Kinds, second pass
 
-Planned on 2026-11-03. One kind of Doc whose editor is the kind's choice, addresses with no path in them, journals encrypted by default, publishing a drive's Doc as a page, vaults at any depth, and adopting existing files. The design is [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), the tasks are at the end of [`web-3.md`](../../docs/epics/web-3.md#kinds-second-pass-rfc-0002), and the order is [workstream 0002](../../docs/workstreams/0002-kinds-second-pass.md). The spec text is already written; the prerequisites bring the code to it.
+Planned and built on 2026-11-03. One kind of Doc whose editor is the kind's choice, addresses with no path in them, journals encrypted by default, publishing a drive's Doc as a page, vaults at any depth, and adopting existing files. The design is [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), the tasks are at the end of [`web-3.md`](../../docs/epics/web-3.md#kinds-second-pass-rfc-0002), and the order is [workstream 0002](../../docs/workstreams/0002-kinds-second-pass.md). The spec text is already written; the prerequisites bring the code to it.
 
 | # | Task | Status |
 | --- | --- | --- |
@@ -154,8 +154,8 @@ Planned on 2026-11-03. One kind of Doc whose editor is the kind's choice, addres
 | [3f.2](../../docs/epics/web-3.md#3f2-new-journals-encrypted-by-default) | New journals encrypted by default | ✅ Done |
 | [3g.1](../../docs/epics/web-3.md#3g1-a-sites-vault-below-the-root) | A site's vault below the root | ✅ Done |
 | [3g.2](../../docs/epics/web-3.md#3g2-source-and-rich-modes-and-the-frontmatter-form) | Source and rich modes, and the frontmatter form | ✅ Done (rich mode uses the editor's meaning guard) |
-| [3h.1](../../docs/epics/web-3.md#3h1-publish-a-doc-as-a-page) | Publish a Doc as a page | 📋 Planned |
-| [3h.2](../../docs/epics/web-3.md#3h2-publish-from-an-encrypted-vault) | Publish from an encrypted vault | 📋 Planned |
+| [3h.1](../../docs/epics/web-3.md#3h1-publish-a-doc-as-a-page) | Publish a Doc as a page | ✅ Done (public pages) |
+| [3h.2](../../docs/epics/web-3.md#3h2-publish-from-an-encrypted-vault) | Publish from an encrypted vault | ✅ Done (a copy, after a warning) |
 
 Order: P13–P17 (the CLI first), then 3e, 3f, 3g, 3h. Every web task needs P17; 3g.1 needs P16's adoption.
 

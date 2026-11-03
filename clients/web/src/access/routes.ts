@@ -54,6 +54,8 @@ export const ROUTES: RouteRule[] = [
   { route: "/d/[id]/comments/events", methods: { GET: owner("read") } },
   // A sealed copy of an encrypted file, opened by a link (2c.1): the token in the path is the way in, and the key is in the address's fragment, which no request carries.
   { route: "/s/[token]", page: { kind: "public" } },
+  // A Doc published as a page (3h.1): the token in the path is the way in, and anyone may ask.
+  { route: "/p/[token]", page: { kind: "public" } },
   { route: "/deleted/[connection]", page: owner("restore") },
 
   // APIs
@@ -99,6 +101,9 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/connections/[id]/files/move", methods: { POST: owner("move") } },
   { route: "/api/connections/[id]/files/restore", methods: { POST: owner("restore") } },
   { route: "/api/connections/[id]/shares", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), DELETE: owner("manage_shares") } },
+  // Publishing a Doc as a page, which only its owner does (3h.1).
+  { route: "/api/connections/[id]/publication", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), DELETE: owner("manage_shares") } },
+  { route: "/api/connections/[id]/publication/copy", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), DELETE: owner("manage_shares") } },
   { route: "/api/connections/[id]/links", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), PATCH: owner("manage_shares"), DELETE: owner("manage_shares") } },
   { route: "/api/connections/[id]/working-copy", methods: { PUT: owner("edit"), DELETE: owner("edit") } },
   { route: "/api/connections/[id]/working-copy/version", methods: { POST: owner("save_version") } },

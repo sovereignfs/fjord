@@ -68,7 +68,18 @@ export async function RepositoryScreen({ connection, path, view, query = {}, via
       }
     } else {
       // A place reached by its path is sent on to its address that shows no path (RFC 0002): a Doc whose `id` is known to `/d/<id>`, anything else to `/f/<handle>`.
-      if (via === undefined) redirect(await addressOf(current.id, segments.join("/"), found.location.kind === "file" ? outcome.read.blobs.get(segments.join("/")) : undefined));
+      if (via === undefined) {
+        // A Doc is read here, once, so that its address is `/d/<id>` in one hop and not `/f/<handle>` and then `/d/<id>`: reading it is also how the index learns its id.
+        if (found.location.kind === "file" && found.location.file.kind === "doc") {
+          const read = await readNoteFor(user.id, current, outcome.read, found.location.file.path);
+          if (read?.ok) {
+            await recordFileRead(current.id, found.location.file, read.blob, read.text);
+            const readId = docIdOf(fjord(), read.text);
+            if (readId !== null) redirect(`/d/${readId}`);
+          }
+        }
+        redirect(await addressOf(current.id, segments.join("/"), found.location.kind === "file" ? outcome.read.blobs.get(segments.join("/")) : undefined));
+      }
       // A note or a document in a plaintext vault is shown in its editor; reading it is the only thing that touches the file.
       const file = found.location.kind === "file" ? found.location.file : undefined;
       const note = file?.kind === "doc" ? await readNoteFor(user.id, current, outcome.read, file.path) : undefined;

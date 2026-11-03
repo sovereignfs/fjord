@@ -1,6 +1,6 @@
 # Workstream 0002 — Kinds, second pass
 
-**Status:** 📋 Planned (waiting for RFC 0002 to be accepted)\
+**Status:** ✅ Complete, 2026-11-03 (all five legs done; see the changelog for the gate that was not held and what differs from the plan)\
 **Date:** November 2026\
 **Author:** Claude Code, from a design conversation with the owner\
 **Goal owner:** the repository's owner (kasunben)\
@@ -20,17 +20,17 @@ Astro or Jekyll site, can make it a Fjord repository without a file moved or rew
 
 ## Definition of done
 
-- [ ] The fixtures and `fjord-core` agree with the spec text already written: one kind of Doc, vaults at any depth (`E207` for a vault inside one), a
+- [x] The fixtures and `fjord-core` agree with the spec text already written: one kind of Doc, vaults at any depth (`E207` for a vault inside one), a
       checkout begun by adoption (P13, P14).
-- [ ] The CLI has no documents, makes journals encrypted by default, and adopts existing directories of each kind (P15, P16).
-- [ ] `fjord-wasm` agrees with the CLI on every fixture, and plans an adoption for the web (P17).
-- [ ] Fjord Web opens every Doc at `/d/<id>` in its kind's editor, everything else at `/f/<handle>`, and shows no path in an
+- [x] The CLI has no documents, makes journals encrypted by default, and adopts existing directories of each kind (P15, P16).
+- [x] `fjord-wasm` agrees with the CLI on every fixture, and plans an adoption for the web (P17).
+- [x] Fjord Web opens every Doc at `/d/<id>` in its kind's editor, everything else at `/f/<handle>`, and shows no path in an
       address (3e.1, 3e.2).
-- [ ] Any drive Doc can be shared, and an `id` is added only when asked (3e.3).
-- [ ] A journal opens on a writing view, and a new one is encrypted by default (3f).
-- [ ] An adopted site opens on its posts, and its files edit safely in source or rich mode (3g).
-- [ ] A drive's Doc can be published, publicly or privately, and from an encrypted vault only after the warning (3h).
-- [ ] RFC 0002's status says it is implemented; `clients/web/DESIGN.md` says *as built* where it now says *planned (RFC 0002)*.
+- [x] Any drive Doc can be shared, and an `id` is added only when asked (3e.3).
+- [x] A journal opens on a writing view, and a new one is encrypted by default (3f).
+- [x] An adopted site opens on its posts, and its files edit safely in source or rich mode (3g).
+- [x] A drive's Doc can be published, publicly or privately, and from an encrypted vault only after the warning (3h).
+- [x] RFC 0002's status says it is implemented; `clients/web/DESIGN.md` says *as built* where it now says *planned (RFC 0002)*.
 
 ## Decisions locked
 
@@ -159,3 +159,4 @@ of DESIGN §15.
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-11-03 | Initial draft, with RFC 0002 |
+| 1.0 | 2026-11-03 | Run end to end in one sitting at the owner's instruction (legs 1 to 5, commits on `main`, nothing pushed). **Gates:** leg 1's gate (the owner reviews `init --adopt` on real directories before a web task depends on it) and leg 4's (rich mode's guard reviewed against real posts) were **not held**: the owner told the run to continue without pushing, so the review is still theirs to do, on the local commits. **Differences from the plan** are in RFC 0002's changelog and each task's "Done as" and "Not here" in `web-3.md`. **Not verified:** a real Astro or Jekyll build of an adopted site (neither is installed here); the e2e specs other than `kinds.open.spec.ts` (run, passing) and those named in `web-3.md` |

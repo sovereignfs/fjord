@@ -44,7 +44,7 @@ export interface SharedDocument {
  * The document with this Doc `id` in one connection's repository as it is now: its title and body, or undefined. With `draft` (which
  * a link that may edit is given), the body is that of the working copy when there is one, and `editable` says the header can be kept apart.
  */
-async function readDocument(
+export async function readDocument(
   deps: Pick<OpenDeps, "sourceOf" | "index" | "format"> & { drafts?: { get: (connectionId: number, path: string) => Promise<{ content: string } | undefined> } },
   connectionId: number,
   docId: string,

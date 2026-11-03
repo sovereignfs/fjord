@@ -184,6 +184,35 @@ export const docIndex = sqliteTable(
 );
 
 /**
+ * A Doc published as a page (DESIGN.md §12, ROADMAP 3h.1, RFC 0002): `/p/<token>` shows it, rendered and read-only, to anyone with the address and no account.
+ * It is a row here and nothing in the repository (spec §12 leaves publishing out of the format). **Only a hash of the token is kept**, as for a link, so the
+ * address is shown once, when it is made; publishing again makes a new address and ends the old one, and unpublishing deletes the row, which ends it at once.
+ * A Doc is its connection and its `id`; a disconnected repository's rows go with it.
+ */
+export const publication = sqliteTable(
+  "publication",
+  {
+    id: id64("id"),
+    connectionId: ref64("connection_id").notNull(),
+    /** The Doc's `id` (spec §8.3). */
+    docId: text("doc_id").notNull(),
+    /** The SHA-256 of the token in the address; the token itself is never kept. */
+    tokenHash: text("token_hash").notNull(),
+    /** The account that published it. */
+    createdBy: text("created_by").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+    /**
+     * For a page published from an **encrypted** vault (ROADMAP 3h.2): the copy the owner's browser decrypted and handed over, with the owner's agreement that
+     * it is readable by anyone with the address. `doc_id` is then `file:<path>`, since the server cannot read the file's `id`. Null for a Doc of a plaintext vault,
+     * which is read from the repository each time.
+     */
+    title: text("title"),
+    body: text("body"),
+  },
+  (table) => [uniqueIndex("publication_connection_doc_idx").on(table.connectionId, table.docId), uniqueIndex("publication_token_idx").on(table.tokenHash)],
+);
+
+/**
  * The address of a file or a folder that has no Doc `id` (DESIGN.md §9, ROADMAP 3e.2, RFC 0002): `/f/<handle>`, so that no address shows a path.
  * One row per path that a link was drawn to. `handle` is random and opaque; the row is **derived, never committed** (spec §2.2), and is rebuilt by
  * making a new one. Fjord's own rename and move carry a row to the new path; one moved outside Fjord leaves its handle on a path that is no longer

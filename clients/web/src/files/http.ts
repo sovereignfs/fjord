@@ -318,7 +318,7 @@ const REFUSALS: Record<Extract<CreateResult, { ok: false }>["reason"] | VaultRef
   encrypted_vault: { status: 422, message: "Files cannot be made in an encrypted vault in this version." },
   unsupported_vault: { status: 422, message: "This vault's manifest cannot be read, or it does not use plain file names, so files cannot be made in it from here." },
   folder_gone: { status: 409, message: "That folder is no longer in the repository. Nothing was made." },
-  bad_title: { status: 422, message: "A document needs a title with some letters or digits in it to name its file by." },
+  bad_title: { status: 422, message: "A title needs some letters or digits in it to name its file by." },
   head_moved: { status: 409, message: "The repository kept changing while this was being made. Nothing was made. Try again." },
   read_only: { status: 422, message: "That token can read this repository but not write to it, so nothing was made. Create the token with the repository permission “Contents: Read and write”, and connect the repository again." },
   bad_token: { status: 422, message: "The git host did not accept this repository's token. Connect the repository again with a new one." },

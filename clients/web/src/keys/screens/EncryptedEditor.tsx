@@ -10,6 +10,7 @@ import { MAX_MESSAGE_CHARS } from "../../working/limits";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
 import { keyStore } from "../client";
 import { TransferControl } from "../../browse/screens/TransferControl";
+import { PublishCopyPanel } from "../../publishing/PublishCopyPanel";
 import { SealedSharePanel } from "../../sealed/SealedSharePanel";
 import { type Naming, type TransferTarget, sealText, toBase64 } from "../files";
 import { loadModule } from "../module";
@@ -289,6 +290,7 @@ export function EncryptedEditor({
         </div>
       ) : null}
       {!readOnly ? <SealedSharePanel connectionId={connectionId} path={path} name={name} getText={() => saver.text} /> : null}
+      {!readOnly && /\.md$/i.test(name) ? <PublishCopyPanel connectionId={connectionId} path={path} name={name} getText={() => saver.text} /> : null}
       {!readOnly ? (
         <TransferControl
           connectionId={connectionId}

@@ -8,6 +8,7 @@ import type { Preview } from "../../working/resolve";
 import { checkVault } from "../../files/create";
 import { DeleteButton } from "./DeleteButton";
 import { MoveButtons } from "./MoveButtons";
+import { PublishPanel } from "../../publishing/PublishPanel";
 import { IdentifyAndShare } from "../../sharing/IdentifyAndShare";
 import { SharePanel } from "../../sharing/SharePanel";
 import { NewFile, type EncryptedCreate } from "./NewFile";
@@ -254,6 +255,32 @@ function FileCard({
   transferTargets: TransferTarget[];
   encryptedEditing: { draft: EncryptedDraft | null; recipients: { ok: true; text: string } | { ok: false; message: string } } | undefined;
 }) {
+  // What a file's page also offers besides the editor: sharing, publishing, rename and move, delete. A journal's writing view keeps them one step away.
+  const extras = (
+    <>
+      {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} /> : null}
+      {remove && docId && !encrypted ? <PublishPanel connectionId={connectionId} docId={docId} /> : null}
+      {remove && !docId && !encrypted && file.kind === "doc" && note?.ok ? <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} /> : null}
+      {remove ? (
+        <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
+      ) : null}
+      {remove && file.kind === "doc" && note?.ok && transferTargets.length > 0 ? (
+        <TransferControl
+          connectionId={connectionId}
+          path={file.path}
+          blob={note.blob}
+          name={leaf(file.path)}
+          text={note.text}
+          sourceEncrypted={false}
+          targets={transferTargets}
+          blocked={draft ? "This file has unsaved changes. Save a version of them, or discard them, to move it to another vault." : undefined}
+        />
+      ) : null}
+      {remove ? (
+        <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
+      ) : null}
+    </>
+  );
   return (
     <section aria-labelledby="file-title">
       <h2 id="file-title" className={styles.title} style={{ fontSize: "var(--sv-font-size-lg)" }}>
@@ -299,50 +326,10 @@ function FileCard({
       {writing ? (
         <details className={styles.itemMeta} data-testid="more">
           <summary>More</summary>
-      {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} /> : null}
-      {remove && !docId && !encrypted && file.kind === "doc" && note?.ok ? <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} /> : null}
-      {remove ? (
-        <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
-      ) : null}
-      {remove && file.kind === "doc" && note?.ok && transferTargets.length > 0 ? (
-        <TransferControl
-          connectionId={connectionId}
-          path={file.path}
-          blob={note.blob}
-          name={leaf(file.path)}
-          text={note.text}
-          sourceEncrypted={false}
-          targets={transferTargets}
-          blocked={draft ? "This file has unsaved changes. Save a version of them, or discard them, to move it to another vault." : undefined}
-        />
-      ) : null}
-      {remove ? (
-        <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
-      ) : null}
+          {extras}
         </details>
       ) : (
-        <>
-      {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} /> : null}
-      {remove && !docId && !encrypted && file.kind === "doc" && note?.ok ? <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} /> : null}
-      {remove ? (
-        <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
-      ) : null}
-      {remove && file.kind === "doc" && note?.ok && transferTargets.length > 0 ? (
-        <TransferControl
-          connectionId={connectionId}
-          path={file.path}
-          blob={note.blob}
-          name={leaf(file.path)}
-          text={note.text}
-          sourceEncrypted={false}
-          targets={transferTargets}
-          blocked={draft ? "This file has unsaved changes. Save a version of them, or discard them, to move it to another vault." : undefined}
-        />
-      ) : null}
-      {remove ? (
-        <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
-      ) : null}
-        </>
+        extras
       )}
     </section>
   );

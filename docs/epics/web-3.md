@@ -314,7 +314,7 @@ An outline only. A sandboxed build of the site, served from another origin, behi
 
 ## Kinds, second pass (RFC 0002)
 
-Planned on 2026-11-03. [RFC 0002](../rfcs/0002-kinds-second-pass.md) is the design, and the order of work, leg by leg, is [workstream 0002](../workstreams/0002-kinds-second-pass.md). The spec text was written with the RFC, at the owner's request, so the prerequisites bring the fixtures and the code to it rather than change it. **The CLI's tasks come first:** every web task needs the format module to agree with them.
+Planned and built on 2026-11-03. [RFC 0002](../rfcs/0002-kinds-second-pass.md) is the design, and the order of work, leg by leg, is [workstream 0002](../workstreams/0002-kinds-second-pass.md). The spec text was written with the RFC, at the owner's request, so the prerequisites bring the fixtures and the code to it rather than change it. **The CLI's tasks come first:** every web task needs the format module to agree with them.
 
 **What this part promises:** one kind of Doc, whose editor is the repository kind's choice; addresses with no real path in them; a journal encrypted unless asked otherwise; a drive's Doc publishable as a page; vaults at any depth; and `fjord init --adopt` for a directory that already has files. **Not in it:** rendering `.html` files from a repository, a CMS for sites beyond editing the vault's files, readable slugs, nested vaults.
 
@@ -542,7 +542,7 @@ Each file of a site opens in source mode by default. Rich mode, with a frontmatt
 
 ### 3h.1 Publish a Doc as a page
 
-**Status:** 📋 Planned
+**Status:** ✅ Done, public publishing; private publishing keeps today's shares and links
 
 **Design:** RFC 0002, Publishing a drive's Doc
 
@@ -550,12 +550,27 @@ A drive's Doc can be published at `/p/<token>`: rendered from its current versio
 
 **Accepts when:** a published page opens in a private window with no cookies; raw HTML and script in the Doc do not reach the page; unpublishing turns the address into a 404; a draft is never what is published; who may publish is the policy's (`src/access/policy.ts`) and tested.
 
+- **Done as:**
+  - **The renderer is an allowlist, not a cleaner** (`src/publishing/render.ts`): `mdast-util-from-markdown` (with GFM tables and strikethrough) parses the Doc, and only a fixed set of nodes is written, each as one fixed tag with every piece of text escaped. A **raw HTML node is never written**, as markup or otherwise (its source is shown as text); a link is written only with `http`, `https`, `mailto` or an in-page address (`safeHref` also refuses control characters and whitespace, so `java\tscript:` fails); an **image is never loaded**, only its description is written, so the page asks no one else's server for anything. The seven parser packages are new dependencies of the web client (MIT, the editor package's own; `pnpm-lock.yaml` with them).
+  - **The store** (`publication`, migration `0018`, both dialects): connection, Doc `id`, the **SHA-256 of the token** (never the token), who and when; one address per Doc, so publishing again ends the old. `PublicationService`: `publish` (the token is returned once), `status`, `unpublish`, `find`.
+  - **The page** `/p/<token>` (`app/p/[token]/page.tsx`, `public` in `routes.ts`, `noindex`): `openPublished` finds the Doc by its `id` where it is now (it follows a move) on the default branch, so a **draft is never shown**; a token that is not one, never made, ended, or a Doc that is gone or in an encrypted vault is the same 404. Only the title and the rendered body are shown: not the header or the path. Log lines mask `/p/<token>` (`redact.ts`).
+  - **The owner's API** `POST|GET|DELETE /api/connections/<id>/publication` (`handlePublication`, `owner("manage_shares")`): signed in (401), this site's `Origin` for a change (403), the caller's own connection (404), a Doc of a plaintext vault (else 404 `gone`); the address `https://…/p/<token>` is in the answer to publishing and nowhere else. `PublishPanel` in the Sharing area says what a published page is, shows the address once, and has *Unpublish* and *Publish again*.
+  - **Tested:** the renderer against 30 inputs (script/iframe/svg/style/form/link tags, attribute breakouts, twelve link schemes, images, escapes, a slow input), and **seen to fail** with raw HTML passed through and with links unchecked; the store on all database legs; opening (saved version, follows a move, ended, bad tokens, encrypted vault, unreadable repository); the HTTP rules; the panel's request meanings; redaction; disconnecting a repository ends its pages.
+- **Not here:** **private publishing's "same rendering"**: shares and links still show a Doc through the read-only editor, not this renderer. A page's size is the Doc's; there is no limit on how many pages an account publishes. The e2e specs were not run.
+
 ### 3h.2 Publish from an encrypted vault
 
-**Status:** 📋 Planned
+**Status:** ✅ Done, public copies; the sealed link's rendering is not changed
 
 **Design:** RFC 0002, Publishing a drive's Doc
 
 The sealed link (2c.1) gains 3h.1's rendering for private publishing. Public publishing of an encrypted Doc is offered only after a warning that the browser will give the server a plaintext copy of this version, readable by anyone with the address; the copy is kept until it is unpublished, and a later version is published again.
 
 **Accepts when:** nothing is published from an encrypted vault without the warning being accepted; the server never receives a key; unpublishing deletes the copy.
+
+- **Done as:**
+  - **A copy, by the owner's browser** (`PublishCopyPanel`, in the encrypted editor beside the sealed-share panel, for `.md` files): it says what happens (a **plaintext copy** of what is on screen goes to the server, readable by anyone with the address and kept until unpublished; the encrypted file is not changed), and *Publish a copy* is disabled until a box is ticked. The title is the header's, else the first heading, else the file's name; the header is not sent.
+  - **The server refuses without the agreement** (`POST /api/connections/<id>/publication/copy`, `handleCopy`, `owner("manage_shares")`): `understood` must be exactly `true` or the answer is 422 `not_agreed` and nothing is stored; the path must be a file of an **encrypted vault** of that connection (a plaintext vault's Docs are published from the repository, never held here); the title is one line of at most 200 characters, the text at most 262,144; the usual 401/403/405/404/415. The server **never receives a key**: it receives the copy, and the request is the owner's explicit act.
+  - **The store** (migration `0019`): `title` and `body` columns, `doc_id` is `file:<path>`; `find` hands the copy back with the address, `openPublished` renders it without reading the repository, through the same allowlist. *Unpublish* deletes the row and with it the copy; disconnecting the repository does too.
+  - **Tested:** the HTTP rules (no agreement in four forms stores nothing; fourteen malformed requests; who may; the refusal never echoes the text); the store (publish, replace, find, end); opening a copy (rendered as safely as any page, gone once unpublished); the browser-side title and body.
+- **Not here:** the **sealed link** (2c.1) still shows its text as plain read-only text, not through this renderer; and the copy is **not updated** when the file changes, by design: a later version is published again.

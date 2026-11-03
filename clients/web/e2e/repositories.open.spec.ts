@@ -235,7 +235,7 @@ test("the repository page lists its vaults and what is in each, from names alone
   await page.goto("/");
   const vaults = page.getByRole("list", { name: "Vaults" });
   const publicVault = vaults.getByRole("listitem").filter({ hasText: "Public notes" });
-  await expect(publicVault).toContainText("2 documents, 1 note, 2 other files");
+  await expect(publicVault).toContainText("3 documents, 2 other files");
   const privateVault = vaults.getByRole("listitem").filter({ hasText: "Private" });
   await expect(privateVault).toContainText("Encrypted");
   await expect(privateVault).toContainText("1 encrypted file");
@@ -282,7 +282,7 @@ test("a vault is opened to its folders and files, and what can be opened is told
 
   await page.goto("/");
   await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
-  await expect(page).toHaveURL(/\/repo\/\d+\/Public$/);
+  await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
 
   const contents = page.getByRole("list", { name: "Folder contents" });
   // A folder first, with how many files are in it; then the files.
@@ -308,7 +308,7 @@ test("a vault is opened to its folders and files, and what can be opened is told
   await expect(noteEditor(page, "report.fj.md")).toContainText("Report"); // a document opens in its editor
   // The way back is in the path above it.
   await page.getByRole("navigation", { name: "Path" }).getByRole("link", { name: "Public notes" }).click();
-  await expect(page).toHaveURL(/\/repo\/\d+\/Public$/);
+  await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
 });
 
 async function connected(page: import("@playwright/test").Page): Promise<number> {
@@ -1857,7 +1857,7 @@ test("a note is made from a title: one commit, by the person, named by fjord-cor
     await page.getByRole("button", { name: "Create document" }).click();
 
     // The name is fjord-core's: what a file name cannot hold becomes a space.
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Weekly%20review%20what%20went%20well.md`);
+    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
     await expect(noteEditor(page, "Weekly review what went well.md")).toContainText("# Weekly review: what went well?");
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(before);
@@ -1876,7 +1876,7 @@ test("a document without a title is named after the date and time, which is its 
     await page.goto(`/repo/${id}/Notes`);
     await page.getByRole("button", { name: "New document" }).click();
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(new RegExp(`/repo/${id}/Notes/\\d{4}-\\d{2}-\\d{2}%20\\d{4}\\.md$`));
+    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
     const head = (await hubs.more.branchHead()) as string;
     const [name] = Object.keys(await hubs.more.filesAt(head)).filter((path) => /^Notes\/\d{4}-\d{2}-\d{2} \d{4}\.md$/.test(path));
     expect((await hubs.more.filesAt(head))[name!]).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: \d{4}-\d{2}-\d{2} \d{4}\n/);
@@ -1885,7 +1885,7 @@ test("a document without a title is named after the date and time, which is its 
     await page.getByRole("button", { name: "New document" }).click();
     await page.getByLabel("Title").fill("plan");
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/plan%202.md`);
+    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
   } finally {
     await restoreMore();
   }
@@ -1900,7 +1900,7 @@ test("a document is made with a header, in a folder, and is numbered past a file
     await page.getByLabel("Title").fill("Q4 plan");
     await page.getByRole("button", { name: "Create document" }).click();
 
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Projects/Q4%20plan%202.md`);
+    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
     const head = (await hubs.more.branchHead()) as string;
     const text = (await hubs.more.filesAt(head))["Notes/Projects/Q4 plan 2.md"]!;
     expect(text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\ncreated: "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"\n---\n\n# Q4 plan\n$/);
@@ -2004,7 +2004,7 @@ test("a note is deleted after asking, in one commit, and Undo puts back exactly 
     expect(await hubs.more.branchHead()).toBe(before); // asked, not done
     await page.getByRole("button", { name: "Yes, delete" }).click();
 
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+    await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
     await expect(page.getByText("Deleted “Weekly review”")).toBeVisible();
     const deleted = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(deleted, "%P")).toBe(before);
@@ -2033,7 +2033,7 @@ test("Recently deleted lists what went, and a file is put back where it was or s
       await page.goto(`/repo/${id}/Notes/${name}.md`);
       await page.getByRole("button", { name: "Delete", exact: true }).click();
       await page.getByRole("button", { name: "Yes, delete" }).click();
-      await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+      await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
     }
 
     await page.goto(`/deleted/${id}`);
@@ -2069,7 +2069,7 @@ test("a folder is deleted with everything in it after naming how many, and put b
     await expect(page.getByText("the folder “Projects” and the 3 files in it")).toBeVisible();
     await page.getByRole("button", { name: "Yes, delete" }).click();
 
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+    await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
     const deleted = (await hubs.more.branchHead()) as string;
     expect(Object.keys(await hubs.more.filesAt(deleted)).sort()).toEqual(["Notes/fjord.vault.json", "Notes/keep.md"]);
     expect(await hubs.more.show(deleted, "%B")).toMatch(/^Delete folder “Projects” \(3 files\)\n\nRemoves 3 files from Notes\/Projects:\n- Notes\/Projects\//);
@@ -2132,12 +2132,12 @@ test("unsaved changes are saved as a version before a note is deleted, so puttin
 
     await page.getByRole("button", { name: "Delete", exact: true }).click();
     await page.getByRole("button", { name: "Yes, delete" }).click();
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+    await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
 
     const deleted = (await hubs.more.branchHead()) as string;
     const version = (await hubs.more.show(deleted, "%P")) as string;
     expect(await hubs.more.show(version, "%P")).toBe(before);
-    expect((await hubs.more.filesAt(version))["Notes/n.md"]).toEqual(promoted("n", "original\ntyped, never saved"));
+    expect((await hubs.more.filesAt(version))["Notes/n.md"]).toBe("originaltyped, never saved\n"); // the document editor (drive) types into the paragraph; and a file with no id gets none (RFC 0002)
     await page.getByRole("button", { name: "Undo" }).click();
     await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("n"); // put back, and the page read again
     await page.goto(`/repo/${id}/Notes/n.md`);
@@ -2154,7 +2154,7 @@ test("putting back is never over anything: a path that is taken is named, and wh
     await page.goto(`/repo/${id}/Notes/n.md`);
     await page.getByRole("button", { name: "Delete", exact: true }).click();
     await page.getByRole("button", { name: "Yes, delete" }).click();
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+    await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
     const theirs = await hubs.more.commitFiles({ "Notes/n.md": "made since\n" });
 
     await page.getByRole("button", { name: "Undo" }).click();
@@ -2379,7 +2379,7 @@ test("a document made from a title opens ready to edit, and edits in the toolbar
     await page.getByRole("button", { name: "New document" }).click();
     await page.getByLabel("Title").fill("Fresh document");
     await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Fresh%20document.fj.md`);
+    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
 
     const editor = noteEditor(page, "Fresh document.fj.md");
     await expect(editor).toContainText("Fresh document");
@@ -2599,7 +2599,7 @@ const ID_DOC = "01jagc4k7pt8y3wqnmzv5xrb8j";
 const ID_NOTE = "01jagc4k7pt8y3wqnmzv5xrb9k";
 const withId = (id: string, body: string) => `---\nid: ${id}\ntitle: T\n---\n\n${body}\n`;
 
-test("a document opens at /d/<id> and a note at /n/<id>, wherever they are, and the other route sends to the right one", async ({ page }) => {
+test("a Doc opens at /d/<id> wherever it is, and /n/<id> sends to it (RFC 0002)", async ({ page }) => {
   try {
     const id = await repositoryWith(page, {
       "Notes/fjord.vault.json": VAULT_MANIFEST,
@@ -2616,11 +2616,11 @@ test("a document opens at /d/<id> and a note at /n/<id>, wherever they are, and 
 
     await page.goto(`/n/${ID_NOTE}`);
     await expect(noteEditor(page, "idea.md")).toContainText("The idea.");
-    await expect(page).toHaveURL(`${BASE}/n/${ID_NOTE}`);
+    await expect(page).toHaveURL(`${BASE}/d/${ID_NOTE}`);
 
     // A note asked for as a document, and a document as a note, are sent to the address that is theirs.
     await page.goto(`/d/${ID_NOTE}`);
-    await expect(page).toHaveURL(`${BASE}/n/${ID_NOTE}`);
+    await expect(page).toHaveURL(`${BASE}/d/${ID_NOTE}`);
     await expect(noteEditor(page, "idea.md")).toBeVisible();
     await page.goto(`/n/${ID_DOC}`);
     await expect(page).toHaveURL(`${BASE}/d/${ID_DOC}`);
@@ -2675,7 +2675,7 @@ test("a file that moves is still found by its id, and one that is deleted is not
     await hubs.more.commitFiles({ "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Archive/old idea.md": withId(ID_NOTE, "the idea, moved") }, { replace: true });
     await page.goto(`/n/${ID_NOTE}`);
     await expect(noteEditor(page, "old idea.md")).toContainText("the idea, moved");
-    await expect(page).toHaveURL(`${BASE}/n/${ID_NOTE}`);
+    await expect(page).toHaveURL(`${BASE}/d/${ID_NOTE}`);
 
     await hubs.more.commitFiles({ "Notes/fjord.vault.json": VAULT_MANIFEST }, { replace: true });
     expect((await page.goto(`/n/${ID_NOTE}`))?.status()).toBe(404);
@@ -2698,7 +2698,7 @@ test("an id that two files have is not guessed at: the person chooses", async ({
 
     await choices.last().click();
     await expect(noteEditor(page, "idea.md")).toContainText("the first");
-    await expect(page).toHaveURL(/\/repo\/\d+\/Notes\/idea\.md$/);
+    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
   } finally {
     await restoreMore();
   }
@@ -2733,7 +2733,7 @@ test("a note is renamed in one commit, byte for byte, keeping its extension", as
     await expect(page.getByText("It stays .md.")).toBeVisible();
     await page.getByLabel("New name").fill("A better idea");
     await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/A%20better%20idea.md`);
+    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
     await expect(noteEditor(page, "A better idea.md")).toContainText("Idea");
 
     const head = (await hubs.more.branchHead()) as string;
@@ -2767,7 +2767,7 @@ test("a document moved to another folder is still found by its id, and its heade
     await expect(place.locator("option")).toHaveText(["Other", "Notes/Archive"]);
     await place.selectOption("Other");
     await page.getByRole("button", { name: "Move", exact: true }).click();
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Other/Plan.fj.md`);
+    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
 
     const head = (await hubs.more.branchHead()) as string;
     expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Plan to Other");
@@ -2796,7 +2796,7 @@ test("a folder is renamed with everything in it, in one commit", async ({ page }
     await page.getByRole("button", { name: "Rename folder" }).click();
     await page.getByLabel("New name").fill("Older");
     await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/Older`);
+    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
     await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("Deep");
 
     const head = (await hubs.more.branchHead()) as string;
@@ -2819,7 +2819,7 @@ test("a name that is taken, or taken but for letter case, is refused and says so
       await page.getByLabel("New name").fill(name);
       await page.getByRole("button", { name: "Rename", exact: true }).click();
       await expect(page.getByRole("alert").filter({ hasText: "The file was not changed" })).toBeVisible();
-      await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/a.md`);
+      await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
     }
     await expect(page.getByRole("alert").filter({ hasText: "not a name or a place" })).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(before);
@@ -2841,7 +2841,7 @@ test("what is typed and not yet saved is saved as a version first, then moved wi
     await page.getByRole("button", { name: "Rename", exact: true }).click();
     await page.getByLabel("New name").fill("renamed");
     await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes/renamed.md`);
+    await expect(page).toHaveURL(/\/(?:f|d)\/[0-9a-z]+$/, { timeout: 30_000 }); // RFC 0002: the address shows no path
 
     const head = (await hubs.more.branchHead()) as string;
     const version = (await hubs.more.show(head, "%P")) as string;
@@ -2897,7 +2897,7 @@ test("a document is not put back while another file has its id, and is once that
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
     await page.getByRole("button", { name: "Delete", exact: true }).click();
     await page.getByRole("button", { name: "Yes, delete" }).click();
-    await expect(page).toHaveURL(`${BASE}/repo/${id}/Notes`);
+    await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
 
     // Meanwhile a copy appears from another tool, with the same id.
     await hubs.more.commitFiles({ "Notes/Copy of plan.md": `---\nid: ${ID_DOC}\ntitle: Copy\n---\n\ncopy\n` });
@@ -3113,7 +3113,7 @@ test("the routes' old names still work: /doc/<id> and /note/<id> go to /d/<id> a
     expect(old?.request().redirectedFrom()?.url()).toBe(`${BASE}/doc/${ID_DOC}`);
     expect((await old!.request().redirectedFrom()!.response())!.status()).toBe(308);
     await page.goto(`/note/${ID_NOTE}`);
-    expect(page.url()).toBe(`${BASE}/n/${ID_NOTE}`);
+    expect(page.url()).toBe(`${BASE}/d/${ID_NOTE}`);
 
     // A share link as it was given before the routes were shortened: it opens the document, and ends on the short address with the token gone.
     const made = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "view" } });
