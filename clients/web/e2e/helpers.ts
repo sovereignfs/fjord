@@ -45,10 +45,13 @@ export async function signIn(page: Page, email: string, password = PASSWORD) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
-/** Type a one-time code into the boxes of the second sign-in step: focus moves on by itself after each digit. */
+/**
+ * Put a one-time code into the boxes of the second sign-in step, one box at a time. Typing it with
+ * `keyboard.type` is not used: it sends the keys faster than a person can, and the next one can arrive
+ * before focus has moved on, which is a test of the keyboard and not of the form.
+ */
 export async function enterCode(page: Page, code: string) {
-  await page.getByLabel("Digit 1").click();
-  await page.keyboard.type(code);
+  for (const [at, digit] of [...code].entries()) await page.getByLabel(`Digit ${at + 1}`).fill(digit);
 }
 
 export async function signOut(page: Page) {
