@@ -12,6 +12,8 @@ tagging it.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-04
+
 ### Changed
 
 - **`fjord new` in a journal files an entry at `YYYY-MM-DD/hh-mm.md`**, a folder for each day and a file named by the minute (a second in the same minute is `hh-mm-2.md`), and the title is no longer in the name; it was `YYYY/MM/DD/HHMM-slug.md`, or flat in an encrypted journal. An encrypted journal has the day folders too, whose names are visible; its files are still named by id. Entries filed the old way are read as before.
@@ -376,7 +378,8 @@ First release.
   conforming.
 - Building from source needs Rust 1.88 or newer.
 
-[Unreleased]: https://github.com/sovereignfs/fjord/compare/fjord-cli-v0.4.0...HEAD
+[Unreleased]: https://github.com/sovereignfs/fjord/compare/fjord-cli-v0.5.0...HEAD
+[0.5.0]: https://github.com/sovereignfs/fjord/compare/fjord-cli-v0.4.0...fjord-cli-v0.5.0
 [0.4.0]: https://github.com/sovereignfs/fjord/compare/fjord-cli-v0.3.1...fjord-cli-v0.4.0
 [0.3.1]: https://github.com/sovereignfs/fjord/compare/fjord-cli-v0.3.0...fjord-cli-v0.3.1
 [0.3.0]: https://github.com/sovereignfs/fjord/compare/v0.2.0...fjord-cli-v0.3.0
