@@ -56,7 +56,7 @@ Phase 1 ships in slices (§16), each usable on its own.
 4. **Each visit after that**, signing in lands on the default repository's view (`/open`): its vaults, as
    in a file manager. `/` is the home page, a tile for each repository, and the user switches repository from the rail (workstream 0003).
 5. **Browsing** shows names, paths and sizes only, nothing downloaded (§8).
-   Markdown files are clearly openable; other files are shown greyed out.
+   Markdown files open in an editor; any other file has a page of its own, to look at if it is a picture and to save.
    Encrypted vaults show a lock; a file in one opens and is edited in the browser with the person's own age identity, and new files are made there (phase 2).
 6. **Opening** a document (`name.fj.md`) goes to `/d/<id>` and the document editor;
    opening a note (any other `.md`) goes to `/n/<id>` and the note editor (§9, §10).
@@ -481,7 +481,7 @@ Until it is connected it is kept in the database, within a limit for each accoun
   | --- | --- | --- |
   | `*.fj.md` | Document | Document editor, `/d/<id>` |
   | `*.md` (any other) | Note | Note editor, `/n/<id>` |
-  | anything else | greyed out | — (phase 1) |
+  | anything else, in a plaintext vault | link to its page: a raster picture is shown, anything can be saved (served by `/raw/<repo>/<handle>/file`, never run) | — |
   | anything in an encrypted vault | greyed out, with a lock | — (phase 2) |
 
   *Planned ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.1, 3e.2):* the first two rows become one, **`*.md`: a Doc,
@@ -588,7 +588,7 @@ repository's default vault.
   and costs the host no rate limit. It is still the host that says so at every view, so a missed webhook, or no webhook at all,
   shows a push at the next look; the webhook only forgets trees (§7).
 - **What a file is comes from its name** (spec §2, §6.3, §8.4): a document (`*.fj.md`), a note (any other `.md`),
-  another file (greyed, phase 1), an encrypted payload, or plaintext where there must be none. The page lists
+  another file, an encrypted payload, or plaintext where there must be none. The page lists
   each vault with its counts and a lock for an encrypted one. Whether a document or a note is a Fjord Doc at all
   needs its contents, which are read lazily, later.
 - **A listing the host cut short** (very large repositories) is not downloaded further: the vaults are found a
@@ -610,7 +610,7 @@ repository's default vault.
   host cut it short, the one directory is listed from the host (a file is found in its parent's listing) and its
   files classified by the module with the vault's own manifest, so both read alike (a test holds them to each other).
 - **What can be opened is told by name alone** (§8's table): a document (`*.fj.md`) and a note (any other `.md`)
-  are links; any other file is named and greyed, not linked; in an encrypted vault every file is shown under its real
+  are links, and any other file in a plaintext vault is a link to its page (at first it was named and greyed); in an encrypted vault every file is shown under its real
   name (the suffix removed; an identifier in an `id` vault, which is what it is for, spec §7.2) with a lock and no
   link. A document or note's own page is, for now, a placeholder saying opening it comes with the editors (1b); it
   names the file and its kind and is where the editor will open.

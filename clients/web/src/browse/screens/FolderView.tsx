@@ -1,4 +1,7 @@
+import { isPicture } from "../raw";
+import { entryHeading, isFiledName } from "../../journal/heading";
 import { Alert } from "../../ui";
+import { LinkButton } from "../../ui/LinkButton";
 import { NodeIcon } from "../../ui/icons";
 import styles from "../../auth/screens/screens.module.css";
 import type { ClassifiedFile, FileKind } from "../../format/types";
@@ -26,11 +29,12 @@ import { TransferControl } from "./TransferControl";
 
 /**
  * A folder of a vault, or one file of it, as a list (DESIGN.md §8). What can be opened is decided from the name alone,
- * so nothing is downloaded to draw it: a Doc (any `.md`) is a link; any other file is
- * greyed out; and an encrypted file is a link with a lock, opened in the browser with the identity kept there (phase 2).
+ * so nothing is downloaded to draw it: a Doc (any `.md`) is a link, any other file in a plaintext vault is a link to its page (a picture is shown, and anything can be saved),
+ * and an encrypted file is a link with a lock, opened in the browser with the identity kept there (phase 2).
  */
 export async function folderParts({
   html,
+  fileSrc,
   connectionId,
   repo,
   repository,
@@ -67,6 +71,8 @@ export async function folderParts({
   draft?: DraftOfNote | null | undefined;
   /** For a note whose draft is of an older version than the repository has: whether the two combine (ROADMAP 1b.10). */
   preview?: Preview | undefined;
+  /** For any other file of a plaintext vault: where it is served from (`/raw/<repo>/<handle>/file`). */
+  fileSrc?: string | undefined;
   /** For a static HTML page: where the sandboxed document is served from (`/raw/<repo>/<handle>`), which it is shown from in place of a viewer of text. */
   html?: { src: string } | undefined;
   /** For a file: its blob in the repository now, which deleting it names (ROADMAP 1b.12). Not known for a repository too large to list. */
@@ -144,7 +150,7 @@ export async function folderParts({
 
       {location.kind === "file" && html ? <HtmlFrame name={leaf(location.file.relative)} src={html.src} /> : null}
 
-      {location.kind === "file" && !html ? <FileCard updated={updated} connectionId={connectionId} repo={repo} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} site={site === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
+      {location.kind === "file" && !html ? <FileCard fileSrc={fileSrc} updated={updated} connectionId={connectionId} repo={repo} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} site={site === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
           remove={writable && fileBlob !== undefined && (location.file.kind === "doc" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -245,11 +251,14 @@ function rowOf(file: ClassifiedFile, plaintext: boolean, book: AddressBook): Lis
   if (openable(file.kind)) return { key: `f:${file.relative}`, name, href: book.href(file.path), icon, badges: [KIND_LABEL[file.kind]], meta };
   if (page) return { key: `f:${file.relative}`, name, href: book.htmlHref(file.path), icon, badges: ["Page"], meta };
   if (decryptable(file.kind)) return { key: `f:${file.relative}`, name, href: book.href(file.path), icon, badges: [KIND_LABEL[file.kind]], meta };
-  // Greyed out, not linked: nothing opens it in this version.
+  // Anything else in a plaintext vault has a page of its own, to look at or save (a picture, a PDF, a CSV).
+  if (plaintext) return { key: `f:${file.relative}`, name, href: book.href(file.path), icon, badges: KIND_LABEL[file.kind] === "" ? [] : [KIND_LABEL[file.kind]], meta };
+  // Greyed out, not linked: in an encrypted vault, something that is not ciphertext is not for this page.
   return { key: `f:${file.relative}`, name, icon, badges: KIND_LABEL[file.kind] === "" ? [] : [KIND_LABEL[file.kind]], meta, title: "This kind of file cannot be opened in this version" };
 }
 
 function FileCard({
+  fileSrc,
   connectionId,
   repo,
   file,
@@ -273,6 +282,7 @@ function FileCard({
   tagSuggestions,
   updated,
 }: {
+  fileSrc: string | undefined;
   tagSuggestions?: string[] | undefined;
   /** When the file last changed in the repository (ISO 8601), if the host said. */
   updated?: string | null | undefined;
@@ -333,7 +343,8 @@ function FileCard({
   ) : null;
   // What a document is called is what it says (its header's title, or its first heading), and its file's name only when it says nothing; the name is in the path above and in its properties.
   const shown = draft?.content ?? (note?.ok ? note.text : undefined);
-  const title = isDoc && shown !== undefined ? documentTitle(shown, header?.bodyStart, header?.properties?.title, leaf(file.logical)) : leaf(file.logical);
+  const named = isDoc && shown !== undefined ? documentTitle(shown, header?.bodyStart, header?.properties?.title, leaf(file.logical)) : leaf(file.logical);
+  const title = (writing && isFiledName(named) ? entryHeading(header?.properties?.date) : null) ?? named;
   return (
     <section aria-labelledby="file-title">
       <div className={actions.titleRow}>
@@ -374,7 +385,7 @@ function FileCard({
       ) : encrypted ? (
         <Alert variant="info" heading="Locked">This file is in an encrypted vault but is not an encrypted file, so it cannot be opened.</Alert>
       ) : (
-        <Alert variant="info" heading="Not openable">This kind of file cannot be opened in this version; it is kept in the repository as it is.</Alert>
+        <OtherFile name={leaf(file.logical)} src={fileSrc} />
       )}
       {writing && icons ? (
         <details className={styles.itemMeta} data-testid="more">
@@ -385,6 +396,25 @@ function FileCard({
         </details>
       ) : null}
     </section>
+  );
+}
+
+/** A file that is not a document, in a plaintext vault: a picture is shown, and anything can be saved. It is served by `/raw/…/file`, which never lets it run. */
+function OtherFile({ name, src }: { name: string; src: string | undefined }) {
+  if (src === undefined) return <Alert variant="info" heading="Not shown here">This file is kept in the repository as it is.</Alert>;
+  return (
+    <>
+      {isPicture(name) ? (
+        // A file of the repository, served by this app: nothing for an image optimiser, and it must not pass through one.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt={name} style={{ display: "block", maxWidth: "100%", height: "auto", marginBottom: "var(--sv-space-4)", borderRadius: "var(--sv-radius-md)" }} />
+      ) : (
+        <p className={styles.itemMeta}>This kind of file is not shown here. It is kept in the repository as it is.</p>
+      )}
+      <LinkButton href={`${src}?download`} variant="secondary">
+        Download
+      </LinkButton>
+    </>
   );
 }
 

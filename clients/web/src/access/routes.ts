@@ -75,6 +75,8 @@ export const ROUTES: RouteRule[] = [
   { route: "/deleted/[connection]", page: owner("restore") },
   // A static HTML page of the owner's repository, served to run in a sandbox (leg 5 of workstream 0003): the response carries its own policy, `src/browse/raw.ts`.
   { route: "/raw/[connection]/[handle]", methods: { GET: owner("read") } },
+  // Any other file of the owner's repository, to look at or to save: never run, and shown inline only if it is a raster picture (`src/browse/raw.ts`).
+  { route: "/raw/[connection]/[handle]/file", methods: { GET: owner("read") } },
 
   // APIs
   { route: "/api/health", methods: { GET: { kind: "public" } } },

@@ -31,7 +31,7 @@ width but the account page.
 | B12 | Words meant for the API reach people: `Say which folder of the vault, by its path, or "" for its top.`, `Say where it goes, by a path in the repository.`, `(spec §2.3)` | Fixed |
 | B13 | Every repository page's tab is called "Repository · Fjord" | Fixed |
 | B14 | A repository on the server is `local/Scratch drive` in its path | Fixed |
-| B15 | The account page runs 12 px off a phone's screen | Open |
+| B15 | The account page runs 12 px off a phone's screen | Fixed |
 
 ## UI and UX
 
@@ -39,7 +39,7 @@ width but the account page.
 | --- | --- | --- |
 | U1 | A document page has five bands before the text: a permanent notice, the address, up to one more notice, properties, and a large *Comment on selection*. On a phone the text starts below the fold | Fixed |
 | U2 | *Comment on selection* opens its form at the foot of the page, out of sight on any long document, and stays grey with no reason on a selection across formatting | Fixed |
-| U3 | A journal's or a site's note has its actions under *More* and its save at the foot, where a document has both in the title; a new entry is headed by its file name (`00-03`) | Open |
+| U3 | A new journal entry is headed by the name of its file (`00-03`), on its page and beside its time in the timeline. (A note's actions under *More* are the writing view's design, and stay.) | Fixed |
 | U4 | *Disconnect*, *Delete* and *Move to git* ask with the browser's own `confirm`, where everything else asks in the page, and *Move to git* ends with no word that it worked | Fixed |
 | U5 | Repository settings has no title, three sizes of text and a button in two lines | Fixed |
 | U6 | Dates come in three forms (`11/4/2026, 11:59:47 PM`, `4 Nov 2026`, `2026-11-04 22:56 UTC`) | Fixed |
@@ -49,7 +49,7 @@ width but the account page.
 
 | # | What is missing | Status |
 | --- | --- | --- |
-| G1 | A file that is not Markdown or HTML (a picture, a PDF, a CSV) is greyed out: it cannot be opened, downloaded, moved or deleted from a drive | Open |
+| G1 | A file that is not Markdown or HTML (a picture, a PDF, a CSV) is greyed out: it cannot be opened, downloaded, moved or deleted from a drive | Fixed |
 | G2 | The first page of someone with no repository says nothing of what is shared with them | Open |
 | G3 | An account cannot be deleted by the person who holds it; only a Sovereign notice does that | Open, for a decision: it deletes what is kept on the server |
 | G4 | An address cannot be changed ("Email changes aren't supported yet") | Open |

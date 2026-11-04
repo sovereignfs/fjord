@@ -1,3 +1,4 @@
+import { isFiledName } from "../heading";
 import { repositoryHref } from "../../browse/links";
 import { Badge } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
@@ -37,7 +38,7 @@ export function TimelineView({
               <li key={entry.path} className={styles.item} data-testid="timeline-entry">
                 <span>
                   <a href={docBase !== undefined && entry.docId !== null ? `/${repo}/${docBase}/${entry.docId}` : repositoryHref(repo, ...entry.path.split("/"))}>
-                    {entry.when?.time ? <time dateTime={entry.when.sortKey}>{entry.when.time}</time> : null} {entry.title}
+                    {entry.when?.time ? <time dateTime={entry.when.sortKey}>{entry.when.time}</time> : null} {entry.when?.time && isFiledName(entry.title) ? null : entry.title}
                   </a>
                   {entry.draft ? (
                     <>

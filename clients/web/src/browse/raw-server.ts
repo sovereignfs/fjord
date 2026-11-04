@@ -14,7 +14,7 @@ export async function rawContext(): Promise<{ caller: { accountId: string } | nu
     deps: {
       connection: async (accountId, publicId) => (await (await connectionService()).getByPublicId(accountId, publicId))?.id,
       resolve: async (handle) => new FileHandles(await getDatabase()).resolve(handle),
-      read: async (accountId, connectionId, path) => {
+      read: async (accountId, connectionId, path, maxBytes = MAX_PAGE_BYTES) => {
         // Only this account's own repository.
         const connection = await (await connectionService()).get(accountId, connectionId);
         if (!connection) return { ok: false, reason: "missing" };
@@ -27,7 +27,7 @@ export async function rawContext(): Promise<{ caller: { accountId: string } | nu
         const used = await (await connectionService()).provider(accountId, connectionId);
         if (blob === undefined || !used) return { ok: false, reason: "missing" };
         try {
-          return { ok: true, bytes: await used.provider.readBlob({ owner: connection.owner, name: connection.name }, blob, { maxBytes: MAX_PAGE_BYTES }) };
+          return { ok: true, bytes: await used.provider.readBlob({ owner: connection.owner, name: connection.name }, blob, { maxBytes }) };
         } catch (error) {
           if (isProviderError(error, "too_large")) return { ok: false, reason: "too_large" };
           if (isProviderError(error, "not_found")) return { ok: false, reason: "missing" };

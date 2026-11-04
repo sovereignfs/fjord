@@ -66,7 +66,8 @@
 /* A narrow screen puts the sections above the one that is open, as a row. */
 @media (max-width: 720px) {
   .shell {
-    grid-template-columns: 1fr;
+    /* Not `1fr`: the row of sections is wider than a phone, and would stretch the column instead of scrolling. */
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--sv-space-4);
     padding: var(--sv-space-4);
   }

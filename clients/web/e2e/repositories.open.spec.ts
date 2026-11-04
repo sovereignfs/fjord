@@ -420,9 +420,9 @@ test("a vault is opened to its folders and files, and what can be opened is told
   await expect(contents.getByRole("link", { name: "plan.fj.md" })).toBeVisible();
   await expect(contents.getByRole("listitem").filter({ hasText: "plan.fj.md" })).toContainText("Document");
   await expect(contents.getByRole("listitem").filter({ hasText: "idea.md" })).toContainText("Document");
-  // Any other file is greyed out: named, not a link.
+  // Any other file has a page of its own.
   await expect(contents.getByText("photo.png")).toBeVisible();
-  await expect(contents.getByRole("link", { name: "photo.png" })).toHaveCount(0);
+  await expect(contents.getByRole("link", { name: "photo.png" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Path" })).toContainText("acme/notes");
 
   await contents.getByRole("link", { name: "Q4" }).click();
