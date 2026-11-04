@@ -10,7 +10,6 @@ import { NodeIcon } from "../../ui/icons";
 import type { ConnectionInfo } from "../service";
 import { defaultVault } from "../../browse/default-vault";
 import { connectionLabel } from "../label";
-import { PageTitle } from "../../ui/PageTitle";
 import { DefaultVaultSetting } from "./DefaultVaultSetting";
 import { MakeDefaultButton } from "./MakeDefaultButton";
 import { RepositorySettings } from "./RepositorySettings";
@@ -105,7 +104,6 @@ export function RepositoryView({
             ) : null}
           </p>
         </div>
-        {content === undefined ? <PageTitle title={connectionLabel(current)} /> : null}
         {crumbs ? <div className={header.crumbs}>{crumbs}</div> : null}
         <Card as="article" padding="lg">
           {content ? (

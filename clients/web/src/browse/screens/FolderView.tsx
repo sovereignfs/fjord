@@ -23,7 +23,6 @@ import actions from "./FileActions.module.css";
 import { EncryptedFile, type EncryptedDraft } from "../../keys/screens/EncryptedFile";
 import type { TransferTarget } from "../../keys/files";
 import { TransferControl } from "./TransferControl";
-import { PageTitle } from "../../ui/PageTitle";
 
 /**
  * A folder of a vault, or one file of it, as a list (DESIGN.md §8). What can be opened is decided from the name alone,
@@ -112,10 +111,8 @@ export async function folderParts({
   const opened = <NodeIcon name={FILE_ICON.folderOpen} size={14} aria-hidden style={{ verticalAlign: "-2px", marginRight: 4 }} />;
 
   // The path is drawn outside the card the page is in (the repository's page puts it between the name and the card), the rest inside it.
-  const placeName = location.kind === "file" ? (location.file.kind === "doc" ? stemOf(leaf(location.file.relative)) : leaf(location.file.relative)) : (folders[folders.length - 1] ?? vault.name ?? vault.directory);
   const crumbs = (
     <nav aria-label="Path" className={styles.itemMeta} style={{ marginBottom: "var(--sv-space-3)" }}>
-        {location.kind === "file" && !html ? null : <PageTitle title={`${placeName} · ${repository}`} />}
         <a href={here()}>{repository}</a>
         {" / "}
         <a href={here(vault.directory)}>
@@ -147,7 +144,7 @@ export async function folderParts({
 
       {location.kind === "file" && html ? <HtmlFrame name={leaf(location.file.relative)} src={html.src} /> : null}
 
-      {location.kind === "file" && !html ? <FileCard updated={updated} connectionId={connectionId} repo={repo} repository={repository} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} site={site === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
+      {location.kind === "file" && !html ? <FileCard updated={updated} connectionId={connectionId} repo={repo} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} site={site === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
           remove={writable && fileBlob !== undefined && (location.file.kind === "doc" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -255,7 +252,6 @@ function rowOf(file: ClassifiedFile, plaintext: boolean, book: AddressBook): Lis
 function FileCard({
   connectionId,
   repo,
-  repository,
   file,
   encrypted,
   naming,
@@ -277,8 +273,6 @@ function FileCard({
   tagSuggestions,
   updated,
 }: {
-  /** What the repository is called, for the name of the tab. */
-  repository: string;
   tagSuggestions?: string[] | undefined;
   /** When the file last changed in the repository (ISO 8601), if the host said. */
   updated?: string | null | undefined;
@@ -342,7 +336,6 @@ function FileCard({
   const title = isDoc && shown !== undefined ? documentTitle(shown, header?.bodyStart, header?.properties?.title, leaf(file.logical)) : leaf(file.logical);
   return (
     <section aria-labelledby="file-title">
-      <PageTitle title={`${title} · ${repository}`} />
       <div className={actions.titleRow}>
         <h2 id="file-title" className={actions.title}>
           {title}
