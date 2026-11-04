@@ -339,7 +339,7 @@
       "ok": false,
       "error": {
         "code": "invalid_vault_name",
-        "message": "\".hidden\" cannot be the name of a vault: it would be a hidden directory"
+        "message": "\".hidden\" cannot be the name of a vault: a vault's name cannot start with a dot"
       }
     }
   },

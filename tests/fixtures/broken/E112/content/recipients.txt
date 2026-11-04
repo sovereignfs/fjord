@@ -1,4 +1,4 @@
-# age recipients for the Private vault.
+# age recipients for this vault.
 #
 # One public key per line. Every file in this vault is encrypted to ALL of
 # these keys, so any one of them can decrypt it. Add a line per device.
@@ -9,7 +9,7 @@
 # Add your first key with:
 #
 #     age-keygen -o ~/.config/fjord/identity.txt
-#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt
+#     age-keygen -y ~/.config/fjord/identity.txt >> <this directory>/recipients.txt
 #
 # Until at least one key is present, nothing can be written to this vault.
 #

@@ -75,7 +75,7 @@
         },
         {
           "path": "Secret/recipients.txt",
-          "contents": "# age recipients for the Private vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
+          "contents": "# age recipients for this vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> <this directory>/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
           "change": "create"
         },
         {
@@ -126,7 +126,7 @@
         },
         {
           "path": "Secret/recipients.txt",
-          "contents": "# age recipients for the Private vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n",
+          "contents": "# age recipients for this vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> <this directory>/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n",
           "change": "create"
         },
         {
@@ -178,7 +178,7 @@
         },
         {
           "path": "Vault/recipients.txt",
-          "contents": "# age recipients for the Private vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
+          "contents": "# age recipients for this vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> <this directory>/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
           "change": "create"
         },
         {
@@ -229,7 +229,7 @@
         },
         {
           "path": "Secret/recipients.txt",
-          "contents": "# age recipients for the Private vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
+          "contents": "# age recipients for this vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> <this directory>/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
           "change": "create"
         },
         {
@@ -287,7 +287,7 @@
         },
         {
           "path": "Secret/recipients.txt",
-          "contents": "# age recipients for the Private vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> Private/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
+          "contents": "# age recipients for this vault.\n#\n# One public key per line. Every file in this vault is encrypted to ALL of\n# these keys, so any one of them can decrypt it. Add a line per device.\n#\n# Blank lines and lines starting with # are ignored, so this file is also a\n# valid argument to `age -R recipients.txt`.\n#\n# Add your first key with:\n#\n#     age-keygen -o ~/.config/fjord/identity.txt\n#     age-keygen -y ~/.config/fjord/identity.txt >> <this directory>/recipients.txt\n#\n# Until at least one key is present, nothing can be written to this vault.\n#\n# Removing a key here stops FUTURE files being encrypted to it. It does not\n# revoke anything: every version already in git history stays readable by\n# that key forever. See \"Rotating and revoking keys\" in the root README.\n\nage1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
           "change": "create"
         },
         {
@@ -393,7 +393,7 @@
       "ok": false,
       "error": {
         "code": "invalid_name",
-        "message": "\"a/b\" cannot be the name of a vault: a vault is a single directory at the repository root (spec §2.3)"
+        "message": "\"a/b\" cannot be the name of a vault: a vault is one directory at the top of the repository"
       }
     }
   },
@@ -419,7 +419,7 @@
       "ok": false,
       "error": {
         "code": "invalid_name",
-        "message": "\".git\" cannot be the name of a vault: it would be a hidden directory"
+        "message": "\".git\" cannot be the name of a vault: a vault's name cannot start with a dot"
       }
     }
   },
