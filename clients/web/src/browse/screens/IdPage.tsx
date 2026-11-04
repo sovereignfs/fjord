@@ -114,7 +114,7 @@ export async function IdPage({ id, wrong, base = "d" }: { id: string; wrong?: "w
   }
 
   const connections = await (await connectionService()).list(user.id);
-  const publicIds = new Map(connections.map((connection) => [connection.id, connection.publicId]));
+  const addresses = new Map(connections.map((connection) => [connection.id, connection.address]));
   const named = new Map(connections.map((connection) => [connection.id, `${connection.owner}/${connection.name}`]));
   return (
     <Shell user={user} title="More than one file has this id">
@@ -125,7 +125,7 @@ export async function IdPage({ id, wrong, base = "d" }: { id: string; wrong?: "w
       <ul aria-label="Files with this id">
         {found.matches.map((match) => (
           <li key={`${match.connectionId}/${match.path}`}>
-            <a href={`${repositoryHref(publicIds.get(match.connectionId) ?? "", ...match.path.split("/"))}?pick=1`}>{match.path}</a>{" "}
+            <a href={`${repositoryHref(addresses.get(match.connectionId) ?? "", ...match.path.split("/"))}?pick=1`}>{match.path}</a>{" "}
             <span className={styles.itemMeta}>
               Document in {named.get(match.connectionId) ?? "a repository"}
             </span>

@@ -36,14 +36,23 @@ import { kindFor } from "../../kinds/registry";
  * one that tries to climb out are all a 404 and nothing more. `path` is the decoded segments. `/d/<id>`
  * shows a file the same way, once the id has been found (ROADMAP 1b.6).
  */
-export async function RepositoryScreen({ connection, path: urlPath, address, requested, view, query = {}, via }: { connection: string; /** The path, for the old forms: `/repo/<repo>/<path…>`, a handle's, a Doc id's. */ path?: string[] | undefined; /** The place an address of ids names (`/repo/<repo>/v/<vault>/…`), which the page resolves to a path; with this, `path` is not given. */ address?: Extract<Address, { kind: "vault" | "place" | "note" }> | undefined; /** The address as it was asked for, to tell whether it is the one the place has now; if it is not the person is sent to that. */ requested?: string | undefined; /** How the page was reached: by a `handle` (`/f/<handle>`), or by an address of ids. With none (the old address by path), the place is sent on to its address of ids. */ via?: "handle" | "address" | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined; /** The page's query, for an entry view that pages or filters. */ query?: Record<string, string | string[] | undefined> }) {
+export async function RepositoryScreen({ connection, path: urlPath, address, requested, view, query = {}, via, urlKind }: { connection: string; /** The kind the address said (`drive`, `journal` or `ssg`): when the repository is another, the person is sent to the address with its own. Absent where the address names none (`/d/<id>`, `/f/<handle>`). */ urlKind?: string | undefined; /** The path, for the old forms: `/repo/<repo>/<path…>`, a handle's, a Doc id's. */ path?: string[] | undefined; /** The place an address of ids names (`/repo/<repo>/v/<vault>/…`), which the page resolves to a path; with this, `path` is not given. */ address?: Extract<Address, { kind: "vault" | "place" | "note" }> | undefined; /** The address as it was asked for, to tell whether it is the one the place has now; if it is not the person is sent to that. */ requested?: string | undefined; /** How the page was reached: by a `handle` (`/f/<handle>`), or by an address of ids. With none (the old address by path), the place is sent on to its address of ids. */ via?: "handle" | "address" | undefined; /** `files`: show a repository of any kind as a drive (spec §3.1). */ view?: string | undefined; /** The page's query, for an entry view that pages or filters. */ query?: Record<string, string | string[] | undefined> }) {
   const { user } = await requireSession();
   if (!isPublicId(connection) || encryptionKeyring() === undefined) notFound();
   const connections = await (await connectionService()).list(user.id);
-  const current = connections.find((c) => c.publicId === connection);
-  if (!current) notFound();
+  const listed = connections.find((c) => c.publicId === connection);
+  if (!listed) notFound();
 
-  const outcome = await readConnection(user.id, current);
+  const outcome = await readConnection(user.id, listed);
+  // Its addresses begin with the kind it is now (the manifest's, which a change of kind moves), not the one it was last read as.
+  const nowKind = outcome.ok ? kindFor(outcome.read.manifest).id : (listed.repoKind ?? "drive");
+  const kindName: "drive" | "journal" | "ssg" = nowKind === "journal" || nowKind === "ssg" ? nowKind : "drive";
+  const current = { ...listed, repoKind: kindName, address: `${kindName}/${listed.publicId}` };
+  if (urlKind !== undefined && urlKind !== kindName && requested !== undefined) {
+    const rest = requested.slice(`/${urlKind}/${listed.publicId}`.length);
+    const search = new URLSearchParams(Object.entries(query).flatMap(([key, value]) => (typeof value === "string" ? [[key, value]] : Array.isArray(value) ? value.map((each) => [key, each] as [string, string]) : []))).toString();
+    redirect(`/${current.address}${rest}${search === "" ? "" : `?${search}`}`);
+  }
   // An address of ids is a path once it is resolved: the vault by its manifest's id, a folder or a file by its handle, a Doc by its `id`. The last id says what is shown.
   let path = urlPath;
   if (address !== undefined && outcome.ok) {
@@ -145,7 +154,7 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
       const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
       // In a plaintext journal, the tags already in use are offered while one is typed (ROADMAP 3b.3): from what its timeline knows.
       const tagSuggestions = note?.ok ? await journalTagsFor(user.id, current, outcome.read) : undefined;
-      const parts = await folderParts({ html: isHtmlPage(found.location) ? { src: `/raw/${current.publicId}/${await new FileHandles(await getDatabase()).forPath(current.id, segments.join("/"))}` } : undefined, tagSuggestions, connectionId: current.id, repo: current.publicId, repository: `${current.owner}/${current.name}`, location: found.location, note, draft, preview, fileBlob, encryptedEditing, encryptedCreate, folderFiles, header, permalink, docId: file?.kind === "doc" ? (docId ?? undefined) : undefined, editor: kindFor(outcome.read.manifest).editor, writing: kindFor(outcome.read.manifest).writingView, site: kindFor(outcome.read.manifest).contentModel.fields.includes("draft"), destinations: moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined), encryptedNaming, transferTargets });
+      const parts = await folderParts({ html: isHtmlPage(found.location) ? { src: `/raw/${current.publicId}/${await new FileHandles(await getDatabase()).forPath(current.id, segments.join("/"))}` } : undefined, tagSuggestions, connectionId: current.id, repo: current.address, repository: `${current.owner}/${current.name}`, location: found.location, note, draft, preview, fileBlob, encryptedEditing, encryptedCreate, folderFiles, header, permalink, docId: file?.kind === "doc" ? (docId ?? undefined) : undefined, editor: kindFor(outcome.read.manifest).editor, writing: kindFor(outcome.read.manifest).writingView, site: kindFor(outcome.read.manifest).contentModel.fields.includes("draft"), destinations: moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined), encryptedNaming, transferTargets });
       content = parts.body;
       crumbs = parts.crumbs;
     }
@@ -155,7 +164,7 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
   const atTop = content === undefined && (path === undefined || path.length === 0);
   // A journal or a site shown as files is its one vault, at the vault's own address (workstream 0003); `?view=files` is sent there.
   const onlyVault = outcome.ok && outcome.read.manifest?.ok === true && outcome.read.manifest.kind !== "drive" ? outcome.read.discovery.vaults[0] : undefined;
-  const filesHref = onlyVault?.id ? vaultAddress(current.publicId, onlyVault.id) : undefined;
+  const filesHref = onlyVault?.id ? vaultAddress(current.address, onlyVault.id) : undefined;
   if (atTop && view === "files" && filesHref !== undefined) redirect(filesHref);
   const asFiles = view === "files";
   const { kind, entry } = entryFor(user.id, current, outcome, asFiles, query);

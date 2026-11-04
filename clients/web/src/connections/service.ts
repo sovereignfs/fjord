@@ -23,8 +23,10 @@ import { parseRepository } from "./repository-url";
  */
 export interface ConnectionInfo {
   id: number;
-  /** What it is called in an address (`/repo/<publicId>`, `src/connections/public-id.ts`); `id` is the database's and is never shown in one. */
+  /** What it is called in an address (`src/connections/public-id.ts`); `id` is the database's and is never shown in one. */
   publicId: string;
+  /** Where its addresses begin, without the slash: `<kind>/<publicId>` (`drive/k3x9m2qa`), by the kind it was last read as (a drive until it has been). `/repo/<publicId>` is sent to it. */
+  address: string;
   provider: "github";
   /** `pat`: a personal access token the person gave. `app`: an installation of the instance's GitHub App (ROADMAP 1a.6). */
   kind: "pat" | "app";
@@ -106,6 +108,7 @@ interface Row {
 const toInfo = (row: Row, isDefault: boolean): ConnectionInfo => ({
   id: Number(row.id),
   publicId: row.publicId ?? "",
+  address: `${row.repoKind === "journal" || row.repoKind === "ssg" ? row.repoKind : "drive"}/${row.publicId ?? ""}`,
   provider: "github",
   kind: row.kind === "app" ? "app" : "pat",
   owner: row.owner,

@@ -72,7 +72,7 @@ export function AppShell({
         <ul className={styles.repositories} aria-label="Your repositories">
           {repositories.map((repository) => (
             <li key={repository.id}>
-              <RailLink href={`/repo/${repository.id}`} label={repository.label} tip={repository.isDefault ? `${repository.label} (default)` : repository.label} active={current === repository.id}>
+              <RailLink href={`/${repository.kind ?? "drive"}/${repository.id}`} label={repository.label} tip={repository.isDefault ? `${repository.label} (default)` : repository.label} active={current === repository.id}>
                 <RepositoryKindIcon kind={repository.kind ?? null} />
               </RailLink>
             </li>

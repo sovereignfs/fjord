@@ -85,7 +85,7 @@ export function RepositoryView({
                 </p>
               </section>
             </RepositorySettings>
-            <a className={header.iconButton} href={deletedAddress(current.publicId)} title="Recently deleted" aria-label="Recently deleted">
+            <a className={header.iconButton} href={deletedAddress(current.address)} title="Recently deleted" aria-label="Recently deleted">
               <NodeIcon name="archive-x" size={20} aria-hidden />
             </a>
           </div>
@@ -117,9 +117,9 @@ export function RepositoryView({
               {kind ? (
                 <p className={styles.lead}>
                   {kind.asFiles ? (
-                    <a href={repositoryHref(current.publicId)}>Show as {kind.label.toLowerCase()}</a>
+                    <a href={repositoryHref(current.address)}>Show as {kind.label.toLowerCase()}</a>
                   ) : (
-                    <a href={kind.filesHref ?? `${repositoryHref(current.publicId)}?view=files`}>Show files</a>
+                    <a href={kind.filesHref ?? `${repositoryHref(current.address)}?view=files`}>Show files</a>
                   )}
                 </p>
               ) : null}

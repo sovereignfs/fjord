@@ -35,7 +35,7 @@ export async function Timeline({ accountId, connection, read, vault, query, empt
   const page = Number.parseInt(typeof query.page === "string" ? query.page : "1", 10);
   const timeline = arrange(fjord(), entries, { page: Number.isFinite(page) ? page : 1, filter });
 
-  const base = repositoryHref(connection.publicId);
+  const base = repositoryHref(connection.address);
   const address = (extra: Record<string, string>) => {
     const params = new URLSearchParams();
     for (const tag of filter.tags ?? []) params.append("tag", tag);
@@ -50,7 +50,7 @@ export async function Timeline({ accountId, connection, read, vault, query, empt
   return (
     <>
       <QueryTagFilter base={base} tags={timeline.tags} chosen={filter.tags ?? []} range={range} />
-      <TimelineView connectionId={connection.id} repo={connection.publicId} timeline={timeline} tagHref={tagHref} {...(empty ? { empty } : {})} {...(docBase ? { docBase } : {})} />
+      <TimelineView connectionId={connection.id} repo={connection.address} timeline={timeline} tagHref={tagHref} {...(empty ? { empty } : {})} {...(docBase ? { docBase } : {})} />
       {timeline.pages > 1 ? (
         <p className={styles.actions}>
           {timeline.page > 1 ? <a href={address({ page: String(timeline.page - 1) })}>Newer</a> : null}

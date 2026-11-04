@@ -47,6 +47,10 @@ export const ROUTES: RouteRule[] = [
   // The age identity kept in the browser (2a.1): the page only hosts the component that keeps it; the server holds and is asked for nothing of it.
   { route: "/account/keys", page: { kind: "account" } },
   // A repository, a folder, a file; a document or note by its id; and what was deleted from it.
+  { route: "/drive/[connection]/[[...path]]", page: owner("read") },
+  { route: "/journal/[connection]/[[...path]]", page: owner("read") },
+  { route: "/ssg/[connection]/[[...path]]", page: owner("read") },
+  // What these were called before they began with the kind: sent to the one that is the repository's.
   { route: "/repo/[connection]/[[...path]]", page: owner("read") },
   { route: "/d/[id]", page: owner("read") },
   // A journal's note at its shared address (workstream 0003): the same page as `/d/<id>`, for the same document.

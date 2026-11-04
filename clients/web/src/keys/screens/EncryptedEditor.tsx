@@ -36,7 +36,7 @@ export function EncryptedEditor({
   transferTargets,
 }: {
   connectionId: number;
-  /** What the repository is called in an address (`ConnectionInfo.publicId`). */
+  /** Where the repository's addresses begin (`ConnectionInfo.address`). */
   repo: string;
   path: string;
   /** The file's real name, for the container of an `id`-named vault. */

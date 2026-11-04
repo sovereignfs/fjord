@@ -19,5 +19,5 @@ export default async function RecentlyDeletedPage({ params }: { params: Promise<
   const service = await connectionService();
   const known = isLegacyId(connection) ? await service.get(user.id, Number(connection)) : await service.getByPublicId(user.id, connection);
   if (!known) notFound();
-  redirect(deletedAddress(known.publicId));
+  redirect(deletedAddress(known.address));
 }

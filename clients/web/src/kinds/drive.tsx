@@ -19,5 +19,5 @@ export const driveKind: KindModule = {
 
 function DriveEntry({ connection, read }: EntryViewProps) {
   const add = read.manifest?.ok ? <AddVault connectionId={connection.id} existing={read.discovery.vaults.map((vault) => vault.directory)} /> : undefined;
-  return <VaultList read={read} repo={connection.publicId} actions={add} />;
+  return <VaultList read={read} repo={connection.address} actions={add} />;
 }

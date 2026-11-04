@@ -64,7 +64,8 @@ function placed(vault: string, parent: string | undefined, target: { handle: str
   return { kind: "place", vault, parent, target };
 }
 
-export const repositoryAddress = (connection: string): string => `/repo/${connection}`;
+/** `connection` is a repository's address (`ConnectionInfo.address`: `<kind>/<public id>`, as `drive/k3x9m2qa`). */
+export const repositoryAddress = (connection: string): string => `/${connection}`;
 
 export { deletedAddress } from "./links";
 

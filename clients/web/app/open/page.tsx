@@ -24,7 +24,7 @@ export default async function OpenPage() {
   if (outcome.ok && (!outcome.read.manifest?.ok || outcome.read.manifest.kind === "drive")) {
     const directory = defaultVault(outcome.read.discovery, outcome.read.manifest, current.defaultVault);
     const vault = outcome.read.discovery.vaults.find((candidate) => candidate.directory === directory);
-    if (vault?.id) redirect(vaultAddress(current.publicId, vault.id));
+    if (vault?.id) redirect(vaultAddress(current.address, vault.id));
   }
-  redirect(repositoryHref(current.publicId));
+  redirect(repositoryHref(current.address));
 }

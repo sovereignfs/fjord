@@ -48,10 +48,10 @@ export async function RecentlyDeletedScreen({ connection }: { connection: string
       <div className={styles.workspace}>
         <h1 className={styles.title}>Recently deleted</h1>
         <p className={styles.lead}>
-          {current.owner}/{current.name} · <a href={repositoryHref(current.publicId)}>Back to the repository</a>
+          {current.owner}/{current.name} · <a href={repositoryHref(current.address)}>Back to the repository</a>
         </p>
         <Card as="article" padding="lg">
-          <RecentlyDeleted connectionId={current.id} repo={current.publicId} groups={groups} days={Math.round(window / DAY)} />
+          <RecentlyDeleted connectionId={current.id} repo={current.address} groups={groups} days={Math.round(window / DAY)} />
         </Card>
       </div>
     </SignedInShell>

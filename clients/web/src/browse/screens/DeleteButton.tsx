@@ -21,7 +21,7 @@ export function DeleteButton({
   goTo,
 }: {
   connectionId: number;
-  /** What the repository is called in an address (`ConnectionInfo.publicId`), for the link a finished action goes to; `connectionId` is for the API. */
+  /** Where the repository's addresses begin (`ConnectionInfo.address`), for the link a finished action goes to; `connectionId` is for the API. */
   repo: string;
   vault: string;
   target: DeleteTarget;

@@ -46,7 +46,7 @@ async function SiteEntry({ accountId, connection, read, query }: EntryViewProps)
         Built with {site.engine === "astro" ? "Astro" : "Jekyll"}. Its posts are written here; its pages, layouts and settings are the site's code, and are in the files.
       </p>
       <BuildStatus accountId={accountId} connection={connection} commit={read.commit} />
-      <NewPost connectionId={connection.id} repo={connection.publicId} engine={site.engine} />
+      <NewPost connectionId={connection.id} repo={connection.address} engine={site.engine} />
       <PreviewPanel connectionId={connection.id} />
       {read.partial ? (
         <Alert variant="info">This site is too large to list at once, so its posts cannot be shown here. Show its files to browse them.</Alert>

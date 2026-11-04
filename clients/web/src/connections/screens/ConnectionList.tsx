@@ -10,6 +10,8 @@ export interface ConnectionRow {
   id: number;
   /** What it is called in an address. */
   publicId: string;
+  /** Where its addresses begin: `<kind>/<public id>`. */
+  address: string;
   owner: string;
   name: string;
   branch: string;
@@ -48,7 +50,7 @@ export function ConnectionList({ connections }: { connections: ConnectionRow[] }
         {connections.map((connection) => (
           <li key={connection.id} className={styles.item}>
             <span>
-              <a href={`/repo/${connection.publicId}`}>
+              <a href={`/${connection.address}`}>
                 {connection.owner}/{connection.name}
               </a>{" "}
               {connection.isDefault ? <Badge>Default</Badge> : null}

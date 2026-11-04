@@ -98,7 +98,7 @@ async function refused(promise: Promise<unknown>, code: ConnectionErrorCode): Pr
 describe(`connecting with a token (${leg})`, () => {
   it("keeps a repository the token can read and write", async () => {
     const { connection, warnings } = await service.addWithToken(ALICE, { repository: "https://github.com/acme/notes", token: GOOD });
-    expect(connection).toEqual({ id: expect.any(Number), publicId: expect.stringMatching(/^[0-9a-hjkmnp-tv-z]{8}$/), provider: "github", kind: "pat", owner: "acme", name: "notes", branch: "main", createdAt: 1_800_000_000_000, isDefault: true, defaultVault: null, repoKind: null });
+    expect(connection).toEqual({ id: expect.any(Number), publicId: expect.stringMatching(/^[0-9a-hjkmnp-tv-z]{8}$/), address: expect.stringMatching(/^drive\/[0-9a-hjkmnp-tv-z]{8}$/), provider: "github", kind: "pat", owner: "acme", name: "notes", branch: "main", createdAt: 1_800_000_000_000, isDefault: true, defaultVault: null, repoKind: null });
     expect(warnings).toEqual([]);
     expect(await service.list(ALICE)).toEqual([connection]);
   });
@@ -613,6 +613,16 @@ describe(`what a repository is called in an address (${leg})`, () => {
     // It does not say how many there are, or in what order they were connected.
     expect(one.publicId).not.toBe(String(one.id));
     expect((await s.getByPublicId(ALICE, two.publicId))?.id).toBe(two.id);
+  });
+
+  it("begins its addresses with the kind it was last read as: a drive's until it has been read", async () => {
+    const s = serviceWithRepositories("one");
+    const one = (await connect(s, ALICE, "one")).connection;
+    expect(one.address).toBe(`drive/${one.publicId}`);
+    await s.setRepoKind(ALICE, one.id, "journal");
+    expect((await s.get(ALICE, one.id))?.address).toBe(`journal/${one.publicId}`);
+    await s.setRepoKind(ALICE, one.id, "ssg");
+    expect((await s.get(ALICE, one.id))?.address).toBe(`ssg/${one.publicId}`);
   });
 
   it("finds only the account's own, and nothing for a name that is not one", async () => {

@@ -30,7 +30,7 @@ export function TransferControl({
   blocked,
 }: {
   connectionId: number;
-  /** What the repository is called in an address (`ConnectionInfo.publicId`), for the link a finished action goes to; `connectionId` is for the API. */
+  /** Where the repository's addresses begin (`ConnectionInfo.address`), for the link a finished action goes to; `connectionId` is for the API. */
   repo: string;
   /** The file, repository-relative. */
   path: string;

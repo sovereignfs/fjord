@@ -53,7 +53,7 @@ export class AddressBook {
 }
 
 /** The book for these paths of a vault, with the handle of each and of the folder each is in made if there is none yet. */
-export async function addressBookFor(connection: { id: number; publicId: string }, vault: { directory: string; id: string | null }, paths: string[]): Promise<AddressBook> {
+export async function addressBookFor(connection: { id: number; address: string }, vault: { directory: string; id: string | null }, paths: string[]): Promise<AddressBook> {
   const wanted = new Set<string>();
   for (const path of paths) {
     if (path === vault.directory) continue;
@@ -62,5 +62,5 @@ export async function addressBookFor(connection: { id: number; publicId: string 
     if (parent !== vault.directory && parent !== "") wanted.add(parent);
   }
   const handles = wanted.size === 0 || vault.id === null ? new Map<string, string>() : await new FileHandles(await getDatabase()).forPaths(connection.id, [...wanted]);
-  return new AddressBook(connection.publicId, vault, handles);
+  return new AddressBook(connection.address, vault, handles);
 }

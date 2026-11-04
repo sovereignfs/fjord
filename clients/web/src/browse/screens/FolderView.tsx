@@ -55,7 +55,7 @@ export async function folderParts({
   tagSuggestions,
 }: {
   connectionId: number;
-  /** What the repository is called in an address (`ConnectionInfo.publicId`). */
+  /** Where the repository's addresses begin (`ConnectionInfo.address`: `<kind>/<public id>`). */
   repo: string;
   repository: string;
   location: Exclude<Location, { kind: "missing" }>;
@@ -101,7 +101,7 @@ export async function folderParts({
   const folders = inside === "" ? [] : inside.split("/");
   // The links of this page are drawn from ids (workstream 0003): the handles of the folders above, the folders and files listed, are made in one go.
   const listed = location.kind === "folder" ? [...location.folders.map((folder) => [vault.directory, ...folders, folder.name].join("/")), ...location.files.map((file) => file.path)] : [];
-  const book = await addressBookFor({ id: connectionId, publicId: repo }, vault, [...folders.map((_, index) => [vault.directory, ...folders.slice(0, index + 1)].join("/")), ...listed]);
+  const book = await addressBookFor({ id: connectionId, address: repo }, vault, [...folders.map((_, index) => [vault.directory, ...folders.slice(0, index + 1)].join("/")), ...listed]);
   const here = (...segments: string[]) => (segments.length === 0 ? repositoryHref(repo) : book.href(segments.join("/")));
   const plainWritable = checkVault([vault], vault.directory) === "ok";
   const writable = plainWritable || encryptedNaming !== undefined;
@@ -272,7 +272,7 @@ function FileCard({
 }: {
   tagSuggestions?: string[] | undefined;
   connectionId: number;
-  /** What the repository is called in an address (`ConnectionInfo.publicId`). */
+  /** Where the repository's addresses begin (`ConnectionInfo.address`: `<kind>/<public id>`). */
   repo: string;
   file: ClassifiedFile;
   encrypted: boolean;
