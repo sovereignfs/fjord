@@ -50,7 +50,7 @@ width but the account page.
 | # | What is missing | Status |
 | --- | --- | --- |
 | G1 | A file that is not Markdown or HTML (a picture, a PDF, a CSV) is greyed out: it cannot be opened, downloaded, moved or deleted from a drive | Fixed |
-| G2 | The first page of someone with no repository says nothing of what is shared with them | Open |
+| G2 | The first page of someone with no repository says nothing of what is shared with them | Fixed |
 | G3 | An account cannot be deleted by the person who holds it; only a Sovereign notice does that | Open, for a decision: it deletes what is kept on the server |
 | G4 | An address cannot be changed ("Email changes aren't supported yet") | Open |
 | G5 | A comment cannot be made on a selection across formatting: the anchor is a quote of the Markdown and the marks are drawn from it. Saying so is U2; doing it needs the anchor to change | Open |

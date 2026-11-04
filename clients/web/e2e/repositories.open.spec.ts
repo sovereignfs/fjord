@@ -4906,3 +4906,25 @@ test("a vault is made encrypted in one commit from the browser, checked to open,
     await restoreMore();
   }
 });
+
+test("a file that is not a document has a page, a picture is shown, and it is saved as a file", async ({ page }) => {
+  await signUp(page);
+  await connect(page, "acme/notes");
+  await openRepository(page);
+  await page.getByRole("link", { name: /^Public notes/ }).first().click();
+  await page.getByRole("link", { name: "photo.png" }).click();
+  await expect(page.getByRole("img", { name: "photo.png" })).toHaveCount(1);
+  const download = await page.getByRole("link", { name: "Download" }).getAttribute("href");
+  const saved = await page.request.get(download!);
+  expect(saved.status()).toBe(200);
+  expect(saved.headers()["content-disposition"]).toMatch(/^attachment; filename="photo\.png"/);
+  expect(saved.headers()["x-content-type-options"]).toBe("nosniff");
+  expect(saved.headers()["content-security-policy"]).toContain("sandbox");
+
+  // Someone else is told nothing of it.
+  const other = await page.context().browser()!.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.9" } });
+  const otherPage = await other.newPage();
+  await signUp(otherPage, `other-${Date.now()}@example.com`, "Grace Hopper");
+  expect((await otherPage.request.get(download!)).status()).toBe(404);
+  await other.close();
+});

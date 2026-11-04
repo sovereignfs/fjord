@@ -3,6 +3,7 @@ import { FirstRun } from "../../src/connections/screens/FirstRun";
 import { RepositoryGrid } from "../../src/connections/screens/RepositoryGrid";
 import { connectionService } from "../../src/connections/server";
 import { encryptionKeyring } from "../../src/crypto/server";
+import { sharedCountFor } from "../../src/sharing/count";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Home" };
@@ -15,6 +16,6 @@ export default async function HomePage() {
   const { user } = await requireSession();
   const canConnect = encryptionKeyring() !== undefined;
   const connections = canConnect ? await (await connectionService()).list(user.id) : [];
-  if (connections.length === 0) return <FirstRun user={user} canConnect={canConnect} />;
+  if (connections.length === 0) return <FirstRun user={user} canConnect={canConnect} shared={await sharedCountFor(user.id)} />;
   return <RepositoryGrid user={user} connections={connections} />;
 }
