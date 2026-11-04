@@ -185,6 +185,13 @@ export interface Provider {
    */
   deleteBranch(ref: RepositoryRef, branch: string): Promise<void>;
 
+  /**
+   * When a file last changed as of a commit: the date, as the host writes it (ISO 8601), of the newest commit up to it that touched `path`; undefined when the host cannot say or the
+   * path has no history. **Optional** and one file at a time: it is a request to the host's history, which a listing of many files must not make, so it is asked for the one file a page
+   * opens. A host that does not keep it, or a provider made for tests, leaves it out.
+   */
+  lastModified?(ref: RepositoryRef, commit: string, path: string): Promise<string | undefined>;
+
   /** The branches whose names begin with `prefix`, with their heads. */
   listBranches(ref: RepositoryRef, prefix: string): Promise<Branch[]>;
 

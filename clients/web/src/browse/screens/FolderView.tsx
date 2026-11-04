@@ -14,13 +14,15 @@ import { MoveButtons } from "./MoveButtons";
 import { PublishPanel } from "../../publishing/PublishPanel";
 import { IdentifyAndShare } from "../../sharing/IdentifyAndShare";
 import { SharePanel } from "../../sharing/SharePanel";
+import { ShareDialog } from "../../sharing/ShareDialog";
 import { Listing, type ListingItem } from "./Listing";
 import { NewFile, type EncryptedCreate } from "./NewFile";
 import { UndoBanner } from "./UndoBanner";
 import { VaultConversion } from "./VaultConversion";
-import type { HeaderInfo } from "../document";
+import { type HeaderInfo, documentTitle, stemOf } from "../document";
 import { type DraftOfNote, NoteView } from "./NoteView";
 import { UpstreamChanged } from "./UpstreamChanged";
+import actions from "./FileActions.module.css";
 import { EncryptedFile, type EncryptedDraft } from "../../keys/screens/EncryptedFile";
 import type { TransferTarget } from "../../keys/files";
 import { TransferControl } from "./TransferControl";
@@ -53,7 +55,10 @@ export async function folderParts({
   encryptedNaming,
   transferTargets,
   tagSuggestions,
+  updated,
 }: {
+  /** For a document: when it last changed in the repository (ISO 8601; null when the host did not say), shown in its properties. */
+  updated?: string | null | undefined;
   connectionId: number;
   /** Where the repository's addresses begin (`ConnectionInfo.address`: `<kind>/<public id>`). */
   repo: string;
@@ -126,7 +131,7 @@ export async function folderParts({
             </a>
           </span>
         ))}
-        {location.kind === "file" ? <span> / {location.file.relative.split("/").at(-1)}</span> : null}
+        {location.kind === "file" ? <span> / {location.file.kind === "doc" ? stemOf(leaf(location.file.relative)) : leaf(location.file.relative)}</span> : null}
     </nav>
   );
   const body = (
@@ -142,7 +147,7 @@ export async function folderParts({
 
       {location.kind === "file" && html ? <HtmlFrame name={leaf(location.file.relative)} src={html.src} /> : null}
 
-      {location.kind === "file" && !html ? <FileCard connectionId={connectionId} repo={repo} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} site={site === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
+      {location.kind === "file" && !html ? <FileCard updated={updated} connectionId={connectionId} repo={repo} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} site={site === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
           remove={writable && fileBlob !== undefined && (location.file.kind === "doc" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
@@ -269,8 +274,11 @@ function FileCard({
   encryptedChange,
   transferTargets,
   tagSuggestions,
+  updated,
 }: {
   tagSuggestions?: string[] | undefined;
+  /** When the file last changed in the repository (ISO 8601), if the host said. */
+  updated?: string | null | undefined;
   connectionId: number;
   /** Where the repository's addresses begin (`ConnectionInfo.address`: `<kind>/<public id>`). */
   repo: string;
@@ -296,20 +304,31 @@ function FileCard({
   transferTargets: TransferTarget[];
   encryptedEditing: { draft: EncryptedDraft | null; recipients: { ok: true; text: string } | { ok: false; message: string } } | undefined;
 }) {
-  // What a file's page also offers besides the editor: sharing, publishing, rename and move, delete. A journal's writing view keeps them one step away.
-  const extras = (
+  // What a file's page offers besides the editor, as icons at the end of its title (the owner's request): sharing (with publishing, in a dialog), move, move to another vault, and delete. Rename is not
+  // among them for a drive's document, whose properties have its file's name; a file that has no such properties keeps it. A journal's writing view keeps them one step away, under "More".
+  const isDoc = file.kind === "doc";
+  const sharing =
+    remove && !encrypted && isDoc ? (
+      docId ? (
+        <ShareDialog>
+          <SharePanel connectionId={connectionId} docId={docId} note={writing === true} />
+          <PublishPanel connectionId={connectionId} docId={docId} />
+        </ShareDialog>
+      ) : note?.ok ? (
+        <ShareDialog>
+          <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} />
+        </ShareDialog>
+      ) : null
+    ) : null;
+  // The file's name is in the properties when the page has properties to show: a header it has, or one it would be given. A text it would not give one to (it has carriage returns) has none, and keeps its rename icon.
+  const filenameInProperties = isDoc && editor === "document" && (header?.properties !== undefined || header?.promotion !== undefined);
+  const icons = remove ? (
     <>
-      {remove && docId && !encrypted ? <SharePanel connectionId={connectionId} docId={docId} note={writing === true} /> : null}
-      {remove && docId && !encrypted ? <PublishPanel connectionId={connectionId} docId={docId} /> : null}
-      {remove && !docId && !encrypted && file.kind === "doc" && note?.ok ? <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} /> : null}
-      {remove ? (
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "var(--sv-space-2)", margin: "var(--sv-space-3) 0" }}>
-          <MoveButtons connectionId={connectionId} repo={repo} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
-          <DeleteButton connectionId={connectionId} repo={repo} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
-        </div>
-      ) : null}
-      {remove && file.kind === "doc" && note?.ok && transferTargets.length > 0 ? (
+      {sharing}
+      <MoveButtons appearance="icon" connectionId={connectionId} repo={repo} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={!filenameInProperties && encryptedChange !== "id"} />
+      {isDoc && note?.ok && transferTargets.length > 0 ? (
         <TransferControl
+          appearance="icon"
           repo={repo}
           connectionId={connectionId}
           path={file.path}
@@ -321,32 +340,36 @@ function FileCard({
           blocked={draft ? "This file has unsaved changes. Save a version of them, or discard them, to move it to another vault." : undefined}
         />
       ) : null}
+      <DeleteButton appearance="icon" connectionId={connectionId} repo={repo} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
     </>
-  );
+  ) : null;
+  // What a document is called is what it says (its header's title, or its first heading), and its file's name only when it says nothing; the name is in the path above and in its properties.
+  const shown = draft?.content ?? (note?.ok ? note.text : undefined);
+  const title = isDoc && shown !== undefined ? documentTitle(shown, header?.bodyStart, header?.properties?.title, leaf(file.logical)) : leaf(file.logical);
   return (
     <section aria-labelledby="file-title">
-      <h2 id="file-title" className={styles.title} style={{ fontSize: "var(--sv-font-size-lg)" }}>
-        {leaf(file.logical)}
-      </h2>
-      {writing ? null : (
-        <p className={styles.itemMeta}>
-          {KIND_LABEL[file.kind] || "File"}
-          {file.size > 0 ? ` · ${humanSize(file.size)}` : ""}
-        </p>
-      )}
+      <div className={actions.titleRow}>
+        <h2 id="file-title" className={actions.title}>
+          {title}
+          {file.size > 0 ? <span className={actions.size}>{humanSize(file.size)}</span> : null}
+        </h2>
+        {writing || !icons ? null : <div className={actions.icons}>{icons}</div>}
+      </div>
       {file.kind === "doc" && note ? (
         note.ok ? (
           draft && draft.baseBlob !== note.blob ? (
             <UpstreamChanged connectionId={connectionId} path={file.path} label={leaf(file.logical)} mine={draft.content} theirs={note.text} upstreamBlob={note.blob} preview={preview} />
           ) : (
             <>
-              <p className={styles.itemMeta}>Your changes are kept as a draft as you type. Save a version to put them in the repository.</p>
+              <div className={styles.notice}>
+                <Alert variant="info">Your changes are kept as a draft as you type. Save a version to put them in the repository.</Alert>
+              </div>
               {permalink && !writing ? (
                 <p className={styles.itemMeta}>
                   Address by id, which does not depend on where the file is: <a href={permalink}>{permalink}</a>
                 </p>
               ) : null}
-              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} editor={editor} site={site} header={header} docId={docId} tagSuggestions={tagSuggestions} />
+              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} editor={editor} site={site} header={header} docId={docId} tagSuggestions={tagSuggestions} rename={remove && editor === "document" && filenameInProperties ? { vault: remove.vault, repo, suffix: file.path.match(/\.md$/i)?.[0] ?? "" } : undefined} updated={updated} />
             </>
           )
         ) : (
@@ -365,14 +388,14 @@ function FileCard({
       ) : (
         <Alert variant="info" heading="Not openable">This kind of file cannot be opened in this version; it is kept in the repository as it is.</Alert>
       )}
-      {writing ? (
+      {writing && icons ? (
         <details className={styles.itemMeta} data-testid="more">
           <summary>More</summary>
-          {extras}
+          <div className={actions.icons} style={{ marginTop: 0 }}>
+            {icons}
+          </div>
         </details>
-      ) : (
-        extras
-      )}
+      ) : null}
     </section>
   );
 }

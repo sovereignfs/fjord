@@ -287,6 +287,16 @@ Changes the owner asked for after using the first seven legs; each is a commit o
 - **Not done: created and last-modified dates.** The host's tree carries sizes and ids, not dates; each date is a request to the file's history, one per file listed. It needs a provider
   method that is paged and cached (and a contract test for each provider), which is a piece of its own: size is shown, and the listing's rows take any further column.
 
+## Follow-ups (2026-11-04, the document's screen)
+
+- **Addresses begin with the kind**: `/drive/<repo>`, `/journal/<repo>`, `/ssg/<repo>`. `ConnectionInfo.address` is `<kind>/<public id>` (by `repo_kind`, a drive until read), and `repo` in the components is that
+  string. `RepositoryScreen` knows the kind the manifest says now and sends an address of another kind to the right one, keeping the rest and the query; `/repo/…` redirects the same way. `/raw/<repo>/…`
+  keeps the bare public id, and so does the rail's matching of the current repository. The proxy's pattern for the one framed page, the routes list and the e2e helpers follow.
+- **The document's card**: title (header, first heading, file name) with its size; icons for share, move, move to another vault and delete; rename in the properties as *File name*; *Last updated* from the host's
+  history for the one file (`lastModified`, optional on `Provider`, asked of GitHub as `GET /commits?path=` with one result; absent in the in-memory provider). **Not done**: created and modified dates in listings,
+  which would be that request for every file listed.
+- **Editor**: MDXEditor's translation function is given the blanks' values (`rich/translation.ts`), so the heading menu names its levels; the editor's first block has no top margin.
+
 ## Follow-ups (2026-11-04, the account)
 
 Supersedes the *Security is `/security`* item above.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ROLES, type Role } from "../access/policy";
 import { Alert, Badge, Button, FormField, Input } from "../ui";
 import styles from "../auth/screens/screens.module.css";
@@ -40,15 +40,13 @@ export function SharePanel({ connectionId, docId, note = false }: { connectionId
     setLoaded(true);
   }, [connectionId, docId]);
 
+  // It is shown in a dialog (`ShareDialog`), which opens it: what it says is read as it opens.
+  useEffect(() => {
+    if (!loaded) void load();
+  }, [loaded, load]);
+
   return (
-    <details
-      className={styles.itemMeta}
-      data-testid="share-panel"
-      onToggle={(event) => {
-        if ((event.currentTarget as HTMLDetailsElement).open && !loaded) void load();
-      }}
-    >
-      <summary>Sharing</summary>
+    <div className={styles.itemMeta} data-testid="share-panel">
       {problem ? (
         <div className={styles.notice}>
           <Alert variant="error" heading="Sharing">
@@ -58,7 +56,7 @@ export function SharePanel({ connectionId, docId, note = false }: { connectionId
       ) : null}
       <People connectionId={connectionId} docId={docId} people={people} changed={load} />
       <Links connectionId={connectionId} docId={docId} note={note} links={links} changed={load} />
-    </details>
+    </div>
   );
 }
 

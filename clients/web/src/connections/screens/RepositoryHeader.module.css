@@ -1,4 +1,14 @@
 /* The name of a repository, with its buttons at the end of the line. */
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+}
+
+.head > p {
+  margin: 0;
+}
+
 .row {
   display: flex;
   align-items: center;

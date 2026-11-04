@@ -315,6 +315,18 @@ export function providerContract(label: string, make: () => Promise<ProviderHarn
       });
     });
 
+    describe("when a file last changed", () => {
+      it("is, where a host keeps it, the date of the newest commit up to the one asked about that touched the file, and nothing for a path with no history", async () => {
+        if (!h.provider.lastModified) return;
+        const first = await h.seed({ "a.md": "a", "b.md": "b" });
+        const second = (await h.provider.commit(h.repo, { branch: "main", expectedHead: first, message: "Change a", changes: [{ path: "a.md", content: encode("a2") }] })).commit;
+        const iso = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:\d\d)$/;
+        expect(await h.provider.lastModified(h.repo, second, "a.md")).toMatch(iso);
+        expect(await h.provider.lastModified(h.repo, second, "b.md")).toMatch(iso);
+        expect(await h.provider.lastModified(h.repo, second, "never-there.md")).toBeUndefined();
+      });
+    });
+
     describe("branches of their own, for a preview (ROADMAP 3d.1)", () => {
       it("makes a branch at a commit, lists it by prefix, and commits to it without moving the default branch", async () => {
         const base = await h.seed({ "a.md": "a" });

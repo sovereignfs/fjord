@@ -152,9 +152,11 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
       // A note or a document is a header and a body, and its editor is given the body: where that starts in the text shown, what
       // the header says, and the header a file with none is given on its first edit (ROADMAP 1b.3, 1b.5).
       const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
+      // When the document last changed, from the host's history: one request, for the one file this page shows, and nothing when the host does not keep it or does not say.
+      const updated = file !== undefined && note?.ok ? await lastModifiedOf(user.id, current, outcome.read.commit, file.path) : undefined;
       // In a plaintext journal, the tags already in use are offered while one is typed (ROADMAP 3b.3): from what its timeline knows.
       const tagSuggestions = note?.ok ? await journalTagsFor(user.id, current, outcome.read) : undefined;
-      const parts = await folderParts({ html: isHtmlPage(found.location) ? { src: `/raw/${current.publicId}/${await new FileHandles(await getDatabase()).forPath(current.id, segments.join("/"))}` } : undefined, tagSuggestions, connectionId: current.id, repo: current.address, repository: `${current.owner}/${current.name}`, location: found.location, note, draft, preview, fileBlob, encryptedEditing, encryptedCreate, folderFiles, header, permalink, docId: file?.kind === "doc" ? (docId ?? undefined) : undefined, editor: kindFor(outcome.read.manifest).editor, writing: kindFor(outcome.read.manifest).writingView, site: kindFor(outcome.read.manifest).contentModel.fields.includes("draft"), destinations: moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined), encryptedNaming, transferTargets });
+      const parts = await folderParts({ updated, html: isHtmlPage(found.location) ? { src: `/raw/${current.publicId}/${await new FileHandles(await getDatabase()).forPath(current.id, segments.join("/"))}` } : undefined, tagSuggestions, connectionId: current.id, repo: current.address, repository: `${current.owner}/${current.name}`, location: found.location, note, draft, preview, fileBlob, encryptedEditing, encryptedCreate, folderFiles, header, permalink, docId: file?.kind === "doc" ? (docId ?? undefined) : undefined, editor: kindFor(outcome.read.manifest).editor, writing: kindFor(outcome.read.manifest).writingView, site: kindFor(outcome.read.manifest).contentModel.fields.includes("draft"), destinations: moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined), encryptedNaming, transferTargets });
       content = parts.body;
       crumbs = parts.crumbs;
     }
@@ -226,4 +228,14 @@ function moveDestinations(read: RepositoryRead, only?: string): string[] {
     }
   }
   return [...tops, ...[...folders].sort((a, b) => a.localeCompare(b, "en", { sensitivity: "base" }) || (a < b ? -1 : 1))].slice(0, 300);
+}
+
+/** When a file last changed in the repository as of a commit, or null if the host does not say; never a failure of the page. */
+async function lastModifiedOf(accountId: string, connection: { id: number; owner: string; name: string }, commit: string, path: string): Promise<string | null> {
+  try {
+    const used = await (await connectionService()).provider(accountId, connection.id);
+    return (await used?.provider.lastModified?.({ owner: connection.owner, name: connection.name }, commit, path)) ?? null;
+  } catch {
+    return null;
+  }
 }

@@ -235,6 +235,16 @@ export class FakeGitHub {
       return reply(200, { state, total_count: statuses.length, statuses, sha: found[1] });
     }
 
+    if (method === "GET" && rest === "/commits") {
+      const sha = url.searchParams.get("sha") ?? "";
+      const where = url.searchParams.get("path") ?? "";
+      if (!/^[0-9a-f]{40}$/.test(sha) || !(await this.exists(sha, "commit"))) return reply(404, { message: "Not Found" });
+      const out = (await this.git(["log", "-1", "--format=%H %cI", sha, "--", where])).toString().trim();
+      if (out === "") return reply(200, []);
+      const [commit, date] = out.split(" ");
+      return reply(200, [{ sha: commit, commit: { committer: { date }, author: { date } } }]);
+    }
+
     if (method === "GET" && rest === "/deployments") {
       if (this.forbidBuildReads) return reply(403, { message: "Resource not accessible by personal access token" });
       const sha = url.searchParams.get("sha") ?? "";

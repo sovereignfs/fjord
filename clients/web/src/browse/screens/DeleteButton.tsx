@@ -4,7 +4,9 @@ import { useState } from "react";
 import { Alert, Button, ConfirmDialog } from "../../ui";
 import { type DeleteTarget, sendDelete } from "../../files/client";
 import { rememberUndo } from "../../files/undo";
+import { Icon } from "../../ui";
 import { repositoryHref } from "../links";
+import { IconButton } from "./IconButton";
 
 /**
  * Delete a note, a document or a folder (ROADMAP 1b.12), after asking: the confirmation names what will go, and for a folder
@@ -19,6 +21,7 @@ export function DeleteButton({
   target,
   name,
   goTo,
+  appearance = "text",
 }: {
   connectionId: number;
   /** Where the repository's addresses begin (`ConnectionInfo.address`), for the link a finished action goes to; `connectionId` is for the API. */
@@ -29,6 +32,8 @@ export function DeleteButton({
   name: string;
   /** Where to go after: the folder it was in. */
   goTo: string[];
+  /** `icon`: an icon named *Delete* (a document's actions, at the end of its title). */
+  appearance?: "text" | "icon";
 }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -54,9 +59,15 @@ export function DeleteButton({
   const what = target.type === "folder" ? `the folder “${name}” and the ${target.files === 1 ? "1 file" : `${target.files} files`} in it` : `“${name}”`;
   return (
     <>
-      <Button variant="secondary" size="sm" onClick={() => setConfirming(true)}>
-        {target.type === "folder" ? "Delete folder" : "Delete"}
-      </Button>
+      {appearance === "icon" ? (
+        <IconButton label={target.type === "folder" ? "Delete folder" : "Delete"} danger onClick={() => setConfirming(true)}>
+          <Icon name="trash-2" aria-hidden />
+        </IconButton>
+      ) : (
+        <Button variant="secondary" size="sm" onClick={() => setConfirming(true)}>
+          {target.type === "folder" ? "Delete folder" : "Delete"}
+        </Button>
+      )}
       <ConfirmDialog
         open={confirming}
         onClose={() => (setConfirming(false), setError(null))}

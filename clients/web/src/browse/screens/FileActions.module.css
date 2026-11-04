@@ -1,0 +1,77 @@
+/* The head of a file's card: its title with its size, and the icons of what can be done to it, at the other end of the same line. */
+.titleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+  margin-bottom: var(--sv-space-3);
+}
+
+.title {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sv-space-3);
+  min-width: 0;
+  font-size: var(--sv-font-size-xl);
+  font-weight: var(--sv-font-weight-semibold);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.size {
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+  font-weight: var(--sv-font-weight-regular, 400);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.icons {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sv-space-1);
+  margin-top: -4px;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--sv-radius-md);
+  background: transparent;
+  color: var(--sv-color-text-muted);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .iconButton:hover:not(:disabled) {
+    background-color: var(--sv-color-surface-sunken);
+    color: var(--sv-color-text-primary);
+  }
+
+  .danger:hover:not(:disabled) {
+    color: var(--sv-color-error, #b42318);
+  }
+}
+
+.iconButton:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.iconButton svg {
+  width: 20px;
+  height: 20px;
+}

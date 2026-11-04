@@ -8,7 +8,10 @@ import { fetchRecipients, sendTransfer } from "../../files/client";
 import { keyStore } from "../../keys/client";
 import { type Recipients, type TransferTarget, prepareTransfer } from "../../keys/files";
 import { loadModule } from "../../keys/module";
+import { NodeIcon } from "../../ui/icons";
 import { repositoryHref } from "../links";
+import { ActionDialog } from "./ActionDialog";
+import { IconButton } from "./IconButton";
 
 /**
  * "Move to another vault" for a file when one of the two vaults is encrypted (ROADMAP 2b.6, DESIGN.md §8). The server has no key, so this page does the one thing
@@ -28,6 +31,7 @@ export function TransferControl({
   sourceEncrypted,
   targets,
   blocked,
+  appearance = "text",
 }: {
   connectionId: number;
   /** Where the repository's addresses begin (`ConnectionInfo.address`), for the link a finished action goes to; `connectionId` is for the API. */
@@ -43,6 +47,8 @@ export function TransferControl({
   targets: TransferTarget[];
   /** Why it cannot be moved now, such as unsaved changes. */
   blocked?: string | undefined;
+  /** `icon`: an icon named *Move to another vault* (a document's actions, at the end of its title). */
+  appearance?: "text" | "icon";
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -76,14 +82,21 @@ export function TransferControl({
   }, [open, needsRecipients, vaultOfTarget, recipients, connectionId]);
 
   if (targets.length === 0) return null;
-  if (blocked) return <p className={styles.itemMeta}>{blocked}</p>;
+  const close = () => (setOpen(false), setConfirming(false), setError(null));
+  const trigger =
+    appearance === "icon" ? (
+      <IconButton label="Move to another vault" disabled={Boolean(blocked)} title={blocked ?? "Move to another vault"} onClick={() => setOpen(true)}>
+        <NodeIcon name="arrow-right-left" aria-hidden />
+      </IconButton>
+    ) : null;
+  if (blocked && appearance !== "icon") return <p className={styles.itemMeta}>{blocked}</p>;
   if (!open) {
     return (
-      <p>
+      trigger ?? (
         <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
           Move to another vault
         </Button>
-      </p>
+      )
     );
   }
 
@@ -116,8 +129,16 @@ export function TransferControl({
   }
 
   return (
+    <>
+      {trigger ?? (
+        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+          Move to another vault
+        </Button>
+      )}
+      <ActionDialog open onClose={busy ? () => undefined : close} title="Move to another vault">
     <form
       className={styles.form}
+      style={{ marginTop: 0 }}
       aria-label="Move to another vault"
       onSubmit={(event) => {
         event.preventDefault();
@@ -186,10 +207,12 @@ export function TransferControl({
         <Button type="submit" size="sm" loading={busy} disabled={!target || newName.trim() === "" || (toEncrypted && target !== undefined && recipients[target.vault]?.ok !== true)} variant={confirming ? "destructive" : "primary"}>
           {confirming ? (sourceEncrypted && !toEncrypted ? "Yes, decrypt and move" : "Yes, move it") : "Move"}
         </Button>{" "}
-        <Button type="button" variant="secondary" size="sm" onClick={() => (setOpen(false), setConfirming(false), setError(null))} disabled={busy}>
+        <Button type="button" variant="secondary" size="sm" onClick={close} disabled={busy}>
           Cancel
         </Button>
       </div>
     </form>
+      </ActionDialog>
+    </>
   );
 }

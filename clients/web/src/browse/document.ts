@@ -102,3 +102,31 @@ export function headerOf(
   const header = format.promoteDocument("", format.newUlid(now, random), format.rfc3339FromUnix(Math.floor(now / 1000)), format.impliedTitle(text, fileName));
   return header === undefined ? { bodyStart } : { bodyStart, promotion: { header, properties: propertiesOf(format.parseDocument(header)) } };
 }
+
+/** A file's name as a person calls it: without `.md`, or `.fj.md`, which are for Fjord and not for them. */
+export function stemOf(fileName: string): string {
+  return fileName.replace(/(\.fj)?\.md$/i, "");
+}
+
+/**
+ * What a document is called, at the head of its page: the title its header gives it, else the first level-one heading of its body (`# Title`, outside a code block), else its
+ * file's name without the extension. The text is the one shown (a draft, if there is one), and `bodyStart` where its body begins in it.
+ */
+export function documentTitle(text: string, bodyStart: number | undefined, headerTitle: string | null | undefined, fileName: string): string {
+  const fromHeader = headerTitle?.trim();
+  if (fromHeader) return fromHeader;
+  let fenced: string | null = null;
+  for (const line of text.slice(bodyStart ?? 0).split(/\r?\n/)) {
+    const fence = /^\s{0,3}(`{3,}|~{3,})/.exec(line);
+    if (fence) {
+      const mark = fence[1]!;
+      if (fenced === null) fenced = mark[0]!;
+      else if (mark[0] === fenced) fenced = null;
+      continue;
+    }
+    if (fenced !== null) continue;
+    const heading = /^ {0,3}#[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(line);
+    if (heading?.[1] && heading[1].trim() !== "") return heading[1].trim();
+  }
+  return stemOf(fileName);
+}

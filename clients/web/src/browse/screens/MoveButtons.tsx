@@ -6,7 +6,9 @@ import styles from "../../auth/screens/screens.module.css";
 import { type DeleteTarget, sendMove } from "../../files/client";
 import { MAX_TITLE_CHARS } from "../../files/limits";
 import { repositoryHref } from "../links";
+import { NodeIcon } from "../../ui/icons";
 import { ActionDialog } from "./ActionDialog";
+import { IconButton } from "./IconButton";
 
 /**
  * Rename and move a note, a document or a folder (ROADMAP 1b.11), from the page of the file or the folder. Rename edits the
@@ -23,6 +25,7 @@ export function MoveButtons({
   suffix,
   destinations,
   canRename = true,
+  appearance = "text",
 }: {
   connectionId: number;
   /** Where the repository's addresses begin (`ConnectionInfo.address`), for the link a finished action goes to; `connectionId` is for the API. */
@@ -35,6 +38,8 @@ export function MoveButtons({
   destinations: string[];
   /** False for a file whose name is its identifier (a vault that names its files by id): it is moved, and renamed by the name inside it. */
   canRename?: boolean;
+  /** `icon`: each button is an icon (a document's actions, at the end of its title), named the same. */
+  appearance?: "text" | "icon";
 }) {
   const [mode, setMode] = useState<"rename" | "move" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -66,14 +71,26 @@ export function MoveButtons({
   return (
     <>
       {canRename ? (
-        <Button variant="secondary" size="sm" onClick={() => setMode("rename")}>
-          {target.type === "folder" ? "Rename folder" : "Rename"}
-        </Button>
+        appearance === "icon" ? (
+          <IconButton label="Rename" onClick={() => setMode("rename")}>
+            <NodeIcon name="pencil" aria-hidden />
+          </IconButton>
+        ) : (
+          <Button variant="secondary" size="sm" onClick={() => setMode("rename")}>
+            {target.type === "folder" ? "Rename folder" : "Rename"}
+          </Button>
+        )
       ) : null}
       {places.length > 0 ? (
-        <Button variant="secondary" size="sm" onClick={() => setMode("move")}>
-          {target.type === "folder" ? "Move folder" : "Move"}
-        </Button>
+        appearance === "icon" ? (
+          <IconButton label="Move" onClick={() => setMode("move")}>
+            <NodeIcon name="folder-input" aria-hidden />
+          </IconButton>
+        ) : (
+          <Button variant="secondary" size="sm" onClick={() => setMode("move")}>
+            {target.type === "folder" ? "Move folder" : "Move"}
+          </Button>
+        )
       ) : null}
       <ActionDialog open={mode !== null} onClose={busy ? () => undefined : close} title={title}>
         {error ? (

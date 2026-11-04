@@ -175,6 +175,18 @@ export class GitHubProvider implements Provider {
     }
   }
 
+  async lastModified(ref: RepositoryRef, commit: string, path: string): Promise<string | undefined> {
+    try {
+      const answer = await this.client.json<{ commit?: { committer?: { date?: string } | null; author?: { date?: string } | null } }[]>("GET", `${repoPath(ref)}/commits`, { query: { sha: commit, path, per_page: 1 } });
+      const newest = answer.data?.[0]?.commit;
+      return newest?.committer?.date ?? newest?.author?.date ?? undefined;
+    } catch (error) {
+      // What a page shows beside a file is not worth failing the page for: the host did not say.
+      if (error instanceof ProviderError) return undefined;
+      throw error;
+    }
+  }
+
   async getBuildStatus(ref: RepositoryRef, commit: string): Promise<BuildStatus> {
     const repo = repoPath(ref);
     const [runs, combined, deployments] = await Promise.all([

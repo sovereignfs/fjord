@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { ROUTES } from "../src/access/routes";
-import { alertOn, expect, openAccount, openUserMenu, repoOf, signUp, test, DOC_PLACE, FILE_PLACE, PLACE, docPlace } from "./helpers";
+import { addressOf, alertOn, expect, openAccount, openUserMenu, repoOf, signUp, test, DOC_PLACE, FILE_PLACE, PLACE, docPlace } from "./helpers";
 import { wasmDirectory } from "../src/format/wasm";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
@@ -429,7 +429,7 @@ test("a vault is opened to its folders and files, and what can be opened is told
 
   await inside.getByRole("link", { name: "report.fj.md" }).click();
   await expect(page).toHaveURL(PLACE);
-  await expect(page.getByRole("heading", { name: "report.fj.md", level: 2 })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Report", level: 2 })).toBeVisible();
   await expect(noteEditor(page, "report.fj.md")).toContainText("Report"); // a document opens in its editor
   // The way back is in the path above it.
   await page.getByRole("navigation", { name: "Path" }).getByRole("link", { name: "Public notes" }).click();
@@ -451,7 +451,7 @@ test("places have addresses made of ids; a path, an address with a stale vault a
 
   // The old address by path is sent to the vault's own, and a folder's to a handle in the vault's address.
   await page.goto(`/repo/${id}/Public`);
-  await expect(page).toHaveURL(`${BASE}/repo/${await repoOf(page, id)}/v/${PUBLIC}`);
+  await expect(page).toHaveURL(`${BASE}/${await addressOf(page, id)}/v/${PUBLIC}`);
   await page.goto(`/repo/${id}/Public/Q4`);
   await expect(page).toHaveURL(FILE_PLACE);
   const folder = new URL(page.url()).pathname;
@@ -486,7 +486,7 @@ test("a repository opens on the first vault its fjord.json lists, not the first 
   await expect(page.getByRole("list", { name: "Folder contents" })).toHaveCount(0);
   // Signing in lands in that vault (`/open`), at its own address.
   await page.goto("/open");
-  await expect(page).toHaveURL(`${BASE}/repo/${await repoOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hv`);
+  await expect(page).toHaveURL(`${BASE}/${await addressOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hv`);
   await expect(page.getByRole("list", { name: "Folder contents" }).getByRole("link", { name: "plan.fj.md" })).toBeVisible();
 });
 
@@ -575,7 +575,7 @@ test("a new folder is made with its first document, in the vault's top and in a 
   expect(await hubs.notes.branchHead()).toBe(before);
 });
 
-test("a repository's settings are a dialog, and what was deleted is at /repo/<repo>/deleted, which the old address is sent to", async ({ page }) => {
+test("a repository's settings are a dialog, and what was deleted is at /drive/<repo>/deleted, which the old address is sent to", async ({ page }) => {
   const id = await connected(page);
   const repo = await repoOf(page, id);
   await page.goto(`/repo/${id}`);
@@ -591,11 +591,11 @@ test("a repository's settings are a dialog, and what was deleted is at /repo/<re
   await expect(page.getByRole("link", { name: "Connect or disconnect repositories" })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Recently deleted" }).click();
-  await expect(page).toHaveURL(new RegExp(`/repo/${repo}/deleted$`));
+  await expect(page).toHaveURL(new RegExp(`/drive/${repo}/deleted$`));
   await expect(page.getByRole("heading", { name: "Recently deleted", level: 1 })).toBeVisible();
   for (const old of [`/deleted/${repo}`, `/deleted/${id}`]) {
     await page.goto(old);
-    await expect(page).toHaveURL(new RegExp(`/repo/${repo}/deleted$`));
+    await expect(page).toHaveURL(new RegExp(`/drive/${repo}/deleted$`));
   }
   expect((await page.goto("/deleted/zzzzzzzz"))?.status()).toBe(404);
 });
@@ -617,7 +617,7 @@ test("choosing another vault changes where the repository opens, from the reposi
 
   // Signing in lands in the vault chosen, and a reload keeps the choice.
   await page.goto("/open");
-  await expect(page).toHaveURL(`${BASE}/repo/${await repoOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hw`);
+  await expect(page).toHaveURL(`${BASE}/${await addressOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hw`);
   await page.goto(`/repo/${id}`);
   await page.getByRole("button", { name: "Repository settings" }).click();
   await expect(page.getByRole("dialog", { name: "Repository settings" }).getByLabel("Opens on")).toHaveValue("Private");
@@ -1252,6 +1252,7 @@ test("encrypted files are renamed, moved, deleted and put back as the bytes they
 
     // Move into a folder of the same vault (only that vault's folders are offered).
     await page.getByRole("button", { name: "Move", exact: true }).click();
+    await expect(page.getByLabel("Move to")).toBeVisible();
     const places = await page.getByLabel("Move to").locator("option").allTextContents();
     expect(places.every((place) => place === "Open" || place.startsWith("Open/"))).toBe(true);
     await page.getByLabel("Move to").selectOption("Open/Sub");
@@ -1367,11 +1368,12 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
     // Into a plain-named encrypted vault: asked first, and the new commit holds no plaintext of the file.
     await page.goto(`/repo/${id}/Notes/Plan.md`);
     await page.getByRole("button", { name: "Move to another vault" }).click();
+    await expect(page.getByLabel("Move to", { exact: true })).toBeVisible();
     const options = await page.getByLabel("Move to", { exact: true }).locator("option").allTextContents();
     expect(options).toEqual(expect.arrayContaining(["Open (encrypted)", "Sealed (encrypted)"]));
     expect(options.some((option) => option.startsWith("Notes"))).toBe(false); // plaintext to plaintext is Move
     await choose(page, "Open (encrypted)");
-    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
     await expect(page.getByText("The plain text stays in the history")).toBeVisible();
     const before = await hubs.more.branchHead();
     expect(await hubs.more.branchHead()).toBe(before); // asking is not doing
@@ -1387,8 +1389,8 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
     await page.goto(`/repo/${id}/Notes/Other.md`);
     await page.getByRole("button", { name: "Move to another vault" }).click();
     await choose(page, "Sealed (encrypted)");
-    await expect(page.getByLabel("Name")).toHaveCount(0); // the name is kept inside
-    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await expect(page.getByRole("dialog").getByLabel("Name")).toHaveCount(0); // the name is kept inside
+    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
     await page.getByRole("button", { name: "Yes, move it" }).click();
     await headSays("Move Other into the encrypted vault Sealed");
     head = (await hubs.more.branchHead())!;
@@ -1404,7 +1406,7 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
     await expect(noteEditor(page, "Enc.md")).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Move to another vault" }).click();
     await choose(page, "Notes");
-    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
     await expect(page.getByText("This decrypts the file")).toBeVisible();
     const asked = await hubs.more.branchHead();
     expect(await filesAt()).toContain("Open/Enc.md.age"); // nothing yet
@@ -1423,7 +1425,7 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
     await expect(noteEditor(page, "Inner.md")).toBeVisible({ timeout: 60_000 });
     await page.getByRole("button", { name: "Move to another vault" }).click();
     await choose(page, "Open (encrypted)");
-    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
     await page.getByRole("button", { name: "Yes, move it" }).click();
     await headHas("Open/Inner.md.age");
     head = (await hubs.more.branchHead())!;
@@ -2793,7 +2795,7 @@ test("the properties panel shows the header, keys Fjord does not know included, 
     const panel = page.getByTestId("document-properties");
     await panel.getByText("Properties", { exact: true }).click();
     await expect(panel.getByText("01jagc4k7pt8y3wqnmzv5xrb8j")).toBeVisible();
-    await expect(panel.getByText("2026-10-16T09:34:00Z")).toBeVisible();
+    await expect(panel.getByText("2026-10-16 09:34 UTC")).toBeVisible();
     await expect(panel.getByLabel("Title")).toHaveValue("Weekly");
     await expect(panel.getByTestId("other-property")).toHaveCount(2);
     await expect(panel.getByTestId("other-property").first()).toContainText("zeta");
@@ -2817,33 +2819,57 @@ test("the properties panel shows the header, keys Fjord does not know included, 
   }
 });
 
-test("the title is changed from the panel: it is the only thing in the header that changes, and the file keeps its name", async ({ page }) => {
+test("a drive's document is renamed from its properties, which say when it last changed; its header is not touched, and its title is what it says", async ({ page }) => {
   try {
     const header = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nzeta: 1\ntitle: Weekly\nx-future:\n  - kept\ncreated: 2026-10-16T09:34:00Z\n---\n";
     const body = "\nThe plan.\n";
     const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Weekly.fj.md": header + body });
     await page.goto(`/repo/${id}/Notes/Weekly.fj.md`);
 
+    // The page is headed by what the document says, with its size; the file's name is in the path, without its extension, and in the properties.
+    await expect(page.getByRole("heading", { name: "Weekly", level: 2 })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Path" })).toContainText("Notes / Weekly");
+    await expect(page.getByRole("navigation", { name: "Path" })).not.toContainText(".md");
     const panel = page.getByTestId("document-properties");
     await panel.getByText("Properties", { exact: true }).click();
-    await panel.getByLabel("Title").fill("Plan: the sequel");
-    await panel.getByRole("button", { name: "Set title" }).click();
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible();
+    await expect(panel.getByLabel("File name")).toHaveValue("Weekly.fj");
+    // There is no title field and no date: the title is what the document says, and the day it was made is a fact below.
+    await expect(panel.getByLabel("Title")).toHaveCount(0);
+    await expect(panel.getByLabel("Date")).toHaveCount(0);
+    await expect(panel.getByText("2026-10-16 09:34 UTC")).toBeVisible();
+    await expect(panel.getByTestId("last-updated")).toContainText(/\d{4}-\d\d-\d\d \d\d:\d\d UTC/);
+    // Nothing on the page offers a second way to rename it.
+    await expect(page.getByRole("button", { name: "Rename", exact: true }).first()).toBeVisible(); // the properties' own
+    await expect(page.getByRole("button", { name: "Rename" })).toHaveCount(1);
 
+    await panel.getByLabel("File name").fill("Roadmap.fj");
+    await panel.getByRole("button", { name: "Rename" }).click();
+    // A document's address is its id's, so the page's address does not say the file moved: the repository does.
+    await headHas("Notes/Roadmap.fj.md");
+    await expect(noteEditor(page, "Roadmap.fj.md")).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     const files = await hubs.more.filesAt(head);
-    expect(Object.keys(files).filter((path) => path.endsWith(".md"))).toEqual(["Notes/Weekly.fj.md"]);
-    const saved = files["Notes/Weekly.fj.md"]!;
-    expect(saved.endsWith(body)).toBe(true);
-    // The module wrote the header: the title as written safely, and every other key where it was.
-    expect(saved).toBe("---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nzeta: 1\ntitle: \"Plan: the sequel\"\nx-future:\n- kept\ncreated: \"2026-10-16T09:34:00Z\"\n---\n" + body);
+    expect(Object.keys(files).filter((path) => path.endsWith(".md"))).toEqual(["Notes/Roadmap.fj.md"]);
+    expect(files["Notes/Roadmap.fj.md"]).toBe(header + body);
     await hubs.more.fsck();
+  } finally {
+    await restoreMore();
+  }
+});
 
-    // And the page shows it, after it was read again.
-    await panel.getByText("Properties", { exact: true }).click();
-    await expect(panel.getByLabel("Title")).toHaveValue("Plan: the sequel");
+test("a document is headed by its first heading when its header has no title, and by its file's name when it has neither", async ({ page }) => {
+  try {
+    const id = await repositoryWith(page, {
+      "Notes/fjord.vault.json": VAULT_MANIFEST,
+      "Notes/with-heading.md": "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n---\n\n# The real title\n\ntext\n",
+      "Notes/bare.md": "just text\n",
+    });
+    await page.goto(`/repo/${id}/Notes/with-heading.md`);
+    await expect(page.getByRole("heading", { name: "The real title", level: 2 })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Path" })).toContainText("with-heading");
+    await page.goto(`/repo/${id}/Notes/bare.md`);
+    await expect(page.getByRole("heading", { name: "bare", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "bare", level: 2 })).toContainText("10 B");
   } finally {
     await restoreMore();
   }
@@ -2952,7 +2978,7 @@ test("an HTML page of a plaintext vault is opened and run in a sandbox: its scri
     const contents = page.getByRole("list", { name: "Folder contents" });
     await expect(contents.getByRole("listitem").filter({ hasText: "checklist.html" })).toContainText("Page");
     await contents.getByRole("link", { name: "checklist.html" }).click();
-    await expect(page).toHaveURL(new RegExp(`/repo/${await repoOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hv/html/[0-9a-z]{16}$`));
+    await expect(page).toHaveURL(new RegExp(`/${await addressOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hv/html/[0-9a-z]{16}$`));
 
     const frame = page.frameLocator('iframe[title="checklist.html"]');
     // The script ran.
@@ -3087,6 +3113,8 @@ test("a note is renamed in one commit, byte for byte, keeping its extension", as
     await page.goto(`/repo/${id}/Notes/idea.md`);
     await expect(noteEditor(page, "idea.md")).toBeVisible();
 
+    // This text has carriage returns, so it is given no header and has no properties to show: it keeps its rename icon, which asks in a dialog.
+    await expect(page.getByTestId("document-properties")).toHaveCount(0);
     await page.getByRole("button", { name: "Rename", exact: true }).click();
     await expect(page.getByText("It stays .md.")).toBeVisible();
     await page.getByLabel("New name").fill("A better idea");
@@ -3176,14 +3204,15 @@ test("a name that is taken, or taken but for letter case, is refused and says so
     const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/a.md": "a", "Notes/Taken.md": "t" });
     const before = (await hubs.more.branchHead()) as string;
     await page.goto(`/repo/${id}/Notes/a.md`);
-    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    const props = page.getByTestId("document-properties");
+    await props.getByText("Properties", { exact: true }).click();
     for (const name of ["Taken", "taken", "bad:name", "CON"]) {
-      await page.getByLabel("New name").fill(name);
-      await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
-      await expect(page.getByRole("alert").filter({ hasText: "The file was not changed" })).toBeVisible();
+      await props.getByLabel("File name").fill(name);
+      await props.getByRole("button", { name: "Rename", exact: true }).click();
+      await expect(props.getByRole("alert").filter({ hasText: "The file was not renamed" })).toBeVisible();
       await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
     }
-    await expect(page.getByRole("alert").filter({ hasText: "not a name or a place" })).toBeVisible();
+    await expect(props.getByRole("alert").filter({ hasText: "not a name or a place" })).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(before);
   } finally {
     await restoreMore();
@@ -3200,9 +3229,10 @@ test("what is typed and not yet saved is saved as a version first, then moved wi
     await page.keyboard.type("typed, not saved");
     await expect(status(page)).toHaveText("Changes kept as a draft.");
 
-    await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await page.getByLabel("New name").fill("renamed");
-    await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
+    const props = page.getByTestId("document-properties");
+    await props.getByText("Properties", { exact: true }).click();
+    await props.getByLabel("File name").fill("renamed");
+    await props.getByRole("button", { name: "Rename", exact: true }).click();
     await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
 
     // The folder page is already at /f/<handle>, so the address cannot say the commit is made.
@@ -3795,12 +3825,14 @@ test("the owner sees and controls every share of a document from its page: peopl
     await signUp(grace, graceEmail, "Grace Hopper");
 
     // A file with no id has the offer to add one (and nothing is shared before that); a Doc has the panel, closed, with nothing shared.
+    // Sharing is an icon at the end of the title, which opens a dialog.
     await page.goto(`/repo/${id}/Notes/idea.md`);
     await expect(page.getByTestId("share-panel")).toHaveCount(0);
-    await expect(page.getByTestId("identify-panel")).toBeVisible();
+    await page.getByRole("button", { name: "Share", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Sharing" }).getByTestId("identify-panel")).toBeVisible();
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await page.getByRole("button", { name: "Share", exact: true }).click();
     const panel = page.getByTestId("share-panel");
-    await panel.getByText("Sharing", { exact: true }).click();
     await expect(panel.getByText("Not shared with anyone.")).toBeVisible();
     await expect(panel.getByText("No links.")).toBeVisible();
 
@@ -3825,7 +3857,7 @@ test("the owner sees and controls every share of a document from its page: peopl
     await grace.reload();
     await expect(grace.getByText("Can comment")).toBeVisible();
     await page.reload();
-    await page.getByTestId("share-panel").getByText("Sharing", { exact: true }).click();
+    await page.getByRole("button", { name: "Share", exact: true }).click();
     await expect(page.getByTestId("share-panel").getByLabel("Role of Grace Hopper")).toHaveValue("comment"); // what the page shows is what is kept
     await page.getByTestId("share-panel").getByRole("button", { name: "Stop sharing" }).click();
     await expect(page.getByTestId("share-panel").getByText("Not shared with anyone.")).toBeVisible();
@@ -3975,6 +4007,8 @@ test("threads, replies, resolving, editing and deleting, by role, in the editor 
     // Choosing a mark in the text finds its thread.
     const box = await guest.evaluate(() => {
       const range = [...(CSS as unknown as { highlights: Map<string, Set<Range>> }).highlights.get("fe-thread")!][0]!;
+      // The page has scrolled by now (what was done above made the panel longer): the mark is brought into view, then measured, as a person's pointer would find it.
+      range.startContainer.parentElement?.scrollIntoView({ block: "center", behavior: "instant" });
       const rect = range.getBoundingClientRect();
       return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
     });

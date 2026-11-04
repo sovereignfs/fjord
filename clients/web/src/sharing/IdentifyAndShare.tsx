@@ -31,8 +31,7 @@ export function IdentifyAndShare({ connectionId, path, blob, hasDraft }: { conne
   }
 
   return (
-    <details className={styles.itemMeta} data-testid="identify-panel">
-      <summary>Sharing</summary>
+    <div className={styles.itemMeta} data-testid="identify-panel">
       <p>This file has no identifier, so it cannot be shared yet.</p>
       {hasDraft ? (
         <p>You have changes that are not saved as a version. Save a version of them, or discard them, first: the identifier is added to the version in the repository.</p>
@@ -63,6 +62,6 @@ export function IdentifyAndShare({ connectionId, path, blob, hasDraft }: { conne
           Share this file…
         </Button>
       )}
-    </details>
+    </div>
   );
 }

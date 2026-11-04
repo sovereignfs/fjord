@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { expect, repoOf, signUp, test, NOTE_PLACE, PLACE, POST_PLACE } from "./helpers";
+import { addressOf, expect, signUp, test, NOTE_PLACE, PLACE, POST_PLACE } from "./helpers";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
 /**
@@ -47,8 +47,11 @@ test("the home page has a tile for each repository, in the icon and the words of
   await signUp(page);
   const journal = await connect(page, "acme/notes");
   const other = await connect(page, "acme/more");
-  const listed = (await (await page.request.get("/api/connections")).json()) as { connections: { id: number; publicId: string }[] };
+  const listed = (await (await page.request.get("/api/connections")).json()) as { connections: { id: number; publicId: string; address: string }[] };
   const publicId = listed.connections.find((c) => c.id === journal)?.publicId ?? "";
+  // A journal's addresses begin with its kind, which connecting it read.
+  const address = listed.connections.find((c) => c.id === journal)?.address ?? "";
+  expect(address).toBe(`journal/${publicId}`);
   // A short generated name, lower case, and not the number it is kept under.
   expect(publicId).toMatch(/^[0-9a-hjkmnp-tv-z]{8}$/);
   expect(publicId).not.toBe(String(journal));
@@ -59,18 +62,26 @@ test("the home page has a tile for each repository, in the icon and the words of
   await expect(page.getByRole("link", { name: "Connect or disconnect repositories" })).toHaveAttribute("href", "/repositories");
   const tiles = page.getByRole("list", { name: "Repositories", exact: true });
   await expect(tiles.getByRole("link")).toHaveCount(2);
-  await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toHaveAttribute("href", `/repo/${publicId}`);
+  await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toHaveAttribute("href", `/${address}`);
   // Never opened, and already a journal's tile: connecting a repository reads it, so its kind is known.
   await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toContainText("Journal");
   await expect(tiles.getByRole("link", { name: /acme\/more/ })).toContainText("Drive");
   void other;
   // What a repository used to be called, by its number, still arrives and is sent to its name.
   await page.goto(`/repo/${journal}`);
-  await expect(page).toHaveURL(new RegExp(`/repo/${publicId}$`));
+  await expect(page).toHaveURL(new RegExp(`/${address}$`));
   await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
+  // An address of another kind (a drive's, for what is a journal) is sent to the one that is its kind, and so is `/repo/<repo>`.
+  await page.goto(`/drive/${publicId}`);
+  await expect(page).toHaveURL(new RegExp(`/${address}$`));
+  await page.goto(`/repo/${publicId}`);
+  await expect(page).toHaveURL(new RegExp(`/${address}$`));
+  // A drive's address stays a drive's.
+  const other2 = (await (await page.request.get("/api/connections")).json()).connections.find((c: { id: number }) => c.id === other) as { publicId: string; address: string };
+  expect(other2.address).toBe(`drive/${other2.publicId}`);
   // Signing in lands on the default repository, not on the grid.
   await page.goto("/open");
-  await expect(page).toHaveURL(new RegExp(`/repo/${publicId}$`));
+  await expect(page).toHaveURL(new RegExp(`/${address}$`));
 });
 
 test("a journal opens on its timeline, placed by date, and takes an entry dated in the browser's own time", async ({ page }) => {
@@ -93,7 +104,7 @@ test("a journal opens on its timeline, placed by date, and takes an entry dated 
   await expect(page.getByTestId("timeline-entry")).toHaveCount(3);
 
   // A new entry, in one action: dated now, with this browser's offset, in the dated folder of the writer's own day. It opens at its note address
-  // (`/repo/<repo>/n/<id>`, workstream 0003), as a writing view: the editor and the properties, the rest under "More".
+  // (`/journal/<repo>/n/<id>`, workstream 0003), as a writing view: the editor and the properties, the rest under "More".
   await page.getByRole("button", { name: "New entry" }).click();
   await expect(page).toHaveURL(NOTE_PLACE, { timeout: 30_000 });
   await expect(page.getByTestId("more")).toBeVisible();
@@ -111,20 +122,20 @@ test("a journal opens on its timeline, placed by date, and takes an entry dated 
   // Every kind can be shown as files (its one vault, at its own address), and back by the path above it.
   await page.goto(`/repo/${id}`);
   await page.getByRole("link", { name: "Show files" }).click();
-  await expect(page).toHaveURL(new RegExp(`/repo/${await repoOf(page, id)}/v/[0-9a-hjkmnp-tv-z]{26}$`));
+  await expect(page).toHaveURL(new RegExp(`/${await addressOf(page, id)}/v/[0-9a-hjkmnp-tv-z]{26}$`));
   await expect(page.getByRole("list", { name: "Folder contents" })).toBeVisible();
   // The old address, `?view=files`, is sent there.
   await page.goto(`/repo/${id}?view=files`);
-  await expect(page).toHaveURL(new RegExp(`/repo/${await repoOf(page, id)}/v/[0-9a-hjkmnp-tv-z]{26}$`));
+  await expect(page).toHaveURL(new RegExp(`/${await addressOf(page, id)}/v/[0-9a-hjkmnp-tv-z]{26}$`));
   await page.getByRole("navigation", { name: "Path" }).getByRole("link", { name: "acme/notes" }).click();
   await expect(page.getByTestId("timeline")).toBeVisible();
 });
 
-test("a journal's note is at /repo/<repo>/n/<id>, is shared at /n/<id>, and an old address by path or by id is sent to it", async ({ page, browser }) => {
+test("a journal's note is at /journal/<repo>/n/<id>, is shared at /n/<id>, and an old address by path or by id is sent to it", async ({ page, browser }) => {
   await signUp(page);
   const id = await connect(page, "acme/notes");
   const NOTE = "01jagc4k7pt8y3wqnmzv5xrb9c";
-  const here = new RegExp(`/repo/${await repoOf(page, id)}/n/${NOTE}$`);
+  const here = new RegExp(`/${await addressOf(page, id)}/n/${NOTE}$`);
   await page.goto(`/repo/${id}`);
   await page.getByRole("link", { name: /Morning run/ }).click();
   await expect(page).toHaveURL(here);
@@ -181,7 +192,7 @@ test("a repository that is not a Fjord repository is set up as a site, takes a p
   await page.getByRole("button", { name: "New post" }).click();
   await page.getByLabel("Title").fill("Hello, World!");
   await page.getByRole("button", { name: "Write it" }).click();
-  await expect(page).toHaveURL(POST_PLACE, { timeout: 30_000 }); // a post has an id from the start: `/repo/<repo>/post/<id>`
+  await expect(page).toHaveURL(POST_PLACE, { timeout: 30_000 }); // a post has an id from the start: `/ssg/<repo>/post/<id>`
   const post = (await hubs.more.filesAt((await hubs.more.branchHead())!))["content/posts/hello-world.md"]!;
   expect(post).toContain("draft: true");
   expect(post).toMatch(/date: "\d{4}-\d\d-\d\d/);

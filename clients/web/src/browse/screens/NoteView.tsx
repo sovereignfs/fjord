@@ -6,12 +6,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { useComments } from "../../comments/Comments";
-import { sendDate, sendField, sendTags, sendTitle } from "../../files/client";
+import { sendDate, sendField, sendMove, sendTags, sendTitle } from "../../files/client";
 import { discardDraft, sendDraft, sendVersion } from "../../working/client";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
 import { MAX_MESSAGE_CHARS } from "../../working/limits";
 import { hasConflictMarkers } from "../../working/markers";
 import type { HeaderInfo, Properties } from "../document";
+import { repositoryHref } from "../links";
 import { DocumentProperties } from "./DocumentProperties";
 
 /** The draft the page found for this note: its text and the version of the note it was started from. */
@@ -48,6 +49,8 @@ export function NoteView({
   site = false,
   docId,
   tagSuggestions,
+  rename,
+  updated,
 }: {
   connectionId: number;
   path: string;
@@ -65,6 +68,10 @@ export function NoteView({
   header?: HeaderInfo | undefined;
   /** Tags in use in the repository, offered while one is typed (ROADMAP 3b.3). */
   tagSuggestions?: string[] | undefined;
+  /** For a drive's document: where it is, so that its file's name can be changed from the properties (`sendMove`): the vault, where the repository's addresses begin, and the extension that stays. */
+  rename?: { vault: string; repo: string; suffix: string } | undefined;
+  /** When the file last changed in the repository (ISO 8601), if the host said: shown in the properties. */
+  updated?: string | null | undefined;
 }) {
   const start = draft?.content ?? text;
   const { adapter, onNeedName, panel } = useComments(editor === "document" ? docId : undefined, { guest: false });
@@ -195,6 +202,24 @@ export function NoteView({
     return null;
   }
 
+  // The file's name, changed from the properties: one commit that puts the file at its new name (an unsaved draft is saved as a version first, by the server), and the page of the new place opens.
+  const renameFile = rename
+    ? {
+        stem: label.slice(0, label.length - rename.suffix.length),
+        suffix: rename.suffix,
+        onRename: async (stem: string): Promise<string | null> => {
+          const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
+          const destination = `${parent}/${stem}${rename.suffix}`;
+          await saver.flush();
+          const done = await sendMove(connectionId, rename.vault, { type: "file", path, blob }, destination);
+          if (!done.ok) return done.message;
+          saver.dispose();
+          window.location.assign(repositoryHref(rename.repo, ...destination.split("/")));
+          return null;
+        },
+      }
+    : undefined;
+
   async function discard() {
     setDiscarding(true);
     setDiscardFailed(false);
@@ -265,7 +290,7 @@ export function NoteView({
           </Alert>
         </div>
       ) : null}
-      {properties ? <DocumentProperties properties={properties} pending={noHeader} disabled={saving} onTitle={changeTitle} onDate={changeDate} onTags={changeTags} onField={changeField} site={site} tagSuggestions={tagSuggestions} /> : null}
+      {properties ? <DocumentProperties properties={properties} pending={noHeader} disabled={saving} onTitle={changeTitle} onDate={changeDate} onTags={changeTags} onField={changeField} site={site} tagSuggestions={tagSuggestions} rename={renameFile} updated={updated} /> : null}
       {site && editor === "note" && bodyStart !== undefined ? (
         <p>
           <Button type="button" variant="secondary" size="sm" onClick={switchEditor} disabled={saving} data-testid="switch-editor">

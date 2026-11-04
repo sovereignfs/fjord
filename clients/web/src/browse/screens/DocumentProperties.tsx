@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
+import { NodeIcon } from "../../ui/icons";
 import styles from "../../auth/screens/screens.module.css";
+import own from "./DocumentProperties.module.css";
 import { MAX_TITLE_CHARS } from "../../files/limits";
 import type { Properties } from "../document";
 import { FieldsForm } from "./FieldsForm";
@@ -12,6 +14,9 @@ import { FieldsForm } from "./FieldsForm";
  * and not in it. The title can be changed; the identifier and the day it was made are the format's (spec §8) and are only
  * shown; every other key is something Fjord does not know, shown as it is written and kept as it is. When the file has no
  * header yet, the panel says one is added the first time it is edited, which is when `properties` is the one it will get.
+ *
+ * In a drive (`rename` given: the owner's request for the document's screen) the field that was the title is the **file's name**, which is what changing it does (a document's title is what it says
+ * in its first heading, or in its header), and the date is not offered; the identifier and the day it was made are shown, and so is when it last changed, from the repository's history (`updated`).
  */
 export function DocumentProperties({
   properties,
@@ -23,6 +28,8 @@ export function DocumentProperties({
   onField,
   site = false,
   tagSuggestions = [],
+  rename,
+  updated,
 }: {
   properties: Properties;
   /** True while the header is still to be added, on the first edit. */
@@ -40,6 +47,10 @@ export function DocumentProperties({
   site?: boolean;
   /** Tags already in use in this repository, as first written, the most used first: offered while one is typed (ROADMAP 3b.3). */
   tagSuggestions?: string[];
+  /** For a drive's document: its file's name without the extension, the extension that stays, and the way to change it; the answer is a message when it could not be. */
+  rename?: { stem: string; suffix: string; onRename: (stem: string) => Promise<string | null> } | undefined;
+  /** When the file last changed in the repository (ISO 8601), if the host said. */
+  updated?: string | null | undefined;
 }) {
   const [tagText, setTagText] = useState((properties.tags ?? []).join(", "));
   const [tagging, setTagging] = useState(false);
@@ -53,6 +64,9 @@ export function DocumentProperties({
   const [dating, setDating] = useState(false);
   const [dateProblem, setDateProblem] = useState<string | null>(null);
   const dateUnchanged = date.trim() === (properties.date ?? "");
+  const [fileName, setFileName] = useState(rename?.stem ?? "");
+  const [renaming, setRenaming] = useState(false);
+  const [renameProblem, setRenameProblem] = useState<string | null>(null);
   const [title, setTitle] = useState(properties.title ?? "");
   const [changing, setChanging] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -67,11 +81,45 @@ export function DocumentProperties({
   }
 
   return (
-    <details className={styles.itemMeta} data-testid="document-properties">
-      <summary>Properties</summary>
+    <details className={own.panel} data-testid="document-properties">
+      <summary className={own.summary}>
+        <NodeIcon name="chevron-right" size={16} aria-hidden className={own.chevron} />
+        <span>Properties</span>
+        <span className={own.hint}>{rename ? "File name, tags and details" : "Title, tags and details"}</span>
+      </summary>
+      <div className={own.body}>
       {pending ? <p>This file has no header, so no identifier. It is edited as it is. One is added, with an identifier, a title and the date, only when you share it, and only after you agree.</p> : null}
+      {rename ? (
+        <form
+          className={own.form}
+          onSubmit={(event) => {
+            event.preventDefault();
+            void (async () => {
+              setRenaming(true);
+              setRenameProblem(null);
+              const message = await rename.onRename(fileName.trim());
+              setRenaming(false);
+              if (message !== null) setRenameProblem(message);
+            })();
+          }}
+        >
+          <FormField label="File name" hint={rename.suffix === "" ? undefined : `It stays ${rename.suffix}.`}>
+            {(field) => <Input {...field} name="filename" autoComplete="off" maxLength={MAX_TITLE_CHARS} value={fileName} onChange={(e) => setFileName(e.target.value)} disabled={disabled || renaming} />}
+          </FormField>
+          {renameProblem ? (
+            <Alert variant="error" heading="The file was not renamed">
+              {renameProblem}
+            </Alert>
+          ) : null}
+          <div className={own.actions}>
+            <Button type="submit" variant="secondary" size="sm" loading={renaming} disabled={disabled || fileName.trim() === "" || fileName.trim() === rename.stem}>
+              Rename
+            </Button>
+          </div>
+        </form>
+      ) : (
       <form
-        className={styles.form}
+        className={own.form}
         onSubmit={(event) => {
           event.preventDefault();
           void change();
@@ -93,9 +141,10 @@ export function DocumentProperties({
           </Button>
         </div>
       </form>
-      {onDate ? (
+      )}
+      {onDate && !rename ? (
         <form
-          className={styles.form}
+          className={own.form}
           onSubmit={(event) => {
             event.preventDefault();
             void (async () => {
@@ -126,7 +175,7 @@ export function DocumentProperties({
       ) : null}
       {onTags ? (
         <form
-          className={styles.form}
+          className={own.form}
           onSubmit={(event) => {
             event.preventDefault();
             void (async () => {
@@ -174,15 +223,21 @@ export function DocumentProperties({
         </form>
       ) : null}
       {onField && !pending ? <FieldsForm properties={properties} site={site} disabled={disabled} onField={onField} /> : null}
-      <dl>
+      <dl className={own.facts}>
         <dt>Identifier</dt>
         <dd>
           <code>{properties.id ?? "none"}</code>
         </dd>
         <dt>Created</dt>
-        <dd>{properties.created ?? "not recorded"}</dd>
+        <dd>{properties.created ? whenText(properties.created) : "not recorded"}</dd>
+        {updated !== undefined ? (
+          <>
+            <dt>Last updated</dt>
+            <dd data-testid="last-updated">{updated ? whenText(updated) : "not known"}</dd>
+          </>
+        ) : null}
         {properties.others.filter((other) => !onField || pending || other.editable === undefined).map(({ key, value }) => (
-          <div key={key} data-testid="other-property">
+          <div key={key} data-testid="other-property" className={own.fact}>
             <dt>{key}</dt>
             <dd>
               <code>{value}</code>
@@ -190,7 +245,14 @@ export function DocumentProperties({
           </div>
         ))}
       </dl>
-      {properties.others.length > 0 ? <p>Properties Fjord does not know are kept as they are.</p> : null}
+      {properties.others.length > 0 ? <p className={own.note}>Properties Fjord does not know are kept as they are.</p> : null}
+      </div>
     </details>
   );
+}
+
+/** A moment as the page says it, the same on the server and in the browser: `2026-11-04 14:02 UTC`; a text that is not a moment is shown as it is written. */
+function whenText(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : `${parsed.toISOString().slice(0, 16).replace("T", " ")} UTC`;
 }
