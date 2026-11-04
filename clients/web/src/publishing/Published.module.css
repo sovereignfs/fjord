@@ -1,0 +1,39 @@
+/* The rendered document of a published page: what the allowlist renderer writes, given the look of a document's own. */
+.body {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.body table {
+  width: 100%;
+  margin: var(--sv-space-4) 0;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.body th,
+.body td {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--sv-color-border);
+  vertical-align: top;
+  text-align: left;
+}
+
+.body th {
+  background-color: var(--sv-color-surface-sunken);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+.body pre {
+  overflow-x: auto;
+}
+
+.body th[align="center"],
+.body td[align="center"] {
+  text-align: center;
+}
+
+.body th[align="right"],
+.body td[align="right"] {
+  text-align: right;
+}

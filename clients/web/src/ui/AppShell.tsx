@@ -17,7 +17,7 @@ export interface ShellRepository {
 }
 
 /** Where a signed-in person is, so its icon in the rail is marked as the current page. */
-export type ShellPlace = "index" | "repositories" | "account" | { repository: string };
+export type ShellPlace = "index" | "repositories" | "account" | "shared" | { repository: string };
 
 const classes = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(" ");
 
@@ -46,6 +46,7 @@ export function AppShell({
   place,
   connect,
   account,
+  shared = false,
   children,
 }: {
   /** The instance's name (`FJORD_NAME`), whose first two letters are the mark. */
@@ -56,6 +57,8 @@ export function AppShell({
   connect: ReactNode;
   /** The person's menu, at the foot of the rail: their avatar, which opens who they are, their account and the way out. */
   account: ReactNode;
+  /** Whether anything is shared with this person: then the rail has *Shared with you*, a place of its own among the repositories, whose files stay with their owners. */
+  shared?: boolean;
   children: ReactNode;
 }) {
   const current = typeof place === "object" ? place.repository : undefined;
@@ -77,6 +80,11 @@ export function AppShell({
               </RailLink>
             </li>
           ))}
+          {shared || place === "shared" ? (
+            <li>
+              <RailLink href="/shared" label="Shared with you" icon="users" active={place === "shared"} />
+            </li>
+          ) : null}
           <li>{connect}</li>
         </ul>
         <nav className={styles.chrome} aria-label="Account">{account}</nav>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { endedFrom, publishedFrom, statusFrom } from "./client";
+import { endedFrom, publishedFrom, statusFrom, updatedFrom } from "./client";
 
 describe("what the publishing answers mean to the panel", () => {
   it("hands on the address from publishing, and the server's words from a refusal", () => {
@@ -11,9 +11,16 @@ describe("what the publishing answers mean to the panel", () => {
   });
 
   it("reads whether a Doc is published", () => {
-    expect(statusFrom(200, { published: true, publishedAt: 5 })).toEqual({ ok: true, published: true, publishedAt: 5 });
-    expect(statusFrom(200, { published: false, publishedAt: null })).toEqual({ ok: true, published: false, publishedAt: null });
+    expect(statusFrom(200, { published: true, publishedAt: 5, passwordProtected: true, comments: "users" })).toEqual({ ok: true, published: true, publishedAt: 5, passwordProtected: true, comments: "users" });
+    expect(statusFrom(200, { published: false, publishedAt: null })).toEqual({ ok: true, published: false, publishedAt: null, passwordProtected: false, comments: "off" });
+    expect(statusFrom(200, { published: true, publishedAt: 5, comments: "everyone" })).toMatchObject({ comments: "off" });
     expect(statusFrom(500, undefined)).toMatchObject({ ok: false });
+  });
+
+  it("is changed on a 200 that says so, and told in words otherwise", () => {
+    expect(updatedFrom(200, { updated: true })).toEqual({ ok: true });
+    expect(updatedFrom(404, { error: { message: "That document is not published." } })).toEqual({ ok: false, message: "That document is not published." });
+    expect(updatedFrom(200, {})).toMatchObject({ ok: false });
   });
 
   it("is ended on a 200, and told in words otherwise", () => {

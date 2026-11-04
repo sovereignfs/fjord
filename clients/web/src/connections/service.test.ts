@@ -395,7 +395,7 @@ describe(`using and removing a connection (${leg})`, () => {
 
     await s.remove(ALICE, one.id);
     expect(await pages.find(gone.token)).toBeUndefined();
-    expect(await pages.find(kept.token)).toEqual({ connectionId: two.id, docId: "01jagc4k7pt8y3wqnmzv5xrb8j" });
+    expect(await pages.find(kept.token)).toMatchObject({ connectionId: two.id, docId: "01jagc4k7pt8y3wqnmzv5xrb8j" });
   });
 
   it("forgets what was shared from a repository when it is disconnected, and for no other's", async () => {

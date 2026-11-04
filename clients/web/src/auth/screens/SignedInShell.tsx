@@ -3,6 +3,7 @@ import { ConnectDialog } from "../../connections/screens/ConnectDialog";
 import type { ConnectionInfo } from "../../connections/service";
 import { connectionService } from "../../connections/server";
 import { encryptionKeyring } from "../../crypto/server";
+import { sharedCountFor } from "../../sharing/count";
 import { AppShell, type ShellPlace } from "../../ui/AppShell";
 import { authConfig } from "../server";
 import { AccountMenu } from "./AccountMenu";
@@ -17,8 +18,10 @@ export async function SignedInShell({ user, connections, place, children }: { us
   const config = authConfig();
   const canConnect = encryptionKeyring() !== undefined;
   const listed = connections ?? (canConnect && user.id !== undefined ? await (await connectionService()).list(user.id) : []);
+  const shared = user.id !== undefined && canConnect ? (await sharedCountFor(user.id)) > 0 : false;
   return (
     <AppShell
+      shared={shared}
       name={config.enabled ? config.name : "Fjord"}
       repositories={listed.map((connection) => ({ id: connection.publicId, label: `${connection.owner}/${connection.name}`, isDefault: connection.isDefault, kind: connection.repoKind }))}
       place={place}

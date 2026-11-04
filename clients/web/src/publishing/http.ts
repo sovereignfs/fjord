@@ -1,5 +1,7 @@
 import { isDocId } from "../browse/ids";
+import { isAcceptablePassword } from "../sharing/password";
 import { type Caller } from "../working/http";
+import { type CommentMode, isCommentMode } from "./publications";
 
 /**
  * The HTTP face of publishing a Doc as a page (`/api/connections/<id>/publication`, DESIGN.md §12, ROADMAP 3h.1), written against `Request` and `Response` and handed
@@ -8,16 +10,26 @@ import { type Caller } from "../working/http";
  *  - Only the owner of the connection publishes, looks and unpublishes; another's connection is a 404. Writes must come from this instance's own pages.
  *  - Only a Doc of a plaintext vault can be published; an id the repository does not have is refused.
  *  - **The address is in the answer to publishing, once.** Only a hash of the token is kept, so no other answer carries it; publishing again makes a new address.
+ *  - **How the page is open** is chosen when it is published and changed after (`PATCH`) without a new address: an optional password (eight characters or more; the answer never has it, only whether there
+ *    is one) and who may comment (`off`, until comments are built).
  */
+export interface Settings {
+  /** A password to set, `null` to take it off; absent keeps what there is (and means none, when publishing). */
+  password?: string | null;
+  comments?: CommentMode;
+}
+
 export interface Deps {
-  publish: (accountId: string, id: number, docId: string) => Promise<{ found: false } | { found: true; result: { ok: true; token: string } | { ok: false; reason: "gone" | "unavailable" } }>;
-  status: (accountId: string, id: number, docId: string) => Promise<{ found: false } | { found: true; publishedAt: number | null }>;
+  publish: (accountId: string, id: number, docId: string, settings: Settings) => Promise<{ found: false } | { found: true; result: { ok: true; token: string } | { ok: false; reason: "gone" | "unavailable" } }>;
+  status: (accountId: string, id: number, docId: string) => Promise<{ found: false } | { found: true; publishedAt: number | null; passwordProtected: boolean; comments: CommentMode }>;
+  /** Change how a published page is open; whether there was a page. */
+  update: (accountId: string, id: number, docId: string, settings: Settings) => Promise<{ found: false } | { found: true; updated: boolean }>;
   unpublish: (accountId: string, id: number, docId: string) => Promise<{ found: false } | { found: true; unpublished: boolean }>;
   /** The instance's origin, `FJORD_URL`: what an address is made on. */
   origin: string;
 }
 
-const MAX_BODY_CHARS = 200;
+const MAX_BODY_CHARS = 1000;
 const CONNECTION_ID = /^[1-9][0-9]{0,15}$/;
 
 function json(status: number, body: unknown): Response {
@@ -34,10 +46,24 @@ const REFUSALS = {
 /** The address a page is opened at. */
 export const pageUrl = (origin: string, token: string): string => `${origin.replace(/\/+$/, "")}/p/${token}`;
 
-/** `GET ?doc=<id>` says whether a Doc is published; `POST { doc }` publishes it; `DELETE { doc }` ends its address. */
+/** The settings in a request's body: a password (a string, or `null` to take it off) and who may comment; a field that is wrong is a message, not ignored. */
+function settingsOf(body: Record<string, unknown>): Settings | string {
+  const settings: Settings = {};
+  if ("password" in body && body.password !== undefined) {
+    if (body.password !== null && !isAcceptablePassword(body.password)) return "A password is eight characters or more.";
+    settings.password = body.password as string | null;
+  }
+  if ("comments" in body && body.comments !== undefined) {
+    if (!isCommentMode(body.comments)) return "Comments are off, for anyone, or for people with an account here.";
+    settings.comments = body.comments;
+  }
+  return settings;
+}
+
+/** `GET ?doc=<id>` says whether a Doc is published and how; `POST { doc, password?, comments? }` publishes it; `PATCH { doc, password?, comments? }` changes how, keeping the address; `DELETE { doc }` ends its address. */
 export async function handlePublication(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
   const method = request.method;
-  if (method !== "GET" && method !== "POST" && method !== "DELETE") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  if (method !== "GET" && method !== "POST" && method !== "PATCH" && method !== "DELETE") return failure(405, "method_not_allowed", "That method is not allowed here.");
   if (!caller) return failure(401, "unauthorized", "Sign in first.");
   if (method !== "GET" && request.headers.get("origin") !== deps.origin) return failure(403, "forbidden", "This request did not come from this site.");
   const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
@@ -47,7 +73,7 @@ export async function handlePublication(request: Request, caller: Caller | null,
     const docId = new URL(request.url).searchParams.get("doc");
     if (docId === null || !isDocId(docId)) return failure(400, "invalid_request", "Say which document, by its id.");
     const outcome = await deps.status(caller.accountId, number, docId);
-    return outcome.found ? json(200, { published: outcome.publishedAt !== null, publishedAt: outcome.publishedAt }) : notFound();
+    return outcome.found ? json(200, { published: outcome.publishedAt !== null, publishedAt: outcome.publishedAt, passwordProtected: outcome.passwordProtected, comments: outcome.comments }) : notFound();
   }
 
   if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");
@@ -62,8 +88,15 @@ export async function handlePublication(request: Request, caller: Caller | null,
   const docId = typeof body === "object" && body !== null && !Array.isArray(body) ? (body as Record<string, unknown>).doc : undefined;
   if (typeof docId !== "string" || !isDocId(docId)) return failure(400, "invalid_request", "Say which document, by its id.");
 
+  const settings = settingsOf(body as Record<string, unknown>);
+  if (typeof settings === "string") return failure(400, "invalid_request", settings);
+  if (method === "PATCH") {
+    const outcome = await deps.update(caller.accountId, number, docId, settings);
+    if (!outcome.found) return notFound();
+    return outcome.updated ? json(200, { updated: true }) : failure(404, "not_published", "That document is not published.");
+  }
   if (method === "POST") {
-    const outcome = await deps.publish(caller.accountId, number, docId);
+    const outcome = await deps.publish(caller.accountId, number, docId, settings);
     if (!outcome.found) return notFound();
     if (!outcome.result.ok) {
       const refusal = REFUSALS[outcome.result.reason];

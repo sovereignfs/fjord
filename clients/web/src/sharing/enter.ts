@@ -13,7 +13,7 @@ import { TOKEN_PATTERN } from "./tokens";
  *    `SameSite=Lax`, `Secure` when the instance is on https, and **short-lived**: an hour at most, and no longer than the link has to
  *    live. It holds the token, which the page checks against the store on every request, so revoking a link, or its expiry,
  *    ends what it opened on the next one.
- *  - **A link with a password** (ROADMAP 1c.5) gets no cookie that lets anyone in: its token waits, for ten minutes, in a pending
+ *  - **A link with a password** (ROADMAP 1c.5) gets no cookie that lets anyone in, and ends the one an earlier link to the same document left in the browser (or the page would let that browser in without asking): its token waits, for ten minutes, in a pending
  *    cookie, and the page it is sent to asks for the password (`unlock.ts`). The cookie that opens it is only given when the password is right.
  *  - **The answer is the same for a token that works and one that does not**: a redirect to the clean address, where the page
  *    is what it is for anyone. Only a token that works comes with the cookie. Nothing says which it was, and the token is in
@@ -49,6 +49,11 @@ export function pendingCookie(docId: string, token: string, maxAgeSeconds: numbe
   return `${cookieNames(scope).pending}=${token}; Path=/${scope}/${docId}; Max-Age=${maxAgeSeconds}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
 }
 
+/** A cookie that ends the one that opens a link (`shareCookie`): a browser that holds one for a document and enters another link for it must not be let in by the first. */
+export function clearShareCookie(docId: string, secure: boolean, scope: "d" | "n" = "d"): string {
+  return `${cookieNames(scope).share}=; Path=/${scope}/${docId}; Max-Age=0; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+}
+
 /** A cookie that ends the pending one, once the password is right. */
 export function clearPendingCookie(docId: string, secure: boolean, scope: "d" | "n" = "d"): string {
   return `${cookieNames(scope).pending}=; Path=/${scope}/${docId}; Max-Age=0; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
@@ -78,7 +83,15 @@ export async function handleEnter(request: Request, deps: EnterDeps): Promise<Re
       const remaining = link.expiresAt === null ? COOKIE_MAX_AGE_SECONDS : Math.floor((link.expiresAt - now) / 1000);
       // A link with a password lets nobody in with its token alone: the token waits in a cookie that opens nothing, and the page asks.
       const age = Math.min(link.hasPassword ? PENDING_MAX_AGE_SECONDS : COOKIE_MAX_AGE_SECONDS, remaining);
-      if (age > 0) for (const scope of SHARE_SCOPES) headers.append("set-cookie", link.hasPassword ? pendingCookie(docId, token, age, deps.secure, scope) : shareCookie(docId, token, age, deps.secure, scope));
+      if (age > 0)
+        for (const scope of SHARE_SCOPES) {
+          if (!link.hasPassword) headers.append("set-cookie", shareCookie(docId, token, age, deps.secure, scope));
+          else {
+            headers.append("set-cookie", pendingCookie(docId, token, age, deps.secure, scope));
+            // The browser may still hold the cookie of an earlier link to this document, which the page would honour before it asked for this one's password: a link with a password is never opened by another's cookie.
+            headers.append("set-cookie", clearShareCookie(docId, deps.secure, scope));
+          }
+        }
     }
   }
   return new Response(null, { status: 303, headers });

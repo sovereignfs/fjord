@@ -91,11 +91,11 @@ export async function IdPage({ id, wrong, base = "d" }: { id: string; wrong?: "w
               <>
                 <span>Shared with you{shared.sharedBy ? ` by ${shared.sharedBy}` : ""}</span>
                 <Badge>{shared.role === "view" ? "Can view" : shared.role === "comment" ? "Can comment" : "Can edit"}</Badge>
-                {shared.role === "view" ? null : <span>Commenting and editing a shared document come later; for now it is shown to read.</span>}
+                {shared.role === "edit" ? <span>Your changes are kept for its owner to review.</span> : null}
               </>
             }
           >
-            <SharedBody title={shared.title} body={shared.body} docId={id} editable={false} role={shared.role} guest={false} />
+            <SharedBody title={shared.title} body={shared.body} docId={id} editable={shared.editable} role={shared.role} guest={false} />
           </SharedDocument>
         </SignedInShell>
       );

@@ -59,6 +59,10 @@ export const ROUTES: RouteRule[] = [
   { route: "/f/[handle]", page: owner("read") },
   // A guest edits through a link's cookie, which is sent under `/d/<id>` and nowhere else (1c.4, 1c.6): the first route a share reaches, so the policy's `edit` is its action.
   { route: "/d/[id]/draft", methods: { PUT: owner("edit") } },
+  // An account the document was shared with at the edit role edits the same working copy, by its session (it holds no link's cookie): its `edit` is decided by its share.
+  { route: "/api/shared/[id]/draft", methods: { PUT: owner("edit") } },
+  // What was shared with the signed-in account: a listing of documents, each opened at `/d/<id>`, which asks the policy.
+  { route: "/shared", page: { kind: "account" } },
   // Comments on a document: read by anyone let in, the rest by what the policy gives each role (1d.1). Each method names the weakest action it may be; the operation inside asks its own.
   { route: "/d/[id]/comments", methods: { GET: owner("read"), POST: owner("comment"), PATCH: owner("resolve"), DELETE: owner("delete_own_comment") } },
   // The live stream of a document's comments: says that they changed, never what they are; who may watch is who may read them (1d.3).
@@ -117,7 +121,7 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/connections/[id]/files/restore", methods: { POST: owner("restore") } },
   { route: "/api/connections/[id]/shares", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), DELETE: owner("manage_shares") } },
   // Publishing a Doc as a page, which only its owner does (3h.1).
-  { route: "/api/connections/[id]/publication", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), DELETE: owner("manage_shares") } },
+  { route: "/api/connections/[id]/publication", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), PATCH: owner("manage_shares"), DELETE: owner("manage_shares") } },
   { route: "/api/connections/[id]/publication/copy", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), DELETE: owner("manage_shares") } },
   { route: "/api/connections/[id]/links", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), PATCH: owner("manage_shares"), DELETE: owner("manage_shares") } },
   { route: "/api/connections/[id]/working-copy", methods: { PUT: owner("edit"), DELETE: owner("edit") } },

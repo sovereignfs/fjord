@@ -13,7 +13,8 @@ import { GuestEditor } from "./GuestEditor";
  * they write. The header is not in it, as for its owner.
  */
 export function SharedBody({ title, body, docId, editable, role, guest }: { title: string; body: string; docId: string; editable: boolean; role: Role; guest: boolean }) {
-  if (editable) return <GuestEditor docId={docId} title={title} body={body} />;
+  // An account (`guest` is false) that may edit types into the same working copy a link's guest does, by its session.
+  if (editable) return <GuestEditor docId={docId} title={title} body={body} member={!guest} />;
   return <ReadAndComment title={title} body={body} docId={docId} role={role} guest={guest} />;
 }
 

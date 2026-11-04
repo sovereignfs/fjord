@@ -20,8 +20,12 @@ import { SaveControl } from "./SaveControl";
 export interface DraftOfNote {
   content: string;
   baseBlob: string;
-  /** The display names of people who edited it through a link (ROADMAP 1c.6): a version made of it credits them. */
+  /** The names of the others who edited it (ROADMAP 1c.6): guests who came through a link, by the name they gave, and accounts it was shared with, by their own: a version made of it credits them. */
   guests?: string[];
+  /** Whether the person looking edited it too. */
+  byYou?: boolean;
+  /** Whether every other editor came through a link (the notice says so), and not as an account the document was shared with. */
+  linkOnly?: boolean;
 }
 
 /**
@@ -275,9 +279,9 @@ export function NoteView({
       {slot ? createPortal(saveControl, slot) : null}
       {draft ? (
         <div className={styles.notice}>
-          <Alert variant="info" heading={draft.guests?.length ? "Changes were kept" : "Your changes were kept"}>
+          <Alert variant="info" heading={draft.guests?.length ? "Changes are waiting for your review" : "Your changes were kept"}>
             {draft.guests?.length
-              ? `These are changes that have not been saved as a version, made by you and by ${list(draft.guests)} through a link. They are kept on this server, not in the repository; a version credits each of them by name.`
+              ? `These changes have not been saved as a version. ${draft.byYou ? `You and ${list(draft.guests)}` : list(draft.guests)} made them${draft.linkOnly ? " through a link" : ""}. They are kept on this server, not in the repository. Look them over: saving a version accepts them (it credits each of them by name), and discarding them throws them away.`
               : "These are changes you made earlier and have not saved as a version. They are kept on this server, not in the repository."}
           </Alert>
         </div>

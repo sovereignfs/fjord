@@ -9,10 +9,11 @@ const TOKEN = "T".repeat(43);
 
 function stub() {
   const publish = vi.fn(async (..._args: unknown[]): Promise<Awaited<ReturnType<Deps["publish"]>>> => ({ found: true, result: { ok: true, token: TOKEN } }));
-  const status = vi.fn(async (..._args: unknown[]): Promise<Awaited<ReturnType<Deps["status"]>>> => ({ found: true, publishedAt: null }));
+  const status = vi.fn(async (..._args: unknown[]): Promise<Awaited<ReturnType<Deps["status"]>>> => ({ found: true, publishedAt: null, passwordProtected: false, comments: "off" }));
+  const update = vi.fn(async (..._args: unknown[]): Promise<Awaited<ReturnType<Deps["update"]>>> => ({ found: true, updated: true }));
   const unpublish = vi.fn(async (..._args: unknown[]): Promise<Awaited<ReturnType<Deps["unpublish"]>>> => ({ found: true, unpublished: true }));
-  const deps: Deps = { origin: ORIGIN, publish: (a, i, d) => publish(a, i, d), status: (a, i, d) => status(a, i, d), unpublish: (a, i, d) => unpublish(a, i, d) };
-  return { deps, publish, status, unpublish };
+  const deps: Deps = { origin: ORIGIN, publish: (a, i, d, x) => publish(a, i, d, x), status: (a, i, d) => status(a, i, d), update: (a, i, d, x) => update(a, i, d, x), unpublish: (a, i, d) => unpublish(a, i, d) };
+  return { deps, publish, status, update, unpublish };
 }
 const send = (method: string, body: unknown, init: { origin?: string | null; type?: string | null } = {}) => {
   const headers: Record<string, string> = {};
@@ -29,18 +30,49 @@ describe("publishing a Doc as a page (ROADMAP 3h.1)", () => {
     const response = await handlePublication(send("POST", { doc: DOC }), ALICE, deps, "1");
     expect(response.status).toBe(201);
     expect(await json(response)).toEqual({ token: TOKEN, url: `${ORIGIN}/p/${TOKEN}` });
-    expect(publish).toHaveBeenCalledWith("alice", 1, DOC);
+    expect(publish).toHaveBeenCalledWith("alice", 1, DOC, {});
     expect(pageUrl(`${ORIGIN}///`, TOKEN)).toBe(`${ORIGIN}/p/${TOKEN}`);
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
   it("says whether a Doc is published, and since when, and never the token", async () => {
     const { deps, status } = stub();
-    expect(await json(await handlePublication(get(DOC), ALICE, deps, "1"))).toEqual({ published: false, publishedAt: null });
-    status.mockResolvedValueOnce({ found: true, publishedAt: 1_800_000_000_000 });
+    expect(await json(await handlePublication(get(DOC), ALICE, deps, "1"))).toEqual({ published: false, publishedAt: null, passwordProtected: false, comments: "off" });
+    status.mockResolvedValueOnce({ found: true, publishedAt: 1_800_000_000_000, passwordProtected: true, comments: "off" });
     const published = await handlePublication(get(DOC), ALICE, deps, "1");
-    expect(await json(published)).toEqual({ published: true, publishedAt: 1_800_000_000_000 });
+    expect(await json(published)).toEqual({ published: true, publishedAt: 1_800_000_000_000, passwordProtected: true, comments: "off" });
     expect(JSON.stringify(await json(await handlePublication(get(DOC), ALICE, deps, "1")))).not.toContain(TOKEN);
+  });
+
+  it("publishes with a password and who may comment, passed on as given and never answered", async () => {
+    const { deps, publish } = stub();
+    const response = await handlePublication(send("POST", { doc: DOC, password: "correct horse battery", comments: "users" }), ALICE, deps, "1");
+    expect(response.status).toBe(201);
+    expect(publish).toHaveBeenCalledWith("alice", 1, DOC, { password: "correct horse battery", comments: "users" });
+    expect(await response.text()).not.toContain("correct horse");
+  });
+
+  it("refuses a password that is too short and a comment mode that is not one, in words, and publishes nothing", async () => {
+    const { deps, publish } = stub();
+    for (const body of [{ doc: DOC, password: "short" }, { doc: DOC, password: 12345678 }, { doc: DOC, comments: "everyone" }]) {
+      const response = await handlePublication(send("POST", body), ALICE, deps, "1");
+      expect(response.status, JSON.stringify(body)).toBe(400);
+    }
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it("changes how a page is open without a new address: a password set or taken off (null), and who may comment", async () => {
+    const { deps, update } = stub();
+    expect((await handlePublication(send("PATCH", { doc: DOC, password: "correct horse battery" }), ALICE, deps, "1")).status).toBe(200);
+    expect(update).toHaveBeenLastCalledWith("alice", 1, DOC, { password: "correct horse battery" });
+    expect((await handlePublication(send("PATCH", { doc: DOC, password: null }), ALICE, deps, "1")).status).toBe(200);
+    expect(update).toHaveBeenLastCalledWith("alice", 1, DOC, { password: null });
+    expect((await handlePublication(send("PATCH", { doc: DOC, comments: "anyone" }), ALICE, deps, "1")).status).toBe(200);
+    update.mockResolvedValueOnce({ found: true, updated: false });
+    expect((await handlePublication(send("PATCH", { doc: DOC, comments: "off" }), ALICE, deps, "1")).status).toBe(404);
+    update.mockResolvedValueOnce({ found: false });
+    expect((await handlePublication(send("PATCH", { doc: DOC, comments: "off" }), ALICE, deps, "9")).status, "another's connection").toBe(404);
+    expect((await handlePublication(send("PATCH", { doc: DOC, password: "short" }), ALICE, deps, "1")).status).toBe(400);
   });
 
   it("ends an address", async () => {
@@ -50,14 +82,14 @@ describe("publishing a Doc as a page (ROADMAP 3h.1)", () => {
     expect(unpublish).toHaveBeenCalledWith("alice", 1, DOC);
   });
 
-  it("is for someone signed in (401), from this site for any change (403), by GET, POST or DELETE only (405), and for the caller's own connection (404)", async () => {
+  it("is for someone signed in (401), from this site for any change (403), by GET, POST, PATCH or DELETE only (405), and for the caller's own connection (404)", async () => {
     const { deps, publish, status, unpublish } = stub();
     for (const request of [get(DOC), send("POST", { doc: DOC }), send("DELETE", { doc: DOC })]) expect((await handlePublication(request, null, deps, "1")).status).toBe(401);
     for (const origin of ["https://evil.example", `${ORIGIN}.evil.example`, "null", null]) {
       expect((await handlePublication(send("POST", { doc: DOC }, { origin }), ALICE, deps, "1")).status, String(origin)).toBe(403);
       expect((await handlePublication(send("DELETE", { doc: DOC }, { origin }), ALICE, deps, "1")).status, String(origin)).toBe(403);
     }
-    for (const method of ["PUT", "PATCH"]) expect((await handlePublication(send(method, { doc: DOC }), ALICE, deps, "1")).status).toBe(405);
+    for (const method of ["PUT"]) expect((await handlePublication(send(method, { doc: DOC }), ALICE, deps, "1")).status).toBe(405);
     expect(publish).not.toHaveBeenCalled();
     expect(unpublish).not.toHaveBeenCalled();
     expect(status).not.toHaveBeenCalled();
@@ -80,7 +112,7 @@ describe("publishing a Doc as a page (ROADMAP 3h.1)", () => {
     expect((await handlePublication(send("POST", sent), ALICE, deps, "1")).status).toBe(400);
     expect((await handlePublication(send("POST", "not json"), ALICE, deps, "1")).status).toBe(400);
     expect((await handlePublication(send("POST", sent, { type: "text/plain" }), ALICE, deps, "1")).status).toBe(415);
-    expect((await handlePublication(send("POST", { doc: DOC, pad: "x".repeat(300) }), ALICE, deps, "1")).status).toBe(413);
+    expect((await handlePublication(send("POST", { doc: DOC, pad: "x".repeat(1100) }), ALICE, deps, "1")).status).toBe(413);
     expect(publish).not.toHaveBeenCalled();
   });
 

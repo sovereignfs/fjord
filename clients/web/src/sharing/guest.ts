@@ -5,7 +5,7 @@ import { type Source, resolveDocId } from "../browse/ids";
 import { readTextBlob } from "../browse/note";
 import type { Fjord } from "../format/wasm";
 import { type Limiter, type Rule, takeAll } from "../limits/rate";
-import type { WorkingCopyService } from "../working/service";
+import type { Editor, WorkingCopyService } from "../working/service";
 import type { LinkService } from "./links";
 import { proofIsRight } from "./password";
 import { MAX_NAME_CHARS, cleanGuestName } from "./guest-name";
@@ -79,7 +79,20 @@ export async function saveGuestDraft(deps: GuestDeps, input: { cookie: string | 
   const slow = await takeAll(deps.limiter, GUEST_EDIT_RATES.map((rule) => ({ key: `guest-edit:link:${link.id}:${rule.windowMs}`, rule })));
   if (!slow.ok) return { ok: false, reason: "rate_limited", retryAfterMs: slow.retryAfterMs };
 
-  const source = await deps.sourceOf(link.connectionId);
+  return writeDraftBody(deps, { connectionId: link.connectionId, docId: input.docId, body: input.body, editor: { type: "guest", link: link.id, name }, now });
+}
+
+/** What writing a body into a document's working copy needs. */
+export type DraftWriteDeps = Pick<GuestDeps, "sourceOf" | "index" | "format" | "drafts">;
+
+/**
+ * Put a body into a document's working copy under the name of whoever wrote it: the part of editing that a link's holder and an account the document was shared with have
+ * in common. The header is the draft's or the file's own, put back in front; the draft keeps the base it was started from; the editor is added to the list of who edited. Who
+ * may write, and how fast, is decided before this.
+ */
+export async function writeDraftBody(deps: DraftWriteDeps, input: { connectionId: number; docId: string; body: string; editor: Editor; now: number }): Promise<GuestSave> {
+  const { connectionId, now } = input;
+  const source = await deps.sourceOf(connectionId);
   if (!source) return { ok: false, reason: "unavailable" };
   const { matches } = await resolveDocId({ index: deps.index, format: deps.format }, [source], input.docId);
   const match = matches[0];
@@ -87,7 +100,7 @@ export async function saveGuestDraft(deps: GuestDeps, input: { cookie: string | 
   if (!match || blob === undefined) return { ok: false, reason: "hidden" };
 
   // What the body is put after: the working copy as it is, else the file.
-  const existing = await deps.drafts.get(link.connectionId, match.path);
+  const existing = await deps.drafts.get(connectionId, match.path);
   let before: string;
   let baseBlob: string;
   if (existing) {
@@ -107,7 +120,7 @@ export async function saveGuestDraft(deps: GuestDeps, input: { cookie: string | 
   // Nothing changed, and there is no draft to keep: the guest has only put back what the file says.
   if (!existing && content === before) return { ok: true, savedAt: now };
 
-  const saved = await deps.drafts.save(link.connectionId, match.path, { baseBlob, content }, { type: "guest", link: link.id, name });
+  const saved = await deps.drafts.save(connectionId, match.path, { baseBlob, content }, input.editor);
   if (saved.ok) return { ok: true, savedAt: saved.workingCopy.lastEdit };
   switch (saved.reason) {
     case "unstorable":

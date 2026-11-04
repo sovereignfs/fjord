@@ -1181,6 +1181,18 @@ encrypted vault, the server has no key: privately the sealed link (2c.1) is the 
 browser gives the server a plaintext copy of that version, readable by anyone with the address. A publication is a row in the
 database, not the format (spec §12).
 
+**As revised (the owner's request, after the first sharing screens): sharing is within an instance, and publishing is how a page is opened to everyone.**
+
+- **Sharing is with accounts on this instance** (and, later, between federated Fjord instances), at a role: view, comment or edit. It has **no passwords and no new links**: a link made before is still honoured and is shown, in a *Links* tab that exists
+  while the document has one, to be changed or revoked (the way to end it), and the routes and tables behind it are unchanged. What an account is shared is in **Shared with you** (`/shared`, a place of its own in the rail once there is anything, listing each
+  document with who shared it and at what role): the files stay with their owners. An account at the **edit** role types into the document's **working copy** (`PUT /api/shared/<id>/draft`, `src/sharing/member.ts`, the same draft a link's guest and
+  the owner use, the account as the editor): **nothing of theirs reaches the repository**. The owner is told, by name, that changes are waiting; sees them in the editor; and saving a version accepts them, crediting each by name with an address that is nobody's
+  (`account-<hash>@users.noreply.fjord.invalid`, so no account's real address is written into the history). Discarding the draft refuses them.
+- **Publishing is for everyone** and is chosen with the page: an **optional password** (asked of everyone who opens it, signed in or not; nothing of the document, not its title, is sent before; tries are slow and one at a time as a link's were, and a proof bound to
+  the password's hash, so a new password ends every cookie given for the old one) and **who may comment** (`off`, `anyone`, `users`: kept in the publication, with only `off` built, so that comments are added without changing what a publication is; a page's
+  comments will be the document's, by a guest of the page or an account). The page shows the document, its owner's name, when it was made (its header's `created`) and last changed (the host's history of the file), and does not repeat the title above a document that begins with
+  its own heading. Settings change without a new address (`PATCH /api/connections/<id>/publication`).
+
 **Roles**, each including the ones before it:
 
 | Role | May |

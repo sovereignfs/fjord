@@ -213,6 +213,14 @@ export const publication = sqliteTable(
      */
     title: text("title"),
     body: text("body"),
+    /** An optional password (the page asks for it, of anyone, signed in or not): its Argon2id hash as a PHC string, never the password. Null for a page with none. */
+    passwordHash: text("password_hash"),
+    /** Wrong passwords since the last right one: how long to make the next try wait (`sharing/password.ts`). */
+    failures: integer("failures").notNull().default(0),
+    /** No try at the password is taken before this; it is moved on by each try, so tries are one at a time and slow down. */
+    lockedUntil: epochMs("locked_until"),
+    /** Who may comment on the page: `off`, `anyone` or `users` (a signed-in account here). Only `off` is built; the setting is kept so that the page's comments can be added without a migration. */
+    comments: text("comments").notNull().default("off"),
   },
   (table) => [uniqueIndex("publication_connection_doc_idx").on(table.connectionId, table.docId), uniqueIndex("publication_token_idx").on(table.tokenHash)],
 );

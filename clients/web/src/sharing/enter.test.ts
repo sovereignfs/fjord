@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LinkWithSecret } from "./links";
-import { COOKIE_MAX_AGE_SECONDS, type EnterDeps, PENDING_MAX_AGE_SECONDS, clearPendingCookie, handleEnter, pendingCookie, shareCookie } from "./enter";
+import { COOKIE_MAX_AGE_SECONDS, type EnterDeps, PENDING_MAX_AGE_SECONDS, clearPendingCookie, clearShareCookie, handleEnter, pendingCookie, shareCookie } from "./enter";
 import { newToken } from "./tokens";
 
 /**
@@ -65,9 +65,20 @@ describe("a link with a password", () => {
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(`/d/${DOC}`);
     const cookies = response.headers.getSetCookie();
-    expect(cookies).toEqual([`fjord_share_pending=${TOKEN}; Path=/d/${DOC}; Max-Age=${PENDING_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`, `fjord_share_pending_n=${TOKEN}; Path=/n/${DOC}; Max-Age=${PENDING_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`]);
+    expect(cookies).toEqual([
+      `fjord_share_pending=${TOKEN}; Path=/d/${DOC}; Max-Age=${PENDING_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`,
+      clearShareCookie(DOC, false, "d"),
+      `fjord_share_pending_n=${TOKEN}; Path=/n/${DOC}; Max-Age=${PENDING_MAX_AGE_SECONDS}; HttpOnly; SameSite=Lax`,
+      clearShareCookie(DOC, false, "n"),
+    ]);
     expect(PENDING_MAX_AGE_SECONDS).toBe(600);
-    expect(cookies.join(" ")).not.toMatch(/fjord_share=/);
+    expect(cookies.join(" ")).not.toMatch(/fjord_share=[^;]/);
+  });
+
+  it("ends the cookie an earlier link to the same document left, so that this one's password is asked for (a browser that opened a link without one was let in by it)", async () => {
+    const cookies = (await handleEnter(enter(TOKEN), deps(protectedLink()).deps)).headers.getSetCookie();
+    expect(cookies).toContain(`fjord_share=; Path=/d/${DOC}; Max-Age=0; HttpOnly; SameSite=Lax`);
+    expect(cookies).toContain(`fjord_share_n=; Path=/n/${DOC}; Max-Age=0; HttpOnly; SameSite=Lax`);
   });
 
   it("waits no longer than the link lives, and is Secure on https", async () => {
@@ -76,7 +87,7 @@ describe("a link with a password", () => {
   });
 
   it("is told from one without a password by the name of the cookie alone", async () => {
-    const strip = (response: Response) => [response.status, response.headers.get("location"), [...response.headers.keys()].sort()];
+    const strip = (response: Response) => [response.status, response.headers.get("location"), [...new Set(response.headers.keys())].sort()];
     expect(strip(await handleEnter(enter(TOKEN), deps(protectedLink()).deps))).toEqual(strip(await handleEnter(enter(TOKEN), deps(link()).deps)));
   });
 

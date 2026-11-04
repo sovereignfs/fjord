@@ -17,6 +17,8 @@ export interface Deps {
   save: (input: { cookie: string | undefined; docId: string; name: unknown; body: string }) => Promise<GuestSave>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
+  /** What lets this in, for what is said when it does not: a link (the default) or a share with an account. The name is not asked for when it is a share: it is the account's. */
+  subject?: "link" | "share";
 }
 
 const MAX_BODY_CHARS = MAX_CONTENT_BYTES + 4_000;
@@ -51,7 +53,8 @@ export async function handleGuestDraft(request: Request, deps: Deps, docId: stri
       return failure(400, "invalid_request", "Send a JSON object.");
     }
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return failure(400, "invalid_request", "Send a JSON object.");
-    const { name, body } = parsed as Record<string, unknown>;
+    const { name: sent, body } = parsed as Record<string, unknown>;
+    const name = deps.subject === "share" ? "account" : sent;
     if (typeof body !== "string") return failure(400, "invalid_request", "Send the text as `body`.");
 
     const result = await deps.save({ cookie: shareCookieOf(request.headers.get("cookie")), docId, name, body });
@@ -60,16 +63,16 @@ export async function handleGuestDraft(request: Request, deps: Deps, docId: stri
       case "hidden":
         return failure(404, "not_found", "There is no such document.");
       case "forbidden":
-        return failure(403, "read_only", "This link lets you read the document, not change it.");
+        return failure(403, "read_only", deps.subject === "share" ? "You may read this document, not change it." : "This link lets you read the document, not change it.");
       case "rate_limited": {
-        const response = failure(429, "rate_limited", "Changes are coming in through this link faster than anyone types. Wait a moment, then carry on.");
+        const response = failure(429, "rate_limited", deps.subject === "share" ? "Changes are coming in faster than anyone types. Wait a moment, then carry on." : "Changes are coming in through this link faster than anyone types. Wait a moment, then carry on.");
         response.headers.set("retry-after", String(Math.max(1, Math.ceil(result.retryAfterMs / 1000))));
         return response;
       }
       case "bad_name":
         return failure(400, "bad_name", `Give a name of one line, up to ${MAX_NAME_CHARS} characters, without < or >.`);
       case "not_editable":
-        return failure(422, "not_editable", "This document cannot be edited through a link.");
+        return failure(422, "not_editable", deps.subject === "share" ? "This document cannot be edited from here." : "This document cannot be edited through a link.");
       case "unstorable":
         return failure(422, "unstorable", `This text cannot be kept as a draft. ${result.message}`);
       case "too_many_drafts":

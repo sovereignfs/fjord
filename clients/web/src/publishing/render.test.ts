@@ -26,6 +26,14 @@ describe("rendering Markdown for a page open to anyone", () => {
     expect(html).not.toContain("<input");
   });
 
+  it("keeps a table column's alignment, as one of three words and nothing the document wrote", () => {
+    const html = renderMarkdown("| a | b | c | d |\n| :-- | :-: | --: | --- |\n| 1 | 2 | 3 | 4 |\n");
+    expect(html).toContain('<th align="left">a</th>');
+    expect(html).toContain('<th align="center">b</th>');
+    expect(html).toContain('<td align="right">3</td>');
+    expect(html).toContain("<td>4</td>");
+  });
+
   it.each([
     ["a script block", "<script>alert(1)</script>"],
     ["a script inline", "Hello <script>alert(1)</script> there"],

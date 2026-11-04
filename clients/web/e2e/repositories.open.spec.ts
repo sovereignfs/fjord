@@ -3748,7 +3748,7 @@ test("someone with an edit link gives a name, edits the working copy, and the ow
 
     // The owner sees it in the draft, who made it, and saves a version that credits them.
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await expect(page.getByText(/made by you and by Grace Hopper through a link/)).toBeVisible();
+    await expect(page.getByText(/Grace Hopper made them through a link/)).toBeVisible();
     await expect(noteEditor(page, "Plan.fj.md")).toContainText("A guest's line.");
     await saveWithMessage(page, "Take the guest's line");
     await expect(page.getByText("Version saved")).toBeVisible();
@@ -3845,9 +3845,10 @@ test("the owner sees and controls every share of a document from its page: peopl
     await page.getByRole("button", { name: "Share", exact: true }).click();
     const panel = page.getByTestId("share-panel");
     await expect(panel.getByText("Not shared with anyone.")).toBeVisible();
-    await page.getByRole("tab", { name: "Links" }).click();
-    await expect(panel.getByText("No links.")).toBeVisible();
-    await page.getByRole("tab", { name: "People" }).click();
+    // Links are not made any more: there is no tab for them (and no way to make one) until the document has one from before.
+    await expect(page.getByRole("tab", { name: /Links/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Make a link" })).toHaveCount(0);
+    await expect(page.getByRole("tab", { name: "Publish" })).toBeVisible();
 
     // People: an address with an account and one with none are told the same, and only the account is listed.
     await panel.getByLabel("Share with").fill(graceEmail);
@@ -3876,19 +3877,17 @@ test("the owner sees and controls every share of a document from its page: peopl
     await expect(page.getByTestId("share-panel").getByText("Not shared with anyone.")).toBeVisible();
     expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(404);
 
-    // Links: made with a role and a password; the address is shown once and can be copied; it asks for the password.
-    await page.getByRole("tab", { name: "Links" }).click();
-    const links = page.getByTestId("share-panel");
-    await links.getByLabel("What the new link allows").selectOption("edit");
-    await links.getByLabel("Password", { exact: true }).fill("correct horse battery staple");
-    await links.getByRole("button", { name: "Make a link" }).click();
-    const fresh = links.getByTestId("new-link");
-    await expect(fresh).toContainText("This is the only time its address is shown.");
-    const address = await fresh.getByLabel("The new link's address").inputValue();
+    // A link from before: shown in a tab that is there while there is one, to be changed or revoked. (It is made through the API here: the dialog no longer makes them.)
+    const madeLink = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "edit", password: "correct horse battery staple" } });
+    expect(madeLink.status()).toBe(201);
+    const address = ((await madeLink.json()) as { url: string }).url;
     expect(address).toMatch(new RegExp(`^${BASE}/d/${ID_DOC}\\?token=[A-Za-z0-9_-]{43}$`));
-    await fresh.getByRole("button", { name: "Copy link" }).click();
-    await expect(fresh.getByRole("button", { name: "Copied" })).toBeVisible();
-    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(address);
+    await page.keyboard.press("Escape");
+    await page.reload();
+    await page.getByRole("button", { name: "Share", exact: true }).click();
+    await page.getByRole("tab", { name: /Links/ }).click();
+    const links = page.getByTestId("share-panel");
+    await expect(links.getByRole("button", { name: "Make a link" })).toHaveCount(0);
     const linkRow = links.getByTestId("link-row");
     await expect(linkRow).toHaveCount(1);
     await expect(linkRow).toContainText("Can edit");
@@ -3930,6 +3929,159 @@ test("the owner sees and controls every share of a document from its page: peopl
     await expect(reader).toHaveURL(/\/sign-in/);
 
     for (const context of [graceContext, visitorContext, open]) await context.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+// --- Publishing and Shared with you ----------------------------------------------------------------------------------------------
+
+test("a page is published with an optional password, says who made it and when, and a changed or removed password takes effect at once", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC.replace("---\n\n#", "created: 2026-09-20T08:00:00Z\n---\n\n#") });
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await page.getByRole("button", { name: "Share", exact: true }).click();
+    await page.getByRole("tab", { name: "Publish" }).click();
+    const panel = page.getByTestId("publish-panel");
+    // Who may comment is chosen now and built later: only Off can be chosen.
+    await expect(panel.getByRole("option", { name: /Anyone with the address/ })).toBeDisabled();
+    await expect(panel.getByRole("option", { name: /People with an account here/ })).toBeDisabled();
+    await panel.getByLabel("Password", { exact: true }).fill("short");
+    await panel.getByRole("button", { name: "Publish", exact: true }).click();
+    await expect(panel.getByText("A password is eight characters or more.")).toBeVisible();
+    await panel.getByLabel("Password", { exact: true }).fill("correct horse battery");
+    await panel.getByRole("button", { name: "Publish", exact: true }).click();
+    const address = (await panel.getByTestId("page-address").textContent())!;
+    expect(address).toMatch(new RegExp(`^${BASE}/p/[A-Za-z0-9_-]{43}$`));
+
+    // Anyone who opens it, signed in or not, is asked, and is shown nothing of the document (not its title) until the password is given.
+    const readerContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.9.1" } });
+    const reader = await readerContext.newPage();
+    await reader.goto(address);
+    await expect(reader.getByRole("heading", { name: "This page needs a password" })).toBeVisible();
+    expect(await reader.content()).not.toMatch(/Q4 plan|The plan, for reading/);
+    const give = async (password: string) => {
+      await reader.getByLabel("Password").fill(password);
+      await reader.getByRole("button", { name: "Open" }).click();
+    };
+    await give("not the password at all");
+    await expect(reader.getByText("That was not the password")).toBeVisible();
+    await reader.waitForTimeout(1300);
+    await give("correct horse battery");
+    await expect(reader.getByText("The plan, for reading.")).toBeVisible();
+    // The page's own heading is not put twice, and who made it and when come with it.
+    await expect(reader.getByRole("heading", { name: "Q4 plan" })).toHaveCount(1);
+    await expect(reader.getByTestId("page-facts")).toContainText("By Ada Lovelace");
+    await expect(reader.getByTestId("page-facts")).toContainText("Created 20 Sept 2026, 08:00 UTC");
+    await reader.reload();
+    await expect(reader.getByText("The plan, for reading.")).toBeVisible();
+
+    // A new password ends what the old one opened; taking it off opens the page to anyone.
+    await panel.getByLabel("New password").fill("another password here");
+    await panel.getByRole("button", { name: "Save settings" }).click();
+    await expect(panel.getByText("Saved.")).toBeVisible();
+    await reader.reload();
+    await expect(reader.getByRole("heading", { name: "This page needs a password" })).toBeVisible();
+    await panel.getByLabel("Remove the password").check();
+    await panel.getByRole("button", { name: "Save settings" }).click();
+    await expect(panel.getByText("Saved.")).toBeVisible();
+    await reader.reload();
+    await expect(reader.getByText("The plan, for reading.")).toBeVisible();
+    await expect(panel.getByRole("button", { name: "Unpublish" })).toBeVisible();
+
+    // Unpublished, the address is nothing.
+    await panel.getByRole("button", { name: "Unpublish" }).click();
+    await expect(panel.getByRole("button", { name: "Publish", exact: true })).toBeVisible();
+    expect((await reader.goto(address))?.status()).toBe(404);
+    await readerContext.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("a document with no heading of its own is published under its title", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": `---\nid: ${ID_DOC}\ntitle: Quarterly plan\n---\n\nJust a paragraph.\n` });
+    const made = await page.request.post(`/api/connections/${id}/publication`, { headers: { origin: BASE }, data: { doc: ID_DOC } });
+    expect(made.status()).toBe(201);
+    const context = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.9.2" } });
+    const reader = await context.newPage();
+    await reader.goto(((await made.json()) as { url: string }).url);
+    await expect(reader.getByRole("heading", { name: "Quarterly plan" })).toHaveCount(1);
+    await expect(reader.getByText("Just a paragraph.")).toBeVisible();
+    await context.close();
+  } finally {
+    await restoreMore();
+  }
+});
+
+test("what is shared with an account is in Shared with you; at the edit role its changes are kept for the owner to review, and are credited when the owner saves them", async ({ page, browser }) => {
+  try {
+    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
+    const graceEmail = `grace-${Date.now()}@example.com`;
+    const graceContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.9.3" } });
+    const grace = await graceContext.newPage();
+    await signUp(grace, graceEmail, "Grace Hopper");
+    await expect(grace.getByRole("link", { name: "Shared with you" })).toHaveCount(0); // nothing yet: no place for it in the rail
+
+    // The owner shares it, at the edit role, from the dialog.
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await page.getByRole("button", { name: "Share", exact: true }).click();
+    const panel = page.getByTestId("share-panel");
+    await panel.getByLabel("Share with").fill(graceEmail);
+    await panel.getByLabel("Role for the new person").selectOption("edit");
+    await panel.getByRole("button", { name: "Share", exact: true }).click();
+    await expect(panel.getByRole("list", { name: "People with access" }).getByRole("listitem")).toHaveCount(1);
+
+    // Hers is a place of its own: the rail has it, and it lists the document with who shared it and what she may do.
+    await grace.goto("/");
+    await grace.getByRole("link", { name: "Shared with you" }).click();
+    await expect(grace).toHaveURL(`${BASE}/shared`);
+    const row = grace.getByRole("list", { name: "Documents shared with you" }).getByRole("listitem");
+    await expect(row).toHaveCount(1);
+    await expect(row).toContainText("Q4 plan");
+    await expect(row).toContainText("Shared by Ada Lovelace");
+    await expect(row).toContainText("Can edit");
+    await row.getByRole("link").click();
+    await expect(grace).toHaveURL(`${BASE}/d/${ID_DOC}`);
+    const editor = grace.getByRole("textbox", { name: "Q4 plan" });
+    await expect(editor).toHaveAttribute("contenteditable", "true");
+    await expect(grace.getByText("Your changes are kept for its owner to review.")).toBeVisible();
+
+    // She types; it is kept on the server for the owner, and is what she is shown when she comes back. The repository is not touched.
+    const before = (await hubs.more.branchHead()) as string;
+    await editor.click();
+    await grace.keyboard.press("ControlOrMeta+End");
+    await grace.keyboard.type(" Grace's addition.");
+    await expect(grace.getByTestId("guest-status")).toHaveText("Changes kept for the owner to review.", { timeout: 30_000 });
+    expect(await hubs.more.branchHead()).toBe(before);
+    await grace.reload();
+    await expect(grace.getByRole("textbox", { name: "Q4 plan" })).toContainText("Grace's addition.");
+
+    // The owner is told, by name, that changes are waiting; sees them in the editor; and saving a version accepts them, crediting her without writing her address.
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await expect(page.getByText("Changes are waiting for your review")).toBeVisible();
+    await expect(page.getByText(/Grace Hopper made them/)).toBeVisible();
+    await expect(noteEditor(page, "Plan.fj.md")).toContainText("Grace's addition.");
+    await page.getByRole("button", { name: "Save version", exact: true }).click();
+    await expect(page.getByText("Version saved")).toBeVisible({ timeout: 30_000 });
+    const head = (await hubs.more.branchHead()) as string;
+    expect(await hubs.more.show(head, "%P")).toBe(before);
+    expect(await hubs.more.show(head, "%an")).toBe("Ada Lovelace");
+    expect(await hubs.more.show(head, "%(trailers:key=Co-authored-by,valueonly)")).toMatch(/^Grace Hopper <account-[0-9a-f]{8}@users\.noreply\.fjord\.invalid>/);
+    expect(JSON.stringify(await hubs.more.show(head, "%B"))).not.toContain(graceEmail);
+    expect((await hubs.more.filesAt(head))["Notes/Plan.fj.md"]).toContain("Grace's addition.");
+
+    // A view-only share cannot edit: the editor is for reading, and the draft route says so.
+    const listed = await (await page.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)).json();
+    await page.request.post(`/api/connections/${id}/shares`, { headers: { origin: BASE }, data: { doc: ID_DOC, email: graceEmail, role: "view" } });
+    expect(listed.shares).toHaveLength(1);
+    await grace.goto(`/d/${ID_DOC}`);
+    await expect(grace.getByRole("textbox", { name: "Q4 plan" })).toHaveAttribute("contenteditable", "false");
+    const refused = await grace.request.put(`/api/shared/${ID_DOC}/draft`, { headers: { origin: BASE }, data: { body: "\nSneaky.\n" } });
+    expect(refused.status()).toBe(403);
+    await hubs.more.fsck();
+    await graceContext.close();
   } finally {
     await restoreMore();
   }

@@ -18,7 +18,7 @@ const RESUME = "fjord:share-dialog";
  * becomes the sharing controls** (the owner's request: it used to close the dialog and reload the page, which looked like something had gone wrong). The page behind is refreshed in the background, so that
  * it has the file as it now is: the header, and the version of it a later save is made on.
  */
-export function ShareDialog({ connectionId, docId, journal = false, path, blob, hasDraft }: { connectionId: number; docId: string | undefined; /** A journal's note: its links are given at `/n/<id>`, as a document's are at `/d/<id>`. */ journal?: boolean; path: string | undefined; blob: string | undefined; hasDraft: boolean }) {
+export function ShareDialog({ connectionId, docId, path, blob, hasDraft }: { connectionId: number; docId: string | undefined; path: string | undefined; blob: string | undefined; hasDraft: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [made, setMade] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export function ShareDialog({ connectionId, docId, journal = false, path, blob, 
       <ActionDialog open={open} onClose={() => setOpen(false)} title="Sharing">
         {id ? (
           <div data-testid="share-panel">
-            <SharePanel connectionId={connectionId} docId={id} note={journal} publish={<PublishPanel connectionId={connectionId} docId={id} />} justIdentified={made !== null || resumed} />
+            <SharePanel connectionId={connectionId} docId={id} publish={<PublishPanel connectionId={connectionId} docId={id} />} justIdentified={made !== null || resumed} />
           </div>
         ) : path !== undefined && blob !== undefined ? (
           <IdentifyStep

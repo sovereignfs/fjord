@@ -3,7 +3,14 @@
  * answer means to it. The `*From` functions are the meaning, kept apart from `fetch` so that they are tested without a browser. The address is in the answer to
  * publishing and nowhere else: only a hash of it is kept, so it is handed on once.
  */
-export type Status = { ok: true; published: boolean; publishedAt: number | null } | { ok: false; message: string };
+/** Who may comment on a page: nothing but `off` is built. */
+export type CommentSetting = "off" | "anyone" | "users";
+export type Status = { ok: true; published: boolean; publishedAt: number | null; passwordProtected: boolean; comments: CommentSetting } | { ok: false; message: string };
+/** How a page is open, as it is asked for: a password to set (`null` takes it off, absent keeps it) and who may comment. */
+export interface Settings {
+  password?: string | null;
+  comments?: CommentSetting;
+}
 export type Published = { ok: true; url: string } | { ok: false; message: string };
 export type Ended = { ok: true } | { ok: false; message: string };
 
@@ -13,7 +20,10 @@ const failure = (status: number, body: Body | undefined, what: string): { ok: fa
   status === 401 ? { ok: false, message: `You are signed out, so ${what}. Sign in again, then try again.` } : { ok: false, message: body?.error?.message ?? `Could not ${what} just now. Nothing was changed. Try again in a moment.` };
 
 export function statusFrom(status: number, body: Body | undefined): Status {
-  if (status === 200 && typeof body?.published === "boolean") return { ok: true, published: body.published, publishedAt: typeof body.publishedAt === "number" ? body.publishedAt : null };
+  if (status === 200 && typeof body?.published === "boolean") {
+    const comments = body.comments === "anyone" || body.comments === "users" ? body.comments : "off";
+    return { ok: true, published: body.published, publishedAt: typeof body.publishedAt === "number" ? body.publishedAt : null, passwordProtected: body.passwordProtected === true, comments };
+  }
   return failure(status, body, "nothing was changed");
 }
 
@@ -28,11 +38,16 @@ export function endedFrom(status: number, body: Body | undefined): Ended {
   return failure(status, body, "the page was not unpublished");
 }
 
-async function call(connectionId: number, method: "GET" | "POST" | "DELETE", docId: string): Promise<{ status: number; body: Body | undefined } | undefined> {
+export function updatedFrom(status: number, body: Body | undefined): Ended {
+  if (status === 200 && body?.updated === true) return { ok: true };
+  return failure(status, body, "nothing was changed");
+}
+
+async function call(connectionId: number, method: "GET" | "POST" | "PATCH" | "DELETE", docId: string, settings: Settings = {}): Promise<{ status: number; body: Body | undefined } | undefined> {
   try {
     const response = await fetch(`/api/connections/${connectionId}/publication${method === "GET" ? `?doc=${encodeURIComponent(docId)}` : ""}`, {
       method,
-      ...(method === "GET" ? {} : { headers: { "content-type": "application/json" }, body: JSON.stringify({ doc: docId }) }),
+      ...(method === "GET" ? {} : { headers: { "content-type": "application/json" }, body: JSON.stringify({ doc: docId, ...settings }) }),
       credentials: "same-origin",
     });
     return { status: response.status, body: (await response.json().catch(() => undefined)) as Body | undefined };
@@ -48,9 +63,15 @@ export async function getStatus(connectionId: number, docId: string): Promise<St
   return answer ? statusFrom(answer.status, answer.body) : offline("nothing was changed");
 }
 
-export async function publish(connectionId: number, docId: string): Promise<Published> {
-  const answer = await call(connectionId, "POST", docId);
+export async function publish(connectionId: number, docId: string, settings: Settings = {}): Promise<Published> {
+  const answer = await call(connectionId, "POST", docId, settings);
   return answer ? publishedFrom(answer.status, answer.body) : offline("the page was not published");
+}
+
+/** Change how a published page is open, keeping its address. */
+export async function updatePublication(connectionId: number, docId: string, settings: Settings): Promise<Ended> {
+  const answer = await call(connectionId, "PATCH", docId, settings);
+  return answer ? updatedFrom(answer.status, answer.body) : offline("nothing was changed");
 }
 
 export async function unpublish(connectionId: number, docId: string): Promise<Ended> {

@@ -54,6 +54,15 @@ export function guestIdentity(editor: { link: number; name: string }): Identity 
   return { name: editor.name, email: `link-${editor.link}-${hash}@users.noreply.fjord.invalid` };
 }
 
+/**
+ * How a version credits an account the document was shared with, who edited it (the owner saves the version, so the owner is the author): by the account's name, with an address that is nobody's
+ * (`account-<the first of its id>@users.noreply.fjord.invalid`), which says it was an account of this instance and gives away nothing else.
+ */
+export function memberIdentity(accountId: string, name: string): Identity {
+  const hash = createHash("sha256").update(accountId, "utf8").digest("hex").slice(0, 8);
+  return { name, email: `account-${hash}@users.noreply.fjord.invalid` };
+}
+
 /** A name or an address as git writes it: no angle brackets, no line breaks, no stray whitespace. */
 const clean = (value: string) => value.replace(/[\u0000-\u001f\u007f<>]/g, " ").replace(/\s+/g, " ").trim();
 

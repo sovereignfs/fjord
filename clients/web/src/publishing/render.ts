@@ -76,8 +76,19 @@ function write(node: Node): string {
       return `<pre><code>${escapeHtml(node.value ?? "")}</code></pre>`;
     case "thematicBreak":
       return "<hr>";
-    case "table":
-      return `<table>\n${(node.children ?? []).map((row, index) => `<tr>${(row.children ?? []).map((cell) => `<${index === 0 ? "th" : "td"}>${inline(cell.children)}</${index === 0 ? "th" : "td"}>`).join("")}</tr>`).join("\n")}\n</table>`;
+    case "table": {
+      // A column's alignment (`:---`, `:-:`, `---:`) is one of three fixed words in an `align` attribute: nothing else of the document is ever written into one.
+      const align = node.align ?? [];
+      const row = (cells: Node[], tag: "th" | "td") =>
+        `<tr>${cells
+          .map((cell, column) => {
+            const where = align[column];
+            const attribute = where === "left" || where === "center" || where === "right" ? ` align="${where}"` : "";
+            return `<${tag}${attribute}>${inline(cell.children)}</${tag}>`;
+          })
+          .join("")}</tr>`;
+      return `<table>\n${(node.children ?? []).map((cells, index) => row(cells.children ?? [], index === 0 ? "th" : "td")).join("\n")}\n</table>`;
+    }
     case "text":
       return escapeHtml(node.value ?? "");
     case "emphasis":

@@ -96,6 +96,21 @@ export class ShareService {
     return rows.map((row) => ({ connectionId: Number(row.connectionId), docId: row.docId, role: asRole(row.role) }));
   }
 
+  /** What was shared with an account, newest first, with who shared it and when: what the account's *Shared with you* lists. At most `limit`. */
+  async listFor(accountId: string, limit = 200): Promise<{ connectionId: number; docId: string; role: Role; sharedBy: string; sharedAt: number }[]> {
+    const rows = await dbAll<{ connectionId: number | string; docId: string; role: string; sharedBy: string; sharedAt: number | string }>(
+      this.database,
+      sql`SELECT connection_id AS "connectionId", doc_id AS "docId", role, created_by AS "sharedBy", created_at AS "sharedAt" FROM ${table(this.database)} WHERE account_id = ${accountId} ORDER BY created_at DESC, id DESC LIMIT ${limit}`,
+    );
+    return rows.map((row) => ({ connectionId: Number(row.connectionId), docId: row.docId, role: asRole(row.role), sharedBy: row.sharedBy, sharedAt: Number(row.sharedAt) }));
+  }
+
+  /** How many documents are shared with an account: whether its rail shows *Shared with you*. */
+  async countFor(accountId: string): Promise<number> {
+    const row = await dbGet<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${table(this.database)} WHERE account_id = ${accountId}`);
+    return Number(row?.n ?? 0);
+  }
+
   /** Every share of a connection goes with it (it is disconnected). */
   async forget(connectionId: number): Promise<void> {
     await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);

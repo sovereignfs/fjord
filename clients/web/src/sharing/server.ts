@@ -7,11 +7,12 @@ import { getAuthDatabase, getDatabase } from "../db/boot";
 import { fjord } from "../format/wasm";
 import { type AccessDeps, sharingAccess } from "./access";
 import { ShareService } from "./shares";
-import { type SharedDocument, asksForPassword, openByLink, openShared } from "./open";
+import { type SharedDocument, type SharedListing, asksForPassword, listShared, openByLink, openShared } from "./open";
 import { authConfig } from "../auth/server";
 import { type UnlockResult, tryUnlock } from "./unlock";
 import { RateLimiter } from "../limits/rate";
 import { type GuestSave, saveGuestDraft } from "./guest";
+import { saveMemberDraft } from "./member";
 import { WorkingCopyService } from "../working/service";
 import { LinkService } from "./links";
 import { linksAccess } from "./links-access";
@@ -60,10 +61,19 @@ export async function openSharedFor(accountId: string, docId: string): Promise<S
       index: new DocIndex(database),
       format: fjord(),
       nameOf: async (id) => (await findUser(accounts, id))?.name,
+      drafts: new WorkingCopyService(database),
     },
     accountId,
     docId,
   );
+}
+
+/** What was shared with this account, for its *Shared with you* page. */
+export async function sharedWithFor(accountId: string): Promise<{ documents: SharedListing[]; unreadable: number }> {
+  const database = await getDatabase();
+  const accounts = await getAuthDatabase();
+  const shares = new ShareService(database);
+  return listShared({ shares, sourceOf: await sourceOfOwner(), index: new DocIndex(database), format: fjord(), nameOf: async (id) => (await findUser(accounts, id))?.name }, accountId);
 }
 
 /** The server's secret, which the proof that a link's password was given is keyed with. */
@@ -116,6 +126,12 @@ export async function linksAccessFor(): Promise<ReturnType<typeof linksAccess>> 
     documentIn,
     links: new LinkService(await getDatabase()),
   });
+}
+
+/** An edit of a document shared with this account at the edit role: into the document's working copy, for the owner to review. */
+export async function saveMemberDraftFor(accountId: string, docId: string, body: string): Promise<GuestSave> {
+  const database = await getDatabase();
+  return saveMemberDraft({ shares: new ShareService(database), sourceOf: await sourceOfOwner(), index: new DocIndex(database), format: fjord(), drafts: new WorkingCopyService(database), limiter: new RateLimiter(database) }, { accountId, docId, body });
 }
 
 /** A guest's edit of a document through a link's cookie (ROADMAP 1c.6): into the document's working copy, under the name they gave. */

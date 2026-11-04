@@ -62,13 +62,16 @@ export async function verifyPassword(password: string, stored: string): Promise<
  * carries this too, and the page asks for it. It is made with a secret only the server has (`FJORD_AUTH_SECRET`), and it is
  * bound to the password hash, so changing the password ends every cookie given for the old one.
  */
-export function unlockProof(secret: string, linkId: number, passwordHash: string): string {
-  return createHmac("sha256", secret).update(`fjord-share-unlock\0${linkId}\0${passwordHash}`).digest("base64url");
+export function unlockProof(secret: string, linkId: number, passwordHash: string, purpose: UnlockPurpose = "fjord-share-unlock"): string {
+  return createHmac("sha256", secret).update(`${purpose}\0${linkId}\0${passwordHash}`).digest("base64url");
 }
 
-export function proofIsRight(secret: string, linkId: number, passwordHash: string, proof: string | undefined): boolean {
+/** What a proof is for: a link's password, or a published page's. A proof made for one is never right for the other, whatever the numbers. */
+export type UnlockPurpose = "fjord-share-unlock" | "fjord-publication-unlock";
+
+export function proofIsRight(secret: string, linkId: number, passwordHash: string, proof: string | undefined, purpose: UnlockPurpose = "fjord-share-unlock"): boolean {
   if (proof === undefined) return false;
-  const expected = Buffer.from(unlockProof(secret, linkId, passwordHash));
+  const expected = Buffer.from(unlockProof(secret, linkId, passwordHash, purpose));
   const given = Buffer.from(proof);
   return given.length === expected.length && timingSafeEqual(given, expected);
 }

@@ -306,7 +306,7 @@ function FileCard({
   const isDoc = file.kind === "doc";
   const sharing =
     remove && !encrypted && isDoc && (docId || note?.ok) ? (
-      <ShareDialog connectionId={connectionId} docId={docId} journal={writing === true} path={note?.ok ? file.path : undefined} blob={note?.ok ? note.blob : undefined} hasDraft={draft !== null} />
+      <ShareDialog connectionId={connectionId} docId={docId} path={note?.ok ? file.path : undefined} blob={note?.ok ? note.blob : undefined} hasDraft={draft !== null} />
     ) : null;
   // The file's name is in the properties when the page has properties to show: a header it has, or one it would be given. A text it would not give one to (it has carriage returns) has none, and keeps its rename icon.
   const filenameInProperties = isDoc && editor === "document" && (header?.properties !== undefined || header?.promotion !== undefined);

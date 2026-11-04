@@ -13,6 +13,8 @@ section.
 
 ### Added
 
+- **Shared with you.** What other accounts on this instance have shared is a place of its own, `/shared` (a rail icon once there is anything): each document with who shared it, when and at what role; the files stay with their owners. An account at the **edit** role types into the document's working copy, and nothing of theirs reaches the repository; the owner's page says, by name, that changes are waiting, and saving a version accepts them and credits each editor by name, with an address that is nobody's (`account-<hash>@users.noreply.fjord.invalid`).
+- **Published pages have an optional password, a setting for who may comment, and say who made them.** The password is asked of everyone, signed in or not, and nothing of the document (not its title) is sent before it is given; tries are slow, one at a time, and a new password ends the cookies of the old. *Save settings* changes password and comments without a new address. Who may comment is chosen now (only *Off* is built; the setting is kept for when comments are). The page shows who published it, when the document was made and when it last changed, and does not repeat the title above a document that begins with its own heading; its tables have borders and keep their columns' alignment. New migrations `0022_publication_password_and_comments` (both dialects).
 - **Save is an icon among a document's others, with an arrow that saves with a message.** *Save version* is the `save` icon at the end of the title (for Markdown and for documents, a note's too), beside Share, Move and Delete, and disabled when there is nothing to save. The arrow attached to it opens a small menu with *Save with a message…*, which asks for the message in a dialog; the icon alone saves with the message the repository would give it (*Edit <name>*). The form at the foot of the page is gone.
 - **Sharing is one dialog with three tabs.** *People* (add by the address of an account, with a role, in one row; the people with access under it, each with a role and *Remove*), *Links* (make a link, with what it allows, an expiry and a password; the links there are, each with its state, *Change* and *Revoke*) and *Page* (publish as a page). A file with no identifier opens on one step in the same dialog (*Add the identifier and continue*), and when it is done the dialog stays open and becomes the sharing controls: the page behind moves to the file's address by identifier, and the dialog is open again where it was. It no longer closes and reloads.
 - **A shared document is shown on a sheet of A4 paper (210 by 297 mm, one inch of margin) on a gray desk**, with its name and what it is shared as above the paper; a document that is only read has no formatting toolbar.
@@ -27,6 +29,7 @@ section.
 
 ### Changed
 
+- **Sharing is with people on this instance, and no link is made any more.** The dialog's tabs are *People* and *Publish*, and *Links* only while the document has a link from before, to change or revoke. The shared view's paper is wider (250 by 353 mm) and the document editor's tables are left-aligned, with narrow tools and their columns' alignment kept (it is set from each column's menu).
 - **The page's name, its branch and the path are closer together** on every page that has them: the gaps above and below a title and its line were each large and added up.
 - **The visual editor's block-type menu says which heading level each is** (it said *Heading {{level}}* for all), and a document that begins with a heading begins at the top of the editor.
 - **The listings' actions ask in dialogs, and their path is outside the card.** *Create a new vault* (a primary button, which was *Add a vault*), *New folder*, *New document*, *Encrypt this vault…*, rename, move and delete each open a dialog for what they need, and no form is drawn among the files; the buttons are level with each other and with the view toggle, in the order *New folder*, *New document*, then the vault's own. The path (`repository / vault / folder`) is drawn between the repository's name and the card, not in it. Pointing at a row changes its background and nothing else (the icon no longer changes, and the name is not underlined).
@@ -56,6 +59,7 @@ section.
 
 ### Fixed
 
+- **A password link was opened without its password by a browser that held the cookie of another link to the same document**: entering a link with a password now ends that cookie.
 - **In development, Next's own indicator (the round *N* at the bottom left) is styled again.** The page's Content-Security-Policy refused the inline styles it is drawn with, leaving a bare grey box. `next dev` now allows inline style elements; the policy production sends is unchanged.
 
 ### Added

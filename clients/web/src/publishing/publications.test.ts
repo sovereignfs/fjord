@@ -28,11 +28,11 @@ describe(`published pages (${leg})`, () => {
   it("makes an address of a token that opens the Doc, and keeps only the token's hash", async () => {
     const { token } = await publications.publish(1, DOC, "alice");
     expect(token).toMatch(TOKEN_PATTERN);
-    expect(await publications.find(token)).toEqual({ connectionId: 1, docId: DOC });
+    expect(await publications.find(token)).toMatchObject({ connectionId: 1, docId: DOC, createdBy: "alice", passwordHash: null, comments: "off" });
     const rows = await dbAll<Record<string, unknown>>(database, sql`SELECT * FROM ${table()}`);
     expect(JSON.stringify(rows)).not.toContain(token);
     expect(JSON.stringify(rows)).toContain(hashToken(token));
-    expect(await publications.status(1, DOC)).toEqual({ publishedAt: 1_800_000_000_000 });
+    expect(await publications.status(1, DOC)).toEqual({ publishedAt: 1_800_000_000_000, passwordProtected: false, comments: "off" });
   });
 
   it("opens nothing for a token that was never made, or is not one", async () => {
@@ -45,14 +45,14 @@ describe(`published pages (${leg})`, () => {
     const second = await publications.publish(1, DOC, "alice");
     expect(second.token).not.toBe(first.token);
     expect(await publications.find(first.token)).toBeUndefined();
-    expect(await publications.find(second.token)).toEqual({ connectionId: 1, docId: DOC });
+    expect(await publications.find(second.token)).toMatchObject({ connectionId: 1, docId: DOC });
   });
 
   it("publishes a copy of an encrypted file under its path, hands the copy back with the address, and ends it like any other", async () => {
     const { token } = await publications.publishCopy(1, "Secret/Plan.md.age", "alice", { title: "Q4 plan", body: "# Q4 plan\n" });
-    expect(await publications.find(token)).toEqual({ connectionId: 1, docId: "file:Secret/Plan.md.age", copy: { title: "Q4 plan", body: "# Q4 plan\n" } });
+    expect(await publications.find(token)).toMatchObject({ connectionId: 1, docId: "file:Secret/Plan.md.age", copy: { title: "Q4 plan", body: "# Q4 plan\n" } });
     expect(copyKey("Secret/Plan.md.age")).toBe("file:Secret/Plan.md.age");
-    expect(await publications.status(1, copyKey("Secret/Plan.md.age"))).toEqual({ publishedAt: 1_800_000_000_000 });
+    expect(await publications.status(1, copyKey("Secret/Plan.md.age"))).toMatchObject({ publishedAt: 1_800_000_000_000 });
     // Publishing it again ends the old address and replaces the copy.
     const again = await publications.publishCopy(1, "Secret/Plan.md.age", "alice", { title: "Q4 plan", body: "Newer.\n" });
     expect(await publications.find(token)).toBeUndefined();
@@ -72,7 +72,7 @@ describe(`published pages (${leg})`, () => {
     expect(await publications.unpublish(1, DOC)).toBe(false);
     expect(await publications.find(mine.token)).toBeUndefined();
     expect(await publications.status(1, DOC)).toBeUndefined();
-    expect(await publications.find(theirs.token)).toEqual({ connectionId: 1, docId: OTHER });
-    expect(await publications.find(elsewhere.token)).toEqual({ connectionId: 2, docId: DOC });
+    expect(await publications.find(theirs.token)).toMatchObject({ connectionId: 1, docId: OTHER });
+    expect(await publications.find(elsewhere.token)).toMatchObject({ connectionId: 2, docId: DOC });
   });
 });

@@ -24,15 +24,19 @@ export function guestAttemptFrom(status: number, body: { error?: { code?: string
     case "too_many_editors":
       return { kind: "refused", stop: true, message: message ?? "The owner needs to save a version before more changes can be kept." };
   }
-  if (status === 403 || status === 404) return { kind: "refused", stop: true, message: "This link no longer works, so changes are not being kept. What you typed is still on this page." };
+  if (status === 401) return { kind: "refused", stop: true, message: "You are signed out, so changes are not being kept. What you typed is still on this page: sign in again in another tab, then reload." };
+  if (status === 403 || status === 404) return { kind: "refused", stop: true, message: "This no longer works, so changes are not being kept. What you typed is still on this page." };
   // Anything else is the host or our side being unwell, or the network: the text is not lost, so ask again later.
   return { kind: "failed" };
 }
 
-export async function sendGuestDraft(docId: string, name: string, body: string): Promise<Attempt> {
-  const payload = JSON.stringify({ name, body });
+/** Where an edit goes: through a link's cookie, under the name a guest gave, or as the signed-in account a document was shared with (its name is its own). */
+export type DraftTarget = { kind: "guest"; name: string } | { kind: "account" };
+
+export async function sendGuestDraft(docId: string, name: string, body: string, target: DraftTarget = { kind: "guest", name }): Promise<Attempt> {
+  const payload = JSON.stringify(target.kind === "guest" ? { name: target.name, body } : { body });
   try {
-    const response = await fetch(`/d/${docId}/draft`, {
+    const response = await fetch(target.kind === "guest" ? `/d/${docId}/draft` : `/api/shared/${docId}/draft`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: payload,

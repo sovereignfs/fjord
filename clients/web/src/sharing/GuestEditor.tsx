@@ -16,15 +16,16 @@ import { NAME_KEY, sendGuestDraft } from "./guest-client";
  * document's working copy on the server, a second after they stop (`DraftSaver`, as for the owner), where the owner sees it and saves a
  * version that credits them by that name. Nothing typed here goes to the repository.
  */
-export function GuestEditor({ docId, title, body }: { docId: string; title: string; body: string }) {
-  const [name, setName] = useState<string | undefined>(undefined);
+export function GuestEditor({ docId, title, body, member = false }: { docId: string; title: string; body: string; /** An account the document was shared with at the edit role: no name is asked for (the account's is its own), and what it types goes to the owner by its session. */ member?: boolean }) {
+  const [name, setName] = useState<string | undefined>(member ? "account" : undefined);
   const [asking, setAsking] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [status, setStatus] = useState<SaverStatus>({ state: "idle" });
-  const { adapter, onNeedName, panel } = useComments(docId, { guest: true });
+  const { adapter, onNeedName, panel } = useComments(docId, { guest: !member });
 
   // The name this browser gave before, if it did.
   useEffect(() => {
+    if (member) return setLoaded(true);
     try {
       const kept = cleanGuestName(window.localStorage.getItem(NAME_KEY));
       if (kept) setName(kept);
@@ -34,7 +35,7 @@ export function GuestEditor({ docId, title, body }: { docId: string; title: stri
     setLoaded(true);
   }, []);
 
-  const saver = useMemo(() => (name === undefined ? undefined : new DraftSaver({ initial: body, send: (text) => sendGuestDraft(docId, name, text) })), [docId, name, body]);
+  const saver = useMemo(() => (name === undefined ? undefined : new DraftSaver({ initial: body, send: (text) => sendGuestDraft(docId, name, text, member ? { kind: "account" } : { kind: "guest", name }) })), [docId, name, body, member]);
 
   useEffect(() => {
     if (!saver) return;
@@ -74,7 +75,7 @@ export function GuestEditor({ docId, title, body }: { docId: string; title: stri
   const invalid = asking.trim() !== "" && cleanGuestName(asking) === undefined;
   return (
     <div>
-      {loaded && name === undefined ? (
+      {loaded && name === undefined && !member ? (
         <form
           className={styles.form}
           onSubmit={(event) => {
@@ -92,7 +93,7 @@ export function GuestEditor({ docId, title, body }: { docId: string; title: stri
           </div>
         </form>
       ) : null}
-      {name !== undefined ? (
+      {name !== undefined && !member ? (
         <p className={styles.itemMeta}>
           Editing as <strong data-testid="guest-name">{name}</strong>.{" "}
           <Button variant="secondary" size="sm" onClick={() => setName(undefined)}>
@@ -103,7 +104,7 @@ export function GuestEditor({ docId, title, body }: { docId: string; title: stri
       <DocumentEditor aria-label={title} role={name === undefined ? "view" : "edit"} value={body} onChange={(next) => saver?.change(next)} comments={adapter} onNeedName={onNeedName} />
       {name !== undefined ? (
         <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="guest-status">
-          {describe(status)}
+          {describe(status, member)}
         </p>
       ) : null}
       {panel}
@@ -118,16 +119,16 @@ export function GuestEditor({ docId, title, body }: { docId: string; title: stri
   );
 }
 
-function describe(status: SaverStatus): string {
+function describe(status: SaverStatus, member: boolean): string {
   switch (status.state) {
     case "idle":
-      return "What you change is kept for the owner, who saves it as a version with your name on it.";
+      return member ? "What you change is kept for the owner, who reviews it and saves it as a version with your name on it." : "What you change is kept for the owner, who saves it as a version with your name on it.";
     case "pending":
       return "Unsaved changes…";
     case "saving":
       return "Saving…";
     case "kept":
-      return "Changes kept for the owner to save.";
+      return member ? "Changes kept for the owner to review." : "Changes kept for the owner to save.";
     case "retrying":
       return "Could not keep your changes. Trying again…";
     case "refused":

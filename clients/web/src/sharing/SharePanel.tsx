@@ -8,7 +8,6 @@ import {
   type LinkEntry,
   type SharedWith,
   addShare,
-  createLink,
   fromLocalInput,
   listLinks,
   listShares,
@@ -19,15 +18,15 @@ import {
 } from "./manage-client";
 
 /**
- * Who a document is shared with, and by which links (DESIGN.md §12, ROADMAP 1c.7), in the sharing dialog: three tabs, **People**, **Links** and **Page** (publishing it, `publish`), and in each the thing to
- * add first and what there already is under it. People are added by the address of their account, given a role, changed and removed; links are made with a role, an optional expiry and an optional
- * password, changed, and revoked. A link's address is shown **once**, when it is made, because only a hash of its token is kept: to share a link again, make another and revoke the old one. The lists
- * are read when the dialog is first opened.
+ * Who a document is shared with, and how it is published (DESIGN.md §12, ROADMAP 1c.7), in the sharing dialog: **People** (accounts on this instance, added by their address, each given a role: view, comment or
+ * edit, and changed or removed) and **Publish** (`publish`: the page anyone can read, with an optional password). Sharing is within this instance (later, between Fjord instances); the file stays its owner's,
+ * and what someone with the edit role changes is kept as a draft for the owner to review and save (`working/`). **Links are not made any more**: a link someone made before is still shown, in a *Links* tab that
+ * is there only while the document has one, to be changed or revoked, which is the owner's way to end it.
  */
 const ROLE_WORDS: Record<Role, string> = { view: "Can view", comment: "Can comment", edit: "Can edit" };
-type Tab = "people" | "links" | "page";
+type Tab = "people" | "links" | "publish";
 
-export function SharePanel({ connectionId, docId, note = false, publish, justIdentified = false }: { connectionId: number; docId: string; /** A journal's note: its links are given at `/n/<id>`, as a document's are at `/d/<id>`. */ note?: boolean; /** The panel that publishes the document as a page, which is the third tab. */ publish: ReactNode; /** The file was given its identifier a moment ago, in this dialog: it says so. */ justIdentified?: boolean }) {
+export function SharePanel({ connectionId, docId, publish, justIdentified = false }: { connectionId: number; docId: string; /** The panel that publishes the document as a page, which is the third tab. */ publish: ReactNode; /** The file was given its identifier a moment ago, in this dialog: it says so. */ justIdentified?: boolean }) {
   const [tab, setTab] = useState<Tab>("people");
   const [loaded, setLoaded] = useState(false);
   const [people, setPeople] = useState<SharedWith[]>([]);
@@ -61,8 +60,8 @@ export function SharePanel({ connectionId, docId, note = false, publish, justIde
         onChange={(next) => setTab(next as Tab)}
         items={[
           { label: people.length > 0 ? `People (${people.length})` : "People", value: "people" },
-          { label: active > 0 ? `Links (${active})` : "Links", value: "links" },
-          { label: "Page", value: "page" },
+          ...(links.length > 0 ? [{ label: active > 0 ? `Links (${active})` : "Links", value: "links" }] : []),
+          { label: "Publish", value: "publish" },
         ]}
       />
       {problem ? (
@@ -70,10 +69,10 @@ export function SharePanel({ connectionId, docId, note = false, publish, justIde
           {problem}
         </Alert>
       ) : null}
-      <div className={styles.panel} role="tabpanel" aria-label={tab === "people" ? "People" : tab === "links" ? "Links" : "Page"}>
+      <div className={styles.panel} role="tabpanel" aria-label={tab === "people" ? "People" : tab === "links" ? "Links" : "Publish"}>
         {tab === "people" ? <People connectionId={connectionId} docId={docId} people={people} changed={load} /> : null}
-        {tab === "links" ? <Links connectionId={connectionId} docId={docId} note={note} links={links} changed={load} /> : null}
-        {tab === "page" ? publish : null}
+        {tab === "links" ? <Links connectionId={connectionId} docId={docId} links={links} changed={load} /> : null}
+        {tab === "publish" ? publish : null}
       </div>
     </div>
   );
@@ -167,90 +166,16 @@ function People({ connectionId, docId, people, changed }: { connectionId: number
   );
 }
 
-function Links({ connectionId, docId, note, links, changed }: { connectionId: number; docId: string; note: boolean; links: LinkEntry[]; changed: () => Promise<void> }) {
-  const [role, setRole] = useState<Role>("view");
-  const [expires, setExpires] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [made, setMade] = useState<{ url: string; passwordProtected: boolean } | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  async function make() {
-    const expiresAt = fromLocalInput(expires);
-    if (expiresAt === undefined) return setError("That is not a date and time.");
-    setBusy(true);
-    setError(null);
-    setMade(null);
-    setCopied(false);
-    const done = await createLink(connectionId, docId, { role, expiresAt, password: password === "" ? null : password, note });
-    setBusy(false);
-    if (!done.ok) return setError(done.message);
-    setMade({ url: done.url, passwordProtected: done.passwordProtected });
-    setPassword("");
-    setExpires("");
-    await changed();
-  }
-
-  async function copy(url: string) {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-    } catch {
-      setError("Could not copy it. Select the address and copy it by hand.");
-    }
-  }
-
+/** The links made before links were retired: each with its state, to be changed or revoked. Nothing here makes one. */
+function Links({ connectionId, docId, links, changed }: { connectionId: number; docId: string; links: LinkEntry[]; changed: () => Promise<void> }) {
   return (
     <>
-      <form
-        className={styles.card}
-        onSubmit={(event) => {
-          event.preventDefault();
-          void make();
-        }}
-      >
-        <h3 className={styles.heading}>Make a link</h3>
-        <div className={styles.fields}>
-          <FormField label="What it allows">{(field) => <RoleSelect field={field} value={role} label="What the new link allows" onChange={setRole} disabled={busy} />}</FormField>
-          <FormField label="Expires" hint="Leave empty for a link that does not expire.">
-            {(field) => <Input {...field} type="datetime-local" name="expires" value={expires} onChange={(e) => setExpires(e.target.value)} disabled={busy} />}
-          </FormField>
-          <FormField label="Password" hint="Optional. Eight characters or more; asked for when the link is opened.">
-            {(field) => <Input {...field} type="password" name="link-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />}
-          </FormField>
-        </div>
-        <div className={styles.actions}>
-          <Button type="submit" loading={busy}>
-            Make a link
-          </Button>
-        </div>
-      </form>
-      {error ? (
-        <Alert variant="error" heading="Links">
-          {error}
-        </Alert>
-      ) : null}
-      {made ? (
-        <div data-testid="new-link">
-          <Alert variant="success" heading="Link made">
-            {made.passwordProtected ? "It asks for the password you gave. " : ""}This is the only time its address is shown.
-            <div className={styles.address}>
-              <Input aria-label="The new link's address" readOnly value={made.url} onFocus={(e) => e.currentTarget.select()} />
-              <Button size="sm" onClick={() => void copy(made.url)}>
-                {copied ? "Copied" : "Copy link"}
-              </Button>
-            </div>
-          </Alert>
-        </div>
-      ) : null}
-      {links.length === 0 ? <p className={styles.empty}>No links.</p> : <h3 className={styles.heading}>Links to this document</h3>}
+      <p className={styles.muted}>Links are not made any more: share with people who have an account here, or publish a page. These were made before, and still open the document until they are revoked or expire.</p>
       <ul aria-label="Links to this document" className={styles.list} style={{ gap: 0 }}>
         {links.map((link) => (
           <LinkRow key={link.id} connectionId={connectionId} docId={docId} link={link} changed={changed} />
         ))}
       </ul>
-      {links.length > 0 ? <p className={styles.muted}>A link&apos;s address is shown once, when it is made. To share one again, make another and revoke the old one.</p> : null}
     </>
   );
 }

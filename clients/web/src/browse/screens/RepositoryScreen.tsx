@@ -19,7 +19,8 @@ import { headerOf } from "../document";
 import { DocIndex } from "../doc-index";
 import { FileHandles } from "../handles";
 import { docIdOf } from "../ids";
-import { getDatabase } from "../../db/boot";
+import { getAuthDatabase, getDatabase } from "../../db/boot";
+import { findUser } from "../../auth/users";
 import type { RepositoryRead } from "../repository";
 import { fjord } from "../../format/wasm";
 import { DeletedUpstream } from "../screens/DeletedUpstream";
@@ -126,7 +127,7 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
       }
       // What was typed here and not yet saved as a version: kept by the server (ROADMAP 1b.8), and found again here.
       const kept = file !== undefined && note?.ok ? await (await workingCopyService()).get(current.id, file.path) : undefined;
-      const draft = kept ? { content: kept.content, baseBlob: kept.baseBlob, guests: [...new Set(kept.editors.flatMap((editor) => (editor.type === "guest" ? [editor.name] : [])))] } : null;
+      const draft = kept ? await draftOf(kept, user.id) : null;
       // Edited here while someone changed the note from elsewhere (ROADMAP 1b.10): can the two be combined?
       const preview = kept && note?.ok && kept.baseBlob !== note.blob ? await previewCombineFor(user.id, current.id, kept, note.text) : undefined;
       // What deleting names, as the page shows it now (ROADMAP 1b.12): the file's blob, and how many files are inside a folder.
@@ -231,6 +232,20 @@ function moveDestinations(read: RepositoryRead, only?: string): string[] {
 }
 
 /** When a file last changed in the repository as of a commit, or null if the host does not say; never a failure of the page. */
+/** The draft as the page tells it: who else edited it, by the name a guest gave or the name an account has, and whether the person looking did too. */
+async function draftOf(kept: { content: string; baseBlob: string; editors: readonly ({ type: "account"; id: string } | { type: "guest"; link: number; name: string })[] }, viewerId: string) {
+  const accounts = await getAuthDatabase();
+  const guests = kept.editors.flatMap((editor) => (editor.type === "guest" ? [editor.name] : []));
+  const members: string[] = [];
+  for (const editor of kept.editors) {
+    if (editor.type !== "account" || editor.id === viewerId) continue;
+    const who = await findUser(accounts, editor.id);
+    if (who) members.push(who.name);
+  }
+  const others = [...new Set([...members, ...guests])];
+  return { content: kept.content, baseBlob: kept.baseBlob, guests: others, byYou: kept.editors.some((editor) => editor.type === "account" && editor.id === viewerId), linkOnly: members.length === 0 && guests.length > 0 };
+}
+
 async function lastModifiedOf(accountId: string, connection: { id: number; owner: string; name: string }, commit: string, path: string): Promise<string | null> {
   try {
     const used = await (await connectionService()).provider(accountId, connection.id);

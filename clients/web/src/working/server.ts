@@ -7,7 +7,7 @@ import type { Identity } from "../providers/types";
 import { type AccessDeps, workingCopyAccess } from "./access";
 import { type WorkingCopy, WorkingCopyService } from "./service";
 import { type Choice, type Preview, type ResolveResult, previewCombine, resolveUpstream } from "./resolve";
-import { type VersionResult, guestIdentity, saveVersion } from "./version";
+import { type VersionResult, guestIdentity, memberIdentity, saveVersion } from "./version";
 
 /** The server's drafts, for routes and pages: the app's database. Never for a test, which builds its own. */
 export async function workingCopyService(): Promise<WorkingCopyService> {
@@ -40,7 +40,13 @@ export async function makeVersion(accountId: string, id: number, input: { path: 
       provider: used.provider,
       ref: { owner: used.connection.owner, name: used.connection.name },
       branch: used.connection.branch,
-      identityOf: async (editor) => (editor.type === "account" ? findUser(accounts, editor.id) : guestIdentity(editor)),
+      identityOf: async (editor) => {
+        if (editor.type === "guest") return guestIdentity(editor);
+        // An account that is not the saver (the saver is the author, and is skipped) is someone the document was shared with: credited by its name, with an address that is nobody's, so
+        // that its real address is not written into the repository's history.
+        const who = await findUser(accounts, editor.id);
+        return who ? memberIdentity(editor.id, who.name) : undefined;
+      },
     },
     { connectionId: id, path: input.path, message: input.message, author: input.author, authorId: accountId },
   );
