@@ -147,3 +147,26 @@ test("an address that already has an account gets a clear message, not a second 
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(alertOn(page)).toContainText("already an account");
 });
+
+test("a link followed while signed out comes back after signing in, and another site's never does", async ({ page }) => {
+  const { email } = await signUp(page);
+  await signOut(page);
+
+  await page.goto("/account?section=preferences");
+  await expect(page).toHaveURL(/\/sign-in\?next=%2Faccount%3Fsection%3Dpreferences$/);
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/account\?section=preferences$/);
+
+  await signOut(page);
+  await signIn(page, email);
+  await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
+  await signOut(page);
+  await page.goto("/sign-in?next=%2F%2Fevil.example%2F");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(PASSWORD);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
+  expect(new URL(page.url()).host).toBe("localhost:3201");
+});

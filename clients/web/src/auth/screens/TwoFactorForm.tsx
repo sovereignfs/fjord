@@ -3,6 +3,7 @@
 import { type FormEvent, useState } from "react";
 import { authClient } from "../client";
 import { messageFor } from "../messages";
+import { recallNext } from "../next";
 import { AuthButton, AuthCodeInput, AuthError, AuthField, AuthFooter, AuthForm, AuthLink, AuthLinkButton, Input } from "../../ui";
 
 /** The second step of signing in: a code from the authenticator app, or a backup code. */
@@ -23,7 +24,7 @@ export function TwoFactorForm() {
       setError(messageFor(failure));
       return;
     }
-    window.location.assign("/open");
+    window.location.assign(recallNext() ?? "/open");
   }
 
   return (

@@ -125,3 +125,17 @@ describe("the Content-Security-Policy (ROADMAP 1d.5)", () => {
     expect(policyOf(proxy(request(`/d/${DOC}?token=${TOKEN}`)))).toContain("nonce-");
   });
 });
+
+describe("where a person was going", () => {
+  const passed = (response: Response) => response.headers.get("x-middleware-request-x-fjord-path");
+
+  it("is told to the page, for sign-in to go on to", () => {
+    expect(passed(proxy(request(`/d/${DOC}`)))).toBe(`/d/${DOC}`);
+    expect(passed(proxy(request("/account?section=security")))).toBe("/account?section=security");
+  });
+
+  it("is never what a client said it was, and never holds a token", () => {
+    expect(passed(proxy(request("/account", { headers: { "x-fjord-path": "//evil.example" } })))).toBe("/account");
+    expect(passed(proxy(request(`/drive/k3x9m2qa?token=${TOKEN}`)))).toBeNull();
+  });
+});

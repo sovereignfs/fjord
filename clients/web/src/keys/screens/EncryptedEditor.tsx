@@ -2,6 +2,7 @@
 
 import { NoteEditor } from "fjord-editor";
 import "fjord-editor/styles.css";
+import { useRouter } from "next/navigation";
 import { type MutableRefObject, useEffect, useMemo, useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
@@ -56,6 +57,7 @@ export function EncryptedEditor({
   /** Where the file can be moved to in another vault (ROADMAP 2b.6). */
   transferTargets: TransferTarget[];
 }) {
+  const router = useRouter();
   const saver = useMemo(
     () =>
       new DraftSaver({
@@ -151,7 +153,8 @@ export function EncryptedEditor({
     } catch {
       // Not remembering it only means the page does not say so.
     }
-    window.location.reload();
+    // Not a reload: that would drop the unlocked identity, and ask for the passphrase after every save. The new blob remounts the file (`key` in `FolderView`), which opens it again.
+    router.refresh();
   }
 
   /**
@@ -191,7 +194,7 @@ export function EncryptedEditor({
       } catch {
         // Not remembering it only means the page does not say so.
       }
-      window.location.reload();
+      router.refresh();
     } catch {
       setRenameError("The file could not be renamed here, so nothing was changed.");
     } finally {

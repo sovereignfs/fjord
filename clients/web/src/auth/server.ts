@@ -4,6 +4,7 @@ import { getAuthDatabase } from "../db/boot";
 import { createSmtpMailer } from "../mail/mailer";
 import { type Auth, createAuth } from "./auth";
 import { type AuthConfig, type LocalAuthConfig, type SovereignSettings, resolveAuthConfig } from "./config";
+import { PATH_HEADER, signInAddress } from "./next";
 import { countUsers } from "./users";
 
 /**
@@ -81,7 +82,7 @@ export async function getSession(): Promise<Session | null> {
 export async function requireSession(): Promise<Session> {
   if (!authConfig().enabled) notFound();
   const session = await getSession();
-  if (!session) redirect("/sign-in");
+  if (!session) redirect(signInAddress((await headers()).get(PATH_HEADER)));
   return session;
 }
 

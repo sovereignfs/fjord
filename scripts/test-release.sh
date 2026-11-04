@@ -285,8 +285,8 @@ check_in ok "the fjord-core dependency version is bumped" \
   'grep -q "fjord-core = .*version = \"$NEXT\"" crates/fjord-cli/Cargo.toml'
 check_in ok "Cargo.lock followed" \
   'grep -A1 "^name = \"fjord-cli\"" Cargo.lock | grep -q "version = \"$NEXT\""'
-check_in ok "only the four expected files changed" \
-  '[ -z "$(git diff --name-only HEAD~1 | grep -vE "^(crates/fjord-cli/CHANGELOG\\.md|Cargo\\.toml|Cargo\\.lock|crates/fjord-cli/Cargo\\.toml)$")" ]'
+check_in ok "only the five expected files changed" \
+  '[ -z "$(git diff --name-only HEAD~1 | grep -vE "^(crates/fjord-cli/CHANGELOG\\.md|Cargo\\.toml|Cargo\\.lock|crates/fjord-cli/Cargo\\.toml|crates/fjord-wasm/Cargo\\.lock)$")" ]'
 check_in ok "nothing was pushed" \
   '[ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]'
 check_in ok "dist can find the notes in the result" \

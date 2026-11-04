@@ -19,6 +19,8 @@ section.
 
 ### Fixed
 
+- **Saving a version of an encrypted file does not ask for the passphrase again.** The page reloaded to show the new version, and a reload drops the unlocked identity; it now refreshes in place and opens the new version, with what was typed.
+- **A link followed while signed out comes back after signing in.** A person asked to sign in on their way to a document went on to their default repository, and had to find the link again; now it is `/sign-in?next=…`, for a password, a passkey, two-factor and Sovereign alike. Only a path of this site is taken, and nothing that holds a token (`src/auth/next.ts`).
 - **A folder named `.git` is refused with a reason**, not a 500; so is any other name starting with a dot, which other tools leave out of what they list. `..` as a new folder's name is told it is not a name, and not `Say which folder of the vault, by its path`.
 - **A slash in a file's new name is refused, and does not make a folder and move the file into it.** *File name* and *Rename* say to use *Move*, and refuse a name that starts or ends with a dot.
 - **Setting up a site where `content/` is already there says what to do**: a new site's posts have nowhere else to go, so it no longer says "Choose another name" on a form with no name to choose.

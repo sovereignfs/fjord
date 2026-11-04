@@ -20,8 +20,8 @@ width but the account page.
 | B1 | A document typed in the visual editor is told, when opened again, that it is "not written the way Fjord writes Markdown", and cannot be edited until a choice is made. An empty paragraph (Enter at the end of a heading) is written as a run of blank lines, which reads back as something to reformat | Fixed |
 | B2 | A new folder named `.git` answers 500 and "Something went wrong on our side" | Fixed |
 | B3 | A slash in *File name* quietly makes a folder and moves the file into it; a name ending in a dot or starting with one is taken though the form's own words forbid it | Fixed |
-| B4 | Saving a version of an encrypted file reloads the page, which drops the unlocked identity: the passphrase is asked for after every save | Open |
-| B5 | A signed-out person who follows a link to a document signs in and lands on their default repository, not on the document | Open |
+| B4 | Saving a version of an encrypted file reloads the page, which drops the unlocked identity: the passphrase is asked for after every save | Fixed |
+| B5 | A signed-out person who follows a link to a document signs in and lands on their default repository, not on the document | Fixed |
 | B6 | Sharing with something that is not an address, or with yourself, says *Done* | Open |
 | B7 | Setting up a site where `content/` exists says "Choose another name", on a form with no name to choose | Fixed |
 | B8 | A new vault's `recipients.txt` says it is for "the Private vault", whatever the vault is, and its instructions name that directory | Fixed |

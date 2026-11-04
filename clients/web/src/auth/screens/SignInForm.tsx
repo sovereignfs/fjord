@@ -3,6 +3,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { authClient } from "../client";
 import { messageFor } from "../messages";
+import { rememberNext } from "../next";
 import { AuthButton, AuthDivider, AuthError, AuthField, AuthFooter, AuthForm, AuthLink, AuthNotice, Input } from "../../ui";
 
 /**
@@ -16,6 +17,7 @@ export function SignInForm({
   notice,
   initialError,
   instanceName,
+  next = null,
 }: {
   local?: { canReset: boolean; canSignUp: boolean };
   sovereign: boolean;
@@ -23,11 +25,14 @@ export function SignInForm({
   /** What went wrong on the way back from Sovereign, if anything. */
   initialError?: string;
   instanceName: string;
+  /** Where the person was on their way to (`auth/next.ts`), already checked; signing in goes on there. */
+  next?: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(initialError ?? null);
   const [busy, setBusy] = useState<"password" | "passkey" | "sovereign" | null>(null);
+  const landing = next ?? "/open";
   // Known only in the browser, so it is read after the first render, never during it.
   const [passkeysSupported, setPasskeysSupported] = useState(false);
 
@@ -37,6 +42,7 @@ export function SignInForm({
     event.preventDefault();
     setBusy("password");
     setError(null);
+    rememberNext(next);
     const { data, error: failure } = await authClient.signIn.email({ email, password });
     if (failure) {
       setBusy(null);
@@ -45,9 +51,10 @@ export function SignInForm({
     }
     // With two-factor on, the client has already sent the person to the code page.
     if (data && "twoFactorRedirect" in data && data.twoFactorRedirect) return;
+    rememberNext(null);
     // A full navigation, not a client-side one: `/` is a different page now that there is a
     // session, and the server decides which.
-    window.location.assign("/open");
+    window.location.assign(landing);
   }
 
   async function onPasskey() {
@@ -59,7 +66,7 @@ export function SignInForm({
       setError(messageFor(failure, "Passkey sign-in did not work. Try your password instead."));
       return;
     }
-    window.location.assign("/open");
+    window.location.assign(landing);
   }
 
   async function onSovereign(event?: FormEvent<HTMLFormElement>) {
@@ -68,7 +75,7 @@ export function SignInForm({
     setError(null);
     // On success the browser is sent to Sovereign, so there is nothing to do after the call;
     // a person who comes back with a failure lands on this page again with the reason.
-    const { error: failure } = await authClient.signIn.social({ provider: "sovereign", callbackURL: "/open", errorCallbackURL: "/sign-in" });
+    const { error: failure } = await authClient.signIn.social({ provider: "sovereign", callbackURL: landing, errorCallbackURL: "/sign-in" });
     if (failure) {
       setBusy(null);
       setError(messageFor(failure, "Signing in with Sovereign did not work. Try again."));

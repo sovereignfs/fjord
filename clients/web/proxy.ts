@@ -1,5 +1,6 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
+import { PATH_HEADER } from "./src/auth/next";
 import { HSTS, contentSecurityPolicy, newNonce } from "./src/security/csp";
 
 /**
@@ -33,6 +34,9 @@ export function proxy(request: NextRequest) {
   if (page) {
     requestHeaders.set("x-nonce", nonce);
     requestHeaders.set("content-security-policy", policy);
+    // Where the person was going, for the sign-in page to go on to (`src/auth/next.ts`). It is what a client sent, so a page never trusts one it did not get from here, and it never holds a token.
+    requestHeaders.delete(PATH_HEADER);
+    if (!searchParams.has("token")) requestHeaders.set(PATH_HEADER, pathname + request.nextUrl.search);
   }
   const marked = (response: NextResponse): NextResponse => {
     if (page) response.headers.set("content-security-policy", policy);
