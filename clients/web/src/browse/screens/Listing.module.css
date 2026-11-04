@@ -1,0 +1,232 @@
+/* A listing of vaults, folders and files, as rows or as tiles (the same markup, drawn by `data-view`), in the tokens of the tiles on the home page. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sv-space-3);
+  margin-bottom: var(--sv-space-4);
+}
+
+.actions {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sv-space-2);
+  min-width: 0;
+}
+
+/* What the buttons open (a form, a confirmation) goes below them, across the line, and not between them. */
+.actions > form,
+.actions > section,
+.actions > div:has(form) {
+  flex: 1 1 100%;
+  order: 10;
+}
+
+/* The buttons are one line each; the paragraph a button used to be wrapped in is not a block of its own here. */
+.actions > p {
+  margin: 0;
+}
+
+.toggle {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  overflow: hidden;
+  background-color: var(--sv-color-surface-raised);
+}
+
+.toggle button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--sv-color-text-muted);
+  cursor: pointer;
+}
+
+.toggle button + button {
+  border-left: 1px solid var(--sv-color-border);
+}
+
+.toggle button[aria-pressed="true"] {
+  background-color: var(--sv-color-surface-sunken);
+  color: var(--sv-color-text-primary);
+}
+
+.toggle button:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: -2px;
+}
+
+.list,
+.grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--sv-color-text-primary);
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.open {
+  display: none;
+}
+
+.item:hover .closed,
+.item:focus-within .closed {
+  display: none;
+}
+
+.item:hover .open,
+.item:focus-within .open {
+  display: inline-flex;
+}
+
+.name {
+  color: var(--sv-color-text-primary);
+  font-weight: var(--sv-font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+/* The whole row, or tile, is the link; what is in it that is its own control (a button) sits above that. */
+a.name {
+  text-decoration: none;
+}
+
+a.name::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+a.name:hover {
+  text-decoration: underline;
+}
+
+a.name:focus-visible {
+  outline: none;
+}
+
+.item:has(a.name:focus-visible) {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 2px;
+}
+
+.body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sv-space-2);
+  min-width: 0;
+}
+
+.meta {
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+  white-space: nowrap;
+}
+
+.trailing {
+  position: relative;
+  z-index: 1;
+  flex: none;
+}
+
+.disabled {
+  opacity: 0.6;
+}
+
+/* Rows. */
+.list[data-view="list"] .item {
+  align-items: center;
+  gap: var(--sv-space-3);
+  padding: var(--sv-space-3) var(--sv-space-1);
+  border-top: 1px solid var(--sv-color-border);
+}
+
+.list[data-view="list"] .item:last-child {
+  border-bottom: 1px solid var(--sv-color-border);
+}
+
+.list[data-view="list"] .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.list[data-view="list"] .body {
+  flex: 1 1 auto;
+}
+
+.list[data-view="list"] .item:hover {
+  background-color: var(--sv-color-surface-sunken);
+}
+
+/* Tiles. */
+.grid[data-view="grid"] {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--sv-space-3);
+}
+
+.grid[data-view="grid"] .item {
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sv-space-2);
+  padding: var(--sv-space-5) var(--sv-space-3) var(--sv-space-4);
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+  background-color: var(--sv-color-surface-raised);
+  text-align: center;
+}
+
+@media (hover: hover) {
+  .grid[data-view="grid"] .item:hover {
+    border-color: var(--sv-color-border-strong);
+  }
+}
+
+.grid[data-view="grid"] .icon {
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border-radius: var(--sv-radius-md);
+  background-color: var(--sv-color-surface-sunken);
+}
+
+.grid[data-view="grid"] .body {
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--sv-space-1);
+}
+
+.grid[data-view="grid"] .meta {
+  white-space: normal;
+}
+
+.empty {
+  margin: 0;
+  color: var(--sv-color-text-muted);
+}

@@ -1,4 +1,5 @@
 import type { SVGProps } from "react";
+import { LUCIDE } from "./lucide-nodes";
 
 /**
  * Icons from Lucide (https://lucide.dev, ISC licence) that `@sovereignfs/ui`'s curated set does not have yet, drawn as it draws its own: 24px
@@ -89,6 +90,23 @@ export function Settings2Icon(props: IconProps) {
       <path d="M19 7h-9" />
       <circle cx="17" cy="17" r="3" />
       <circle cx="7" cy="7" r="3" />
+    </Svg>
+  );
+}
+
+/**
+ * Any icon in `lucide-nodes.ts`, by Lucide's name: for the icons that are picked from data (the icon of a kind of file, `browse/file-icons.ts`), where a component for each would be a
+ * place to forget one. An unknown name draws nothing, and the list of names is typed where it is chosen.
+ */
+export function NodeIcon({ name, ...props }: IconProps & { name: string }) {
+  const nodes = LUCIDE[name];
+  if (!nodes) return null;
+  return (
+    <Svg {...props}>
+      {nodes.map(([tag, attributes], index) => {
+        const Shape = tag;
+        return <Shape key={index} {...attributes} />;
+      })}
     </Svg>
   );
 }

@@ -1,12 +1,12 @@
 import { AddVault } from "../browse/screens/AddVault";
-import { Landing, chosenVault } from "../browse/screens/Landing";
+import { chosenVault } from "../browse/screens/Landing";
 import { VaultList } from "../browse/screens/VaultList";
 import type { EntryViewProps, KindModule } from "./types";
 
 /**
- * A drive (spec §3.1): any number of vaults, each encrypted or not, and what every repository made before kinds existed is. Its
- * entry view is the vault list and the top of the vault the repository opens on (DESIGN.md §8), exactly as it was before kinds,
- * and it is what every other kind can be shown as ("Show files").
+ * A drive (spec §3.1): any number of vaults, each encrypted or not, and what every repository made before kinds existed is. Its entry view is its vaults as folders, as rows or
+ * tiles (the contents of one are one level down, when it is opened: `/open`, where signing in lands, goes into the one the repository opens on), and it is what every other kind
+ * can be shown as ("Show files").
  */
 export const driveKind: KindModule = {
   id: "drive",
@@ -18,13 +18,8 @@ export const driveKind: KindModule = {
   actions: [],
 };
 
-function DriveEntry({ accountId, connection, read }: EntryViewProps) {
+function DriveEntry({ connection, read }: EntryViewProps) {
   const outcome = { ok: true as const, read };
-  return (
-    <>
-      <VaultList read={read} connectionId={connection.id} repo={connection.publicId} opensOn={chosenVault(connection, outcome)} />
-      {read.manifest?.ok ? <AddVault connectionId={connection.id} existing={read.discovery.vaults.map((vault) => vault.directory)} /> : null}
-      <Landing accountId={accountId} connection={connection} outcome={outcome} />
-    </>
-  );
+  const add = read.manifest?.ok ? <AddVault connectionId={connection.id} existing={read.discovery.vaults.map((vault) => vault.directory)} /> : undefined;
+  return <VaultList read={read} connectionId={connection.id} repo={connection.publicId} opensOn={chosenVault(connection, outcome)} actions={add} />;
 }

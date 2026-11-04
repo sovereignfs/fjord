@@ -1,8 +1,10 @@
-import { Alert, Badge, Icon } from "../../ui";
+import { Alert } from "../../ui";
+import { NodeIcon } from "../../ui/icons";
 import styles from "../../auth/screens/screens.module.css";
 import type { ClassifiedFile, FileKind } from "../../format/types";
 import { repositoryHref } from "../links";
-import { addressBookFor } from "../address-book";
+import { type AddressBook, addressBookFor } from "../address-book";
+import { FILE_ICON, fileIconFor } from "../file-icons";
 import type { Location } from "../location";
 import type { NoteText } from "../note";
 import type { Preview } from "../../working/resolve";
@@ -12,6 +14,7 @@ import { MoveButtons } from "./MoveButtons";
 import { PublishPanel } from "../../publishing/PublishPanel";
 import { IdentifyAndShare } from "../../sharing/IdentifyAndShare";
 import { SharePanel } from "../../sharing/SharePanel";
+import { Listing, type ListingItem } from "./Listing";
 import { NewFile, type EncryptedCreate } from "./NewFile";
 import { UndoBanner } from "./UndoBanner";
 import { VaultConversion } from "./VaultConversion";
@@ -102,17 +105,25 @@ export async function FolderView({
   const here = (...segments: string[]) => (segments.length === 0 ? repositoryHref(repo) : book.href(segments.join("/")));
   const plainWritable = checkVault([vault], vault.directory) === "ok";
   const writable = plainWritable || encryptedNaming !== undefined;
+  // The folder that is open is drawn open in the path above it, as it is drawn closed in the listing of the one that holds it.
+  const opened = <NodeIcon name={FILE_ICON.folderOpen} size={14} aria-hidden style={{ verticalAlign: "-2px", marginRight: 4 }} />;
 
   return (
     <>
-      <nav aria-label="Path" className={styles.itemMeta}>
+      <nav aria-label="Path" className={styles.itemMeta} style={{ marginBottom: "var(--sv-space-3)" }}>
         <a href={here()}>{repository}</a>
         {" / "}
-        <a href={here(vault.directory)}>{vault.name ?? vault.directory}</a>
+        <a href={here(vault.directory)}>
+          {location.kind === "folder" && folders.length === 0 ? opened : null}
+          {vault.name ?? vault.directory}
+        </a>
         {folders.map((folder, index) => (
           <span key={folders.slice(0, index + 1).join("/")}>
             {" / "}
-            <a href={here(vault.directory, ...folders.slice(0, index + 1))}>{folder}</a>
+            <a href={here(vault.directory, ...folders.slice(0, index + 1))}>
+              {location.kind === "folder" && index === folders.length - 1 ? opened : null}
+              {folder}
+            </a>
           </span>
         ))}
         {location.kind === "file" ? <span> / {location.file.relative.split("/").at(-1)}</span> : null}
@@ -132,50 +143,50 @@ export async function FolderView({
           remove={writable && fileBlob !== undefined && (location.file.kind === "doc" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
-        <>
-          {plainWritable ? <NewFile connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} /> : null}
-          {encryptedCreate ? <NewFile connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} encrypted={encryptedCreate} /> : null}
-          {location.path === "" && site !== true && (plainWritable || encryptedNaming !== undefined) ? <VaultConversion connectionId={connectionId} vault={vault.directory} encrypted={!plainWritable} /> : null}
-          {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
-            <MoveButtons
-              repo={repo}
-              connectionId={connectionId}
-              vault={vault.directory}
-              target={{ type: "folder", path: `${vault.directory}/${location.path}`, files: folderFiles }}
-              suffix=""
-              destinations={destinations ?? []}
-            />
-          ) : null}
-          {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
-            <DeleteButton
-              repo={repo}
-              connectionId={connectionId}
-              vault={vault.directory}
-              target={{ type: "folder", path: `${vault.directory}/${location.path}`, files: folderFiles }}
-              name={folders[folders.length - 1] as string}
-              goTo={[vault.directory, ...folders.slice(0, -1)]}
-            />
-          ) : null}
-          {location.folders.length + location.files.length === 0 ? (
-            <p>{location.path === "" ? "This vault is empty." : "This folder is empty."}</p>
-          ) : (
-            <ul className={styles.list} aria-label="Folder contents">
-              {location.folders.map((folder) => (
-                <li key={`d:${folder.name}`} className={styles.item}>
-                  <span>
-                    <Icon name="folder" aria-hidden /> <a href={here(vault.directory, ...folders, folder.name)}>{folder.name}</a>
-                    {folder.files !== null ? <span className={styles.itemMeta}> · {folder.files === 1 ? "1 file" : `${folder.files} files`}</span> : null}
-                  </span>
-                </li>
-              ))}
-              {location.files.map((file) => (
-                <li key={`f:${file.relative}`} className={styles.item}>
-                  <FileRow href={vault.encrypted === false && /\.html?$/i.test(file.path) && file.kind === "other" ? book.htmlHref(file.path) : book.href(file.path)} file={file} page={vault.encrypted === false && /\.html?$/i.test(file.path) && file.kind === "other"} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
+        <Listing
+          label="Folder contents"
+          actions={
+            <>
+              {plainWritable ? <NewFile connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} /> : null}
+              {encryptedCreate ? <NewFile connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} encrypted={encryptedCreate} /> : null}
+              {plainWritable ? <NewFile mode="folder" connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} /> : null}
+              {encryptedCreate?.recipients.ok && encryptedCreate.naming === "plain" ? <NewFile mode="folder" connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} encrypted={encryptedCreate} /> : null}
+              {location.path === "" && site !== true && (plainWritable || encryptedNaming !== undefined) ? <VaultConversion connectionId={connectionId} vault={vault.directory} encrypted={!plainWritable} /> : null}
+              {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
+                <MoveButtons
+                  repo={repo}
+                  connectionId={connectionId}
+                  vault={vault.directory}
+                  target={{ type: "folder", path: `${vault.directory}/${location.path}`, files: folderFiles }}
+                  suffix=""
+                  destinations={destinations ?? []}
+                />
+              ) : null}
+              {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
+                <DeleteButton
+                  repo={repo}
+                  connectionId={connectionId}
+                  vault={vault.directory}
+                  target={{ type: "folder", path: `${vault.directory}/${location.path}`, files: folderFiles }}
+                  name={folders[folders.length - 1] as string}
+                  goTo={[vault.directory, ...folders.slice(0, -1)]}
+                />
+              ) : null}
+            </>
+          }
+          items={[
+            ...location.folders.map((folder) => ({
+              key: `d:${folder.name}`,
+              name: folder.name,
+              href: here(vault.directory, ...folders, folder.name),
+              icon: FILE_ICON.folder,
+              hoverIcon: FILE_ICON.folderOpen,
+              meta: folder.files === null ? undefined : folder.files === 1 ? "1 file" : `${folder.files} files`,
+            })),
+            ...location.files.map((file) => rowOf(file, vault.encrypted === false, book)),
+          ]}
+          empty={<p>{location.path === "" ? "This vault is empty." : "This folder is empty."}</p>}
+        />
       ) : null}
     </>
   );
@@ -209,42 +220,17 @@ function HtmlFrame({ name, src }: { name: string; src: string }) {
   );
 }
 
-function FileRow({ href, file, page }: { href: string; file: ClassifiedFile; page?: boolean }) {
+/** A file of a folder as a listing draws it: what it is called, whether and where it opens, its icon by its name, a label for what it is, and its size. */
+function rowOf(file: ClassifiedFile, plaintext: boolean, book: AddressBook): ListingItem {
   const name = leaf(file.logical);
-  const size = file.size > 0 ? <span className={styles.itemMeta}> · {humanSize(file.size)}</span> : null;
-
-  if (openable(file.kind)) {
-    return (
-      <span>
-        <Icon name="file-text" aria-hidden /> <a href={href}>{name}</a> <Badge>{KIND_LABEL[file.kind]}</Badge>
-        {size}
-      </span>
-    );
-  }
-  if (page) {
-    return (
-      <span>
-        <Icon name="file" aria-hidden /> <a href={href}>{name}</a> <Badge>Page</Badge>
-        {size}
-      </span>
-    );
-  }
-  if (decryptable(file.kind)) {
-    return (
-      <span>
-        <Icon name="lock" aria-label="Encrypted" /> <a href={href}>{name}</a> <Badge>{KIND_LABEL[file.kind]}</Badge>
-        {size}
-      </span>
-    );
-  }
+  const meta = file.size > 0 ? humanSize(file.size) : undefined;
+  const icon = fileIconFor(name, file.kind);
+  const page = plaintext && /\.html?$/i.test(file.path) && file.kind === "other";
+  if (openable(file.kind)) return { key: `f:${file.relative}`, name, href: book.href(file.path), icon, badges: [KIND_LABEL[file.kind]], meta };
+  if (page) return { key: `f:${file.relative}`, name, href: book.htmlHref(file.path), icon, badges: ["Page"], meta };
+  if (decryptable(file.kind)) return { key: `f:${file.relative}`, name, href: book.href(file.path), icon, badges: [KIND_LABEL[file.kind]], meta };
   // Greyed out, not linked: nothing opens it in this version.
-  return (
-    <span aria-disabled="true" style={{ opacity: 0.6 }} title="This kind of file cannot be opened in this version">
-      <Icon name="file" aria-label="Not openable" /> {name}
-      {KIND_LABEL[file.kind] !== "" ? <span className={styles.itemMeta}> · {KIND_LABEL[file.kind]}</span> : null}
-      {size}
-    </span>
-  );
+  return { key: `f:${file.relative}`, name, icon, badges: KIND_LABEL[file.kind] === "" ? [] : [KIND_LABEL[file.kind]], meta, title: "This kind of file cannot be opened in this version" };
 }
 
 function FileCard({
