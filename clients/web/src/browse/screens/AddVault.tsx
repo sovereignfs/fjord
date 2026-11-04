@@ -5,6 +5,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { keyStore } from "../../keys/client";
 import { Alert, Badge, Button, FormField, Icon, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
+import { ActionDialog } from "./ActionDialog";
 
 /**
  * Adding a vault to a Fjord repository (ROADMAP 2d.1, DESIGN.md §7): a name, plaintext or encrypted, and for an encrypted one how its
@@ -87,18 +88,18 @@ export function AddVault({ connectionId, existing }: { connectionId: number; /**
     }
   }
 
-  if (!open) {
-    return (
-      <p>
-        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-          Add a vault
-        </Button>
-      </p>
-    );
-  }
+  const trigger = (
+    <Button variant="primary" size="sm" onClick={() => setOpen(true)}>
+      Create a new vault
+    </Button>
+  );
+  if (!open) return trigger;
 
   return (
-    <form className={styles.form} onSubmit={onSubmit} aria-label="Add a vault" style={{ marginTop: 0 }}>
+    <>
+      {trigger}
+      <ActionDialog open onClose={busy ? () => undefined : reset} title="Create a new vault">
+    <form className={styles.form} onSubmit={onSubmit} aria-label="Create a new vault" style={{ marginTop: 0 }}>
       <FormField label="Vault name" hint="A folder at the top of the repository. It is also the vault's name." required error={taken ? "Something here already has that name, case aside." : undefined}>
         {(field) => <Input {...field} name="name" autoComplete="off" maxLength={255} autoFocus value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />}
       </FormField>
@@ -157,12 +158,14 @@ export function AddVault({ connectionId, existing }: { connectionId: number; /**
       ) : null}
       <div className={styles.actions}>
         <Button type="submit" loading={busy} disabled={trimmed === "" || taken || (encrypted && recipients.length === 0)}>
-          Add vault
+          Create vault
         </Button>
         <Button type="button" variant="secondary" onClick={reset} disabled={busy}>
           Cancel
         </Button>
       </div>
     </form>
+      </ActionDialog>
+    </>
   );
 }

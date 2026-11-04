@@ -13,8 +13,6 @@ export interface ListingItem {
   href?: string | undefined;
   /** Lucide's name for its icon (`browse/file-icons.ts` chooses it). */
   icon: string;
-  /** The icon it has when it is pointed at, for a folder that is about to be opened. */
-  hoverIcon?: string | undefined;
   /** Short labels after the name: what kind of file it is, that it is encrypted, that it opens first. */
   badges?: string[] | undefined;
   /** What to say of it that is not a label: how many files are in it, how large it is. */
@@ -72,14 +70,7 @@ export function Listing({ label, items, actions, empty }: { label: string; items
           {items.map((item) => (
             <li key={item.key} className={`${styles.item} ${item.href === undefined ? styles.disabled : ""}`} title={item.href === undefined ? item.title : undefined} aria-disabled={item.href === undefined ? true : undefined}>
               <span className={styles.icon} aria-hidden="true" data-icon={item.icon}>
-                <span className={styles.closed}>
-                  <NodeIcon name={item.icon} />
-                </span>
-                {item.hoverIcon ? (
-                  <span className={styles.open}>
-                    <NodeIcon name={item.hoverIcon} />
-                  </span>
-                ) : null}
+                <NodeIcon name={item.icon} />
               </span>
               <span className={styles.body}>
                 {item.href === undefined ? (

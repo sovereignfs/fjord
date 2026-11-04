@@ -9,6 +9,7 @@ import { keyStore } from "../../keys/client";
 import { type Naming, newEncryptedFile } from "../../keys/files";
 import { loadModule } from "../../keys/module";
 import { repositoryHref } from "../links";
+import { ActionDialog } from "./ActionDialog";
 
 /** What a new file in an encrypted vault is made with: how the vault names its files, and the text of its recipients file (or why there is none). */
 export interface EncryptedCreate {
@@ -91,17 +92,18 @@ export function NewFile({ connectionId, repo, vault, folder, encrypted, mode = "
     );
   }
 
-  if (!open) {
-    return (
-      <p>
-        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-          {asFolder ? "New folder" : "New document"}
-        </Button>
-      </p>
-    );
-  }
+  const close = () => (setOpen(false), setError(null), setTitle(""));
+  const trigger = (
+    <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+      {asFolder ? "New folder" : "New document"}
+    </Button>
+  );
+  if (!open) return trigger;
 
   return (
+    <>
+      {trigger}
+      <ActionDialog open onClose={busy ? () => undefined : close} title={asFolder ? "New folder" : "New document"}>
     <form className={styles.form} onSubmit={onSubmit} style={{ marginTop: 0 }} aria-label={asFolder ? "New folder" : "New document"}>
       {encrypted?.recipients.ok && mine !== null && !encrypted.recipients.text.includes(mine) ? (
         <div className={styles.notice}>
@@ -131,11 +133,13 @@ export function NewFile({ connectionId, repo, vault, folder, encrypted, mode = "
         <Button type="submit" loading={busy} disabled={asFolder && title.trim() === ""}>
           {asFolder ? "Create folder" : "Create document"}
         </Button>
-        <Button type="button" variant="secondary" onClick={() => (setOpen(false), setError(null), setTitle(""))} disabled={busy}>
+        <Button type="button" variant="secondary" onClick={close} disabled={busy}>
           Cancel
         </Button>
       </div>
     </form>
+      </ActionDialog>
+    </>
   );
 }
 

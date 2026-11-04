@@ -6,14 +6,13 @@ import { repositoryHref } from "../links";
 import { vaultAddress } from "../addresses";
 import type { RepositoryRead } from "../repository";
 import { FILE_ICON } from "../file-icons";
-import { ChooseVaultButton } from "./ChooseVaultButton";
 import { Listing } from "./Listing";
 
 /**
  * The vaults of a repository, drawn as the folders they are (the owner's request after workstream 0003): a folder for a plaintext vault and a locked one for an encrypted vault,
  * as rows or as tiles, each saying from names alone what is in it. Opening one shows what is inside, one level down. Nothing is downloaded to draw it.
  */
-export function VaultList({ read, connectionId, repo, opensOn, actions }: { read: RepositoryRead; connectionId: number; /** The buttons above the listing, at its left: what makes a new vault. */ actions?: ReactNode; /** What the repository is called in an address. */ repo: string; /** The directory of the vault the repository opens on. */ opensOn?: string | undefined }) {
+export function VaultList({ read, repo, actions }: { read: RepositoryRead; /** The buttons above the listing, at its left: what makes a new vault. */ actions?: ReactNode; /** What the repository is called in an address. */ repo: string }) {
   const { discovery, partial, manifest } = read;
   return (
     <>
@@ -45,9 +44,8 @@ export function VaultList({ read, connectionId, repo, opensOn, actions }: { read
             name: vault.name ?? vault.directory,
             href: vault.id === null ? repositoryHref(repo, vault.directory) : vaultAddress(repo, vault.id),
             icon: vault.encrypted ? FILE_ICON.encryptedVault : FILE_ICON.vault,
-            badges: [...(vault.directory === opensOn ? ["Opens first"] : []), ...(vault.encrypted ? ["Encrypted"] : [])],
+            badges: vault.encrypted ? ["Encrypted"] : [],
             meta: [vault.name !== null && vault.name !== vault.directory ? vault.directory : "", summary(vault, partial)].filter(Boolean).join(" · "),
-            trailing: discovery.vaults.length > 1 && vault.directory !== opensOn ? <ChooseVaultButton connectionId={connectionId} vault={vault.directory} label={vault.name ?? vault.directory} /> : undefined,
           }))}
         />
       )}

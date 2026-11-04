@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Alert, Button } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
+import { Alert, Button, ConfirmDialog } from "../../ui";
 import { type DeleteTarget, sendDelete } from "../../files/client";
 import { rememberUndo } from "../../files/undo";
 import { repositoryHref } from "../links";
@@ -54,34 +53,33 @@ export function DeleteButton({
 
   const what = target.type === "folder" ? `the folder “${name}” and the ${target.files === 1 ? "1 file" : `${target.files} files`} in it` : `“${name}”`;
   return (
-    <div>
-      {error ? (
-        <div className={styles.notice}>
-          <Alert variant="error" heading="Nothing was deleted">
-            {error.message}{" "}
-            {error.lookAgain ? (
-              <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
-                Look again
-              </Button>
-            ) : null}
-          </Alert>
-        </div>
-      ) : null}
-      {confirming ? (
-        <p>
-          Delete {what}? It stays in the repository&apos;s history, and you can put it back from Recently deleted.{" "}
-          <Button variant="destructive" size="sm" onClick={remove} loading={busy}>
-            Yes, delete
-          </Button>{" "}
-          <Button variant="secondary" size="sm" onClick={() => setConfirming(false)} disabled={busy}>
-            Cancel
-          </Button>
-        </p>
-      ) : (
-        <Button variant="secondary" size="sm" onClick={() => setConfirming(true)}>
-          {target.type === "folder" ? "Delete folder" : "Delete"}
-        </Button>
-      )}
-    </div>
+    <>
+      <Button variant="secondary" size="sm" onClick={() => setConfirming(true)}>
+        {target.type === "folder" ? "Delete folder" : "Delete"}
+      </Button>
+      <ConfirmDialog
+        open={confirming}
+        onClose={() => (setConfirming(false), setError(null))}
+        title={target.type === "folder" ? "Delete folder" : "Delete"}
+        message={<>Delete {what}? It stays in the repository&apos;s history, and you can put it back from Recently deleted.</>}
+        confirmLabel="Yes, delete"
+        cancelLabel="Cancel"
+        destructive
+        pending={busy}
+        onConfirm={remove}
+        error={
+          error ? (
+            <Alert variant="error" heading="Nothing was deleted">
+              {error.message}{" "}
+              {error.lookAgain ? (
+                <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
+                  Look again
+                </Button>
+              ) : null}
+            </Alert>
+          ) : undefined
+        }
+      />
+    </>
   );
 }

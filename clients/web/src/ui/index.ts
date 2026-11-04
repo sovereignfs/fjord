@@ -28,6 +28,7 @@ export {
   BrandBadge,
   Button,
   Card,
+  ConfirmDialog,
   Dialog,
   Tabs,
   ToastProvider,

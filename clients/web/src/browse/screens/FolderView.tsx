@@ -30,7 +30,7 @@ import { TransferControl } from "./TransferControl";
  * so nothing is downloaded to draw it: a Doc (any `.md`) is a link; any other file is
  * greyed out; and an encrypted file is a link with a lock, opened in the browser with the identity kept there (phase 2).
  */
-export async function FolderView({
+export async function folderParts({
   html,
   connectionId,
   repo,
@@ -108,9 +108,9 @@ export async function FolderView({
   // The folder that is open is drawn open in the path above it, as it is drawn closed in the listing of the one that holds it.
   const opened = <NodeIcon name={FILE_ICON.folderOpen} size={14} aria-hidden style={{ verticalAlign: "-2px", marginRight: 4 }} />;
 
-  return (
-    <>
-      <nav aria-label="Path" className={styles.itemMeta} style={{ marginBottom: "var(--sv-space-3)" }}>
+  // The path is drawn outside the card the page is in (the repository's page puts it between the name and the card), the rest inside it.
+  const crumbs = (
+    <nav aria-label="Path" className={styles.itemMeta} style={{ marginBottom: "var(--sv-space-3)" }}>
         <a href={here()}>{repository}</a>
         {" / "}
         <a href={here(vault.directory)}>
@@ -127,7 +127,10 @@ export async function FolderView({
           </span>
         ))}
         {location.kind === "file" ? <span> / {location.file.relative.split("/").at(-1)}</span> : null}
-      </nav>
+    </nav>
+  );
+  const body = (
+    <>
 
       {location.kind === "folder" ? <UndoBanner connectionId={connectionId} repo={repo} /> : null}
 
@@ -147,10 +150,10 @@ export async function FolderView({
           label="Folder contents"
           actions={
             <>
-              {plainWritable ? <NewFile connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} /> : null}
-              {encryptedCreate ? <NewFile connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} encrypted={encryptedCreate} /> : null}
               {plainWritable ? <NewFile mode="folder" connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} /> : null}
               {encryptedCreate?.recipients.ok && encryptedCreate.naming === "plain" ? <NewFile mode="folder" connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} encrypted={encryptedCreate} /> : null}
+              {plainWritable ? <NewFile connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} /> : null}
+              {encryptedCreate ? <NewFile connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} encrypted={encryptedCreate} /> : null}
               {location.path === "" && site !== true && (plainWritable || encryptedNaming !== undefined) ? <VaultConversion connectionId={connectionId} vault={vault.directory} encrypted={!plainWritable} /> : null}
               {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
                 <MoveButtons
@@ -180,7 +183,6 @@ export async function FolderView({
               name: folder.name,
               href: here(vault.directory, ...folders, folder.name),
               icon: FILE_ICON.folder,
-              hoverIcon: FILE_ICON.folderOpen,
               meta: folder.files === null ? undefined : folder.files === 1 ? "1 file" : `${folder.files} files`,
             })),
             ...location.files.map((file) => rowOf(file, vault.encrypted === false, book)),
@@ -188,6 +190,18 @@ export async function FolderView({
           empty={<p>{location.path === "" ? "This vault is empty." : "This folder is empty."}</p>}
         />
       ) : null}
+    </>
+  );
+  return { crumbs, body };
+}
+
+/** The page of a folder or a file of a vault: its path and what is in it, as one (for a page that has no card of its own to put the path outside). */
+export async function FolderView(props: Parameters<typeof folderParts>[0]) {
+  const { crumbs, body } = await folderParts(props);
+  return (
+    <>
+      {crumbs}
+      {body}
     </>
   );
 }
@@ -289,7 +303,10 @@ function FileCard({
       {remove && docId && !encrypted ? <PublishPanel connectionId={connectionId} docId={docId} /> : null}
       {remove && !docId && !encrypted && file.kind === "doc" && note?.ok ? <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} /> : null}
       {remove ? (
-        <MoveButtons connectionId={connectionId} repo={repo} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "var(--sv-space-2)", margin: "var(--sv-space-3) 0" }}>
+          <MoveButtons connectionId={connectionId} repo={repo} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
+          <DeleteButton connectionId={connectionId} repo={repo} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
+        </div>
       ) : null}
       {remove && file.kind === "doc" && note?.ok && transferTargets.length > 0 ? (
         <TransferControl
@@ -303,9 +320,6 @@ function FileCard({
           targets={transferTargets}
           blocked={draft ? "This file has unsaved changes. Save a version of them, or discard them, to move it to another vault." : undefined}
         />
-      ) : null}
-      {remove ? (
-        <DeleteButton connectionId={connectionId} repo={repo} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
       ) : null}
     </>
   );

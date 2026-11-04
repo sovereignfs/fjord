@@ -12,21 +12,13 @@
   display: flex;
   flex: 1 1 auto;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--sv-space-2);
   min-width: 0;
 }
 
-/* What the buttons open (a form, a confirmation) goes below them, across the line, and not between them. */
-.actions > form,
-.actions > section,
-.actions > div:has(form) {
-  flex: 1 1 100%;
-  order: 10;
-}
-
-/* The buttons are one line each; the paragraph a button used to be wrapped in is not a block of its own here. */
-.actions > p {
+/* The buttons are one line, level with each other and with the toggle; what they ask for is in a dialog (`ActionDialog`), not here. */
+.actions > * {
   margin: 0;
 }
 
@@ -91,20 +83,6 @@
   height: 100%;
 }
 
-.open {
-  display: none;
-}
-
-.item:hover .closed,
-.item:focus-within .closed {
-  display: none;
-}
-
-.item:hover .open,
-.item:focus-within .open {
-  display: inline-flex;
-}
-
 .name {
   color: var(--sv-color-text-primary);
   font-weight: var(--sv-font-weight-medium);
@@ -120,10 +98,6 @@ a.name::after {
   content: "";
   position: absolute;
   inset: 0;
-}
-
-a.name:hover {
-  text-decoration: underline;
 }
 
 a.name:focus-visible {
@@ -205,6 +179,7 @@ a.name:focus-visible {
 @media (hover: hover) {
   .grid[data-view="grid"] .item:hover {
     border-color: var(--sv-color-border-strong);
+    background-color: var(--sv-color-surface-sunken);
   }
 }
 

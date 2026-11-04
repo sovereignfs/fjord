@@ -6,6 +6,7 @@ import styles from "../../auth/screens/screens.module.css";
 import { type DeleteTarget, sendMove } from "../../files/client";
 import { MAX_TITLE_CHARS } from "../../files/limits";
 import { repositoryHref } from "../links";
+import { ActionDialog } from "./ActionDialog";
 
 /**
  * Rename and move a note, a document or a folder (ROADMAP 1b.11), from the page of the file or the folder. Rename edits the
@@ -60,82 +61,85 @@ export function MoveButtons({
   }
 
   const noun = target.type === "folder" ? "folder" : "file";
+  const close = () => (setMode(null), setError(null));
+  const title = mode === "move" ? (target.type === "folder" ? "Move folder" : "Move") : target.type === "folder" ? "Rename folder" : "Rename";
   return (
-    <div>
-      {error ? (
-        <div className={styles.notice}>
-          <Alert variant="error" heading={`The ${noun} was not changed`}>
-            {error.message}{" "}
-            {error.lookAgain ? (
-              <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
-                Look again
-              </Button>
-            ) : null}
-          </Alert>
-        </div>
+    <>
+      {canRename ? (
+        <Button variant="secondary" size="sm" onClick={() => setMode("rename")}>
+          {target.type === "folder" ? "Rename folder" : "Rename"}
+        </Button>
       ) : null}
-      {mode === "rename" ? (
-        <form
-          className={styles.form}
-          onSubmit={(event) => {
-            event.preventDefault();
-            void go(`${parent}/${name.trim()}${suffix}`);
-          }}
-        >
-          <FormField label="New name" hint={suffix === "" ? undefined : `It stays ${suffix}.`}>
-            {(field) => <Input {...field} name="name" autoComplete="off" maxLength={MAX_TITLE_CHARS} value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />}
-          </FormField>
-          <div className={styles.actions}>
-            <Button type="submit" size="sm" loading={busy} disabled={name.trim() === "" || name.trim() === stem}>
-              Rename
-            </Button>{" "}
-            <Button variant="secondary" size="sm" onClick={() => setMode(null)} disabled={busy}>
-              Cancel
-            </Button>
+      {places.length > 0 ? (
+        <Button variant="secondary" size="sm" onClick={() => setMode("move")}>
+          {target.type === "folder" ? "Move folder" : "Move"}
+        </Button>
+      ) : null}
+      <ActionDialog open={mode !== null} onClose={busy ? () => undefined : close} title={title}>
+        {error ? (
+          <div className={styles.notice}>
+            <Alert variant="error" heading={`The ${noun} was not changed`}>
+              {error.message}{" "}
+              {error.lookAgain ? (
+                <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
+                  Look again
+                </Button>
+              ) : null}
+            </Alert>
           </div>
-        </form>
-      ) : mode === "move" ? (
-        <form
-          className={styles.form}
-          onSubmit={(event) => {
-            event.preventDefault();
-            void go(`${place}/${leaf}`);
-          }}
-        >
-          <FormField label="Move to">
-            {(field) => (
-              <select {...field} name="place" value={place} onChange={(e) => setPlace(e.target.value)} disabled={busy}>
-                {places.map((candidate) => (
-                  <option key={candidate} value={candidate}>
-                    {candidate}
-                  </option>
-                ))}
-              </select>
-            )}
-          </FormField>
-          <div className={styles.actions}>
-            <Button type="submit" size="sm" loading={busy} disabled={place === ""}>
-              Move
-            </Button>{" "}
-            <Button variant="secondary" size="sm" onClick={() => setMode(null)} disabled={busy}>
-              Cancel
-            </Button>
-          </div>
-        </form>
-      ) : (
-        <p>
-          {canRename ? (
-            <Button variant="secondary" size="sm" onClick={() => setMode("rename")}>
-              {target.type === "folder" ? "Rename folder" : "Rename"}
-            </Button>
-          ) : null}{" "}
-          {places.length > 0 ? (
-            <Button variant="secondary" size="sm" onClick={() => setMode("move")}>
-              {target.type === "folder" ? "Move folder" : "Move"}
-            </Button>
-          ) : null}
-        </p>
-      )}
-    </div>
+        ) : null}
+        {mode === "rename" ? (
+          <form
+            className={styles.form}
+            style={{ marginTop: 0 }}
+            onSubmit={(event) => {
+              event.preventDefault();
+              void go(`${parent}/${name.trim()}${suffix}`);
+            }}
+          >
+            <FormField label="New name" hint={suffix === "" ? undefined : `It stays ${suffix}.`}>
+              {(field) => <Input {...field} name="name" autoComplete="off" maxLength={MAX_TITLE_CHARS} autoFocus value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />}
+            </FormField>
+            <div className={styles.actions}>
+              <Button type="submit" size="sm" loading={busy} disabled={name.trim() === "" || name.trim() === stem}>
+                Rename
+              </Button>{" "}
+              <Button type="button" variant="secondary" size="sm" onClick={close} disabled={busy}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : mode === "move" ? (
+          <form
+            className={styles.form}
+            style={{ marginTop: 0 }}
+            onSubmit={(event) => {
+              event.preventDefault();
+              void go(`${place}/${leaf}`);
+            }}
+          >
+            <FormField label="Move to">
+              {(field) => (
+                <select {...field} name="place" value={place} onChange={(e) => setPlace(e.target.value)} disabled={busy}>
+                  {places.map((candidate) => (
+                    <option key={candidate} value={candidate}>
+                      {candidate}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </FormField>
+            <div className={styles.actions}>
+              <Button type="submit" size="sm" loading={busy} disabled={place === ""}>
+                Move
+              </Button>{" "}
+              <Button type="button" variant="secondary" size="sm" onClick={close} disabled={busy}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : null}
+      </ActionDialog>
+    </>
   );
 }

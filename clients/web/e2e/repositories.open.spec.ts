@@ -478,9 +478,10 @@ test("a repository opens on the first vault its fjord.json lists, not the first 
   const id = await connected(page);
   await page.goto(`/repo/${id}`);
   const vaults = page.getByRole("list", { name: "Vaults" });
-  // The directories sort Private before Public; fjord.json lists Public first.
-  await expect(vaults.getByRole("listitem").filter({ hasText: "Public notes" })).toContainText("Opens first");
-  await expect(vaults.getByRole("listitem").filter({ hasText: "Private" })).not.toContainText("Opens first");
+  // The directories sort Private before Public; fjord.json lists Public first. No vault says which opens first: it is a setting, and `/open` shows it.
+  await expect(vaults.getByRole("listitem").first()).toContainText("Private");
+  await expect(vaults.getByText("Opens first", { exact: false })).toHaveCount(0);
+  await expect(vaults.getByRole("button")).toHaveCount(0);
   // The page is the vaults, as folders: what is inside one is one level down, when it is opened.
   await expect(page.getByRole("list", { name: "Folder contents" })).toHaveCount(0);
   // Signing in lands in that vault (`/open`), at its own address.
@@ -507,7 +508,7 @@ test("a repository's vaults are folders, a plain one and a locked one, as rows o
   await page.getByRole("button", { name: "List view" }).click();
   await expect(page.getByRole("list", { name: "Vaults" })).toHaveAttribute("data-view", "list");
   // The new-vault button is one of the listing's actions, and a vault opens on a click anywhere in its row.
-  await expect(page.getByRole("button", { name: "Add a vault" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create a new vault" })).toBeVisible();
   await page.getByRole("list", { name: "Vaults" }).getByRole("listitem").filter({ hasText: "Public notes" }).getByText("Public notes").click();
   await expect(page).toHaveURL(PLACE);
 });
@@ -599,19 +600,27 @@ test("a repository's settings are a dialog, and what was deleted is at /repo/<re
   expect((await page.goto("/deleted/zzzzzzzz"))?.status()).toBe(404);
 });
 
-test("choosing another vault changes where the repository opens, and the choice is kept", async ({ page }) => {
-  await connected(page);
+test("choosing another vault changes where the repository opens, from the repository's settings, and the choice is kept", async ({ page }) => {
+  const id = await connected(page);
   await openRepository(page);
-  const vaults = page.getByRole("list", { name: "Vaults" });
-  await vaults.getByRole("listitem").filter({ hasText: "Private" }).getByRole("button", { name: "Open this one first" }).click();
+  await page.getByRole("button", { name: "Repository settings" }).click();
+  const dialog = page.getByRole("dialog", { name: "Repository settings" });
+  const select = dialog.getByLabel("Opens on");
+  // fjord.json lists Public first, and it is what it opens on until another is chosen.
+  await expect(select).toHaveValue("Public");
+  await expect(dialog.getByRole("button", { name: "Use this vault" })).toBeDisabled();
+  await select.selectOption("Private");
+  const saved = page.waitForResponse((response) => response.url().includes("/vault") && response.request().method() === "PUT");
+  await dialog.getByRole("button", { name: "Use this vault" }).click();
+  expect((await saved).status()).toBe(204);
+  await page.keyboard.press("Escape");
 
-  await expect(vaults.getByRole("listitem").filter({ hasText: "Private" })).toContainText("Opens first");
-  await expect(vaults.getByRole("listitem").filter({ hasText: "Public notes" })).not.toContainText("Opens first");
-  // Only the vault that is not already first offers the button.
-  await expect(vaults.getByRole("listitem").filter({ hasText: "Private" }).getByRole("button")).toHaveCount(0);
-
-  await page.reload();
-  await expect(vaults.getByRole("listitem").filter({ hasText: "Private" })).toContainText("Opens first");
+  // Signing in lands in the vault chosen, and a reload keeps the choice.
+  await page.goto("/open");
+  await expect(page).toHaveURL(`${BASE}/repo/${await repoOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hw`);
+  await page.goto(`/repo/${id}`);
+  await page.getByRole("button", { name: "Repository settings" }).click();
+  await expect(page.getByRole("dialog", { name: "Repository settings" }).getByLabel("Opens on")).toHaveValue("Private");
 });
 
 test("who may choose a repository's vault, and which", async ({ page, browser }) => {
@@ -807,7 +816,7 @@ test("a plaintext vault is added from the page in one commit, listed in fjord.js
     const { before } = await fjordRepository(page);
     await expect(page.getByRole("list", { name: "Vaults" })).toContainText("Public");
 
-    await page.getByRole("button", { name: "Add a vault" }).click();
+    await page.getByRole("button", { name: "Create a new vault" }).click();
     await page.getByLabel("Vault name").fill("Journal");
     const files = page.getByRole("list", { name: "What would be written" });
     await expect(files.getByRole("listitem")).toHaveCount(2);
@@ -815,7 +824,7 @@ test("a plaintext vault is added from the page in one commit, listed in fjord.js
     // Looking is not writing.
     expect(await hubs.more.branchHead()).toBe(before);
 
-    await page.getByRole("button", { name: "Add vault" }).click();
+    await page.getByRole("button", { name: "Create vault" }).click();
     await expect(page.getByRole("list", { name: "Vaults" })).toContainText("Journal");
 
     const after = (await hubs.more.branchHead()) as string;
@@ -838,7 +847,7 @@ test("a plaintext vault is added from the page in one commit, listed in fjord.js
 test("an encrypted vault is added with its keys, shows as encrypted, and the recipients file is written", async ({ page }) => {
   try {
     await fjordRepository(page);
-    await page.getByRole("button", { name: "Add a vault" }).click();
+    await page.getByRole("button", { name: "Create a new vault" }).click();
     await page.getByLabel("Vault name").fill("Secret");
     await page.getByLabel(/Only the people whose keys you list/).check();
     await page.getByLabel(/Hide file names too/).check();
@@ -847,10 +856,10 @@ test("an encrypted vault is added with its keys, shows as encrypted, and the rec
     const files = page.getByRole("list", { name: "What would be written" });
     await expect(files).toContainText("Secret/recipients.txt");
     await expect(files).toContainText("Secret/.gitignore");
-    await expect(page.getByRole("button", { name: "Add vault" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Create vault" })).toBeDisabled();
 
     await page.getByLabel(/Public keys/).fill(`${A_KEY}\n${A_KEY}`);
-    await page.getByRole("button", { name: "Add vault" }).click();
+    await page.getByRole("button", { name: "Create vault" }).click();
     const vaults = page.getByRole("list", { name: "Vaults" });
     await expect(vaults.getByRole("listitem").filter({ hasText: "Secret" })).toContainText("Encrypted");
 
@@ -884,17 +893,17 @@ test("a vault that cannot be added is refused with the reason, from the page and
     expect(await hubs.more.branchHead()).toBe(before);
 
     // A name that is taken is said before the button.
-    await page.getByRole("button", { name: "Add a vault" }).click();
+    await page.getByRole("button", { name: "Create a new vault" }).click();
     await page.getByLabel("Vault name").fill("PUBLIC");
     await expect(page.getByText("already has that name")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Add vault" })).toBeDisabled();
+    await expect(page.getByRole("button", { name: "Create vault" })).toBeDisabled();
 
     // A key that is not one is refused by the server, in words.
     await page.getByLabel("Vault name").fill("Secret");
     await page.getByLabel(/Only the people whose keys you list/).check();
     await page.getByLabel(/Public keys/).fill("age1notakey");
-    await page.getByRole("button", { name: "Add vault" }).click();
-    await expect(alertOn(page).filter({ hasText: "Nothing was written" })).toBeVisible();
+    await page.getByRole("button", { name: "Create vault" }).click();
+    await expect(page.getByRole("dialog").getByRole("alert").filter({ hasText: "Nothing was written" })).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(before);
   } finally {
     await restoreMore();
@@ -1234,7 +1243,7 @@ test("encrypted files are renamed, moved, deleted and put back as the bytes they
     await page.getByRole("button", { name: "Rename", exact: true }).click();
     await expect(page.getByText("It stays .md.age.")).toBeVisible();
     await page.getByLabel("New name").fill("Renamed");
-    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
     await headHas("Open/Renamed.md.age");
     let head = (await hubs.more.branchHead())!;
     expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Rename note to Renamed");
@@ -1246,7 +1255,7 @@ test("encrypted files are renamed, moved, deleted and put back as the bytes they
     const places = await page.getByLabel("Move to").locator("option").allTextContents();
     expect(places.every((place) => place === "Open" || place.startsWith("Open/"))).toBe(true);
     await page.getByLabel("Move to").selectOption("Open/Sub");
-    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
     await headHas("Open/Sub/Renamed.md.age");
     head = (await hubs.more.branchHead())!;
     expect(await blobAt(head, "Open/Sub/Renamed.md.age")).toBe(original);
@@ -1266,7 +1275,7 @@ test("encrypted files are renamed, moved, deleted and put back as the bytes they
     await page.goto(`/repo/${id}/Open/Sub`);
     await page.getByRole("button", { name: "Rename folder" }).click();
     await page.getByLabel("New name").fill("Archive");
-    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
     await headHas("Open/Archive/Renamed.md.age");
     expect(Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!)).filter((path) => path.startsWith("Open/Archive/")).sort()).toEqual(["Open/Archive/Renamed.md.age", "Open/Archive/other.md.age"]);
 
@@ -1327,7 +1336,7 @@ test("a file of an id-named encrypted vault is renamed by the name inside it, ke
     await page.goto(`/repo/${id}/Sealed/${name}.age`);
     await page.getByRole("button", { name: "Move", exact: true }).click();
     await page.getByLabel("Move to").selectOption("Sealed/Sub");
-    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
     await headHas(`Sealed/Sub/${name}.age`);
     const moved = (await hubs.more.branchHead())!;
     expect(textOf(wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(moved, `Sealed/Sub/${name}.age`))).contents)).toBe("# Plan\n\nSECRET PLAINTEXT");
@@ -2379,7 +2388,9 @@ test("only what was confirmed is deleted: a folder that gained a file since is l
     await expect(page.getByText("now holds 3 files")).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(theirs);
     await page.getByRole("button", { name: "Look again" }).click();
-    await expect(page.getByText("the 3 files in it")).toHaveCount(0);
+    // The page is read again, with the dialog closed (the question is still in the page, hidden, until it is asked again).
+    await expect(page.getByText("the 3 files in it")).toBeHidden();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByRole("button", { name: "Delete folder" }).click();
     await expect(page.getByText("the 3 files in it")).toBeVisible();
   } finally {
@@ -3079,7 +3090,7 @@ test("a note is renamed in one commit, byte for byte, keeping its extension", as
     await page.getByRole("button", { name: "Rename", exact: true }).click();
     await expect(page.getByText("It stays .md.")).toBeVisible();
     await page.getByLabel("New name").fill("A better idea");
-    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
     await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
     await expect(noteEditor(page, "A better idea.md")).toContainText("Idea");
 
@@ -3113,7 +3124,7 @@ test("a document moved to another folder is still found by its id, and its heade
     // Folders of plaintext vaults, the top of each first, and not where it already is.
     await expect(place.locator("option")).toHaveText(["Other", "Notes/Archive"]);
     await place.selectOption("Other");
-    await page.getByRole("button", { name: "Move", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
     await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
 
     // The folder page is already at /f/<handle>, so the address cannot say the commit is made.
@@ -3144,7 +3155,7 @@ test("a folder is renamed with everything in it, in one commit", async ({ page }
     await page.goto(`/repo/${id}/Notes/Old`);
     await page.getByRole("button", { name: "Rename folder" }).click();
     await page.getByLabel("New name").fill("Older");
-    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
     await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
     await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("Deep");
 
@@ -3168,7 +3179,7 @@ test("a name that is taken, or taken but for letter case, is refused and says so
     await page.getByRole("button", { name: "Rename", exact: true }).click();
     for (const name of ["Taken", "taken", "bad:name", "CON"]) {
       await page.getByLabel("New name").fill(name);
-      await page.getByRole("button", { name: "Rename", exact: true }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
       await expect(page.getByRole("alert").filter({ hasText: "The file was not changed" })).toBeVisible();
       await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
     }
@@ -3191,7 +3202,7 @@ test("what is typed and not yet saved is saved as a version first, then moved wi
 
     await page.getByRole("button", { name: "Rename", exact: true }).click();
     await page.getByLabel("New name").fill("renamed");
-    await page.getByRole("button", { name: "Rename", exact: true }).click();
+    await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
     await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
 
     // The folder page is already at /f/<handle>, so the address cannot say the commit is made.

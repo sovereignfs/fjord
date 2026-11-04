@@ -3,7 +3,7 @@ import { requireSession } from "../../auth/server";
 import { safeSegments } from "../location";
 import { entryFor } from "../../kinds/entry";
 import { journalTagsFor } from "../../journal/server";
-import { FolderView } from "../screens/FolderView";
+import { folderParts } from "../screens/FolderView";
 import { assessSetupFor, findDocIdIn, locateInRepository, readConnection, readNoteFor, recordFileRead } from "../server";
 import { type Address, vaultAddress } from "../addresses";
 import type { Location } from "../location";
@@ -71,6 +71,7 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
   if (path !== undefined && path.length > 0 && segments === undefined) notFound();
 
   let content;
+  let crumbs;
   if (outcome.ok && segments !== undefined && segments.length > 0) {
     const found = await locateInRepository(user.id, current, outcome.read, segments);
     if (!found.ok) {
@@ -144,7 +145,9 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
       const header = file !== undefined && note?.ok ? headerOf(fjord(), draft?.content ?? note.text, file.path.slice(file.path.lastIndexOf("/") + 1)) : undefined;
       // In a plaintext journal, the tags already in use are offered while one is typed (ROADMAP 3b.3): from what its timeline knows.
       const tagSuggestions = note?.ok ? await journalTagsFor(user.id, current, outcome.read) : undefined;
-      content = <FolderView html={isHtmlPage(found.location) ? { src: `/raw/${current.publicId}/${await new FileHandles(await getDatabase()).forPath(current.id, segments.join("/"))}` } : undefined} tagSuggestions={tagSuggestions} connectionId={current.id} repo={current.publicId} repository={`${current.owner}/${current.name}`} location={found.location} note={note} draft={draft} preview={preview} fileBlob={fileBlob} encryptedEditing={encryptedEditing} encryptedCreate={encryptedCreate} folderFiles={folderFiles} header={header} permalink={permalink} docId={file?.kind === "doc" ? (docId ?? undefined) : undefined} editor={kindFor(outcome.read.manifest).editor} writing={kindFor(outcome.read.manifest).writingView} site={kindFor(outcome.read.manifest).contentModel.fields.includes("draft")} destinations={moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined)} encryptedNaming={encryptedNaming} transferTargets={transferTargets} />;
+      const parts = await folderParts({ html: isHtmlPage(found.location) ? { src: `/raw/${current.publicId}/${await new FileHandles(await getDatabase()).forPath(current.id, segments.join("/"))}` } : undefined, tagSuggestions, connectionId: current.id, repo: current.publicId, repository: `${current.owner}/${current.name}`, location: found.location, note, draft, preview, fileBlob, encryptedEditing, encryptedCreate, folderFiles, header, permalink, docId: file?.kind === "doc" ? (docId ?? undefined) : undefined, editor: kindFor(outcome.read.manifest).editor, writing: kindFor(outcome.read.manifest).writingView, site: kindFor(outcome.read.manifest).contentModel.fields.includes("draft"), destinations: moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined), encryptedNaming, transferTargets });
+      content = parts.body;
+      crumbs = parts.crumbs;
     }
   }
 
@@ -158,7 +161,7 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
   const { kind, entry } = entryFor(user.id, current, outcome, asFiles, query);
   const landing = atTop ? entry : undefined;
   const kindLink = atTop && kind.id !== "drive" ? { label: kind.label, asFiles, ...(filesHref ? { filesHref } : {}) } : undefined;
-  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} kind={kindLink} setup={atTop ? await assessSetupFor(user.id, current, outcome) : undefined} />;
+  return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} crumbs={crumbs} landing={landing} kind={kindLink} setup={atTop ? await assessSetupFor(user.id, current, outcome) : undefined} />;
 }
 
 /** Whether a located file is a static HTML page the app can run: `.html` or `.htm` in a vault that is not encrypted (an encrypted vault's bytes are the browser's to open). */

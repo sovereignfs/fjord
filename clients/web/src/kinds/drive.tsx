@@ -1,5 +1,4 @@
 import { AddVault } from "../browse/screens/AddVault";
-import { chosenVault } from "../browse/screens/Landing";
 import { VaultList } from "../browse/screens/VaultList";
 import type { EntryViewProps, KindModule } from "./types";
 
@@ -19,7 +18,6 @@ export const driveKind: KindModule = {
 };
 
 function DriveEntry({ connection, read }: EntryViewProps) {
-  const outcome = { ok: true as const, read };
   const add = read.manifest?.ok ? <AddVault connectionId={connection.id} existing={read.discovery.vaults.map((vault) => vault.directory)} /> : undefined;
-  return <VaultList read={read} connectionId={connection.id} repo={connection.publicId} opensOn={chosenVault(connection, outcome)} actions={add} />;
+  return <VaultList read={read} repo={connection.publicId} actions={add} />;
 }

@@ -1,0 +1,9 @@
+.body {
+  padding: var(--sv-space-5);
+}
+
+.heading {
+  margin: 0 0 var(--sv-space-4);
+  font-size: var(--sv-font-size-lg);
+  font-weight: var(--sv-font-weight-semibold);
+}

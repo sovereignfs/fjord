@@ -9,6 +9,7 @@ import { keyStore } from "../../keys/client";
 import { decryptFiles, encryptFiles } from "../../keys/convert";
 import { loadModule } from "../../keys/module";
 import { KeyError, type Status } from "../../keys/store";
+import { ActionDialog } from "./ActionDialog";
 
 /**
  * Make this vault encrypted, or plaintext again (RFC 0003, `fjord encrypt <vault> --permanent` and `fjord decrypt <vault> --permanent` on the command line). There is no checkout here: a browser
@@ -42,15 +43,11 @@ export function VaultConversion({ connectionId, vault, encrypted }: { connection
 
   const verb = encrypted ? "Make this vault plaintext" : "Encrypt this vault";
 
-  if (!open) {
-    return (
-      <p>
-        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-          {verb}…
-        </Button>
-      </p>
-    );
-  }
+  const trigger = (
+    <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+      {verb}…
+    </Button>
+  );
 
   async function onUnlock(event: FormEvent) {
     event.preventDefault();
@@ -109,7 +106,11 @@ export function VaultConversion({ connectionId, vault, encrypted }: { connection
   }
 
   const busy = working !== null;
+  if (!open) return trigger;
   return (
+    <>
+      {trigger}
+      <ActionDialog open onClose={busy ? () => undefined : () => (setOpen(false), setConfirming(false), setError(null))} title={verb}>
     <section className={styles.form} aria-label={verb} data-testid="vault-conversion">
       <p>
         {encrypted
@@ -159,5 +160,7 @@ export function VaultConversion({ connectionId, vault, encrypted }: { connection
       </div>
       {working ? <p className={styles.itemMeta} role="status">{working}</p> : null}
     </section>
+      </ActionDialog>
+    </>
   );
 }

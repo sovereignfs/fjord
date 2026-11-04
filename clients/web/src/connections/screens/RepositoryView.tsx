@@ -8,6 +8,8 @@ import { deletedAddress } from "../../browse/addresses";
 import { Alert, Badge, Card } from "../../ui";
 import { NodeIcon } from "../../ui/icons";
 import type { ConnectionInfo } from "../service";
+import { defaultVault } from "../../browse/default-vault";
+import { DefaultVaultSetting } from "./DefaultVaultSetting";
 import { MakeDefaultButton } from "./MakeDefaultButton";
 import { RepositorySettings } from "./RepositorySettings";
 import header from "./RepositoryHeader.module.css";
@@ -27,6 +29,7 @@ export function RepositoryView({
   landing,
   setup,
   kind,
+  crumbs,
 }: {
   user: { name: string; email: string };
   connections: ConnectionInfo[];
@@ -34,6 +37,8 @@ export function RepositoryView({
   outcome: Outcome;
   /** What to show in place of the vault list: a folder or a file of a vault (`/repo/<id>/<path>`). */
   content?: ReactNode;
+  /** Where the folder or file shown is, as a path: drawn between the repository's name and the card that holds `content`, not in it. */
+  crumbs?: ReactNode;
   /** What the repository opens on: its kind's entry view (`entryFor`), which for a drive is its vaults and the top of the one it opens on; only without `content`. */
   landing?: ReactNode;
   /**
@@ -62,6 +67,17 @@ export function RepositoryView({
                   <ChangeKind connectionId={current.id} kind={outcome.read.manifest.declaredKind ?? "drive"} engine={outcome.read.manifest.ssgEngine} />
                 </section>
               ) : null}
+              {outcome.ok && outcome.read.discovery.vaults.length > 1 ? (
+                <section aria-label="Default vault">
+                  <h2>Default vault</h2>
+                  <p>The vault this repository opens on, where signing in lands when it is your default repository.</p>
+                  <DefaultVaultSetting
+                    connectionId={current.id}
+                    vaults={outcome.read.discovery.vaults.map((vault) => ({ directory: vault.directory, label: vault.name ?? vault.directory }))}
+                    current={defaultVault(outcome.read.discovery, outcome.read.manifest, current.defaultVault)}
+                  />
+                </section>
+              ) : null}
               <section aria-label="Repositories">
                 <h2>Repositories</h2>
                 <p>
@@ -83,6 +99,7 @@ export function RepositoryView({
             </>
           ) : null}
         </p>
+        {crumbs ? <div className={header.crumbs}>{crumbs}</div> : null}
         <Card as="article" padding="lg">
           {content ? (
             content
