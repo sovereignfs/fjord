@@ -1,6 +1,9 @@
 import { SignedInShell } from "../../src/auth/screens/SignedInShell";
 import { requireSession } from "../../src/auth/server";
 import { connectionService } from "../../src/connections/server";
+import { NewRepositoryForm } from "../../src/local/screens/NewRepositoryForm";
+import { LocalUsage } from "../../src/local/screens/LocalUsage";
+import { localLimits } from "../../src/local/limits";
 import { ConnectForm } from "../../src/connections/screens/ConnectForm";
 import { ConnectionList } from "../../src/connections/screens/ConnectionList";
 import { GitHubAppPanel } from "../../src/connections/screens/GitHubAppPanel";
@@ -29,7 +32,13 @@ export default async function RepositoriesPage({ searchParams }: { searchParams:
           <>
             <Card as="div" padding="lg">
               <ConnectionList connections={connections} />
+              {localLimits().repositories > 0 ? <LocalUsage accountId={user.id} /> : null}
             </Card>
+            {localLimits().repositories > 0 ? (
+              <Card as="div" padding="lg">
+                <NewRepositoryForm />
+              </Card>
+            ) : null}
             {gitHubApp() ? (
               <Card as="div" padding="lg">
                 <GitHubAppPanel result={{ github_app: one("github_app"), added: one("added"), already: one("already"), skipped: one("skipped") }} />

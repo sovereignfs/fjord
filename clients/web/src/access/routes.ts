@@ -90,6 +90,9 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/sovereign/backchannel-logout", methods: { POST: { kind: "public" } } },
   { route: "/api/sovereign/account-deleted", methods: { POST: { kind: "public" } } },
   { route: "/api/connections", methods: { GET: { kind: "account" }, POST: { kind: "account" } } },
+  // Repositories kept on this server until they are connected to git (3i): an account makes its own, within its limits, and moves one to a git repository.
+  { route: "/api/connections/local", methods: { GET: { kind: "account" }, POST: { kind: "account" } } },
+  { route: "/api/connections/[id]/sync", methods: { POST: { kind: "account" } } },
   { route: "/api/connections/[id]", methods: { DELETE: { kind: "account" } } },
   { route: "/api/connections/[id]/default", methods: { POST: { kind: "account" } } },
   { route: "/api/connections/[id]/vault", methods: { PUT: { kind: "account" } } },

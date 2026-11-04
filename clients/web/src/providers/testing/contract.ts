@@ -38,6 +38,8 @@ export interface ContractCapabilities {
   truncation: boolean;
   /** It has credentials, so they can be read-only, revoked, or rate limited. */
   credentials: boolean;
+  /** Something can report a commit's build to it. A host that is only a store (a repository on this server) has no builds, and so no report to read back. Default: yes. */
+  builds?: boolean;
 }
 
 const encode = (text: string) => new TextEncoder().encode(text);
@@ -380,7 +382,7 @@ export function providerContract(label: string, make: () => Promise<ProviderHarn
         expect(await h.provider.getBuildStatus(h.repo, commit)).toEqual({ commit, state: "none", checks: [] });
       });
 
-      it("is pending while any check is not done, a failure if any failed, and a success when all are", async () => {
+      it.runIf(capabilities.builds !== false)("is pending while any check is not done, a failure if any failed, and a success when all are", async () => {
         const commit = await h.seed({ "a.md": "a" });
         await h.reportBuild(commit, { checks: [{ name: "build", state: "pending", url: "https://ci.example/runs/1" }, { name: "lint", state: "success" }] });
         const pending = await h.provider.getBuildStatus(h.repo, commit);
@@ -397,13 +399,13 @@ export function providerContract(label: string, make: () => Promise<ProviderHarn
         expect((await h.provider.getBuildStatus(h.repo, done)).state).toBe("success");
       });
 
-      it("gives the address of the site when a successful deployment says where it is", async () => {
+      it.runIf(capabilities.builds !== false)("gives the address of the site when a successful deployment says where it is", async () => {
         const commit = await h.seed({ "a.md": "a" });
         await h.reportBuild(commit, { checks: [{ name: "build", state: "success" }], siteUrl: "https://abc123.pages.example" });
         expect(await h.provider.getBuildStatus(h.repo, commit)).toMatchObject({ state: "success", siteUrl: "https://abc123.pages.example" });
       });
 
-      it("is the commit's own: a later commit has nothing reported of it, and an unknown commit is not found", async () => {
+      it.runIf(capabilities.builds !== false)("is the commit's own: a later commit has nothing reported of it, and an unknown commit is not found", async () => {
         const first = await h.seed({ "a.md": "a" });
         await h.reportBuild(first, { checks: [{ name: "build", state: "success" }] });
         const second = await h.pushElsewhere({ "b.md": "b" });

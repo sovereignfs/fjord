@@ -187,8 +187,10 @@ test("a new account is prompted to connect a repository, and the first one becom
 test("the rail's + opens a dialog to connect a repository, which closes when it is connected and puts the repository in the rail", async ({ page }) => {
   await signUp(page);
   await page.goto("/open");
-  await page.getByRole("button", { name: "Connect a repository", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Connect a repository" });
+  await page.getByRole("button", { name: "Add a repository", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Add a repository" });
+  // It opens on making one here (ROADMAP 3i); this is about connecting one.
+  await dialog.getByText("Connect from GitHub").click();
   await expect(dialog).toBeVisible();
   await dialog.getByRole("textbox", { name: "Repository" }).fill("acme/notes");
   await dialog.getByLabel("Access token").fill(GOOD);
@@ -200,8 +202,10 @@ test("the rail's + opens a dialog to connect a repository, which closes when it 
 test("the connect dialog offers only the form, and closes when the repository is connected", async ({ page }) => {
   await signUp(page);
   await page.goto("/open");
-  await page.getByRole("button", { name: "Connect a repository", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Connect a repository" });
+  await page.getByRole("button", { name: "Add a repository", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Add a repository" });
+  // It opens on making one here (ROADMAP 3i); this is about connecting one.
+  await dialog.getByText("Connect from GitHub").click();
   // Nothing but the form: no way to disconnect, and no link to a GitHub App that is not set up.
   await expect(dialog.getByRole("link")).toHaveCount(0);
   await dialog.getByRole("textbox", { name: "Repository" }).fill("acme/notes");

@@ -116,7 +116,7 @@ export async function strictText(provider: Provider, ref: RepositoryRef, blob: s
   }
 }
 
-function plan(deps: SetupDeps, repositoryName: string, choice: SetupChoice, gathered: { paths: string[]; gitattributes: string | null }): Extract<SetupResult, { ok: true }> {
+function plan(deps: Pick<SetupDeps, "format" | "random" | "now">, repositoryName: string, choice: SetupChoice, gathered: { paths: string[]; gitattributes: string | null }): Extract<SetupResult, { ok: true }> {
   const random = deps.random?.() ?? globalThis.crypto.getRandomValues(new Uint8Array(80));
   const now = deps.now?.() ?? Date.now();
   if (choice.kind === "ssg" && choice.adopt !== undefined) {
@@ -151,6 +151,17 @@ function plan(deps: SetupDeps, repositoryName: string, choice: SetupChoice, gath
     case "vault_name_taken":
       throw new ConnectionError("vault_name_taken", `${made.error.message}. Choose another name.`);
   }
+}
+
+/**
+ * The files of a repository's first commit when it is made on this server (ROADMAP 3i): the same plan `applySetup` commits to a repository
+ * that is not set up, made on an empty one, so a drive, a journal or anything else `fjord-core` plans is written by it and never by us.
+ * A choice the plan refuses (a name it cannot use) throws a `ConnectionError`, as setting up does.
+ */
+export function planFirstCommit(deps: Pick<SetupDeps, "format" | "random" | "now">, repositoryName: string, choice: SetupChoice): Record<string, Uint8Array> {
+  const made = plan(deps, repositoryName, choice, { paths: [], gitattributes: null });
+  const encoder = new TextEncoder();
+  return Object.fromEntries(made.files.map((file) => [file.path, encoder.encode(file.contents)]));
 }
 
 /** The words for what `planSetupKind` refused: the format module's message, with its code turned into one of ours. */

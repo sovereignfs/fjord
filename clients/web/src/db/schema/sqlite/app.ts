@@ -441,3 +441,74 @@ export const sealedShare = sqliteTable(
   },
   (table) => [uniqueIndex("sealed_share_token_hash_idx").on(table.tokenHash), index("sealed_share_file_idx").on(table.connectionId, table.path)],
 );
+
+/**
+ * A repository that lives on **this server** until it is connected to git (ROADMAP 3i, DESIGN.md §7): the person made it here, and
+ * its files are kept in these four tables, behind the `Provider` interface (`src/local/provider.ts`), until a sync moves them to
+ * a git repository and deletes them. One row per repository; `file_count` and `live_bytes` are what its branches hold now (kept so that a limit
+ * is a sum and not a read of every tree), and `retired_bytes` what is kept only so that a deleted or replaced file can be put back.
+ * `account_id` is better-auth's user id, in the other store, so it is not a foreign key; the connection that uses it is found by
+ * `owner = 'local'` and the same name.
+ */
+export const localRepository = sqliteTable(
+  "local_repository",
+  {
+    id: id64("id"),
+    accountId: text("account_id").notNull(),
+    /** What the person called it; the connection's `name`. */
+    name: text("name").notNull(),
+    defaultBranch: text("default_branch").notNull(),
+    fileCount: integer("file_count", { mode: "number" }).notNull(),
+    liveBytes: ref64("live_bytes").notNull(),
+    retiredBytes: ref64("retired_bytes").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("local_repository_account_name_idx").on(table.accountId, table.name)],
+);
+
+/** A branch of a server-side repository and the commit it is at. */
+export const localBranch = sqliteTable(
+  "local_branch",
+  {
+    repositoryId: ref64("repository_id").notNull(),
+    name: text("name").notNull(),
+    commitId: text("commit_id").notNull(),
+  },
+  (table) => [uniqueIndex("local_branch_repository_name_idx").on(table.repositoryId, table.name)],
+);
+
+/**
+ * A commit of a server-side repository. `tree` is the JSON of every file as of it (path, blob, executable, size), so a tree is one read
+ * and never reconstructed. Only the branches' heads and the latest few are kept (`src/local/provider.ts`).
+ */
+export const localCommit = sqliteTable(
+  "local_commit",
+  {
+    repositoryId: ref64("repository_id").notNull(),
+    id: text("id").notNull(),
+    parentId: text("parent_id"),
+    message: text("message").notNull(),
+    authorName: text("author_name"),
+    authorEmail: text("author_email"),
+    tree: text("tree").notNull(),
+    createdAt: epochMs("created_at").notNull(),
+  },
+  (table) => [uniqueIndex("local_commit_repository_id_idx").on(table.repositoryId, table.id)],
+);
+
+/**
+ * A file's content, by its git blob id, in one repository. `content` is base64 (one representation on both dialects, and a column that
+ * holds any bytes); `size` is the bytes before it. `retired_at` is null while a branch's head has the blob, and when it stopped having it
+ * otherwise: a retired blob is kept for the restore window, and no longer than the byte limit allows, so that undoing a deletion works.
+ */
+export const localBlob = sqliteTable(
+  "local_blob",
+  {
+    repositoryId: ref64("repository_id").notNull(),
+    id: text("id").notNull(),
+    size: ref64("size").notNull(),
+    content: text("content").notNull(),
+    retiredAt: epochMs("retired_at"),
+  },
+  (table) => [uniqueIndex("local_blob_repository_id_idx").on(table.repositoryId, table.id), index("local_blob_retired_idx").on(table.repositoryId, table.retiredAt)],
+);

@@ -52,6 +52,11 @@ Everything is an environment variable, put in `.env` next to the Compose files (
   Rotating it is `FJORD_ENCRYPTION_KEY_PREVIOUS` for as long as anything is still under the old one (the log says when).
 - **`FJORD_RESTORE_WINDOW_DAYS`** (optional, 1 to 3650, default 30) is how long a deleted file is offered for putting back
   under Recently deleted. The file is in the repository's history for good; this is how long the app lists it.
+- **`FJORD_LOCAL_MAX_REPOSITORIES`** (optional, default 3; `0` turns it off), **`FJORD_LOCAL_MAX_MIB`** (default 50) and
+  **`FJORD_LOCAL_MAX_FILES`** (default 2000) limit what each account may keep **in this database** as repositories made here and
+  not yet connected to git (the files go to git and are deleted here when a person connects one). The most the server holds for an
+  account is about twice the megabytes, since deleted files are kept for the restore window so they can be put back. Back the database
+  up: until a repository is connected, it is nowhere else.
 - **`FJORD_IDLE_VERSION_MINUTES`** (optional, 1 to 1440, default 5; `0` turns it off) is how long a draft goes without an edit
   before the app saves it to the repository as a version. **`FJORD_WORKER=off`** keeps a process from doing it: with several
   web processes on one database, set it on all but one.

@@ -1,3 +1,6 @@
+import { randomBytes } from "node:crypto";
+import type { Database } from "../../db/client";
+import { LocalProvider } from "../../local/provider";
 import { GitHubProvider } from "../github/provider";
 import { MemoryProvider } from "../memory";
 import type { ProviderHarness } from "./contract";
@@ -59,5 +62,42 @@ export async function memoryHarness(): Promise<ProviderHarness> {
     },
     limitTree: (n) => provider.setTreeLimit(n),
     close: async () => undefined,
+  };
+}
+
+/**
+ * The server-side provider (`src/local/provider.ts`) over a real database, with one repository of its own per harness (an account of its own, so
+ * a test never sees another's) and limits that a contract case never reaches.
+ */
+export function localHarness(database: Database): () => Promise<ProviderHarness> {
+  return async () => {
+    const provider = new LocalProvider({ database, accountId: `contract-${randomBytes(6).toString("hex")}`, limits: { repositories: 5, bytes: 1024 * 1024 * 1024, files: 1_000_000 } });
+    const repo = await provider.create("notes", {});
+    const write = async (files: Record<string, string | Uint8Array | null>, replace: boolean): Promise<string> => {
+      const encoder = new TextEncoder();
+      const head = await provider.getHead(repo, "main");
+      if (!head.changed) throw new Error("expected a head");
+      const changes: import("../types").Change[] = [];
+      if (replace) {
+        for (const entry of (await provider.getTree(repo, head.head.commit)).entries) if (entry.kind === "file" && !(entry.path in files)) changes.push({ path: entry.path, delete: true });
+      }
+      for (const [path, content] of Object.entries(files)) changes.push(content === null ? { path, delete: true } : { path, content: typeof content === "string" ? encoder.encode(content) : content });
+      try {
+        return (await provider.commit(repo, { branch: "main", expectedHead: head.head.commit, message: "seed", changes })).commit;
+      } catch (error) {
+        // Seeding what is there already is not a change.
+        if (error instanceof Error && (error as { code?: string }).code === "no_changes") return head.head.commit;
+        throw error;
+      }
+    };
+    return {
+      provider,
+      repo,
+      seed: (files) => write(files, true),
+      reportBuild: () => undefined,
+      pushElsewhere: (files) => write(files, false),
+      limitTree: (n) => provider.setTreeLimit(n),
+      close: async () => undefined,
+    };
   };
 }

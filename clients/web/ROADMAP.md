@@ -159,6 +159,14 @@ Planned and built on 2026-11-03. One kind of Doc whose editor is the kind's choi
 
 Order: P13–P17 (the CLI first), then 3e, 3f, 3g, 3h. Every web task needs P17; 3g.1 needs P16's adoption.
 
+### 3i — Repositories on this server
+
+A person makes a drive or a journal on this instance, works in it with the ordinary editors, and connects it to git later; until then it is kept in the database, within a limit for each account.
+
+| # | Task | Status |
+| --- | --- | --- |
+| [3i.1](../../docs/epics/web-3.md#3i1-a-repository-kept-on-this-server) | A repository kept on this server: `LocalProvider`, per-account limits, create, move to git | ✅ Done (drive and journal; one import commit; GitHub only) |
+
 ## Phase 4 — collaborative editing
 
 In outline.

@@ -25,6 +25,11 @@
  *   newer_version        the repository declares a newer format than this client implements: read only
  *   invalid_vault_options  the choices for a new vault do not go together (a key on a plaintext vault, a key that is not one)
  *   file_taken           a file a site's engine needs is already in the repository, and is not Fjord's to write over
+ *   limit_reached        an account has as much on this server as it may (`src/local/limits.ts`)
+ *   invalid_name         the name given to a repository on this server cannot be used
+ *   would_overwrite      syncing would change a file the git repository already has; nothing was written
+ *   not_local            syncing something that is not on this server
+ *   not_verified         the git repository did not hold the files after they were written, so nothing was deleted
  *   kind_rule            the repository does not keep the rules of the kind it would be changed to (spec §3.1)
  */
 export type ConnectionErrorCode =
@@ -51,7 +56,12 @@ export type ConnectionErrorCode =
   | "newer_version"
   | "invalid_vault_options"
   | "file_taken"
-  | "kind_rule";
+  | "kind_rule"
+  | "limit_reached"
+  | "invalid_name"
+  | "would_overwrite"
+  | "not_local"
+  | "not_verified";
 
 export class ConnectionError extends Error {
   override name = "ConnectionError";

@@ -9,9 +9,11 @@ import { Alert, Badge, Card } from "../../ui";
 import { NodeIcon } from "../../ui/icons";
 import type { ConnectionInfo } from "../service";
 import { defaultVault } from "../../browse/default-vault";
+import { connectionLabel } from "../label";
 import { DefaultVaultSetting } from "./DefaultVaultSetting";
 import { MakeDefaultButton } from "./MakeDefaultButton";
 import { RepositorySettings } from "./RepositorySettings";
+import { LocalSettings } from "../../local/screens/LocalSettings";
 import header from "./RepositoryHeader.module.css";
 import { ChangeKind } from "../../kinds/screens/ChangeKind";
 import styles from "../../auth/screens/screens.module.css";
@@ -49,7 +51,7 @@ export function RepositoryView({
   /** For a repository that is not a Fjord repository: the offer to set it up, or why there is none (ROADMAP 1a.10). */
   setup?: Assessment | undefined;
 }) {
-  const label = `${current.owner}/${current.name}`;
+  const label = connectionLabel(current);
   return (
     <SignedInShell user={user} connections={connections.map((connection) => (connection.id === current.id && outcome.ok && outcome.read.manifest?.ok ? { ...connection, repoKind: outcome.read.manifest.kind } : connection))} place={{ repository: current.publicId }}>
       <div className={styles.workspace}>
@@ -62,10 +64,11 @@ export function RepositoryView({
                   <h2>Default</h2>
                   {current.isDefault ? <p>This is your default repository: it is where signing in lands.</p> : <MakeDefaultButton id={current.id} label={label} />}
                 </section>
+                {current.provider === "local" ? <LocalSettings current={current} /> : null}
                 {outcome.ok && outcome.read.manifest?.ok ? (
                   <section aria-label="Kind">
                     <h2>Kind</h2>
-                    <ChangeKind connectionId={current.id} kind={outcome.read.manifest.declaredKind ?? "drive"} engine={outcome.read.manifest.ssgEngine} />
+                    <ChangeKind connectionId={current.id} kind={outcome.read.manifest.declaredKind ?? "drive"} engine={outcome.read.manifest.ssgEngine} serverSide={current.provider === "local"} />
                   </section>
                 ) : null}
                 {outcome.ok && outcome.read.discovery.vaults.length > 1 ? (
@@ -92,7 +95,7 @@ export function RepositoryView({
             </div>
           </div>
           <p className={styles.lead}>
-            Branch {current.branch}
+            {current.provider === "local" ? "On this server" : <>Branch {current.branch}</>}
             {current.isDefault ? (
               <>
                 {" "}

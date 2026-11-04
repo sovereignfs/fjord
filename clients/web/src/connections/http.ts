@@ -1,4 +1,5 @@
 import { isCredentialError } from "../crypto/errors";
+import { isProviderError } from "../providers/errors";
 import { type ConnectionError, type ConnectionErrorCode, isConnectionError } from "./errors";
 import type { VaultOptions } from "../format/types";
 import type { KindChange, SetupChoice } from "../browse/setup";
@@ -85,21 +86,26 @@ const STATUS: Record<ConnectionErrorCode, number> = {
   invalid_vault_options: 422,
   file_taken: 409,
   kind_rule: 422,
+  invalid_name: 422,
+  limit_reached: 409,
+  would_overwrite: 409,
+  not_local: 409,
+  not_verified: 502,
 };
 
 const NOT_CONFIGURED = "This instance cannot store repository tokens yet: its administrator needs to set FJORD_ENCRYPTION_KEY.";
 
-function json(status: number, body: unknown): Response {
+export function json(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
 }
 
-const failure = (status: number, code: string, message: string) => json(status, { error: { code, message } });
+export const failure = (status: number, code: string, message: string) => json(status, { error: { code, message } });
 
-function unsignedIn(caller: Caller | null): Response | undefined {
+export function unsignedIn(caller: Caller | null): Response | undefined {
   return caller ? undefined : failure(401, "unauthorized", "Sign in first.");
 }
 
-function crossOrigin(request: Request, deps: Deps): Response | undefined {
+export function crossOrigin(request: Request, deps: { origin: string }): Response | undefined {
   return request.headers.get("origin") === deps.origin ? undefined : failure(403, "forbidden", "This request did not come from this site.");
 }
 
@@ -277,7 +283,7 @@ export async function handleAddVault(request: Request, caller: Caller | null, de
   }
 }
 
-async function readJson(request: Request): Promise<Record<string, unknown> | Response> {
+export async function readJson(request: Request): Promise<Record<string, unknown> | Response> {
   const text = await request.text();
   if (text.length > MAX_BODY_BYTES) return failure(413, "too_large", "That request is too large.");
   try {
@@ -290,9 +296,11 @@ async function readJson(request: Request): Promise<Record<string, unknown> | Res
 }
 
 /** What a person is told. An error we did not expect is logged by name, never by message, and answered plainly. */
-function fromError(error: unknown): Response {
+export function fromError(error: unknown): Response {
   if (isConnectionError(error)) return failure(STATUS[(error as ConnectionError).code], (error as ConnectionError).code, (error as ConnectionError).message);
   if (isCredentialError(error, "no_key")) return failure(503, "not_configured", NOT_CONFIGURED);
+  // Adding a vault or changing a kind on a repository that is on this server, at one of its account's limits: nothing was written.
+  if (isProviderError(error, "limit_reached")) return failure(409, "limit_reached", error.message);
   console.error(`[fjord] connections: unexpected ${error instanceof Error ? error.name : "failure"}`);
   return failure(500, "internal_error", "Something went wrong on our side. Try again.");
 }

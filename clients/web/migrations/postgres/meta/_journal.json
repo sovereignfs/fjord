@@ -169,6 +169,13 @@
       "when": 1793826667287,
       "tag": "0023_publication_token_credential",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793828437126,
+      "tag": "0024_local_repositories",
+      "breakpoints": true
     }
   ]
 }

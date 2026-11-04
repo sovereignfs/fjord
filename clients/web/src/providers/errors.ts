@@ -26,7 +26,9 @@ export type ProviderErrorCode =
   /** The request itself is wrong: an empty commit, a path the host rejects. */
   | "invalid_request"
   /** A webhook whose signature does not match. */
-  | "invalid_webhook";
+  | "invalid_webhook"
+  /** A server-side repository is at one of its account's limits (`src/local/limits.ts`); `details.limit` says which. Nothing was written. */
+  | "limit_reached";
 
 export class ProviderError extends Error {
   override name = "ProviderError";
@@ -34,7 +36,7 @@ export class ProviderError extends Error {
   constructor(
     readonly code: ProviderErrorCode,
     message: string,
-    readonly details: { status?: number; resetAt?: Date; retryAfterSeconds?: number; requestId?: string } = {},
+    readonly details: { status?: number; resetAt?: Date; retryAfterSeconds?: number; requestId?: string; limit?: "repositories" | "files" | "bytes" } = {},
   ) {
     super(message);
   }

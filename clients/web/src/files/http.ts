@@ -355,6 +355,8 @@ const ENCRYPTED_REFUSALS: Record<Extract<CreateEncryptedResult, { ok: false }>["
 function fromError(error: unknown): Response {
   if (isCredentialError(error, "no_key")) return failure(503, "not_configured", "This instance cannot read repositories yet: its administrator needs to set FJORD_ENCRYPTION_KEY.");
   if (isProviderError(error, "rate_limited")) return failure(429, "rate_limited", "The git host is limiting requests. Try again in a moment.");
+  // A repository on this server that is at one of its account's limits (ROADMAP 3i): said in words that say what to do, and nothing was written.
+  if (isProviderError(error, "limit_reached")) return failure(409, "limit_reached", error.message);
   console.error(`[fjord] files: unexpected ${error instanceof Error ? error.name : "failure"}`);
   return failure(500, "internal_error", "Something went wrong on our side. Try again.");
 }

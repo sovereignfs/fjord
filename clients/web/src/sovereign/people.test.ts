@@ -181,6 +181,27 @@ describe("ending a person's sessions", () => {
 });
 
 describe("deleting a person", () => {
+  it("deletes what was kept for them on this server (ROADMAP 3i): every repository with its commits, branches and files, a repository whose connection was never made too, and none of another person's", async () => {
+    const { alice, bob } = await world();
+    const enc = new TextEncoder();
+    await connections.addLocal(alice.id, { name: "server", files: { "fjord.json": enc.encode("{}"), "a.md": enc.encode("hers") } });
+    await connections.addLocal(bob.id, { name: "server", files: { "b.md": enc.encode("his") } });
+    // A request that stopped between the repository and its connection.
+    await connections.localProvider(alice.id).create("orphan", { "o.md": enc.encode("orphan") });
+    expect(await count(app, A().localRepository, sql`account_id = ${alice.id}`)).toBe(2);
+
+    await people.deletePerson(alice.sub);
+
+    expect(await count(app, A().localRepository, sql`account_id = ${alice.id}`)).toBe(0);
+    expect(await count(app, A().localRepository, sql`account_id = ${bob.id}`)).toBe(1);
+    for (const table of [A().localBlob, A().localCommit, A().localBranch]) {
+      expect(await count(app, table, sql`repository_id NOT IN (SELECT id FROM ${A().localRepository})`), "left behind").toBe(0);
+    }
+    // His are still there, with their files.
+    expect(await count(app, A().localBlob, sql`1 = 1`)).toBeGreaterThan(0);
+    expect(await count(app, A().connection, sql`account_id = ${bob.id} AND provider = 'local'`)).toBe(1);
+  });
+
   it("deletes the account, its sign-ins and sessions, its repositories and everything on them, and none of another person's", async () => {
     const w = await world();
     const bobBefore = await rows(w.bob);

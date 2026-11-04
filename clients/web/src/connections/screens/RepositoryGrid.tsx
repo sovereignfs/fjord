@@ -1,5 +1,6 @@
 import { SignedInShell } from "../../auth/screens/SignedInShell";
 import { repositoryHref } from "../../browse/links";
+import { connectionLabel } from "../label";
 import { Badge } from "../../ui";
 import { KIND_LABEL, RepositoryKindIcon, Settings2Icon } from "../../ui/icons";
 import type { ConnectionInfo } from "../service";
@@ -33,11 +34,9 @@ export function RepositoryGrid({ user, connections }: { user: { name: string; em
                     <RepositoryKindIcon kind={kind} size={28} />
                   </span>
                   <span className={styles.tileName}>
-                    {connection.owner}/{connection.name}
+                    {connectionLabel(connection)}
                   </span>
-                  <span className={styles.tileDesc}>
-                    {KIND_LABEL[kind]} on branch {connection.branch}
-                  </span>
+                  <span className={styles.tileDesc}>{connection.provider === "local" ? `${KIND_LABEL[kind]} on this server` : `${KIND_LABEL[kind]} on branch ${connection.branch}`}</span>
                   <span className={styles.tileSep} aria-hidden="true" />
                   <span className={styles.tileBadgeRow}>
                     <span className={styles.tileBadge}>{kind}</span>

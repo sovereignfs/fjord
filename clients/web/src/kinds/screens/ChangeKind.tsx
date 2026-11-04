@@ -13,7 +13,7 @@ const LABELS: Record<Choice, string> = { drive: "Drive", journal: "Journal", ast
  * A repository's kind, and changing it (ROADMAP 3a.3, spec §3.1): one commit of `fjord.json`, which the server makes and refuses, saying
  * why, when the repository does not keep the new kind's rules. Nothing else in the repository changes.
  */
-export function ChangeKind({ connectionId, kind, engine }: { connectionId: number; kind: string; engine: string | null }) {
+export function ChangeKind({ connectionId, kind, engine, serverSide = false }: { connectionId: number; kind: string; engine: string | null; /** Kept on this server: a site needs a git host to build and preview it, so it is not offered. */ serverSide?: boolean }) {
   const router = useRouter();
   const current: Choice | undefined = kind === "ssg" ? (engine === "astro" || engine === "jekyll" ? engine : undefined) : kind === "drive" || kind === "journal" ? kind : undefined;
   const [open, setOpen] = useState(false);
@@ -57,7 +57,7 @@ export function ChangeKind({ connectionId, kind, engine }: { connectionId: numbe
     <form className={styles.form} onSubmit={onSubmit} aria-label="Change the repository's kind" style={{ marginTop: 0 }}>
       <fieldset style={{ border: 0, padding: 0, margin: 0 }} disabled={busy}>
         <legend>What this repository is for</legend>
-        {(Object.keys(LABELS) as Choice[]).map((option) => (
+        {(Object.keys(LABELS) as Choice[]).filter((option) => !serverSide || option === "drive" || option === "journal").map((option) => (
           <label key={option} style={{ display: "block" }}>
             <input type="radio" name="kind" checked={choice === option} onChange={() => setChoice(option)} /> {LABELS[option]}
           </label>

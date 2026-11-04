@@ -1,5 +1,7 @@
 import { SignedInShell } from "../../auth/screens/SignedInShell";
 import { Alert, Card } from "../../ui";
+import { localLimits } from "../../local/limits";
+import { NewRepositoryForm } from "../../local/screens/NewRepositoryForm";
 import { ConnectForm } from "./ConnectForm";
 import styles from "../../auth/screens/screens.module.css";
 
@@ -12,7 +14,12 @@ export function FirstRun({ user, canConnect }: { user: { name: string; email: st
     <SignedInShell user={user} connections={[]} place="index">
       <div className={styles.workspace}>
         <h1 className={styles.title}>Hello, {user.name}</h1>
-        <p className={styles.lead}>You are signed in as {user.email}. Fjord works on a Git repository of yours: connect your first one to begin.</p>
+        <p className={styles.lead}>You are signed in as {user.email}. Fjord works on a Git repository of yours: connect your first one to begin{localLimits().repositories > 0 ? ", or create one here and connect it to git later" : ""}.</p>
+        {canConnect && localLimits().repositories > 0 ? (
+          <Card as="div" padding="lg">
+            <NewRepositoryForm heading="Create your first repository" />
+          </Card>
+        ) : null}
         <Card as="div" padding="lg">
           {canConnect ? (
             <ConnectForm heading="Connect your first repository" />

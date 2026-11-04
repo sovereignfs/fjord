@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { localLimits } from "../../local/limits";
+import { connectionLabel } from "../../connections/label";
 import { ConnectDialog } from "../../connections/screens/ConnectDialog";
 import type { ConnectionInfo } from "../../connections/service";
 import { connectionService } from "../../connections/server";
@@ -8,7 +10,7 @@ import { AppShell, type ShellPlace } from "../../ui/AppShell";
 import { authConfig } from "../server";
 import { AccountMenu } from "./AccountMenu";
 
-type Listed = Pick<ConnectionInfo, "id" | "publicId" | "owner" | "name" | "isDefault" | "repoKind">;
+type Listed = Pick<ConnectionInfo, "id" | "publicId" | "provider" | "owner" | "name" | "isDefault" | "repoKind">;
 
 /**
  * The frame of a signed-in page (`AppShell`) with what this instance knows to put in it: its name, the dialog that connects a repository, the way out, and the
@@ -23,9 +25,9 @@ export async function SignedInShell({ user, connections, place, children }: { us
     <AppShell
       shared={shared}
       name={config.enabled ? config.name : "Fjord"}
-      repositories={listed.map((connection) => ({ id: connection.publicId, label: `${connection.owner}/${connection.name}`, isDefault: connection.isDefault, kind: connection.repoKind }))}
+      repositories={listed.map((connection) => ({ id: connection.publicId, label: connectionLabel(connection), isDefault: connection.isDefault, kind: connection.repoKind }))}
       place={place}
-      connect={<ConnectDialog canConnect={canConnect} />}
+      connect={<ConnectDialog canConnect={canConnect} canCreate={localLimits().repositories > 0} />}
       account={<AccountMenu name={user.name} email={user.email} {...(user.image ? { avatarUrl: user.image } : {})} />}
     >
       {children}
