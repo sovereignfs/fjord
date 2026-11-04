@@ -29,6 +29,7 @@ export function DocumentProperties({
   site = false,
   tagSuggestions = [],
   rename,
+  address,
   updated,
 }: {
   properties: Properties;
@@ -48,6 +49,8 @@ export function DocumentProperties({
   /** Tags already in use in this repository, as first written, the most used first: offered while one is typed (ROADMAP 3b.3). */
   tagSuggestions?: string[];
   /** For a drive's document: its file's name without the extension, the extension that stays, and the way to change it; the answer is a message when it could not be. */
+  /** The file's address by its identifier. */
+  address?: string | undefined;
   rename?: { stem: string; suffix: string; onRename: (stem: string) => Promise<string | null> } | undefined;
   /** When the file last changed in the repository (ISO 8601), if the host said. */
   updated?: string | null | undefined;
@@ -228,6 +231,14 @@ export function DocumentProperties({
         <dd>
           <code>{properties.id ?? "none"}</code>
         </dd>
+        {address ? (
+          <>
+            <dt>Address</dt>
+            <dd>
+              <a href={address}>{address}</a> <span className={own.note}>It stays the same when the file moves.</span>
+            </dd>
+          </>
+        ) : null}
         <dt>Created</dt>
         <dd>{properties.created ? whenText(properties.created) : "not recorded"}</dd>
         {updated !== undefined ? (

@@ -312,6 +312,7 @@ function CommentsPanel(props: PanelProps) {
       {composing ? (
         <Composer
           label="New comment"
+          bringIntoView
           quote={composing.type === "text-quote" ? composing.quote : ""}
           submit="Comment"
           onCancel={props.stopComposing}
@@ -504,9 +505,15 @@ function ReplyItem(props: PanelProps & { thread: ThreadView; viewer: Listing["vi
 }
 
 /** A box to write a comment in: for a new thread, a reply or an edit. Cleared and closed by the caller when it is taken. */
-function Composer({ label, quote, initial = "", submit, onSubmit, onCancel }: { label: string; quote?: string; initial?: string; submit: string; onSubmit: (body: string) => Promise<boolean>; onCancel: () => void }) {
+function Composer({ label, quote, initial = "", submit, onSubmit, onCancel, bringIntoView = false }: { /** Opened from the text, which may be far above: go to it and put the cursor in it. */ bringIntoView?: boolean; label: string; quote?: string; initial?: string; submit: string; onSubmit: (body: string) => Promise<boolean>; onCancel: () => void }) {
   const [text, setText] = useState(initial);
   const [busy, setBusy] = useState(false);
+  const box = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (!bringIntoView) return;
+    box.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    box.current?.focus({ preventScroll: true });
+  }, [bringIntoView]);
   return (
     <form
       className={styles.form}
@@ -522,7 +529,7 @@ function Composer({ label, quote, initial = "", submit, onSubmit, onCancel }: { 
       {quote ? <blockquote className={styles.itemMeta}>“{quote.length > 140 ? `${quote.slice(0, 140)}…` : quote}”</blockquote> : null}
       <label>
         <span className={styles.itemMeta}>{label}</span>
-        <textarea aria-label={label} value={text} maxLength={MAX_COMMENT_CHARS} rows={3} onChange={(e) => setText(e.target.value)} disabled={busy} style={{ width: "100%" }} />
+        <textarea ref={box} aria-label={label} value={text} maxLength={MAX_COMMENT_CHARS} rows={3} onChange={(e) => setText(e.target.value)} disabled={busy} style={{ width: "100%" }} />
       </label>
       <div className={styles.actions}>
         <Button type="submit" size="sm" loading={busy} disabled={text.trim() === ""}>

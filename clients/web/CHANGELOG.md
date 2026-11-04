@@ -32,6 +32,12 @@ section.
 - **A published page's address no longer runs out of the dialog**: it wraps inside it.
 - **The choices of where to move a file, move it to another vault, and which vault a repository opens on use the design system's select**, as the rest of the forms do, and not the browser's own.
 
+### Changed
+
+- **A document's page gets to its text sooner.** The notice that was there on every document is gone: what has become of what you typed is one line under the title, in sight however long the document is. The address by identifier moved into *Properties*, and *Comment on selection* is a quiet button. On a phone the text now starts on the first screen.
+- **The comment box opens where you can see it**: choosing *Comment on selection* goes to it and puts the cursor in it, where before it opened at the foot of the page. A selection that crosses formatting says why it cannot be commented on, where the button only stayed grey.
+
+
 ## [0.2.0] - 2026-11-04
 
 ### Added

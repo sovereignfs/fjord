@@ -169,6 +169,7 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
           <button type="button" className="fe-button" disabled={offsets === null} onClick={() => void comment()}>
             Comment on selection
           </button>
+          {offsets === null && selected.trim() !== "" ? <span className="fe-status">A comment attaches to text in one style: select less, within bold or a link or outside them.</span> : null}
         </div>
       ) : null}
       {pendingRestyle ? (
@@ -276,7 +277,7 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
         </Suspense>
       )}
       {comments ? (
-        <p className="fe-status" aria-live="polite">
+        <p className="fe-status fe-thread-count" aria-live="polite">
           {marked === 1 ? "1 comment thread" : `${marked} comment threads`}
         </p>
       ) : null}

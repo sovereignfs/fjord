@@ -349,21 +349,15 @@ function FileCard({
           </div>
         )}
       </div>
+      {/* Where a document's editor says what has become of what was typed (`NoteView`). */}
+      <div id="file-status-slot" />
       {file.kind === "doc" && note ? (
         note.ok ? (
           draft && draft.baseBlob !== note.blob ? (
             <UpstreamChanged connectionId={connectionId} path={file.path} label={leaf(file.logical)} mine={draft.content} theirs={note.text} upstreamBlob={note.blob} preview={preview} />
           ) : (
             <>
-              <div className={styles.notice}>
-                <Alert variant="info">Your changes are kept as a draft as you type. Save a version to put them in the repository.</Alert>
-              </div>
-              {permalink && !writing ? (
-                <p className={styles.itemMeta}>
-                  Address by id, which does not depend on where the file is: <a href={permalink}>{permalink}</a>
-                </p>
-              ) : null}
-              <NoteView key={note.blob} connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} editor={editor} site={site} header={header} docId={docId} tagSuggestions={tagSuggestions} rename={remove && editor === "document" && filenameInProperties ? { vault: remove.vault, repo, suffix: file.path.match(/\.md$/i)?.[0] ?? "" } : undefined} updated={updated} />
+              <NoteView key={note.blob} address={writing ? undefined : permalink} connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} editor={editor} site={site} header={header} docId={docId} tagSuggestions={tagSuggestions} rename={remove && editor === "document" && filenameInProperties ? { vault: remove.vault, repo, suffix: file.path.match(/\.md$/i)?.[0] ?? "" } : undefined} updated={updated} />
             </>
           )
         ) : (

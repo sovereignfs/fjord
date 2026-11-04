@@ -54,6 +54,7 @@ export function NoteView({
   editor,
   site = false,
   docId,
+  address,
   tagSuggestions,
   rename,
   updated,
@@ -69,6 +70,8 @@ export function NoteView({
   site?: boolean;
   /** For a Doc whose header has an `id`: the key its comments are kept under (ROADMAP 1d.1). */
   docId?: string | undefined;
+  /** The file's address by its identifier, which does not change when it moves; shown with its properties. */
+  address?: string | undefined;
   draft: DraftOfNote | null;
   /** For a file with a header that can be read, or none: where its body starts in the text shown (the draft, else the file), and its properties. */
   header?: HeaderInfo | undefined;
@@ -109,6 +112,8 @@ export function NoteView({
   // Where the document's icons are (`FileCard`'s title row): the save control is put among them. A page with none there (a journal's writing view keeps its actions under "More") has it below the editor.
   const [slot, setSlot] = useState<HTMLElement | null>(null);
   useEffect(() => setSlot(document.getElementById("file-actions-slot")), []);
+  const [statusSlot, setStatusSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => setStatusSlot(document.getElementById("file-status-slot")), []);
   const [versionError, setVersionError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
@@ -276,6 +281,13 @@ export function NoteView({
   }
 
   const unsettled = hasConflictMarkers(saver.text);
+  // What has become of what was typed: under the title, by the name of what it is about, and so in sight however long the document is.
+  const statusText = (
+    <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="draft-status" style={{ marginTop: 0 }}>
+      {describe(status, hasDraft)}
+    </p>
+  );
+  const statusLine = statusSlot ? createPortal(statusText, statusSlot) : statusText;
   const saveControl = <SaveControl unsettled={unsettled} hasDraft={hasDraft} saving={saving} error={versionError} asking={asking} setAsking={setAsking} onSave={(message) => void saveVersion(message)} />;
   return (
     <div>
@@ -303,7 +315,7 @@ export function NoteView({
           </Alert>
         </div>
       ) : null}
-      {properties ? <DocumentProperties properties={properties} pending={noHeader} disabled={saving} onTitle={changeTitle} onDate={changeDate} onTags={changeTags} onField={changeField} site={site} tagSuggestions={tagSuggestions} rename={renameFile} updated={updated} /> : null}
+      {properties ? <DocumentProperties properties={properties} pending={noHeader} disabled={saving} onTitle={changeTitle} onDate={changeDate} onTags={changeTags} onField={changeField} site={site} tagSuggestions={tagSuggestions} rename={renameFile} updated={updated} address={address} /> : null}
       {site && editor === "note" && bodyStart !== undefined ? (
         <p>
           <Button type="button" variant="secondary" size="sm" onClick={switchEditor} disabled={saving} data-testid="switch-editor">
@@ -320,9 +332,7 @@ export function NoteView({
       )}
       {panel}
       {slot ? null : <div style={{ margin: "var(--sv-space-3) 0" }}>{saveControl}</div>}
-      <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="draft-status">
-        {describe(status, hasDraft)}
-      </p>
+      {statusLine}
       {status.state === "refused" || status.state === "stopped" ? (
         <div className={styles.notice}>
           <Alert variant="error" heading="Your changes are not being kept">

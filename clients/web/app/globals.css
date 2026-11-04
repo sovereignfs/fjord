@@ -71,3 +71,13 @@ summary:focus-visible {
   --fe-restyle-removed-bg: var(--sv-color-error-surface);
   --fe-restyle-added-bg: var(--sv-color-success-surface);
 }
+
+/* The app's comment panel, below the editor, says how many there are; the editor's own line is for a screen reader alone here. */
+.fe-thread-count {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
