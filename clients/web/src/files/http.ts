@@ -43,7 +43,7 @@ export interface Deps {
   create: (
     accountId: string,
     id: number,
-    input: { vault: string; folder: string; title: string; localMinute: LocalMinute; author: Identity },
+    input: { vault: string; folder: string; /** `folder` is one that is not there yet, made by this file (a new folder). */ newFolder?: boolean | undefined; title: string; localMinute: LocalMinute; author: Identity },
   ) => Promise<{ found: false } | { found: true; result: CreateResult | { ok: false; reason: VaultRefusal } }>;
   /**
    * Make a file in an encrypted vault of one of the caller's repositories (ROADMAP 2b.4) from ciphertext the browser made. `title` is empty
@@ -52,7 +52,7 @@ export interface Deps {
   createEncrypted: (
     accountId: string,
     id: number,
-    input: { vault: string; folder: string; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
+    input: { vault: string; folder: string; /** `folder` is one that is not there yet, made by this file (a new folder). */ newFolder?: boolean | undefined; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
   ) => Promise<{ found: false } | { found: true; result: CreateEncryptedResult | { ok: false; reason: EncryptedVaultRefusal | "wrong_shape" } }>;
   /**
    * Give a Doc of one of the caller's repositories an identifier (ROADMAP 3e.3). `found: false` if it is not the caller's (or not there).
@@ -157,7 +157,7 @@ export async function handleCreate(request: Request, caller: Caller | null, deps
     const body = parse(text);
     if (!body) return failure(400, "invalid_request", "Send a JSON object.");
 
-    const { vault, folder, title, localMinute } = body;
+    const { vault, folder, title, localMinute, newFolder } = body;
     if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
     if (typeof folder !== "string" || (folder !== "" && !isRepositoryPath(folder))) return failure(400, "invalid_request", "Say which folder of the vault, by its path, or \"\" for its top.");
     if (title !== undefined && title !== null && (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed())) {
@@ -166,9 +166,12 @@ export async function handleCreate(request: Request, caller: Caller | null, deps
     const minute = readMinute(localMinute);
     if (!minute) return failure(400, "invalid_request", "Send the local date and time as whole numbers: year, month, day, hour and minute.");
 
+    if (newFolder !== undefined && typeof newFolder !== "boolean") return failure(400, "invalid_request", "Say whether the folder is a new one with true or false, or leave it out.");
+    if (newFolder === true && folder === "") return failure(400, "invalid_request", "A new folder needs a name: say its path in the vault.");
     const outcome = await deps.create(caller.accountId, number, {
       vault,
       folder,
+      ...(newFolder === true ? { newFolder } : {}),
       title: typeof title === "string" ? title : "",
       localMinute: minute,
       author: { name: caller.name, email: caller.email },
@@ -207,7 +210,7 @@ export async function handleCreateEncrypted(request: Request, caller: Caller | n
     const body = parse(text);
     if (!body) return failure(400, "invalid_request", "Send a JSON object.");
 
-    const { vault, folder, title, localMinute, ciphertext } = body;
+    const { vault, folder, title, localMinute, ciphertext, newFolder } = body;
     if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
     if (typeof folder !== "string" || (folder !== "" && !isRepositoryPath(folder))) return failure(400, "invalid_request", "Say which folder of the vault, by its path, or \"\" for its top.");
     if (title !== undefined && title !== null && (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed())) {
@@ -222,9 +225,12 @@ export async function handleCreateEncrypted(request: Request, caller: Caller | n
       return failure(422, "not_ciphertext", `${why ?? "It is larger than a new file can be."} Only an encrypted file is put into an encrypted vault.`);
     }
 
+    if (newFolder !== undefined && typeof newFolder !== "boolean") return failure(400, "invalid_request", "Say whether the folder is a new one with true or false, or leave it out.");
+    if (newFolder === true && folder === "") return failure(400, "invalid_request", "A new folder needs a name: say its path in the vault.");
     const outcome = await deps.createEncrypted(caller.accountId, number, {
       vault,
       folder,
+      ...(newFolder === true ? { newFolder } : {}),
       title: typeof title === "string" ? title : "",
       localMinute: minute,
       ciphertext: bytes,
@@ -329,6 +335,8 @@ const REFUSALS: Record<Extract<CreateResult, { ok: false }>["reason"] | VaultRef
   encrypted_vault: { status: 422, message: "Files cannot be made in an encrypted vault in this version." },
   unsupported_vault: { status: 422, message: "This vault's manifest cannot be read, or it does not use plain file names, so files cannot be made in it from here." },
   folder_gone: { status: 409, message: "That folder is no longer in the repository. Nothing was made." },
+  bad_folder_name: { status: 422, message: "That is not a name a folder can have: it cannot hold a slash, a colon or another character a file system refuses, end with a dot or a space, or be a name a system keeps for itself (such as CON). Nothing was made." },
+  folder_exists: { status: 409, message: "Something of that name is already there, a file or a folder (names that differ only in case are one name). Nothing was made." },
   bad_title: { status: 422, message: "A title needs some letters or digits in it to name its file by." },
   head_moved: { status: 409, message: "The repository kept changing while this was being made. Nothing was made. Try again." },
   read_only: { status: 422, message: "That token can read this repository but not write to it, so nothing was made. Create the token with the repository permission “Contents: Read and write”, and connect the repository again." },

@@ -147,6 +147,18 @@ describe("what may be sent", () => {
     expect(create.mock.calls.map((call) => (call[2] as { title: string }).title)).toEqual(["Q4 plan", "", ""]);
   });
 
+  it("passes on that a folder is a new one, only when it says so with true, and never for the top of a vault", async () => {
+    const { deps, create, createEncrypted } = stub();
+    expect((await handleCreate(post({ ...valid, folder: "Projects/Ideas", newFolder: true }), ALICE, deps, "1")).status).toBe(201);
+    expect(create.mock.calls[0]?.[2]).toMatchObject({ folder: "Projects/Ideas", newFolder: true });
+    expect((await handleCreate(post(valid), ALICE, deps, "1")).status).toBe(201);
+    expect(create.mock.calls[1]?.[2]).not.toHaveProperty("newFolder");
+    expect((await handleCreate(post({ ...valid, newFolder: "yes" }), ALICE, deps, "1")).status).toBe(400);
+    expect((await handleCreate(post({ ...valid, folder: "", newFolder: true }), ALICE, deps, "1")).status).toBe(400);
+    expect(create).toHaveBeenCalledTimes(2);
+    void createEncrypted;
+  });
+
   it("wants JSON", async () => {
     const { deps, create } = stub();
     for (const type of ["text/plain", null]) expect((await handleCreate(post(valid, { type }), ALICE, deps, "1")).status).toBe(415);
@@ -195,6 +207,8 @@ describe("what may be sent", () => {
 describe("what they are told", () => {
   it.each<[CreateResult extends infer R ? (R extends { ok: false; reason: infer X } ? X : never) : never, number]>([
     ["folder_gone", 409],
+    ["folder_exists", 409],
+    ["bad_folder_name", 422],
     ["bad_title", 422],
     ["head_moved", 409],
     ["read_only", 422],

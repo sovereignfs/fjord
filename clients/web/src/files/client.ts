@@ -11,7 +11,7 @@ export function createFrom(status: number, body: { path?: string; error?: { mess
 }
 
 /** Make a document in a folder of a vault. The writer's own date and time goes with it, for one with no title. */
-export async function sendCreate(connectionId: number, input: { vault: string; folder: string; title: string }, now: Date = new Date()): Promise<CreateAttempt> {
+export async function sendCreate(connectionId: number, input: { vault: string; folder: string; title: string; /** `folder` is one that is not there yet, made by this file. */ newFolder?: boolean }, now: Date = new Date()): Promise<CreateAttempt> {
   try {
     const response = await fetch(`/api/connections/${connectionId}/files`, {
       method: "POST",
@@ -32,7 +32,7 @@ export async function sendCreate(connectionId: number, input: { vault: string; f
 /** Make a document in an encrypted vault (ROADMAP 2b.4) from the ciphertext this browser made. `title` is sent only for a vault that names its files by their names. */
 export async function sendCreateEncrypted(
   connectionId: number,
-  input: { vault: string; folder: string; title: string; ciphertext: string },
+  input: { vault: string; folder: string; title: string; ciphertext: string; newFolder?: boolean },
   now: Date = new Date(),
 ): Promise<CreateAttempt> {
   try {

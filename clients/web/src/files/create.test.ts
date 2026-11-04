@@ -138,6 +138,43 @@ describe.skipIf(!available)("where it goes", () => {
   });
 });
 
+describe.skipIf(!available)("a new folder", () => {
+  it("is made by its first file, one commit that adds that one file, in a folder one level below one that is there", async () => {
+    const head = await seed({ "Notes/Projects/a.md": "a" });
+    const made = (await create({ folder: "Projects/Ideas", newFolder: true, title: "First" })) as { ok: true; path: string; commit: string };
+    expect(made.path).toBe("Notes/Projects/Ideas/First.md");
+    expect(await added(head, made.commit)).toEqual(["Notes/Projects/Ideas/First.md"]);
+    // At the vault's top too.
+    const top = (await create({ folder: "Inbox", newFolder: true })) as { ok: true; path: string };
+    expect(top.path).toMatch(/^Notes\/Inbox\/2026-10-22 1430\.md$/);
+  });
+
+  it("is refused when the folder it goes in is not there, so a chain of folders is never made by mistake, and nothing is written", async () => {
+    const head = await seed({ "Notes/a.md": "a" });
+    expect(await create({ folder: "Nowhere/Ideas", newFolder: true })).toEqual({ ok: false, reason: "folder_gone" });
+    expect(await fake.branchHead()).toBe(head);
+  });
+
+  it("is refused when something of that name is there, a folder or a file, case aside", async () => {
+    const head = await seed({ "Notes/Ideas/a.md": "a", "Notes/Plan.md": "p" });
+    expect(await create({ folder: "Ideas", newFolder: true })).toEqual({ ok: false, reason: "folder_exists" });
+    expect(await create({ folder: "ideas", newFolder: true })).toEqual({ ok: false, reason: "folder_exists" });
+    expect(await create({ folder: "plan.md", newFolder: true })).toEqual({ ok: false, reason: "folder_exists" });
+    expect(await fake.branchHead()).toBe(head);
+  });
+
+  it("is refused when its name is not one a folder can have", async () => {
+    const head = await seed({ "Notes/a.md": "a" });
+    for (const folder of ["..", "a:b", "end.", "CON"]) expect(await create({ folder, newFolder: true }), folder).toEqual({ ok: false, reason: "bad_folder_name" });
+    expect(await fake.branchHead()).toBe(head);
+  });
+
+  it("is not how an ordinary file is made: without newFolder a folder that is not there is still gone", async () => {
+    await seed({ "Notes/a.md": "a" });
+    expect(await create({ folder: "Ideas", title: "x" })).toEqual({ ok: false, reason: "folder_gone" });
+  });
+});
+
 describe.skipIf(!available)("when others are writing too", () => {
   it("takes the next free name when the same name is made while it is being committed, and loses neither file", async () => {
     await seed();

@@ -43,7 +43,7 @@ async function encryptedVaultFor(accountId: string, id: number, vault: string) {
 async function createEncrypted(
   accountId: string,
   id: number,
-  input: { vault: string; folder: string; target: EncryptedTarget; title: string; localMinute: { year: number; month: number; day: number; hour: number; minute: number }; ciphertext: Uint8Array; author: Identity },
+  input: { vault: string; folder: string; newFolder?: boolean | undefined; target: EncryptedTarget; title: string; localMinute: { year: number; month: number; day: number; hour: number; minute: number }; ciphertext: Uint8Array; author: Identity },
 ): Promise<CreateEncryptedResult> {
   const used = await (await connectionService()).provider(accountId, id);
   if (!used) return { ok: false, reason: "unavailable" };
@@ -54,7 +54,7 @@ async function createEncrypted(
 async function create(
   accountId: string,
   id: number,
-  input: { vault: string; folder: string; title: string; localMinute: { year: number; month: number; day: number; hour: number; minute: number }; author: Identity },
+  input: { vault: string; folder: string; newFolder?: boolean | undefined; title: string; localMinute: { year: number; month: number; day: number; hour: number; minute: number }; author: Identity },
 ): Promise<CreateResult> {
   const used = await (await connectionService()).provider(accountId, id);
   if (!used) return { ok: false, reason: "unavailable" };

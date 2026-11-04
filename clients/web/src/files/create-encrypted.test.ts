@@ -33,8 +33,8 @@ beforeEach(async () => {
 afterEach(async () => h?.close());
 
 const deps = (): CreateEncryptedDeps => ({ provider: h.provider, ref: h.repo, branch: "main", format: fjord(), now: () => 1_800_000_000_000, random: () => new Uint8Array(16).fill(7) });
-const create = (target: EncryptedTarget, input: { title?: string; folder?: string; bytes?: Uint8Array } = {}) =>
-  createEncryptedFile(deps(), { vault: "Secret", folder: input.folder ?? "", target, title: input.title ?? "", localMinute: WHEN, ciphertext: input.bytes ?? encryptedDraft("SECRET PLAINTEXT").bytes, author: ADA });
+const create = (target: EncryptedTarget, input: { title?: string; folder?: string; newFolder?: boolean; bytes?: Uint8Array } = {}) =>
+  createEncryptedFile(deps(), { vault: "Secret", folder: input.folder ?? "", ...(input.newFolder ? { newFolder: true } : {}), target, title: input.title ?? "", localMinute: WHEN, ciphertext: input.bytes ?? encryptedDraft("SECRET PLAINTEXT").bytes, author: ADA });
 const seed = (naming: "plain" | "id", files: Record<string, string> = {}) => h.seed({ "Secret/fjord.vault.json": manifest(naming), "Secret/recipients.txt": "age1x\n", ...files });
 
 describe.skipIf(!available)("a new file in a plain-named encrypted vault", () => {
@@ -79,6 +79,21 @@ describe.skipIf(!available)("a new file in a plain-named encrypted vault", () =>
     expect(await create(BY_ID, { folder: "2026-10-22/deeper" })).toEqual({ ok: false, reason: "folder_gone" });
     await seed("plain");
     expect(await create(PLAIN, { folder: "2026-10-23" })).toEqual({ ok: false, reason: "folder_gone" });
+  });
+
+  it("makes a new folder with its first file, in a vault whose names are plain, and is refused where it is there, or its parent is not, or its name is not one", async () => {
+    await seed("plain", { "Secret/Projects/a.md.age": "a" });
+    const made = (await create(PLAIN, { folder: "Projects/Ideas", newFolder: true, title: "First" })) as { ok: true; path: string };
+    expect(made.path).toBe("Secret/Projects/Ideas/First.md.age");
+    expect(await create(PLAIN, { folder: "Projects", newFolder: true })).toEqual({ ok: false, reason: "folder_exists" });
+    expect(await create(PLAIN, { folder: "projects", newFolder: true })).toEqual({ ok: false, reason: "folder_exists" });
+    expect(await create(PLAIN, { folder: "Nowhere/Ideas", newFolder: true })).toEqual({ ok: false, reason: "folder_gone" });
+    expect(await create(PLAIN, { folder: "a:b", newFolder: true })).toEqual({ ok: false, reason: "bad_folder_name" });
+  });
+
+  it("makes no new folder in a vault named by ids, whose files have no folders of their own to name", async () => {
+    await seed("id", { "Secret/2026-10-21/01jagc4k7pt8y3wqnmzv5xrb8a.age": "x" });
+    expect(await create(BY_ID, { folder: "Ideas", newFolder: true })).toEqual({ ok: false, reason: "folder_gone" });
   });
 
   it("is the file `fjord-core` says is an encrypted payload with that name, and no plaintext of it is anywhere", async () => {

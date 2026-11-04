@@ -3,6 +3,7 @@ import type { LocalMinute, VaultListing } from "../format/types";
 import { isProviderError } from "../providers/errors";
 import type { Identity, Provider, RepositoryRef } from "../providers/types";
 import { formatIdentity } from "../working/version";
+import { checkNewFolder } from "./new-folder";
 
 /**
  * Making a new document (DESIGN.md §10, ROADMAP 1b.7; one kind of Doc, RFC 0002): one commit through the owner's token, on the branch the
@@ -15,8 +16,8 @@ import { formatIdentity } from "../working/version";
  *  - **The header is `fjord-core`'s** too (`id`, `title`, `created`), with an identifier from the clock and the
  *    randomness given: a file Fjord makes has an `id` from the start. With no title the date and time that named the file
  *    is its title, as `fjord new` does with a file's stem.
- *  - **Only into a folder that is there**: git has no empty directories, so a folder with nothing in it is not one.
- *    Making new folders is not part of this.
+ *  - **Only into a folder that is there**: git has no empty directories, so a folder with nothing in it is not one. A **new folder** is made by its first file (`newFolder`: the
+ *    `folder` is one that is not there yet, one level below one that is; `new-folder.ts`).
  *
  * Which vaults may be written to (plaintext ones) is decided before this is called.
  */
@@ -24,7 +25,7 @@ export interface CreateDeps {
   provider: Provider;
   ref: RepositoryRef;
   branch: string;
-  format: Pick<Fjord, "quickNoteName" | "titleFromText" | "freeName" | "newDocument" | "newUlid" | "rfc3339FromUnix">;
+  format: Pick<Fjord, "quickNoteName" | "titleFromText" | "freeName" | "newDocument" | "newUlid" | "rfc3339FromUnix" | "checkName">;
   /** For tests: milliseconds since the epoch. */
   now?: () => number;
   /** For tests: at least ten random bytes. */
@@ -48,13 +49,13 @@ export function checkVault(vaults: VaultListing[], directory: string): "ok" | Va
 
 export type CreateResult =
   | { ok: true; path: string; commit: string }
-  | { ok: false; reason: "folder_gone" | "bad_title" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
+  | { ok: false; reason: "folder_gone" | "bad_folder_name" | "folder_exists" | "bad_title" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
 
 export { MAX_TITLE_CHARS } from "./limits";
 const ATTEMPTS = 2;
 export async function createFile(
   deps: CreateDeps,
-  input: { vault: string; folder: string; title: string; localMinute: LocalMinute; author: Identity },
+  input: { vault: string; folder: string; /** `folder` is one that is not there yet, made by this file. */ newFolder?: boolean | undefined; title: string; localMinute: LocalMinute; author: Identity },
 ): Promise<CreateResult> {
   const title = input.title.trim();
   if (title !== "" && deps.format.titleFromText(title) === null) return { ok: false, reason: "bad_title" };
@@ -71,8 +72,13 @@ export async function createFile(
         if (isProviderError(error, "not_found")) return [];
         throw error;
       });
-      // A vault always has its manifest; any other folder is only there if something is in it.
-      if (entries.length === 0) return { ok: false, reason: "folder_gone" };
+      if (input.newFolder) {
+        const made = await checkNewFolder(deps, expectedHead, directory);
+        if (!made.ok) return made;
+      } else if (entries.length === 0) {
+        // A vault always has its manifest; any other folder is only there if something is in it.
+        return { ok: false, reason: "folder_gone" };
+      }
       const taken = entries.map((entry) => entry.path.slice(directory.length + 1));
 
       const { name, text } = nameAndText(deps, title, taken, input.localMinute);

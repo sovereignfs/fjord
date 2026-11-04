@@ -2,6 +2,7 @@ import type { Fjord } from "../format/wasm";
 import type { LocalMinute, VaultListing } from "../format/types";
 import { isProviderError } from "../providers/errors";
 import type { Identity, Provider, RepositoryRef } from "../providers/types";
+import { checkNewFolder } from "./new-folder";
 import { formatIdentity } from "../working/version";
 
 /**
@@ -19,7 +20,7 @@ export interface CreateEncryptedDeps {
   provider: Provider;
   ref: RepositoryRef;
   branch: string;
-  format: Pick<Fjord, "quickNoteName" | "titleFromText" | "freeName" | "newUlid">;
+  format: Pick<Fjord, "quickNoteName" | "titleFromText" | "freeName" | "newUlid" | "checkName">;
   /** For tests: milliseconds since the epoch. */
   now?: () => number;
   /** For tests: at least ten random bytes. */
@@ -60,14 +61,14 @@ import { createEncryptedMessage, render } from "./messages";
 
 export type CreateEncryptedResult =
   | { ok: true; path: string; commit: string }
-  | { ok: false; reason: "folder_gone" | "bad_title" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
+  | { ok: false; reason: "folder_gone" | "bad_folder_name" | "folder_exists" | "bad_title" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
 
 const ATTEMPTS = 2;
 /** `YYYY-MM-DD`: the folder a journal files a day's entries in (`fjord-core`'s `journal::entry_path`). */
 const DAY_FOLDER = /^\d{4}-\d{2}-\d{2}$/;
 export async function createEncryptedFile(
   deps: CreateEncryptedDeps,
-  input: { vault: string; folder: string; target: EncryptedTarget; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
+  input: { vault: string; folder: string; /** `folder` is one that is not there yet, made by this file; only in a vault whose file names are plain. */ newFolder?: boolean | undefined; target: EncryptedTarget; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
 ): Promise<CreateEncryptedResult> {
   const title = input.title.trim();
   if (input.target.naming === "plain" && title !== "" && deps.format.titleFromText(title) == null) return { ok: false, reason: "bad_title" };
@@ -86,7 +87,14 @@ export async function createEncryptedFile(
         throw error;
       });
       // A journal's day folder is made by its first entry: git has no empty folders, so there is nothing to find. Only that shape, in a vault whose names are ids; any other folder that is not there is gone.
-      if (entries.length === 0 && !(input.target.naming === "id" && DAY_FOLDER.test(input.folder))) return { ok: false, reason: "folder_gone" };
+      if (input.newFolder && input.target.naming === "plain") {
+        const made = await checkNewFolder(deps, expectedHead, directory);
+        if (!made.ok) return made;
+      } else if (entries.length === 0 && !(input.target.naming === "id" && DAY_FOLDER.test(input.folder))) {
+        return { ok: false, reason: "folder_gone" };
+      } else if (input.newFolder && entries.length > 0) {
+        return { ok: false, reason: "folder_exists" };
+      }
       const present = entries.map((entry) => entry.path.slice(directory.length + 1));
 
       const { file, label } = nameFor(deps, input, title, present, suffix);
