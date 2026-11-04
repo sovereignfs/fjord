@@ -36,9 +36,9 @@ test("the first person signs in through Sovereign, as who Sovereign says they ar
   await expect(page.getByRole("heading", { name: `Hello, ${first.name}` })).toBeVisible();
   await expect(page.getByText(first.email)).toBeVisible();
   // Nothing of the local methods to manage.
-  await page.getByRole("link", { name: "Account", exact: true }).click();
+  await page.getByRole("link", { name: "Security", exact: true }).click();
   await expect(page.getByRole("tab", { name: "Encryption identity" })).toHaveCount(0);
-  await expect(page.getByRole("tab", { name: "Security" })).toHaveCount(0);
+  await expect(page.getByRole("tab", { name: "General" })).toHaveCount(0);
   expect((await page.goto("/account/security"))?.status()).toBe(404);
 });
 

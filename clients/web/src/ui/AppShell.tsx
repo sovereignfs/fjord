@@ -18,7 +18,7 @@ export interface ShellRepository {
 }
 
 /** Where a signed-in person is, so its icon in the rail is marked as the current page. */
-export type ShellPlace = "index" | "repositories" | "account" | { repository: string };
+export type ShellPlace = "index" | "repositories" | "security" | { repository: string };
 
 const classes = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(" ");
 
@@ -82,9 +82,9 @@ export function AppShell({
           ))}
           <li>{connect}</li>
         </ul>
-        <nav className={styles.chrome} aria-label="Account">
-          {/* A `Link`, not an anchor: a soft navigation is what lets the account open as a dialog over this page (`app/@modal/(.)account`). */}
-          <Link href="/account" className={classes(styles.icon, place === "account" && styles.iconActive)} title="Account" aria-label="Account" aria-current={place === "account" ? "page" : undefined}>
+        <nav className={styles.chrome} aria-label="Security">
+          {/* A `Link`, not an anchor: a soft navigation is what lets the account open as a dialog over this page (`app/@modal/(.)security`). */}
+          <Link href="/security" className={classes(styles.icon, place === "security" && styles.iconActive)} title="Security" aria-label="Security" aria-current={place === "security" ? "page" : undefined}>
             <FingerprintPatternIcon aria-hidden="true" />
           </Link>
           {signOut}

@@ -33,8 +33,8 @@ export function SovereignSection({
     // On success the browser is sent to Sovereign and brought back to this page, with the result.
     const { error: failure } = await authClient.linkSocial({
       provider: "sovereign",
-      callbackURL: "/account?tab=security&linked=1",
-      errorCallbackURL: "/account?tab=security",
+      callbackURL: "/security?linked=1",
+      errorCallbackURL: "/security",
     });
     if (failure) {
       setBusy(false);
@@ -53,7 +53,7 @@ export function SovereignSection({
       setError(messageFor(failure, "Sovereign was not unlinked. Try again."));
       return;
     }
-    window.location.assign("/account?tab=security&unlinked=1");
+    window.location.assign("/security?unlinked=1");
   }
 
   return (

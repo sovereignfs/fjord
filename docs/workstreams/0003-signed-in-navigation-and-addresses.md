@@ -86,7 +86,7 @@ Settled with the owner on 2026-11-03, except those marked *proposed*, which are 
 | Icons | Copied from lucide into Fjord (`src/ui/icons.tsx`, ISC notice kept), with a comment to consider offering them to `@sovereignfs/ui`; the owner said no contribution now | Bumping the package for them |
 | Sites' addresses (*proposed*) | `/repo/<repo-id>` is the posts and build status; `/repo/<repo-id>/post/<post-id>` a post, the word because `/p/` and `/s/` already mean published and sealed; shared as `/d/<id>` | `/repo/<id>/p/<id>`: reads as a published page |
 | Both dialogs | Modal, with `Dialog` from `@sovereignfs/ui` | Pages |
-| Account dialog's address | `/account`, shown as a modal over the current page by an intercepting route (`@modal/(.)account`), and over the home page when opened directly. `/account/keys` and `/account/security` redirect to it (*proposed*) | Fetching its data through new APIs from a client-only dialog: more routes to secure. A dialog with no address: Sovereign's link flow must come back to it |
+| Account dialog's address | `/account`, shown as a modal over the current page by an intercepting route (`@modal/(.)account`), and over the home page when opened directly. `/account/keys` and `/account/security` redirect to it (*proposed*). **Changed 2026-11-04, see Follow-ups: it is `/security`.** | Fetching its data through new APIs from a client-only dialog: more routes to secure. A dialog with no address: Sovereign's link flow must come back to it |
 | Where disconnecting goes | `/repositories` stays, linked from the home page; connecting moves to the dialog (*proposed*) | Removing it: disconnecting needs a home |
 | Commits | Direct to `main` for this session, by the owner's instruction, one commit per task. Pushed when the owner says | One PR per task, the repository's standing rule, which is unchanged |
 
@@ -273,3 +273,5 @@ Changes the owner asked for after using the first seven legs; each is a commit o
   warnings are (a token that reaches other repositories kept it open before); warnings are a toast, which needed a `ToastProvider` in the root layout. The instructions are an
   information box. `POST /api/connections` has the repository read before it answers (`Deps.connected`, best-effort), which records its kind, so the tile and the rail's icon are right
   at once; the GitHub App's callback does the same for each repository it connects (`src/github-app/complete.ts`).
+- **Security is `/security`.** The fingerprint icon opens *Security*, a medium dialog with *General* first (the sign-in's security) and *Encryption identity* second; `?tab=keys` opens the
+  second. `/account`, `/account/security` and `/account/keys` redirect. The Sovereign link flow's `callbackURL` is `/security?linked=1`.

@@ -210,7 +210,7 @@ test("the connect dialog offers only the form, and closes when the repository is
   await expect(dialog).toHaveCount(0);
 });
 
-test("the account opens as a dialog over the page it was opened from, and as a page at its own address", async ({ page }) => {
+test("security opens as a dialog over the page it was opened from, and as a page at its own address", async ({ page }) => {
   await signUp(page);
   await page.goto("/open");
   await connect(page, "acme/notes");
@@ -218,12 +218,14 @@ test("the account opens as a dialog over the page it was opened from, and as a p
   await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
   const repository = new URL(page.url()).pathname;
 
-  await page.getByRole("link", { name: "Account", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Account" });
+  await page.getByRole("link", { name: "Security", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Security" });
   await expect(dialog).toBeVisible();
-  await expect(page).toHaveURL(/\/account$/);
+  await expect(page).toHaveURL(/\/security$/);
   await expect(dialog.getByRole("tab", { name: "Encryption identity" })).toBeVisible();
-  await expect(dialog.getByRole("tab", { name: "Security" })).toBeVisible();
+  await expect(dialog.getByRole("tab", { name: "General" })).toBeVisible();
+  // General is the first tab, and what opens.
+  await expect(dialog.getByRole("tab").first()).toHaveText("General");
   // The page it was opened from is still there behind it, and closing the dialog goes back to it.
   await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
   await page.keyboard.press("Escape");
@@ -231,11 +233,16 @@ test("the account opens as a dialog over the page it was opened from, and as a p
   await expect(page).toHaveURL(new RegExp(`${repository}$`));
 
   // At its own address it is a page, not a dialog.
-  await page.goto("/account");
-  await expect(page.getByRole("heading", { name: "Account", level: 1 })).toBeVisible();
+  await page.goto("/security");
+  await expect(page.getByRole("heading", { name: "Security", level: 1 })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  // What it was called still arrives.
   await page.goto("/account/security");
-  await expect(page).toHaveURL(/\/account\?tab=security$/);
+  await expect(page).toHaveURL(/\/security$/);
+  await page.goto("/account/keys");
+  await expect(page).toHaveURL(/\/security\?tab=keys$/);
+  await page.goto("/account?tab=security&linked=1");
+  await expect(page).toHaveURL(/\/security\?linked=1$/);
   await expect(page.getByRole("button", { name: "Turn on" })).toBeVisible();
 });
 

@@ -6,8 +6,8 @@ export const dynamic = "force-dynamic";
 
 const one = (value: string | string[] | undefined) => (typeof value === "string" ? value : undefined);
 
-/** `/account` opened from another page of the app: the same account, as a dialog over that page. A refresh or a typed address is the page at `app/account`. */
-export default async function AccountModal({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+/** `/security` opened from another page of the app: the same panel, as a dialog over that page. A refresh or a typed address is the page at `app/security`. */
+export default async function SecurityModal({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { user } = await requireSession();
   const query = await searchParams;
   return (

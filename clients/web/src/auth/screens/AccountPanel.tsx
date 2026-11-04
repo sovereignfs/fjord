@@ -18,7 +18,7 @@ export interface AccountQuery {
 }
 
 /**
- * The account, in one place: the encryption identity kept in this browser (ROADMAP 2a.1), and the security of the sign-in: a password, two-factor, passkeys, and the link
+ * Security, in one place: the encryption identity kept in this browser (ROADMAP 2a.1), and the security of the sign-in: a password, two-factor, passkeys, and the link
  * to Sovereign (the local methods' and Sovereign's, so an instance that signs in only through Sovereign has none of it and shows just the key). Shown as a dialog over
  * the page it was opened from, or, at an address of its own, as a page. Nothing about the key is known to the server: the component that keeps it runs in the browser.
  */
@@ -84,7 +84,7 @@ export async function AccountPanel({ user, query }: { user: { twoFactorEnabled?:
       ) : null}
     </div>
   );
-  // A way back from linking Sovereign, or its failure, is about security: that part is open.
-  const initial = query.tab === "security" || query.error !== undefined || query.linked !== undefined || query.unlinked !== undefined ? "security" : "keys";
+  // General is what opens, and so it is for the way back from linking Sovereign, or its failure; only `?tab=keys` opens the key.
+  const initial = query.tab === "keys" ? "keys" : "general";
   return <AccountTabs initial={initial} keys={keys} security={security} />;
 }
