@@ -3,17 +3,18 @@
 import { DocumentEditor, NoteEditor } from "fjord-editor";
 import "fjord-editor/styles.css";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Button, FormField, Input } from "../../ui";
+import { createPortal } from "react-dom";
+import { Alert, Button } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { useComments } from "../../comments/Comments";
 import { sendDate, sendField, sendMove, sendTags, sendTitle } from "../../files/client";
 import { discardDraft, sendDraft, sendVersion } from "../../working/client";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
-import { MAX_MESSAGE_CHARS } from "../../working/limits";
 import { hasConflictMarkers } from "../../working/markers";
 import type { HeaderInfo, Properties } from "../document";
 import { repositoryHref } from "../links";
 import { DocumentProperties } from "./DocumentProperties";
+import { SaveControl } from "./SaveControl";
 
 /** The draft the page found for this note: its text and the version of the note it was started from. */
 export interface DraftOfNote {
@@ -98,8 +99,11 @@ export function NoteView({
   const [confirming, setConfirming] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [discardFailed, setDiscardFailed] = useState(false);
-  const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [asking, setAsking] = useState(false);
+  // Where the document's icons are (`FileCard`'s title row): the save control is put among them. A page with none there (a journal's writing view keeps its actions under "More") has it below the editor.
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => setSlot(document.getElementById("file-actions-slot")), []);
   const [versionError, setVersionError] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
 
@@ -232,7 +236,7 @@ export function NoteView({
     setDiscardFailed(true);
   }
 
-  async function saveVersion() {
+  async function saveVersion(message: string) {
     setSaving(true);
     setVersionError(null);
     // What is on screen is kept first, so the version is what the person sees. If that cannot be done, nothing is made.
@@ -265,8 +269,10 @@ export function NoteView({
   }
 
   const unsettled = hasConflictMarkers(saver.text);
+  const saveControl = <SaveControl unsettled={unsettled} hasDraft={hasDraft} saving={saving} error={versionError} asking={asking} setAsking={setAsking} onSave={(message) => void saveVersion(message)} />;
   return (
     <div>
+      {slot ? createPortal(saveControl, slot) : null}
       {draft ? (
         <div className={styles.notice}>
           <Alert variant="info" heading={draft.guests?.length ? "Changes were kept" : "Your changes were kept"}>
@@ -301,11 +307,12 @@ export function NoteView({
       {bodyStart === undefined ? (
         <NoteEditor aria-label={label} value={start} onChange={(next) => saver.change(next)} readOnly={saving} />
       ) : editor === "document" || visual ? (
-        <DocumentEditor key="rich" aria-label={label} role={saving ? "view" : "edit"} value={bodyNow} onChange={changeBody} comments={adapter} onNeedName={onNeedName} />
+        <DocumentEditor key="rich" choiceKey={`${connectionId}:${path}`} aria-label={label} role={saving ? "view" : "edit"} value={bodyNow} onChange={changeBody} comments={adapter} onNeedName={onNeedName} />
       ) : (
         <NoteEditor key="source" aria-label={label} value={bodyNow} onChange={changeBody} readOnly={saving} />
       )}
       {panel}
+      {slot ? null : <div style={{ margin: "var(--sv-space-3) 0" }}>{saveControl}</div>}
       <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="draft-status">
         {describe(status, hasDraft)}
       </p>
@@ -316,30 +323,12 @@ export function NoteView({
           </Alert>
         </div>
       ) : null}
-      {hasDraft ? (
-        <form
-          className={styles.form}
-          onSubmit={(event) => {
-            event.preventDefault();
-            void saveVersion();
-          }}
-        >
-          <FormField label="Message" hint="What changed, for the repository's history. Leave it empty for “Edit <name>”.">
-            {(field) => <Input {...field} name="message" autoComplete="off" maxLength={MAX_MESSAGE_CHARS} value={message} onChange={(e) => setMessage(e.target.value)} disabled={saving} />}
-          </FormField>
-          {versionError ? (
-            <div className={styles.notice}>
-              <Alert variant="error" heading="No version was made">
-                {versionError}
-              </Alert>
-            </div>
-          ) : null}
-          <div className={styles.actions}>
-            <Button type="submit" variant={unsettled ? "secondary" : "primary"} loading={saving}>
-              {unsettled ? "Save version anyway" : "Save version"}
-            </Button>
-          </div>
-        </form>
+      {versionError && !asking ? (
+        <div className={styles.notice}>
+          <Alert variant="error" heading="No version was made">
+            {versionError}
+          </Alert>
+        </div>
       ) : null}
       {hasDraft ? (
         <div>

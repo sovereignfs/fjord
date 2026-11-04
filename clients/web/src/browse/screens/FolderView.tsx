@@ -11,9 +11,6 @@ import type { Preview } from "../../working/resolve";
 import { checkVault } from "../../files/create";
 import { DeleteButton } from "./DeleteButton";
 import { MoveButtons } from "./MoveButtons";
-import { PublishPanel } from "../../publishing/PublishPanel";
-import { IdentifyAndShare } from "../../sharing/IdentifyAndShare";
-import { SharePanel } from "../../sharing/SharePanel";
 import { ShareDialog } from "../../sharing/ShareDialog";
 import { Listing, type ListingItem } from "./Listing";
 import { NewFile, type EncryptedCreate } from "./NewFile";
@@ -308,17 +305,8 @@ function FileCard({
   // among them for a drive's document, whose properties have its file's name; a file that has no such properties keeps it. A journal's writing view keeps them one step away, under "More".
   const isDoc = file.kind === "doc";
   const sharing =
-    remove && !encrypted && isDoc ? (
-      docId ? (
-        <ShareDialog>
-          <SharePanel connectionId={connectionId} docId={docId} note={writing === true} />
-          <PublishPanel connectionId={connectionId} docId={docId} />
-        </ShareDialog>
-      ) : note?.ok ? (
-        <ShareDialog>
-          <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} />
-        </ShareDialog>
-      ) : null
+    remove && !encrypted && isDoc && (docId || note?.ok) ? (
+      <ShareDialog connectionId={connectionId} docId={docId} journal={writing === true} path={note?.ok ? file.path : undefined} blob={note?.ok ? note.blob : undefined} hasDraft={draft !== null} />
     ) : null;
   // The file's name is in the properties when the page has properties to show: a header it has, or one it would be given. A text it would not give one to (it has carriage returns) has none, and keeps its rename icon.
   const filenameInProperties = isDoc && editor === "document" && (header?.properties !== undefined || header?.promotion !== undefined);
@@ -353,7 +341,13 @@ function FileCard({
           {title}
           {file.size > 0 ? <span className={actions.size}>{humanSize(file.size)}</span> : null}
         </h2>
-        {writing || !icons ? null : <div className={actions.icons}>{icons}</div>}
+        {writing || !icons ? null : (
+          <div className={actions.icons}>
+            {/* Where a document's editor puts its save control, among the icons (`NoteView`). */}
+            <span id="file-actions-slot" style={{ display: "contents" }} />
+            {icons}
+          </div>
+        )}
       </div>
       {file.kind === "doc" && note ? (
         note.ok ? (
@@ -369,7 +363,7 @@ function FileCard({
                   Address by id, which does not depend on where the file is: <a href={permalink}>{permalink}</a>
                 </p>
               ) : null}
-              <NoteView connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} editor={editor} site={site} header={header} docId={docId} tagSuggestions={tagSuggestions} rename={remove && editor === "document" && filenameInProperties ? { vault: remove.vault, repo, suffix: file.path.match(/\.md$/i)?.[0] ?? "" } : undefined} updated={updated} />
+              <NoteView key={note.blob} connectionId={connectionId} path={file.path} label={leaf(file.logical)} text={note.text} blob={note.blob} draft={draft} editor={editor} site={site} header={header} docId={docId} tagSuggestions={tagSuggestions} rename={remove && editor === "document" && filenameInProperties ? { vault: remove.vault, repo, suffix: file.path.match(/\.md$/i)?.[0] ?? "" } : undefined} updated={updated} />
             </>
           )
         ) : (

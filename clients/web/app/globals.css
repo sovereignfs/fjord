@@ -58,6 +58,7 @@ summary:focus-visible {
   --fe-color-text: var(--sv-color-text-primary);
   --fe-color-muted: var(--sv-color-text-muted);
   --fe-color-surface: var(--sv-color-surface);
+  --fe-color-surface-muted: var(--sv-color-surface-sunken);
   --fe-color-border: var(--sv-color-border);
   --fe-color-accent: var(--sv-color-accent);
   --fe-color-accent-text: var(--sv-color-text-on-accent);

@@ -1118,6 +1118,8 @@ What is built is the first bullet above, the draft; versions are 1b.9 and the up
 
 **Save version** is built: one commit from the draft. The quiet-period commits by the worker are 1b.13, below.
 
+*Where it is on the page.* Save is the `save` icon among the document's other icons at the end of its title, disabled with nothing to save, and the arrow attached to it opens a menu whose one item, *Save with a message…*, asks for the message in a dialog (`SaveControl`); the icon alone makes the version with the default message. A page that has no title row (an encrypted file, whose editor is its own) keeps the form at the foot.
+
 - **API.** `POST /api/connections/<id>/working-copy/version` with `{ path, message? }` under §12's rules (signed in, this
   site's `Origin`, own repositories only; another's is a 404). It answers `201 { commit }`, or refuses with a code and words
   for a person: `no_draft`, `nothing_to_save` (the draft is the file; it is dropped), `upstream_changed`, `gone`,

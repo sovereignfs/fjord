@@ -186,7 +186,7 @@ no match show "moved or gone", as `/f/` does.
 
 - `IdPage`: a single match in the person's own repository redirects to the long address; a share or link is shown at `/d/<id>`, as now; several
   matches still list. `/d/<id>/draft` and `/d/<id>/comments` are API and do not move.
-- `IdentifyAndShare`, the Sharing panel and `linkUrl` keep giving `/d/<id>`.
+- The sharing dialog (`ShareDialog`, with its identifier step `IdentifyStep`, and the Sharing panel) and `linkUrl` keep giving `/d/<id>`. Giving a file its identifier moves the page to the file's address by identifier; the dialog is kept open across the move (a flag in `sessionStorage`) and goes on to the sharing controls.
 
 ### Leg 5 — Static HTML
 

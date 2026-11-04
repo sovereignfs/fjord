@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { ROLES, type Role } from "../access/policy";
-import { Alert, Badge, Button, FormField, Input } from "../ui";
-import styles from "../auth/screens/screens.module.css";
+import { Alert, Avatar, Badge, Button, FormField, Input, Select, Tabs } from "../ui";
+import styles from "./Sharing.module.css";
 import {
   type LinkEntry,
   type SharedWith,
@@ -19,14 +19,16 @@ import {
 } from "./manage-client";
 
 /**
- * Who a document is shared with, and by which links (DESIGN.md §12, ROADMAP 1c.7): the owner sees every share of it and controls each. People
- * are added by the address of their account, given a role, changed and removed; links are made with a role, an optional expiry and an optional
- * password, changed, and revoked. A link's address is shown **once**, when it is made, because only a hash of its token is kept: to share a
- * link again, make another and revoke the old one. The lists are read when the panel is first opened.
+ * Who a document is shared with, and by which links (DESIGN.md §12, ROADMAP 1c.7), in the sharing dialog: three tabs, **People**, **Links** and **Page** (publishing it, `publish`), and in each the thing to
+ * add first and what there already is under it. People are added by the address of their account, given a role, changed and removed; links are made with a role, an optional expiry and an optional
+ * password, changed, and revoked. A link's address is shown **once**, when it is made, because only a hash of its token is kept: to share a link again, make another and revoke the old one. The lists
+ * are read when the dialog is first opened.
  */
 const ROLE_WORDS: Record<Role, string> = { view: "Can view", comment: "Can comment", edit: "Can edit" };
+type Tab = "people" | "links" | "page";
 
-export function SharePanel({ connectionId, docId, note = false }: { connectionId: number; docId: string; /** A journal's note: its links are given at `/n/<id>`, as a document's are at `/d/<id>`. */ note?: boolean }) {
+export function SharePanel({ connectionId, docId, note = false, publish, justIdentified = false }: { connectionId: number; docId: string; /** A journal's note: its links are given at `/n/<id>`, as a document's are at `/d/<id>`. */ note?: boolean; /** The panel that publishes the document as a page, which is the third tab. */ publish: ReactNode; /** The file was given its identifier a moment ago, in this dialog: it says so. */ justIdentified?: boolean }) {
+  const [tab, setTab] = useState<Tab>("people");
   const [loaded, setLoaded] = useState(false);
   const [people, setPeople] = useState<SharedWith[]>([]);
   const [links, setLinks] = useState<LinkEntry[]>([]);
@@ -45,30 +47,47 @@ export function SharePanel({ connectionId, docId, note = false }: { connectionId
     if (!loaded) void load();
   }, [loaded, load]);
 
+  const active = links.filter((link) => link.status === "active").length;
   return (
-    <div className={styles.itemMeta} data-testid="share-panel">
-      {problem ? (
-        <div className={styles.notice}>
-          <Alert variant="error" heading="Sharing">
-            {problem}
-          </Alert>
-        </div>
+    <div className={styles.root}>
+      {justIdentified ? (
+        <Alert variant="success" heading="The file has an identifier">
+          It can be shared now.
+        </Alert>
       ) : null}
-      <People connectionId={connectionId} docId={docId} people={people} changed={load} />
-      <Links connectionId={connectionId} docId={docId} note={note} links={links} changed={load} />
+      <Tabs
+        aria-label="Ways to share"
+        value={tab}
+        onChange={(next) => setTab(next as Tab)}
+        items={[
+          { label: people.length > 0 ? `People (${people.length})` : "People", value: "people" },
+          { label: active > 0 ? `Links (${active})` : "Links", value: "links" },
+          { label: "Page", value: "page" },
+        ]}
+      />
+      {problem ? (
+        <Alert variant="error" heading="Sharing">
+          {problem}
+        </Alert>
+      ) : null}
+      <div className={styles.panel} role="tabpanel" aria-label={tab === "people" ? "People" : tab === "links" ? "Links" : "Page"}>
+        {tab === "people" ? <People connectionId={connectionId} docId={docId} people={people} changed={load} /> : null}
+        {tab === "links" ? <Links connectionId={connectionId} docId={docId} note={note} links={links} changed={load} /> : null}
+        {tab === "page" ? publish : null}
+      </div>
     </div>
   );
 }
 
-function RoleSelect({ value, onChange, label, disabled }: { value: Role; onChange: (role: Role) => void; label: string; disabled?: boolean }) {
+function RoleSelect({ value, onChange, label, disabled, field, size = "md" }: { size?: "sm" | "md"; value: Role; onChange: (role: Role) => void; label: string; disabled?: boolean; /** What a `FormField` hands its control. */ field?: { id?: string; "aria-describedby"?: string | undefined } }) {
   return (
-    <select aria-label={label} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as Role)}>
+    <Select {...field} size={size} aria-label={label} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as Role)}>
       {ROLES.map((role) => (
         <option key={role} value={role}>
           {ROLE_WORDS[role]}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -106,49 +125,45 @@ function People({ connectionId, docId, people, changed }: { connectionId: number
   }
 
   return (
-    <section aria-label="People">
-      <h3>People</h3>
-      {people.length === 0 ? <p>Not shared with anyone.</p> : null}
-      <ul aria-label="People with access" className={styles.list}>
-        {people.map((person) => (
-          <li key={person.accountId} className={styles.item}>
-            <span>
-              {person.name} <span className={styles.itemMeta}>{person.email}</span>
-            </span>
-            <span>
-              <RoleSelect value={person.role} label={`Role of ${person.name}`} onChange={(next) => void change(person, next)} />{" "}
-              <Button variant="secondary" size="sm" onClick={() => void remove(person)}>
-                Stop sharing
-              </Button>
-            </span>
-          </li>
-        ))}
-      </ul>
+    <>
       <form
-        className={styles.form}
+        className={styles.invite}
         onSubmit={(event) => {
           event.preventDefault();
           void share();
         }}
       >
-        <FormField label="Share with" hint="The email address of their account here. Only existing accounts can be shared with.">
-          {(field) => <Input {...field} type="email" name="email" autoComplete="off" value={email} onChange={(e) => setEmail(e.target.value)} disabled={busy} />}
+        <FormField label="Share with">
+          {(field) => <Input {...field} type="email" name="email" autoComplete="off" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={busy} />}
         </FormField>
         <RoleSelect value={role} label="Role for the new person" onChange={setRole} disabled={busy} />
-        <div className={styles.actions}>
-          <Button type="submit" size="sm" loading={busy} disabled={email.trim() === ""}>
-            Share
-          </Button>
-        </div>
+        <Button type="submit" loading={busy} disabled={email.trim() === ""}>
+          Share
+        </Button>
       </form>
+      <p className={styles.muted}>Use the email address of their account here. Only people who already have an account can be shared with.</p>
       {said ? (
-        <div className={styles.notice}>
-          <Alert variant={said.ok ? "info" : "error"} heading={said.ok ? "Done" : "Not shared"}>
-            {said.message}
-          </Alert>
-        </div>
+        <Alert variant={said.ok ? "info" : "error"} heading={said.ok ? "Done" : "Not shared"}>
+          {said.message}
+        </Alert>
       ) : null}
-    </section>
+      {people.length === 0 ? <p className={styles.empty}>Not shared with anyone.</p> : <h3 className={styles.heading}>Who has access</h3>}
+      <ul aria-label="People with access" className={styles.list}>
+        {people.map((person) => (
+          <li key={person.accountId} className={styles.person}>
+            <Avatar name={person.name} size="sm" />
+            <span className={styles.who}>
+              <span className={styles.name}>{person.name}</span>
+              <span className={styles.email}>{person.email}</span>
+            </span>
+            <RoleSelect size="sm" value={person.role} label={`Role of ${person.name}`} onChange={(next) => void change(person, next)} />
+            <button type="button" className={styles.remove} aria-label={`Stop sharing with ${person.name}`} onClick={() => void remove(person)}>
+              Remove
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -187,56 +202,56 @@ function Links({ connectionId, docId, note, links, changed }: { connectionId: nu
   }
 
   return (
-    <section aria-label="Links">
-      <h3>Links</h3>
-      {links.length === 0 ? <p>No links.</p> : null}
-      <ul aria-label="Links to this document" className={styles.list}>
-        {links.map((link) => (
-          <LinkRow key={link.id} connectionId={connectionId} docId={docId} link={link} changed={changed} />
-        ))}
-      </ul>
-      <p className={styles.itemMeta}>A link&apos;s address is shown once, when it is made. To share one again, make another and revoke the old one.</p>
+    <>
       <form
-        className={styles.form}
+        className={styles.card}
         onSubmit={(event) => {
           event.preventDefault();
           void make();
         }}
       >
-        <RoleSelect value={role} label="What the new link allows" onChange={setRole} disabled={busy} />
-        <FormField label="Expires" hint="Leave empty for a link that does not expire.">
-          {(field) => <Input {...field} type="datetime-local" name="expires" value={expires} onChange={(e) => setExpires(e.target.value)} disabled={busy} />}
-        </FormField>
-        <FormField label="Password" hint="Optional. Eight characters or more; asked for when the link is opened.">
-          {(field) => <Input {...field} type="password" name="link-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />}
-        </FormField>
+        <h3 className={styles.heading}>Make a link</h3>
+        <div className={styles.fields}>
+          <FormField label="What it allows">{(field) => <RoleSelect field={field} value={role} label="What the new link allows" onChange={setRole} disabled={busy} />}</FormField>
+          <FormField label="Expires" hint="Leave empty for a link that does not expire.">
+            {(field) => <Input {...field} type="datetime-local" name="expires" value={expires} onChange={(e) => setExpires(e.target.value)} disabled={busy} />}
+          </FormField>
+          <FormField label="Password" hint="Optional. Eight characters or more; asked for when the link is opened.">
+            {(field) => <Input {...field} type="password" name="link-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />}
+          </FormField>
+        </div>
         <div className={styles.actions}>
-          <Button type="submit" size="sm" loading={busy}>
+          <Button type="submit" loading={busy}>
             Make a link
           </Button>
         </div>
       </form>
       {error ? (
-        <div className={styles.notice}>
-          <Alert variant="error" heading="Links">
-            {error}
-          </Alert>
-        </div>
+        <Alert variant="error" heading="Links">
+          {error}
+        </Alert>
       ) : null}
       {made ? (
-        <div className={styles.notice} data-testid="new-link">
+        <div data-testid="new-link">
           <Alert variant="success" heading="Link made">
             {made.passwordProtected ? "It asks for the password you gave. " : ""}This is the only time its address is shown.
-            <p>
-              <Input aria-label="The new link's address" readOnly value={made.url} onFocus={(e) => e.currentTarget.select()} />{" "}
+            <div className={styles.address}>
+              <Input aria-label="The new link's address" readOnly value={made.url} onFocus={(e) => e.currentTarget.select()} />
               <Button size="sm" onClick={() => void copy(made.url)}>
                 {copied ? "Copied" : "Copy link"}
               </Button>
-            </p>
+            </div>
           </Alert>
         </div>
       ) : null}
-    </section>
+      {links.length === 0 ? <p className={styles.empty}>No links.</p> : <h3 className={styles.heading}>Links to this document</h3>}
+      <ul aria-label="Links to this document" className={styles.list} style={{ gap: 0 }}>
+        {links.map((link) => (
+          <LinkRow key={link.id} connectionId={connectionId} docId={docId} link={link} changed={changed} />
+        ))}
+      </ul>
+      {links.length > 0 ? <p className={styles.muted}>A link&apos;s address is shown once, when it is made. To share one again, make another and revoke the old one.</p> : null}
+    </>
   );
 }
 
@@ -278,30 +293,27 @@ function LinkRow({ connectionId, docId, link, changed }: { connectionId: number;
   }
 
   return (
-    <li className={styles.item} data-testid="link-row" data-status={link.status}>
-      <span>
-        {ROLE_WORDS[link.role]}{" "}
-        <Badge>{link.status === "active" ? "Active" : link.status === "expired" ? "Expired" : "Revoked"}</Badge>
-        {link.passwordProtected ? (
-          <>
-            {" "}
-            <Badge>Password</Badge>
-          </>
-        ) : null}{" "}
-        <span className={styles.itemMeta}>
+    <li className={styles.link} data-testid="link-row" data-status={link.status}>
+      <span className={styles.linkMain}>
+        <span className={styles.linkHead}>
+          {ROLE_WORDS[link.role]}
+          <Badge>{link.status === "active" ? "Active" : link.status === "expired" ? "Expired" : "Revoked"}</Badge>
+          {link.passwordProtected ? <Badge>Password</Badge> : null}
+        </span>
+        <span className={styles.email}>
           {link.status === "revoked" ? "Revoked" : link.expiresAt === null ? "Does not expire" : `${link.status === "expired" ? "Expired" : "Expires"} ${new Date(link.expiresAt).toLocaleString()}`}
         </span>
       </span>
       {link.status === "revoked" ? null : (
-        <span>
+        <span className={styles.linkActions}>
           <Button variant="secondary" size="sm" onClick={() => setEditing(!editing)} aria-expanded={editing}>
             {editing ? "Cancel" : "Change"}
-          </Button>{" "}
+          </Button>
           {confirming ? (
             <>
               <Button variant="destructive" size="sm" onClick={() => void revoke()} loading={busy}>
                 Yes, revoke
-              </Button>{" "}
+              </Button>
               <Button variant="secondary" size="sm" onClick={() => setConfirming(false)} disabled={busy}>
                 Keep
               </Button>
@@ -315,21 +327,23 @@ function LinkRow({ connectionId, docId, link, changed }: { connectionId: number;
       )}
       {editing ? (
         <form
-          className={styles.form}
+          className={`${styles.form} ${styles.linkForm}`}
           onSubmit={(event) => {
             event.preventDefault();
             void save();
           }}
         >
-          <RoleSelect value={role} label="What the link allows" onChange={setRole} disabled={busy} />
-          <FormField label="Expires" hint="Empty for a link that does not expire. A later time revives a link that has expired.">
-            {(field) => <Input {...field} type="datetime-local" name="expires" value={expires} onChange={(e) => setExpires(e.target.value)} disabled={busy} />}
-          </FormField>
-          <FormField label={link.passwordProtected ? "New password" : "Password"} hint={link.passwordProtected ? "Leave empty to keep the password it has. A new one ends what the old one opened." : "Optional. Eight characters or more."}>
-            {(field) => <Input {...field} type="password" name="new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy || removePassword} />}
-          </FormField>
+          <div className={styles.fields}>
+            <FormField label="What it allows">{(field) => <RoleSelect field={field} value={role} label="What the link allows" onChange={setRole} disabled={busy} />}</FormField>
+            <FormField label="Expires" hint="Empty for a link that does not expire. A later time revives a link that has expired.">
+              {(field) => <Input {...field} type="datetime-local" name="expires" value={expires} onChange={(e) => setExpires(e.target.value)} disabled={busy} />}
+            </FormField>
+            <FormField label={link.passwordProtected ? "New password" : "Password"} hint={link.passwordProtected ? "Leave empty to keep the password it has. A new one ends what the old one opened." : "Optional. Eight characters or more."}>
+              {(field) => <Input {...field} type="password" name="new-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy || removePassword} />}
+            </FormField>
+          </div>
           {link.passwordProtected ? (
-            <label>
+            <label className={styles.checkbox}>
               <input type="checkbox" checked={removePassword} onChange={(e) => setRemovePassword(e.target.checked)} disabled={busy} /> Remove the password
             </label>
           ) : null}
@@ -341,7 +355,7 @@ function LinkRow({ connectionId, docId, link, changed }: { connectionId: number;
         </form>
       ) : null}
       {error ? (
-        <div className={styles.notice}>
+        <div className={styles.linkForm}>
           <Alert variant="error" heading="Not changed">
             {error}
           </Alert>

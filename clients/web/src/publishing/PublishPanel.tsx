@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Button } from "../ui";
-import styles from "../auth/screens/screens.module.css";
+import styles from "../sharing/Sharing.module.css";
 import { getStatus, publish, unpublish } from "./client";
 
 /**
- * "Publish as a page" (DESIGN.md §12, ROADMAP 3h.1): the Doc as a read-only page at an address anyone can open, no account needed. It is the owner's choice, said in
+ * "Publish as a page" (the Page tab of the sharing dialog; DESIGN.md §12, ROADMAP 3h.1): the Doc as a read-only page at an address anyone can open, no account needed. It is the owner's choice, said in
  * words first: the page shows the saved version, a change shows on it after the next version is saved, and anyone who has the address can read it. The address is shown
  * **once**, when it is made; publishing again makes a new address and ends the old one, and *Unpublish* ends it at once.
  */
@@ -17,6 +17,11 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!loaded) void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- it is read once, as the tab opens.
+  }, []);
 
   async function load() {
     const status = await getStatus(connectionId, docId);
@@ -49,46 +54,36 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
   }
 
   return (
-    <details
-      className={styles.itemMeta}
-      data-testid="publish-panel"
-      onToggle={(event) => {
-        if ((event.currentTarget as HTMLDetailsElement).open && !loaded) void load();
-      }}
-    >
-      <summary>Publish as a page</summary>
+    <div className={styles.panel} data-testid="publish-panel">
       {problem ? (
-        <div className={styles.notice}>
-          <Alert variant="error" heading="Publishing">
-            {problem}
-          </Alert>
-        </div>
+        <Alert variant="error" heading="Publishing">
+          {problem}
+        </Alert>
       ) : null}
       {url ? (
-        <div className={styles.notice}>
-          <Alert variant="success" heading="Published">
-            Anyone with this address can read the page. It is shown only now; keep it, or publish again for a new one.
-            <br />
-            <code data-testid="page-address">{url}</code>
-          </Alert>
-        </div>
+        <Alert variant="success" heading="Published">
+          Anyone with this address can read the page. It is shown only now; keep it, or publish again for a new one.
+          <br />
+          <code data-testid="page-address">{url}</code>
+        </Alert>
       ) : null}
       {published ? (
         <>
-          {url ? null : <p>This document is published. Its address was shown when it was made and is not kept; publish again for a new one, which ends the old.</p>}
+          {url ? null : <p className={styles.muted}>This document is published. Its address was shown when it was made and is not kept; publish again for a new one, which ends the old.</p>}
           <div className={styles.actions}>
-            <Button type="button" variant="secondary" size="sm" loading={busy} onClick={() => void end()}>
+            <Button type="button" variant="secondary" loading={busy} onClick={() => void end()}>
               Unpublish
             </Button>
-            <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={() => setAsking(true)}>
+            <Button type="button" variant="secondary" disabled={busy} onClick={() => setAsking(true)}>
               Publish again
             </Button>
           </div>
         </>
       ) : null}
       {!published || asking ? (
-        <>
-          <p>
+        <div className={styles.card}>
+          <h3 className={styles.heading}>Publish as a page</h3>
+          <p className={styles.muted}>
             A published page shows this document&apos;s saved version, read-only, to anyone with its address, with no account. Raw HTML in it is shown as text, and pictures and
             scripts are not loaded. A change shows on the page after you save a version.
           </p>
@@ -102,8 +97,8 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
               </Button>
             ) : null}
           </div>
-        </>
+        </div>
       ) : null}
-    </details>
+    </div>
   );
 }

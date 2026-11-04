@@ -12,6 +12,7 @@ import { unlockAction } from "../../../app/d/[id]/actions";
 import { parseShareCookie } from "../../sharing/unlock";
 import { cookieNames } from "../../sharing/redact";
 import { SharedBody } from "../../sharing/SharedBody";
+import { SharedDocument } from "../../sharing/SharedDocument";
 import { openLinkedFor, openSharedFor, passwordWanted } from "../../sharing/server";
 import { isDocId } from "../ids";
 import { repositoryHref } from "../links";
@@ -34,17 +35,20 @@ export async function IdPage({ id, wrong, base = "d" }: { id: string; wrong?: "w
     const linked = await openLinkedFor(token, id, proof);
     if (linked) {
       return (
-        <main className={styles.page}>
-          <div className={styles.account}>
-            <h1 className={styles.title}>{linked.title}</h1>
-            <Card as="article" padding="lg">
-              <p className={styles.itemMeta}>
-                Shared with you by a link <Badge>{linked.role === "view" ? "Can view" : linked.role === "comment" ? "Can comment" : "Can edit"}</Badge>
-              </p>
-              {linked.role === "view" || linked.editable ? null : <p className={styles.itemMeta}>{linked.role === "edit" ? "This document cannot be edited through a link." : "Commenting on a shared document comes later; for now it is shown to read."}</p>}
-              <SharedBody title={linked.title} body={linked.body} docId={id} editable={linked.editable} role={linked.role} guest />
-            </Card>
-          </div>
+        <main>
+          <SharedDocument
+            full
+            title={linked.title}
+            meta={
+              <>
+                <span>Shared with you by a link</span>
+                <Badge>{linked.role === "view" ? "Can view" : linked.role === "comment" ? "Can comment" : "Can edit"}</Badge>
+                {linked.role === "view" || linked.editable ? null : <span>{linked.role === "edit" ? "This document cannot be edited through a link." : "Commenting on a shared document comes later; for now it is shown to read."}</span>}
+              </>
+            }
+          >
+            <SharedBody title={linked.title} body={linked.body} docId={id} editable={linked.editable} role={linked.role} guest />
+          </SharedDocument>
         </main>
       );
     }
@@ -80,13 +84,20 @@ export async function IdPage({ id, wrong, base = "d" }: { id: string; wrong?: "w
     const shared = await openSharedFor(user.id, id);
     if (shared) {
       return (
-        <Shell user={user} title={shared.title}>
-          <p className={styles.itemMeta}>
-            Shared with you{shared.sharedBy ? ` by ${shared.sharedBy}` : ""} <Badge>{shared.role === "view" ? "Can view" : shared.role === "comment" ? "Can comment" : "Can edit"}</Badge>
-          </p>
-          {shared.role === "view" ? null : <p className={styles.itemMeta}>Commenting and editing a shared document come later; for now it is shown to read.</p>}
-          <SharedBody title={shared.title} body={shared.body} docId={id} editable={false} role={shared.role} guest={false} />
-        </Shell>
+        <SignedInShell user={user} place="index">
+          <SharedDocument
+            title={shared.title}
+            meta={
+              <>
+                <span>Shared with you{shared.sharedBy ? ` by ${shared.sharedBy}` : ""}</span>
+                <Badge>{shared.role === "view" ? "Can view" : shared.role === "comment" ? "Can comment" : "Can edit"}</Badge>
+                {shared.role === "view" ? null : <span>Commenting and editing a shared document come later; for now it is shown to read.</span>}
+              </>
+            }
+          >
+            <SharedBody title={shared.title} body={shared.body} docId={id} editable={false} role={shared.role} guest={false} />
+          </SharedDocument>
+        </SignedInShell>
       );
     }
   }

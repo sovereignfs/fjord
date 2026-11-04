@@ -1,0 +1,333 @@
+/* The sharing dialog: tabs (people, links, page), and in each the thing to add first and what there already is under it. */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
+  min-height: 18rem;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
+}
+
+.lead {
+  margin: 0;
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+  line-height: 1.5;
+}
+
+.muted {
+  margin: 0;
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+  line-height: 1.5;
+}
+
+.empty {
+  margin: 0;
+  padding: var(--sv-space-5) var(--sv-space-4);
+  border: 1px dashed var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+  text-align: center;
+}
+
+/* The row that adds someone: their address, what they may do, and the button, on one line where there is room. */
+.invite {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--sv-space-2);
+  align-items: end;
+}
+
+.invite > :first-child {
+  min-width: 0;
+}
+
+@media (max-width: 36rem) {
+  .invite {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .invite > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--sv-font-size-sm);
+  font-weight: var(--sv-font-weight-semibold);
+  color: var(--sv-color-text-primary);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.person {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: var(--sv-space-3);
+  align-items: center;
+  padding: var(--sv-space-3) 0;
+  border-bottom: var(--sv-border-width-hairline) solid var(--sv-color-border);
+}
+
+.person:last-child {
+  border-bottom: 0;
+}
+
+.who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  font-weight: var(--sv-font-weight-medium, 500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.email {
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-caption);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove {
+  padding: var(--sv-space-1) var(--sv-space-2);
+  border: 0;
+  border-radius: var(--sv-radius-md);
+  background: transparent;
+  color: var(--sv-color-text-muted);
+  font: inherit;
+  font-size: var(--sv-font-size-sm);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .remove:hover {
+    background-color: var(--sv-color-surface-sunken);
+    color: var(--sv-color-error, #b42318);
+  }
+}
+
+.remove:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* A link: what it allows and its state on the first line, what it is good until under it, its actions at the end. */
+.link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sv-space-2) var(--sv-space-3);
+  padding: var(--sv-space-3);
+  border: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+}
+
+.link + .link {
+  margin-top: var(--sv-space-2);
+}
+
+.linkMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-1);
+  min-width: 0;
+}
+
+.linkHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sv-space-2);
+  font-weight: var(--sv-font-weight-medium, 500);
+}
+
+.linkActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-2);
+  align-items: center;
+}
+
+.linkForm {
+  flex-basis: 100%;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-3);
+  padding: var(--sv-space-4);
+  border: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  border-radius: var(--sv-radius-lg);
+  background-color: var(--sv-color-surface-sunken);
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--sv-space-3);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sv-space-2);
+  align-items: center;
+}
+
+.address {
+  display: flex;
+  gap: var(--sv-space-2);
+  align-items: center;
+  margin-top: var(--sv-space-2);
+}
+
+.address > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.checkbox {
+  display: flex;
+  gap: var(--sv-space-2);
+  align-items: center;
+  font-size: var(--sv-font-size-sm);
+}
+
+/* The step before sharing a file that has no identifier: one thing to read, one thing to do, in the middle of the dialog. */
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sv-space-3);
+  padding: var(--sv-space-4) var(--sv-space-2);
+  text-align: center;
+}
+
+.stepIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: var(--sv-color-surface-sunken);
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-xl);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+.stepTitle {
+  margin: 0;
+  font-size: var(--sv-font-size-md, 1rem);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+.stepActions {
+  display: flex;
+  gap: var(--sv-space-2);
+  margin-top: var(--sv-space-2);
+}
+
+.step > * {
+  max-width: 30rem;
+}
+
+/* A document shared with someone, to read: a sheet of paper (A4, 210 by 297 mm) on a gray desk, as a word processor shows one. */
+.desk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sv-space-4);
+  padding: var(--sv-space-5) var(--sv-space-4) var(--sv-space-10);
+  border-radius: var(--sv-radius-lg);
+  background-color: color-mix(in srgb, var(--sv-color-text-primary) 8%, var(--sv-color-surface));
+}
+
+.deskFull {
+  min-height: 100dvh;
+  border-radius: 0;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sv-space-2) var(--sv-space-3);
+  width: 100%;
+  max-width: 210mm;
+}
+
+.docTitle {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+  font-weight: var(--sv-font-weight-semibold);
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.docMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sv-space-2);
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
+}
+
+.paper {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 210mm;
+  min-height: 297mm;
+  padding: 25.4mm;
+  border: var(--sv-border-width-hairline) solid var(--sv-color-border);
+  background-color: var(--sv-color-surface);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12), 0 4px 14px rgb(0 0 0 / 0.08);
+}
+
+@media (max-width: 40rem) {
+  .paper {
+    min-height: 0;
+    padding: var(--sv-space-5) var(--sv-space-4);
+  }
+}
+
+/* The editor is the paper's text, not a box inside it. */
+.paper :global(.fe-rich .fe-mdx),
+.paper :global(.fe-rich .fe-mdx:focus-within) {
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.paper :global(.fe-rich .fe-rich-content) {
+  padding: 0;
+  min-block-size: 12rem;
+}

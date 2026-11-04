@@ -1726,6 +1726,15 @@ test("a file opens in its kind's editor, and is read once by its address", async
 
 const status = (page: import("@playwright/test").Page) => page.getByTestId("draft-status");
 
+/** Saves a version with a message: the arrow after the save icon, its menu's one item, and the dialog that asks for it. */
+async function saveWithMessage(page: import("@playwright/test").Page, message: string) {
+  await page.getByRole("button", { name: "Save options" }).click();
+  await page.getByRole("menuitem", { name: "Save with a message…" }).click();
+  const dialog = page.getByRole("dialog", { name: "Save with a message" });
+  await dialog.getByLabel("Message").fill(message);
+  await dialog.getByRole("button", { name: "Save version" }).click();
+}
+
 test("what is typed in a note is kept as a draft, found again on opening it, and never committed", async ({ page }) => {
   try {
     const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "# Title\n\nbody\n" });
@@ -1834,14 +1843,12 @@ test("Save version makes one commit of the draft, authored by the person, and th
     const before = (await hubs.more.branchHead()) as string;
 
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await expect(page.getByRole("button", { name: "Save version" })).toHaveCount(0); // nothing to save yet
+    await expect(page.getByRole("button", { name: "Save version" })).toBeDisabled(); // nothing to save yet
     await noteEditor(page, "n.md").click();
     await page.keyboard.press("ControlOrMeta+End");
     await page.keyboard.type("A new line, saved at once.");
     // No wait for the debounce: saving a version keeps what is on screen first.
-    await page.getByLabel("Message").fill("Add a line");
-    await expect(page.getByRole("button", { name: "Save version" })).toBeVisible();
-    await page.getByRole("button", { name: "Save version" }).click();
+    await saveWithMessage(page, "Add a line");
 
     await expect(page.getByText("Version saved")).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
@@ -1855,7 +1862,7 @@ test("Save version makes one commit of the draft, authored by the person, and th
     // The draft is gone: the note is what the repository has, and nothing says there are unsaved changes.
     await expect(noteEditor(page, "n.md")).toContainText("A new line, saved at once.");
     await expect(page.getByText("Your changes were kept")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Save version" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Save version" })).toBeDisabled();
     await expect(page.getByRole("button", { name: "Discard changes" })).toHaveCount(0);
     // And it is said once.
     await page.reload();
@@ -1988,8 +1995,7 @@ test("keeping mine puts the draft on their version, and the next version is on t
     await expect(page.getByText("Your changes were kept")).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(theirs); // nothing written yet
 
-    await page.getByLabel("Message").fill("Mine, over theirs");
-    await page.getByRole("button", { name: "Save version" }).click();
+    await saveWithMessage(page, "Mine, over theirs");
     await expect(page.getByText("Version saved")).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     expect(await hubs.more.show(head, "%P")).toBe(theirs);
@@ -2563,8 +2569,7 @@ test("a document opens in the visual editor, an edit is kept as a draft, and a v
     await typeAtEndOf(page, editor.locator("p", { hasText: "The quick brown fox." }), " Jumps higher.");
     await expect(status(page)).toHaveText("Changes kept as a draft.");
 
-    await page.getByLabel("Message").fill("Extend the fox");
-    await page.getByRole("button", { name: "Save version" }).click();
+    await saveWithMessage(page, "Extend the fox");
     await expect(page.getByText("Version saved")).toBeVisible();
 
     const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Q4 plan.fj.md"]!;
@@ -3745,8 +3750,7 @@ test("someone with an edit link gives a name, edits the working copy, and the ow
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
     await expect(page.getByText(/made by you and by Grace Hopper through a link/)).toBeVisible();
     await expect(noteEditor(page, "Plan.fj.md")).toContainText("A guest's line.");
-    await page.getByLabel("Message").fill("Take the guest's line");
-    await page.getByRole("button", { name: "Save version" }).click();
+    await saveWithMessage(page, "Take the guest's line");
     await expect(page.getByText("Version saved")).toBeVisible();
 
     const head = (await hubs.more.branchHead()) as string;
@@ -3829,12 +3833,21 @@ test("the owner sees and controls every share of a document from its page: peopl
     await page.goto(`/repo/${id}/Notes/idea.md`);
     await expect(page.getByTestId("share-panel")).toHaveCount(0);
     await page.getByRole("button", { name: "Share", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "Sharing" }).getByTestId("identify-panel")).toBeVisible();
+    const sharing = page.getByRole("dialog", { name: "Sharing" });
+    await expect(sharing.getByTestId("identify-panel")).toBeVisible();
+    // One step, in the same dialog: agreeing adds the identifier, and the dialog stays open and goes on to the sharing controls (the page moves to the file's address by identifier behind it).
+    await sharing.getByRole("button", { name: "Add the identifier and continue" }).click();
+    await expect(sharing.getByText("The file has an identifier")).toBeVisible({ timeout: 30_000 });
+    await expect(sharing.getByTestId("share-panel").getByText("Not shared with anyone.")).toBeVisible();
+    await expect(sharing.getByRole("tab", { name: "People" })).toBeVisible();
+    await expect(page).toHaveURL(/\/d\/[0-9a-z]{26}$/); // the page is at the file's address by identifier now, and the dialog is still the one
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
     await page.getByRole("button", { name: "Share", exact: true }).click();
     const panel = page.getByTestId("share-panel");
     await expect(panel.getByText("Not shared with anyone.")).toBeVisible();
+    await page.getByRole("tab", { name: "Links" }).click();
     await expect(panel.getByText("No links.")).toBeVisible();
+    await page.getByRole("tab", { name: "People" }).click();
 
     // People: an address with an account and one with none are told the same, and only the account is listed.
     await panel.getByLabel("Share with").fill(graceEmail);
@@ -3864,6 +3877,7 @@ test("the owner sees and controls every share of a document from its page: peopl
     expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(404);
 
     // Links: made with a role and a password; the address is shown once and can be copied; it asks for the password.
+    await page.getByRole("tab", { name: "Links" }).click();
     const links = page.getByTestId("share-panel");
     await links.getByLabel("What the new link allows").selectOption("edit");
     await links.getByLabel("Password", { exact: true }).fill("correct horse battery staple");

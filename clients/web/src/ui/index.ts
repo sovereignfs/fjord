@@ -37,6 +37,7 @@ export {
   Icon,
   Input,
   SegmentedControl,
+  Select,
   UserMenu,
 } from "@sovereignfs/ui";
 export type { IconName } from "@sovereignfs/ui";
