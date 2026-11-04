@@ -43,7 +43,7 @@ test("a passkey is added, signs the person in without a password, and can be rem
   await page.goto("/sign-in");
   await page.getByRole("button", { name: "Sign in with a passkey" }).click();
   await expect(alertOn(page)).toBeVisible();
-  await expect(page).toHaveURL(/\/sign-in$/);
+  await expect(page).toHaveURL(/\/sign-in(\?next=.*)?$/);
   await signIn(page, email);
   await expect(page.getByRole("heading", { name: /Hello/ })).toBeVisible();
 });

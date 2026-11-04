@@ -42,9 +42,8 @@ export function Landing() {
       <main id="main">
         <div className={styles.container}>
           <div className={styles.notice}>
-            <Alert variant="info" heading="Fjord Web is being built in the open">
-              Where an operator has switched it on, you can create an account and secure it. Connecting a repository and the editor are not
-              available yet. This page says what Fjord is for and how it will work.
+            <Alert variant="info" heading="Fjord Web is young, and built in the open">
+              Everything this page describes works today, and it is early software: your repository is the copy that counts, so keep it somewhere you trust.
             </Alert>
           </div>
         </div>

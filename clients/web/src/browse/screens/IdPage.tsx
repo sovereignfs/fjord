@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { connectionLabel } from "../../connections/label";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { SignedInShell } from "../../auth/screens/SignedInShell";
@@ -126,7 +127,7 @@ export async function IdPage({ id, wrong, base = "d" }: { id: string; wrong?: "w
 
   const connections = await (await connectionService()).list(user.id);
   const addresses = new Map(connections.map((connection) => [connection.id, connection.address]));
-  const named = new Map(connections.map((connection) => [connection.id, `${connection.owner}/${connection.name}`]));
+  const named = new Map(connections.map((connection) => [connection.id, connectionLabel(connection)]));
   return (
     <Shell user={user} title="More than one file has this id">
       <p>

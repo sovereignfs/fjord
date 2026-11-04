@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { connectionLabel } from "../../connections/label";
 import { requireSession } from "../../auth/server";
 import { SignedInShell } from "../../auth/screens/SignedInShell";
 import styles from "../../auth/screens/screens.module.css";
@@ -48,7 +49,7 @@ export async function RecentlyDeletedScreen({ connection }: { connection: string
       <div className={styles.workspace}>
         <h1 className={styles.title}>Recently deleted</h1>
         <p className={styles.lead}>
-          {current.owner}/{current.name} · <a href={repositoryHref(current.address)}>Back to the repository</a>
+          {connectionLabel(current)} · <a href={repositoryHref(current.address)}>Back to the repository</a>
         </p>
         <Card as="article" padding="lg">
           <RecentlyDeleted connectionId={current.id} repo={current.address} groups={groups} days={Math.round(window / DAY)} />

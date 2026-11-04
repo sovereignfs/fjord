@@ -18,8 +18,8 @@ describe("landing content", () => {
     }
   });
 
-  it("says which principle is not available yet, and no other", () => {
-    expect(principles.filter((p) => p.later).map((p) => p.id)).toEqual(["encryption"]);
+  it("says which principle is not available yet, and no other: today, none", () => {
+    expect(principles.filter((p) => p.later).map((p) => p.id)).toEqual([]);
   });
 
   it("has a question that ends with a question mark each time", () => {

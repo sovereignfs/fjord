@@ -13,9 +13,9 @@ test.describe("an account", () => {
     await signUp(page);
     await signOut(page);
     await page.goto("/home");
-    await expect(page).toHaveURL(/\/sign-in$/);
+    await expect(page).toHaveURL(/\/sign-in(\?next=.*)?$/);
     await page.goto("/account/security");
-    await expect(page).toHaveURL(/\/sign-in$/);
+    await expect(page).toHaveURL(/\/sign-in(\?next=.*)?$/);
   });
 
   test("signs in again with the password", async ({ page }) => {
@@ -36,7 +36,7 @@ test.describe("an account", () => {
 
     expect(wrong).toBe(unknown);
     expect(wrong).toMatch(/do not match/);
-    await expect(page).toHaveURL(/\/sign-in$/);
+    await expect(page).toHaveURL(/\/sign-in(\?next=.*)?$/);
   });
 
   test("does not offer a password reset when the instance cannot send email", async ({ page }) => {
@@ -60,7 +60,7 @@ test.describe("an account", () => {
 
     // The other browser was signed out by the change.
     await other.reload();
-    await expect(other).toHaveURL(/\/sign-in$/);
+    await expect(other).toHaveURL(/\/sign-in(\?next=.*)?$/);
     await elsewhere.close();
 
     await signOut(page);

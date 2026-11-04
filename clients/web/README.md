@@ -4,8 +4,9 @@ The hosted web client for [Fjord](../../README.md): your documents as plain file
 a Git repository you control, edited in the browser, shared and commented on like
 Google Docs.
 
-**Status: under construction.** The app builds, but there is nothing to use yet:
-the page is a placeholder. The design and the plan are:
+**Status: young, and in use.** You can sign in, connect a GitHub repository or start one on the server, write
+documents, notes, journal entries and a site's posts, encrypt a vault, share with people on your instance, publish a
+page, and comment. The design and the plan are:
 
 - [`DESIGN.md`](DESIGN.md): what Fjord Web is, its architecture, and the decisions
   behind it.

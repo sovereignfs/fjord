@@ -60,9 +60,10 @@ describe("the landing page", () => {
     expect(p.summaries).toBe(questions.length);
   });
 
-  it("says it is not usable yet, and does not promise encryption today", () => {
-    expect(html).toContain("being built in the open");
-    expect(html).toContain("Comes after the first release");
+  it("says it is young, and not that what it describes is still to come", () => {
+    expect(html).toContain("built in the open");
+    expect(html).not.toContain("not available yet");
+    expect(html).not.toContain("Comes after the first release");
   });
 
   it("has no script of its own: the FAQ is native, and the theme script lives in the layout", () => {

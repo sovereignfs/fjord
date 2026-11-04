@@ -19,6 +19,10 @@ section.
 
 ### Fixed
 
+- **A tab says which page it is**: the document, the folder or the repository, and not "Repository" on all of them.
+- **A repository on the server is called by its name in its path** and on *Recently deleted*, not `local/Scratch drive`.
+- **Sharing with your own address says so**, and does not say *Done* having done nothing.
+- **The landing page and the README say what is so.** They said connecting a repository and the editor were not available yet, that encryption comes after the first release, and that a document could be rolled back from Fjord and shared by link. *Rolled back* is git's, and sharing is with people on the instance or as a published page.
 - **Saving a version of an encrypted file does not ask for the passphrase again.** The page reloaded to show the new version, and a reload drops the unlocked identity; it now refreshes in place and opens the new version, with what was typed.
 - **A link followed while signed out comes back after signing in.** A person asked to sign in on their way to a document went on to their default repository, and had to find the link again; now it is `/sign-in?next=…`, for a password, a passkey, two-factor and Sovereign alike. Only a path of this site is taken, and nothing that holds a token (`src/auth/next.ts`).
 - **A folder named `.git` is refused with a reason**, not a 500; so is any other name starting with a dot, which other tools leave out of what they list. `..` as a new folder's name is told it is not a name, and not `Say which folder of the vault, by its path`.

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { connectionLabel } from "../../connections/label";
 import { requireSession } from "../../auth/server";
 import { safeSegments } from "../location";
 import { entryFor } from "../../kinds/entry";
@@ -157,7 +158,7 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
       const updated = file !== undefined && note?.ok ? await lastModifiedOf(user.id, current, outcome.read.commit, file.path) : undefined;
       // In a plaintext journal, the tags already in use are offered while one is typed (ROADMAP 3b.3): from what its timeline knows.
       const tagSuggestions = note?.ok ? await journalTagsFor(user.id, current, outcome.read) : undefined;
-      const parts = await folderParts({ updated, html: isHtmlPage(found.location) ? { src: `/raw/${current.publicId}/${await new FileHandles(await getDatabase()).forPath(current.id, segments.join("/"))}` } : undefined, tagSuggestions, connectionId: current.id, repo: current.address, repository: `${current.owner}/${current.name}`, location: found.location, note, draft, preview, fileBlob, encryptedEditing, encryptedCreate, folderFiles, header, permalink, docId: file?.kind === "doc" ? (docId ?? undefined) : undefined, editor: kindFor(outcome.read.manifest).editor, writing: kindFor(outcome.read.manifest).writingView, site: kindFor(outcome.read.manifest).contentModel.fields.includes("draft"), destinations: moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined), encryptedNaming, transferTargets });
+      const parts = await folderParts({ updated, html: isHtmlPage(found.location) ? { src: `/raw/${current.publicId}/${await new FileHandles(await getDatabase()).forPath(current.id, segments.join("/"))}` } : undefined, tagSuggestions, connectionId: current.id, repo: current.address, repository: connectionLabel(current), location: found.location, note, draft, preview, fileBlob, encryptedEditing, encryptedCreate, folderFiles, header, permalink, docId: file?.kind === "doc" ? (docId ?? undefined) : undefined, editor: kindFor(outcome.read.manifest).editor, writing: kindFor(outcome.read.manifest).writingView, site: kindFor(outcome.read.manifest).contentModel.fields.includes("draft"), destinations: moveDestinations(outcome.read, encryptedNaming ? found.location.vault.directory : undefined), encryptedNaming, transferTargets });
       content = parts.body;
       crumbs = parts.crumbs;
     }

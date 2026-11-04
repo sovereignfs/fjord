@@ -22,17 +22,16 @@ width but the account page.
 | B3 | A slash in *File name* quietly makes a folder and moves the file into it; a name ending in a dot or starting with one is taken though the form's own words forbid it | Fixed |
 | B4 | Saving a version of an encrypted file reloads the page, which drops the unlocked identity: the passphrase is asked for after every save | Fixed |
 | B5 | A signed-out person who follows a link to a document signs in and lands on their default repository, not on the document | Fixed |
-| B6 | Sharing with something that is not an address, or with yourself, says *Done* | Open |
+| B6 | Sharing with your own address says *Done*, and does nothing | Fixed |
 | B7 | Setting up a site where `content/` exists says "Choose another name", on a form with no name to choose | Fixed |
 | B8 | A new vault's `recipients.txt` says it is for "the Private vault", whatever the vault is, and its instructions name that directory | Fixed |
 | B9 | `crates/fjord-wasm/Cargo.lock` still has `fjord-core` 0.4.0: the release of 0.5.0 did not touch it, so `cargo clippy --locked` there fails | Fixed |
 | B10 | A title with `<b>` in it makes a new document open in the Markdown fallback, for the raw HTML in its own first line | Fixed |
-| B11 | The landing page says connecting a repository and the editor "are not available yet", and the README that "there is nothing to use yet" | Open |
-| B12 | Words meant for the API reach people: `Say which folder of the vault, by its path, or "" for its top.`, `Say where it goes, by a path in the repository.`, `(spec §2.3)` | Open |
-| B13 | Every repository page's tab is called "Repository · Fjord" | Open |
-| B14 | A repository on the server is `local/Scratch drive` in its path | Open |
+| B11 | The landing page says connecting a repository and the editor "are not available yet", and the README that "there is nothing to use yet" | Fixed |
+| B12 | Words meant for the API reach people: `Say which folder of the vault, by its path, or "" for its top.`, `Say where it goes, by a path in the repository.`, `(spec §2.3)` | Fixed |
+| B13 | Every repository page's tab is called "Repository · Fjord" | Fixed |
+| B14 | A repository on the server is `local/Scratch drive` in its path | Fixed |
 | B15 | The account page runs 12 px off a phone's screen | Open |
-| B16 | *Recently deleted*, emptied by *Put back*, still says what it lists and not that nothing is left, and what was put back has no link | Open |
 
 ## UI and UX
 
@@ -56,3 +55,4 @@ width but the account page.
 | G4 | An address cannot be changed ("Email changes aren't supported yet") | Open |
 | G5 | A comment cannot be made on a selection across formatting: the anchor is a quote of the Markdown and the marks are drawn from it. Saying so is U2; doing it needs the anchor to change | Open |
 | G6 | An encrypted file is edited as Markdown with its header showing: no visual editor, no properties panel | Open |
+| G7 | There is no history of a document in the app: a version is a commit, read and rolled back with git. The landing page said otherwise (B11) | Open |

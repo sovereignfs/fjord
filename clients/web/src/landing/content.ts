@@ -1,9 +1,8 @@
 import type { IconName } from "@sovereignfs/ui";
 
 /**
- * What the landing page says. It describes the product as designed (DESIGN.md §1, §3)
- * and says plainly, in the notice at the top, that it is still being built: a claim
- * here is not a claim that it works today. The things that come later say so.
+ * What the landing page says: what Fjord is for and what it does today (DESIGN.md §1, §3). A claim here is a claim that it works, so what comes later says so,
+ * on its card (`later`).
  */
 
 export interface Principle {
@@ -33,7 +32,6 @@ export const principles: Principle[] = [
     icon: "lock",
     title: "Encrypted means private",
     body: "Optional end-to-end encryption with age. Encrypted files are decrypted in your browser, and the server never holds your key.",
-    later: true,
   },
 ];
 
@@ -55,13 +53,13 @@ export const features: Feature[] = [
     id: "versions",
     icon: "history",
     title: "A history you already have",
-    body: "Saving makes a commit in your repository, credited to whoever made it. Roll back with git, or from Fjord.",
+    body: "Saving makes a commit in your repository, credited to whoever made it. Read it and roll it back with git; what was deleted, Fjord can put back.",
   },
   {
     id: "share",
     icon: "share-2",
     title: "Share with control",
-    body: "Share with people on your instance or by link, with a password if you like, to view, comment or edit. Revoke it whenever you want.",
+    body: "Share with people on your instance, to view, comment or edit, or publish a page anyone can read, with a password if you like. Take either back whenever you want.",
   },
   {
     id: "comment",
@@ -94,7 +92,7 @@ export const steps: Step[] = [
   {
     id: "connect",
     title: "Connect a repository",
-    body: "Install the GitHub App on the repositories you choose, or give Fjord one repository and a fine-grained token.",
+    body: "Install the GitHub App on the repositories you choose, or give Fjord one repository and a fine-grained token. Or start on the server, and connect it to git later.",
   },
   { id: "write", title: "Write and share", body: "Open or create documents and notes, and share the ones you want others to see." },
 ];
