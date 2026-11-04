@@ -11,6 +11,8 @@ section.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-04
+
 ### Added
 
 - **Shared with you.** What other accounts on this instance have shared is a place of its own, `/shared` (a rail icon once there is anything): each document with who shared it, when and at what role; the files stay with their owners. An account at the **edit** role types into the document's working copy, and nothing of theirs reaches the repository; the owner's page says, by name, that changes are waiting, and saving a version accepts them and credits each editor by name, with an address that is nobody's (`account-<hash>@users.noreply.fjord.invalid`).
@@ -429,5 +431,6 @@ section.
   tests and builds in CI. Nothing in it is usable yet; the work is planned in
   [`ROADMAP.md`](ROADMAP.md).
 
-[Unreleased]: https://github.com/sovereignfs/fjord/compare/web-v0.1.0...HEAD
+[Unreleased]: https://github.com/sovereignfs/fjord/compare/web-v0.2.0...HEAD
+[0.2.0]: https://github.com/sovereignfs/fjord/compare/web-v0.1.0...web-v0.2.0
 [0.1.0]: https://github.com/sovereignfs/fjord/releases/tag/web-v0.1.0
