@@ -18,15 +18,15 @@ width but the account page.
 | # | What happens | Status |
 | --- | --- | --- |
 | B1 | A document typed in the visual editor is told, when opened again, that it is "not written the way Fjord writes Markdown", and cannot be edited until a choice is made. An empty paragraph (Enter at the end of a heading) is written as a run of blank lines, which reads back as something to reformat | Fixed |
-| B2 | A new folder named `.git` answers 500 and "Something went wrong on our side" | Open |
-| B3 | A slash in *File name* quietly makes a folder and moves the file into it; a name ending in a dot or starting with one is taken though the form's own words forbid it | Open |
+| B2 | A new folder named `.git` answers 500 and "Something went wrong on our side" | Fixed |
+| B3 | A slash in *File name* quietly makes a folder and moves the file into it; a name ending in a dot or starting with one is taken though the form's own words forbid it | Fixed |
 | B4 | Saving a version of an encrypted file reloads the page, which drops the unlocked identity: the passphrase is asked for after every save | Open |
 | B5 | A signed-out person who follows a link to a document signs in and lands on their default repository, not on the document | Open |
 | B6 | Sharing with something that is not an address, or with yourself, says *Done* | Open |
-| B7 | Setting up a site where `content/` exists says "Choose another name", on a form with no name to choose | Open |
-| B8 | A new vault's `recipients.txt` says it is for "the Private vault", whatever the vault is, and its instructions name that directory | Open |
-| B9 | `crates/fjord-wasm/Cargo.lock` still has `fjord-core` 0.4.0: the release of 0.5.0 did not touch it, so `cargo clippy --locked` there fails | Open |
-| B10 | A title with `<b>` in it makes a new document open in the Markdown fallback, for the raw HTML in its own first line | Open |
+| B7 | Setting up a site where `content/` exists says "Choose another name", on a form with no name to choose | Fixed |
+| B8 | A new vault's `recipients.txt` says it is for "the Private vault", whatever the vault is, and its instructions name that directory | Fixed |
+| B9 | `crates/fjord-wasm/Cargo.lock` still has `fjord-core` 0.4.0: the release of 0.5.0 did not touch it, so `cargo clippy --locked` there fails | Fixed |
+| B10 | A title with `<b>` in it makes a new document open in the Markdown fallback, for the raw HTML in its own first line | Fixed |
 | B11 | The landing page says connecting a repository and the editor "are not available yet", and the README that "there is nothing to use yet" | Open |
 | B12 | Words meant for the API reach people: `Say which folder of the vault, by its path, or "" for its top.`, `Say where it goes, by a path in the repository.`, `(spec §2.3)` | Open |
 | B13 | Every repository page's tab is called "Repository · Fjord" | Open |

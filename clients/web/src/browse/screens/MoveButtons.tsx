@@ -5,6 +5,7 @@ import { Alert, Button, FormField, Input, Select } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { type DeleteTarget, sendMove } from "../../files/client";
 import { MAX_TITLE_CHARS } from "../../files/limits";
+import { renameProblem } from "../../files/names";
 import { repositoryHref } from "../links";
 import { NodeIcon } from "../../ui/icons";
 import { ActionDialog } from "./ActionDialog";
@@ -111,7 +112,9 @@ export function MoveButtons({
             style={{ marginTop: 0 }}
             onSubmit={(event) => {
               event.preventDefault();
-              void go(`${parent}/${name.trim()}${suffix}`);
+              const problem = renameProblem(name);
+              if (problem !== null) setError({ message: problem, lookAgain: false, taken: [] });
+              else void go(`${parent}/${name.trim()}${suffix}`);
             }}
           >
             <FormField label="New name" hint={suffix === "" ? undefined : `It stays ${suffix}.`}>

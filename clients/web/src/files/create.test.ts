@@ -165,7 +165,7 @@ describe.skipIf(!available)("a new folder", () => {
 
   it("is refused when its name is not one a folder can have", async () => {
     const head = await seed({ "Notes/a.md": "a" });
-    for (const folder of ["..", "a:b", "end.", "CON"]) expect(await create({ folder, newFolder: true }), folder).toEqual({ ok: false, reason: "bad_folder_name" });
+    for (const folder of ["..", "a:b", "end.", "CON", ".git", ".hidden"]) expect(await create({ folder, newFolder: true }), folder).toEqual({ ok: false, reason: "bad_folder_name" });
     expect(await fake.branchHead()).toBe(head);
   });
 

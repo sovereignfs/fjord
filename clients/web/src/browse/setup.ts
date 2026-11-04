@@ -136,7 +136,7 @@ function plan(deps: Pick<SetupDeps, "format" | "random" | "now">, repositoryName
         ? deps.format.planSetupKind({ repositoryName, generator: GENERATOR, kind: "journal", vault: choice.vault, encrypted: choice.encrypted, recipients: choice.recipients }, gathered, now, random)
         : deps.format.planSetupKind({ repositoryName, generator: GENERATOR, kind: "ssg", engine: choice.engine }, gathered, now, random);
     if (made.ok) return made;
-    throw kindRefusal(made.error);
+    throw kindRefusal(made.error, choice.kind === "ssg");
   }
   const vault = choice.vault;
   const made = deps.format.planSetup({ repositoryName, vault, generator: GENERATOR }, gathered, now, random);
@@ -165,7 +165,7 @@ export function planFirstCommit(deps: Pick<SetupDeps, "format" | "random" | "now
 }
 
 /** The words for what `planSetupKind` refused: the format module's message, with its code turned into one of ours. */
-function kindRefusal(error: { code: string; message: string }): ConnectionError {
+function kindRefusal(error: { code: string; message: string }, site = false): ConnectionError {
   switch (error.code) {
     case "already_fjord":
       return refused("already_fjord");
@@ -176,7 +176,8 @@ function kindRefusal(error: { code: string; message: string }): ConnectionError 
       return new ConnectionError("invalid_vault_name", error.message);
     case "name_taken":
     case "vault_name_taken":
-      return new ConnectionError("vault_name_taken", `${error.message}. Choose another name.`);
+      // A new site's vault has the name its engine reads: there is no other to choose.
+      return new ConnectionError("vault_name_taken", site ? `${error.message}, and a new site keeps its posts there. Rename it in the repository first, or set this repository up as a drive.` : `${error.message}. Choose another name.`);
     case "file_taken":
       return new ConnectionError("file_taken", `${error.message}. Nothing was written.`);
     case "invalid_vault_path":

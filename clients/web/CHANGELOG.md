@@ -19,6 +19,10 @@ section.
 
 ### Fixed
 
+- **A folder named `.git` is refused with a reason**, not a 500; so is any other name starting with a dot, which other tools leave out of what they list. `..` as a new folder's name is told it is not a name, and not `Say which folder of the vault, by its path`.
+- **A slash in a file's new name is refused, and does not make a folder and move the file into it.** *File name* and *Rename* say to use *Move*, and refuse a name that starts or ends with a dot.
+- **Setting up a site where `content/` is already there says what to do**: a new site's posts have nowhere else to go, so it no longer says "Choose another name" on a form with no name to choose.
+- **A new document whose title has `<` in it opens in the visual editor**, where its own first line used to send it to the Markdown fallback (`fjord-core`).
 - **A published page's address no longer runs out of the dialog**: it wraps inside it.
 - **The choices of where to move a file, move it to another vault, and which vault a repository opens on use the design system's select**, as the rest of the forms do, and not the browser's own.
 

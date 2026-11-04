@@ -156,6 +156,11 @@ describe("what may be sent", () => {
     expect((await handleCreate(post({ ...valid, newFolder: "yes" }), ALICE, deps, "1")).status).toBe(400);
     expect((await handleCreate(post({ ...valid, folder: "", newFolder: true }), ALICE, deps, "1")).status).toBe(400);
     expect(create).toHaveBeenCalledTimes(2);
+    // `..` typed as a new folder's name is a name that cannot be, and is told so in words for the person who typed it.
+    const named = await handleCreate(post({ ...valid, folder: "..", newFolder: true }), ALICE, deps, "1");
+    expect(named.status).toBe(422);
+    expect(await named.json()).toMatchObject({ error: { code: "bad_folder_name", message: expect.stringContaining("not a name a folder can have") } });
+    expect(create).toHaveBeenCalledTimes(2);
     void createEncrypted;
   });
 

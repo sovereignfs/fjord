@@ -8,6 +8,7 @@ import { Alert, Button } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { useComments } from "../../comments/Comments";
 import { sendDate, sendField, sendMove, sendTags, sendTitle } from "../../files/client";
+import { renameProblem } from "../../files/names";
 import { discardDraft, sendDraft, sendVersion } from "../../working/client";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
 import { hasConflictMarkers } from "../../working/markers";
@@ -216,6 +217,8 @@ export function NoteView({
         stem: label.slice(0, label.length - rename.suffix.length),
         suffix: rename.suffix,
         onRename: async (stem: string): Promise<string | null> => {
+          const problem = renameProblem(stem);
+          if (problem !== null) return problem;
           const parent = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
           const destination = `${parent}/${stem}${rename.suffix}`;
           await saver.flush();

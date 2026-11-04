@@ -21,7 +21,8 @@ export async function checkNewFolder(
   const slash = directory.lastIndexOf("/");
   const parent = slash === -1 ? "" : directory.slice(0, slash);
   const name = directory.slice(slash + 1);
-  if (name === "" || deps.format.checkName(name).length > 0) return { ok: false, reason: "bad_folder_name" };
+  // A name starting with a dot is not one: `.git` is git's own and a host refuses it, and tools leave the others out of what they list.
+  if (name === "" || name.startsWith(".") || deps.format.checkName(name).length > 0) return { ok: false, reason: "bad_folder_name" };
   const siblings = await deps.provider.listDirectory(deps.ref, commit, parent).catch((error: unknown) => {
     if (isProviderError(error, "not_found")) return [];
     throw error;

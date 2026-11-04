@@ -159,6 +159,8 @@ export async function handleCreate(request: Request, caller: Caller | null, deps
 
     const { vault, folder, title, localMinute, newFolder } = body;
     if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+    // What a person typed as a new folder's name (`..`, say) is a name that cannot be, not a request that is wrong.
+    if (newFolder === true && typeof folder === "string" && folder !== "" && !isRepositoryPath(folder)) return failure(REFUSALS.bad_folder_name.status, "bad_folder_name", REFUSALS.bad_folder_name.message);
     if (typeof folder !== "string" || (folder !== "" && !isRepositoryPath(folder))) return failure(400, "invalid_request", "Say which folder of the vault, by its path, or \"\" for its top.");
     if (title !== undefined && title !== null && (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed())) {
       return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or leave it out.`);
@@ -212,6 +214,8 @@ export async function handleCreateEncrypted(request: Request, caller: Caller | n
 
     const { vault, folder, title, localMinute, ciphertext, newFolder } = body;
     if (typeof vault !== "string" || vault.length > MAX_VAULT_CHARS || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+    // What a person typed as a new folder's name (`..`, say) is a name that cannot be, not a request that is wrong.
+    if (newFolder === true && typeof folder === "string" && folder !== "" && !isRepositoryPath(folder)) return failure(REFUSALS.bad_folder_name.status, "bad_folder_name", REFUSALS.bad_folder_name.message);
     if (typeof folder !== "string" || (folder !== "" && !isRepositoryPath(folder))) return failure(400, "invalid_request", "Say which folder of the vault, by its path, or \"\" for its top.");
     if (title !== undefined && title !== null && (typeof title !== "string" || title.length > MAX_TITLE_CHARS || CONTROL.test(title) || !title.isWellFormed())) {
       return failure(400, "invalid_request", `Send the title as one line of at most ${MAX_TITLE_CHARS} characters, or leave it out.`);
@@ -335,7 +339,7 @@ const REFUSALS: Record<Extract<CreateResult, { ok: false }>["reason"] | VaultRef
   encrypted_vault: { status: 422, message: "Files cannot be made in an encrypted vault in this version." },
   unsupported_vault: { status: 422, message: "This vault's manifest cannot be read, or it does not use plain file names, so files cannot be made in it from here." },
   folder_gone: { status: 409, message: "That folder is no longer in the repository. Nothing was made." },
-  bad_folder_name: { status: 422, message: "That is not a name a folder can have: it cannot hold a slash, a colon or another character a file system refuses, end with a dot or a space, or be a name a system keeps for itself (such as CON). Nothing was made." },
+  bad_folder_name: { status: 422, message: "That is not a name a folder can have: it cannot hold a slash, a colon or another character a file system refuses, start with a dot, end with a dot or a space, or be a name a system keeps for itself (such as CON). Nothing was made." },
   folder_exists: { status: 409, message: "Something of that name is already there, a file or a folder (names that differ only in case are one name). Nothing was made." },
   bad_title: { status: 422, message: "A title needs some letters or digits in it to name its file by." },
   head_moved: { status: 409, message: "The repository kept changing while this was being made. Nothing was made. Try again." },

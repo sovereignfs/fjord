@@ -301,6 +301,16 @@ describe.skipIf(!available)(`setting a repository up as a kind, and changing its
     expect("files" in kinds.jekyll && kinds.jekyll.files.map((file) => file.path)).not.toContain("README.md");
   });
 
+  it("says what to do about a folder a new site's posts would go in, for there is no other name to choose", async () => {
+    const host = repository({ ...CODE, "content/about.md": "# About" });
+    const assessed = await assessSetup(deps(host), TARGET, await readRepository(deps(host), TARGET));
+    if (!assessed.offer) throw new Error("not offered");
+    for (const site of [assessed.preview.kinds.astro]) {
+      expect(site).toEqual({ refused: expect.stringContaining("a new site keeps its posts there") });
+      expect(site).not.toEqual({ refused: expect.stringContaining("Choose another name") });
+    }
+  });
+
   it("says a site cannot be made where its engine's file is already somebody's", async () => {
     const host = repository({ ...CODE, "package.json": "{}\n" });
     const read = await readRepository(deps(host), TARGET);
