@@ -4,6 +4,7 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { keyStore, onAutoLock } from "../client";
 import { KeyError, MIN_PASSPHRASE_LENGTH, type Status } from "../store";
 import { Alert, Button, FormField, Input } from "../../ui";
+import { useConfirm } from "../../ui/useConfirm";
 import styles from "../../auth/screens/screens.module.css";
 
 /**
@@ -15,6 +16,7 @@ export function KeyManager() {
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [ask, asking] = useConfirm();
   const [passphrase, setPassphrase] = useState("");
   const [existing, setExisting] = useState("");
   const [importing, setImporting] = useState(false);
@@ -72,8 +74,8 @@ export function KeyManager() {
     setNotice(null);
     void refresh();
   };
-  const onRemove = () => {
-    if (!window.confirm("Remove this identity from this browser? Without a copy of its secret key, what is encrypted to it can no longer be read. Nothing in any repository changes.")) return;
+  const onRemove = async () => {
+    if (!(await ask({ message: "Remove this identity from this browser? Without a copy of its secret key, what is encrypted to it can no longer be read. Nothing in any repository changes.", confirm: "Remove" }))) return;
     void run("Removing…", async () => keyStore().remove());
   };
 
@@ -86,6 +88,7 @@ export function KeyManager() {
 
   return (
     <section className={styles.section} aria-labelledby="keys-title">
+      {asking}
       <h2 id="keys-title">Encryption identity</h2>
       <p>
         An age identity opens the encrypted files that were encrypted to its public key. It is kept in <strong>this browser only</strong>, sealed with a passphrase, and is never sent to the

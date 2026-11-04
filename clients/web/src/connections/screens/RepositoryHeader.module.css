@@ -72,7 +72,14 @@
 .settings p {
   margin: 0;
   color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-sm);
   line-height: 1.5;
+}
+
+.settingsTitle {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+  font-weight: var(--sv-font-weight-semibold);
 }
 
 .field {
@@ -90,6 +97,11 @@
   display: flex;
   align-items: center;
   gap: var(--sv-space-3);
+}
+
+.inline button {
+  flex: none;
+  white-space: nowrap;
 }
 
 .inline select {

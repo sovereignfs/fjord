@@ -4,6 +4,7 @@ import { useState } from "react";
 import { authClient } from "../../client";
 import { messageFor } from "../../messages";
 import { Alert, Button } from "../../../ui";
+import { useConfirm } from "../../../ui/useConfirm";
 import styles from "../screens.module.css";
 
 /**
@@ -24,6 +25,7 @@ export function SovereignSection({
   email: string;
   twoFactorOn: boolean;
 }) {
+  const [ask, asking] = useConfirm();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +46,7 @@ export function SovereignSection({
 
   async function onUnlink() {
     if (!linkedAccountId) return;
-    if (!window.confirm("Unlink Sovereign? You will sign in with your password from now on.")) return;
+    if (!(await ask({ message: "Unlink Sovereign? You will sign in with your password from now on.", confirm: "Unlink" }))) return;
     setBusy(true);
     setError(null);
     const { error: failure } = await authClient.unlinkAccount({ accountId: linkedAccountId });
@@ -58,6 +60,7 @@ export function SovereignSection({
 
   return (
     <section className={styles.section} aria-labelledby="sovereign-title">
+      {asking}
       <h2 id="sovereign-title">Sovereign</h2>
       {linkedAccountId ? (
         <p>You can sign in with Sovereign as well as with your password. Your Sovereign account uses the same email address as this one, {email}.</p>

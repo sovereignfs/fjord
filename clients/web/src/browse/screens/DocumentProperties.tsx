@@ -8,6 +8,7 @@ import own from "./DocumentProperties.module.css";
 import { MAX_TITLE_CHARS } from "../../files/limits";
 import type { Properties } from "../document";
 import { FieldsForm } from "./FieldsForm";
+import { momentText } from "../../ui/dates";
 
 /**
  * The Document properties panel (ROADMAP 1b.5, DESIGN.md §9): what the header of a note or a document says, beside the editor
@@ -262,8 +263,8 @@ export function DocumentProperties({
   );
 }
 
-/** A moment as the page says it, the same on the server and in the browser: `2026-11-04 14:02 UTC`; a text that is not a moment is shown as it is written. */
+/** A moment as the page says it, the same on the server and in the browser: `4 Nov 2026, 14:02 UTC`; a text that is not a moment is shown as it is written. */
 function whenText(value: string): string {
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : `${parsed.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+  return Number.isNaN(parsed.getTime()) ? value : momentText(parsed);
 }

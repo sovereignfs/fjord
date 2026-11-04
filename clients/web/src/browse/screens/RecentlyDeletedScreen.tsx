@@ -12,11 +12,12 @@ import { DeletionService } from "../../files/deletions";
 import { Card } from "../../ui";
 import { repositoryHref } from "../links";
 import { RecentlyDeleted } from "./RecentlyDeleted";
+import { momentText } from "../../ui/dates";
 
 const DAY = 24 * 60 * 60 * 1000;
 
 /** `2026-10-22 14:30 UTC`: the same text on the server and in the browser. */
-const when = (ms: number) => `${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+const when = (ms: number) => momentText(ms);
 
 /**
  * What was deleted from one of the account's repositories through this app, within the restore window (DESIGN.md §8, ROADMAP 1b.12), at `/repo/<repo>/deleted`.

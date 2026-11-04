@@ -40,9 +40,9 @@ width but the account page.
 | U1 | A document page has five bands before the text: a permanent notice, the address, up to one more notice, properties, and a large *Comment on selection*. On a phone the text starts below the fold | Fixed |
 | U2 | *Comment on selection* opens its form at the foot of the page, out of sight on any long document, and stays grey with no reason on a selection across formatting | Fixed |
 | U3 | A journal's or a site's note has its actions under *More* and its save at the foot, where a document has both in the title; a new entry is headed by its file name (`00-03`) | Open |
-| U4 | *Disconnect*, *Delete* and *Move to git* ask with the browser's own `confirm`, where everything else asks in the page, and *Move to git* ends with no word that it worked | Open |
-| U5 | Repository settings has no title, three sizes of text and a button in two lines | Open |
-| U6 | Dates come in three forms (`11/4/2026, 11:59:47 PM`, `4 Nov 2026`, `2026-11-04 22:56 UTC`) | Open |
+| U4 | *Disconnect*, *Delete* and *Move to git* ask with the browser's own `confirm`, where everything else asks in the page, and *Move to git* ends with no word that it worked | Fixed |
+| U5 | Repository settings has no title, three sizes of text and a button in two lines | Fixed |
+| U6 | Dates come in three forms (`11/4/2026, 11:59:47 PM`, `4 Nov 2026`, `2026-11-04 22:56 UTC`) | Fixed |
 | U7 | "1 comment thread" sits above "Comments 1 open" | Fixed |
 
 ## Gaps

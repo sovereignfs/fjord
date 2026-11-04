@@ -34,8 +34,8 @@ test("a passkey is added, signs the person in without a password, and can be rem
   await expect(page.getByText(`You are signed in as ${email}`)).toBeVisible();
 
   await page.goto("/account/security");
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Remove" }).click();
+  await page.getByRole("dialog", { name: "Please confirm" }).getByRole("button", { name: "Remove", exact: true }).click();
   await expect(page.getByRole("list", { name: "Your passkeys" })).toHaveCount(0);
 
   // With the passkey gone, the device no longer signs the person in.

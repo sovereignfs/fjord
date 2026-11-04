@@ -1,5 +1,6 @@
 "use client";
 
+import { localMomentText } from "../ui/dates";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { ROLES, type Role } from "../access/policy";
 import { Alert, Avatar, Badge, Button, FormField, Input, Select, Tabs } from "../ui";
@@ -226,7 +227,7 @@ function LinkRow({ connectionId, docId, link, changed }: { connectionId: number;
           {link.passwordProtected ? <Badge>Password</Badge> : null}
         </span>
         <span className={styles.email}>
-          {link.status === "revoked" ? "Revoked" : link.expiresAt === null ? "Does not expire" : `${link.status === "expired" ? "Expired" : "Expires"} ${new Date(link.expiresAt).toLocaleString()}`}
+          {link.status === "revoked" ? "Revoked" : link.expiresAt === null ? "Does not expire" : `${link.status === "expired" ? "Expired" : "Expires"} ${localMomentText(link.expiresAt)}`}
         </span>
       </span>
       {link.status === "revoked" ? null : (

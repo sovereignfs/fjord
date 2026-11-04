@@ -75,8 +75,8 @@ test("an identity is made in the browser, kept sealed, locked on a reload and op
   // Lock, then remove: nothing is kept.
   await page.getByRole("button", { name: "Lock" }).click();
   await expect(page.getByRole("button", { name: "Unlock" })).toBeVisible();
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Remove from this browser" }).click();
+  await page.getByRole("button", { name: "Remove", exact: true }).click();
   await expect(page.getByRole("button", { name: "Make an identity" })).toBeVisible({ timeout: 60_000 });
 });
 

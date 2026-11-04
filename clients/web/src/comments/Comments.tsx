@@ -25,6 +25,7 @@ import {
   versionFrom,
 } from "./client";
 import { MAX_COMMENT_CHARS } from "./limits";
+import { localMomentText } from "../ui/dates";
 
 /**
  * A document's comments in the browser (DESIGN.md §13, ROADMAP 1d.1): the adapter the document editor marks its text from, the panel of
@@ -340,7 +341,7 @@ function CommentsPanel(props: PanelProps) {
   );
 }
 
-const when = (ms: number) => new Date(ms).toLocaleString();
+const when = (ms: number) => localMomentText(ms);
 
 function Who({ name, kind, createdAt, editedAt }: { name: string; kind: "account" | "guest"; createdAt: number; editedAt: number | null }) {
   return (

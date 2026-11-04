@@ -17,7 +17,10 @@ export function RepositorySettings({ children }: { children: ReactNode }) {
         <Settings2Icon size={20} aria-hidden />
       </button>
       <Dialog open={open} onClose={() => setOpen(false)} size="md" aria-label="Repository settings" title="Repository settings">
-        <div className={styles.settings}>{children}</div>
+        <div className={styles.settings}>
+          <h1 className={styles.settingsTitle}>Repository settings</h1>
+          {children}
+        </div>
       </Dialog>
     </>
   );

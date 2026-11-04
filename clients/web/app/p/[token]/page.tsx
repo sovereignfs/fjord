@@ -8,6 +8,7 @@ import { PublishedComments } from "../../../src/publishing/PublishedComments";
 import { openPublishedFor } from "../../../src/publishing/server";
 import { PUBLICATION_COOKIE } from "../../../src/publishing/unlock";
 import { unlockPageAction } from "./actions";
+import { momentText } from "../../../src/ui/dates";
 
 export const dynamic = "force-dynamic";
 // A published page is for whoever has its address: not for a search engine to keep.
@@ -18,7 +19,7 @@ function when(value: string | null): string | undefined {
   if (value === null) return undefined;
   const time = Date.parse(value);
   if (Number.isNaN(time)) return undefined;
-  return `${new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(time)} UTC`;
+  return momentText(time);
 }
 
 /**

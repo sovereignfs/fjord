@@ -8,6 +8,7 @@ import { MIN_PASSPHRASE_LENGTH } from "../keys/store";
 import { type SealedShareView, createSealed, listSealed, revokeSealed } from "./client";
 import { keyFragment, sealShare } from "./seal";
 import type { SealedMode } from "./service";
+import { localMomentText } from "../ui/dates";
 
 /**
  * Share an encrypted file by a sealed link (ROADMAP 2c.1, DESIGN.md §12). The page has the file's text (it decrypted it), so **this browser** makes the copy: sealed to a key
@@ -105,7 +106,7 @@ export function SealedSharePanel({ connectionId, path, name, getText }: { connec
             <li key={share.id} className={styles.item}>
               <span>
                 {share.mode === "key" ? "Key in the link" : "Password"}
-                <span className={styles.itemMeta}> · made {new Date(share.createdAt).toLocaleString()}</span>
+                <span className={styles.itemMeta}> · made {localMomentText(share.createdAt)}</span>
               </span>
               <Button size="sm" variant="secondary" onClick={() => void revoke(share.id)}>
                 Revoke

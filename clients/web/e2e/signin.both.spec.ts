@@ -77,8 +77,8 @@ test.describe("linking Sovereign", () => {
     await page.getByRole("button", { name: "Link Sovereign" }).click();
     await expect(page.getByText("Sovereign is linked")).toBeVisible();
 
-    page.once("dialog", (dialog) => void dialog.accept());
     await page.getByRole("button", { name: "Unlink Sovereign" }).click();
+    await page.getByRole("button", { name: "Unlink", exact: true }).click();
     await expect(page.getByText("Sovereign is unlinked")).toBeVisible();
     await expect(page.getByRole("button", { name: "Link Sovereign" })).toBeVisible();
 

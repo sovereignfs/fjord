@@ -160,8 +160,8 @@ test("disconnecting forgets the repository", async ({ page }) => {
   await page.getByRole("button", { name: "Connect", exact: true }).click();
   await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
 
-  page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Disconnect" }).click();
+  await page.getByRole("dialog", { name: "Please confirm" }).getByRole("button", { name: "Disconnect", exact: true }).click();
   await expect(page.getByText("No repositories are connected yet.")).toBeVisible();
 });
 
@@ -330,8 +330,8 @@ test("with two repositories, the first stays the default until another is chosen
   // Disconnect the default: / falls to the one that is left.
   await page.goto("/repositories");
   const more = page.getByRole("listitem").filter({ hasText: "acme/more" });
-  page.once("dialog", (dialog) => void dialog.accept());
   await more.getByRole("button", { name: "Disconnect" }).click();
+  await page.getByRole("dialog", { name: "Please confirm" }).getByRole("button", { name: "Disconnect", exact: true }).click();
   await expect(page.getByRole("list", { name: "Connected repositories" })).not.toContainText("acme/more");
   await page.goto("/open");
   await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
@@ -2804,7 +2804,7 @@ test("the properties panel shows the header, keys Fjord does not know included, 
     const panel = page.getByTestId("document-properties");
     await panel.getByText("Properties", { exact: true }).click();
     await expect(panel.getByText("01jagc4k7pt8y3wqnmzv5xrb8j")).toBeVisible();
-    await expect(panel.getByText("2026-10-16 09:34 UTC")).toBeVisible();
+    await expect(panel.getByText("16 Oct 2026, 09:34 UTC")).toBeVisible();
     await expect(panel.getByLabel("Title")).toHaveValue("Weekly");
     await expect(panel.getByTestId("other-property")).toHaveCount(2);
     await expect(panel.getByTestId("other-property").first()).toContainText("zeta");
@@ -2845,7 +2845,7 @@ test("a drive's document is renamed from its properties, which say when it last 
     // There is no title field and no date: the title is what the document says, and the day it was made is a fact below.
     await expect(panel.getByLabel("Title")).toHaveCount(0);
     await expect(panel.getByLabel("Date")).toHaveCount(0);
-    await expect(panel.getByText("2026-10-16 09:34 UTC")).toBeVisible();
+    await expect(panel.getByText("16 Oct 2026, 09:34 UTC")).toBeVisible();
     await expect(panel.getByTestId("last-updated")).toContainText(/\d{4}-\d\d-\d\d \d\d:\d\d UTC/);
     // Nothing on the page offers a second way to rename it.
     await expect(page.getByRole("button", { name: "Rename", exact: true }).first()).toBeVisible(); // the properties' own

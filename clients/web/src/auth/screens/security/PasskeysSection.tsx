@@ -4,7 +4,9 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 import { authClient } from "../../client";
 import { messageFor } from "../../messages";
 import { Alert, Button, FormField, Input } from "../../../ui";
+import { useConfirm } from "../../../ui/useConfirm";
 import styles from "../screens.module.css";
+import { dayText } from "../../../ui/dates";
 
 interface Passkey {
   id: string;
@@ -16,6 +18,7 @@ interface Passkey {
 /** The passkeys that can sign this account in: see them, add one, remove one. */
 export function PasskeysSection() {
   const [passkeys, setPasskeys] = useState<Passkey[] | null>(null);
+  const [ask, asking] = useConfirm();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +48,7 @@ export function PasskeysSection() {
   }
 
   async function onDelete(passkey: Passkey) {
-    if (!window.confirm(`Remove the passkey "${passkey.name ?? "Passkey"}"? You will not be able to sign in with it any more.`)) return;
+    if (!(await ask({ message: `Remove the passkey "${passkey.name ?? "Passkey"}"? You will not be able to sign in with it any more.`, confirm: "Remove" }))) return;
     setError(null);
     const { error: failure } = await authClient.passkey.deletePasskey({ id: passkey.id });
     if (failure) setError(messageFor(failure));
@@ -54,6 +57,7 @@ export function PasskeysSection() {
 
   return (
     <section className={styles.section} aria-labelledby="passkeys-title">
+      {asking}
       <h2 id="passkeys-title">Passkeys</h2>
       <p>Sign in with your fingerprint, face or a security key instead of a password. Nothing secret leaves your device.</p>
       {error ? (
@@ -67,7 +71,7 @@ export function PasskeysSection() {
             <li key={passkey.id} className={styles.item}>
               <span>
                 {passkey.name ?? "Passkey"}
-                {passkey.createdAt ? <span className={styles.itemMeta}> · added {new Date(passkey.createdAt).toLocaleDateString()}</span> : null}
+                {passkey.createdAt ? <span className={styles.itemMeta}> · added {dayText(passkey.createdAt)}</span> : null}
               </span>
               <Button variant="ghost" size="sm" onClick={() => onDelete(passkey)}>
                 Remove

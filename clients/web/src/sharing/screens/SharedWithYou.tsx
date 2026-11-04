@@ -4,11 +4,12 @@ import { Badge, Card } from "../../ui";
 import { NodeIcon } from "../../ui/icons";
 import type { SharedListing } from "../open";
 import listing from "./SharedWithYou.module.css";
+import { dayText } from "../../ui/dates";
 
 const ROLE_WORDS = { view: "Can view", comment: "Can comment", edit: "Can edit" } as const;
 
 /** A time as the list says it: the day, in UTC. */
-const day = (time: number) => new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "UTC" }).format(time);
+const day = (time: number) => dayText(time);
 
 /**
  * *Shared with you* (the owner's request): what other accounts on this instance have shared with the person, as a place of its own, like a drive's listing. The files stay with their owners; each

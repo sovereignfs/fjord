@@ -1,6 +1,7 @@
 import { Badge, Button } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import type { PreviewOutcome, PreviewView } from "../preview";
+import { momentText } from "../../ui/dates";
 
 /**
  * A site's previews as the page says them (ROADMAP 3d.1): each with where it stands, in words a person can act on. A preview is a branch the host
@@ -29,7 +30,7 @@ export function describe(outcome: PreviewOutcome): { label: string; text: string
   }
 }
 
-const when = (at: number) => new Date(at).toISOString().replace("T", " ").slice(0, 16) + " UTC";
+const when = (at: number) => momentText(at);
 
 export function PreviewRows({ previews, onStop, stopping }: { previews: PreviewView[]; onStop?: ((branch: string) => void) | undefined; stopping?: string | null | undefined }) {
   if (previews.length === 0) return null;

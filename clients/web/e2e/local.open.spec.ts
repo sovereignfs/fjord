@@ -98,8 +98,10 @@ test("connecting it to a git repository adds its files in one commit, keeps what
   const form = dialog.getByRole("form", { name: "Connect this repository to git" });
   await form.getByRole("textbox", { name: "Git repository" }).fill("acme/more");
   await form.getByLabel("Access token").fill(GOOD);
-  page.once("dialog", (confirm) => void confirm.accept());
   await form.getByRole("button", { name: "Move to git" }).click();
+  await page.getByRole("button", { name: "Move it", exact: true }).click();
+  await expect(dialog.getByText("Moved to git")).toBeVisible({ timeout: 30_000 });
+  await dialog.getByRole("button", { name: "Open it" }).click();
 
   // It is acme/more now, the same repository page, and no longer on this server.
   await expect(page.getByRole("heading", { name: "acme/more", level: 1 })).toBeVisible({ timeout: 30_000 });
@@ -127,8 +129,8 @@ test("a git repository that has a file by the same name is never overwritten: it
   const form = page.getByRole("dialog", { name: "Repository settings" }).getByRole("form", { name: "Connect this repository to git" });
   await form.getByRole("textbox", { name: "Git repository" }).fill("https://github.com/acme/notes");
   await form.getByLabel("Access token").fill(GOOD);
-  page.once("dialog", (confirm) => void confirm.accept());
   await form.getByRole("button", { name: "Move to git" }).click();
+  await page.getByRole("button", { name: "Move it", exact: true }).click();
 
   await expect(form.getByRole("alert")).toContainText("fjord.json");
   await expect(form.getByRole("alert")).toContainText("Nothing was deleted from this server");
