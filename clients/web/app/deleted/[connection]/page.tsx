@@ -1,8 +1,10 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { requireSession } from "../../../src/auth/server";
 import { SignedInShell } from "../../../src/auth/screens/SignedInShell";
 import styles from "../../../src/auth/screens/screens.module.css";
+import { repositoryHref } from "../../../src/browse/links";
 import { RecentlyDeleted } from "../../../src/browse/screens/RecentlyDeleted";
+import { isLegacyId, isPublicId } from "../../../src/connections/public-id";
 import { connectionService } from "../../../src/connections/server";
 import { encryptionKeyring } from "../../../src/crypto/server";
 import { getDatabase } from "../../../src/db/boot";
@@ -25,8 +27,15 @@ const when = (ms: number) => `${new Date(ms).toISOString().slice(0, 16).replace(
 export default async function RecentlyDeletedPage({ params }: { params: Promise<{ connection: string }> }) {
   const { user } = await requireSession();
   const { connection } = await params;
-  if (!/^[1-9][0-9]{0,15}$/.test(connection) || encryptionKeyring() === undefined) notFound();
-  const current = await (await connectionService()).get(user.id, Number(connection));
+  if (encryptionKeyring() === undefined) notFound();
+  // By the number a repository used to be called: sent to it by its name.
+  if (isLegacyId(connection)) {
+    const known = await (await connectionService()).get(user.id, Number(connection));
+    if (!known) notFound();
+    redirect(`/deleted/${known.publicId}`);
+  }
+  if (!isPublicId(connection)) notFound();
+  const current = await (await connectionService()).getByPublicId(user.id, connection);
   if (!current) notFound();
 
   const window = restoreWindowMs();
@@ -46,14 +55,14 @@ export default async function RecentlyDeletedPage({ params }: { params: Promise<
   }
 
   return (
-    <SignedInShell user={user} place={{ repository: current.id }}>
+    <SignedInShell user={user} place={{ repository: current.publicId }}>
       <div className={styles.workspace}>
         <h1 className={styles.title}>Recently deleted</h1>
         <p className={styles.lead}>
-          {current.owner}/{current.name} · <a href={`/repo/${current.id}`}>Back to the repository</a>
+          {current.owner}/{current.name} · <a href={repositoryHref(current.publicId)}>Back to the repository</a>
         </p>
         <Card as="article" padding="lg">
-          <RecentlyDeleted connectionId={current.id} groups={groups} days={Math.round(window / DAY)} />
+          <RecentlyDeleted connectionId={current.id} repo={current.publicId} groups={groups} days={Math.round(window / DAY)} />
         </Card>
       </div>
     </SignedInShell>

@@ -26,7 +26,7 @@ export function RepositoryGrid({ user, connections }: { user: { name: string; em
             const kind = connection.repoKind ?? "drive";
             return (
               <li key={connection.id}>
-                <a className={styles.tile} href={repositoryHref(connection.id)}>
+                <a className={styles.tile} href={repositoryHref(connection.publicId)}>
                   <span className={styles.tileIcon}>
                     <RepositoryKindIcon kind={kind} size={28} />
                   </span>

@@ -19,7 +19,7 @@ export interface DeletedGroup {
  * put back where it was or at a place the person chooses; a folder's files, all together where they were. Never over
  * anything: if a path is taken, nothing is put back and the taken ones are named.
  */
-export function RecentlyDeleted({ connectionId, groups, days }: { connectionId: number; groups: DeletedGroup[]; days: number }) {
+export function RecentlyDeleted({ connectionId, repo, groups, days }: { connectionId: number; /** What the repository is called in an address. */ repo: string; groups: DeletedGroup[]; days: number }) {
   if (groups.length === 0) {
     return <p>Nothing was deleted in the last {days === 1 ? "day" : `${days} days`}. Files deleted earlier are still in the repository&apos;s history.</p>;
   }
@@ -31,7 +31,7 @@ export function RecentlyDeleted({ connectionId, groups, days }: { connectionId: 
       <ul className={styles.list} aria-label="Recently deleted">
         {groups.map((group) => (
           <li key={group.ids[0]} className={styles.item}>
-            <Row connectionId={connectionId} group={group} />
+            <Row connectionId={connectionId} repo={repo} group={group} />
           </li>
         ))}
       </ul>
@@ -39,7 +39,7 @@ export function RecentlyDeleted({ connectionId, groups, days }: { connectionId: 
   );
 }
 
-function Row({ connectionId, group }: { connectionId: number; group: DeletedGroup }) {
+function Row({ connectionId, repo, group }: { connectionId: number; repo: string; group: DeletedGroup }) {
   const single = group.paths.length === 1;
   const [where, setWhere] = useState(group.paths[0] as string);
   const [busy, setBusy] = useState(false);
@@ -58,7 +58,7 @@ function Row({ connectionId, group }: { connectionId: number; group: DeletedGrou
   if (restored) {
     return (
       <Alert variant="success" heading="Put back">
-        {restored.length === 1 ? <a href={repositoryHref(connectionId, ...restored[0]!.split("/"))}>{restored[0]}</a> : `${restored.length} files, where they were.`}
+        {restored.length === 1 ? <a href={repositoryHref(repo, ...restored[0]!.split("/"))}>{restored[0]}</a> : `${restored.length} files, where they were.`}
       </Alert>
     );
   }

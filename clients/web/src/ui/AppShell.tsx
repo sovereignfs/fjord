@@ -7,7 +7,8 @@ import styles from "./AppShell.module.css";
 
 /** A connected repository, for its icon in the rail. */
 export interface ShellRepository {
-  id: string | number;
+  /** The repository's public id, which is its address (`/repo/<id>`). */
+  id: string;
   /** `owner/name`. */
   label: string;
   /** The one `/` opens on: its tooltip says so, since the rail has no room for a badge. */
@@ -17,7 +18,7 @@ export interface ShellRepository {
 }
 
 /** Where a signed-in person is, so its icon in the rail is marked as the current page. */
-export type ShellPlace = "index" | "repositories" | "account" | { repository: string | number };
+export type ShellPlace = "index" | "repositories" | "account" | { repository: string };
 
 const classes = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(" ");
 
@@ -60,7 +61,7 @@ export function AppShell({
   signOut: ReactNode;
   children: ReactNode;
 }) {
-  const current = typeof place === "object" ? String(place.repository) : undefined;
+  const current = typeof place === "object" ? place.repository : undefined;
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
@@ -74,7 +75,7 @@ export function AppShell({
         <ul className={styles.repositories} aria-label="Your repositories">
           {repositories.map((repository) => (
             <li key={repository.id}>
-              <RailLink href={`/repo/${repository.id}`} label={repository.label} tip={repository.isDefault ? `${repository.label} (default)` : repository.label} active={current === String(repository.id)}>
+              <RailLink href={`/repo/${repository.id}`} label={repository.label} tip={repository.isDefault ? `${repository.label} (default)` : repository.label} active={current === repository.id}>
                 <RepositoryKindIcon kind={repository.kind ?? null} />
               </RailLink>
             </li>

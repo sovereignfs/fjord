@@ -20,6 +20,7 @@ import { repositoryHref } from "../links";
  */
 export function TransferControl({
   connectionId,
+  repo,
   path,
   blob,
   name,
@@ -29,6 +30,8 @@ export function TransferControl({
   blocked,
 }: {
   connectionId: number;
+  /** What the repository is called in an address (`ConnectionInfo.publicId`), for the link a finished action goes to; `connectionId` is for the API. */
+  repo: string;
   /** The file, repository-relative. */
   path: string;
   /** The version of it that `text` is of. */
@@ -100,7 +103,7 @@ export function TransferControl({
       }
       const made = await sendTransfer(connectionId, { path, blob, destination: `${target.folder}/${prepared.leaf}`, content: prepared.content });
       if (made.ok) {
-        router.push(repositoryHref(connectionId, ...made.path.split("/")));
+        router.push(repositoryHref(repo, ...made.path.split("/")));
         return;
       }
       setError(made.message);

@@ -22,6 +22,7 @@ import { LinkService } from "../sharing/links";
 import { ShareService } from "../sharing/shares";
 import { DeletionService } from "../files/deletions";
 import { WorkingCopyService } from "../working/service";
+import { isPublicId } from "./public-id";
 import { type ConnectionErrorCode, isConnectionError } from "./errors";
 import { ConnectionService } from "./service";
 
@@ -97,7 +98,7 @@ async function refused(promise: Promise<unknown>, code: ConnectionErrorCode): Pr
 describe(`connecting with a token (${leg})`, () => {
   it("keeps a repository the token can read and write", async () => {
     const { connection, warnings } = await service.addWithToken(ALICE, { repository: "https://github.com/acme/notes", token: GOOD });
-    expect(connection).toEqual({ id: expect.any(Number), provider: "github", kind: "pat", owner: "acme", name: "notes", branch: "main", createdAt: 1_800_000_000_000, isDefault: true, defaultVault: null, repoKind: null });
+    expect(connection).toEqual({ id: expect.any(Number), publicId: expect.stringMatching(/^[0-9a-hjkmnp-tv-z]{8}$/), provider: "github", kind: "pat", owner: "acme", name: "notes", branch: "main", createdAt: 1_800_000_000_000, isDefault: true, defaultVault: null, repoKind: null });
     expect(warnings).toEqual([]);
     expect(await service.list(ALICE)).toEqual([connection]);
   });
@@ -598,6 +599,40 @@ describe(`the kind a repository was last read as (${leg})`, () => {
     expect((await s.get(ALICE, two.id))?.repoKind).toBeNull();
     await dbRun(database, sql`UPDATE ${connectionTable()} SET repo_kind = 'something-new' WHERE id = ${two.id}`);
     expect((await s.get(ALICE, two.id))?.repoKind).toBeNull();
+  });
+});
+
+describe(`what a repository is called in an address (${leg})`, () => {
+  it("is a short lower-case name of its own, different for each repository, and is what finds it", async () => {
+    const s = serviceWithRepositories("one", "two");
+    const one = (await connect(s, ALICE, "one")).connection;
+    const two = (await connect(s, ALICE, "two")).connection;
+    expect(isPublicId(one.publicId)).toBe(true);
+    expect(isPublicId(two.publicId)).toBe(true);
+    expect(one.publicId).not.toBe(two.publicId);
+    // It does not say how many there are, or in what order they were connected.
+    expect(one.publicId).not.toBe(String(one.id));
+    expect((await s.getByPublicId(ALICE, two.publicId))?.id).toBe(two.id);
+  });
+
+  it("finds only the account's own, and nothing for a name that is not one", async () => {
+    const s = serviceWithRepositories("one");
+    const one = (await connect(s, ALICE, "one")).connection;
+    expect(await s.getByPublicId(BOB, one.publicId)).toBeUndefined();
+    expect(await s.getByPublicId(ALICE, "zzzzzzzz")).toBeUndefined();
+    expect(await s.getByPublicId(ALICE, String(one.id))).toBeUndefined();
+  });
+
+  it("is given once to a connection made before there were names, and then stays", async () => {
+    const s = serviceWithRepositories("one", "two");
+    const one = (await connect(s, ALICE, "one")).connection;
+    const two = (await connect(s, ALICE, "two")).connection;
+    await dbRun(database, sql`UPDATE ${connectionTable()} SET public_id = NULL`);
+    const named = await s.list(ALICE);
+    expect(named.every((connection) => isPublicId(connection.publicId))).toBe(true);
+    expect(named[0]?.publicId).not.toBe(named[1]?.publicId);
+    expect((await s.list(ALICE)).map((connection) => connection.publicId)).toEqual(named.map((connection) => connection.publicId));
+    expect(named.map((connection) => connection.id)).toEqual([one.id, two.id]);
   });
 });
 

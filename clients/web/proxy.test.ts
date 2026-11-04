@@ -111,6 +111,15 @@ describe("the Content-Security-Policy (ROADMAP 1d.5)", () => {
     expect(proxy(request("/api/health")).headers.get("x-middleware-request-x-nonce")).toBeNull();
   });
 
+  it("lets a page show a frame only at the one address that shows a repository's HTML page, which a repository's public id is part of", () => {
+    const policy = (path: string) => policyOf(proxy(request(path)));
+    expect(policy("/repo/k3x9m2qa/v/01jagc4k7pr9tbm3ykwx6zq2hv/html/0123456789abcdef")).toContain("frame-src 'self'");
+    expect(policy("/repo/k3x9m2qa/v/01jagc4k7pr9tbm3ykwx6zq2hv/0123456789abcdef/html/0123456789abcdef")).toContain("frame-src 'self'");
+    for (const path of ["/repo/k3x9m2qa", "/repo/k3x9m2qa/v/01jagc4k7pr9tbm3ykwx6zq2hv/0123456789abcdef", "/repo/3/v/01jagc4k7pr9tbm3ykwx6zq2hv/html/0123456789abcdef", "/repo/K3X9M2QA/v/x/html/0123456789abcdef", "/sign-in"]) {
+      expect(policy(path), path).toContain("frame-src 'none'");
+    }
+  });
+
   it("is sent with the rewrites too: the signed-in landing page, and the first request of a share link", () => {
     expect(policyOf(proxy(request("/", { headers: { cookie: "fjord.session_token=abc.def" } })))).toContain("nonce-");
     expect(policyOf(proxy(request(`/d/${DOC}?token=${TOKEN}`)))).toContain("nonce-");

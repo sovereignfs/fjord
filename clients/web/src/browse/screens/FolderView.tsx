@@ -30,6 +30,7 @@ import { TransferControl } from "./TransferControl";
 export async function FolderView({
   html,
   connectionId,
+  repo,
   repository,
   location,
   note,
@@ -51,6 +52,8 @@ export async function FolderView({
   tagSuggestions,
 }: {
   connectionId: number;
+  /** What the repository is called in an address (`ConnectionInfo.publicId`). */
+  repo: string;
   repository: string;
   location: Exclude<Location, { kind: "missing" }>;
   /** For a note: its text, or why there is none. */
@@ -95,8 +98,8 @@ export async function FolderView({
   const folders = inside === "" ? [] : inside.split("/");
   // The links of this page are drawn from ids (workstream 0003): the handles of the folders above, the folders and files listed, are made in one go.
   const listed = location.kind === "folder" ? [...location.folders.map((folder) => [vault.directory, ...folders, folder.name].join("/")), ...location.files.map((file) => file.path)] : [];
-  const book = await addressBookFor(connectionId, vault, [...folders.map((_, index) => [vault.directory, ...folders.slice(0, index + 1)].join("/")), ...listed]);
-  const here = (...segments: string[]) => (segments.length === 0 ? repositoryHref(connectionId) : book.href(segments.join("/")));
+  const book = await addressBookFor({ id: connectionId, publicId: repo }, vault, [...folders.map((_, index) => [vault.directory, ...folders.slice(0, index + 1)].join("/")), ...listed]);
+  const here = (...segments: string[]) => (segments.length === 0 ? repositoryHref(repo) : book.href(segments.join("/")));
   const plainWritable = checkVault([vault], vault.directory) === "ok";
   const writable = plainWritable || encryptedNaming !== undefined;
 
@@ -115,7 +118,7 @@ export async function FolderView({
         {location.kind === "file" ? <span> / {location.file.relative.split("/").at(-1)}</span> : null}
       </nav>
 
-      {location.kind === "folder" ? <UndoBanner connectionId={connectionId} /> : null}
+      {location.kind === "folder" ? <UndoBanner connectionId={connectionId} repo={repo} /> : null}
 
       {location.kind === "unreadable" ? (
         <Alert variant="error" heading="This vault cannot be read">
@@ -125,16 +128,17 @@ export async function FolderView({
 
       {location.kind === "file" && html ? <HtmlFrame name={leaf(location.file.relative)} src={html.src} /> : null}
 
-      {location.kind === "file" && !html ? <FileCard connectionId={connectionId} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} site={site === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
+      {location.kind === "file" && !html ? <FileCard connectionId={connectionId} repo={repo} file={location.file} encrypted={vault.encrypted === true} naming={vault.fileNaming === "id" ? "id" : "plain"} encryptedChange={encryptedNaming} note={note} draft={draft ?? null} preview={preview ?? { state: "unavailable" }} header={header} permalink={permalink} docId={docId} editor={editor} writing={writing === true} site={site === true} destinations={destinations ?? []} blob={fileBlob} encryptedEditing={encryptedEditing} transferTargets={transferTargets ?? []} tagSuggestions={tagSuggestions}
           remove={writable && fileBlob !== undefined && (location.file.kind === "doc" || (encryptedNaming !== undefined && location.file.kind === "payload")) ? { vault: vault.directory, blob: fileBlob, goTo: [vault.directory, ...folders] } : undefined} /> : null}
 
       {location.kind === "folder" ? (
         <>
-          {plainWritable ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} /> : null}
-          {encryptedCreate ? <NewFile connectionId={connectionId} vault={vault.directory} folder={location.path} encrypted={encryptedCreate} /> : null}
+          {plainWritable ? <NewFile connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} /> : null}
+          {encryptedCreate ? <NewFile connectionId={connectionId} repo={repo} vault={vault.directory} folder={location.path} encrypted={encryptedCreate} /> : null}
           {location.path === "" && site !== true && (plainWritable || encryptedNaming !== undefined) ? <VaultConversion connectionId={connectionId} vault={vault.directory} encrypted={!plainWritable} /> : null}
           {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
             <MoveButtons
+              repo={repo}
               connectionId={connectionId}
               vault={vault.directory}
               target={{ type: "folder", path: `${vault.directory}/${location.path}`, files: folderFiles }}
@@ -144,6 +148,7 @@ export async function FolderView({
           ) : null}
           {writable && location.path !== "" && folderFiles !== undefined && folderFiles > 0 ? (
             <DeleteButton
+              repo={repo}
               connectionId={connectionId}
               vault={vault.directory}
               target={{ type: "folder", path: `${vault.directory}/${location.path}`, files: folderFiles }}
@@ -244,6 +249,7 @@ function FileRow({ href, file, page }: { href: string; file: ClassifiedFile; pag
 
 function FileCard({
   connectionId,
+  repo,
   file,
   encrypted,
   naming,
@@ -266,6 +272,8 @@ function FileCard({
 }: {
   tagSuggestions?: string[] | undefined;
   connectionId: number;
+  /** What the repository is called in an address (`ConnectionInfo.publicId`). */
+  repo: string;
   file: ClassifiedFile;
   encrypted: boolean;
   /** How the vault names its files: an `id`-named vault holds its files in containers (spec 6.4). */
@@ -295,10 +303,11 @@ function FileCard({
       {remove && docId && !encrypted ? <PublishPanel connectionId={connectionId} docId={docId} /> : null}
       {remove && !docId && !encrypted && file.kind === "doc" && note?.ok ? <IdentifyAndShare connectionId={connectionId} path={file.path} blob={note.blob} hasDraft={draft !== null} /> : null}
       {remove ? (
-        <MoveButtons connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
+        <MoveButtons connectionId={connectionId} repo={repo} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} suffix={(file.kind === "payload" ? file.path.match(/(\.[^./]+)?\.age$/i)?.[0] : file.path.match(/\.md$/i)?.[0]) ?? ""} destinations={destinations} canRename={encryptedChange !== "id"} />
       ) : null}
       {remove && file.kind === "doc" && note?.ok && transferTargets.length > 0 ? (
         <TransferControl
+          repo={repo}
           connectionId={connectionId}
           path={file.path}
           blob={note.blob}
@@ -310,7 +319,7 @@ function FileCard({
         />
       ) : null}
       {remove ? (
-        <DeleteButton connectionId={connectionId} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
+        <DeleteButton connectionId={connectionId} repo={repo} vault={remove.vault} target={{ type: "file", path: file.path, blob: remove.blob }} name={leaf(file.logical).replace(/\.md$/i, "")} goTo={remove.goTo} />
       ) : null}
     </>
   );
@@ -350,7 +359,7 @@ function FileCard({
           This document could not be read just now. Try again in a moment.
         </Alert>
       ) : file.kind === "payload" ? (
-        <EncryptedFile connectionId={connectionId} path={file.path} naming={naming} logical={file.logical} blob={blob} transferTargets={transferTargets} draft={encryptedEditing?.draft ?? null} recipients={encryptedEditing?.recipients ?? { ok: false, message: "This file cannot be edited just now." }} />
+        <EncryptedFile connectionId={connectionId} repo={repo} path={file.path} naming={naming} logical={file.logical} blob={blob} transferTargets={transferTargets} draft={encryptedEditing?.draft ?? null} recipients={encryptedEditing?.recipients ?? { ok: false, message: "This file cannot be edited just now." }} />
       ) : encrypted ? (
         <Alert variant="info" heading="Locked">This file is in an encrypted vault but is not an encrypted file, so it cannot be opened.</Alert>
       ) : (

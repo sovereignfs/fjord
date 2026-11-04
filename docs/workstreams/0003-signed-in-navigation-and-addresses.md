@@ -256,3 +256,15 @@ Answered by the owner on 2026-11-03; they are decisions now.
 - **Leg 3 reaches everything.** Most e2e tests assert addresses. Mitigation: the pure module, redirects from every old form, and the full suite at each leg's end.
 - **A dead handle.** Handles live in the database, so a restored or moved instance loses them and with them these addresses. Doc ids survive, as they are in the file.
 - **The rail's kind can be stale** after a change made outside Fjord, until the next read. It is an icon, and nothing decides by it.
+
+## Follow-ups (2026-11-04)
+
+Changes the owner asked for after using the first seven legs; each is a commit of its own on `main`.
+
+- **`<repo-id>` is a generated name, not the connection's number.** The workstream wrote `<repo-id>` and leg 3 built it as the database's integer, which shows how many repositories
+  there are and in what order they came. It is now `connection.public_id` (migration `0021`): eight lower-case characters of Crockford's base32, the alphabet handles use, so it is
+  told from a handle (16) and a ULID (26) by length alone. A row that predates the column is named when it is next listed, by a statement that only touches a row that has none, so two
+  requests agree. `/repo/<number>` and `/deleted/<number>` redirect to the name (a number is at most seven digits, which no public id is), carrying the rest of the address and the query;
+  a segment that would climb out of the repository is a 404 there as behind the new address. `AddressBook`, `repositoryHref` and the address builders take the public id; the client
+  components that go somewhere after an action (delete, move, create, transfer) are given it as `repo` beside the `connectionId` the API takes. `/raw/<repo>/<handle>` checks that the
+  repository with that name is the account's before it looks at the handle.

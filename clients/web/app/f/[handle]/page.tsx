@@ -21,7 +21,7 @@ export default async function FilePage({ params, searchParams }: { params: Promi
   const place = await new FileHandles(await getDatabase()).resolve(handle);
   if (!place) notFound();
   // Only a repository of this account's: any other is a 404, as for the same address by path.
-  const mine = (await (await connectionService()).list(user.id)).some((connection) => connection.id === place.connectionId);
+  const mine = (await (await connectionService()).list(user.id)).find((connection) => connection.id === place.connectionId);
   if (!mine) notFound();
-  return <RepositoryScreen connection={String(place.connectionId)} path={place.path.split("/")} via="handle" query={query} />;
+  return <RepositoryScreen connection={mine.publicId} path={place.path.split("/")} via="handle" query={query} />;
 }

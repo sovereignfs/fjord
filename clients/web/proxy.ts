@@ -27,7 +27,7 @@ export function proxy(request: NextRequest) {
   const page = !pathname.startsWith("/api/") && !pathname.startsWith("/raw/");
   const nonce = newNonce();
   // The one page that shows such a document in a frame: `/repo/<repo>/v/<vault>/…/html/<handle>`.
-  const frames = /^\/repo\/\d+\/v\/[^/]+\/(?:[^/]+\/)?html\/[0-9a-z]{16}$/.test(pathname);
+  const frames = /^\/repo\/[0-9a-hjkmnp-tv-z]{8}\/v\/[^/]+\/(?:[^/]+\/)?html\/[0-9a-z]{16}$/.test(pathname);
   const policy = contentSecurityPolicy({ nonce, secure, development: process.env.NODE_ENV === "development", frames });
   const requestHeaders = new Headers(request.headers);
   if (page) {

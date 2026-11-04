@@ -60,15 +60,15 @@ function placed(vault: string, parent: string | undefined, target: { handle: str
   return { kind: "place", vault, parent, target };
 }
 
-export const repositoryAddress = (connection: number): string => `/repo/${connection}`;
+export const repositoryAddress = (connection: string): string => `/repo/${connection}`;
 
-export const vaultAddress = (connection: number, vault: string): string => `${repositoryAddress(connection)}/v/${vault}`;
+export const vaultAddress = (connection: string, vault: string): string => `${repositoryAddress(connection)}/v/${vault}`;
 
 /** A folder or file by its handle, a Doc by its `id`, or an HTML page by its handle, with the handle of the folder it is in. */
-export function placeAddress(connection: number, vault: string, target: { handle: string } | { doc: string } | { html: string }, parent?: string): string {
+export function placeAddress(connection: string, vault: string, target: { handle: string } | { doc: string } | { html: string }, parent?: string): string {
   const front = `${vaultAddress(connection, vault)}${parent === undefined ? "" : `/${parent}`}`;
   return "doc" in target ? `${front}/d/${target.doc}` : "html" in target ? `${front}/html/${target.html}` : `${front}/${target.handle}`;
 }
 
 /** A journal's note (`n`) or a site's post (`post`), by its `id` or, with none, its handle. */
-export const noteAddress = (connection: number, target: { doc: string } | { handle: string }, as: "n" | "post" = "n"): string => `${repositoryAddress(connection)}/${as}/${"doc" in target ? target.doc : target.handle}`;
+export const noteAddress = (connection: string, target: { doc: string } | { handle: string }, as: "n" | "post" = "n"): string => `${repositoryAddress(connection)}/${as}/${"doc" in target ? target.doc : target.handle}`;

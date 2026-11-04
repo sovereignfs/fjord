@@ -25,7 +25,7 @@ export interface EncryptedCreate {
  * the title, for a vault whose file names are public, as they are made from it). Encrypting needs only public keys, so it works with the identity locked; the new
  * file then opens by client navigation, which keeps an unlocked identity unlocked.
  */
-export function NewFile({ connectionId, vault, folder, encrypted }: { connectionId: number; vault: string; folder: string; encrypted?: EncryptedCreate }) {
+export function NewFile({ connectionId, repo, vault, folder, encrypted }: { connectionId: number; /** What the repository is called in an address. */ repo: string; vault: string; folder: string; encrypted?: EncryptedCreate }) {
   const router = useRouter();
   // The identity's public key, if there is one in this browser: it is warned about when the vault's recipients do not list it.
   const [mine, setMine] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export function NewFile({ connectionId, vault, folder, encrypted }: { connection
       made = await sendCreate(connectionId, { vault, folder, title });
     }
     if (made.ok) {
-      const href = repositoryHref(connectionId, ...made.path.split("/"));
+      const href = repositoryHref(repo, ...made.path.split("/"));
       if (encrypted) router.push(href);
       else window.location.assign(href);
       return;

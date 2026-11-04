@@ -10,7 +10,7 @@ import { ChooseVaultButton } from "./ChooseVaultButton";
  * The vaults of a repository and what is in each, from names alone (DESIGN.md §8): documents and notes can be
  * opened, any other file is greyed, and an encrypted vault is locked. Nothing is downloaded to draw it.
  */
-export function VaultList({ read, connectionId, opensOn }: { read: RepositoryRead; connectionId: number; /** The directory of the vault the repository opens on. */ opensOn?: string | undefined }) {
+export function VaultList({ read, connectionId, repo, opensOn }: { read: RepositoryRead; connectionId: number; /** What the repository is called in an address. */ repo: string; /** The directory of the vault the repository opens on. */ opensOn?: string | undefined }) {
   const { discovery, partial, manifest } = read;
   return (
     <>
@@ -35,7 +35,7 @@ export function VaultList({ read, connectionId, opensOn }: { read: RepositoryRea
           {discovery.vaults.map((vault) => (
             <li key={vault.directory} className={styles.item}>
               <span>
-                <a href={vault.id === null ? repositoryHref(connectionId, vault.directory) : vaultAddress(connectionId, vault.id)}>
+                <a href={vault.id === null ? repositoryHref(repo, vault.directory) : vaultAddress(repo, vault.id)}>
                   <strong>{vault.name ?? vault.directory}</strong>
                 </a>
                 {vault.name !== null && vault.name !== vault.directory ? <span className={styles.itemMeta}> · {vault.directory}</span> : null}

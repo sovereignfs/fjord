@@ -15,7 +15,7 @@ import { newEncryptedEntry } from "../seal";
  * encrypted one it is written and encrypted here, to the journal's recipients, and the server is given only the ciphertext. Nothing is written until the
  * button is pressed: opening the journal changes nothing.
  */
-export function NewEntry({ connectionId, vault, encrypted }: { connectionId: number; vault: string; /** The journal's recipients, when it is encrypted, or why it cannot be written to. */ encrypted?: { ok: true; text: string } | { ok: false; message: string } }) {
+export function NewEntry({ connectionId, repo, vault, encrypted }: { connectionId: number; /** What the repository is called in an address. */ repo: string; vault: string; /** The journal's recipients, when it is encrypted, or why it cannot be written to. */ encrypted?: { ok: true; text: string } | { ok: false; message: string } }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +43,7 @@ export function NewEntry({ connectionId, vault, encrypted }: { connectionId: num
       made = await sendEntry(connectionId, "");
     }
     if (made.ok) {
-      router.push(repositoryHref(connectionId, ...made.path.split("/")));
+      router.push(repositoryHref(repo, ...made.path.split("/")));
       return;
     }
     setError(made.message);

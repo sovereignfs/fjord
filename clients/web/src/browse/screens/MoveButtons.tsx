@@ -16,6 +16,7 @@ import { repositoryHref } from "../links";
  */
 export function MoveButtons({
   connectionId,
+  repo,
   vault,
   target,
   suffix,
@@ -23,6 +24,8 @@ export function MoveButtons({
   canRename = true,
 }: {
   connectionId: number;
+  /** What the repository is called in an address (`ConnectionInfo.publicId`), for the link a finished action goes to; `connectionId` is for the API. */
+  repo: string;
   vault: string;
   target: DeleteTarget;
   /** What stays of a file's name when it is renamed: its extension (`.md`). Empty for a folder. */
@@ -49,7 +52,7 @@ export function MoveButtons({
     setError(null);
     const done = await sendMove(connectionId, vault, target, destination);
     if (done.ok) {
-      window.location.assign(repositoryHref(connectionId, ...destination.split("/")));
+      window.location.assign(repositoryHref(repo, ...destination.split("/")));
       return;
     }
     setError({ message: done.message, lookAgain: done.lookAgain, taken: done.taken });

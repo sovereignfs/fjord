@@ -108,10 +108,13 @@ export async function IdPage({ id, wrong, base = "d" }: { id: string; wrong?: "w
 
   if (others.length === 0) {
     // The owner's own file is shown at its address inside its repository, where its vault and folder are (workstream 0003); `/d/<id>` is the address a share is given.
-    return <RepositoryScreen connection={String(only.connectionId)} path={only.path.split("/")} />;
+    const owned = (await (await connectionService()).list(user.id)).find((connection) => connection.id === only.connectionId);
+    if (!owned) notFound();
+    return <RepositoryScreen connection={owned.publicId} path={only.path.split("/")} />;
   }
 
   const connections = await (await connectionService()).list(user.id);
+  const publicIds = new Map(connections.map((connection) => [connection.id, connection.publicId]));
   const named = new Map(connections.map((connection) => [connection.id, `${connection.owner}/${connection.name}`]));
   return (
     <Shell user={user} title="More than one file has this id">
@@ -122,7 +125,7 @@ export async function IdPage({ id, wrong, base = "d" }: { id: string; wrong?: "w
       <ul aria-label="Files with this id">
         {found.matches.map((match) => (
           <li key={`${match.connectionId}/${match.path}`}>
-            <a href={`${repositoryHref(match.connectionId, ...match.path.split("/"))}?pick=1`}>{match.path}</a>{" "}
+            <a href={`${repositoryHref(publicIds.get(match.connectionId) ?? "", ...match.path.split("/"))}?pick=1`}>{match.path}</a>{" "}
             <span className={styles.itemMeta}>
               Document in {named.get(match.connectionId) ?? "a repository"}
             </span>

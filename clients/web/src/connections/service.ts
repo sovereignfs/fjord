@@ -7,6 +7,7 @@ import * as sqliteSchema from "../db/schema/sqlite";
 import { isProviderError } from "../providers/errors";
 import { type Provider, type RepositoryRef, repositoryKey } from "../providers/types";
 import { ConnectionError } from "./errors";
+import { newPublicId } from "./public-id";
 import { parseRepository } from "./repository-url";
 
 /**
@@ -22,6 +23,8 @@ import { parseRepository } from "./repository-url";
  */
 export interface ConnectionInfo {
   id: number;
+  /** What it is called in an address (`/repo/<publicId>`, `src/connections/public-id.ts`); `id` is the database's and is never shown in one. */
+  publicId: string;
   provider: "github";
   /** `pat`: a personal access token the person gave. `app`: an installation of the instance's GitHub App (ROADMAP 1a.6). */
   kind: "pat" | "app";
@@ -85,7 +88,7 @@ const linkShares = (database: Database) => (database.dialect === "postgres" ? po
 const commentTables = (database: Database) => (database.dialect === "postgres" ? [postgresSchema.commentReply, postgresSchema.commentThread, postgresSchema.commentActivity, postgresSchema.commentClosed] : [sqliteSchema.commentReply, sqliteSchema.commentThread, sqliteSchema.commentActivity, sqliteSchema.commentClosed]);
 const deletions = (database: Database) => (database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion);
 const defaults = (database: Database) => (database.dialect === "postgres" ? postgresSchema.accountDefault : sqliteSchema.accountDefault);
-const COLUMNS = sql.raw('id, kind, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", default_vault AS "defaultVault", repo_kind AS "repoKind"');
+const COLUMNS = sql.raw('id, kind, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", default_vault AS "defaultVault", repo_kind AS "repoKind", public_id AS "publicId"');
 
 interface Row {
   id: number;
@@ -97,10 +100,12 @@ interface Row {
   credentialId: string;
   defaultVault: string | null;
   repoKind: string | null;
+  publicId: string | null;
 }
 
 const toInfo = (row: Row, isDefault: boolean): ConnectionInfo => ({
   id: Number(row.id),
+  publicId: row.publicId ?? "",
   provider: "github",
   kind: row.kind === "app" ? "app" : "pat",
   owner: row.owner,
@@ -155,8 +160,8 @@ export class ConnectionService {
     try {
       const rows = await dbAll<Row>(
         this.database,
-        sql`INSERT INTO ${table(this.database)} (account_id, provider, kind, owner, name, branch, credential_id, created_at)
-            VALUES (${accountId}, 'github', 'pat', ${ref.owner}, ${ref.name}, ${branch}, ${credentialId}, ${this.now()})
+        sql`INSERT INTO ${table(this.database)} (account_id, provider, kind, owner, name, branch, credential_id, created_at, public_id)
+            VALUES (${accountId}, 'github', 'pat', ${ref.owner}, ${ref.name}, ${branch}, ${credentialId}, ${this.now()}, ${await this.freshPublicId()})
             RETURNING ${COLUMNS}`,
       );
       const row = rows[0] as Row;
@@ -172,8 +177,36 @@ export class ConnectionService {
 
   async list(accountId: string): Promise<ConnectionInfo[]> {
     const rows = await dbAll<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE account_id = ${accountId} ORDER BY id ASC`);
+    // A connection made before addresses had names gets its own now, once.
+    for (const row of rows) if (!row.publicId) row.publicId = await this.nameIt(Number(row.id));
     const chosen = this.effectiveDefault(rows, await this.storedDefault(accountId));
     return rows.map((row) => toInfo(row, Number(row.id) === chosen));
+  }
+
+  /** One of this account's connections by what it is called in an address (`/repo/<publicId>`), or by the number it was called before those (`/repo/3`). */
+  async getByPublicId(accountId: string, publicId: string): Promise<ConnectionInfo | undefined> {
+    return (await this.list(accountId)).find((connection) => connection.publicId === publicId);
+  }
+
+  /** A public id that no connection has. The unique index is what makes it certain; this only keeps a collision from being a failure. */
+  private async freshPublicId(): Promise<string> {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const candidate = newPublicId();
+      const taken = await dbGet<{ id: number }>(this.database, sql`SELECT id FROM ${table(this.database)} WHERE public_id = ${candidate}`);
+      if (!taken) return candidate;
+    }
+    throw new Error("a public id could not be made");
+  }
+
+  private async nameIt(id: number): Promise<string> {
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const candidate = await this.freshPublicId();
+      // Only a row that has none is given one, so two requests listing at once agree on the first.
+      await dbRun(this.database, sql`UPDATE ${table(this.database)} SET public_id = ${candidate} WHERE id = ${id} AND public_id IS NULL`);
+      const row = await dbGet<{ publicId: string | null }>(this.database, sql`SELECT public_id AS "publicId" FROM ${table(this.database)} WHERE id = ${id}`);
+      if (row?.publicId) return row.publicId;
+    }
+    throw new Error("a public id could not be kept");
   }
 
   async get(accountId: string, id: number): Promise<ConnectionInfo | undefined> {
@@ -323,8 +356,8 @@ export class ConnectionService {
       try {
         const rows = await dbAll<Row>(
           this.database,
-          sql`INSERT INTO ${table(this.database)} (account_id, provider, kind, owner, name, branch, credential_id, created_at)
-              VALUES (${accountId}, 'github', 'app', ${ref.owner}, ${ref.name}, ${branch}, ${credentialId}, ${this.now()})
+          sql`INSERT INTO ${table(this.database)} (account_id, provider, kind, owner, name, branch, credential_id, created_at, public_id)
+              VALUES (${accountId}, 'github', 'app', ${ref.owner}, ${ref.name}, ${branch}, ${credentialId}, ${this.now()}, ${await this.freshPublicId()})
               RETURNING ${COLUMNS}`,
         );
         const row = rows[0] as Row;

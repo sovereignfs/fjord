@@ -22,7 +22,7 @@ function DriveEntry({ accountId, connection, read }: EntryViewProps) {
   const outcome = { ok: true as const, read };
   return (
     <>
-      <VaultList read={read} connectionId={connection.id} opensOn={chosenVault(connection, outcome)} />
+      <VaultList read={read} connectionId={connection.id} repo={connection.publicId} opensOn={chosenVault(connection, outcome)} />
       {read.manifest?.ok ? <AddVault connectionId={connection.id} existing={read.discovery.vaults.map((vault) => vault.directory)} /> : null}
       <Landing accountId={accountId} connection={connection} outcome={outcome} />
     </>

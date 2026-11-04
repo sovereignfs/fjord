@@ -23,6 +23,7 @@ import { loadModule } from "../module";
  */
 export function EncryptedEditor({
   connectionId,
+  repo,
   path,
   name,
   naming,
@@ -35,6 +36,8 @@ export function EncryptedEditor({
   transferTargets,
 }: {
   connectionId: number;
+  /** What the repository is called in an address (`ConnectionInfo.publicId`). */
+  repo: string;
   path: string;
   /** The file's real name, for the container of an `id`-named vault. */
   name: string;
@@ -294,6 +297,7 @@ export function EncryptedEditor({
       {!readOnly ? (
         <TransferControl
           connectionId={connectionId}
+          repo={repo}
           path={path}
           blob={base}
           name={name}

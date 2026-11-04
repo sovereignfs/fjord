@@ -44,6 +44,7 @@ async function open(connectionId: number, path: string, naming: Naming, logical:
 
 export function EncryptedFile({
   connectionId,
+  repo,
   path,
   naming,
   logical,
@@ -53,6 +54,8 @@ export function EncryptedFile({
   transferTargets,
 }: {
   connectionId: number;
+  /** What the repository is called in an address (`ConnectionInfo.publicId`). */
+  repo: string;
   path: string;
   naming: Naming;
   /** Where the file can be moved to in another vault (ROADMAP 2b.6). */
@@ -232,7 +235,7 @@ export function EncryptedFile({
             </div>
           ) : null}
           {base !== undefined && recipients.ok ? (
-            <EncryptedEditor connectionId={connectionId} path={path} name={shown.name} naming={naming} recipients={recipients.text} text={shown.text} base={base} hasDraft={draft !== null} readOnly={upstreamChanged} flushRef={flushRef} transferTargets={transferTargets} />
+            <EncryptedEditor connectionId={connectionId} repo={repo} path={path} name={shown.name} naming={naming} recipients={recipients.text} text={shown.text} base={base} hasDraft={draft !== null} readOnly={upstreamChanged} flushRef={flushRef} transferTargets={transferTargets} />
           ) : (
             <EncryptedReader name={shown.name} text={shown.text} />
           )}

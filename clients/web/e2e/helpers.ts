@@ -84,14 +84,24 @@ export async function enableTwoFactor(page: Page) {
  * The addresses of places in a repository (workstream 0003): `/repo/<repo>/v/<vault>/[<folder>/]<file>` by handle, or `…/[<folder>/]d/<doc>` for a Doc, never a path.
  * `PLACE` is any of them, a vault's too, `DOC_PLACE` only a Doc's, `FILE_PLACE` only a file or folder's by its handle.
  */
+/** A repository's public id in an address: eight characters of Crockford's base32, lower case. */
+const REPO = "[0-9a-hjkmnp-tv-z]{8}";
 const ULID = "[0-9a-hjkmnp-tv-z]{26}";
 const HANDLE = "[0-9a-z]{16}";
-export const DOC_PLACE = new RegExp(`/repo/\\d+/v/${ULID}/(?:${HANDLE}/)?d/${ULID}$`);
-export const FILE_PLACE = new RegExp(`/repo/\\d+/v/${ULID}/(?:${HANDLE}/)?${HANDLE}$`);
-export const PLACE = new RegExp(`/repo/\\d+/v/${ULID}(?:/(?:${HANDLE}/)?(?:d/${ULID}|${HANDLE}))?$`);
+export const DOC_PLACE = new RegExp(`/repo/${REPO}/v/${ULID}/(?:${HANDLE}/)?d/${ULID}$`);
+export const FILE_PLACE = new RegExp(`/repo/${REPO}/v/${ULID}/(?:${HANDLE}/)?${HANDLE}$`);
+export const PLACE = new RegExp(`/repo/${REPO}/v/${ULID}(?:/(?:${HANDLE}/)?(?:d/${ULID}|${HANDLE}))?$`);
 /** A Doc's address inside its repository, with its id: where the owner's `/d/<id>` leads. */
-export const docPlace = (id: string) => new RegExp(`/repo/\\d+/v/${ULID}/(?:${HANDLE}/)?d/${id}$`);
+export const docPlace = (id: string) => new RegExp(`/repo/${REPO}/v/${ULID}/(?:${HANDLE}/)?d/${id}$`);
 /** A site's post inside its repository (workstream 0003): `/repo/<repo>/post/<id>`. */
-export const POST_PLACE = new RegExp(`/repo/\\d+/post/(?:${ULID}|${HANDLE})$`);
+export const POST_PLACE = new RegExp(`/repo/${REPO}/post/(?:${ULID}|${HANDLE})$`);
 /** A journal's note inside its repository (workstream 0003): `/repo/<repo>/n/<id>`, or by handle when its id is in the ciphertext. */
-export const NOTE_PLACE = new RegExp(`/repo/\\d+/n/(?:${ULID}|${HANDLE})$`);
+export const NOTE_PLACE = new RegExp(`/repo/${REPO}/n/(?:${ULID}|${HANDLE})$`);
+
+/** What a connection (by the number the API calls it) is called in an address: its public id, `/repo/<repo>`. */
+export async function repoOf(page: import("@playwright/test").Page, id: number): Promise<string> {
+  const listed = (await (await page.request.get("/api/connections")).json()) as { connections: { id: number; publicId: string }[] };
+  const found = listed.connections.find((connection) => connection.id === id);
+  if (!found) throw new Error(`connection ${id} is not there`);
+  return found.publicId;
+}

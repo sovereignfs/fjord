@@ -12,6 +12,7 @@ export async function rawContext(): Promise<{ caller: { accountId: string } | nu
   return {
     caller: session ? { accountId: session.user.id } : null,
     deps: {
+      connection: async (accountId, publicId) => (await (await connectionService()).getByPublicId(accountId, publicId))?.id,
       resolve: async (handle) => new FileHandles(await getDatabase()).resolve(handle),
       read: async (accountId, connectionId, path) => {
         // Only this account's own repository.

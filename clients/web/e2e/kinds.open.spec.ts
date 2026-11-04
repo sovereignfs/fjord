@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { expect, signUp, test, NOTE_PLACE, PLACE, POST_PLACE } from "./helpers";
+import { expect, repoOf, signUp, test, NOTE_PLACE, PLACE, POST_PLACE } from "./helpers";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
 /**
@@ -50,7 +50,7 @@ test("the home page has a tile for each repository, and the rail an icon by its 
   await page.goto("/");
   const tiles = page.getByRole("list", { name: "Repositories", exact: true });
   await expect(tiles.getByRole("link")).toHaveCount(2);
-  await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toHaveAttribute("href", `/repo/${journal}`);
+  await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toHaveAttribute("href", `/repo/${await repoOf(page, journal)}`);
   // Not opened yet, so not known to be a journal: a drive's tile.
   await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toContainText("Drive");
   await page.goto(`/repo/${journal}`);
@@ -61,7 +61,7 @@ test("the home page has a tile for each repository, and the rail an icon by its 
   void other;
   // Signing in lands on the default repository, not on the grid.
   await page.goto("/open");
-  await expect(page).toHaveURL(new RegExp(`/repo/${journal}$`));
+  await expect(page).toHaveURL(new RegExp(`/repo/${await repoOf(page, journal)}$`));
 });
 
 test("a journal opens on its timeline, placed by date, and takes an entry dated in the browser's own time", async ({ page }) => {
@@ -102,11 +102,11 @@ test("a journal opens on its timeline, placed by date, and takes an entry dated 
   // Every kind can be shown as files (its one vault, at its own address), and back by the path above it.
   await page.goto(`/repo/${id}`);
   await page.getByRole("link", { name: "Show files" }).click();
-  await expect(page).toHaveURL(new RegExp(`/repo/${id}/v/[0-9a-hjkmnp-tv-z]{26}$`));
+  await expect(page).toHaveURL(new RegExp(`/repo/${await repoOf(page, id)}/v/[0-9a-hjkmnp-tv-z]{26}$`));
   await expect(page.getByRole("list", { name: "Folder contents" })).toBeVisible();
   // The old address, `?view=files`, is sent there.
   await page.goto(`/repo/${id}?view=files`);
-  await expect(page).toHaveURL(new RegExp(`/repo/${id}/v/[0-9a-hjkmnp-tv-z]{26}$`));
+  await expect(page).toHaveURL(new RegExp(`/repo/${await repoOf(page, id)}/v/[0-9a-hjkmnp-tv-z]{26}$`));
   await page.getByRole("navigation", { name: "Path" }).getByRole("link", { name: "acme/notes" }).click();
   await expect(page.getByTestId("timeline")).toBeVisible();
 });
@@ -115,7 +115,7 @@ test("a journal's note is at /repo/<repo>/n/<id>, is shared at /n/<id>, and an o
   await signUp(page);
   const id = await connect(page, "acme/notes");
   const NOTE = "01jagc4k7pt8y3wqnmzv5xrb9c";
-  const here = new RegExp(`/repo/${id}/n/${NOTE}$`);
+  const here = new RegExp(`/repo/${await repoOf(page, id)}/n/${NOTE}$`);
   await page.goto(`/repo/${id}`);
   await page.getByRole("link", { name: /Morning run/ }).click();
   await expect(page).toHaveURL(here);

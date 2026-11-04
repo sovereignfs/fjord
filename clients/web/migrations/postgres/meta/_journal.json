@@ -148,6 +148,13 @@
       "when": 1793740842931,
       "tag": "0020_add_repo_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793785464659,
+      "tag": "0021_add_connection_public_id",
+      "breakpoints": true
     }
   ]
 }

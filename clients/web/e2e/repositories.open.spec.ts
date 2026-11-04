@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { ROUTES } from "../src/access/routes";
-import { alertOn, expect, signUp, test, DOC_PLACE, FILE_PLACE, PLACE, docPlace } from "./helpers";
+import { alertOn, expect, repoOf, signUp, test, DOC_PLACE, FILE_PLACE, PLACE, docPlace } from "./helpers";
 import { wasmDirectory } from "../src/format/wasm";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
@@ -378,7 +378,7 @@ test("places have addresses made of ids; a path, an address with a stale vault a
 
   // The old address by path is sent to the vault's own, and a folder's to a handle in the vault's address.
   await page.goto(`/repo/${id}/Public`);
-  await expect(page).toHaveURL(`${BASE}/repo/${id}/v/${PUBLIC}`);
+  await expect(page).toHaveURL(`${BASE}/repo/${await repoOf(page, id)}/v/${PUBLIC}`);
   await page.goto(`/repo/${id}/Public/Q4`);
   await expect(page).toHaveURL(FILE_PLACE);
   const folder = new URL(page.url()).pathname;
@@ -411,7 +411,7 @@ test("a repository opens on the first vault its fjord.json lists, not the first 
   await expect(page.getByRole("list", { name: "Folder contents" }).getByRole("link", { name: "plan.fj.md" })).toBeVisible();
   // Signing in lands in that vault (`/open`), at its own address.
   await page.goto("/open");
-  await expect(page).toHaveURL(`${BASE}/repo/${id}/v/01jagc4k7pr9tbm3ykwx6zq2hv`);
+  await expect(page).toHaveURL(`${BASE}/repo/${await repoOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hv`);
   await expect(page.getByRole("list", { name: "Folder contents" }).getByRole("link", { name: "plan.fj.md" })).toBeVisible();
 });
 
@@ -2758,7 +2758,7 @@ test("an HTML page of a plaintext vault is opened and run in a sandbox: its scri
     const contents = page.getByRole("list", { name: "Folder contents" });
     await expect(contents.getByRole("listitem").filter({ hasText: "checklist.html" })).toContainText("Page");
     await contents.getByRole("link", { name: "checklist.html" }).click();
-    await expect(page).toHaveURL(new RegExp(`/repo/${id}/v/01jagc4k7pr9tbm3ykwx6zq2hv/html/[0-9a-z]{16}$`));
+    await expect(page).toHaveURL(new RegExp(`/repo/${await repoOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hv/html/[0-9a-z]{16}$`));
 
     const frame = page.frameLocator('iframe[title="checklist.html"]');
     // The script ran.
@@ -2770,7 +2770,7 @@ test("an HTML page of a plaintext vault is opened and run in a sandbox: its scri
     await expect(frame.locator("#network")).toHaveText("network:blocked");
     // This page is the only one that frames anything, and the page policy has no violation to report for it.
     const src = (await page.locator("iframe").getAttribute("src"))!;
-    expect(src).toMatch(new RegExp(`^/raw/${id}/[0-9a-z]{16}$`));
+    expect(src).toMatch(new RegExp(`^/raw/${await repoOf(page, id)}/[0-9a-z]{16}$`));
 
     // The address of the document itself carries the sandbox too, so opening it in a tab does not give it this app's origin.
     const direct = await page.request.get(src);

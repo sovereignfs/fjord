@@ -15,12 +15,15 @@ import { repositoryHref } from "../links";
  */
 export function DeleteButton({
   connectionId,
+  repo,
   vault,
   target,
   name,
   goTo,
 }: {
   connectionId: number;
+  /** What the repository is called in an address (`ConnectionInfo.publicId`), for the link a finished action goes to; `connectionId` is for the API. */
+  repo: string;
   vault: string;
   target: DeleteTarget;
   /** What the person calls it. */
@@ -42,7 +45,7 @@ export function DeleteButton({
       } catch {
         // No storage: there is no Undo, and Recently deleted has it.
       }
-      window.location.assign(repositoryHref(connectionId, ...goTo));
+      window.location.assign(repositoryHref(repo, ...goTo));
       return;
     }
     setError({ message: done.message, lookAgain: done.lookAgain });

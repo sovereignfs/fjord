@@ -12,7 +12,7 @@ import styles from "../../auth/screens/screens.module.css";
  * "New post" (ROADMAP 3c.2): a Markdown file dated now in the writer's own time, put where the site's engine reads it, with a title if one is
  * typed, then opened in the note editor. As a draft it is not built into the site: Astro's `draft: true`, or Jekyll's `_drafts`.
  */
-export function NewPost({ connectionId, engine }: { connectionId: number; engine: "astro" | "jekyll" }) {
+export function NewPost({ connectionId, repo, engine }: { connectionId: number; /** What the repository is called in an address. */ repo: string; engine: "astro" | "jekyll" }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -26,7 +26,7 @@ export function NewPost({ connectionId, engine }: { connectionId: number; engine
     setError(null);
     const made = await sendPost(connectionId, title, draft);
     if (made.ok) {
-      router.push(repositoryHref(connectionId, ...made.path.split("/")));
+      router.push(repositoryHref(repo, ...made.path.split("/")));
       return;
     }
     setError(made.message);

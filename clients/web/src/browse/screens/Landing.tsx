@@ -24,7 +24,7 @@ export async function Landing({ accountId, connection, outcome }: { accountId: s
   }
   if (found.location.kind === "missing") return null;
   // A folder is listed, not opened in an editor, so `editor` is only to satisfy the props: this view is the drive's and must not import the registry that imports it.
-  return <FolderView connectionId={connection.id} repository={`${connection.owner}/${connection.name}`} location={found.location} editor="document" />;
+  return <FolderView connectionId={connection.id} repo={connection.publicId} repository={`${connection.owner}/${connection.name}`} location={found.location} editor="document" />;
 }
 
 /** The directory of the vault a repository opens on, for the page that lists the vaults to mark it. */

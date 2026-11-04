@@ -42,7 +42,7 @@ export function RepositoryView({
 }) {
   const label = `${current.owner}/${current.name}`;
   return (
-    <SignedInShell user={user} connections={connections.map((connection) => (connection.id === current.id && outcome.ok && outcome.read.manifest?.ok ? { ...connection, repoKind: outcome.read.manifest.kind } : connection))} place={{ repository: current.id }}>
+    <SignedInShell user={user} connections={connections.map((connection) => (connection.id === current.id && outcome.ok && outcome.read.manifest?.ok ? { ...connection, repoKind: outcome.read.manifest.kind } : connection))} place={{ repository: current.publicId }}>
       <div className={styles.workspace}>
         <h1 className={styles.title}>{label}</h1>
         <p className={styles.lead}>
@@ -71,9 +71,9 @@ export function RepositoryView({
               {kind ? (
                 <p className={styles.lead}>
                   {kind.asFiles ? (
-                    <a href={repositoryHref(current.id)}>Show as {kind.label.toLowerCase()}</a>
+                    <a href={repositoryHref(current.publicId)}>Show as {kind.label.toLowerCase()}</a>
                   ) : (
-                    <a href={kind.filesHref ?? `${repositoryHref(current.id)}?view=files`}>Show files</a>
+                    <a href={kind.filesHref ?? `${repositoryHref(current.publicId)}?view=files`}>Show files</a>
                   )}
                 </p>
               ) : null}
@@ -88,7 +88,7 @@ export function RepositoryView({
           {current.isDefault ? null : <MakeDefaultButton id={current.id} label={label} />}
         </Card>
         <p>
-          <a href={`/deleted/${current.id}`}>Recently deleted</a>
+          <a href={`/deleted/${current.publicId}`}>Recently deleted</a>
           {" · "}
           <a href="/repositories">Connect or disconnect repositories</a>
         </p>

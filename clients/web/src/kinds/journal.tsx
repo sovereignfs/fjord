@@ -42,10 +42,10 @@ async function JournalEntry({ accountId, connection, read, query }: EntryViewPro
       {writable === "unsupported" ? (
         <Alert variant="info">This journal's vault cannot be written to from here: its manifest cannot be read, or its files are not named plainly.</Alert>
       ) : (
-        <NewEntry connectionId={connection.id} vault={vault.directory} encrypted={encrypted} />
+        <NewEntry connectionId={connection.id} repo={connection.publicId} vault={vault.directory} encrypted={encrypted} />
       )}
       {vault.encrypted === true ? (
-        <EncryptedTimeline connectionId={connection.id} files={vault.files.filter((file) => file.kind === "payload").map((file) => ({ path: file.path }))} />
+        <EncryptedTimeline connectionId={connection.id} repo={connection.publicId} files={vault.files.filter((file) => file.kind === "payload").map((file) => ({ path: file.path }))} />
       ) : writable === "unsupported" ? null : read.partial ? (
         <Alert variant="info">This journal is too large to list at once, so its timeline cannot be shown here. Show its files to browse it.</Alert>
       ) : (

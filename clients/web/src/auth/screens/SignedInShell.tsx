@@ -7,7 +7,7 @@ import { AppShell, type ShellPlace } from "../../ui/AppShell";
 import { authConfig } from "../server";
 import { SignOutButton } from "./SignOutButton";
 
-type Listed = Pick<ConnectionInfo, "id" | "owner" | "name" | "isDefault" | "repoKind">;
+type Listed = Pick<ConnectionInfo, "id" | "publicId" | "owner" | "name" | "isDefault" | "repoKind">;
 
 /**
  * The frame of a signed-in page (`AppShell`) with what this instance knows to put in it: its name, the dialog that connects a repository, the way out, and the
@@ -21,7 +21,7 @@ export async function SignedInShell({ user, connections, place, children }: { us
     <AppShell
       name={config.enabled ? config.name : "Fjord"}
       person={user}
-      repositories={listed.map((connection) => ({ id: connection.id, label: `${connection.owner}/${connection.name}`, isDefault: connection.isDefault, kind: connection.repoKind }))}
+      repositories={listed.map((connection) => ({ id: connection.publicId, label: `${connection.owner}/${connection.name}`, isDefault: connection.isDefault, kind: connection.repoKind }))}
       place={place}
       connect={<ConnectDialog canConnect={canConnect} />}
       signOut={<SignOutButton icon />}

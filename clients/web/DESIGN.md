@@ -416,7 +416,8 @@ user can change it. Each connection has a default vault: the first vault listed 
   Disconnecting the default moves it to the account's first remaining connection (or none); a row that
   names a connection that is gone any other way is ignored on reading, so `/open` never lands on a
   repository that is not there.
-- **The repository page** is `/repo/<connection>` for any of the account's own (`/` is the home page: a tile for each, drawn from what is stored, with the kind each was last read as in `connection.repo_kind`, a hint for the icons, never a decision)
+- **A repository is called in an address by its public id** (`connection.public_id`, `src/connections/public-id.ts`): eight lower-case characters of Crockford's base32 (40 random bits), generated when it is connected, given to a row that predates it the first time it is listed, and unique across the instance. It is a name and not a secret (reaching the repository takes the account that connected it); it is chosen so that an address does not say how many repositories there are, or in what order they were connected. Every `<repo>` in this document is it. The database's own number is what its tables and `/api/connections/<id>` use, and `/repo/<number>` (at most seven digits, so never mistaken for a public id) and `/deleted/<number>` still arrive and are sent on.
+- **The repository page** is `/repo/<repo>` for any of the account's own (`/` is the home page: a tile for each, drawn from what is stored, with the kind each was last read as in `connection.repo_kind`, a hint for the icons, never a decision)
   (the path inside it, `/repo/<connection>/<path>`, comes with the file browser, 1a.11). It names the
   repository and its branch, marks the default, and offers *Make this my default* on the others. With
   two or more it has the switcher: a list of the account's repositories, each a link. Someone else's

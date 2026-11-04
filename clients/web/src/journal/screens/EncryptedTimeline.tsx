@@ -16,7 +16,7 @@ import { TagFilter } from "./TagFilter";
  * An encrypted journal's timeline (ROADMAP 3b.2, 3b.3), built here from the entries this browser decrypts with its key, and kept in memory
  * only: no entry's date, title or tag is sent to the server or stored. It asks for the key's passphrase when the key is locked.
  */
-export function EncryptedTimeline({ connectionId, files }: { connectionId: number; /** The vault's encrypted files, by repository path. */ files: { path: string }[] }) {
+export function EncryptedTimeline({ connectionId, repo, files }: { connectionId: number; /** What the repository is called in an address. */ repo: string; /** The vault's encrypted files, by repository path. */ files: { path: string }[] }) {
   const [state, setState] = useState<"checking" | "none" | "locked" | "reading" | "ready" | "failed">("checking");
   const [passphrase, setPassphrase] = useState("");
   const [progress, setProgress] = useState(0);
@@ -109,7 +109,7 @@ export function EncryptedTimeline({ connectionId, files }: { connectionId: numbe
     <>
       <TagFilter tags={timeline.tags} chosen={tags} range={range} onChange={(next, nextRange) => { setTags(next); setRange(nextRange); setPage(1); }} />
       {unreadable > 0 ? <p className={styles.itemMeta}>{unreadable} {unreadable === 1 ? "entry" : "entries"} could not be opened with this key.</p> : null}
-      <TimelineView connectionId={connectionId} timeline={timeline} />
+      <TimelineView connectionId={connectionId} repo={repo} timeline={timeline} />
       {timeline.pages > 1 ? (
         <p className={styles.actions}>
           <Button variant="secondary" size="sm" disabled={timeline.page <= 1} onClick={() => setPage(timeline.page - 1)}>Newer</Button>

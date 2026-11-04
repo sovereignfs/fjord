@@ -9,12 +9,15 @@ import type { Timeline } from "../timeline";
  */
 export function TimelineView({
   connectionId,
+  repo,
   timeline,
   tagHref,
   empty = "No entries yet.",
   docBase,
 }: {
   connectionId: number;
+  /** What the repository is called in an address (`ConnectionInfo.publicId`), for the link a finished action goes to; `connectionId` is for the API. */
+  repo: string;
   timeline: Timeline;
   /** Where a tag leads, to narrow the timeline to it (3b.3); none, no links. */
   tagHref?: (tag: string) => string;
@@ -33,7 +36,7 @@ export function TimelineView({
             {day.entries.map((entry) => (
               <li key={entry.path} className={styles.item} data-testid="timeline-entry">
                 <span>
-                  <a href={docBase !== undefined && entry.docId !== null ? `/repo/${connectionId}/${docBase}/${entry.docId}` : repositoryHref(connectionId, ...entry.path.split("/"))}>
+                  <a href={docBase !== undefined && entry.docId !== null ? `/repo/${repo}/${docBase}/${entry.docId}` : repositoryHref(repo, ...entry.path.split("/"))}>
                     {entry.when?.time ? <time dateTime={entry.when.sortKey}>{entry.when.time}</time> : null} {entry.title}
                   </a>
                   {entry.draft ? (

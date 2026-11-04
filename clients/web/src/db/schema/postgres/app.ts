@@ -49,9 +49,12 @@ export const connection = app.table(
     defaultVault: text("default_vault"),
     /** What kind the repository was when it was last read (`drive`, `journal`, `ssg`), for the icon of a repository that is not open; null until it is read. A hint only: what a repository is, is its manifest's to say (`kindFor`). */
     repoKind: text("repo_kind"),
+    /** What the repository is called in an address: a short, lower-case, generated name (`/repo/k3x9m2qa`), so that no address shows how many repositories there are or in what order they were connected. Null only for a row made before it existed, which is given one when it is next listed. */
+    publicId: text("public_id"),
   },
   (table) => [
     uniqueIndex("connection_account_repository_idx").on(table.accountId, table.provider, table.owner, table.name),
+    uniqueIndex("connection_public_id_idx").on(table.publicId),
   ],
 );
 

@@ -1,3 +1,5 @@
+import { isPublicId } from "../connections/public-id";
+
 /**
  * A static HTML page of a repository, served to run (workstream 0003, leg 5). The owner's use is checklists and small tools made elsewhere, kept in a vault and opened
  * here; the file is **someone's code, and never runs with this app's origin or cookies**. So it is served as a response of its own, not put in the page that shows it:
@@ -27,6 +29,8 @@ export const RAW_POLICY = [
 export const MAX_PAGE_BYTES = 2 * 1024 * 1024;
 
 export interface RawDeps {
+  /** The number of this account's repository that has this public id, or none if it has no such repository. */
+  connection(accountId: string, publicId: string): Promise<number | undefined>;
   /** Where a handle points: the repository and the path. */
   resolve(handle: string): Promise<{ connectionId: number; path: string } | undefined>;
   /** The file's bytes, if it is one of this account's repository's, in a vault that is not encrypted; else why not. */
@@ -36,9 +40,11 @@ export interface RawDeps {
 const notFound = () => new Response(null, { status: 404, headers: { "cache-control": "no-store" } });
 
 export async function handleRaw(caller: { accountId: string } | null, connection: string, handle: string, deps: RawDeps): Promise<Response> {
-  if (!caller || !/^[1-9][0-9]{0,15}$/.test(connection)) return notFound();
+  if (!caller || !isPublicId(connection)) return notFound();
+  const wanted = await deps.connection(caller.accountId, connection);
+  if (wanted === undefined) return notFound();
   const place = await deps.resolve(handle);
-  if (!place || place.connectionId !== Number(connection) || !/\.html?$/i.test(place.path)) return notFound();
+  if (!place || place.connectionId !== wanted || !/\.html?$/i.test(place.path)) return notFound();
   const read = await deps.read(caller.accountId, place.connectionId, place.path);
   if (!read.ok) return read.reason === "too_large" ? new Response("This page is larger than 2 MB, which is more than is served.", { status: 413, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } }) : notFound();
   return new Response(read.bytes as BodyInit, {
