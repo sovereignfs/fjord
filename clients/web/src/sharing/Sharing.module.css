@@ -331,3 +331,19 @@
   padding: 0;
   min-block-size: 12rem;
 }
+
+/* A published page's address: long, with no place to break, so it wraps wherever it must and stays inside what it is in. */
+.addressRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sv-space-2);
+  min-width: 0;
+}
+
+.url {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  font-size: var(--sv-font-size-sm);
+}

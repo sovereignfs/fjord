@@ -4,6 +4,7 @@ import { dbAll, dbGet, dbRun } from "../db/exec";
 import * as postgresSchema from "../db/schema/postgres";
 import * as sqliteSchema from "../db/schema/sqlite";
 import { waitAfter } from "../sharing/password";
+import type { CredentialStore } from "../crypto/store";
 import { hashToken, newToken } from "../sharing/tokens";
 
 /**
@@ -45,20 +46,54 @@ export interface FoundPublication {
   copy?: { title: string; body: string };
 }
 
+/** What the address of a page is sealed as in the credential store. */
+export const TOKEN_PURPOSE = "publication-token";
+
+/** The part of the credential store a publication uses: with it, a page's address is kept (sealed) and can be shown to its owner again; without it, it is shown once. */
+export type TokenVault = Pick<CredentialStore, "put" | "get" | "remove">;
+
 export class PublicationService {
   constructor(
     private readonly database: Database,
     private readonly now: () => number = Date.now,
     private readonly random?: (size: number) => Buffer,
+    private readonly vault?: TokenVault,
   ) {}
+
+  /** Keep a page's address, sealed; the id to put in its row, or null when there is no vault to keep it in. */
+  private async keep(token: string): Promise<string | null> {
+    return this.vault ? this.vault.put(TOKEN_PURPOSE, token, this.now()) : null;
+  }
+
+  /** Forget the sealed address of what is about to be replaced or ended (a row that has none, or a vault that is not there, has nothing to forget). */
+  private async forget(where: ReturnType<typeof sql>): Promise<void> {
+    if (!this.vault) return;
+    const rows = await dbAll<{ id: string | null }>(this.database, sql`SELECT token_credential AS id FROM ${table(this.database)} WHERE ${where}`);
+    for (const row of rows) if (row.id) await this.vault.remove(row.id);
+  }
+
+  /** The address of a page, to show its owner again: undefined for a page whose address was not kept (made before it was, or with no key), or one that cannot be opened now. */
+  async address(connectionId: number, docId: string): Promise<string | undefined> {
+    if (!this.vault) return undefined;
+    const row = await dbGet<{ id: string | null; tokenHash: string }>(this.database, sql`SELECT token_credential AS id, token_hash AS "tokenHash" FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND doc_id = ${docId}`);
+    if (!row?.id) return undefined;
+    try {
+      const { secret } = await this.vault.get(row.id);
+      // What is returned is the address the hash is of, and nothing else.
+      return hashToken(secret) === row.tokenHash ? secret : undefined;
+    } catch {
+      return undefined;
+    }
+  }
 
   /** Publish a Doc, ending any address it had. The token is the address's secret: it is shown once and not kept. */
   async publish(connectionId: number, docId: string, accountId: string, settings: PublishSettings = {}): Promise<{ token: string }> {
     const token = newToken(this.random);
+    await this.forget(sql`connection_id = ${connectionId} AND doc_id = ${docId}`);
     await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND doc_id = ${docId}`);
     await dbRun(
       this.database,
-      sql`INSERT INTO ${table(this.database)} (connection_id, doc_id, token_hash, created_by, created_at, password_hash, comments) VALUES (${connectionId}, ${docId}, ${hashToken(token)}, ${accountId}, ${this.now()}, ${settings.passwordHash ?? null}, ${settings.comments ?? "off"})`,
+      sql`INSERT INTO ${table(this.database)} (connection_id, doc_id, token_hash, created_by, created_at, password_hash, comments, token_credential) VALUES (${connectionId}, ${docId}, ${hashToken(token)}, ${accountId}, ${this.now()}, ${settings.passwordHash ?? null}, ${settings.comments ?? "off"}, ${await this.keep(token)})`,
     );
     return { token };
   }
@@ -91,6 +126,7 @@ export class PublicationService {
   /** End a Doc's address at once. Whether there was one. */
   async unpublish(connectionId: number, docId: string): Promise<boolean> {
     const was = await this.status(connectionId, docId);
+    await this.forget(sql`connection_id = ${connectionId} AND doc_id = ${docId}`);
     await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND doc_id = ${docId}`);
     return was !== undefined;
   }
@@ -154,10 +190,11 @@ export class PublicationService {
   async publishCopy(connectionId: number, path: string, accountId: string, copy: { title: string; body: string }): Promise<{ token: string }> {
     const token = newToken(this.random);
     const key = copyKey(path);
+    await this.forget(sql`connection_id = ${connectionId} AND doc_id = ${key}`);
     await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND doc_id = ${key}`);
     await dbRun(
       this.database,
-      sql`INSERT INTO ${table(this.database)} (connection_id, doc_id, token_hash, created_by, created_at, title, body) VALUES (${connectionId}, ${key}, ${hashToken(token)}, ${accountId}, ${this.now()}, ${copy.title}, ${copy.body})`,
+      sql`INSERT INTO ${table(this.database)} (connection_id, doc_id, token_hash, created_by, created_at, title, body, token_credential) VALUES (${connectionId}, ${key}, ${hashToken(token)}, ${accountId}, ${this.now()}, ${copy.title}, ${copy.body}, ${await this.keep(token)})`,
     );
     return { token };
   }

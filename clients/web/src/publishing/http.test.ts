@@ -35,7 +35,7 @@ describe("publishing a Doc as a page (ROADMAP 3h.1)", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("says whether a Doc is published, and since when, and never the token", async () => {
+  it("says whether a Doc is published, and since when, and never the token itself", async () => {
     const { deps, status } = stub();
     expect(await json(await handlePublication(get(DOC), ALICE, deps, "1"))).toEqual({ published: false, publishedAt: null, passwordProtected: false, comments: "off" });
     status.mockResolvedValueOnce({ found: true, publishedAt: 1_800_000_000_000, passwordProtected: true, comments: "off" });
@@ -73,6 +73,13 @@ describe("publishing a Doc as a page (ROADMAP 3h.1)", () => {
     update.mockResolvedValueOnce({ found: false });
     expect((await handlePublication(send("PATCH", { doc: DOC, comments: "off" }), ALICE, deps, "9")).status, "another's connection").toBe(404);
     expect((await handlePublication(send("PATCH", { doc: DOC, password: "short" }), ALICE, deps, "1")).status).toBe(400);
+  });
+
+  it("shows the owner the page's address again when the server kept it, built on the instance's origin", async () => {
+    const { deps, status } = stub();
+    status.mockResolvedValueOnce({ found: true, publishedAt: 5, passwordProtected: false, comments: "off", token: TOKEN });
+    expect(await json(await handlePublication(get(DOC), ALICE, deps, "1"))).toMatchObject({ published: true, url: `${ORIGIN}/p/${TOKEN}` });
+    expect(await json(await handlePublication(get(DOC), ALICE, deps, "1"))).not.toHaveProperty("url");
   });
 
   it("ends an address", async () => {

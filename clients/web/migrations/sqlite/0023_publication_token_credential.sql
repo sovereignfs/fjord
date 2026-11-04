@@ -1,0 +1,1 @@
+ALTER TABLE `publication` ADD `token_credential` text;

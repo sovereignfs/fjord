@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Alert, Button, FormField, Input } from "../../ui";
+import { Alert, Button, FormField, Input, Select } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { fetchRecipients, sendTransfer } from "../../files/client";
 import { keyStore } from "../../keys/client";
@@ -148,7 +148,7 @@ export function TransferControl({
     >
       <FormField label="Move to">
         {(field) => (
-          <select
+          <Select
             {...field}
             name="place"
             value={choice}
@@ -163,7 +163,7 @@ export function TransferControl({
                 {label(candidate)}
               </option>
             ))}
-          </select>
+          </Select>
         )}
       </FormField>
       {idNamed ? null : (

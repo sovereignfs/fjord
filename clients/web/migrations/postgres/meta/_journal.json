@@ -162,6 +162,13 @@
       "when": 1793813419476,
       "tag": "0022_publication_password_and_comments",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793826667287,
+      "tag": "0023_publication_token_credential",
+      "breakpoints": true
     }
   ]
 }

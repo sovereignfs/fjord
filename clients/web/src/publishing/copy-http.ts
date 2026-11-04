@@ -1,4 +1,5 @@
 import { type Caller } from "../working/http";
+import { pageUrl } from "./http";
 
 /**
  * Publishing a **copy** of a file of an encrypted vault as a page (`/api/connections/<id>/publication/copy`, DESIGN.md §12, ROADMAP 3h.2, RFC 0002). The server has
@@ -16,7 +17,7 @@ export interface Deps {
     id: number,
     input: { path: string; title: string; body: string },
   ) => Promise<{ found: false } | { found: true; result: { ok: true; token: string } | { ok: false; reason: "not_encrypted" | "unavailable" } }>;
-  status: (accountId: string, id: number, path: string) => Promise<{ found: false } | { found: true; publishedAt: number | null }>;
+  status: (accountId: string, id: number, path: string) => Promise<{ found: false } | { found: true; publishedAt: number | null; token?: string }>;
   unpublish: (accountId: string, id: number, path: string) => Promise<{ found: false } | { found: true; unpublished: boolean }>;
   origin: string;
 }
@@ -56,7 +57,7 @@ export async function handleCopy(request: Request, caller: Caller | null, deps: 
     const path = new URL(request.url).searchParams.get("path");
     if (!isPath(path)) return failure(400, "invalid_request", "Say which file, by its path.");
     const outcome = await deps.status(caller.accountId, number, path);
-    return outcome.found ? json(200, { published: outcome.publishedAt !== null, publishedAt: outcome.publishedAt }) : notFound();
+    return outcome.found ? json(200, { published: outcome.publishedAt !== null, publishedAt: outcome.publishedAt, ...(outcome.token ? { url: pageUrl(deps.origin, outcome.token) } : {}) }) : notFound();
   }
 
   if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");

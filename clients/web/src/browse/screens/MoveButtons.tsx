@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Alert, Button, FormField, Input } from "../../ui";
+import { Alert, Button, FormField, Input, Select } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { type DeleteTarget, sendMove } from "../../files/client";
 import { MAX_TITLE_CHARS } from "../../files/limits";
@@ -137,13 +137,13 @@ export function MoveButtons({
           >
             <FormField label="Move to">
               {(field) => (
-                <select {...field} name="place" value={place} onChange={(e) => setPlace(e.target.value)} disabled={busy}>
+                <Select {...field} name="place" value={place} onChange={(e) => setPlace(e.target.value)} disabled={busy}>
                   {places.map((candidate) => (
                     <option key={candidate} value={candidate}>
                       {candidate}
                     </option>
                   ))}
-                </select>
+                </Select>
               )}
             </FormField>
             <div className={styles.actions}>

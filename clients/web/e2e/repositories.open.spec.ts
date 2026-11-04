@@ -3954,6 +3954,15 @@ test("a page is published with an optional password, says who made it and when, 
     const address = (await panel.getByTestId("page-address").textContent())!;
     expect(address).toMatch(new RegExp(`^${BASE}/p/[A-Za-z0-9_-]{43}$`));
 
+    // The address stays inside the dialog (it is long, and wraps), and is there again when the dialog is closed and opened.
+    const dialogBox = (await page.getByRole("dialog", { name: "Sharing" }).boundingBox())!;
+    const addressBox = (await panel.getByTestId("page-address").boundingBox())!;
+    expect(addressBox.x + addressBox.width).toBeLessThanOrEqual(dialogBox.x + dialogBox.width);
+    await page.reload();
+    await page.getByRole("button", { name: "Share", exact: true }).click();
+    await page.getByRole("tab", { name: "Publish" }).click();
+    await expect(panel.getByTestId("page-address")).toHaveText(address);
+
     // Anyone who opens it, signed in or not, is asked, and is shown nothing of the document (not its title) until the password is given.
     const readerContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.9.1" } });
     const reader = await readerContext.newPage();

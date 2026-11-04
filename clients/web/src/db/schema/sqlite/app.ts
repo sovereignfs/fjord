@@ -221,6 +221,11 @@ export const publication = sqliteTable(
     lockedUntil: epochMs("locked_until"),
     /** Who may comment on the page: `off`, `anyone` or `users` (a signed-in account here). Only `off` is built; the setting is kept so that the page's comments can be added without a migration. */
     comments: text("comments").notNull().default("off"),
+    /**
+     * The id of the credential (`credential` table, sealed under the instance key: `src/crypto/`) that holds the page's address, so that its owner can be shown it again. Only the owner is ever given it, and only from their own
+     * session. Null for a page made before the address was kept, and for an instance with no key: the address is then shown once, when it is made.
+     */
+    tokenCredential: text("token_credential"),
   },
   (table) => [uniqueIndex("publication_connection_doc_idx").on(table.connectionId, table.docId), uniqueIndex("publication_token_idx").on(table.tokenHash)],
 );

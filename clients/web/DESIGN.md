@@ -1175,7 +1175,7 @@ Documents (`*.fj.md`) can be shared in phase 1. Notes cannot. *Planned ([RFC 000
 any Doc in a drive can be shared, and sharing a `.md` without an `id` asks before adding one.
 
 **Publishing** (*planned, RFC 0002, 3h*). A drive's Doc can be published as a sanitised, read-only page: **public** at
-`/p/<token>` (no account; the token hashed and redacted, as a link's is; unpublishing ends it at once), or **private** through the
+`/p/<token>` (no account; the token hashed and redacted, as a link's is, and also kept sealed under the instance key (`credential` table, `publication.token_credential`) so that its owner is shown the address again, never anyone else; unpublishing ends it at once and takes the sealed copy with it), or **private** through the
 shares and links below, which gain the same rendering. It is rendered from the Doc's current version, never a draft. From an
 encrypted vault, the server has no key: privately the sealed link (2c.1) is the answer; publicly, only after a warning that the
 browser gives the server a plaintext copy of that version, readable by anyone with the address. A publication is a row in the

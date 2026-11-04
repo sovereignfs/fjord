@@ -1,6 +1,7 @@
 import { DocIndex } from "../browse/doc-index";
 import { authConfig, getSession } from "../auth/server";
 import { getAuthDatabase } from "../db/boot";
+import { credentialStore, encryptionKeyring } from "../crypto/server";
 import { findUser } from "../auth/users";
 import { hashPassword } from "../sharing/password";
 import { connectionService } from "../connections/server";
@@ -15,6 +16,13 @@ import type { Deps } from "./http";
 import { type OpenedPublication, askedPassword, openPublished } from "./open";
 import { PublicationService, copyKey } from "./publications";
 import { type UnlockPublicationResult, tryUnlockPublication } from "./unlock";
+
+/** The pages' store: with the credential store where there is a key, so that a page's address is kept sealed and its owner can be shown it again; without one, an address is shown once. */
+async function publicationService(): Promise<PublicationService> {
+  const database = await getDatabase();
+  const vault = encryptionKeyring() === undefined ? undefined : await credentialStore();
+  return new PublicationService(database, Date.now, undefined, vault);
+}
 
 /** The server's secret, which the proof that a page's password was given is keyed with. */
 function secretOf(): string {
@@ -50,7 +58,7 @@ export async function publishingContext(): Promise<{ caller: Caller | null; deps
   if (!config.enabled) return null;
   const session = await getSession();
   const owns = async (accountId: string, id: number) => (await (await connectionService()).get(accountId, id)) !== undefined;
-  const publications = new PublicationService(await getDatabase());
+  const publications = await publicationService();
   return {
     caller: session ? { accountId: session.user.id, name: session.user.name, email: session.user.email } : null,
     deps: {
@@ -65,7 +73,8 @@ export async function publishingContext(): Promise<{ caller: Caller | null; deps
       status: async (accountId, id, docId) => {
         if (!(await owns(accountId, id))) return { found: false };
         const status = await publications.status(id, docId);
-        return { found: true, publishedAt: status?.publishedAt ?? null, passwordProtected: status?.passwordProtected ?? false, comments: status?.comments ?? "off" };
+        const token = status ? await publications.address(id, docId) : undefined;
+        return { found: true, publishedAt: status?.publishedAt ?? null, passwordProtected: status?.passwordProtected ?? false, comments: status?.comments ?? "off", ...(token ? { token } : {}) };
       },
       update: async (accountId, id, docId, settings) => {
         if (!(await owns(accountId, id))) return { found: false };
@@ -83,7 +92,7 @@ export async function copyContext(): Promise<{ caller: Caller | null; deps: Copy
   if (!config.enabled) return null;
   const session = await getSession();
   const owns = async (accountId: string, id: number) => (await (await connectionService()).get(accountId, id)) !== undefined;
-  const publications = new PublicationService(await getDatabase());
+  const publications = await publicationService();
   return {
     caller: session ? { accountId: session.user.id, name: session.user.name, email: session.user.email } : null,
     deps: {
@@ -97,7 +106,12 @@ export async function copyContext(): Promise<{ caller: Caller | null; deps: Copy
         if (checkVault(outcome.read.discovery.vaults, input.path) !== "encrypted_vault") return { found: true, result: { ok: false, reason: "not_encrypted" } };
         return { found: true, result: { ok: true, ...(await publications.publishCopy(id, input.path, accountId, { title: input.title, body: input.body })) } };
       },
-      status: async (accountId, id, path) => (!(await owns(accountId, id)) ? { found: false } : { found: true, publishedAt: (await publications.status(id, copyKey(path)))?.publishedAt ?? null }),
+      status: async (accountId, id, path) => {
+        if (!(await owns(accountId, id))) return { found: false };
+        const status = await publications.status(id, copyKey(path));
+        const token = status ? await publications.address(id, copyKey(path)) : undefined;
+        return { found: true, publishedAt: status?.publishedAt ?? null, ...(token ? { token } : {}) };
+      },
       unpublish: async (accountId, id, path) => (!(await owns(accountId, id)) ? { found: false } : { found: true, unpublished: await publications.unpublish(id, copyKey(path)) }),
     },
   };

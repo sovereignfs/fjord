@@ -390,11 +390,14 @@ describe(`using and removing a connection (${leg})`, () => {
     const s = new ConnectionService({ database, credentials, github: () => memory });
     const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
     const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
-    const pages = new PublicationService(database);
+    const pages = new PublicationService(database, Date.now, undefined, credentials);
     const [gone, kept] = [await pages.publish(one.id, "01jagc4k7pt8y3wqnmzv5xrb8j", ALICE), await pages.publish(two.id, "01jagc4k7pt8y3wqnmzv5xrb8j", ALICE)];
 
     await s.remove(ALICE, one.id);
     expect(await pages.find(gone.token)).toBeUndefined();
+    // The sealed address of the page that ended went with it; the other's is still there to show.
+    expect(await pages.address(one.id, "01jagc4k7pt8y3wqnmzv5xrb8j")).toBeUndefined();
+    expect(await pages.address(two.id, "01jagc4k7pt8y3wqnmzv5xrb8j")).toBe(kept.token);
     expect(await pages.find(kept.token)).toMatchObject({ connectionId: two.id, docId: "01jagc4k7pt8y3wqnmzv5xrb8j" });
   });
 

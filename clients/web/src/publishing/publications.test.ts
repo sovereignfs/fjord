@@ -7,6 +7,9 @@ import * as postgresSchema from "../db/schema/postgres";
 import * as sqliteSchema from "../db/schema/sqlite";
 import { freshDatabase, testTarget } from "../db/test-support";
 import { TOKEN_PATTERN, hashToken } from "../sharing/tokens";
+import { randomBytes } from "node:crypto";
+import { CredentialStore } from "../crypto/store";
+import { Keyring } from "../crypto/keyring";
 import { PublicationService, copyKey } from "./publications";
 
 const { leg } = testTarget();
@@ -22,7 +25,10 @@ beforeAll(async () => {
   publications = new PublicationService(database, () => 1_800_000_000_000);
 });
 afterAll(async () => database.close());
-beforeEach(async () => dbRun(database, sql`DELETE FROM ${table()}`));
+beforeEach(async () => {
+  await dbRun(database, sql`DELETE FROM ${table()}`);
+  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.credential : sqliteSchema.credential}`);
+});
 
 describe(`published pages (${leg})`, () => {
   it("makes an address of a token that opens the Doc, and keeps only the token's hash", async () => {
@@ -74,5 +80,48 @@ describe(`published pages (${leg})`, () => {
     expect(await publications.status(1, DOC)).toBeUndefined();
     expect(await publications.find(theirs.token)).toMatchObject({ connectionId: 1, docId: OTHER });
     expect(await publications.find(elsewhere.token)).toMatchObject({ connectionId: 2, docId: DOC });
+  });
+
+  describe("keeping a page's address, sealed, to show its owner again", () => {
+    const vaultOf = () => new CredentialStore(database, new Keyring(randomBytes(32)));
+    const count = async () => (await dbAll<{ id: string }>(database, sql`SELECT id FROM ${database.dialect === "postgres" ? postgresSchema.credential : sqliteSchema.credential}`)).length;
+
+    it("gives the address back to whoever asks for it by the page, and keeps it out of the page's own row", async () => {
+      const kept = new PublicationService(database, () => 1_800_000_000_000, undefined, vaultOf());
+      const { token } = await kept.publish(1, DOC, "alice");
+      expect(await kept.address(1, DOC)).toBe(token);
+      const rows = JSON.stringify(await dbAll(database, sql`SELECT * FROM ${table()}`));
+      expect(rows).not.toContain(token);
+      expect(await count()).toBe(1);
+      expect(await kept.address(1, OTHER)).toBeUndefined();
+    });
+
+    it("has no address to give for a page made without a vault, or made before the address was kept", async () => {
+      const plain = new PublicationService(database, () => 1_800_000_000_000);
+      await plain.publish(1, DOC, "alice");
+      expect(await plain.address(1, DOC)).toBeUndefined();
+      expect(await new PublicationService(database, () => 1_800_000_000_000, undefined, vaultOf()).address(1, DOC)).toBeUndefined();
+    });
+
+    it("replaces the sealed address when the page is published again, and forgets it when the page ends", async () => {
+      const kept = new PublicationService(database, () => 1_800_000_000_000, undefined, vaultOf());
+      const first = await kept.publish(1, DOC, "alice");
+      const second = await kept.publish(1, DOC, "alice");
+      expect(await kept.address(1, DOC)).toBe(second.token);
+      expect(await kept.address(1, DOC)).not.toBe(first.token);
+      expect(await count()).toBe(1);
+      const copy = await kept.publishCopy(1, "Secret/Plan.md.age", "alice", { title: "T", body: "B" });
+      expect(await kept.address(1, copyKey("Secret/Plan.md.age"))).toBe(copy.token);
+      expect(await count()).toBe(2);
+      await kept.unpublish(1, DOC);
+      await kept.unpublish(1, copyKey("Secret/Plan.md.age"));
+      expect(await count()).toBe(0);
+    });
+
+    it("gives nothing for an address it cannot open (another key)", async () => {
+      const mine = new PublicationService(database, () => 1_800_000_000_000, undefined, vaultOf());
+      await mine.publish(1, DOC, "alice");
+      expect(await new PublicationService(database, () => 1_800_000_000_000, undefined, vaultOf()).address(1, DOC)).toBeUndefined();
+    });
   });
 });

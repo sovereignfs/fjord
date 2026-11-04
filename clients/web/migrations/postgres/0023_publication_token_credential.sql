@@ -1,0 +1,1 @@
+ALTER TABLE "fjord"."publication" ADD COLUMN "token_credential" text;

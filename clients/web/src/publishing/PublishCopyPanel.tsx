@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Alert, Button } from "../ui";
 import styles from "../auth/screens/screens.module.css";
+import { PageAddress } from "./PageAddress";
 import { copyOf, getCopyStatus, publishCopy, unpublishCopy } from "./client";
 
 /**
@@ -21,8 +22,10 @@ export function PublishCopyPanel({ connectionId, path, name, getText }: { connec
 
   async function load() {
     const status = await getCopyStatus(connectionId, path);
-    if (status.ok) setPublished(status.published);
-    else setProblem(status.message);
+    if (status.ok) {
+      setPublished(status.published);
+      setUrl(status.url);
+    } else setProblem(status.message);
     setLoaded(true);
   }
 
@@ -68,9 +71,8 @@ export function PublishCopyPanel({ connectionId, path, name, getText }: { connec
       {url ? (
         <div className={styles.notice}>
           <Alert variant="success" heading="Published">
-            Anyone with this address can read the copy. It is shown only now.
-            <br />
-            <code data-testid="page-address">{url}</code>
+            Anyone with this address can read the copy.
+            <PageAddress url={url} />
           </Alert>
         </div>
       ) : null}

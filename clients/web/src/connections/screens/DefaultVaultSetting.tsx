@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Alert, Button } from "../../ui";
+import { Alert, Button, Select } from "../../ui";
 import styles from "./RepositoryHeader.module.css";
 
 /**
@@ -37,13 +37,13 @@ export function DefaultVaultSetting({ connectionId, vaults, current }: { connect
       {error ? <Alert variant="error">{error}</Alert> : null}
       <label htmlFor="default-vault">Opens on</label>
       <div className={styles.inline}>
-        <select id="default-vault" name="vault" value={chosen} onChange={(event) => setChosen(event.target.value)} disabled={busy}>
+        <Select id="default-vault" name="vault" value={chosen} onChange={(event) => setChosen(event.target.value)} disabled={busy}>
           {vaults.map((vault) => (
             <option key={vault.directory} value={vault.directory}>
               {vault.label}
             </option>
           ))}
-        </select>
+        </Select>
         <Button variant="secondary" size="sm" onClick={save} loading={busy} disabled={chosen === current}>
           Use this vault
         </Button>

@@ -273,6 +273,10 @@ export class ConnectionService {
     // And the handles that were made for its paths (ROADMAP 3e.2): a handle of a repository that is gone leads nowhere.
     await dbRun(this.database, sql`DELETE FROM ${fileHandles(this.database)} WHERE connection_id = ${id}`);
     // And the pages published from it (ROADMAP 3h.1): their addresses end with the repository.
+    // Their sealed addresses go with them.
+    for (const page of await dbAll<{ credential: string | null }>(this.database, sql`SELECT token_credential AS credential FROM ${publications(this.database)} WHERE connection_id = ${id}`)) {
+      if (page.credential) await this.credentials.remove(page.credential);
+    }
     await dbRun(this.database, sql`DELETE FROM ${publications(this.database)} WHERE connection_id = ${id}`);
     // And what a journal's timeline knew of its entries.
     await dbRun(this.database, sql`DELETE FROM ${journalEntries(this.database)} WHERE connection_id = ${id}`);

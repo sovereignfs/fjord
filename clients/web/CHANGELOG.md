@@ -11,6 +11,15 @@ section.
 
 ## [Unreleased]
 
+### Added
+
+- **A published page's address is shown whenever its owner opens the dialog**, with a *Copy* button, and no longer only when it is made. It is kept sealed under the instance key (`FJORD_ENCRYPTION_KEY`, in the credential store, as a repository's token is), and given only to the owner's own session; a page published before this has only a hash of its address, says so, and is given a new one by *Publish again*. Migration `0023_publication_token_credential` (both dialects).
+
+### Fixed
+
+- **A published page's address no longer runs out of the dialog**: it wraps inside it.
+- **The choices of where to move a file, move it to another vault, and which vault a repository opens on use the design system's select**, as the rest of the forms do, and not the browser's own.
+
 ## [0.2.0] - 2026-11-04
 
 ### Added

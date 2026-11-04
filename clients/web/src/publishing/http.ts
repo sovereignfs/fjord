@@ -9,7 +9,7 @@ import { type CommentMode, isCommentMode } from "./publications";
  *
  *  - Only the owner of the connection publishes, looks and unpublishes; another's connection is a 404. Writes must come from this instance's own pages.
  *  - Only a Doc of a plaintext vault can be published; an id the repository does not have is refused.
- *  - **The address is in the answer to publishing, once.** Only a hash of the token is kept, so no other answer carries it; publishing again makes a new address.
+ *  - **The address is in the answer to publishing, and in the owner's own status** (they are shown it again): the token is kept sealed under the instance key (`TokenVault`), and a page made before that, or on an instance with no key, has only a hash, and is shown no address. Publishing again makes a new address.
  *  - **How the page is open** is chosen when it is published and changed after (`PATCH`) without a new address: an optional password (eight characters or more; the answer never has it, only whether there
  *    is one) and who may comment (`off`, until comments are built).
  */
@@ -21,7 +21,7 @@ export interface Settings {
 
 export interface Deps {
   publish: (accountId: string, id: number, docId: string, settings: Settings) => Promise<{ found: false } | { found: true; result: { ok: true; token: string } | { ok: false; reason: "gone" | "unavailable" } }>;
-  status: (accountId: string, id: number, docId: string) => Promise<{ found: false } | { found: true; publishedAt: number | null; passwordProtected: boolean; comments: CommentMode }>;
+  status: (accountId: string, id: number, docId: string) => Promise<{ found: false } | { found: true; publishedAt: number | null; passwordProtected: boolean; comments: CommentMode; /** The page's address token, for the owner to be shown it again; absent when it was not kept. */ token?: string }>;
   /** Change how a published page is open; whether there was a page. */
   update: (accountId: string, id: number, docId: string, settings: Settings) => Promise<{ found: false } | { found: true; updated: boolean }>;
   unpublish: (accountId: string, id: number, docId: string) => Promise<{ found: false } | { found: true; unpublished: boolean }>;
@@ -73,7 +73,9 @@ export async function handlePublication(request: Request, caller: Caller | null,
     const docId = new URL(request.url).searchParams.get("doc");
     if (docId === null || !isDocId(docId)) return failure(400, "invalid_request", "Say which document, by its id.");
     const outcome = await deps.status(caller.accountId, number, docId);
-    return outcome.found ? json(200, { published: outcome.publishedAt !== null, publishedAt: outcome.publishedAt, passwordProtected: outcome.passwordProtected, comments: outcome.comments }) : notFound();
+    return outcome.found
+      ? json(200, { published: outcome.publishedAt !== null, publishedAt: outcome.publishedAt, passwordProtected: outcome.passwordProtected, comments: outcome.comments, ...(outcome.token ? { url: pageUrl(deps.origin, outcome.token) } : {}) })
+      : notFound();
   }
 
   if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");

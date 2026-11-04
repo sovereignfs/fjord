@@ -5,7 +5,7 @@
  */
 /** Who may comment on a page: nothing but `off` is built. */
 export type CommentSetting = "off" | "anyone" | "users";
-export type Status = { ok: true; published: boolean; publishedAt: number | null; passwordProtected: boolean; comments: CommentSetting } | { ok: false; message: string };
+export type Status = { ok: true; published: boolean; publishedAt: number | null; passwordProtected: boolean; comments: CommentSetting; /** The page's address, when the server kept it to show its owner again. */ url: string | null } | { ok: false; message: string };
 /** How a page is open, as it is asked for: a password to set (`null` takes it off, absent keeps it) and who may comment. */
 export interface Settings {
   password?: string | null;
@@ -22,7 +22,7 @@ const failure = (status: number, body: Body | undefined, what: string): { ok: fa
 export function statusFrom(status: number, body: Body | undefined): Status {
   if (status === 200 && typeof body?.published === "boolean") {
     const comments = body.comments === "anyone" || body.comments === "users" ? body.comments : "off";
-    return { ok: true, published: body.published, publishedAt: typeof body.publishedAt === "number" ? body.publishedAt : null, passwordProtected: body.passwordProtected === true, comments };
+    return { ok: true, published: body.published, publishedAt: typeof body.publishedAt === "number" ? body.publishedAt : null, passwordProtected: body.passwordProtected === true, comments, url: typeof body.url === "string" ? body.url : null };
   }
   return failure(status, body, "nothing was changed");
 }

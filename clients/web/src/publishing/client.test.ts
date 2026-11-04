@@ -11,8 +11,9 @@ describe("what the publishing answers mean to the panel", () => {
   });
 
   it("reads whether a Doc is published", () => {
-    expect(statusFrom(200, { published: true, publishedAt: 5, passwordProtected: true, comments: "users" })).toEqual({ ok: true, published: true, publishedAt: 5, passwordProtected: true, comments: "users" });
-    expect(statusFrom(200, { published: false, publishedAt: null })).toEqual({ ok: true, published: false, publishedAt: null, passwordProtected: false, comments: "off" });
+    expect(statusFrom(200, { published: true, publishedAt: 5, passwordProtected: true, comments: "users" })).toEqual({ ok: true, published: true, publishedAt: 5, passwordProtected: true, comments: "users", url: null });
+    expect(statusFrom(200, { published: true, publishedAt: 5, url: "https://fjord.example.com/p/abc" })).toMatchObject({ url: "https://fjord.example.com/p/abc" });
+    expect(statusFrom(200, { published: false, publishedAt: null })).toEqual({ ok: true, published: false, publishedAt: null, passwordProtected: false, comments: "off", url: null });
     expect(statusFrom(200, { published: true, publishedAt: 5, comments: "everyone" })).toMatchObject({ comments: "off" });
     expect(statusFrom(500, undefined)).toMatchObject({ ok: false });
   });

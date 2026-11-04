@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import { Alert, Badge, Button, FormField, Input, Select } from "../ui";
 import styles from "../sharing/Sharing.module.css";
 import { type CommentSetting, getStatus, publish, unpublish, updatePublication } from "./client";
+import { PageAddress } from "./PageAddress";
 
 /**
  * "Publish as a page" (the *Publish* tab of the sharing dialog; DESIGN.md §12, ROADMAP 3h.1): the Doc as a read-only page at an address anyone can open, no account needed. It is the owner's choice,
  * said in words first: the page shows the saved version, a change shows on it after the next version is saved, and anyone who has the address can read it. How it is open is chosen with it and
  * changed after without a new address: an **optional password** (asked of everyone who opens the page, signed in or not) and **who may comment**. Comments are not built, so the choice is shown and only *Off* can be
- * made; the setting is kept for when they are. The address is shown **once**, when it is made; publishing again makes a new address and ends the old one, and *Unpublish* ends it at once.
+ * made; the setting is kept for when they are., and publishing again makes a new address and ends the old one; *Unpublish* ends it at once. **The address is kept, sealed under the instance key, and shown to its owner whenever the dialog opens** (a page made before that has only a hash of it, and says so).
  */
 export function PublishPanel({ connectionId, docId }: { connectionId: number; docId: string }) {
   const [loaded, setLoaded] = useState(false);
@@ -17,6 +18,7 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
   const [protectedNow, setProtectedNow] = useState(false);
   const [comments, setComments] = useState<CommentSetting>("off");
   const [url, setUrl] = useState<string | null>(null);
+  const [justMade, setJustMade] = useState(false);
   const [asking, setAsking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
       setPublished(status.published);
       setProtectedNow(status.passwordProtected);
       setComments(status.comments);
+      setUrl(status.url);
     } else setProblem(status.message);
     setLoaded(true);
   }
@@ -48,6 +51,7 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
     setBusy(false);
     if (made.ok) {
       setUrl(new URL(made.url, window.location.origin).href);
+      setJustMade(true);
       setPublished(true);
       setProtectedNow(password !== "");
       setPassword("");
@@ -78,6 +82,7 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
       setPublished(false);
       setProtectedNow(false);
       setUrl(null);
+      setJustMade(false);
       setSaved(false);
     } else setProblem(ended.message);
   }
@@ -105,11 +110,9 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
           {problem}
         </Alert>
       ) : null}
-      {url ? (
+      {justMade ? (
         <Alert variant="success" heading="Published">
-          Anyone with this address can read the page{protectedNow ? ", once they give its password" : ""}. It is shown only now; keep it, or publish again for a new one.
-          <br />
-          <code data-testid="page-address">{url}</code>
+          Anyone with the address below can read the page{protectedNow ? ", once they give its password" : ""}.
         </Alert>
       ) : null}
       {published ? (
@@ -118,7 +121,14 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
             Published as a page{" "}
             {protectedNow ? <Badge>Password</Badge> : null}
           </h3>
-          {url ? null : <p className={styles.muted}>Its address was shown when it was made and is not kept; publish again for a new one, which ends the old.</p>}
+          {url ? (
+            <>
+              <h4 className={styles.heading}>Address</h4>
+              <PageAddress url={url} />
+            </>
+          ) : (
+            <p className={styles.muted}>This page was published before its address was kept, so it cannot be shown. Publish again for a new address, which ends the old one.</p>
+          )}
           <form
             className={styles.form}
             onSubmit={(event) => {
