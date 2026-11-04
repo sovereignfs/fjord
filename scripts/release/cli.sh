@@ -18,7 +18,7 @@ C_TAG_PREFIX=fjord-cli-v
 # Releases up to 0.2.0 were tagged before there was more than one component.
 C_LEGACY_TAG_PREFIX=v
 C_CHANGELOG=crates/fjord-cli/CHANGELOG.md
-C_TOUCHED="crates/fjord-cli/CHANGELOG.md Cargo.toml Cargo.lock crates/fjord-cli/Cargo.toml"
+C_TOUCHED="crates/fjord-cli/CHANGELOG.md Cargo.toml Cargo.lock crates/fjord-cli/Cargo.toml crates/fjord-wasm/Cargo.lock"
 C_RELEASE_WORKFLOW=fjord-cli-release.yml
 # The README and the installers say `releases/latest`, and mean this.
 C_NEEDS="cargo dist"
@@ -61,6 +61,10 @@ c_bump() {
 
   cargo build --workspace --quiet
   ok "built, so Cargo.lock followed"
+
+  # `fjord-wasm` has a lockfile of its own, which names fjord-core's version: its CI builds with --locked.
+  cargo update --quiet --manifest-path crates/fjord-wasm/Cargo.toml -p fjord-core
+  ok "crates/fjord-wasm/Cargo.lock followed"
 }
 
 c_check_plan() {

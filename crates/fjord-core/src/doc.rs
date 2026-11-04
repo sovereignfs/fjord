@@ -145,7 +145,16 @@ pub fn new_document(id: &str, title: &str, created: &str) -> Result<String, yaml
     frontmatter.insert(key::CREATED.to_string(), Value::String(created.to_string()));
 
     let yaml = yaml::to_string(&frontmatter)?;
-    Ok(format!("{FENCE}\n{yaml}{FENCE}\n\n# {title}\n"))
+    Ok(format!(
+        "{FENCE}\n{yaml}{FENCE}\n\n# {}\n",
+        heading_text(title)
+    ))
+}
+
+/// A title as the text of a heading. Markdown reads `<b>` as raw HTML, which no title means, and an
+/// editor that cannot keep raw HTML would then refuse the document for its own first line.
+fn heading_text(title: &str) -> String {
+    title.replace('<', "\\<")
 }
 
 /// Build a new journal entry: frontmatter with its `date`, and a heading only if it has a title.
@@ -168,7 +177,7 @@ pub fn new_entry(
 
     let yaml = yaml::to_string(&frontmatter)?;
     Ok(match title {
-        Some(title) => format!("{FENCE}\n{yaml}{FENCE}\n\n# {title}\n"),
+        Some(title) => format!("{FENCE}\n{yaml}{FENCE}\n\n# {}\n", heading_text(title)),
         None => format!("{FENCE}\n{yaml}{FENCE}\n\n"),
     })
 }
@@ -594,6 +603,20 @@ mod tests {
         assert!(text.contains("# Sync design"));
         // §8.1: the block begins at byte 0.
         assert!(text.starts_with("---\n"));
+    }
+
+    #[test]
+    fn a_title_with_an_angle_bracket_is_not_raw_html_in_its_heading() {
+        let text = match new_document(
+            "01jagc4k7pt8y3wqnmzv5xrb7h",
+            "Compare <b> tags",
+            "2026-10-16T09:34:00Z",
+        ) {
+            Ok(text) => text,
+            Err(err) => panic!("{err}"),
+        };
+        assert_eq!(frontmatter_of(&text).title(), Some("Compare <b> tags"));
+        assert!(text.ends_with("# Compare \\<b> tags\n"), "{text}");
     }
 
     #[test]

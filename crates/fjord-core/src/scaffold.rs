@@ -707,7 +707,7 @@ pub fn plan_setup<S: AsRef<str>>(
         return Err(invalid("it is empty"));
     }
     if vault.starts_with('.') {
-        return Err(invalid("it would be a hidden directory"));
+        return Err(invalid("a vault's name cannot start with a dot"));
     }
     if let Some(code) = check_component(&vault).first() {
         return Err(invalid(&code.to_string()));
@@ -1301,11 +1301,11 @@ pub fn plan_vault<S: AsRef<str>>(
     }
     if name.contains('/') || name.contains('\\') {
         return Err(invalid(
-            "a vault is a single directory at the repository root (spec §2.3)",
+            "a vault is one directory at the top of the repository",
         ));
     }
     if name.starts_with('.') {
-        return Err(invalid("it would be a hidden directory"));
+        return Err(invalid("a vault's name cannot start with a dot"));
     }
     if let Some(code) = check_component(&name).first() {
         return Err(invalid(&code.to_string()));
@@ -1689,6 +1689,8 @@ mod tests {
         );
         // But it must tell the user how to add one.
         assert!(recipients.contents.contains("age-keygen"));
+        // And it is the template of every encrypted vault: it names none of them.
+        assert!(!recipients.contents.contains("Private"));
     }
 
     #[test]

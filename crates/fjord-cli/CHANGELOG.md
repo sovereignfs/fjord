@@ -12,6 +12,13 @@ tagging it.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A new encrypted vault's `recipients.txt` no longer says it is for "the Private vault"** and names that directory in its instructions, whatever the vault is called.
+- **A title with `<` in it is not raw HTML in a new document's heading**: `fjord new` writes `\<`, so the first line of a document is not something an editor has to refuse.
+- **A vault name that cannot be is refused in plainer words**, without a section of the specification in them.
+
+
 ## [0.5.0] - 2026-11-04
 
 ### Changed
