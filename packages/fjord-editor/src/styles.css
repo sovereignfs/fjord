@@ -374,6 +374,7 @@
  */
 .fe-rich .fe-rich-content table[class*="_tableEditor_"] {
   width: 100%;
+  table-layout: auto;
   margin: 0.75em 0;
   font-size: 0.95em;
 }
@@ -385,6 +386,129 @@
   vertical-align: top;
   text-align: left;
   line-height: 1.45;
+}
+
+/* A column's alignment is the document's (`:---`, `:-:`, `---:`), set from the column's menu: the cells say it in their class. */
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] > tbody > tr > :is(td, th)[class*="_centeredCell_"],
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] > thead > tr > :is(td, th)[class*="_centeredCell_"] {
+  text-align: center;
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] > tbody > tr > :is(td, th)[class*="_rightAlignedCell_"],
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] > thead > tr > :is(td, th)[class*="_rightAlignedCell_"] {
+  text-align: right;
+}
+
+/*
+ * The tools' column on each side is narrow, and the document's columns share what is left equally. The table lays out by content, which gives the tools' two columns as much as a column of
+ * text, so each column is given its share by name: (columns, in the table's own column list, less its two tool columns when it has them). Tables of more than twelve columns are laid out by content.
+ */
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] > :is(thead, tbody) > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  min-width: 4rem;
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(1):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 1);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(2):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 2);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(3):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 1);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(3):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 3);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(4):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 2);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(4):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 4);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(5):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 3);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(5):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 5);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(6):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 4);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(6):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 6);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(7):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 5);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(7):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 7);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(8):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 6);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(8):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 8);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(9):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 7);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(9):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 9);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(10):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 8);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(10):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 10);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(11):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 9);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(11):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 11);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(12):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 10);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(12):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 12);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(13):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 11);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(13):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 13);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child:not([class])):has(> colgroup > col:nth-child(14):last-child) > tbody > tr > :is(th, td):is([class*="_centeredCell_"], [class*="_leftAlignedCell_"], [class*="_rightAlignedCell_"]) {
+  width: calc(100% / 12);
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"]:has(> colgroup > col:first-child[class]):has(> colgroup > col:nth-child(14):last-child) > tbody > tr > :is(th, td) {
+  width: calc(100% / 14);
 }
 
 .fe-rich .fe-rich-content table[class*="_tableEditor_"] > tbody > tr > th:not([class*="_toolCell"]):not([data-tool-cell="true"]) {
