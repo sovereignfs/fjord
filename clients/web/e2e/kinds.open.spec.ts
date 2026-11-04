@@ -43,25 +43,34 @@ async function connect(page: import("@playwright/test").Page, repository: string
   return found.id;
 }
 
-test("the home page has a tile for each repository, and the rail an icon by its kind once it has been opened", async ({ page }) => {
+test("the home page has a tile for each repository, in the icon and the words of its kind from the moment it is connected, at an address of its own that is not a count", async ({ page }) => {
   await signUp(page);
   const journal = await connect(page, "acme/notes");
   const other = await connect(page, "acme/more");
+  const listed = (await (await page.request.get("/api/connections")).json()) as { connections: { id: number; publicId: string }[] };
+  const publicId = listed.connections.find((c) => c.id === journal)?.publicId ?? "";
+  // A short generated name, lower case, and not the number it is kept under.
+  expect(publicId).toMatch(/^[0-9a-hjkmnp-tv-z]{8}$/);
+  expect(publicId).not.toBe(String(journal));
   await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Fjord", level: 1 })).toBeVisible();
+  await expect(page.getByText("REPOSITORIES (2)", { exact: true })).toBeVisible();
+  // The way to connect and disconnect is an icon at the end of that line, not a link under the tiles.
+  await expect(page.getByRole("link", { name: "Connect or disconnect repositories" })).toHaveAttribute("href", "/repositories");
   const tiles = page.getByRole("list", { name: "Repositories", exact: true });
   await expect(tiles.getByRole("link")).toHaveCount(2);
-  await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toHaveAttribute("href", `/repo/${await repoOf(page, journal)}`);
-  // Not opened yet, so not known to be a journal: a drive's tile.
-  await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toContainText("Drive");
-  await page.goto(`/repo/${journal}`);
-  await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
-  await page.goto("/");
+  await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toHaveAttribute("href", `/repo/${publicId}`);
+  // Never opened, and already a journal's tile: connecting a repository reads it, so its kind is known.
   await expect(tiles.getByRole("link", { name: /acme\/notes/ })).toContainText("Journal");
   await expect(tiles.getByRole("link", { name: /acme\/more/ })).toContainText("Drive");
   void other;
+  // What a repository used to be called, by its number, still arrives and is sent to its name.
+  await page.goto(`/repo/${journal}`);
+  await expect(page).toHaveURL(new RegExp(`/repo/${publicId}$`));
+  await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
   // Signing in lands on the default repository, not on the grid.
   await page.goto("/open");
-  await expect(page).toHaveURL(new RegExp(`/repo/${await repoOf(page, journal)}$`));
+  await expect(page).toHaveURL(new RegExp(`/repo/${publicId}$`));
 });
 
 test("a journal opens on its timeline, placed by date, and takes an entry dated in the browser's own time", async ({ page }) => {

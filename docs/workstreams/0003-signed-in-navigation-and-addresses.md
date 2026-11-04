@@ -268,3 +268,8 @@ Changes the owner asked for after using the first seven legs; each is a commit o
   a segment that would climb out of the repository is a 404 there as behind the new address. `AddressBook`, `repositoryHref` and the address builders take the public id; the client
   components that go somewhere after an action (delete, move, create, transfer) are given it as `repo` beside the `connectionId` the API takes. `/raw/<repo>/<handle>` checks that the
   repository with that name is the account's before it looks at the handle.
+- **The home page** is *Fjord* with a line saying what it is, *REPOSITORIES (n)*, and Lucide's `settings-2` for `/repositories`.
+- **Connecting.** The rail's dialog is the form and nothing else: no link to the GitHub App (whose panel the dialog does not host) or to disconnecting. It closes on success whatever the
+  warnings are (a token that reaches other repositories kept it open before); warnings are a toast, which needed a `ToastProvider` in the root layout. The instructions are an
+  information box. `POST /api/connections` has the repository read before it answers (`Deps.connected`, best-effort), which records its kind, so the tile and the rail's icon are right
+  at once; the GitHub App's callback does the same for each repository it connects (`src/github-app/complete.ts`).

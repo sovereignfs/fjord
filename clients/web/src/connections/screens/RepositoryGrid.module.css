@@ -23,6 +23,7 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: calc(-1 * var(--sv-space-2));
+  min-height: 32px;
 }
 
 .sectionLabel {
@@ -32,9 +33,28 @@
   color: var(--sv-color-text-muted);
 }
 
-.sectionCount {
-  font-size: var(--sv-font-size-sm);
+/* Where the repositories are connected and disconnected: an icon at the end of the section's line. */
+.manage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--sv-radius-md);
   color: var(--sv-color-text-muted);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .manage:hover {
+    background-color: var(--sv-color-surface-sunken);
+    color: var(--sv-color-text-primary);
+  }
+}
+
+.manage:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: 2px;
 }
 
 .grid {

@@ -197,6 +197,19 @@ test("the rail's + opens a dialog to connect a repository, which closes when it 
   await expect(page.getByRole("list", { name: "Your repositories" }).getByRole("link", { name: "acme/notes" })).toBeVisible();
 });
 
+test("the connect dialog offers only the form, and closes when the repository is connected", async ({ page }) => {
+  await signUp(page);
+  await page.goto("/open");
+  await page.getByRole("button", { name: "Connect a repository", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Connect a repository" });
+  // Nothing but the form: no way to disconnect, and no link to a GitHub App that is not set up.
+  await expect(dialog.getByRole("link")).toHaveCount(0);
+  await dialog.getByRole("textbox", { name: "Repository" }).fill("acme/notes");
+  await dialog.getByLabel("Access token").fill(GOOD);
+  await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+});
+
 test("the account opens as a dialog over the page it was opened from, and as a page at its own address", async ({ page }) => {
   await signUp(page);
   await page.goto("/open");

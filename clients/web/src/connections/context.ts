@@ -22,6 +22,9 @@ export async function connectionContext(): Promise<{ caller: Caller | null; deps
         const outcome = await readConnection(accountId, connection);
         return { found: true, vaults: outcome.ok ? outcome.read.discovery.vaults.map((vault) => vault.directory) : null };
       },
+      connected: async (accountId, connection) => {
+        await readConnection(accountId, connection);
+      },
       setUp: setUpRepository,
       changeKind: changeRepositoryKind,
       addVault: addVaultToRepository,

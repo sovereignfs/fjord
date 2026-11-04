@@ -2,7 +2,7 @@ import { isCredentialError } from "../crypto/errors";
 import { type ConnectionError, type ConnectionErrorCode, isConnectionError } from "./errors";
 import type { VaultOptions } from "../format/types";
 import type { KindChange, SetupChoice } from "../browse/setup";
-import type { ConnectionService } from "./service";
+import type { ConnectionInfo, ConnectionService } from "./service";
 
 /**
  * The HTTP face of connections (`/api/connections`): who may call, what they may send, what they
@@ -46,6 +46,11 @@ export interface Deps {
    * wants; what is written is decided by the server, on the repository as it is.
    */
   addVault: (accountId: string, id: number, options: VaultOptions) => Promise<{ found: false } | { found: true; commit: string; vaultId: string }>;
+  /**
+   * Told of a repository just connected, before the person is: it reads the repository so that what kind it is, which the tile and the rail draw
+   * their icon from, is known when they first see it (and not only once it has been opened). Whatever goes wrong here is not the connection's failure.
+   */
+  connected?: (accountId: string, connection: ConnectionInfo) => Promise<void>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
 }
@@ -118,6 +123,7 @@ export async function handleConnections(request: Request, caller: Caller | null,
       return failure(400, "invalid_request", "Send the repository and the token as text.");
     }
     const { connection, warnings } = await (await deps.service()).addWithToken(account, { repository: body.repository, token: body.token });
+    await deps.connected?.(account, connection).catch(() => undefined);
     return json(201, { connection, warnings });
   } catch (error) {
     return fromError(error);

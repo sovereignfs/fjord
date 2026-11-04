@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
+import own from "./ConnectForm.module.css";
 
 /**
  * Connect a repository by its address and a fine-grained access token. The token goes to this
@@ -49,10 +50,12 @@ export function ConnectForm({ heading = "Connect a repository", onConnected }: {
   return (
     <section className={styles.section} aria-labelledby="connect-title">
       <h2 id="connect-title">{heading}</h2>
-      <p>
-        On GitHub, create a <strong>fine-grained personal access token</strong> (Settings, Developer settings, Personal access tokens). Give it access to <em>only this repository</em>, with the
-        repository permission <strong>Contents: Read and write</strong>. Fjord checks that it works before keeping it, and keeps it encrypted.
-      </p>
+      <div className={own.guide}>
+        <Alert variant="info">
+          On GitHub, create a <strong>fine-grained personal access token</strong> (Settings, Developer settings, Personal access tokens) with access to <em>only this repository</em> and the
+          permission <strong>Contents: Read and write</strong>. Fjord checks that it works before keeping it, and keeps it encrypted.
+        </Alert>
+      </div>
       {error ? (
         <div className={styles.notice}>
           <Alert variant="error">{error}</Alert>
@@ -63,14 +66,14 @@ export function ConnectForm({ heading = "Connect a repository", onConnected }: {
           <Alert variant="warning">{warning}</Alert>
         </div>
       ))}
-      <form className={styles.form} onSubmit={onSubmit} style={{ marginTop: 0 }}>
+      <form className={own.form} onSubmit={onSubmit}>
         <FormField label="Repository" hint="Its address, or owner/name." required>
           {(field) => <Input {...field} name="repository" placeholder="https://github.com/you/notes" autoComplete="off" value={repository} onChange={(e) => setRepository(e.target.value)} disabled={busy} />}
         </FormField>
         <FormField label="Access token" required>
           {(field) => <Input {...field} type="password" name="token" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} disabled={busy} />}
         </FormField>
-        <div className={styles.actions}>
+        <div className={own.actions}>
           <Button type="submit" loading={busy}>
             Connect
           </Button>

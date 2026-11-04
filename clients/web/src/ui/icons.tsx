@@ -80,3 +80,15 @@ export function RepositoryKindIcon({ kind, ...props }: IconProps & { kind: Repos
 }
 
 export const KIND_LABEL: Record<RepositoryKindId, string> = { drive: "Drive", journal: "Journal", ssg: "Site" };
+
+/** Two sliders: the settings of a list, here the repositories that are connected. Lucide's `settings-2`. */
+export function Settings2Icon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M14 17H5" />
+      <path d="M19 7h-9" />
+      <circle cx="17" cy="17" r="3" />
+      <circle cx="7" cy="7" r="3" />
+    </Svg>
+  );
+}

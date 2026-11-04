@@ -1,7 +1,7 @@
 import { SignedInShell } from "../../auth/screens/SignedInShell";
 import { repositoryHref } from "../../browse/links";
 import { Badge } from "../../ui";
-import { KIND_LABEL, RepositoryKindIcon } from "../../ui/icons";
+import { KIND_LABEL, RepositoryKindIcon, Settings2Icon } from "../../ui/icons";
 import type { ConnectionInfo } from "../service";
 import styles from "./RepositoryGrid.module.css";
 
@@ -14,12 +14,14 @@ export function RepositoryGrid({ user, connections }: { user: { name: string; em
     <SignedInShell user={user} connections={connections} place="index">
       <div className={styles.home}>
         <header>
-          <h1 className={styles.title}>Repositories</h1>
-          <p className={styles.subtitle}>Your connected repositories.</p>
+          <h1 className={styles.title}>Fjord</h1>
+          <p className={styles.subtitle}>Your private cloud, kept in your own Git repositories.</p>
         </header>
         <div className={styles.sectionRow}>
-          <span className={styles.sectionLabel}>REPOSITORIES</span>
-          <span className={styles.sectionCount}>{connections.length}</span>
+          <span className={styles.sectionLabel}>REPOSITORIES ({connections.length})</span>
+          <a className={styles.manage} href="/repositories" title="Connect or disconnect repositories" aria-label="Connect or disconnect repositories">
+            <Settings2Icon size={18} aria-hidden />
+          </a>
         </div>
         <ul className={styles.grid} aria-label="Repositories">
           {connections.map((connection) => {
@@ -46,9 +48,6 @@ export function RepositoryGrid({ user, connections }: { user: { name: string; em
             );
           })}
         </ul>
-        <p>
-          <a href="/repositories">Connect or disconnect repositories</a>
-        </p>
       </div>
     </SignedInShell>
   );

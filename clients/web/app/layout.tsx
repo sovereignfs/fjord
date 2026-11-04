@@ -6,6 +6,7 @@ import "@sovereignfs/ui/tokens.css";
 import "./globals.css";
 import { site } from "../src/site";
 import { themeScript } from "../src/theme/script";
+import { ToastProvider } from "../src/ui";
 
 // Sovereign's typeface, loaded the way Sovereign's own apps load it: through `next/font`, which
 // downloads it when the app is built and serves it from our own origin, so a visitor's browser
@@ -39,8 +40,10 @@ export default async function RootLayout({ children, modal }: { children: ReactN
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
-        {children}
-        {modal}
+        <ToastProvider>
+          {children}
+          {modal}
+        </ToastProvider>
       </body>
     </html>
   );

@@ -108,6 +108,19 @@ describe("what it accepts", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("has the repository read before it answers, so its kind is known when the person first sees it, and does not fail the connection if that read fails", async () => {
+    const { deps, calls } = stub();
+    const told: unknown[][] = [];
+    const learning: Deps = { ...deps, connected: async (...args) => void told.push(args) };
+    expect((await handleConnections(request("POST", { body: { repository: "acme/notes", token: TOKEN } }), ALICE, learning)).status).toBe(201);
+    expect(told).toEqual([[ALICE.accountId, expect.objectContaining({ owner: "acme", name: "notes" })]]);
+    expect(calls.some((call) => call[0] === "add")).toBe(true);
+    const failing: Deps = { ...deps, connected: async () => Promise.reject(new Error(`could not read with ${TOKEN}`)) };
+    const response = await handleConnections(request("POST", { body: { repository: "acme/notes", token: TOKEN } }), ALICE, failing);
+    expect(response.status).toBe(201);
+    expect(await response.text()).not.toContain(TOKEN);
+  });
+
   it("disconnects with 204", async () => {
     const { deps, calls } = stub();
     const response = await handleConnection(request("DELETE", { path: "/api/connections/4" }), ALICE, deps, "4");

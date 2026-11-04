@@ -1,0 +1,19 @@
+/* The connect form: closer together than a page's forms are, since it is most often seen in a dialog. */
+.guide {
+  margin-bottom: var(--sv-space-3);
+  font-size: var(--sv-font-size-sm);
+  line-height: 1.5;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-2);
+  margin-top: 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  margin-top: var(--sv-space-2);
+}
