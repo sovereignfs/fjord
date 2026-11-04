@@ -17,7 +17,7 @@ width but the account page.
 
 | # | What happens | Status |
 | --- | --- | --- |
-| B1 | A document typed in the visual editor is told, when opened again, that it is "not written the way Fjord writes Markdown", and cannot be edited until a choice is made. An empty paragraph (Enter at the end of a heading) is written as a run of blank lines, which reads back as something to reformat | Open |
+| B1 | A document typed in the visual editor is told, when opened again, that it is "not written the way Fjord writes Markdown", and cannot be edited until a choice is made. An empty paragraph (Enter at the end of a heading) is written as a run of blank lines, which reads back as something to reformat | Fixed |
 | B2 | A new folder named `.git` answers 500 and "Something went wrong on our side" | Open |
 | B3 | A slash in *File name* quietly makes a folder and moves the file into it; a name ending in a dot or starting with one is taken though the form's own words forbid it | Open |
 | B4 | Saving a version of an encrypted file reloads the page, which drops the unlocked identity: the passphrase is asked for after every save | Open |

@@ -59,3 +59,28 @@ export function withReadableDelimiters(markdown: string): string {
   }
   return lines.join("\n");
 }
+
+/**
+ * Markdown has no empty paragraph. The editor does: Enter at the end of a block leaves one, and it writes that as blank lines the next reading drops.
+ * Left in, the text is told when it is next opened that it is not written the way Fjord writes it, which is the editor's own doing. So a run of blank
+ * lines is one, except in a fenced code block, where a blank line is what was written. The edges are the caller's (`withEdgesLike`).
+ */
+export function withOneBlankLine(markdown: string): string {
+  const out: string[] = [];
+  let fence: string | null = null;
+  let blank = false;
+  for (const line of markdown.split("\n")) {
+    const opens = FENCE.exec(line)?.[1];
+    if (opens !== undefined) {
+      if (fence === null) fence = opens;
+      else if (opens[0] === fence[0] && opens.length >= fence.length && line.trim() === opens) fence = null;
+    }
+    const empty = fence === null && line.trim() === "";
+    if (!(empty && blank)) out.push(line);
+    blank = empty;
+  }
+  return out.join("\n");
+}
+
+/** What the editor writes, in the house style: `HOUSE_STYLE` is what the library is told, and these are what it cannot be told. */
+export const inHouseStyle = (markdown: string): string => withOneBlankLine(withReadableDelimiters(markdown));

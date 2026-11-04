@@ -5,6 +5,10 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
 
 ## [Unreleased]
 
+### Fixed
+
+- **A document typed in the visual editor is not told, when opened again, that it is not written the way Fjord writes.** Enter at the end of a block leaves an empty paragraph, which Markdown does not have: it was written as a run of blank lines that the next reading dropped, and that was offered as a reformat. What the editor writes has one blank line between blocks, except in a fenced code block (`withOneBlankLine`).
+
 ### Changed
 
 - **A table in the visual editor lays its columns out equally between two narrow tool columns, left-aligned, and keeps each column's alignment** (`:---`, `:-:`, `---:`): the cells' own alignment was overridden, and the tool columns took as much width as a column of text, which made a table look centred.

@@ -32,7 +32,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import type { EditorHandle } from "../types.js";
 import { type Unsafe, differences, keepsLineEndings, sameMeaning, unreadable, withEdgesLike } from "./meaning.js";
 import { type RestylePreview, describeRestyle } from "./restyle.js";
-import { HOUSE_STYLE, withReadableDelimiters } from "./style.js";
+import { HOUSE_STYLE, inHouseStyle } from "./style.js";
 import { translator } from "./translation.js";
 
 /**
@@ -169,13 +169,13 @@ export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function
           // (Nothing is said when it would write the same text, which is nothing to check. Until it has said, it has not read:
           // asking it for its text at the moment it is made gives back the text it was made with.)
           if (initialNormalize) {
-            const restyled = withEdgesLike(held.current, withReadableDelimiters(markdown));
+            const restyled = withEdgesLike(held.current, inHouseStyle(markdown));
             if (!sameMeaning(held.current, restyled)) onUnsafe({ reason: "meaning", differences: differences(held.current, restyled) });
             else onRestyle?.(restyled === held.current ? null : describeRestyle(held.current, restyled));
             return;
           }
           if (!editable) return;
-          const written = withEdgesLike(held.current, withReadableDelimiters(markdown));
+          const written = withEdgesLike(held.current, inHouseStyle(markdown));
           // An edit undone is no edit: the text the app gave comes back as it was written, not as the editor would write it.
           const next = sameMeaning(written, baseline.current) ? baseline.current : written;
           // A change of style alone is not a change. What it is compared with is the latest text the app has been told, which
