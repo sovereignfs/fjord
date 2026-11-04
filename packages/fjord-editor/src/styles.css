@@ -241,6 +241,11 @@
   line-height: 1.25;
 }
 
+/* A document that begins with a heading begins at the top of the editor: the margin a heading has above it is for what comes before it. */
+.fe-rich .fe-rich-content > :first-child {
+  margin-top: 0;
+}
+
 .fe-rich .fe-rich-content p,
 .fe-rich .fe-rich-content ul,
 .fe-rich .fe-rich-content ol {

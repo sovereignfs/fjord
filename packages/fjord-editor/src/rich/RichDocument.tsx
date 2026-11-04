@@ -33,6 +33,7 @@ import type { EditorHandle } from "../types.js";
 import { type Unsafe, differences, keepsLineEndings, sameMeaning, unreadable, withEdgesLike } from "./meaning.js";
 import { type RestylePreview, describeRestyle } from "./restyle.js";
 import { HOUSE_STYLE, withReadableDelimiters } from "./style.js";
+import { translator } from "./translation.js";
 
 /**
  * The visual core of the document editor (ROADMAP 1b.3): MDXEditor with the Markdown it can write and nothing else, and the
@@ -160,7 +161,7 @@ export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function
         overlayContainer={container}
         className="fe-mdx"
         contentEditableClassName="fe-rich-content"
-        translation={(key, defaultValue) => (key === "contentArea.editableMarkdown" && label !== undefined ? label : defaultValue)}
+        translation={translator(label)}
         onError={(payload) => onUnsafe(unreadable(held.current, typeof payload?.error === "string" ? payload.error : ""))}
         onChange={(markdown, initialNormalize) => {
           // The editor says, once it has read what it was given, what it would write back if that were saved. That is not an

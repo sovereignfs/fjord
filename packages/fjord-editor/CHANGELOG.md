@@ -18,6 +18,8 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
 
 ### Fixed
 
+- **The block type menu says which heading level each is.** MDXEditor gives its text with the blanks in it (`Heading {{level}}`) and leaves the filling to the page; the editor now fills them (`rich/translation.ts`). A document that begins with a heading no longer has the heading's margin above it, which made the editor's top a lot of space.
+
 - **`NoteEditor` no longer reverts the person's typing when it is switched between reading and editing, or renamed**, if
   the app still gives it the text it started with. It took the unchanged `value` for a text the app had just set, and
   put it back. Only a different `value` is the app setting a text now.
