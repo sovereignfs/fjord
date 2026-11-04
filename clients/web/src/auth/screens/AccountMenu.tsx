@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { authClient } from "../client";
 import { UserMenu } from "../../ui";
+import styles from "./AccountMenu.module.css";
 
 /**
  * The menu at the foot of the rail, which opens from the person's avatar: who they are (their name and address, above a rule), *Account*, and *Sign out* last. *Account* is a soft
@@ -11,6 +12,7 @@ import { UserMenu } from "../../ui";
 export function AccountMenu({ name, email, avatarUrl }: { name: string; email: string; avatarUrl?: string | undefined }) {
   const router = useRouter();
   return (
+    <div className={styles.menu}>
     <UserMenu
       name={name}
       email={email}
@@ -28,5 +30,6 @@ export function AccountMenu({ name, email, avatarUrl }: { name: string; email: s
         },
       ]}
     />
+    </div>
   );
 }
