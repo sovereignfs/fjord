@@ -14,8 +14,8 @@ import { LABEL } from "./testing/surfaces.js";
  */
 afterEach(cleanup);
 
-const BAD = "# Title\n\nA paragraph that is fine.\n\n&#91;embedded content: roadmap\\]\n\nEnd.\n";
-const GOOD = "# Title\n\nA paragraph that is fine.\n\n\\[embedded content: roadmap]\n\nEnd.\n";
+const BAD = "# Title\n\nA paragraph that is fine.\n\nSee [[Roadmap]] soon.\n\nEnd.\n";
+const GOOD = "# Title\n\nA paragraph that is fine.\n\nSee Roadmap soon.\n\nEnd.\n";
 const modeNow = () => document.querySelector("[data-mode]")?.getAttribute("data-mode");
 
 /** The app holds the text; a button stands for the person fixing it in the Markdown editor. */
@@ -38,8 +38,8 @@ describe("a document the visual editor cannot hold", () => {
     const issues = await screen.findByRole("region", { name: "Why it is shown as Markdown" });
     const item = within(issues).getByRole("listitem");
     expect(item.textContent).toContain("Line 5");
-    expect(item.textContent).toContain("&#91;embedded content: roadmap\\]");
-    expect(item.textContent).toContain("\\[embedded content: roadmap]");
+    expect(item.textContent).toContain("See [[Roadmap]] soon.");
+    expect(item.textContent).toContain("See \\[\\[Roadmap]] soon.");
     expect(within(issues).getAllByRole("listitem")).toHaveLength(1);
     expect(screen.getByRole("note").textContent).toContain("cannot keep exactly as written");
   });

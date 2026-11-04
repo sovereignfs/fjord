@@ -37,8 +37,14 @@ const OPTIONS = {
  * renderer reads it the same. A backslash before any other character is kept: that is the editor protecting the text from
  * syntax the editor does not know and a renderer may.
  */
-function plainly(raw: string): string {
-  return raw.replace(/\n[ \t>]*/g, "\n").replace(/\\([~*_`|\\])/g, "$1");
+function plainly(raw: string, inHeading = false): string {
+  let text = raw.replace(/\n[ \t>]*/g, "\n");
+  // A bracket written as a character reference (`&#91;`) is the same literal bracket as an escaped one (`\[`), which is how the editor writes it; and the editor does not write
+  // a backslash before a closing bracket that nothing opened, which nothing reads differently.
+  text = text.replace(/&#(?:91|x5[bB]);/g, "\\[").replace(/&#(?:93|x5[dD]);/g, "]").replace(/\\\]/g, "]");
+  // The number of a numbered heading (`## 1\. Introduction`, as a word processor's export writes it) is text, in a heading, whether or not it is escaped: a heading is never a list.
+  if (inHeading) text = text.replace(/^(\d+)\\([.)])/, "$1$2");
+  return text.replace(/\\([~*_`|\\])/g, "$1");
 }
 
 /**
@@ -46,15 +52,15 @@ function plainly(raw: string): string {
  * continues in an indented or quoted block is joined to the next without the indentation, which is style (a bullet changed
  * from `-` to `*` moves a continuation line, and nothing else).
  */
-function describe(node: unknown, source: string): unknown {
-  if (Array.isArray(node)) return node.map((child) => describe(child, source));
+function describe(node: unknown, source: string, parent?: string): unknown {
+  if (Array.isArray(node)) return node.map((child) => describe(child, source, parent));
   if (node === null || typeof node !== "object") return node;
   const record = node as { type?: string; position?: { start: { offset?: number }; end: { offset?: number } } } & Record<string, unknown>;
-  const entries = Object.entries(record).filter(([key]) => key !== "position").map(([key, value]) => [key, describe(value, source)] as const);
+  const entries = Object.entries(record).filter(([key]) => key !== "position").map(([key, value]) => [key, describe(value, source, record.type)] as const);
   const start = record.position?.start.offset;
   const end = record.position?.end.offset;
   if (record.type === "text" && start !== undefined && end !== undefined) {
-    return Object.fromEntries([...entries, ["raw", plainly(source.slice(start, end))]]);
+    return Object.fromEntries([...entries, ["raw", plainly(source.slice(start, end), parent === "heading")]]);
   }
   return Object.fromEntries(entries);
 }

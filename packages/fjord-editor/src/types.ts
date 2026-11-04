@@ -99,6 +99,11 @@ export interface DocumentEditorProps extends CommonProps {
    * editor asks again at the next attempt. Never called once it has answered `true`, nor for `view`.
    */
   onNeedName?: (() => Promise<boolean>) | undefined;
+  /**
+   * Which document this is, for the editor to remember a choice the person made about it: to reformat it and edit it visually, or to edit it as Markdown, unchanged. It is kept in this browser under
+   * this key (a short, stable text: the app's own name for the file), and applied the next time the document is opened. Without it nothing is remembered, as for a document someone else shared.
+   */
+  choiceKey?: string | undefined;
 }
 
 export interface NoteEditorProps extends CommonProps {

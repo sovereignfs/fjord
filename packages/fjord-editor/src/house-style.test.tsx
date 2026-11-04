@@ -169,3 +169,53 @@ describe("the choice a document in another style asks for", () => {
     expect(asked()?.textContent).toMatch(/2 lines would go and 1 line would come/);
   });
 });
+
+describe("a choice that is remembered for the document", () => {
+  const original = "* one\n* two\n\nsome text here\n";
+  const again = async (key?: string) => {
+    cleanup();
+    render(<DocumentEditor aria-label={LABEL} role="edit" value={original} {...(key !== undefined ? { choiceKey: key } : {})} />);
+    await screen.findAllByRole("textbox");
+    await new Promise((resolve) => setTimeout(resolve, 600));
+  };
+  afterEach(() => window.localStorage.clear());
+
+  it("to edit it as Markdown is the way it opens next time, with no question, and the person can go back to the visual editor", async () => {
+    await again("1:a.md");
+    expect(asked()).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Edit as Markdown, unchanged" }));
+    await waitFor(() => expect(document.querySelector("[data-mode]")?.getAttribute("data-mode")).toBe("markdown"));
+
+    await again("1:a.md");
+    await waitFor(() => expect(document.querySelector("[data-mode]")?.getAttribute("data-mode")).toBe("markdown"));
+    expect(asked()).toBeNull();
+    // Another document is asked.
+    await again("1:b.md");
+    expect(asked()).not.toBeNull();
+    // And the choice is taken back, from the notice that says it was made.
+    await again("1:a.md");
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Use the visual editor" })).not.toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Use the visual editor" }));
+    await waitFor(() => expect(document.querySelector("[data-mode]")?.getAttribute("data-mode")).toBe("visual"));
+    await again("1:a.md");
+    expect(asked()).not.toBeNull();
+  });
+
+  it("to reformat it is the way it opens next time, editable, with no question", async () => {
+    await again("1:a.md");
+    fireEvent.click(screen.getByRole("button", { name: "Reformat and edit here" }));
+    await waitFor(() => expect(asked()).toBeNull());
+
+    await again("1:a.md");
+    await waitFor(() => expect(asked()).toBeNull());
+    expect(screen.getAllByRole("textbox", { name: LABEL })[0]?.getAttribute("contenteditable")).toBe("true");
+  });
+
+  it("is not kept for a document with no key, which is asked every time", async () => {
+    await again();
+    fireEvent.click(screen.getByRole("button", { name: "Edit as Markdown, unchanged" }));
+    await waitFor(() => expect(document.querySelector("[data-mode]")?.getAttribute("data-mode")).toBe("markdown"));
+    await again();
+    expect(asked()).not.toBeNull();
+  });
+});

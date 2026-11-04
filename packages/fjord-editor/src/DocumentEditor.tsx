@@ -8,6 +8,7 @@ import { type MarkedThread, caretAt, paintMarks, threadAt } from "./marks.js";
 import { useNameGate } from "./name-gate.js";
 import { NoteEditor } from "./NoteEditor.js";
 import { offsetsOfSelectedText } from "./selection.js";
+import { type Choice, forgetChoice, readChoice, rememberChoice } from "./rich/choice.js";
 import type { Unsafe } from "./rich/meaning.js";
 import type { RestylePreview } from "./rich/restyle.js";
 import type { DocumentEditorProps, EditorHandle, ThreadMark } from "./types.js";
@@ -26,7 +27,7 @@ const RichDocument = lazy(() => import("./rich/RichDocument.js").then((module) =
  * rewritten into something it was not. The package never touches the header; the app keeps it (DESIGN.md §9).
  */
 export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { value, onChange, role, comments, onNeedName, className, "aria-label": label },
+  { value, onChange, role, comments, onNeedName, className, choiceKey, "aria-label": label },
   ref,
 ) {
   const ensureNamed = useNameGate(onNeedName);
@@ -49,6 +50,18 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
   const [threads, setThreads] = useState<readonly ThreadMark[]>(() => comments?.threads() ?? []);
 
   useImperativeHandle(ref, () => ({ focus: () => handle.current?.focus() }), []);
+
+  /** What the person chose for this document the last time, if anything (`choiceKey`): applied once the page is in the browser, since the server has no way to know it. */
+  const [remembered, setRemembered] = useState<Choice | null>(null);
+  useEffect(() => {
+    if (choiceKey === undefined) return;
+    const choice = readChoice(choiceKey);
+    setRemembered(choice);
+    if (choice === "markdown") {
+      setChosenMarkdown(true);
+      setAsMarkdown(true);
+    }
+  }, [choiceKey]);
 
   useEffect(() => {
     if (!comments) {
@@ -130,7 +143,11 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
   }
 
   // The notice is for a text that is held as it was written: one the app set since is not what was reported on.
-  const pendingRestyle = role === "edit" && !asMarkdown && restyle !== null && restyle.before === value && agreedTo !== value ? restyle : null;
+  // A document the person chose to reformat is agreed to as soon as the editor has said what it would restyle.
+  useEffect(() => {
+    if (remembered === "reformat" && restyle !== null && restyle.before === value && agreedTo !== value) setAgreedTo(value);
+  }, [remembered, restyle, value, agreedTo]);
+  const pendingRestyle = role === "edit" && !asMarkdown && restyle !== null && restyle.before === value && agreedTo !== value && remembered !== "reformat" ? restyle : null;
   const marked = threads.filter((thread) => !thread.outdated).length;
   const canComment = role !== "view" && comments !== undefined;
   const offsets = offsetsOfSelectedText(value, selected);
@@ -173,13 +190,21 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
             </pre>
           </details>
           <div className="fe-restyle-actions">
-            <button type="button" className="fe-button" onClick={() => setAgreedTo(pendingRestyle.before)}>
+            <button
+              type="button"
+              className="fe-button"
+              onClick={() => {
+                if (choiceKey !== undefined) (rememberChoice(choiceKey, "reformat"), setRemembered("reformat"));
+                setAgreedTo(pendingRestyle.before);
+              }}
+            >
               Reformat and edit here
             </button>{" "}
             <button
               type="button"
               className="fe-button"
               onClick={() => {
+                if (choiceKey !== undefined) (rememberChoice(choiceKey, "markdown"), setRemembered("markdown"));
                 setChosenMarkdown(true);
                 setAsMarkdown(true);
               }}
@@ -193,6 +218,24 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
         <>
           <p className="fe-notice" role="note">
             {chosenMarkdown ? "You chose to edit this document as Markdown, so it is shown exactly as written." : "This document has Markdown the visual editor cannot keep exactly as written, so it is shown as Markdown."}
+            {chosenMarkdown && editable ? (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  className="fe-link-button"
+                  onClick={() => {
+                    if (choiceKey !== undefined) forgetChoice(choiceKey);
+                    setRemembered(null);
+                    setChosenMarkdown(false);
+                    setWhy(null);
+                    setAsMarkdown(false);
+                  }}
+                >
+                  Use the visual editor
+                </button>
+              </>
+            ) : null}
           </p>
           {!chosenMarkdown && why !== null ? (
             <section className="fe-notice fe-issues" aria-label="Why it is shown as Markdown">
@@ -201,7 +244,7 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
                 {why.reason === "meaning" || why.reason === "html" ? `Fix ${(why.reason === "meaning" ? why.differences.length : why.spots.length) === 1 ? "it" : "them"}` : "Change it"} below, then{" "}
                 <button
                   type="button"
-                  className="fe-button"
+                  className="fe-link-button"
                   onClick={() => {
                     setWhy(null);
                     setAsMarkdown(false);

@@ -7,6 +7,10 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
 
 ### Changed
 
+- **A document that is only read, or only commented on, has no formatting toolbar** (`data-role` other than `edit`): there is nothing for it to change.
+- **A choice about a document is remembered** (`DocumentEditor`'s `choiceKey`, `rich/choice.ts`). *Reformat and edit here* and *Edit as Markdown, unchanged* were kept in the page only, so the question came back whenever the document was opened again; with a key from the app they are kept in the browser, for that document, and the Markdown notice has *Use the visual editor* to take the choice back. Without a key (a document someone else shared) nothing is kept.
+- **A numbered heading and a bracket as a character reference are no longer a reason to show Markdown.** `## 1\. Introduction` and `## 1. Introduction` are the same heading (a heading is never a list), and `&#91;x\]`, `\[x]` are the same literal text, so a document from a word processor's export that has them opens in the visual editor; `1\. x` in a paragraph, which the other way would be a list, and an escaped `[[wiki link]]`, still do not (`rich/meaning.ts`).
+- **Tables in the visual editor are a document's tables**: cells close together with a hairline between them, the first row as the head in a quiet fill, the tools of the table narrow and faint until it is pointed at. New token `--fe-color-surface-muted`. *Check again* is a text button, as is the new *Use the visual editor*.
 - **A document shown as Markdown says why** (the document editor's notice). When the visual editor cannot keep a text exactly as written, the notice lists each spot by line: what is written there and what the editor would write instead (for a text whose meaning would change), the raw HTML it does not hold, or that the line endings are carriage returns; and a *Check again* button tries the visual editor again once it is fixed. `rich/meaning.ts` gains `differences`, `htmlSpots` and `unreadable`, and `RichDocument`'s `onUnsafe` now says why. Nothing about which documents the visual editor holds has changed.
 
 ### Added

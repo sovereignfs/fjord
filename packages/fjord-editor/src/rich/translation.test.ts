@@ -1,5 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
 import { describe, expect, it } from "vitest";
-import { translator } from "./translation";
+import { translator } from "./translation.js";
 
 describe("what the visual editor says", () => {
   it("fills the blanks MDXEditor leaves in its own text, so every heading level has its number", () => {

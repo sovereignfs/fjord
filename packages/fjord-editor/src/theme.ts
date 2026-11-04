@@ -11,6 +11,7 @@ export const themeTokens = [
   "--fe-color-text",
   "--fe-color-muted",
   "--fe-color-surface",
+  "--fe-color-surface-muted",
   "--fe-color-border",
   "--fe-color-accent",
   "--fe-color-accent-text",

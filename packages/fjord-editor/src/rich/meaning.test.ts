@@ -19,6 +19,8 @@ describe("two texts that mean the same", () => {
     ["a hard break's two spellings", "a  \nb", "a\\\nb"],
     ["a quote's lazy line and the same line quoted", "> a\nb\n", "> a\n> b\n"],
     ["a list item's continuation, indented differently", "- a\n    b\n", "- a\n  b\n"],
+    ["a numbered heading's number, escaped or not (a heading is never a list)", "## 1\\. Introduction\n", "## 1. Introduction\n"],
+    ["a bracket as a character reference and as an escape, and a closing bracket escaped or not", "&#91;embedded content: a\\]\n", "\\[embedded content: a]\n"],
   ])("are the same in %s", (_name, a, b) => {
     expect(sameMeaning(a, b)).toBe(true);
   });
@@ -40,6 +42,8 @@ describe("two texts that do not", () => {
     ["a footnote reference and an escaped one", "Text[^1]\n\n[^1]: Note.\n", "Text\\[^1]\n\n\\[^1]: Note.\n"],
     ["a highlight and an escaped one", "a ==marked== b", "a \\=\\=marked\\=\\= b"],
     ["a tag and an escaped one", "a #tag b", "a \\#tag b"],
+    ["a numbered line that is not a list, and one that is", "1\\. Introduction\n", "1. Introduction\n"],
+    ["a numbered heading's number in a paragraph", "text 1\\. not\n", "text 1. not\n"],
   ])("differ in %s", (_name, a, b) => {
     expect(sameMeaning(a, b)).toBe(false);
   });
@@ -84,10 +88,10 @@ describe("line endings", () => {
 describe("where two texts differ", () => {
   it("says the line, what is written, and what would be written, for the spot and not the whole paragraph", async () => {
     const { differences } = await import("./meaning.js");
-    const original = "# Title\n\nA first paragraph that is fine.\n\n&#91;embedded content: roadmap\\]\n\nEnd.\n";
-    const written = "# Title\n\nA first paragraph that is fine.\n\n\\[embedded content: roadmap]\n\nEnd.\n";
+    const original = "# Title\n\nA first paragraph that is fine.\n\nSee [[Roadmap]] soon.\n\nEnd.\n";
+    const written = "# Title\n\nA first paragraph that is fine.\n\nSee \\[\\[Roadmap]] soon.\n\nEnd.\n";
     expect(sameMeaning(original, written)).toBe(false);
-    expect(differences(original, written)).toEqual([{ line: 5, written: "&#91;embedded content: roadmap\\]", becomes: "\\[embedded content: roadmap]" }]);
+    expect(differences(original, written)).toEqual([{ line: 5, written: "See [[Roadmap]] soon.", becomes: "See \\[\\[Roadmap]] soon." }]);
   });
 
   it("finds the word in a long line, and every spot when there are several", async () => {

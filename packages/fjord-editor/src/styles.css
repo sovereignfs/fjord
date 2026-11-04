@@ -291,6 +291,12 @@
   overflow: visible;
 }
 
+/* A document that is only read, or only commented on, has no formatting toolbar: there is nothing for it to change. */
+
+.fe-document:not([data-role="edit"]) .fe-rich .fe-mdx [role="toolbar"] {
+  display: none;
+}
+
 /* A code block is edited in CodeMirror, whose own theme is light: it takes the page's surface and text instead. */
 
 .fe-rich .cm-editor,
@@ -337,4 +343,70 @@
 .fe-issue-list code {
   font-family: var(--fe-font-mono, ui-monospace, monospace);
   overflow-wrap: anywhere;
+}
+
+/* A button that is text: what is said in a sentence and can be done (a notice's "Check again", "Use the visual editor"). */
+.fe-link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fe-color-accent, #0a60ff);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.fe-link-button:hover {
+  text-decoration-thickness: 2px;
+}
+
+.fe-link-button:focus-visible {
+  outline: 2px solid var(--fe-color-focus, #0a60ff);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/*
+ * Tables in the visual editor. MDXEditor draws a table with a row of tools above it and a column of them beside it, as cells of the table, which made every table wide and its rows
+ * tall, with cells as roomy as paragraphs. Here the cells are those of a document's table: close, with a hairline between them, the first row as the head, and the tools narrow and
+ * quiet until the table is pointed at. MDXEditor's class names are hashed and carry a suffix, so they are found by the part that does not change.
+ */
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] {
+  width: 100%;
+  margin: 0.75em 0;
+  font-size: 0.95em;
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] > tbody > tr > td:not([class*="_toolCell"]),
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] > tbody > tr > th:not([class*="_toolCell"]):not([data-tool-cell="true"]) {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--fe-color-border, #c7c7cc);
+  vertical-align: top;
+  text-align: left;
+  line-height: 1.45;
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] > tbody > tr > th:not([class*="_toolCell"]):not([data-tool-cell="true"]) {
+  background: var(--fe-color-surface-muted, #f4f4f5);
+  font-weight: 600;
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] td p,
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] th p {
+  margin: 0;
+}
+
+/* The tools: a narrow column and row, without cell borders. */
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] [class*="_toolCell"],
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] [data-tool-cell="true"] {
+  width: 1.75rem;
+  padding: 0;
+  border: 0;
+}
+
+.fe-rich .fe-rich-content table[class*="_tableEditor_"] thead > tr > th {
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
 }
