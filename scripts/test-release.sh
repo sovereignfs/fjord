@@ -855,6 +855,44 @@ refuses "web: a released migration that was removed" "A released migration is ne
 relw web8 prepare 0.2.0 --skip-gates
 accepts "web: ...but a new migration beside the released ones is fine in a minor release"
 
+# Each dialect's journal gains a line for every new migration: that is adding one. A line of it taken out or changed is an edit.
+freshw web10 0.1.0
+(
+  cd "$T/web10" || exit 1
+  mkdir -p clients/web/migrations/sqlite/meta
+  echo "CREATE TABLE a (x);" >clients/web/migrations/sqlite/0001_released.sql
+  printf '{\n  "entries": [\n    { "idx": 0, "tag": "0001_released" }\n  ]\n}\n' >clients/web/migrations/sqlite/meta/_journal.json
+  git add -A
+  git commit -q -m "scratch: a migration, released"
+  git push -q origin main
+  git tag web-v0.1.0
+  echo "CREATE TABLE b (z);" >clients/web/migrations/sqlite/0002_new.sql
+  printf '{\n  "entries": [\n    { "idx": 0, "tag": "0001_released" },\n    { "idx": 1, "tag": "0002_new" }\n  ]\n}\n' >clients/web/migrations/sqlite/meta/_journal.json
+  git add -A
+  git commit -q -m "scratch: a new migration, and the journal's line for it"
+  git push -q origin main
+)
+notesw web10
+relw web10 prepare 0.2.0 --skip-gates
+accepts "web: ...and the journal's new line for it is adding one, not editing the released ones"
+freshw web11 0.1.0
+(
+  cd "$T/web11" || exit 1
+  mkdir -p clients/web/migrations/sqlite/meta
+  echo "CREATE TABLE a (x);" >clients/web/migrations/sqlite/0001_released.sql
+  printf '{\n  "entries": [\n    { "idx": 0, "tag": "0001_released" }\n  ]\n}\n' >clients/web/migrations/sqlite/meta/_journal.json
+  git add -A
+  git commit -q -m "scratch: a migration, released"
+  git push -q origin main
+  git tag web-v0.1.0
+  printf '{\n  "entries": [\n    { "idx": 0, "tag": "0001_renamed" },\n    { "idx": 1, "tag": "0002_new" }\n  ]\n}\n' >clients/web/migrations/sqlite/meta/_journal.json
+  git commit -q -am "scratch: a released entry of the journal, changed"
+  git push -q origin main
+)
+notesw web11
+relw web11 prepare 0.2.0 --skip-gates
+refuses "web: a released migration's entry in the journal that was changed" "A released migration is never changed"
+
 # A long changelog section is notes all the same (a pipe that closes early must not read as none).
 freshw web9 0.0.0
 notesw web9

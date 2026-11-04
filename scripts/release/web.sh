@@ -78,6 +78,27 @@ c_check_migrations_kept() {
   local v=$1 prev_tag changed
   prev_tag=$(c_previous_release "$v") || return 0
   changed=$(git diff --name-status --no-renames "$prev_tag" HEAD -- clients/web/migrations | awk '$1 != "A" { print $2 }')
+  # Each dialect's `meta/_journal.json` lists the migrations in order, so it gains an entry for every new migration: that is adding one, and is not an edit of the
+  # released ones. It is an edit if an entry the release had is gone or changed (the entries it had are the start of the entries it has).
+  local file kept="" TMPDIR_RELEASE_JOURNAL
+  TMPDIR_RELEASE_JOURNAL=$(mktemp)
+  for file in $changed; do
+    case $file in
+      */meta/_journal.json)
+        git show "$prev_tag:$file" >"$TMPDIR_RELEASE_JOURNAL.old" 2>/dev/null || { kept="$kept $file"; continue; }
+        node -e '
+          const fs = require("fs");
+          const before = JSON.parse(fs.readFileSync(process.argv[1], "utf8")).entries;
+          const now = JSON.parse(fs.readFileSync(process.argv[2], "utf8")).entries;
+          process.exit(now.length >= before.length && before.every((entry, i) => JSON.stringify(entry) === JSON.stringify(now[i])) ? 0 : 1);
+        ' "$TMPDIR_RELEASE_JOURNAL.old" "$file" 2>/dev/null || kept="$kept $file"
+        rm -f "$TMPDIR_RELEASE_JOURNAL.old"
+        ;;
+      *) kept="$kept $file" ;;
+    esac
+  done
+  rm -f "$TMPDIR_RELEASE_JOURNAL"
+  changed=$(printf '%s\n' $kept)
   if [ -n "$changed" ]; then
     printf '%s\n' "$changed" | sed 's/^/        /' >&2
     die "migrations that were released in $prev_tag were edited or removed (above). A released migration is never changed: put the fix in a new one"
