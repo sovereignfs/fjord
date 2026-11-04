@@ -86,7 +86,7 @@ export function EncryptedTimeline({ connectionId, repo, files }: { connectionId:
   if (state === "none") {
     return (
       <Alert variant="info" heading="Your key is not in this browser">
-        This journal is encrypted, and its timeline is read here with your key. <a href="/security?tab=keys">Make or import your key</a>.
+        This journal is encrypted, and its timeline is read here with your key. <a href="/account?section=security&tab=keys">Make or import your key</a>.
       </Alert>
     );
   }

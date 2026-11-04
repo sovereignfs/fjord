@@ -132,7 +132,7 @@ export function SetupOffer({ connectionId, preview }: { connectionId: number; pr
             </fieldset>
             {needsKey ? (
               <p className={styles.itemMeta}>
-                You have no key in this browser yet. <a href="/security?tab=keys">Make or import one</a>: an encrypted journal is written to it. Until you have, choose plaintext to set it up now.
+                You have no key in this browser yet. <a href="/account?section=security&tab=keys">Make or import one</a>: an encrypted journal is written to it. Until you have, choose plaintext to set it up now.
               </p>
             ) : null}
           </>

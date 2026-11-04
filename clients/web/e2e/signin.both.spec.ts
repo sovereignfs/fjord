@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { PASSWORD, alertOn, expect, signOut, signUp, test, uniqueEmail } from "./helpers";
+import { PASSWORD, alertOn, expect, openAccount, signOut, signUp, test, uniqueEmail } from "./helpers";
 
 /** An instance with both ways in, open to anyone: the page offers both, and each works. */
 test.describe.configure({ mode: "serial" });
@@ -17,7 +17,7 @@ test("a person signs in through Sovereign and has the security page of the local
   await page.goto("/sign-in");
   await page.getByRole("button", { name: "Sign in with Sovereign" }).click();
   await expect(page.getByRole("heading", { name: `Hello, ${who.name}` })).toBeVisible();
-  await page.getByRole("link", { name: "Security", exact: true }).click();
+  await openAccount(page, "Security");
   await expect(page.getByRole("tab", { name: "General" })).toBeVisible();
 });
 
@@ -45,7 +45,7 @@ test.describe("linking Sovereign", () => {
     await page.goto("/account/security");
     await page.getByRole("button", { name: "Link Sovereign" }).click();
 
-    await expect(page).toHaveURL(/\/security\?linked=1/);
+    await expect(page).toHaveURL(/\/account\?section=security&linked=1/);
     await expect(page.getByText("Sovereign is linked")).toBeVisible();
     await expect(page.getByRole("button", { name: "Unlink Sovereign" })).toBeEnabled();
 
@@ -63,7 +63,7 @@ test.describe("linking Sovereign", () => {
     await page.goto("/account/security");
     await page.getByRole("button", { name: "Link Sovereign" }).click();
 
-    await expect(page).toHaveURL(/\/security\?/);
+    await expect(page).toHaveURL(/\/account\?section=security/);
     await expect(alertOn(page)).toContainText("different email address");
     await expect(page.getByRole("button", { name: "Link Sovereign" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Unlink Sovereign" })).toHaveCount(0);

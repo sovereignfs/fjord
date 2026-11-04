@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
 import { ROUTES } from "../src/access/routes";
-import { alertOn, expect, repoOf, signUp, test, DOC_PLACE, FILE_PLACE, PLACE, docPlace } from "./helpers";
+import { alertOn, expect, openAccount, openUserMenu, repoOf, signUp, test, DOC_PLACE, FILE_PLACE, PLACE, docPlace } from "./helpers";
 import { wasmDirectory } from "../src/format/wasm";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
@@ -210,7 +210,7 @@ test("the connect dialog offers only the form, and closes when the repository is
   await expect(dialog).toHaveCount(0);
 });
 
-test("security opens as a dialog over the page it was opened from, and as a page at its own address", async ({ page }) => {
+test("the account opens from the menu on the avatar as a dialog over the page it was opened from, and as a page at its own address", async ({ page }) => {
   await signUp(page);
   await page.goto("/open");
   await connect(page, "acme/notes");
@@ -218,32 +218,84 @@ test("security opens as a dialog over the page it was opened from, and as a page
   await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
   const repository = new URL(page.url()).pathname;
 
-  await page.getByRole("link", { name: "Security", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Security" });
+  // The rail has no icon for it any more: the account is in the menu at the foot of the rail, from the avatar.
+  await expect(page.getByRole("link", { name: "Security", exact: true })).toHaveCount(0);
+  await openUserMenu(page);
+  const menu = page.getByRole("menu");
+  // Who they are, above the items; the account first and the way out last.
+  await expect(page.getByText("Ada Lovelace", { exact: true })).toBeVisible();
+  await expect(menu.getByRole("menuitem")).toHaveText(["Account", "Sign out"]);
+  await menu.getByRole("menuitem", { name: "Account" }).click();
+  const dialog = page.getByRole("dialog", { name: "Account" });
   await expect(dialog).toBeVisible();
-  await expect(page).toHaveURL(/\/security$/);
-  await expect(dialog.getByRole("tab", { name: "Encryption identity" })).toBeVisible();
+  await expect(page).toHaveURL(/\/account$/);
+  // Its sections, down the left: Profile opens, and Security is what the security page was, with its two parts.
+  const sections = dialog.getByRole("navigation", { name: "Account sections" }).getByRole("button");
+  await expect(sections).toHaveText(["Profile", "Security", "Preferences"]);
+  await expect(sections.first()).toHaveAttribute("aria-current", "page");
+  await expect(dialog.getByRole("textbox", { name: "Name" })).toHaveValue("Ada Lovelace");
+  await sections.nth(1).click();
   await expect(dialog.getByRole("tab", { name: "General" })).toBeVisible();
-  // General is the first tab, and what opens.
   await expect(dialog.getByRole("tab").first()).toHaveText("General");
+  await expect(dialog.getByRole("tab", { name: "Encryption identity" })).toBeVisible();
   // The page it was opened from is still there behind it, and closing the dialog goes back to it.
   await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(page).toHaveURL(new RegExp(`${repository}$`));
 
-  // At its own address it is a page, not a dialog.
-  await page.goto("/security");
-  await expect(page.getByRole("heading", { name: "Security", level: 1 })).toBeVisible();
+  // At its own address it is a page, not a dialog, and what it was called still arrives.
+  await page.goto("/account");
+  await expect(page.getByRole("heading", { name: "Account", level: 1 })).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  // What it was called still arrives.
   await page.goto("/account/security");
-  await expect(page).toHaveURL(/\/security$/);
-  await page.goto("/account/keys");
-  await expect(page).toHaveURL(/\/security\?tab=keys$/);
-  await page.goto("/account?tab=security&linked=1");
-  await expect(page).toHaveURL(/\/security\?linked=1$/);
+  await expect(page).toHaveURL(/\/account\?section=security$/);
   await expect(page.getByRole("button", { name: "Turn on" })).toBeVisible();
+  await page.goto("/account/keys");
+  await expect(page).toHaveURL(/\/account\?section=security&tab=keys$/);
+  await page.goto("/security?linked=1");
+  await expect(page).toHaveURL(/\/account\?section=security&linked=1$/);
+  await page.goto("/account?tab=keys");
+  await expect(page.getByRole("heading", { name: "Encryption identity" }).first()).toBeVisible();
+});
+
+test("the account's name is changed in Profile, shown at once in the menu, and the way out is the menu's last item", async ({ page }) => {
+  await signUp(page);
+  await page.goto("/open");
+  await openAccount(page, "Profile");
+  const dialog = page.getByRole("dialog", { name: "Account" });
+  await expect(dialog.getByText("Email changes aren't supported yet.")).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Save name" })).toBeDisabled();
+  await dialog.getByRole("textbox", { name: "Name" }).fill("Augusta Ada King");
+  await dialog.getByRole("button", { name: "Save name" }).click();
+  await expect(dialog.getByText("Your name is saved.")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await openUserMenu(page);
+  await expect(page.getByText("Augusta Ada King", { exact: true })).toBeVisible();
+  await page.reload();
+  await openUserMenu(page);
+  await expect(page.getByText("Augusta Ada King", { exact: true })).toBeVisible();
+});
+
+test("preferences are kept in this browser and applied at once: the theme, and the size of text, before the page is painted", async ({ page }) => {
+  await signUp(page);
+  await page.goto("/account?section=preferences");
+  const root = page.locator("html");
+  await page.getByRole("radio", { name: "Dark" }).click();
+  await expect(root).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("radio", { name: "Larger" }).click();
+  await expect(root).toHaveAttribute("data-text-size", "larger");
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("20px");
+  // Kept: a reload has them from the first paint.
+  await page.reload();
+  await expect(root).toHaveAttribute("data-theme", "dark");
+  await expect(root).toHaveAttribute("data-text-size", "larger");
+  await expect(page.getByRole("radio", { name: "Dark" })).toBeChecked();
+  // The system's own again is the absence of a choice.
+  await page.getByRole("radio", { name: "System" }).click();
+  await page.getByRole("radio", { name: "Default" }).click();
+  expect(await page.evaluate(() => [localStorage.getItem("fjord.theme"), localStorage.getItem("fjord.textSize")])).toEqual([null, null]);
+  await expect(root).not.toHaveAttribute("data-text-size", /./);
 });
 
 test("with two repositories, the first stays the default until another is chosen, and disconnecting moves it", async ({ page }) => {

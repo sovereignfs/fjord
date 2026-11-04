@@ -39,9 +39,10 @@ export const ROUTES: RouteRule[] = [
   { route: "/home", page: { kind: "account" } },
   { route: "/open", page: { kind: "account" } },
   { route: "/repositories", page: { kind: "account" } },
-  { route: "/security", page: { kind: "account" } },
-  // What it was called: each still arrives and is sent to `/security`.
+  // The account, with Profile, Security and Preferences in it (a dialog over the page, or this page).
   { route: "/account", page: { kind: "account" } },
+  // What it was called: each still arrives and is sent to `/account`.
+  { route: "/security", page: { kind: "account" } },
   { route: "/account/security", page: { kind: "account" } },
   // The age identity kept in the browser (2a.1): the page only hosts the component that keeps it; the server holds and is asked for nothing of it.
   { route: "/account/keys", page: { kind: "account" } },

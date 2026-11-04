@@ -286,3 +286,18 @@ Changes the owner asked for after using the first seven legs; each is a commit o
 - **New folder**, in every folder: git has no empty folders, so it is made with its first document (`newFolder` on the create routes; `files/new-folder.ts`).
 - **Not done: created and last-modified dates.** The host's tree carries sizes and ids, not dates; each date is a request to the file's history, one per file listed. It needs a provider
   method that is paged and cached (and a contract test for each provider), which is a piece of its own: size is shown, and the listing's rows take any further column.
+
+## Follow-ups (2026-11-04, the account)
+
+Supersedes the *Security is `/security`* item above.
+
+- **The rail's foot is the person's menu** (`ui`'s `UserMenu`, in `auth/screens/AccountMenu.tsx`): a header of who they are, *Account*, and *Sign out* last. The fingerprint icon is gone, and the sign-out icon with it.
+- **The account is one dialog of three sections**, after the legacy Sovereign's account dialog: *Profile*, *Security*, *Preferences* (`AccountShell`; the server renders each and the client only shows one, so a
+  half-typed password or passphrase survives a look at another section). `/account` is the page and `@modal/(.)account` the dialog, `?section=` chooses, and Security keeps its two parts (`General`,
+  `Encryption identity`, `?tab=keys`). `/security`, `/account/security` and `/account/keys` redirect; the Sovereign link callback is `/account?section=security&linked=1`.
+- **Profile** edits the display name through better-auth's `updateUser` and refreshes the page so the menu says it; the address is read-only. On an instance whose only sign-in is Sovereign the name
+  is Sovereign's, and is shown. **No avatar upload**: the picture is what Sovereign sent, or the initials. A picture is a file to keep, which Fjord has nowhere to put (a data URL in the session would
+  outgrow a cookie), so it waits for somewhere to keep it.
+- **Preferences** are the theme (system, light, dark) and the size of text (default, large, larger), kept in this browser (`fjord.theme`, `fjord.textSize`) and applied before first paint by the theme script;
+  the text size is the root's font size, since the design system's tokens are in rem. Not built, though the legacy has them: language and timezone (Fjord shows what the browser says), the sidebar's app list
+  (there are no apps), notifications, billing, data and activity.

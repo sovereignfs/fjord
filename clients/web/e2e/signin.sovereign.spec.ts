@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { alertOn, expect, test } from "./helpers";
+import { alertOn, expect, openAccount, openUserMenu, test } from "./helpers";
 
 /**
  * An instance that signs people in only through Sovereign (a fake one, e2e/fake-sovereign-server.ts),
@@ -36,7 +36,7 @@ test("the first person signs in through Sovereign, as who Sovereign says they ar
   await expect(page.getByRole("heading", { name: `Hello, ${first.name}` })).toBeVisible();
   await expect(page.getByText(first.email)).toBeVisible();
   // Nothing of the local methods to manage.
-  await page.getByRole("link", { name: "Security", exact: true }).click();
+  await openAccount(page, "Security");
   await expect(page.getByRole("tab", { name: "Encryption identity" })).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "General" })).toHaveCount(0);
   expect((await page.goto("/account/security"))?.status()).toBe(404);
@@ -48,7 +48,8 @@ test("signing out leaves them signed out of Fjord, and signing in again is the s
   await page.getByRole("button", { name: "Sign in with Sovereign" }).click();
   await expect(page.getByRole("heading", { name: `Hello, ${first.name}` })).toBeVisible();
 
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await openUserMenu(page);
+  await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page.getByRole("heading", { name: /Documents and notes/ })).toBeVisible();
   await page.goto("/home");
   await expect(page).toHaveURL(/\/sign-in/);

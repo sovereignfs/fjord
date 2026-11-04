@@ -12,6 +12,7 @@
  */
 export {
   Alert,
+  Avatar,
   AuthButton,
   AuthCard,
   AuthCodeInput,
@@ -34,5 +35,7 @@ export {
   FormField,
   Icon,
   Input,
+  SegmentedControl,
+  UserMenu,
 } from "@sovereignfs/ui";
 export type { IconName } from "@sovereignfs/ui";

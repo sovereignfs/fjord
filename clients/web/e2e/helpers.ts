@@ -54,8 +54,21 @@ export async function enterCode(page: Page, code: string) {
   for (const [at, digit] of [...code].entries()) await page.getByLabel(`Digit ${at + 1}`).fill(digit);
 }
 
+/** The person's menu at the foot of the rail, opened from their avatar. */
+export async function openUserMenu(page: Page) {
+  await page.getByRole("button", { name: "User menu" }).click();
+}
+
+/** The account, as the menu opens it (a dialog over the page, at `/account`), on the section asked for. */
+export async function openAccount(page: Page, section?: "Profile" | "Security" | "Preferences") {
+  await openUserMenu(page);
+  await page.getByRole("menuitem", { name: "Account" }).click();
+  if (section) await page.getByRole("button", { name: section, exact: true }).click();
+}
+
 export async function signOut(page: Page) {
-  await page.getByRole("button", { name: "Sign out" }).click();
+  await openUserMenu(page);
+  await page.getByRole("menuitem", { name: "Sign out" }).click();
   await expect(page.getByRole("heading", { name: /Documents and notes/ })).toBeVisible();
 }
 

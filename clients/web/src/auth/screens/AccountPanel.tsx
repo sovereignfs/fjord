@@ -2,27 +2,37 @@ import { KeyManager } from "../../keys/screens/KeyManager";
 import { Alert, Card } from "../../ui";
 import { oauthErrorMessage } from "../messages";
 import { listAccounts, localAuthConfig, sovereignAuthConfig } from "../server";
+import { type AccountQuery, sectionOf } from "./account-query";
+import { AccountShell } from "./AccountShell";
 import { AccountTabs } from "./AccountTabs";
+import { PreferencesSection } from "./PreferencesSection";
+import { ProfileSection } from "./ProfileSection";
 import { PasskeysSection } from "./security/PasskeysSection";
 import { PasswordSection } from "./security/PasswordSection";
 import { SovereignSection } from "./security/SovereignSection";
 import { TwoFactorSection } from "./security/TwoFactorSection";
 import styles from "./screens.module.css";
 
-/** What the address says about the way back from linking Sovereign (or the reason it failed), and which part to open. */
-export interface AccountQuery {
-  tab?: string | undefined;
-  error?: string | undefined;
-  linked?: string | undefined;
-  unlinked?: string | undefined;
-}
+export type { AccountQuery } from "./account-query";
 
 /**
- * Security, in one place: the encryption identity kept in this browser (ROADMAP 2a.1), and the security of the sign-in: a password, two-factor, passkeys, and the link
- * to Sovereign (the local methods' and Sovereign's, so an instance that signs in only through Sovereign has none of it and shows just the key). Shown as a dialog over
- * the page it was opened from, or, at an address of its own, as a page. Nothing about the key is known to the server: the component that keeps it runs in the browser.
+ * The account, in one place (the owner's request, after the legacy Sovereign's account dialog): *Profile*, *Security* and *Preferences*, as a dialog over the page it was opened
+ * from, or at an address of its own as a page. Security is what it was: the encryption identity kept in this browser (ROADMAP 2a.1), and the security of the sign-in: a password,
+ * two-factor, passkeys, and the link to Sovereign (the local methods' and Sovereign's, so an instance that signs in only through Sovereign has none of it and shows just the key).
+ * Nothing about the key is known to the server: the component that keeps it runs in the browser.
  */
-export async function AccountPanel({ user, query }: { user: { twoFactorEnabled?: boolean | null | undefined; email: string }; query: AccountQuery }) {
+export async function AccountPanel({ user, query }: { user: { name: string; email: string; image?: string | null | undefined; twoFactorEnabled?: boolean | null | undefined }; query: AccountQuery }) {
+  return (
+    <AccountShell
+      initial={sectionOf(query)}
+      profile={<ProfileSection name={user.name} email={user.email} image={user.image} editable={localAuthConfig() !== undefined} />}
+      security={await securityOf(user, query)}
+      preferences={<PreferencesSection />}
+    />
+  );
+}
+
+async function securityOf(user: { twoFactorEnabled?: boolean | null | undefined; email: string }, query: AccountQuery) {
   const keys = (
     <Card as="div" padding="lg">
       <KeyManager />

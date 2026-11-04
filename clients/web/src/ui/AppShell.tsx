@@ -1,8 +1,7 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import { BrandBadge, Icon, type IconName } from "./index";
-import { markOf, monogram } from "./brand";
-import { FingerprintPatternIcon, RepositoryKindIcon, type RepositoryKindId } from "./icons";
+import { markOf } from "./brand";
+import { RepositoryKindIcon, type RepositoryKindId } from "./icons";
 import styles from "./AppShell.module.css";
 
 /** A connected repository, for its icon in the rail. */
@@ -18,7 +17,7 @@ export interface ShellRepository {
 }
 
 /** Where a signed-in person is, so its icon in the rail is marked as the current page. */
-export type ShellPlace = "index" | "repositories" | "security" | { repository: string };
+export type ShellPlace = "index" | "repositories" | "account" | { repository: string };
 
 const classes = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(" ");
 
@@ -33,32 +32,30 @@ function RailLink({ href, label, tip, active, icon, children }: { href: string; 
 /**
  * The frame of a signed-in page: two columns, a narrow rail and the page, with the page filling the rest and at least the height
  * of the viewport. In the rail, from the top: the instance's mark, the Index (the home page: a tile for each repository), an icon for each
- * repository, by its kind, to move between them, and a way to connect another; at the foot, the account (your key, your sign-in's security) and the way out.
+ * repository, by its kind, to move between them, and a way to connect another; at the foot, the person's own menu (`account`: who they are, their account, the way out).
  *
  * It is made here, with nothing from the design system but its icons (`lucide`'s, in its curated set, so they recolour with the theme),
  * its mark and its tokens, because the design system has no shell. Sovereign's own shell is the model (its rail is 64px, with 40px icons). **Worth offering to `@sovereignfs/ui`** (as an
  * `AppRail` or `AppShell`) once a second app wants the same: it is app-agnostic apart from these props.
  *
- * The sign-out control is given, because signing out is the auth client's, which this component does not know.
+ * The menu is given, because what it does (open the account as a dialog, sign out) is the auth client's and the router's, which this component does not know.
  */
 export function AppShell({
   name,
-  person,
   repositories,
   place,
   connect,
-  signOut,
+  account,
   children,
 }: {
   /** The instance's name (`FJORD_NAME`), whose first two letters are the mark. */
   name: string;
-  /** Who is signed in. */
-  person: { name: string; email: string };
   repositories: ShellRepository[];
   place: ShellPlace;
   /** The rail's `+`: a button that opens the dialog to connect a repository. Given, because the dialog is a client component with the form's own knowledge. */
   connect: ReactNode;
-  signOut: ReactNode;
+  /** The person's menu, at the foot of the rail: their avatar, which opens who they are, their account and the way out. */
+  account: ReactNode;
   children: ReactNode;
 }) {
   const current = typeof place === "object" ? place.repository : undefined;
@@ -82,16 +79,7 @@ export function AppShell({
           ))}
           <li>{connect}</li>
         </ul>
-        <nav className={styles.chrome} aria-label="Security">
-          {/* A `Link`, not an anchor: a soft navigation is what lets the account open as a dialog over this page (`app/@modal/(.)security`). */}
-          <Link href="/security" className={classes(styles.icon, place === "security" && styles.iconActive)} title="Security" aria-label="Security" aria-current={place === "security" ? "page" : undefined}>
-            <FingerprintPatternIcon aria-hidden="true" />
-          </Link>
-          {signOut}
-          <span className={styles.avatar} title={`${person.name} · ${person.email}`} role="img" aria-label={person.name}>
-            {monogram(person.name)}
-          </span>
-        </nav>
+        <nav className={styles.chrome} aria-label="Account">{account}</nav>
       </aside>
       <main className={styles.content}>{children}</main>
     </div>
