@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { expect, signUp, test, DOC_PLACE, NOTE_PLACE, PLACE } from "./helpers";
+import { expect, signUp, test, NOTE_PLACE, PLACE, POST_PLACE } from "./helpers";
 import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
 
 /**
@@ -99,12 +99,15 @@ test("a journal opens on its timeline, placed by date, and takes an entry dated 
   expect(made.startsWith(folder)).toBe(true);
   expect(files[made]).toMatch(/date: "\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:Z|[+-]\d\d:\d\d)"/);
 
-  // Every kind can be shown as files, and back.
+  // Every kind can be shown as files (its one vault, at its own address), and back by the path above it.
   await page.goto(`/repo/${id}`);
   await page.getByRole("link", { name: "Show files" }).click();
-  await expect(page).toHaveURL(/\?view=files$/);
-  await expect(page.getByRole("link", { name: /Journal/ }).first()).toBeVisible();
-  await page.getByRole("link", { name: /Show as journal/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/repo/${id}/v/[0-9a-hjkmnp-tv-z]{26}$`));
+  await expect(page.getByRole("list", { name: "Folder contents" })).toBeVisible();
+  // The old address, `?view=files`, is sent there.
+  await page.goto(`/repo/${id}?view=files`);
+  await expect(page).toHaveURL(new RegExp(`/repo/${id}/v/[0-9a-hjkmnp-tv-z]{26}$`));
+  await page.getByRole("navigation", { name: "Path" }).getByRole("link", { name: "acme/notes" }).click();
   await expect(page.getByTestId("timeline")).toBeVisible();
 });
 
@@ -169,7 +172,7 @@ test("a repository that is not a Fjord repository is set up as a site, takes a p
   await page.getByRole("button", { name: "New post" }).click();
   await page.getByLabel("Title").fill("Hello, World!");
   await page.getByRole("button", { name: "Write it" }).click();
-  await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 }); // a post has an id from the start, so its address shows no path
+  await expect(page).toHaveURL(POST_PLACE, { timeout: 30_000 }); // a post has an id from the start: `/repo/<repo>/post/<id>`
   const post = (await hubs.more.filesAt((await hubs.more.branchHead())!))["content/posts/hello-world.md"]!;
   expect(post).toContain("draft: true");
   expect(post).toMatch(/date: "\d{4}-\d\d-\d\d/);
@@ -206,7 +209,7 @@ test("a tag with a space is refused on a Jekyll site, with the engine's reason, 
   await page.getByLabel("Title").fill("First light");
   await page.getByLabel(/A draft/).uncheck();
   await page.getByRole("button", { name: "Write it" }).click();
-  await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 });
+  await expect(page).toHaveURL(POST_PLACE, { timeout: 30_000 });
 
   await page.getByText("Properties").click();
   await page.getByLabel("Tags").fill("two words");

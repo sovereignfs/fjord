@@ -5,7 +5,7 @@ import { entryFor } from "../../kinds/entry";
 import { journalTagsFor } from "../../journal/server";
 import { FolderView } from "../screens/FolderView";
 import { assessSetupFor, findDocIdIn, locateInRepository, readConnection, readNoteFor, recordFileRead } from "../server";
-import { type Address } from "../addresses";
+import { type Address, vaultAddress } from "../addresses";
 import type { Location } from "../location";
 import { addressBookFor } from "../address-book";
 import { repositoryHref } from "../links";
@@ -108,9 +108,9 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
         const place = segments.join("/");
         const book = await addressBookFor(current.id, found.location.vault, [place]);
         // A static HTML page of a plaintext vault is at its own `html` address, where it is shown in a sandbox.
-        // A journal's entries are notes (`/repo/<repo>/n/<id>`, by handle when the id is in the ciphertext); a drive's and a site's Docs are where they are.
-        const journal = outcome.ok && outcome.read.manifest?.ok === true && outcome.read.manifest.kind === "journal";
-        const target = file !== undefined && journal && (file.kind === "doc" || file.kind === "payload") ? book.noteHref(place, docId) : docId !== null && file !== undefined ? book.docHref(place, docId) : isHtmlPage(found.location) ? book.htmlHref(place) : book.href(place);
+        // A journal's entries are notes (`/repo/<repo>/n/<id>`, by handle when the id is in the ciphertext) and a site's are posts (`/repo/<repo>/post/<id>`); a drive's Docs are where they are.
+        const as = outcome.ok && outcome.read.manifest?.ok === true ? (outcome.read.manifest.kind === "journal" ? "n" : outcome.read.manifest.kind === "ssg" ? "post" : undefined) : undefined;
+        const target = file !== undefined && as !== undefined && (file.kind === "doc" || file.kind === "payload") ? book.noteHref(place, docId, as) : docId !== null && file !== undefined ? book.docHref(place, docId) : isHtmlPage(found.location) ? book.htmlHref(place) : book.href(place);
         if (target !== (requested ?? "")) redirect(target);
       }
       // What was typed here and not yet saved as a version: kept by the server (ROADMAP 1b.8), and found again here.
@@ -149,10 +149,14 @@ export async function RepositoryScreen({ connection, path: urlPath, address, req
 
   // What it opens on is its kind's (RFC 0001), or its files when asked: every kind can be shown as a drive.
   const atTop = content === undefined && (path === undefined || path.length === 0);
+  // A journal or a site shown as files is its one vault, at the vault's own address (workstream 0003); `?view=files` is sent there.
+  const onlyVault = outcome.ok && outcome.read.manifest?.ok === true && outcome.read.manifest.kind !== "drive" ? outcome.read.discovery.vaults[0] : undefined;
+  const filesHref = onlyVault?.id ? vaultAddress(current.id, onlyVault.id) : undefined;
+  if (atTop && view === "files" && filesHref !== undefined) redirect(filesHref);
   const asFiles = view === "files";
   const { kind, entry } = entryFor(user.id, current, outcome, asFiles, query);
   const landing = atTop ? entry : undefined;
-  const kindLink = atTop && kind.id !== "drive" ? { label: kind.label, asFiles } : undefined;
+  const kindLink = atTop && kind.id !== "drive" ? { label: kind.label, asFiles, ...(filesHref ? { filesHref } : {}) } : undefined;
   return <RepositoryView user={user} connections={connections} current={current} outcome={outcome} content={content} landing={landing} kind={kindLink} setup={atTop ? await assessSetupFor(user.id, current, outcome) : undefined} />;
 }
 

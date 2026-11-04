@@ -13,6 +13,7 @@ section.
 
 ### Changed
 
+- **A site's post is at `/repo/<repo>/post/<id>`** (by handle when its file has no `id`), and the posts' timeline links straight to it; a post is a Doc, so it is shared at `/d/<id>` and published as a page as before. *Show files* on a journal or a site is its one vault at its own address (`/repo/<repo>/v/<vault>`), and `?view=files` is sent there. The workstream is complete. Workstream 0003, leg 7.
 - **A journal files an entry at `YYYY-MM-DD/hh-mm.md`, in an encrypted journal too, and a note has its own addresses.** A folder for each day and a file named by the minute it was made (a second in the same minute is `hh-mm-2.md`), with nothing of the title in the name: `fjord-core`'s `journal::entry_path`, the format module's `journalEntryPath(date)`, `fjord new` and the web alike. Entries filed the old way (`YYYY/MM/DD/HHMM-slug.md`, or flat) are still read and placed by their date. **An encrypted journal now shows which days have entries**: a directory name is never encrypted (spec §11.2, whose text now says so), by the owner's choice; the entry's file is still named by its id, and its time, title and text stay in the ciphertext. A journal's note is at `/repo/<repo>/n/<id>` (by handle when its id is in the ciphertext), the timeline links straight to it, and an old address by path or by `/d/<id>` ends there. A note is shared at `/n/<id>` (a link is given there, and its cookie works at both `/n/<id>` and `/d/<id>`); `/n/<id>` is no longer sent on to `/d/<id>`. Workstream 0003, leg 6.
 
 ### Added

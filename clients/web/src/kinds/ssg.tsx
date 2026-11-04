@@ -51,7 +51,7 @@ async function SiteEntry({ accountId, connection, read, query }: EntryViewProps)
       {read.partial ? (
         <Alert variant="info">This site is too large to list at once, so its posts cannot be shown here. Show its files to browse them.</Alert>
       ) : (
-        <Timeline accountId={accountId} connection={connection} read={read} vault={site.vault} query={query} empty="No posts yet." />
+        <Timeline accountId={accountId} connection={connection} read={read} vault={site.vault} query={query} empty="No posts yet." docBase="post" />
       )}
     </section>
   );

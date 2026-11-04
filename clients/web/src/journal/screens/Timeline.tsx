@@ -18,7 +18,7 @@ import { TimelineView } from "./TimelineView";
  * from the host only the entries it has not read before. `query` is the page's: `page`, `tag` (any number), `from` and `to`.
  */
 export async function Timeline({ accountId, connection, read, vault, query, empty, docBase }: {
-  empty?: string; docBase?: "n"; accountId: string; connection: ConnectionInfo; read: RepositoryRead; vault: VaultListing; query: Record<string, string | string[] | undefined> }) {
+  empty?: string; docBase?: "n" | "post"; accountId: string; connection: ConnectionInfo; read: RepositoryRead; vault: VaultListing; query: Record<string, string | string[] | undefined> }) {
   const used = await (await connectionService()).provider(accountId, connection.id);
   if (!used) return null;
   let entries;

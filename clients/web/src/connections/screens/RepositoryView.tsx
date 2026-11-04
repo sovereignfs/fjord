@@ -36,7 +36,7 @@ export function RepositoryView({
    * The kind the repository is, when it is not a drive, and whether it is being shown as files: a link between the two is offered,
    * since every kind can be shown as a drive (spec §3.1).
    */
-  kind?: { label: string; asFiles: boolean } | undefined;
+  kind?: { label: string; asFiles: boolean; /** Where the files of its one vault are, which is what "Show files" is. */ filesHref?: string } | undefined;
   /** For a repository that is not a Fjord repository: the offer to set it up, or why there is none (ROADMAP 1a.10). */
   setup?: Assessment | undefined;
 }) {
@@ -73,7 +73,7 @@ export function RepositoryView({
                   {kind.asFiles ? (
                     <a href={repositoryHref(current.id)}>Show as {kind.label.toLowerCase()}</a>
                   ) : (
-                    <a href={`${repositoryHref(current.id)}?view=files`}>Show files</a>
+                    <a href={kind.filesHref ?? `${repositoryHref(current.id)}?view=files`}>Show files</a>
                   )}
                 </p>
               ) : null}

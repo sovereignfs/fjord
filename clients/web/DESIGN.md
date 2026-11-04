@@ -751,7 +751,7 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
 > `/repo/<repo>`, a vault `/repo/<repo>/v/<vault-id>` (the manifest's `id`), a folder or file `/repo/<repo>/v/<vault-id>/<folder>/<file>` by **handle**, a Doc
 > `…/<folder>/d/<doc-id>`; only the folder a thing is in appears, and **only the last id decides what is shown**, so a stale vault or folder in an address is corrected
 > by redirect, and a moved file is still found. Pure parsing and building is `src/browse/addresses.ts`; a page draws its links from `AddressBook`
-> (`address-book.ts`, handles for a whole listing in two statements). The old `/repo/<repo>/<path…>`, `/f/<handle>` and `?pick=1`'s path still arrive. `/open` (where signing in lands) is
+> (`address-book.ts`, handles for a whole listing in two statements). The old `/repo/<repo>/<path…>`, `/f/<handle>` and `?pick=1`'s path still arrive. A journal's note is `/repo/<repo>/n/<id>` and a site's post `/repo/<repo>/post/<id>` (shared at `/n/<id>` and `/d/<id>`); a static HTML page `…/html/<handle>`, run in a sandbox (§15). `/open` (where signing in lands) is
 > the default vault's address. **`/d/<id>` is the *shared* address** (leg 4): the owner's `/d/<id>` is sent on to the Doc's address in its repository, and a share by account, a share link, a password and the comments and draft routes keep it. What follows describes the earlier design.
 
 > **Changed by [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md).** The distinction below is withdrawn: spec §8.4 says every Doc is one

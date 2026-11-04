@@ -195,7 +195,9 @@ fn from_path(path: &str) -> Option<When> {
                 .filter(|hhmm| digits(hhmm, 4))
                 .map(|hhmm| (&hhmm[0..2], &hhmm[2..4]))
         })
-        .and_then(|(hour, minute)| (hour < "24" && minute < "60").then(|| format!("{hour}:{minute}")));
+        .and_then(|(hour, minute)| {
+            (hour < "24" && minute < "60").then(|| format!("{hour}:{minute}"))
+        });
     Some(When {
         day: full,
         time,

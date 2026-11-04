@@ -18,8 +18,8 @@ export function TimelineView({
   timeline: Timeline;
   /** Where a tag leads, to narrow the timeline to it (3b.3); none, no links. */
   tagHref?: (tag: string) => string;
-  /** The address an entry that has an `id` is at inside the repository: `n` for a journal's note (`/repo/<repo>/n/<id>`). With none, or for an entry with no `id` here (an encrypted one's is in its ciphertext), its path, which the page sends on. */
-  docBase?: "n" | undefined;
+  /** The address an entry that has an `id` is at inside the repository: `n` for a journal's note (`/repo/<repo>/n/<id>`), `post` for a site's post. With none, or for an entry with no `id` here (an encrypted one's is in its ciphertext), its path, which the page sends on. */
+  docBase?: "n" | "post" | undefined;
   /** What is said when there is nothing to show: "No posts yet." for a site. */
   empty?: string;
 }) {

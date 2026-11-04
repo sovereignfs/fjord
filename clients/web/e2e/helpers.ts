@@ -91,5 +91,7 @@ export const FILE_PLACE = new RegExp(`/repo/\\d+/v/${ULID}/(?:${HANDLE}/)?${HAND
 export const PLACE = new RegExp(`/repo/\\d+/v/${ULID}(?:/(?:${HANDLE}/)?(?:d/${ULID}|${HANDLE}))?$`);
 /** A Doc's address inside its repository, with its id: where the owner's `/d/<id>` leads. */
 export const docPlace = (id: string) => new RegExp(`/repo/\\d+/v/${ULID}/(?:${HANDLE}/)?d/${id}$`);
+/** A site's post inside its repository (workstream 0003): `/repo/<repo>/post/<id>`. */
+export const POST_PLACE = new RegExp(`/repo/\\d+/post/(?:${ULID}|${HANDLE})$`);
 /** A journal's note inside its repository (workstream 0003): `/repo/<repo>/n/<id>`, or by handle when its id is in the ciphertext. */
 export const NOTE_PLACE = new RegExp(`/repo/\\d+/n/(?:${ULID}|${HANDLE})$`);

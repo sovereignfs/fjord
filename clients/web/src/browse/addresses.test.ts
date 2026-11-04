@@ -26,8 +26,12 @@ describe("parsing an address", () => {
   });
 
   it("knows a journal's note by its id or, with none, its handle, and takes n with anything else for the old form", () => {
-    expect(parseAddress(["n", DOC])).toEqual({ kind: "note", target: { doc: DOC } });
-    expect(parseAddress(["n", FILE])).toEqual({ kind: "note", target: { handle: FILE } });
+    expect(parseAddress(["n", DOC])).toEqual({ kind: "note", as: "n", target: { doc: DOC } });
+    expect(parseAddress(["n", FILE])).toEqual({ kind: "note", as: "n", target: { handle: FILE } });
+    expect(parseAddress(["post", DOC])).toEqual({ kind: "note", as: "post", target: { doc: DOC } });
+    expect(parseAddress(["post", FILE])).toEqual({ kind: "note", as: "post", target: { handle: FILE } });
+    expect(parseAddress(["post", "hello.md"])).toEqual({ kind: "legacy", segments: ["post", "hello.md"] });
+    expect(noteAddress(7, { doc: DOC }, "post")).toBe(`/repo/7/post/${DOC}`);
     expect(parseAddress(["n", "plan.md"])).toEqual({ kind: "legacy", segments: ["n", "plan.md"] });
     expect(parseAddress(["n"])).toEqual({ kind: "legacy", segments: ["n"] });
     expect(noteAddress(7, { doc: DOC })).toBe(`/repo/7/n/${DOC}`);

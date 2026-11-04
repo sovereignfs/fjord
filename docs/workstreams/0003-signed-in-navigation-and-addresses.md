@@ -1,6 +1,6 @@
 # Workstream 0003 — Signed-in navigation and addresses
 
-**Status:** 🚧 In progress: legs 1 to 6 done (the owner said on 2026-11-03 to commit each leg and go straight on, with no gate between, and to push everything once the last is done); the owner's answers are under [Answered questions](#answered-questions)\
+**Status:** ✅ Complete, 2026-11-04 (all seven legs, committed one by one and pushed together, as the owner asked); the owner's answers are under [Answered questions](#answered-questions)\
 **Date:** November 2026\
 **Author:** Claude Code, from a design conversation with the owner\
 **Goal owner:** the repository's owner (kasunben)\

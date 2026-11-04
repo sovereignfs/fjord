@@ -30,11 +30,11 @@ export class AddressBook {
     return placeAddress(this.connectionId, this.vault.id, { doc: docId }, this.parentOf(path));
   }
 
-  /** A journal's note: by its `id` when it has one, else by its handle (an encrypted entry's id is in the ciphertext). */
-  noteHref(path: string, docId: string | null): string {
-    if (docId !== null) return noteAddress(this.connectionId, { doc: docId });
+  /** A journal's note (`n`) or a site's post (`post`): by its `id` when it has one, else by its handle (an encrypted entry's id is in the ciphertext). */
+  noteHref(path: string, docId: string | null, as: "n" | "post" = "n"): string {
+    if (docId !== null) return noteAddress(this.connectionId, { doc: docId }, as);
     const handle = this.handles.get(path);
-    return handle === undefined ? repositoryHref(this.connectionId, ...path.split("/")) : noteAddress(this.connectionId, { handle });
+    return handle === undefined ? repositoryHref(this.connectionId, ...path.split("/")) : noteAddress(this.connectionId, { handle }, as);
   }
 
   /** A static HTML page by its handle. */
