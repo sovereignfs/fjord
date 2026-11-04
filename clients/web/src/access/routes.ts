@@ -62,6 +62,7 @@ export const ROUTES: RouteRule[] = [
   { route: "/s/[token]", page: { kind: "public" } },
   // A Doc published as a page (3h.1): the token in the path is the way in, and anyone may ask.
   { route: "/p/[token]", page: { kind: "public" } },
+  // What was deleted is at `/repo/<repo>/deleted` (the route above); the old address is sent there.
   { route: "/deleted/[connection]", page: owner("restore") },
   // A static HTML page of the owner's repository, served to run in a sandbox (leg 5 of workstream 0003): the response carries its own policy, `src/browse/raw.ts`.
   { route: "/raw/[connection]/[handle]", methods: { GET: owner("read") } },

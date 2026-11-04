@@ -11,7 +11,15 @@ section.
 
 ## [Unreleased]
 
+### Added
+
+- **A new folder**, in every folder of a vault: a folder's name, and a first document in it (git has no empty folders, so a folder is made by its first file, which you can rename or delete). It is one level below a folder that is there, is refused where something of that name is (a file or a folder, case aside) or where the name is one a folder cannot have, and works in encrypted vaults whose file names are plain (the document is encrypted in the browser, as any new document is). `POST …/files` and `…/files/encrypted` take `newFolder: true`, and answer `folder_exists` and `bad_folder_name`.
+- **Repository settings**: `settings-2` at the end of a repository's name opens a dialog with whether it is your default, its kind (*Change its kind* moved here) and the way to *Connect or disconnect repositories*.
+
 ### Changed
+
+- **A repository's page is its vaults as folders, and a vault's page is its folders and files in the same listing, as rows or as tiles** (a toggle at the top right, remembered in this browser). A plaintext vault has a folder's icon and an encrypted one a locked folder's; the page no longer shows the first vault's files under the list (opening a vault does). Files have an icon by what they are, from their names (Markdown, images, PDF, HTML, any other), by one table that a new kind of file adds a line to, and a folder opens to an open folder's icon. The actions (*New document*, *New folder*, *Encrypt this vault…*, *Add a vault*, move and delete) are buttons at the top left of the listing.
+- **What was deleted is at `/repo/<repo>/deleted`**, from `archive-x` at the end of the repository's name; `/deleted/<repo>` (and by number) is sent there.
 
 - **A repository is called by a short generated name in an address, not by a number.** `/repo/k3x9m2qa`, eight lower-case characters (`src/connections/public-id.ts`), kept in a new `connection.public_id` column (migration `0021`, both dialects, unique); a connection made before it is given one the first time it is listed. No address shows how many repositories an instance holds or in what order they were connected. `/repo/3`, `/deleted/3` and the rest of the old addresses still arrive and are sent to the name. The numeric id is still what the database and `/api/…` use, and the API's connection now carries `publicId`.
 - **The home page is Fjord's, and says what it is.** Its title is *Fjord* ("Your private cloud, kept in your own Git repositories"), the section is *REPOSITORIES (3)*, and the way to connect and disconnect repositories is Lucide's `settings-2` at the end of that line, in place of the link under the tiles.

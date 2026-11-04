@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { noteAddress, parseAddress, placeAddress, repositoryAddress, vaultAddress } from "./addresses";
+import { deletedAddress, noteAddress, parseAddress, placeAddress, repositoryAddress, vaultAddress } from "./addresses";
 
 /** The addresses of a repository's places (workstream 0003): each shape, written out from the design and not from the code. */
 const REPO = "k3x9m2qa";
@@ -24,6 +24,13 @@ describe("parsing an address", () => {
     expect(parseAddress(["v", VAULT, FOLDER, "html", FILE])).toEqual({ kind: "place", vault: VAULT, parent: FOLDER, target: { html: FILE } });
     expect(parseAddress(["v", VAULT, "html", "x"]).kind).toBe("invalid");
     expect(placeAddress(REPO, VAULT, { html: FILE }, FOLDER)).toBe(`/repo/${REPO}/v/${VAULT}/${FOLDER}/html/${FILE}`);
+  });
+
+  it("knows what was deleted, at /deleted, and that a longer path starting with it is the old address by path", () => {
+    expect(parseAddress(["deleted"])).toEqual({ kind: "deleted" });
+    expect(deletedAddress(REPO)).toBe(`/repo/${REPO}/deleted`);
+    expect(parseAddress(["deleted", "plan.md"])).toEqual({ kind: "legacy", segments: ["deleted", "plan.md"] });
+    expect(parseAddress(["v", VAULT, "deleted"]).kind).not.toBe("deleted");
   });
 
   it("knows a journal's note by its id or, with none, its handle, and takes n with anything else for the old form", () => {

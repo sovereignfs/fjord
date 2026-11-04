@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Alert, Button } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { sendRestore } from "../../files/client";
+import { deletedAddress } from "../links";
 import { type UndoOffer, takeUndo } from "../../files/undo";
 
 /**
@@ -47,7 +48,7 @@ export function UndoBanner({ connectionId, repo }: { connectionId: number; /** W
         <Button size="sm" variant="secondary" onClick={undo} loading={busy}>
           Undo
         </Button>{" "}
-        <a href={`/deleted/${repo}`}>Recently deleted</a>
+        <a href={deletedAddress(repo)}>Recently deleted</a>
         {error ? <span role="alert"> {error}</span> : null}
       </Alert>
     </div>

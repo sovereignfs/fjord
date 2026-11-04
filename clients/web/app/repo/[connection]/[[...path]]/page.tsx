@@ -5,6 +5,7 @@ import { connectionService } from "../../../../src/connections/server";
 import { parseAddress } from "../../../../src/browse/addresses";
 import { decodeSegments, repositoryHref } from "../../../../src/browse/links";
 import { safeSegments } from "../../../../src/browse/location";
+import { RecentlyDeletedScreen } from "../../../../src/browse/screens/RecentlyDeletedScreen";
 import { RepositoryScreen } from "../../../../src/browse/screens/RepositoryScreen";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ export default async function RepositoryPage({ params, searchParams }: { params:
   }
   const parsed = parseAddress(decoded ?? []);
   if (parsed.kind === "invalid") notFound();
+  if (parsed.kind === "deleted") return <RecentlyDeletedScreen connection={connection} />;
   if (parsed.kind === "vault" || parsed.kind === "place" || parsed.kind === "note") {
     return <RepositoryScreen connection={connection} address={parsed} requested={`/repo/${connection}/${(decoded ?? []).map(encodeURIComponent).join("/")}`} via="address" view={view} query={query} />;
   }

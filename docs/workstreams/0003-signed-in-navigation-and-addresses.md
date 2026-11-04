@@ -275,3 +275,14 @@ Changes the owner asked for after using the first seven legs; each is a commit o
   at once; the GitHub App's callback does the same for each repository it connects (`src/github-app/complete.ts`).
 - **Security is `/security`.** The fingerprint icon opens *Security*, a medium dialog with *General* first (the sign-in's security) and *Encryption identity* second; `?tab=keys` opens the
   second. `/account`, `/account/security` and `/account/keys` redirect. The Sovereign link flow's `callbackURL` is `/security?linked=1`.
+
+## Follow-ups (2026-11-04, the drive's entry page)
+
+- **A drive's page is its vaults as folders** (`folder`, `folder-lock` for an encrypted vault), as rows or tiles, with the vault's contents one level down when it is opened, in the
+  same listing and with the same toggle. The page no longer shows the top of the default vault under the list; `/open` still goes into it.
+- **Icons by file name** (`browse/file-icons.ts`): folders `folder-closed`, and `folder-open` when pointed at and in the path; `file-text`, `file-image`, `square-text`, `file-code-corner`, `file`.
+  The shapes are data (`ui/lucide-nodes.ts`, drawn by `NodeIcon`), so a new kind of file is a line in the table and, if its icon is new, one in the shapes.
+- **Repository settings** (`settings-2`) is a dialog; **Recently deleted** (`archive-x`) is `/repo/<repo>/deleted`, `/deleted/<repo>` redirecting to it.
+- **New folder**, in every folder: git has no empty folders, so it is made with its first document (`newFolder` on the create routes; `files/new-folder.ts`).
+- **Not done: created and last-modified dates.** The host's tree carries sizes and ids, not dates; each date is a request to the file's history, one per file listed. It needs a provider
+  method that is paged and cached (and a contract test for each provider), which is a piece of its own: size is shown, and the listing's rows take any further column.

@@ -4,9 +4,13 @@ import { SetupOffer } from "../../browse/screens/SetupOffer";
 import type { Assessment } from "../../browse/setup";
 import type { Outcome } from "../../browse/server";
 import { repositoryHref } from "../../browse/links";
+import { deletedAddress } from "../../browse/addresses";
 import { Alert, Badge, Card } from "../../ui";
+import { NodeIcon } from "../../ui/icons";
 import type { ConnectionInfo } from "../service";
 import { MakeDefaultButton } from "./MakeDefaultButton";
+import { RepositorySettings } from "./RepositorySettings";
+import header from "./RepositoryHeader.module.css";
 import { ChangeKind } from "../../kinds/screens/ChangeKind";
 import styles from "../../auth/screens/screens.module.css";
 
@@ -44,7 +48,32 @@ export function RepositoryView({
   return (
     <SignedInShell user={user} connections={connections.map((connection) => (connection.id === current.id && outcome.ok && outcome.read.manifest?.ok ? { ...connection, repoKind: outcome.read.manifest.kind } : connection))} place={{ repository: current.publicId }}>
       <div className={styles.workspace}>
-        <h1 className={styles.title}>{label}</h1>
+        <div className={header.row}>
+          <h1 className={styles.title}>{label}</h1>
+          <div className={header.buttons}>
+            <RepositorySettings>
+              <section aria-label="Default">
+                <h2>Default</h2>
+                {current.isDefault ? <p>This is your default repository: it is where signing in lands.</p> : <MakeDefaultButton id={current.id} label={label} />}
+              </section>
+              {outcome.ok && outcome.read.manifest?.ok ? (
+                <section aria-label="Kind">
+                  <h2>Kind</h2>
+                  <ChangeKind connectionId={current.id} kind={outcome.read.manifest.declaredKind ?? "drive"} engine={outcome.read.manifest.ssgEngine} />
+                </section>
+              ) : null}
+              <section aria-label="Repositories">
+                <h2>Repositories</h2>
+                <p>
+                  <a href="/repositories">Connect or disconnect repositories</a>
+                </p>
+              </section>
+            </RepositorySettings>
+            <a className={header.iconButton} href={deletedAddress(current.publicId)} title="Recently deleted" aria-label="Recently deleted">
+              <NodeIcon name="archive-x" size={20} aria-hidden />
+            </a>
+          </div>
+        </div>
         <p className={styles.lead}>
           Branch {current.branch}
           {current.isDefault ? (
@@ -78,20 +107,13 @@ export function RepositoryView({
                 </p>
               ) : null}
               {landing}
-              {landing && outcome.read.manifest?.ok ? <ChangeKind connectionId={current.id} kind={outcome.read.manifest.declaredKind ?? "drive"} engine={outcome.read.manifest.ssgEngine} /> : null}
             </>
           ) : (
             <Alert variant="error" heading="This repository cannot be shown right now">
               {outcome.problem.message}
             </Alert>
           )}
-          {current.isDefault ? null : <MakeDefaultButton id={current.id} label={label} />}
         </Card>
-        <p>
-          <a href={`/deleted/${current.publicId}`}>Recently deleted</a>
-          {" · "}
-          <a href="/repositories">Connect or disconnect repositories</a>
-        </p>
       </div>
     </SignedInShell>
   );

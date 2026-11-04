@@ -264,6 +264,7 @@ test("with two repositories, the first stays the default until another is chosen
   // Exactly one repository is the default, and the rail says which in its tooltip.
   await expect(switcher.getByRole("link", { name: "acme/notes" })).toHaveAttribute("title", "acme/notes (default)");
   await expect(switcher.getByRole("link", { name: "acme/more" })).toHaveAttribute("title", "acme/more");
+  await page.getByRole("button", { name: "Repository settings" }).click();
   await page.getByRole("button", { name: "Make this my default" }).click();
   await expect(page.getByRole("button", { name: "Make this my default" })).toHaveCount(0);
 
@@ -428,11 +429,122 @@ test("a repository opens on the first vault its fjord.json lists, not the first 
   // The directories sort Private before Public; fjord.json lists Public first.
   await expect(vaults.getByRole("listitem").filter({ hasText: "Public notes" })).toContainText("Opens first");
   await expect(vaults.getByRole("listitem").filter({ hasText: "Private" })).not.toContainText("Opens first");
-  await expect(page.getByRole("list", { name: "Folder contents" }).getByRole("link", { name: "plan.fj.md" })).toBeVisible();
+  // The page is the vaults, as folders: what is inside one is one level down, when it is opened.
+  await expect(page.getByRole("list", { name: "Folder contents" })).toHaveCount(0);
   // Signing in lands in that vault (`/open`), at its own address.
   await page.goto("/open");
   await expect(page).toHaveURL(`${BASE}/repo/${await repoOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hv`);
   await expect(page.getByRole("list", { name: "Folder contents" }).getByRole("link", { name: "plan.fj.md" })).toBeVisible();
+});
+
+test("a repository's vaults are folders, a plain one and a locked one, as rows or as tiles, and the choice is kept", async ({ page }) => {
+  const id = await connected(page);
+  await page.goto(`/repo/${id}`);
+  const vaults = page.getByRole("list", { name: "Vaults" });
+  await expect(vaults).toHaveAttribute("data-view", "list");
+  await expect(vaults.getByRole("listitem").filter({ hasText: "Public notes" }).locator("[data-icon]")).toHaveAttribute("data-icon", "folder");
+  await expect(vaults.getByRole("listitem").filter({ hasText: "Private" }).locator("[data-icon]")).toHaveAttribute("data-icon", "folder-lock");
+  await expect(vaults.getByRole("listitem").filter({ hasText: "Private" })).toContainText("Encrypted");
+
+  await page.getByRole("button", { name: "Grid view" }).click();
+  await expect(vaults).toHaveAttribute("data-view", "grid");
+  await expect(page.getByRole("button", { name: "Grid view" })).toHaveAttribute("aria-pressed", "true");
+  // Kept in this browser: a reload, and another repository's vaults, are tiles too.
+  await page.reload();
+  await expect(page.getByRole("list", { name: "Vaults" })).toHaveAttribute("data-view", "grid");
+  await page.getByRole("button", { name: "List view" }).click();
+  await expect(page.getByRole("list", { name: "Vaults" })).toHaveAttribute("data-view", "list");
+  // The new-vault button is one of the listing's actions, and a vault opens on a click anywhere in its row.
+  await expect(page.getByRole("button", { name: "Add a vault" })).toBeVisible();
+  await page.getByRole("list", { name: "Vaults" }).getByRole("listitem").filter({ hasText: "Public notes" }).getByText("Public notes").click();
+  await expect(page).toHaveURL(PLACE);
+});
+
+test("the files of a vault have an icon by what they are, a folder is closed in its row and open in the path, and the listing has the vault's actions and the same toggle", async ({ page }) => {
+  const id = await connected(page);
+  await page.goto(`/repo/${id}`);
+  await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
+  const contents = page.getByRole("list", { name: "Folder contents" });
+  const iconOf = (name: string) => contents.getByRole("listitem").filter({ hasText: name }).locator("[data-icon]").first();
+  await expect(iconOf("Q4")).toHaveAttribute("data-icon", "folder-closed");
+  await expect(iconOf("idea.md")).toHaveAttribute("data-icon", "file-text");
+  await expect(iconOf("photo.png")).toHaveAttribute("data-icon", "file-image");
+  // The actions are the listing's buttons, with the toggle at the other end of the line.
+  await expect(page.getByRole("button", { name: "New document" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "New folder" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Grid view" })).toBeVisible();
+  await page.getByRole("button", { name: "Grid view" }).click();
+  await expect(contents).toHaveAttribute("data-view", "grid");
+  await contents.getByRole("link", { name: "Q4" }).click();
+  await expect(page).toHaveURL(FILE_PLACE);
+  // The folder that is open is drawn open in the path, and the choice of view is still the tiles.
+  await expect(page.getByRole("navigation", { name: "Path" }).locator("svg")).toHaveCount(1);
+  await expect(page.getByRole("list", { name: "Folder contents" })).toHaveAttribute("data-view", "grid");
+  await page.getByRole("button", { name: "List view" }).click();
+});
+
+test("a new folder is made with its first document, in the vault's top and in a folder, and not over what is there", async ({ page }) => {
+  const id = await connected(page);
+  await page.goto(`/repo/${id}`);
+  await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
+
+  await page.getByRole("button", { name: "New folder" }).click();
+  await page.getByLabel("Folder name").fill("Ideas");
+  await page.getByRole("button", { name: "Create folder" }).click();
+  // The person is taken to the folder, which holds the document that made it.
+  await expect(page).toHaveURL(FILE_PLACE);
+  await expect(page.getByRole("navigation", { name: "Path" })).toContainText("Ideas");
+  const files = Object.keys(await hubs.notes.filesAt((await hubs.notes.branchHead()) as string)).filter((path) => path.startsWith("Public/Ideas/"));
+  expect(files).toHaveLength(1);
+  expect(files[0]).toMatch(/^Public\/Ideas\/[^/]+\.md$/);
+
+  // One level further in, from inside it.
+  await page.getByRole("button", { name: "New folder" }).click();
+  await page.getByLabel("Folder name").fill("Deep");
+  await page.getByRole("button", { name: "Create folder" }).click();
+  await expect(page.getByRole("navigation", { name: "Path" })).toContainText("Deep");
+  expect(Object.keys(await hubs.notes.filesAt((await hubs.notes.branchHead()) as string)).some((path) => /^Public\/Ideas\/Deep\/[^/]+\.md$/.test(path))).toBe(true);
+
+  // Not over a folder that is there, however it is spelled, and not with a name a folder cannot have.
+  await page.goto(`/repo/${id}`);
+  await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
+  const before = (await hubs.notes.branchHead()) as string;
+  await page.getByRole("button", { name: "New folder" }).click();
+  await page.getByLabel("Folder name").fill("ideas");
+  await page.getByRole("button", { name: "Create folder" }).click();
+  await expect(page.getByText("already there")).toBeVisible();
+  await page.getByLabel("Folder name").fill("a/b");
+  await page.getByRole("button", { name: "Create folder" }).click();
+  await expect(page.getByText("cannot hold a slash")).toBeVisible();
+  await page.getByLabel("Folder name").fill("bad:name");
+  await page.getByRole("button", { name: "Create folder" }).click();
+  await expect(page.getByText("not a name a folder can have")).toBeVisible();
+  expect(await hubs.notes.branchHead()).toBe(before);
+});
+
+test("a repository's settings are a dialog, and what was deleted is at /repo/<repo>/deleted, which the old address is sent to", async ({ page }) => {
+  const id = await connected(page);
+  const repo = await repoOf(page, id);
+  await page.goto(`/repo/${id}`);
+  await page.getByRole("button", { name: "Repository settings" }).click();
+  const dialog = page.getByRole("dialog", { name: "Repository settings" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Change its kind" })).toBeVisible();
+  await expect(dialog.getByText("This is your default repository")).toBeVisible();
+  await expect(dialog.getByRole("link", { name: "Connect or disconnect repositories" })).toHaveAttribute("href", "/repositories");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  // The things that used to be under the card are not there any more.
+  await expect(page.getByRole("link", { name: "Connect or disconnect repositories" })).toHaveCount(0);
+
+  await page.getByRole("link", { name: "Recently deleted" }).click();
+  await expect(page).toHaveURL(new RegExp(`/repo/${repo}/deleted$`));
+  await expect(page.getByRole("heading", { name: "Recently deleted", level: 1 })).toBeVisible();
+  for (const old of [`/deleted/${repo}`, `/deleted/${id}`]) {
+    await page.goto(old);
+    await expect(page).toHaveURL(new RegExp(`/repo/${repo}/deleted$`));
+  }
+  expect((await page.goto("/deleted/zzzzzzzz"))?.status()).toBe(404);
 });
 
 test("choosing another vault changes where the repository opens, and the choice is kept", async ({ page }) => {
@@ -443,7 +555,6 @@ test("choosing another vault changes where the repository opens, and the choice 
 
   await expect(vaults.getByRole("listitem").filter({ hasText: "Private" })).toContainText("Opens first");
   await expect(vaults.getByRole("listitem").filter({ hasText: "Public notes" })).not.toContainText("Opens first");
-  await expect(page.getByRole("list", { name: "Folder contents" }).getByText("secret.md")).toBeVisible();
   // Only the vault that is not already first offers the button.
   await expect(vaults.getByRole("listitem").filter({ hasText: "Private" }).getByRole("button")).toHaveCount(0);
 
@@ -482,9 +593,9 @@ test("an encrypted vault's files are shown by name, with a lock, and open to an 
   await openRepository(page);
   await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Private" }).click();
   const contents = page.getByRole("list", { name: "Folder contents" });
-  // The name without the `.age` it is stored under, a lock, and a way to its page, which asks for the identity that opens it (2b.2).
+  // The name without the `.age` it is stored under, a label that it is encrypted, and a way to its page, which asks for the identity that opens it (2b.2).
   await expect(contents.getByRole("link", { name: "secret.md" })).toBeVisible();
-  await expect(contents.getByLabel("Encrypted")).toBeVisible();
+  await expect(contents.getByRole("listitem").filter({ hasText: "secret.md" })).toContainText("Encrypted");
 });
 
 test("browsing reads no tree and no file from the host, and a path that is not there is a 404", async ({ page }) => {

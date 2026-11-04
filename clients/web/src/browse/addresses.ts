@@ -12,6 +12,7 @@ import { isDocId } from "./ids";
  *     /repo/<repo>/v/<vault>/<folder>/html/<file>          a static HTML page (its handle), run in a sandbox
  *     /repo/<repo>/n/<note>                                a journal's note (its `id`, or its handle when it is encrypted and has none the server can read)
  *     /repo/<repo>/post/<post>                             a site's post (its `id`, or its handle when the file has none)
+ *     /repo/<repo>/deleted                                 what was deleted from the repository, within the restore window
  *
  * and the same without `<folder>` for what is at a vault's top. **Only the last id says what is shown**: the vault and the folder in front of it describe
  * where it was when the address was made, so a file that has since been moved is still found by its own id, and the page then sends the person to its address as
@@ -26,6 +27,7 @@ export type Address =
   | { kind: "vault"; vault: string }
   | { kind: "place"; vault: string; /** The handle of the folder it is in, when it is in one. */ parent?: string | undefined; target: { handle: string } | { doc: string } | { html: string } }
   | { kind: "note"; /** `n` for a journal's note, `post` for a site's post. */ as: "n" | "post"; target: { doc: string } | { handle: string } }
+  | { kind: "deleted" }
   | { kind: "legacy"; segments: string[] }
   | { kind: "invalid" };
 
@@ -33,6 +35,8 @@ export type Address =
 export function parseAddress(segments: string[]): Address {
   if (segments.length === 0) return { kind: "repository" };
   const [first, second, ...tail] = segments;
+  // What was deleted: `deleted` alone. A vault or a folder of that name is still reached by its own address of ids.
+  if (first === "deleted" && segments.length === 1) return { kind: "deleted" };
   // A journal's note: `n` and one id. A vault named `n` with some other name after it is the old address by path.
   if ((first === "n" || first === "post") && segments.length === 2 && second !== undefined) {
     if (isDocId(second)) return { kind: "note", as: first, target: { doc: second } };
@@ -61,6 +65,8 @@ function placed(vault: string, parent: string | undefined, target: { handle: str
 }
 
 export const repositoryAddress = (connection: string): string => `/repo/${connection}`;
+
+export { deletedAddress } from "./links";
 
 export const vaultAddress = (connection: string, vault: string): string => `${repositoryAddress(connection)}/v/${vault}`;
 

@@ -8,6 +8,8 @@ import styles from "../../auth/screens/screens.module.css";
 
 export interface ConnectionRow {
   id: number;
+  /** What it is called in an address. */
+  publicId: string;
   owner: string;
   name: string;
   branch: string;
@@ -46,7 +48,7 @@ export function ConnectionList({ connections }: { connections: ConnectionRow[] }
         {connections.map((connection) => (
           <li key={connection.id} className={styles.item}>
             <span>
-              <a href={`/repo/${connection.id}`}>
+              <a href={`/repo/${connection.publicId}`}>
                 {connection.owner}/{connection.name}
               </a>{" "}
               {connection.isDefault ? <Badge>Default</Badge> : null}
