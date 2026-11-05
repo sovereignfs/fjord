@@ -1,7 +1,7 @@
 import { ProviderError } from "./errors";
 import { gitBlobId } from "./git-id";
 import { summarise } from "./build-status";
-import type { Branch, BuildCheck, BuildStatus, Change, CommitRequest, CommitResult, EntryKind, HeadResult, Provider, Repository, RepositoryRef, Tree, TreeEntry } from "./types";
+import type { Branch, BuildCheck, BuildStatus, Change, CommitRequest, CommitResult, EntryKind, FileVersion, HeadResult, Provider, Repository, RepositoryRef, Tree, TreeEntry } from "./types";
 import { repositoryKey } from "./types";
 import { validateCommitRequest } from "./validate";
 import { createHash } from "node:crypto";
@@ -21,6 +21,9 @@ interface StoredCommit {
   id: string;
   parent?: string;
   files: Map<string, StoredFile>;
+  message: string;
+  author: string | null;
+  date: string;
 }
 interface StoredRepository {
   info: Repository;
@@ -160,6 +163,18 @@ export class MemoryProvider implements Provider {
     return content;
   }
 
+  async fileHistory(ref: RepositoryRef, commit: string, path: string, limit: number): Promise<FileVersion[]> {
+    const repo = this.repo(ref);
+    const versions: FileVersion[] = [];
+    for (let at: StoredCommit | undefined = this.commitOf(repo, commit); at && versions.length < limit; ) {
+      const parent: StoredCommit | undefined = at.parent ? repo.commits.get(at.parent) : undefined;
+      const here: string | undefined = at.files.get(path)?.blob;
+      if (here !== undefined && here !== parent?.files.get(path)?.blob) versions.push({ commit: at.id, message: at.message, author: at.author, date: at.date });
+      at = parent;
+    }
+    return versions;
+  }
+
   async commit(ref: RepositoryRef, request: CommitRequest): Promise<CommitResult> {
     validateCommitRequest(request);
     const repo = this.repo(ref);
@@ -172,7 +187,7 @@ export class MemoryProvider implements Provider {
     for (const change of request.changes) this.apply(repo, next, change);
     if (sameFiles(next, repo.commits.get(head)!.files)) throw new ProviderError("no_changes", "the commit would not change anything");
 
-    const commit = this.record(repo, request.branch, head, next, request.message);
+    const commit = this.record(repo, request.branch, head, next, request.message, request.author?.name);
     return { commit, parent: head, branch: request.branch };
   }
 
@@ -207,10 +222,10 @@ export class MemoryProvider implements Provider {
     }
   }
 
-  private record(repo: StoredRepository, branch: string, parent: string | undefined, files: Map<string, StoredFile>, message: string): string {
+  private record(repo: StoredRepository, branch: string, parent: string | undefined, files: Map<string, StoredFile>, message: string, author?: string): string {
     const listing = [...files].sort(([a], [b]) => (a < b ? -1 : 1)).map(([path, file]) => `${path}:${file.blob}:${file.executable}`).join("\n");
     const id = sha1(`${parent ?? ""}\n${message}\n${listing}\n${repo.commits.size}`);
-    repo.commits.set(id, { id, ...(parent ? { parent } : {}), files });
+    repo.commits.set(id, { id, ...(parent ? { parent } : {}), files, message: message.split("\n")[0] as string, author: author ?? null, date: new Date().toISOString() });
     repo.branches.set(branch, id);
     return id;
   }

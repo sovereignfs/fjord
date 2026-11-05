@@ -4991,3 +4991,78 @@ test("an encrypted document has the visual editor and its properties, and a chan
   const stored = (await hubs.more.filesAt((await hubs.more.branchHead())!))["Open/note.md.age"] as string;
   expect(stored).not.toContain("Newly hidden");
 });
+
+test("a document's history lists its versions, shows any of them, and puts one back as a draft, leaving the history whole", async ({ page }) => {
+  const HEAD = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8p\n---\n";
+  const id = await repositoryWith(page, { "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3md", name: "Notes", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Public", id: "01jagc4k7pr9tbm3ykwx6zq2hv" }] }), "Public/fjord.vault.json": VAULT_MANIFEST, "Public/doc.md": `${HEAD}\nThe first words.\n` });
+  await hubs.more.commitFiles({ "Public/doc.md": `${HEAD}\nThe second words.\n` });
+  const before = await hubs.more.branchHead();
+
+  await page.goto(`/repo/${id}/Public/doc.md`);
+  await expect(page.getByRole("textbox", { name: "doc.md", exact: true })).toContainText("The second words");
+  await page.getByRole("button", { name: "History" }).click();
+  const dialog = page.getByRole("dialog", { name: "History" });
+  const versions = dialog.getByRole("list", { name: "Versions" }).getByRole("listitem");
+  await expect(versions).toHaveCount(2);
+  await expect(versions.first()).toContainText("the one saved now");
+  await expect(versions.first().getByRole("button", { name: "Put back" })).toHaveCount(0);
+
+  await versions.last().getByRole("button", { name: "View" }).click();
+  await expect(dialog.getByTestId("history-version")).toContainText("The first words");
+  await dialog.getByRole("button", { name: "Put this version back" }).click();
+  await page.getByRole("button", { name: "Put it back", exact: true }).click();
+
+  // A draft of the old text, and nothing in the repository until it is saved.
+  await expect(page.getByRole("textbox", { name: "doc.md", exact: true })).toContainText("The first words", { timeout: 30_000 });
+  await expect(page.getByText("Your changes were kept")).toBeVisible();
+  expect(await hubs.more.branchHead()).toBe(before);
+  await page.getByRole("button", { name: "Save version" }).click();
+  await expect(page.getByText("Your changes are now in the repository")).toBeVisible({ timeout: 30_000 });
+  expect((await hubs.more.filesAt((await hubs.more.branchHead())!))["Public/doc.md"]).toBe(`${HEAD}\nThe first words.\n`);
+
+  await page.getByRole("button", { name: "History" }).click();
+  await expect(page.getByRole("dialog", { name: "History" }).getByRole("list", { name: "Versions" }).getByRole("listitem")).toHaveCount(3);
+});
+
+test("an encrypted document's history is opened in the browser, and a version put back is a draft of ciphertext", async ({ page }) => {
+  test.setTimeout(240_000);
+  const secret = wasm.generateIdentity();
+  const recipient = wasm.identityRecipient(secret);
+  const HEAD = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb9y\ntitle: Hidden\n---\n";
+  const id = await repositoryWith(page, {
+    "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3me", name: "Secrets", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Open", id: "01jagc4k7pr9tbm3ykwx6zq2hx" }] }),
+    "Open/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hx", name: "Open", createdAt: "2026-10-16T09:34:00Z", encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container: "none", armor: false }, fileNaming: "plain" }),
+    "Open/recipients.txt": `${recipient}\n`,
+    "Open/note.md.age": wasm.encrypt(bytes(`${HEAD}\nOld hidden words.\n`), recipient, false),
+  });
+  await hubs.more.commitFiles({ "Open/note.md.age": wasm.encrypt(bytes(`${HEAD}\nNew hidden words.\n`), recipient, false) });
+  const PASSPHRASE = "a passphrase of some length";
+  await page.goto("/account/keys");
+  await page.getByRole("button", { name: "I already have one" }).click();
+  await page.getByLabel("Your secret key").fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
+  await page.getByLabel("Passphrase").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Keep this identity" }).click();
+  await expect(page.getByTestId("recipient")).toHaveText(recipient, { timeout: 60_000 });
+
+  await page.goto(`/repo/${id}/Open/note.md.age`);
+  await page.getByLabel("Passphrase").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Unlock and open" }).click();
+  const editor = page.getByRole("textbox", { name: "note.md", exact: true });
+  await expect(editor).toContainText("New hidden words", { timeout: 60_000 });
+
+  const sent: string[] = [];
+  page.on("request", (request) => sent.push(`${request.method()} ${request.url()} ${request.postData() ?? ""}`));
+  await page.getByRole("button", { name: "History" }).click();
+  const dialog = page.getByRole("dialog", { name: "History" });
+  const versions = dialog.getByRole("list", { name: "Versions" }).getByRole("listitem");
+  await expect(versions).toHaveCount(2);
+  await versions.last().getByRole("button", { name: "View" }).click();
+  await expect(dialog.getByTestId("history-version")).toContainText("Old hidden words", { timeout: 30_000 });
+  await dialog.getByRole("button", { name: "Put this version back" }).click();
+  await page.getByRole("button", { name: "Put it back", exact: true }).click();
+
+  await expect(editor).toContainText("Old hidden words", { timeout: 30_000 });
+  // Without asking for the passphrase, and with nothing readable sent.
+  await expect(page.getByRole("button", { name: "Unlock and open" })).toHaveCount(0);
+  for (const word of ["Old hidden words", "New hidden words", "title: Hidden"]) expect(sent.join("\n"), word).not.toContain(word);
+});

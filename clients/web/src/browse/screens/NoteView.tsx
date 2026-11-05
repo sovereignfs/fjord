@@ -9,6 +9,7 @@ import styles from "../../auth/screens/screens.module.css";
 import { useComments } from "../../comments/Comments";
 import { sendDate, sendField, sendMove, sendTags, sendTitle } from "../../files/client";
 import { renameProblem } from "../../files/names";
+import { History } from "./History";
 import { discardDraft, sendDraft, sendVersion } from "../../working/client";
 import { DraftSaver, type SaverStatus } from "../../working/saver";
 import { hasConflictMarkers } from "../../working/markers";
@@ -288,10 +289,24 @@ export function NoteView({
     </p>
   );
   const statusLine = statusSlot ? createPortal(statusText, statusSlot) : statusText;
+  const history = (
+    <History
+      connectionId={connectionId}
+      path={path}
+      open={async (bytes) => new TextDecoder().decode(bytes)}
+      blocked={hasDraft ? "Save a version of your changes, or discard them, before putting another version back." : undefined}
+      restore={async (restored) => {
+        saver.change(restored);
+        await saver.flush();
+        if (saver.unsaved) throw new Error("That version could not be kept as a draft just now. Nothing was changed. Try again.");
+        window.location.reload();
+      }}
+    />
+  );
   const saveControl = <SaveControl unsettled={unsettled} hasDraft={hasDraft} saving={saving} error={versionError} asking={asking} setAsking={setAsking} onSave={(message) => void saveVersion(message)} />;
   return (
     <div>
-      {slot ? createPortal(saveControl, slot) : null}
+      {slot ? createPortal(<>{saveControl}{history}</>, slot) : null}
       {draft ? (
         <div className={styles.notice}>
           <Alert variant="info" heading={draft.guests?.length ? "Changes are waiting for your review" : "Your changes were kept"}>
@@ -331,7 +346,7 @@ export function NoteView({
         <NoteEditor key="source" aria-label={label} value={bodyNow} onChange={changeBody} readOnly={saving} />
       )}
       {panel}
-      {slot ? null : <div style={{ margin: "var(--sv-space-3) 0" }}>{saveControl}</div>}
+      {slot ? null : <div style={{ margin: "var(--sv-space-3) 0", display: "flex", alignItems: "center", gap: "var(--sv-space-2)" }}>{saveControl}{history}</div>}
       {statusLine}
       {status.state === "refused" || status.state === "stopped" ? (
         <div className={styles.notice}>

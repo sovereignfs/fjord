@@ -53,7 +53,7 @@ export const features: Feature[] = [
     id: "versions",
     icon: "history",
     title: "A history you already have",
-    body: "Saving makes a commit in your repository, credited to whoever made it. Read it and roll it back with git; what was deleted, Fjord can put back.",
+    body: "Saving makes a commit in your repository, credited to whoever made it. See every version from the document's page and put an old one back, or do it with git.",
   },
   {
     id: "share",

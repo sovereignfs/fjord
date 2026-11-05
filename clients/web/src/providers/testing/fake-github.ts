@@ -239,10 +239,13 @@ export class FakeGitHub {
       const sha = url.searchParams.get("sha") ?? "";
       const where = url.searchParams.get("path") ?? "";
       if (!/^[0-9a-f]{40}$/.test(sha) || !(await this.exists(sha, "commit"))) return reply(404, { message: "Not Found" });
-      const out = (await this.git(["log", "-1", "--format=%H %cI", sha, "--", where])).toString().trim();
-      if (out === "") return reply(200, []);
-      const [commit, date] = out.split(" ");
-      return reply(200, [{ sha: commit, commit: { committer: { date }, author: { date } } }]);
+      const count = String(Number(url.searchParams.get("per_page") ?? "30"));
+      const out = (await this.git(["log", `-${count}`, "--format=%H%x00%cI%x00%an%x00%B%x1e", sha, "--", where])).toString();
+      const commits = out.split("\x1e").map((entry) => entry.trim()).filter((entry) => entry !== "");
+      return reply(200, commits.map((entry) => {
+        const [commit, date, name, message] = entry.split("\0");
+        return { sha: commit, commit: { message, committer: { date }, author: { name, date } } };
+      }));
     }
 
     if (method === "GET" && rest === "/deployments") {

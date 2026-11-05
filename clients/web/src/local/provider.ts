@@ -7,7 +7,7 @@ import * as sqliteSchema from "../db/schema/sqlite";
 import { summarise } from "../providers/build-status";
 import { ProviderError } from "../providers/errors";
 import { gitBlobId } from "../providers/git-id";
-import type { Branch, BuildStatus, CommitRequest, CommitResult, EntryKind, HeadResult, Provider, Repository, RepositoryRef, Tree, TreeEntry } from "../providers/types";
+import type { Branch, BuildStatus, CommitRequest, CommitResult, EntryKind, FileVersion, HeadResult, Provider, Repository, RepositoryRef, Tree, TreeEntry } from "../providers/types";
 import { validateCommitRequest } from "../providers/validate";
 import { type LimitKind, type LocalLimits, limitMessage } from "./limits";
 
@@ -238,6 +238,28 @@ export class LocalProvider implements Provider {
     const entries = entriesOf(await this.treeOf(repo, commit), commit);
     if (this.treeLimit !== undefined && entries.length > this.treeLimit) return { commit, entries: entries.slice(0, this.treeLimit), complete: false };
     return { commit, entries, complete: true };
+  }
+
+  async fileHistory(ref: RepositoryRef, commit: string, path: string, limit: number): Promise<FileVersion[]> {
+    const repo = await this.find(ref);
+    const { commit: commits } = tables(this.database);
+    const read = (id: string) =>
+      dbGet<{ id: string; parentId: string | null; message: string; author: string | null; createdAt: number; tree: string }>(
+        this.database,
+        sql`SELECT id, parent_id AS "parentId", message, author_name AS author, created_at AS "createdAt", tree FROM ${commits} WHERE repository_id = ${repo.id} AND id = ${id}`,
+      );
+    const blobIn = (tree: string) => decodeTree(tree).find((file) => file.path === path)?.blob;
+    const versions: FileVersion[] = [];
+    let row = await read(commit);
+    if (!row) throw new ProviderError("not_found", `there is no commit ${commit.slice(0, 7)}`);
+    // Each commit against the one before it. A parent that has gone (old history is let go of, within the limits) ends it: what is known is told.
+    while (row && versions.length < limit) {
+      const parent: typeof row | undefined = row.parentId ? await read(row.parentId) : undefined;
+      const here = blobIn(row.tree);
+      if (here !== undefined && here !== (parent ? blobIn(parent.tree) : undefined)) versions.push({ commit: row.id, message: (row.message.split("\n")[0] as string), author: row.author, date: new Date(Number(row.createdAt)).toISOString() });
+      row = parent;
+    }
+    return versions;
   }
 
   async listDirectory(ref: RepositoryRef, commit: string, path: string): Promise<TreeEntry[]> {

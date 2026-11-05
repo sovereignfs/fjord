@@ -35,6 +35,17 @@ export interface Head {
 
 export type HeadResult = { changed: false } | { changed: true; head: Head };
 
+/** A commit that changed a file. */
+export interface FileVersion {
+  commit: string;
+  /** Its message's first line. */
+  message: string;
+  /** Who wrote it, as the commit says, if it does. */
+  author: string | null;
+  /** When, as the host writes it (ISO 8601). */
+  date: string;
+}
+
 export type EntryKind = "file" | "directory" | "symlink" | "submodule";
 
 export interface TreeEntry {
@@ -191,6 +202,12 @@ export interface Provider {
    * opens. A host that does not keep it, or a provider made for tests, leaves it out.
    */
   lastModified?(ref: RepositoryRef, commit: string, path: string): Promise<string | undefined>;
+
+  /**
+   * The commits that changed a file, newest first, as of a commit: at most `limit` of them, and none for a path with no history. **Optional**, as `lastModified` is, and one file at a time. It does
+   * not follow a rename: history before a file was moved is under its old name, as `git log` without `--follow` has it.
+   */
+  fileHistory?(ref: RepositoryRef, commit: string, path: string, limit: number): Promise<FileVersion[]>;
 
   /** The branches whose names begin with `prefix`, with their heads. */
   listBranches(ref: RepositoryRef, prefix: string): Promise<Branch[]>;

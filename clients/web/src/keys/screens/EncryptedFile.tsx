@@ -238,7 +238,7 @@ export function EncryptedFile({
             </div>
           ) : null}
           {base !== undefined && recipients.ok ? (
-            <EncryptedEditor connectionId={connectionId} repo={repo} path={path} name={shown.name} naming={naming} recipients={recipients.text} text={shown.text} base={base} hasDraft={draft !== null} readOnly={upstreamChanged} flushRef={flushRef} transferTargets={transferTargets} editor={editor} />
+            <EncryptedEditor connectionId={connectionId} repo={repo} path={path} name={shown.name} naming={naming} recipients={recipients.text} text={shown.text} base={base} hasDraft={draft !== null} readOnly={upstreamChanged} flushRef={flushRef} transferTargets={transferTargets} editor={editor} logical={logical} />
           ) : (
             <EncryptedReader name={shown.name} text={shown.text} />
           )}

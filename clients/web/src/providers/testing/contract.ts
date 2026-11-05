@@ -329,6 +329,27 @@ export function providerContract(label: string, make: () => Promise<ProviderHarn
       });
     });
 
+    describe("a file's history", () => {
+      it("is, where a host keeps it, the commits that changed it, newest first, with who and when, up to the commit asked about and the number asked for", async () => {
+        if (!h.provider.fileHistory) return;
+        const first = await h.seed({ "a.md": "one", "b.md": "b" });
+        const author = { name: "Ada", email: "ada@example.com" };
+        const second = (await h.provider.commit(h.repo, { branch: "main", expectedHead: first, message: "Second\n\nwith a body", author, changes: [{ path: "a.md", content: new TextEncoder().encode("two") }] })).commit;
+        const third = (await h.provider.commit(h.repo, { branch: "main", expectedHead: second, message: "Touches b only", author, changes: [{ path: "b.md", content: new TextEncoder().encode("bb") }] })).commit;
+        const fourth = (await h.provider.commit(h.repo, { branch: "main", expectedHead: third, message: "Third of a", author, changes: [{ path: "a.md", content: new TextEncoder().encode("three") }] })).commit;
+
+        const all = await h.provider.fileHistory(h.repo, fourth, "a.md", 10);
+        expect(all.map((version) => version.commit)).toEqual([fourth, second, first]);
+        expect(all[0]).toMatchObject({ message: "Third of a", author: "Ada" });
+        expect(all[1]?.message).toBe("Second");
+        expect(all[0]?.date).toMatch(/^\d{4}-\d\d-\d\dT/);
+
+        expect((await h.provider.fileHistory(h.repo, fourth, "a.md", 2)).map((version) => version.commit)).toEqual([fourth, second]);
+        expect((await h.provider.fileHistory(h.repo, second, "a.md", 10)).map((version) => version.commit)).toEqual([second, first]);
+        expect(await h.provider.fileHistory(h.repo, fourth, "never-there.md", 10)).toEqual([]);
+      });
+    });
+
     describe("branches of their own, for a preview (ROADMAP 3d.1)", () => {
       it("makes a branch at a commit, lists it by prefix, and commits to it without moving the default branch", async () => {
         const base = await h.seed({ "a.md": "a" });

@@ -3,6 +3,7 @@
 import { DocumentEditor, NoteEditor } from "fjord-editor";
 import "fjord-editor/styles.css";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { type MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
@@ -13,7 +14,8 @@ import { keyStore } from "../client";
 import { TransferControl } from "../../browse/screens/TransferControl";
 import { PublishCopyPanel } from "../../publishing/PublishCopyPanel";
 import { SealedSharePanel } from "../../sealed/SealedSharePanel";
-import { type Naming, type TransferTarget, sealText, toBase64 } from "../files";
+import { type Naming, type TransferTarget, openCiphertext, sealText, toBase64 } from "../files";
+import { History } from "../../browse/screens/History";
 import { type HeaderChange, changeHeader, splitDocument } from "../header";
 import { type CryptoModule, loadModule } from "../module";
 import { DocumentProperties } from "../../browse/screens/DocumentProperties";
@@ -39,7 +41,10 @@ export function EncryptedEditor({
   flushRef,
   transferTargets,
   editor,
+  logical,
 }: {
+  /** The file's path with the encryption's suffix off, which its name is read from. */
+  logical: string;
   /** Which editor the repository's kind opens a Doc in, as a plaintext one would be (`KindModule.editor`). */
   editor: "document" | "note";
   connectionId: number;
@@ -80,6 +85,10 @@ export function EncryptedEditor({
     [connectionId, path, name, naming, recipients, text, base],
   );
   // The header is shown as properties and the body in the editor, as on a plaintext document (research 0002, G6). The module is loaded by now, or the text could not have been opened.
+  const [start, setStart] = useState(text);
+  const [revision, setRevision] = useState(0);
+  const [slot, setSlot] = useState<HTMLElement | null>(null);
+  useEffect(() => setSlot(document.getElementById("file-actions-slot")), []);
   const [split, setSplit] = useState<{ bodyStart: number; properties: Properties } | null>(null);
   const [ready, setReady] = useState(false);
   const moduleNow = useRef<CryptoModule | null>(null);
@@ -89,16 +98,16 @@ export function EncryptedEditor({
     void loadModule().then((module) => {
       if (!live) return;
       moduleNow.current = module;
-      const found = /\.md$/i.test(name) ? splitDocument(module, text) : null;
-      headerNow.current = found ? text.slice(0, found.bodyStart) : "";
+      const found = /\.md$/i.test(name) ? splitDocument(module, start) : null;
+      headerNow.current = found ? start.slice(0, found.bodyStart) : "";
       setSplit(found);
       setReady(true);
     });
     return () => {
       live = false;
     };
-  }, [name, text]);
-  const body = split ? text.slice(split.bodyStart) : text;
+  }, [name, start]);
+  const body = split ? start.slice(split.bodyStart) : start;
   const changeBody = (next: string) => {
     keyStore().touch();
     saver.change(headerNow.current + next);
@@ -246,13 +255,35 @@ export function EncryptedEditor({
   }
 
   if (!ready) return <p className={styles.itemMeta}>Opening…</p>;
+  const history = (
+    <History
+      connectionId={connectionId}
+      path={path}
+      blocked={hasDraft ? "Save a version of your changes, or discard them, before putting another version back." : undefined}
+      open={async (bytes) => {
+        const opened = await openCiphertext(await loadModule(), keyStore(), bytes, naming, logical);
+        if (opened.kind !== "text") throw new Error("That version is too large to open here. Open it with the command line.");
+        return opened.text;
+      }}
+      restore={async (restored) => {
+        keyStore().touch();
+        saver.change(restored);
+        await saver.flush();
+        if (saver.unsaved) throw new Error("That version could not be kept as a draft just now. Nothing was changed. Try again.");
+        setHasDraft(true);
+        setStart(restored);
+        setRevision((count) => count + 1);
+      }}
+    />
+  );
   return (
     <div data-testid="encrypted-editor">
-      {split ? <DocumentProperties properties={split.properties} pending={false} disabled={readOnly || saving} onTitle={(title) => change({ title })} {...(editor === "note" ? { onDate: (date: string | null) => change({ date }) } : {})} onTags={(tags) => change({ tags })} onField={(key, value) => change({ field: { key, value } })} /> : null}
+      {slot ? createPortal(history, slot) : history}
+      {split ? <DocumentProperties key={`properties-${revision}`} properties={split.properties} pending={false} disabled={readOnly || saving} onTitle={(title) => change({ title })} {...(editor === "note" ? { onDate: (date: string | null) => change({ date }) } : {})} onTags={(tags) => change({ tags })} onField={(key, value) => change({ field: { key, value } })} /> : null}
       {editor === "document" && /\.md$/i.test(name) ? (
-        <DocumentEditor choiceKey={`${connectionId}:${path}`} aria-label={name} role={readOnly || saving ? "view" : "edit"} value={body} onChange={changeBody} />
+        <DocumentEditor key={revision} choiceKey={`${connectionId}:${path}`} aria-label={name} role={readOnly || saving ? "view" : "edit"} value={body} onChange={changeBody} />
       ) : (
-        <NoteEditor aria-label={name} value={body} readOnly={readOnly || saving} onChange={changeBody} />
+        <NoteEditor key={revision} aria-label={name} value={body} readOnly={readOnly || saving} onChange={changeBody} />
       )}
       <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="draft-status">
         {describe(status, hasDraft)}

@@ -107,6 +107,9 @@ export const ROUTES: RouteRule[] = [
   { route: "/api/connections/[id]/vaults", methods: { POST: { kind: "account" } } },
   { route: "/api/connections/[id]/files", methods: { POST: owner("create") } },
   // The stored bytes of an encrypted file, for the browser to decrypt (2b.2). A read, so the owner's `read`; the server holds no key to them.
+  // A file's versions, and one of them as its bytes (research 0002, G7): read only, by the owner, of the files in a vault.
+  { route: "/api/connections/[id]/history", methods: { GET: owner("read") } },
+  { route: "/api/connections/[id]/history/file", methods: { GET: owner("read") } },
   { route: "/api/connections/[id]/ciphertext", methods: { GET: owner("read") } },
   // The owner's sealed shares of an encrypted file (2c.1), and the link's side, which serves the sealed copy to whoever holds the token.
   { route: "/api/connections/[id]/sealed-shares", methods: { GET: owner("manage_shares"), POST: owner("manage_shares"), DELETE: owner("manage_shares") } },

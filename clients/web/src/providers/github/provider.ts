@@ -15,8 +15,7 @@ import type {
   Tree,
   TreeEntry,
   WebhookEvent,
-  WebhookRequest,
-} from "../types";
+  WebhookRequest, FileVersion } from "../types";
 import { mapLimit } from "../concurrency";
 import { safeUrl, summarise } from "../build-status";
 import { validateCommitRequest } from "../validate";
@@ -185,6 +184,16 @@ export class GitHubProvider implements Provider {
       if (error instanceof ProviderError) return undefined;
       throw error;
     }
+  }
+
+  async fileHistory(ref: RepositoryRef, commit: string, path: string, limit: number): Promise<FileVersion[]> {
+    const answer = await this.client.json<{ sha: string; commit?: { message?: string; committer?: { date?: string } | null; author?: { name?: string; date?: string } | null } }[]>("GET", `${repoPath(ref)}/commits`, { query: { sha: commit, path, per_page: Math.min(limit, 100) } });
+    return (answer.data ?? []).map((entry) => ({
+      commit: entry.sha,
+      message: (entry.commit?.message ?? "").split("\n")[0] as string,
+      author: entry.commit?.author?.name ?? null,
+      date: entry.commit?.committer?.date ?? entry.commit?.author?.date ?? "",
+    }));
   }
 
   async getBuildStatus(ref: RepositoryRef, commit: string): Promise<BuildStatus> {
