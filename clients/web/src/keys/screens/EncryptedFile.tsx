@@ -43,6 +43,7 @@ async function open(connectionId: number, path: string, naming: Naming, logical:
 }
 
 export function EncryptedFile({
+  editor = "note",
   connectionId,
   repo,
   path,
@@ -53,6 +54,8 @@ export function EncryptedFile({
   recipients,
   transferTargets,
 }: {
+  /** Which editor the repository's kind opens a Doc in. */
+  editor?: "document" | "note";
   connectionId: number;
   /** Where the repository's addresses begin (`ConnectionInfo.address`). */
   repo: string;
@@ -235,7 +238,7 @@ export function EncryptedFile({
             </div>
           ) : null}
           {base !== undefined && recipients.ok ? (
-            <EncryptedEditor connectionId={connectionId} repo={repo} path={path} name={shown.name} naming={naming} recipients={recipients.text} text={shown.text} base={base} hasDraft={draft !== null} readOnly={upstreamChanged} flushRef={flushRef} transferTargets={transferTargets} />
+            <EncryptedEditor connectionId={connectionId} repo={repo} path={path} name={shown.name} naming={naming} recipients={recipients.text} text={shown.text} base={base} hasDraft={draft !== null} readOnly={upstreamChanged} flushRef={flushRef} transferTargets={transferTargets} editor={editor} />
           ) : (
             <EncryptedReader name={shown.name} text={shown.text} />
           )}

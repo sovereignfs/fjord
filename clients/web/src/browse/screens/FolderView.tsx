@@ -381,7 +381,7 @@ function FileCard({
           This document could not be read just now. Try again in a moment.
         </Alert>
       ) : file.kind === "payload" ? (
-        <EncryptedFile key={blob ?? file.path} connectionId={connectionId} repo={repo} path={file.path} naming={naming} logical={file.logical} blob={blob} transferTargets={transferTargets} draft={encryptedEditing?.draft ?? null} recipients={encryptedEditing?.recipients ?? { ok: false, message: "This file cannot be edited just now." }} />
+        <EncryptedFile key={blob ?? file.path} editor={editor === "document" ? "document" : "note"} connectionId={connectionId} repo={repo} path={file.path} naming={naming} logical={file.logical} blob={blob} transferTargets={transferTargets} draft={encryptedEditing?.draft ?? null} recipients={encryptedEditing?.recipients ?? { ok: false, message: "This file cannot be edited just now." }} />
       ) : encrypted ? (
         <Alert variant="info" heading="Locked">This file is in an encrypted vault but is not an encrypted file, so it cannot be opened.</Alert>
       ) : (

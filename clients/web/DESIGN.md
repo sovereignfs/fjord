@@ -1010,8 +1010,8 @@ reads the file and opens it like a note: the same draft as you type (§11), Save
 - **The house style** is written down and previewed (ROADMAP 1b.4, §10 above). An edit restyles the whole document in it (not only the edited paragraph): the cost of the visual
   editor, and what the notice before the first edit is for. Code blocks are edited in CodeMirror, in a short list of languages;
   a block in another language is kept as it is.
-- **Comments are not built here.** The interface keeps the adapter and "Comment on selection" works for a selection of plain
-  text, found in the Markdown by its text (nothing is anchored for one that crosses formatting or blocks). The marks that follow
+- **Comments are not built here.** The interface keeps the adapter and "Comment on selection" works for any selection of
+  text, found in the rendered text a thread's mark is found in, so it may cross formatting or blocks. The marks that follow
   the document as it is edited, and their panel, are 1d.1 (§13).
 - **The visual editor is loaded when a document first needs it** (`import()`), so a note's page is not slower for it. Its
   stylesheet is part of the package's (`fjord-editor/styles.css`), with the colour scales it sets on `:root` made local to the
@@ -1426,7 +1426,7 @@ Threads, replies, resolving, editing, deleting and closing are built, and so is 
   from each thread's text-quote anchor is never part of what is edited, saved or compared. Where the browser has no such API the thread is in the panel
   only; a document the visual editor cannot hold (shown as Markdown) is not marked.
 - **The anchor** is the text-quote selector of the design (the quote, up to 32 characters before and after, where it was), as the Markdown body
-  has it for a selection of plain text within a block; a selection across formatting or blocks is not offered a comment. A quote that is no longer in
+  has it for any selection, across formatting or blocks too, over the rendered text; in the Markdown fallback, over the Markdown. A quote that is no longer in
   the text is looked for as below.
 
 ### Anchors after a change, as built (ROADMAP 1d.2)

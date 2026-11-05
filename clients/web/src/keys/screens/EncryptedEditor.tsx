@@ -1,9 +1,9 @@
 "use client";
 
-import { NoteEditor } from "fjord-editor";
+import { DocumentEditor, NoteEditor } from "fjord-editor";
 import "fjord-editor/styles.css";
 import { useRouter } from "next/navigation";
-import { type MutableRefObject, useEffect, useMemo, useState } from "react";
+import { type MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, FormField, Input } from "../../ui";
 import styles from "../../auth/screens/screens.module.css";
 import { discardDraft, sendDraft, sendVersion } from "../../working/client";
@@ -14,7 +14,10 @@ import { TransferControl } from "../../browse/screens/TransferControl";
 import { PublishCopyPanel } from "../../publishing/PublishCopyPanel";
 import { SealedSharePanel } from "../../sealed/SealedSharePanel";
 import { type Naming, type TransferTarget, sealText, toBase64 } from "../files";
-import { loadModule } from "../module";
+import { type HeaderChange, changeHeader, splitDocument } from "../header";
+import { type CryptoModule, loadModule } from "../module";
+import { DocumentProperties } from "../../browse/screens/DocumentProperties";
+import type { Properties } from "../../browse/document";
 
 /**
  * An encrypted file being edited in the browser (ROADMAP 2b.3, DESIGN.md §11). What is typed is **encrypted here, to the vault's recipients, before each send**:
@@ -35,7 +38,10 @@ export function EncryptedEditor({
   readOnly,
   flushRef,
   transferTargets,
+  editor,
 }: {
+  /** Which editor the repository's kind opens a Doc in, as a plaintext one would be (`KindModule.editor`). */
+  editor: "document" | "note";
   connectionId: number;
   /** Where the repository's addresses begin (`ConnectionInfo.address`). */
   repo: string;
@@ -73,6 +79,43 @@ export function EncryptedEditor({
       }),
     [connectionId, path, name, naming, recipients, text, base],
   );
+  // The header is shown as properties and the body in the editor, as on a plaintext document (research 0002, G6). The module is loaded by now, or the text could not have been opened.
+  const [split, setSplit] = useState<{ bodyStart: number; properties: Properties } | null>(null);
+  const [ready, setReady] = useState(false);
+  const moduleNow = useRef<CryptoModule | null>(null);
+  const headerNow = useRef("");
+  useEffect(() => {
+    let live = true;
+    void loadModule().then((module) => {
+      if (!live) return;
+      moduleNow.current = module;
+      const found = /\.md$/i.test(name) ? splitDocument(module, text) : null;
+      headerNow.current = found ? text.slice(0, found.bodyStart) : "";
+      setSplit(found);
+      setReady(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [name, text]);
+  const body = split ? text.slice(split.bodyStart) : text;
+  const changeBody = (next: string) => {
+    keyStore().touch();
+    saver.change(headerNow.current + next);
+  };
+  async function change(what: HeaderChange): Promise<string | null> {
+    const module = moduleNow.current;
+    if (!module) return "The file could not be changed here. Try again.";
+    const changed = changeHeader(module, headerNow.current, what);
+    if (!changed.ok) return changed.message;
+    const rest = saver.text.slice(headerNow.current.length);
+    headerNow.current = changed.header;
+    setSplit((now) => (now ? { ...now, properties: changed.properties } : now));
+    keyStore().touch();
+    saver.change(changed.header + rest);
+    return null;
+  }
+
   const [status, setStatus] = useState<SaverStatus>(saver.status);
   const [hasDraft, setHasDraft] = useState(hadDraft);
   const [message, setMessage] = useState("");
@@ -202,17 +245,15 @@ export function EncryptedEditor({
     }
   }
 
+  if (!ready) return <p className={styles.itemMeta}>Opening…</p>;
   return (
     <div data-testid="encrypted-editor">
-      <NoteEditor
-        aria-label={name}
-        value={text}
-        readOnly={readOnly || saving}
-        onChange={(next) => {
-          keyStore().touch();
-          saver.change(next);
-        }}
-      />
+      {split ? <DocumentProperties properties={split.properties} pending={false} disabled={readOnly || saving} onTitle={(title) => change({ title })} {...(editor === "note" ? { onDate: (date: string | null) => change({ date }) } : {})} onTags={(tags) => change({ tags })} onField={(key, value) => change({ field: { key, value } })} /> : null}
+      {editor === "document" && /\.md$/i.test(name) ? (
+        <DocumentEditor choiceKey={`${connectionId}:${path}`} aria-label={name} role={readOnly || saving ? "view" : "edit"} value={body} onChange={changeBody} />
+      ) : (
+        <NoteEditor aria-label={name} value={body} readOnly={readOnly || saving} onChange={changeBody} />
+      )}
       <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="draft-status">
         {describe(status, hasDraft)}
       </p>

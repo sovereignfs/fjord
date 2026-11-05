@@ -59,7 +59,7 @@ const KNOWN = new Set(["id", "title", "created"]);
 
 type Reader = Pick<Fjord, "parseDocument">;
 
-function propertiesOf(parsed: ReturnType<Reader["parseDocument"]>): Properties {
+export function propertiesOf(parsed: ReturnType<Reader["parseDocument"]>): Properties {
   const raw = parsed.frontmatter ?? {};
   return {
     id: parsed.docId ?? null,

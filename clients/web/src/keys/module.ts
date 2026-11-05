@@ -32,6 +32,12 @@ export interface CryptoModule {
   entryDateFromUnix(seconds: number, offsetMinutes: number): string | undefined;
   journalEntry(text: string, path: string): string;
   withTags(text: string, tagsJson: string): string | undefined;
+  // A document's header, read and changed here (research 0002, G6): the server never sees what is in it, so it cannot be asked to rewrite it.
+  parseDocument(text: string): string;
+  withTitle(text: string, title: string): string | undefined;
+  withDate(text: string, date: string | undefined): string | undefined;
+  withField(text: string, key: string, valueJson: string): string | undefined;
+  isEntryDate(date: string): boolean;
   foldTag(tag: string): string;
   tagIsUnder(tag: string, parent: string): boolean;
 }

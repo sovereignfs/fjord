@@ -4809,7 +4809,7 @@ test("an encrypted file is decrypted in the browser, in both namings, and nothin
   await page.getByLabel("Passphrase").fill(PASSPHRASE);
   await page.getByRole("button", { name: "Unlock and open" }).click();
   const plain = page.getByRole("textbox", { name: "note.md", exact: true });
-  await expect(plain).toContainText("# Plain-named secret", { timeout: 60_000 });
+  await expect(plain).toContainText("Plain-named secret", { timeout: 60_000 });
   await expect(plain).toHaveAttribute("contenteditable", "true");
 
   // Hidden on request, and opened again.
@@ -4938,4 +4938,56 @@ test("a file that is not a document has a page, a picture is shown, and it is sa
   await signUp(otherPage, `other-${Date.now()}@example.com`, "Grace Hopper");
   expect((await otherPage.request.get(download!)).status()).toBe(404);
   await other.close();
+});
+
+test("an encrypted document has the visual editor and its properties, and a change to either leaves as ciphertext", async ({ page }) => {
+  test.setTimeout(240_000);
+  const secret = wasm.generateIdentity();
+  const recipient = wasm.identityRecipient(secret);
+  const TEXT = `---\nid: 01jagc4k7pt8y3wqnmzv5xrb9z\ntitle: Hidden title\ncreated: "2026-10-16T09:34:00Z"\nkept: as it is\n---\n\n# Hidden heading\n\nHidden words.\n`;
+  const id = await repositoryWith(page, {
+    "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3me", name: "Secrets", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Open", id: "01jagc4k7pr9tbm3ykwx6zq2hx" }] }),
+    "Open/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hx", name: "Open", createdAt: "2026-10-16T09:34:00Z", encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container: "none", armor: false }, fileNaming: "plain" }),
+    "Open/recipients.txt": `${recipient}\n`,
+    "Open/note.md.age": wasm.encrypt(bytes(TEXT), recipient, false),
+  });
+  const PASSPHRASE = "a passphrase of some length";
+  await page.goto("/account/keys");
+  await page.getByRole("button", { name: "I already have one" }).click();
+  await page.getByLabel("Your secret key").fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
+  await page.getByLabel("Passphrase").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Keep this identity" }).click();
+  await expect(page.getByTestId("recipient")).toHaveText(recipient, { timeout: 60_000 });
+
+  await page.goto(`/repo/${id}/Open/note.md.age`);
+  await page.getByLabel("Passphrase").fill(PASSPHRASE);
+  await page.getByRole("button", { name: "Unlock and open" }).click();
+  // The body in the visual editor, with no header in it and no Markdown marks; the header in the properties.
+  const editor = page.getByRole("textbox", { name: "note.md", exact: true });
+  await expect(editor).toContainText("Hidden heading", { timeout: 60_000 });
+  await expect(editor).not.toContainText("#");
+  await expect(editor).not.toContainText("created:");
+
+  const sent: string[] = [];
+  page.on("request", (request) => sent.push(`${request.method()} ${request.url()} ${request.postData() ?? ""}`));
+  const panel = page.getByTestId("document-properties");
+  await panel.locator("summary").click();
+  await panel.getByRole("textbox", { name: "Title" }).fill("Newly hidden");
+  await panel.getByRole("button", { name: "Set title" }).click();
+  await panel.getByRole("textbox", { name: "Tags" }).fill("hidden-tag");
+  await panel.getByRole("button", { name: "Set tags" }).click();
+  await editor.click();
+  await page.keyboard.press("End");
+  await page.keyboard.type(" Typed.");
+  await expect(page.getByTestId("draft-status")).toContainText("kept as an encrypted draft", { timeout: 30_000 });
+  await page.getByRole("button", { name: "Save version" }).click();
+  await expect(page.getByText("Your changes are now in the repository, encrypted")).toBeVisible({ timeout: 30_000 });
+
+  // Still unlocked, after a save.
+  await expect(page.getByRole("button", { name: "Unlock and open" })).toHaveCount(0);
+  for (const word of ["Newly hidden", "hidden-tag", "Typed", "Hidden words", "kept: as it is"]) expect(sent.join("\n"), word).not.toContain(word);
+
+  // And what is in the repository is that, opened by nothing but the key.
+  const stored = (await hubs.more.filesAt((await hubs.more.branchHead())!))["Open/note.md.age"] as string;
+  expect(stored).not.toContain("Newly hidden");
 });
