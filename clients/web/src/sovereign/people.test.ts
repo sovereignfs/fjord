@@ -221,6 +221,16 @@ describe("deleting a person", () => {
     expect(await count(app, A().connection, sql`account_id = ${w.bob.id}`)).toBe(2);
   });
 
+  it("deletes a person's own account as Sovereign's notice does, sign-ins and all, and none of another person's", async () => {
+    const w = await world();
+    const bobBefore = await rows(w.bob);
+    await people.deleteOwnAccount(w.alice.id);
+
+    expect(await rows(w.alice)).toEqual(GONE);
+    expect(await count(auth, U().account, sql`user_id = ${w.alice.id}`)).toBe(0);
+    expect(await rows(w.bob)).toEqual({ ...bobBefore, shared: 0 });
+  });
+
   it("deletes what they said on someone else's document, and loses none of the others' words", async () => {
     const w = await world();
     await people.deletePerson(w.alice.sub);

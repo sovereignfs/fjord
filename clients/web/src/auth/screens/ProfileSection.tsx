@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Alert, Avatar, Button, FormField, Input } from "../../ui";
 import { authClient } from "../client";
+import { DeleteAccount } from "../../account/screens/DeleteAccount";
 import { messageFor } from "../messages";
 import styles from "./AccountShell.module.css";
 
@@ -15,7 +16,7 @@ export const MAX_NAME_LENGTH = 100;
  * and their address, which is read-only: changing it is not supported yet, as the legacy Sovereign's account says too. Where the account is only Sovereign's (this instance signs in
  * through it and has no sign-in of its own) the name is Sovereign's to give, so it is shown and not edited.
  */
-export function ProfileSection({ name, email, image, editable }: { name: string; email: string; image?: string | null | undefined; editable: boolean }) {
+export function ProfileSection({ name, email, image, editable, deleting }: { name: string; email: string; image?: string | null | undefined; editable: boolean; /** What deleting the account needs to know, and says. */ deleting: { hasPassword: boolean; onServer: string[]; inGit: number } }) {
   const router = useRouter();
   const [value, setValue] = useState(name);
   const [busy, setBusy] = useState(false);
@@ -77,6 +78,7 @@ export function ProfileSection({ name, email, image, editable }: { name: string;
         <p className={styles.value}>{email}</p>
         <p className={styles.hint}>Email changes aren&apos;t supported yet.</p>
       </div>
+      <DeleteAccount email={email} {...deleting} />
     </>
   );
 }

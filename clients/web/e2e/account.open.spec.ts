@@ -170,3 +170,27 @@ test("a link followed while signed out comes back after signing in, and another 
   await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
   expect(new URL(page.url()).host).toBe("localhost:3201");
 });
+
+test("a person deletes their own account: it needs the address and the password, ends the session, and frees the address", async ({ page }) => {
+  const { email } = await signUp(page);
+  await page.goto("/account");
+  await page.getByRole("button", { name: "Delete my account…" }).click();
+  const dialog = page.getByRole("dialog", { name: "Delete your account" });
+  const go = dialog.getByRole("button", { name: "Delete my account", exact: true });
+  await expect(go).toBeDisabled();
+  await dialog.getByLabel(`Type ${email} to confirm`).fill(email);
+  await dialog.getByLabel("Your password").fill("not the password at all");
+  await go.click();
+  await expect(dialog.getByRole("alert")).toContainText("That is not your password");
+
+  await dialog.getByLabel("Your password").fill(PASSWORD);
+  await go.click();
+  await expect(page.getByRole("heading", { name: /Documents and notes/ })).toBeVisible();
+
+  await page.goto("/account");
+  await expect(page).toHaveURL(/\/sign-in/);
+  await signIn(page, email);
+  await expect(alertOn(page)).toBeVisible();
+
+  await signUp(page, email, "Ada Again");
+});

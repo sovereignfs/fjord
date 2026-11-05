@@ -78,6 +78,16 @@ export class People {
     await dbRun(this.deps.auth, sql`DELETE FROM ${account} WHERE provider_id = ${SOVEREIGN_PROVIDER_ID} AND account_id = ${sub}`);
   }
 
+  /**
+   * A person deletes their own account, from a signed-in session (`src/account/`): the same as Sovereign's notice, and the row that would link their `sub` goes with it, because nothing
+   * will come to run it again for them.
+   */
+  async deleteOwnAccount(userId: string): Promise<void> {
+    await this.deleteAccount(userId);
+    const { account } = authTables(this.deps.auth);
+    await dbRun(this.deps.auth, sql`DELETE FROM ${account} WHERE user_id = ${userId}`);
+  }
+
   private async deleteAccount(userId: string): Promise<void> {
     const { auth } = this.deps;
     const { user, session, account, passkey, twoFactor, verification } = authTables(auth);

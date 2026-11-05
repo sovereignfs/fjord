@@ -1,3 +1,5 @@
+import { connectionService } from "../../connections/server";
+import { encryptionKeyring } from "../../crypto/server";
 import { KeyManager } from "../../keys/screens/KeyManager";
 import { Alert, Card } from "../../ui";
 import { oauthErrorMessage } from "../messages";
@@ -21,11 +23,17 @@ export type { AccountQuery } from "./account-query";
  * two-factor, passkeys, and the link to Sovereign (the local methods' and Sovereign's, so an instance that signs in only through Sovereign has none of it and shows just the key).
  * Nothing about the key is known to the server: the component that keeps it runs in the browser.
  */
-export async function AccountPanel({ user, query }: { user: { name: string; email: string; image?: string | null | undefined; twoFactorEnabled?: boolean | null | undefined }; query: AccountQuery }) {
+export async function AccountPanel({ user, query }: { user: { id: string; name: string; email: string; image?: string | null | undefined; twoFactorEnabled?: boolean | null | undefined }; query: AccountQuery }) {
+  const connections = encryptionKeyring() !== undefined ? await (await connectionService()).list(user.id) : [];
+  const deleting = {
+    hasPassword: (await listAccounts()).some((account) => account.providerId === "credential"),
+    onServer: connections.filter((connection) => connection.provider === "local").map((connection) => connection.name),
+    inGit: connections.filter((connection) => connection.provider !== "local").length,
+  };
   return (
     <AccountShell
       initial={sectionOf(query)}
-      profile={<ProfileSection name={user.name} email={user.email} image={user.image} editable={localAuthConfig() !== undefined} />}
+      profile={<ProfileSection name={user.name} email={user.email} image={user.image} editable={localAuthConfig() !== undefined} deleting={deleting} />}
       security={await securityOf(user, query)}
       preferences={<PreferencesSection />}
     />
