@@ -268,7 +268,7 @@ test("the account's name is changed in Profile, shown at once in the menu, and t
   await page.goto("/open");
   await openAccount(page, "Profile");
   const dialog = page.getByRole("dialog", { name: "Account" });
-  await expect(dialog.getByText("Email changes aren't supported yet.")).toBeVisible();
+  await expect(dialog.getByRole("form", { name: "Change your address" })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Save name" })).toBeDisabled();
   await dialog.getByRole("textbox", { name: "Name" }).fill("Augusta Ada King");
   await dialog.getByRole("button", { name: "Save name" }).click();
@@ -5055,8 +5055,9 @@ test("an encrypted document's history is opened in the browser, and a version pu
   await page.getByRole("button", { name: "History" }).click();
   const dialog = page.getByRole("dialog", { name: "History" });
   const versions = dialog.getByRole("list", { name: "Versions" }).getByRole("listitem");
-  await expect(versions).toHaveCount(2);
-  await versions.last().getByRole("button", { name: "View" }).click();
+  // The one before the newest: this fake's git history outlives a test, and this path has been used by others.
+  await expect(versions.first()).toContainText("the one saved now");
+  await versions.nth(1).getByRole("button", { name: "View" }).click();
   await expect(dialog.getByTestId("history-version")).toContainText("Old hidden words", { timeout: 30_000 });
   await dialog.getByRole("button", { name: "Put this version back" }).click();
   await page.getByRole("button", { name: "Put it back", exact: true }).click();

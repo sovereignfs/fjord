@@ -44,11 +44,12 @@ describe("deleting an account", () => {
 
   it("needs the address typed out, and it must be the caller's own", async () => {
     const { deps, deleteAccount } = stub();
-    for (const confirm of ["", "someone@example.com", undefined, 7]) {
+    for (const confirm of ["", "someone@example.com"]) {
       const response = await handleDeleteAccount(post({ ...GOOD, confirm }), ADA, deps);
       expect(response.status).toBe(422);
       expect(await code(response)).toBe("not_confirmed");
     }
+    for (const confirm of [undefined, 7]) expect((await handleDeleteAccount(post({ ...GOOD, confirm }), ADA, deps)).status).toBe(400);
     expect(deleteAccount).not.toHaveBeenCalled();
   });
 
@@ -126,7 +127,8 @@ describe("changing an address", () => {
 
   it("refuses what is not an address, and the one it has", async () => {
     const { deps, changeEmail } = stub();
-    for (const email of ["", "nobody", "a@b@c", "with space@example.com", undefined, 7, `${"x".repeat(250)}@example.com`]) expect(await code(await handleChangeEmail(post({ ...WANT, email }), ADA, deps)), String(email)).toBe("bad_address");
+    for (const email of ["", "nobody", "a@b@c", "with space@example.com", `${"x".repeat(250)}@example.com`]) expect(await code(await handleChangeEmail(post({ ...WANT, email }), ADA, deps)), String(email)).toBe("bad_address");
+    for (const email of [undefined, 7]) expect((await handleChangeEmail(post({ ...WANT, email }), ADA, deps)).status).toBe(400);
     expect(await code(await handleChangeEmail(post({ ...WANT, email: "ADA@example.com" }), ADA, deps))).toBe("same_address");
     expect(changeEmail).not.toHaveBeenCalled();
   });

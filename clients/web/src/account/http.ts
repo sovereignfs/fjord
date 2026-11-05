@@ -71,7 +71,8 @@ export async function handleDeleteAccount(request: Request, caller: Caller | nul
     const body = await bodyOf(request, caller, deps.origin);
     if (body instanceof Response) return body;
     const who = caller as Caller;
-    if (typeof body.confirm !== "string" || body.confirm.trim().toLowerCase() !== who.email.toLowerCase()) return failure(422, "not_confirmed", "Type your address as it is shown, to say you mean it. Nothing was deleted.");
+    if (typeof body.confirm !== "string") return failure(400, "invalid_request", "Send the address, typed out, as text.");
+    if (body.confirm.trim().toLowerCase() !== who.email.toLowerCase()) return failure(422, "not_confirmed", "Type your address as it is shown, to say you mean it. Nothing was deleted.");
     if (await deps.hasPassword(who.accountId)) {
       const refused = await checkPassword(body.password, who, request, deps);
       if (refused) return refused;
@@ -95,7 +96,8 @@ export async function handleChangeEmail(request: Request, caller: Caller | null,
     const body = await bodyOf(request, caller, deps.origin);
     if (body instanceof Response) return body;
     const who = caller as Caller;
-    const next = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    if (typeof body.email !== "string") return failure(400, "invalid_request", "Send the new address as text.");
+    const next = body.email.trim().toLowerCase();
     if (next.length > MAX_EMAIL_CHARS || !EMAIL.test(next)) return failure(422, "bad_address", "That does not look like an email address. Nothing was changed.");
     if (next === who.email.toLowerCase()) return failure(422, "same_address", "That is the address you have now.");
     if (await deps.sovereignLinked(who.accountId)) return failure(422, "sovereign_address", "Your address is the one Sovereign has, because the two are linked. Change it there, or unlink Sovereign first.");
