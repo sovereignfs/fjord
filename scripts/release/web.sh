@@ -98,7 +98,8 @@ c_check_migrations_kept() {
     esac
   done
   rm -f "$TMPDIR_RELEASE_JOURNAL"
-  changed=$(printf '%s\n' $kept)
+  # One to a line: `kept` is a list of paths with a space before each.
+  changed=$(printf '%s' "$kept" | tr -s ' ' '\n' | sed '/^$/d')
   if [ -n "$changed" ]; then
     printf '%s\n' "$changed" | sed 's/^/        /' >&2
     die "migrations that were released in $prev_tag were edited or removed (above). A released migration is never changed: put the fix in a new one"
