@@ -99,10 +99,10 @@ export async function handleShares(request: Request, caller: Caller | null, deps
     if (method === "POST") {
       if (!isEmail(body.email)) return failure(400, "invalid_request", "Say who to share with, by their email address.");
       if (typeof body.role !== "string" || !ROLES.includes(body.role as Role)) return failure(400, "invalid_request", "Say what they may do: view, comment or edit.");
-      // Their own address says nothing about who has an account, so it can have an answer of its own; the one for everyone else cannot (`SHARED`).
-      if (body.email.trim().toLowerCase() === caller.email.toLowerCase()) return failure(422, "own_address", "That is your own address, and this document is yours already.");
       const outcome = await deps.share(caller.accountId, number, { docId: body.doc, email: body.email.trim(), role: body.role as Role });
       if (!outcome.found) return notFound();
+      // Only now: someone else's repository is a 404 whatever is asked of it. Their own address says nothing about who has an account, so it can have an answer of its own; the one for everyone else cannot (`SHARED`).
+      if (body.email.trim().toLowerCase() === caller.email.toLowerCase()) return failure(422, "own_address", "That is your own address, and this document is yours already.");
       if (!outcome.result.ok) return failure(REFUSALS[outcome.result.reason].status, outcome.result.reason, REFUSALS[outcome.result.reason].message);
       return json(200, SHARED);
     }

@@ -429,7 +429,7 @@ test("a vault is opened to its folders and files, and what can be opened is told
   await expect(page).toHaveURL(FILE_PLACE);
   const inside = page.getByRole("list", { name: "Folder contents" });
   await expect(inside.getByRole("link", { name: "report.fj.md" })).toBeVisible();
-  await expect(inside.getByRole("link", { name: "data.csv" })).toHaveCount(0);
+  await expect(inside.getByRole("link", { name: "data.csv" })).toBeVisible();
 
   await inside.getByRole("link", { name: "report.fj.md" }).click();
   await expect(page).toHaveURL(PLACE);
@@ -2803,7 +2803,7 @@ test("the properties panel shows the header, keys Fjord does not know included, 
     await expect(editor).not.toContainText("x-future");
     const panel = page.getByTestId("document-properties");
     await panel.getByText("Properties", { exact: true }).click();
-    await expect(panel.getByText("01jagc4k7pt8y3wqnmzv5xrb8j")).toBeVisible();
+    await expect(panel.getByText("01jagc4k7pt8y3wqnmzv5xrb8j", { exact: true })).toBeVisible();
     await expect(panel.getByText("16 Oct 2026, 09:34 UTC")).toBeVisible();
     await expect(panel.getByLabel("Title")).toHaveValue("Weekly");
     await expect(panel.getByTestId("other-property")).toHaveCount(2);
@@ -2846,7 +2846,7 @@ test("a drive's document is renamed from its properties, which say when it last 
     await expect(panel.getByLabel("Title")).toHaveCount(0);
     await expect(panel.getByLabel("Date")).toHaveCount(0);
     await expect(panel.getByText("16 Oct 2026, 09:34 UTC")).toBeVisible();
-    await expect(panel.getByTestId("last-updated")).toContainText(/\d{4}-\d\d-\d\d \d\d:\d\d UTC/);
+    await expect(panel.getByTestId("last-updated")).toContainText(/\d{1,2} [A-Z][a-z]+ \d{4}, \d\d:\d\d UTC/);
     // Nothing on the page offers a second way to rename it.
     await expect(page.getByRole("button", { name: "Rename", exact: true }).first()).toBeVisible(); // the properties' own
     await expect(page.getByRole("button", { name: "Rename" })).toHaveCount(1);
@@ -3173,6 +3173,7 @@ test("a document moved to another folder is still found by its id, and its heade
     // The address by id follows the file: nothing about it said where it was.
     await page.goto(`/d/${ID_DOC}`);
     await expect(noteEditor(page, "Plan.fj.md")).toContainText("Plan");
+    await page.getByTestId("document-properties").locator("summary").click();
     await expect(page.getByRole("link", { name: `/d/${ID_DOC}` })).toBeVisible();
     await hubs.more.fsck();
   } finally {

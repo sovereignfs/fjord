@@ -110,12 +110,17 @@ describe("what may be sent", () => {
     expect(share).toHaveBeenCalledWith("alice", 1, expect.objectContaining({ role }));
   });
 
-  it("says so when the address is the caller's own, and asks nothing", async () => {
-    const { deps, share } = stub();
+  it("says so when the address is the caller's own", async () => {
+    const { deps } = stub();
     const response = await handleShares(req("POST", { ...good, email: " ALICE@example.com " }), ALICE, deps, "1");
     expect(response.status).toBe(422);
     expect(await body(response)).toMatchObject({ error: { code: "own_address" } });
-    expect(share).not.toHaveBeenCalled();
+  });
+
+  it("is a 404 for someone else's connection, even with the caller's own address: nothing is told of it", async () => {
+    const { deps, share } = stub();
+    share.mockResolvedValueOnce({ found: false });
+    expect((await handleShares(req("POST", { ...good, email: "alice@example.com" }), ALICE, deps, "1")).status).toBe(404);
   });
 
   it("answers the same words, byte for byte, however the share went", async () => {
