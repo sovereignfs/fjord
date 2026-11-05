@@ -17,7 +17,7 @@ export function FirstRun({ user, canConnect, shared = 0 }: { user: { name: strin
         <p className={styles.lead}>You are signed in as {user.email}. Fjord works on a Git repository of yours: connect your first one to begin{localLimits().repositories > 0 ? ", or create one here and connect it to git later" : ""}.</p>
         {shared > 0 ? (
           <Alert variant="info" heading={shared === 1 ? "A document is shared with you" : `${shared} documents are shared with you`}>
-            <a href="/shared">Open what is shared with you</a>. You need no repository of your own to read it, comment on it or edit it.
+            <a href="/shared">Open {shared === 1 ? "it" : "them"}</a>. You need no repository of your own for that.
           </Alert>
         ) : null}
         {canConnect && localLimits().repositories > 0 ? (

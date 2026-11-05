@@ -4909,10 +4909,20 @@ test("a vault is made encrypted in one commit from the browser, checked to open,
 });
 
 test("a file that is not a document has a page, a picture is shown, and it is saved as a file", async ({ page }) => {
+  await hubs.notes.commitFiles(
+    {
+      "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3md", name: "Notes", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Public", id: "01jagc4k7pr9tbm3ykwx6zq2hv" }] }),
+      "Public/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "Public notes", createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" }),
+      "Public/photo.png": "png",
+    },
+    { replace: true },
+  );
   await signUp(page);
+  await page.goto("/repositories");
   await connect(page, "acme/notes");
+  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
   await openRepository(page);
-  await page.getByRole("link", { name: /^Public notes/ }).first().click();
+  await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
   await page.getByRole("link", { name: "photo.png" }).click();
   await expect(page.getByRole("img", { name: "photo.png" })).toHaveCount(1);
   const download = await page.getByRole("link", { name: "Download" }).getAttribute("href");
