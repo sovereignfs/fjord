@@ -448,17 +448,19 @@ describe("comments", () => {
     await waitFor(() => expect(app.created).toHaveLength(1));
   });
 
-  it("does nothing for a selection that is empty or that is not in the Markdown as it was read", async () => {
+  it("does nothing for an empty selection, and takes one across formatting as the text it reads as", async () => {
     const app = adapter();
     documentIn({ role: "comment", comments: app.comments, onNeedName: async () => true }, "a **bold** word");
     await ready();
     const button = screen.getByRole("button", { name: "Comment on selection" }) as HTMLButtonElement;
     visual.select(1, 1); // collapsed
     expect(button.disabled).toBe(true);
-    visual.select(0, 11); // "a bold word": the Markdown has asterisks in it
-    await new Promise((resolve) => setTimeout(resolve, 30));
-    expect(button.disabled).toBe(true);
-    expect(app.created).toHaveLength(0);
+    visual.select(0, 11); // "a bold word": the Markdown has asterisks in it, and what is read has none
+    await waitFor(() => expect(button.disabled).toBe(false));
+    fireEvent.click(button);
+    await waitFor(() => expect(app.created).toHaveLength(1));
+    expect(app.created[0]).toMatchObject({ type: "text-quote", position: 0 });
+    expect(app.created[0]?.quote).not.toContain("*");
   });
 });
 

@@ -44,7 +44,7 @@ section.
 - **Repository settings has a title**, one size of text and a button in one line.
 - **Dates are in one form**: `4 Nov 2026`, and `4 Nov 2026, 22:56 UTC` where the server draws them and a time matters (`src/ui/dates.ts`). They came in three, one of them `11/4/2026`.
 - **A document's page gets to its text sooner.** The notice that was there on every document is gone: what has become of what you typed is one line under the title, in sight however long the document is. The address by identifier moved into *Properties*, and *Comment on selection* is a quiet button. On a phone the text now starts on the first screen.
-- **The comment box opens where you can see it**: choosing *Comment on selection* goes to it and puts the cursor in it, where before it opened at the foot of the page. A selection that crosses formatting says why it cannot be commented on, where the button only stayed grey.
+- **The comment box opens where you can see it**: choosing *Comment on selection* goes to it and puts the cursor in it, where before it opened at the foot of the page. A comment can be made on any selection: across bold or a link, or across several paragraphs, where the button used to stay grey. Its mark is found again in the same rendered text it was taken from.
 
 
 ## [0.2.0] - 2026-11-04

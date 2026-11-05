@@ -4,14 +4,14 @@
 
 import { Suspense, forwardRef, lazy, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { textQuoteAnchor } from "./anchor.js";
-import { type MarkedThread, caretAt, paintMarks, threadAt } from "./marks.js";
+import { type MarkedThread, anchorOfRange, caretAt, paintMarks, threadAt } from "./marks.js";
 import { useNameGate } from "./name-gate.js";
 import { NoteEditor } from "./NoteEditor.js";
 import { offsetsOfSelectedText } from "./selection.js";
 import { type Choice, forgetChoice, readChoice, rememberChoice } from "./rich/choice.js";
 import type { Unsafe } from "./rich/meaning.js";
 import type { RestylePreview } from "./rich/restyle.js";
-import type { DocumentEditorProps, EditorHandle, ThreadMark } from "./types.js";
+import type { DocumentEditorProps, EditorHandle, TextQuoteAnchor, ThreadMark } from "./types.js";
 
 // The visual editor is a large library, and only a document needs it: a page that opens a note never loads it.
 const RichDocument = lazy(() => import("./rich/RichDocument.js").then((module) => ({ default: module.RichDocument })));
@@ -47,6 +47,7 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
   /** Bumped to start the Markdown editor again from what the app holds, when an edit was not taken. */
   const [restarts, setRestarts] = useState(0);
   const [selected, setSelected] = useState("");
+  const [rendered, setRendered] = useState<TextQuoteAnchor | null>(null);
   const [threads, setThreads] = useState<readonly ThreadMark[]>(() => comments?.threads() ?? []);
 
   useImperativeHandle(ref, () => ({ focus: () => handle.current?.focus() }), []);
@@ -72,12 +73,16 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
     return comments.subscribe(() => setThreads(comments.threads()));
   }, [comments]);
 
-  // What is selected inside this editor, for "Comment on selection".
+  // What is selected inside this editor, for "Comment on selection". In the visual editor it is anchored over the rendered text, as the marks are; in the Markdown, over the Markdown.
+  const showingMarkdown = useRef(asMarkdown);
+  showingMarkdown.current = asMarkdown;
   useEffect(() => {
     const onSelectionChange = () => {
       const selection = document.getSelection();
       const inside = selection !== null && selection.anchorNode !== null && container.current?.contains(selection.anchorNode);
       setSelected(inside ? selection.toString() : "");
+      const surface = container.current?.querySelector('[role="textbox"]');
+      setRendered(inside && !showingMarkdown.current && surface && surface.contains(selection.anchorNode) && selection.rangeCount > 0 ? anchorOfRange(surface, selection.getRangeAt(0)) : null);
     };
     document.addEventListener("selectionchange", onSelectionChange);
     return () => document.removeEventListener("selectionchange", onSelectionChange);
@@ -151,11 +156,12 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
   const marked = threads.filter((thread) => !thread.outdated).length;
   const canComment = role !== "view" && comments !== undefined;
   const offsets = offsetsOfSelectedText(value, selected);
+  const selectable = rendered !== null || offsets !== null;
 
   async function comment() {
-    if (!comments || !offsets || !(await ensureNamed())) return;
+    if (!comments || !selectable || !(await ensureNamed())) return;
     try {
-      comments.create(textQuoteAnchor(value, offsets[0], offsets[1]));
+      comments.create(rendered ?? textQuoteAnchor(value, (offsets as [number, number])[0], (offsets as [number, number])[1]));
     } catch (error) {
       // Nothing is selected any more: there is nothing to comment on.
       if (!(error instanceof RangeError)) throw error;
@@ -166,10 +172,9 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
     <div ref={container} className={["fe-editor", "fe-document", className].filter(Boolean).join(" ")} data-role={role} data-mode={asMarkdown ? "markdown" : "visual"} onClick={chooseMark}>
       {canComment ? (
         <div className="fe-toolbar" role="toolbar" aria-label="Comments">
-          <button type="button" className="fe-button" disabled={offsets === null} onClick={() => void comment()}>
+          <button type="button" className="fe-button" disabled={!selectable} onClick={() => void comment()}>
             Comment on selection
           </button>
-          {offsets === null && selected.trim() !== "" ? <span className="fe-status">A comment attaches to text in one style: select less, within bold or a link or outside them.</span> : null}
         </div>
       ) : null}
       {pendingRestyle ? (

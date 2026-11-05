@@ -2,6 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import { textQuoteAnchor } from "./anchor.js";
 import { type Fate, anchorAt, findAnchor, locate } from "./reanchor.js";
 import type { TextQuoteAnchor } from "./types.js";
 
@@ -48,6 +49,28 @@ export function flatten(root: Node): { text: string; segments: Segment[] } {
     text += node.data;
   }
   return { text, segments };
+}
+
+/**
+ * The anchor of what is selected in `root`: over the same rendered text a thread's mark is found in (`analyse`), so that it does not matter what the Markdown has between two words. A selection
+ * across bold, a link or several blocks is as good as one within a word. The white space it starts and ends with is not part of what it is about. Null for a selection of no text.
+ */
+export function anchorOfRange(root: Node, range: Range): TextQuoteAnchor | null {
+  const { text, segments } = flatten(root);
+  let start: number | undefined;
+  let end = 0;
+  for (const segment of segments) {
+    if (!range.intersectsNode(segment.node)) continue;
+    const from = segment.node === range.startContainer ? range.startOffset : 0;
+    const to = segment.node === range.endContainer ? range.endOffset : segment.node.data.length;
+    if (to <= from) continue;
+    start ??= segment.start + from;
+    end = segment.start + to;
+  }
+  if (start === undefined) return null;
+  while (start < end && /\s/.test(text[start] as string)) start++;
+  while (end > start && /\s/.test(text[end - 1] as string)) end--;
+  return start < end ? textQuoteAnchor(text, start, end) : null;
 }
 
 function blockOf(node: Node, root: Node): Element | null {

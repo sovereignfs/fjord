@@ -11,7 +11,7 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
 
 ### Changed
 
-- **`Comment on selection` is a quiet button**, and a selection across formatting says why it has no comment. The count of threads has the class `fe-thread-count`, so an app with its own panel can leave it to a screen reader.
+- **`Comment on selection` works on any selection in the visual editor.** The anchor is taken from the rendered text (`anchorOfRange`), where a mark is found, and not looked for in the Markdown: a selection across bold, a link or several blocks is as good as one within a word. It is also a quiet button. The count of threads has the class `fe-thread-count`, so an app with its own panel can leave it to a screen reader.
 - **A table in the visual editor lays its columns out equally between two narrow tool columns, left-aligned, and keeps each column's alignment** (`:---`, `:-:`, `---:`): the cells' own alignment was overridden, and the tool columns took as much width as a column of text, which made a table look centred.
 - **A document that is only read, or only commented on, has no formatting toolbar** (`data-role` other than `edit`): there is nothing for it to change.
 - **A choice about a document is remembered** (`DocumentEditor`'s `choiceKey`, `rich/choice.ts`). *Reformat and edit here* and *Edit as Markdown, unchanged* were kept in the page only, so the question came back whenever the document was opened again; with a key from the app they are kept in the browser, for that document, and the Markdown notice has *Use the visual editor* to take the choice back. Without a key (a document someone else shared) nothing is kept.

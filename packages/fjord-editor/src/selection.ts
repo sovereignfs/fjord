@@ -3,11 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 /**
- * Where in a Markdown body a selection is. In the visual editor a person selects what they read, which is not the Markdown
- * (a word in bold is `**word**` there), so the selection's text is looked for in the body. That finds a selection of
- * plain text within a block, and finds nothing for one that crosses formatting or blocks: such a selection is not anchored
- * here. The marks that show a thread in the text are `marks.ts` (ROADMAP 1d.1); this is how a selection becomes the anchor a thread
- * is made with.
+ * Where in a Markdown body a selection is, for a selection made in the Markdown itself, or where no rendered text can say. The visual editor's own selection is what a person reads,
+ * which is not the Markdown (a word in bold is `**word**` there), so it is anchored over the rendered text instead (`anchorOfRange` in `marks.ts`), which is where a thread's mark is found.
  *
  * Returns UTF-16 offsets into `body`, `end` not included, or null if the text is empty or is not in the body exactly once
  * in the way it was read. A text that is in the body more than once is anchored at its first place, with the context

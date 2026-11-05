@@ -3,7 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { type HighlightApi, type MarkedThread, flatten, locate, paintMarks, rangesFor, threadAt } from "./marks.js";
+import { type HighlightApi, type MarkedThread, anchorOfRange, flatten, locate, paintMarks, rangesFor, threadAt } from "./marks.js";
 import type { TextQuoteAnchor } from "./types.js";
 
 /** Marking threads in the text (ROADMAP 1d.1): finding a quote again, drawing it, and finding the thread under a click. */
@@ -138,5 +138,55 @@ describe("the thread under a click", () => {
     const ranges = rangesFor(root, [thread("a", anchor("one"))]);
     expect(() => threadAt(ranges, other.firstElementChild!.firstChild!, 0)).not.toThrow();
     vi.restoreAllMocks();
+  });
+});
+
+describe("anchoring what is selected", () => {
+  const select = (from: Node, fromOffset: number, to: Node, toOffset: number) => {
+    const range = document.createRange();
+    range.setStart(from, fromOffset);
+    range.setEnd(to, toOffset);
+    return range;
+  };
+
+  it("takes a selection across formatting as the text it reads as, and finds it again", () => {
+    const root = page("<p>Some <strong>bold</strong> text, a <a href='#'>link</a> here.</p>");
+    const paragraph = root.querySelector("p")!;
+    const range = select(paragraph.firstChild!, 0, paragraph.lastChild!, 5);
+    const made = anchorOfRange(root, range)!;
+    expect(made.quote).toBe("Some bold text, a link here");
+    expect(rangesFor(root, [thread("t", made)]).get("t")!.toString()).toBe("Some bold text, a link here");
+  });
+
+  it("takes a selection across blocks, and finds it again", () => {
+    const root = page("<h1>Title</h1><p>First para.</p><ul><li>one</li></ul>");
+    const range = select(root.querySelector("h1")!.firstChild!, 2, root.querySelector("li")!.firstChild!, 3);
+    const made = anchorOfRange(root, range)!;
+    expect(made.quote).toBe("tle\nFirst para.\none");
+    expect(rangesFor(root, [thread("t", made)]).has("t")).toBe(true);
+  });
+
+  it("tells apart the same words in two places by where the selection was", () => {
+    const root = page("<p>the cat sat</p><p>the cat ran</p>");
+    const second = root.querySelectorAll("p")[1]!.firstChild!;
+    const made = anchorOfRange(root, select(second, 0, second, 7))!;
+    expect(made.position).toBe("the cat sat\n".length);
+    expect(rangesFor(root, [thread("t", made)]).get("t")!.startContainer).toBe(second);
+  });
+
+  it("leaves off the white space either side, and is nothing for a selection of no text", () => {
+    const root = page("<p>  word  </p><p>   </p>");
+    const first = root.querySelector("p")!.firstChild!;
+    expect(anchorOfRange(root, select(first, 0, first, 8))!.quote).toBe("word");
+    expect(anchorOfRange(root, select(first, 3, first, 3))).toBeNull();
+    const blank = root.querySelectorAll("p")[1]!.firstChild!;
+    expect(anchorOfRange(root, select(blank, 0, blank, 3))).toBeNull();
+  });
+
+  it("works when the selection's ends are elements and not text", () => {
+    const root = page("<p>one</p><p>two</p>");
+    const range = document.createRange();
+    range.selectNodeContents(root);
+    expect(anchorOfRange(root, range)!.quote).toBe("one\ntwo");
   });
 });
