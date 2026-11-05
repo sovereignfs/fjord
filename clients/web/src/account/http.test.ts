@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Taken } from "../limits/rate";
-import { type AccountDeps, type Caller, PASSWORD_TRIES, handleDeleteAccount } from "./http";
+import { type AccountDeps, type Caller, PASSWORD_TRIES, handleChangeEmail, handleDeleteAccount } from "./http";
 
 const ORIGIN = "https://fjord.example.com";
 const ADA: Caller = { accountId: "ada", email: "ada@example.com" };
@@ -8,6 +8,7 @@ const GOOD = { confirm: "ada@example.com", password: "the password" };
 
 function stub(over: Partial<AccountDeps> = {}) {
   const deleteAccount = vi.fn(async () => undefined);
+  const changeEmail = vi.fn(async (): Promise<{ result: "changed" | "asked" | "taken"; cookies: string[] }> => ({ result: "changed", cookies: ["fjord.session_data=x"] }));
   const take = vi.fn(async () => ({ ok: true } as Taken));
   const deps: AccountDeps = {
     origin: ORIGIN,
@@ -15,10 +16,12 @@ function stub(over: Partial<AccountDeps> = {}) {
     passwordIs: async (password) => password === "the password",
     limiter: { take } as unknown as AccountDeps["limiter"],
     deleteAccount,
+    sovereignLinked: async () => false,
+    changeEmail,
     endingCookies: async () => ["fjord.session_token=; Max-Age=0"],
     ...over,
   };
-  return { deps, deleteAccount, take };
+  return { deps, deleteAccount, take, changeEmail };
 }
 
 const post = (body: unknown, init: { origin?: string | null; method?: string; type?: string } = {}) => {
@@ -91,5 +94,67 @@ describe("deleting an account", () => {
     expect(response.status).toBe(500);
     expect(await response.text()).not.toContain("secret detail");
     quiet.mockRestore();
+  });
+});
+
+describe("changing an address", () => {
+  const WANT = { email: "New@Example.com ", password: "the password" };
+
+  it("needs someone signed in, on this site", async () => {
+    const { deps, changeEmail } = stub();
+    expect((await handleChangeEmail(post(WANT), null, deps)).status).toBe(401);
+    expect((await handleChangeEmail(post(WANT, { origin: "https://evil.example" }), ADA, deps)).status).toBe(403);
+    expect(changeEmail).not.toHaveBeenCalled();
+  });
+
+  it("needs the password: a session left open must not be able to take the account away from its address", async () => {
+    const { deps, changeEmail } = stub();
+    for (const password of ["wrong", "", undefined]) {
+      const response = await handleChangeEmail(post({ ...WANT, password }), ADA, deps);
+      expect(response.status).toBe(422);
+      expect(await code(response)).toBe("wrong_password");
+    }
+    expect(changeEmail).not.toHaveBeenCalled();
+  });
+
+  it("counts the tries, as deleting does", async () => {
+    const { deps, take, changeEmail } = stub();
+    take.mockResolvedValueOnce({ ok: false, retryAfterMs: 1000 });
+    expect((await handleChangeEmail(post(WANT), ADA, deps)).status).toBe(429);
+    expect(changeEmail).not.toHaveBeenCalled();
+  });
+
+  it("refuses what is not an address, and the one it has", async () => {
+    const { deps, changeEmail } = stub();
+    for (const email of ["", "nobody", "a@b@c", "with space@example.com", undefined, 7, `${"x".repeat(250)}@example.com`]) expect(await code(await handleChangeEmail(post({ ...WANT, email }), ADA, deps)), String(email)).toBe("bad_address");
+    expect(await code(await handleChangeEmail(post({ ...WANT, email: "ADA@example.com" }), ADA, deps))).toBe("same_address");
+    expect(changeEmail).not.toHaveBeenCalled();
+  });
+
+  it("leaves an address that is Sovereign's to Sovereign: linked, or the only way in", async () => {
+    const linked = stub({ sovereignLinked: async () => true });
+    expect(await code(await handleChangeEmail(post(WANT), ADA, linked.deps))).toBe("sovereign_address");
+    const only = stub({ hasPassword: async () => false });
+    expect(await code(await handleChangeEmail(post(WANT), ADA, only.deps))).toBe("sovereign_address");
+    expect(linked.changeEmail).not.toHaveBeenCalled();
+    expect(only.changeEmail).not.toHaveBeenCalled();
+  });
+
+  it("asks for the address as written and lower-case, and passes on the cookies that say who is signed in", async () => {
+    const { deps, changeEmail } = stub();
+    const response = await handleChangeEmail(post(WANT), ADA, deps);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ result: "changed" });
+    expect(response.headers.getSetCookie()).toEqual(["fjord.session_data=x"]);
+    expect(changeEmail.mock.calls[0]?.slice(0, 2)).toEqual(["ada", "new@example.com"]);
+  });
+
+  it("says when a link was sent, and when the address cannot be used", async () => {
+    const asked = stub();
+    asked.changeEmail.mockResolvedValueOnce({ result: "asked", cookies: [] });
+    expect(await (await handleChangeEmail(post(WANT), ADA, asked.deps)).json()).toEqual({ result: "asked" });
+    const taken = stub();
+    taken.changeEmail.mockResolvedValueOnce({ result: "taken", cookies: [] });
+    expect(await code(await handleChangeEmail(post(WANT), ADA, taken.deps))).toBe("address_taken");
   });
 });

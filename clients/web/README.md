@@ -132,6 +132,8 @@ works, and can write, before keeping it, and keeps it encrypted (it needs `FJORD
 below; without one the page says so). `FJORD_GITHUB_API_URL` is only for a GitHub Enterprise Server
 (`https://github.example.com/api/v3`); tokens are sent there, so it must be https.
 
+**Changing an address.** Under *Account*, *Profile*, with the password. With email the address it has is asked first and the new one after; without it, it changes at once. An address that is Sovereign's to give is changed there.
+
 **Deleting an account.** A person deletes their own under *Account*, *Profile*, with the address typed out and the password where it has one. What is deleted is what a Sovereign notice deletes (`src/sovereign/people.ts`). With `FJORD_AUTH_SIGNUP=closed`, deleting the only account means the next person to sign up is the first account again.
 
 When both ways of signing in are on, an account made with a password can **link** a Sovereign account on

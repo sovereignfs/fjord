@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MemoryMailer } from "./mailer";
-import { escapeHtml, passwordResetEmail, verificationEmail } from "./templates";
+import { changeEmailConfirmation, escapeHtml, passwordResetEmail, verificationEmail } from "./templates";
 
 const URL_WITH_TOKEN = "https://fjord.example.com/api/auth/verify-email?token=abc&callbackURL=%2F";
 
@@ -39,5 +39,15 @@ describe("MemoryMailer", () => {
     expect(mailer.sent).toHaveLength(3);
     expect(mailer.linkTo("a@example.com")).toBe("https://x.example.com/second");
     expect(mailer.linkTo("nobody@example.com")).toBeUndefined();
+  });
+});
+
+describe("the email that asks to change an address", () => {
+  it("goes to the address the account has, names the new one, and treats it as data", () => {
+    const mail = changeEmailConfirmation("old@example.com", "<b>new</b>@example.com", "Fjord", "https://fjord.example/x");
+    expect(mail.to).toBe("old@example.com");
+    expect(mail.text).toContain("<b>new</b>@example.com");
+    expect(mail.html).not.toContain("<b>new</b>");
+    expect(mail.html).toContain("https://fjord.example/x");
   });
 });

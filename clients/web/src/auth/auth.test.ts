@@ -412,6 +412,37 @@ describe(`local sign-in with email (${leg})`, () => {
     });
   });
 
+  describe("changing an address", () => {
+    it("is not offered at better-auth's own route, which would take a session alone", async () => {
+      const client = visitor(t);
+      const { email } = await signUp(client);
+      await client.follow(t.mailer!.linkTo(email)!);
+      const reply = await client.post("/api/auth/change-email", { newEmail: `${crypto.randomUUID()}@example.com` });
+      expect(reply.status).toBe(404);
+    });
+
+    it("asks a verified address first, then the new one, and only then changes it", async () => {
+      const client = visitor(t);
+      const { email } = await signUp(client);
+      const next = `${crypto.randomUUID()}@example.com`;
+      await client.follow(t.mailer!.linkTo(email)!);
+      const read = async () => (await dbGet<{ email: string }>(t.database, sql`SELECT email FROM ${userTable(t)} WHERE email IN (${email}, ${next})`))?.email;
+
+      const headers = new Headers({ cookie: [...client.jar].map(([key, value]) => `${key}=${value}`).join("; ") });
+      const asked = await t.auth.api.changeEmail({ body: { newEmail: next, callbackURL: "/account" }, headers, asResponse: true });
+      expect(asked.status).toBe(200);
+      expect(await read()).toBe(email);
+      const confirmation = t.mailer!.last(email)!;
+      expect(confirmation.subject).toContain("Change your");
+      expect(confirmation.text).toContain(next);
+
+      await client.follow(t.mailer!.linkTo(email)!);
+      expect(await read()).toBe(email);
+      await client.follow(t.mailer!.linkTo(next)!);
+      expect(await read()).toBe(next);
+    });
+  });
+
   describe("a forgotten password", () => {
     async function verifiedPerson() {
       const client = visitor(t);

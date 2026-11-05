@@ -18,6 +18,13 @@ export interface AccountDeps {
   passwordIs(password: string, request: Request): Promise<boolean>;
   limiter: { take(key: string, rule: Rule): Promise<Taken> };
   deleteAccount(accountId: string): Promise<void>;
+  /** Whether the address is Sovereign's to give: the account is linked to a Sovereign login, which must have the same address (`DESIGN.md` §6). */
+  sovereignLinked(accountId: string): Promise<boolean>;
+  /**
+   * Asks for the change. `changed`: the address is the new one now. `asked`: a link was sent, to the address it has, and it changes when that is followed. `taken`: another account has it, which
+   * with no email is told plainly (sign-up says so too), and with email is not told apart from `asked`.
+   */
+  changeEmail(accountId: string, next: string, request: Request): Promise<{ result: "changed" | "asked" | "taken"; cookies: string[] }>;
   /** The `set-cookie` headers that end the session in this browser. */
   endingCookies(request: Request): Promise<string[]>;
 }
@@ -76,5 +83,30 @@ export async function handleDeleteAccount(request: Request, caller: Caller | nul
   } catch (error) {
     console.error(`[fjord] account: unexpected ${error instanceof Error ? error.name : "failure"}`);
     return failure(500, "internal_error", "Something went wrong on our side, and it may not all be deleted. Try again.");
+  }
+}
+
+const MAX_EMAIL_CHARS = 254;
+const EMAIL = /^[^\s@]+@[^\s@]+$/;
+
+/** `POST /api/account/email`, `{ email, password }` (research 0002, G4). The password is what stands between a session someone left open and the account being taken away from its address. */
+export async function handleChangeEmail(request: Request, caller: Caller | null, deps: AccountDeps): Promise<Response> {
+  try {
+    const body = await bodyOf(request, caller, deps.origin);
+    if (body instanceof Response) return body;
+    const who = caller as Caller;
+    const next = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    if (next.length > MAX_EMAIL_CHARS || !EMAIL.test(next)) return failure(422, "bad_address", "That does not look like an email address. Nothing was changed.");
+    if (next === who.email.toLowerCase()) return failure(422, "same_address", "That is the address you have now.");
+    if (await deps.sovereignLinked(who.accountId)) return failure(422, "sovereign_address", "Your address is the one Sovereign has, because the two are linked. Change it there, or unlink Sovereign first.");
+    if (!(await deps.hasPassword(who.accountId))) return failure(422, "sovereign_address", "You sign in with Sovereign, and your address is the one it has. Change it there.");
+    const refused = await checkPassword(body.password, who, request, deps);
+    if (refused) return refused;
+    const { result, cookies } = await deps.changeEmail(who.accountId, next, request);
+    if (result === "taken") return failure(422, "address_taken", "That address cannot be used here. Nothing was changed.");
+    return json(200, { result }, cookies);
+  } catch (error) {
+    console.error(`[fjord] account: unexpected ${error instanceof Error ? error.name : "failure"}`);
+    return failure(500, "internal_error", "Something went wrong on our side. Nothing was changed. Try again.");
   }
 }

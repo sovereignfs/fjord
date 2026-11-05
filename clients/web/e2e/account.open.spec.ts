@@ -194,3 +194,37 @@ test("a person deletes their own account: it needs the address and the password,
 
   await signUp(page, email, "Ada Again");
 });
+
+test("a person changes their address with their password, and signs in with the new one", async ({ page }) => {
+  const { email } = await signUp(page);
+  const next = uniqueEmail();
+  await page.goto("/account");
+  const form = page.getByRole("form", { name: "Change your address" });
+  await form.getByLabel("New address").fill(next);
+  await form.getByLabel("Your password").fill("not the password at all");
+  await form.getByRole("button", { name: "Change address" }).click();
+  await expect(form.getByRole("alert")).toContainText("That is not your password");
+
+  await form.getByLabel("Your password").fill(PASSWORD);
+  await form.getByRole("button", { name: "Change address" }).click();
+  await expect(form.getByText(`Your address is now ${next}`)).toBeVisible();
+
+  await signOut(page);
+  await signIn(page, email);
+  await expect(alertOn(page)).toBeVisible();
+  await signIn(page, next);
+  await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
+});
+
+test("an address another account has cannot be taken", async ({ page, browser }) => {
+  const other = await browser.newContext({ baseURL: "http://localhost:3201", extraHTTPHeaders: { "x-forwarded-for": "10.99.2.1" } });
+  const { email: theirs } = await signUp(await other.newPage());
+  await other.close();
+  await signUp(page);
+  await page.goto("/account");
+  const form = page.getByRole("form", { name: "Change your address" });
+  await form.getByLabel("New address").fill(theirs);
+  await form.getByLabel("Your password").fill(PASSWORD);
+  await form.getByRole("button", { name: "Change address" }).click();
+  await expect(form.getByRole("alert")).toContainText("cannot be used here");
+});

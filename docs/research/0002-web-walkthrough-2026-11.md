@@ -52,7 +52,7 @@ width but the account page.
 | G1 | A file that is not Markdown or HTML (a picture, a PDF, a CSV) is greyed out: it cannot be opened, downloaded, moved or deleted from a drive | Fixed |
 | G2 | The first page of someone with no repository says nothing of what is shared with them | Fixed |
 | G3 | An account cannot be deleted by the person who holds it; only a Sovereign notice does that | Fixed |
-| G4 | An address cannot be changed ("Email changes aren't supported yet") | Open |
+| G4 | An address cannot be changed ("Email changes aren't supported yet") | Fixed |
 | G5 | A comment cannot be made on a selection across formatting: the anchor is a quote of the Markdown and the marks are drawn from it. Saying so is U2; doing it needs the anchor to change | Open |
 | G6 | An encrypted file is edited as Markdown with its header showing: no visual editor, no properties panel | Open |
 | G7 | There is no history of a document in the app: a version is a commit, read and rolled back with git. The landing page said otherwise (B11) | Open |

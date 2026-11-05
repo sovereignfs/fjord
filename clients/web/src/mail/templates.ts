@@ -39,3 +39,18 @@ export function passwordResetEmail(to: string, product: string, url: string): Ma
     ),
   };
 }
+
+/** To the address a person has now, asking whether the account should move to `next`: a session alone must not be able to take an account away from its address. */
+export function changeEmailConfirmation(to: string, next: string, product: string, url: string): Mail {
+  return {
+    to,
+    subject: `Change your ${product} address`,
+    ...layout(
+      product,
+      "Change your address",
+      [`Someone asked to change the address of this ${product} account to ${next}. If it was you, confirm it: the new address is then sent a link of its own, and the change is made when that is followed.`, "The link works for one hour. If it was not you, ignore this email, and change your password: whoever asked knew it."],
+      url,
+      "Confirm the change",
+    ),
+  };
+}

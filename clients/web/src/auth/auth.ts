@@ -9,7 +9,7 @@ import type { Database } from "../db/client";
 import * as postgresAuth from "../db/schema/postgres/auth";
 import * as sqliteAuth from "../db/schema/sqlite/auth";
 import type { Mailer } from "../mail/mailer";
-import { passwordResetEmail, verificationEmail } from "../mail/templates";
+import { changeEmailConfirmation, passwordResetEmail, verificationEmail } from "../mail/templates";
 import { type EnabledAuthConfig, SOVEREIGN_PROVIDER_ID, SOVEREIGN_SCOPES } from "./config";
 import { countUsers } from "./users";
 
@@ -83,6 +83,22 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
             : {}),
         }
       : {},
+    // An address is changed through `src/account/http.ts`, which asks for the password; better-auth's own route would take a session alone (research 0002, G4).
+    disabledPaths: ["/change-email"],
+    user: {
+      changeEmail: {
+        enabled: local !== undefined,
+        // With no email there is nothing to verify an address with, and an account made there was never verified: it simply changes. A verified address asks the address it has first.
+        updateEmailWithoutVerification: true,
+        ...(mailer
+          ? {
+              sendChangeEmailConfirmation: async ({ user, newEmail, url }: { user: { email: string }; newEmail: string; url: string }) => {
+                await mailer.send(changeEmailConfirmation(user.email, newEmail, config.name, url));
+              },
+            }
+          : {}),
+      },
+    },
     account: {
       // A Sovereign login is matched to an account by its `sub`, never by an email address that
       // happens to be the same as a local account's (DESIGN.md §6). The two are linked from a
