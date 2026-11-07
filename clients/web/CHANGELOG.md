@@ -11,6 +11,8 @@ section.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-07
+
 ### Added
 
 - **A document's history is in the app.** `history` at the end of its title lists the commits that changed the file, with who and when, shows what any of them said, and puts one back. Putting back makes the text a draft, which is looked at and saved as any other: nothing is undone or forced, and every version stays in the repository. An encrypted file's are opened in the browser, and nothing readable is sent. `Provider.fileHistory`, optional, as `lastModified` is, and held by `providerContract`; it does not follow a rename, as `git log` without `--follow` does not, and the panel says so. Routes `/api/connections/<id>/history` and `…/history/file`.
@@ -470,6 +472,7 @@ section.
   tests and builds in CI. Nothing in it is usable yet; the work is planned in
   [`ROADMAP.md`](ROADMAP.md).
 
-[Unreleased]: https://github.com/sovereignfs/fjord/compare/web-v0.2.0...HEAD
+[Unreleased]: https://github.com/sovereignfs/fjord/compare/web-v0.3.0...HEAD
+[0.3.0]: https://github.com/sovereignfs/fjord/compare/web-v0.2.0...web-v0.3.0
 [0.2.0]: https://github.com/sovereignfs/fjord/compare/web-v0.1.0...web-v0.2.0
 [0.1.0]: https://github.com/sovereignfs/fjord/releases/tag/web-v0.1.0
