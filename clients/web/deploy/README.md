@@ -249,7 +249,6 @@ gives an app. In your instance repository, with a toolkit that reads manifest 2 
 
 ```bash
 ./sv app add --image ghcr.io/sovereignfs/fjord-web:0.2.0     # the app is called fjord, as its manifest says, at https://fjord.<your domain>
-./sv secret set FJORD_ENCRYPTION_KEY --app fjord              # a value from: openssl rand -base64 32
 ./sv push && ./sv deploy
 ```
 
@@ -259,7 +258,7 @@ email`). Then, by itself:
 - **Fjord Web is registered with core** as a trusted app, with its sign-in address (`/api/auth/callback/sovereign`), its name, its
   description and its icon (`/icon.svg`), so it appears in the launcher.
 - **It is given** `PORT` (the manifest's port, 3000), `FJORD_URL` (`https://fjord.<your domain>`), `FJORD_CORE_URL`,
-  `FJORD_CORE_CLIENT_ID` and `FJORD_CORE_CLIENT_SECRET_FILE`, `FJORD_AUTH_SECRET_FILE` (made once, kept), and a PostgreSQL database of its own
+  `FJORD_CORE_CLIENT_ID` and `FJORD_CORE_CLIENT_SECRET_FILE`, `FJORD_AUTH_SECRET_FILE` and `FJORD_ENCRYPTION_KEY_FILE` (each made once, kept), and a PostgreSQL database of its own
   as `FJORD_DB_DIALECT=postgres` with `FJORD_POSTGRES_URL_FILE`. It makes its own tables when it starts, as everywhere else. Its
   manifest does not say it can work through a connection pooler, because its migrations hold a lock on one connection.
 - **People sign in through the instance** and nothing else is switched on, so there is no password to set.
@@ -269,7 +268,7 @@ What the operator adds, in `suite.yml` under `apps.fjord.env` (settings) and wit
 | | |
 | --- | --- |
 | `FJORD_AUTH_SIGNUP: open` | **Set it.** The default, `closed`, lets only the first person who signs in have an account, which on an instance is not what anyone wants: the instance already decides who may sign in. |
-| `FJORD_ENCRYPTION_KEY` (a secret) | Without it nobody can connect a repository. Keep it apart from backups, as above. |
+| `FJORD_ENCRYPTION_KEY` | Made for you, once, as 32 random bytes: nothing to set. It is kept with the instance's other generated secrets, which `sv backup` takes encrypted to your key alone, so a restore brings the key back with the tokens. |
 | The GitHub App | Optional, as above: `FJORD_GITHUB_APP_ID`, `_SLUG` and `_CLIENT_ID` under `env`, and `FJORD_GITHUB_APP_PRIVATE_KEY`, `_CLIENT_SECRET` and `_WEBHOOK_SECRET` as secrets. Its callback is `https://fjord.<your domain>/api/github-app/callback` and its webhook `https://fjord.<your domain>/api/webhooks/github`. |
 
 Updating is a newer image: `./sv app update fjord --image ghcr.io/sovereignfs/fjord-web:0.2.1`, then `./sv push && ./sv deploy`. [Updating](#updating)

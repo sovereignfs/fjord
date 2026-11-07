@@ -42,6 +42,7 @@ section.
 
 ### Changed
 
+- **A Sovereign instance makes `FJORD_ENCRYPTION_KEY` itself.** The manifest's `generate` now lists it (32 bytes, once, kept), so hosting Fjord no longer needs `sv secret set FJORD_ENCRYPTION_KEY`. No change to the app or its settings. **An instance that already set one with `sv secret set`** has to remove it (`sv secret remove FJORD_ENCRYPTION_KEY --app fjord`), since a secret the manifest generates may not also be entered; the key it then gets is a new one, so repositories connected under the old key are connected again.
 - **Everything that cannot be undone asks in the page.** *Disconnect*, *Delete*, *Move to git*, removing a passkey, unlinking Sovereign and removing an identity used the browser's own `confirm` (`src/ui/useConfirm.tsx`, on the design system's dialog). *Move to git* now ends by saying it worked, with a way to open the repository, where the dialog just lost its form.
 - **Repository settings has a title**, one size of text and a button in one line.
 - **Dates are in one form**: `4 Nov 2026`, and `4 Nov 2026, 22:56 UTC` where the server draws them and a time matters (`src/ui/dates.ts`). They came in three, one of them `11/4/2026`.

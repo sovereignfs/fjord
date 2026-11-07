@@ -14,6 +14,6 @@
     "scopes": ["openid", "profile", "email"]
   },
   "database": true,
-  "generate": ["FJORD_AUTH_SECRET"],
+  "generate": ["FJORD_AUTH_SECRET", { "name": "FJORD_ENCRYPTION_KEY", "bytes": 32 }],
   "core": ">=0.57.0 <1.0.0"
 }
