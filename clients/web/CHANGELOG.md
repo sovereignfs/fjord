@@ -9,10 +9,6 @@ reads this file when a release is cut. Write the notes under `## [Unreleased]`
 as you go; `scripts/release.sh web prepare` turns them into the version's
 section.
 
-### Changed
-
-- **The port is now 3001** (`sovereign.manifest.json`), in the image, the Compose setups and `pnpm dev`, so Fjord Web, Tusk (3002) and a Sovereign core (3000) run side by side on one machine. A Sovereign instance reads the port from the image and needs nothing. Run on your own, map the new port (`-p 127.0.0.1:3001:3001`, or keep the outside port: `-p 127.0.0.1:3000:3001`) and point the reverse proxy at it.
-
 ## [Unreleased]
 
 ### Added
@@ -20,6 +16,10 @@ section.
 - **A media library for sites** (RFC 0004). A site's page has a *Media library*: its pictures as tiles, found by name, added by a button or by dropping files (PNG, JPEG, WebP, GIF or AVIF, up to 10 MB each, up to 20 at a time, one commit), and deleted after being told which posts show them. Pictures go to an `images/` folder in the site's vault (an Astro site's `content/images`, a Jekyll site's `content/images`), and for a Jekyll site whose vault is `_posts`, which Jekyll cannot serve a folder from, to `assets/images`. A photo wider than 2560 px is scaled down in the browser first, which also drops where it was taken (*Keep the original* uploads it as it is); an animated picture is never re-encoded. The server tells a picture's type from its first bytes: SVG, and a document named `.png`, are refused.
 - **Pictures in a post.** The Markdown editor of a site's post has *Insert image*, and the visual editor's image button opens the library instead of asking for a URL. Choosing a picture asks for its alt text, and *Insert* stays off until there is some (or the picture is marked as only for looks). A picture pasted or dropped into either editor goes to the library the same way. The reference written is the engine's own form (`../images/x.png` for Astro, `/content/images/x.png` for Jekyll), made by `fjord-core`.
 - Routes `/api/connections/<id>/images`, `/images/file` and `/images/reference`, each checked for who may call it.
+
+### Changed
+
+- **The port is now 3001** (`sovereign.manifest.json`), in the image, the Compose setups and `pnpm dev`, so Fjord Web, Tusk (3002) and a Sovereign core (3000) run side by side on one machine. A Sovereign instance reads the port from the image and needs nothing. Run on your own, map the new port (`-p 127.0.0.1:3001:3001`, or keep the outside port: `-p 127.0.0.1:3000:3001`) and point the reverse proxy at it.
 
 ## [0.3.0] - 2026-11-07
 
