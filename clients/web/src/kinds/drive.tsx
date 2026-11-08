@@ -1,6 +1,6 @@
-import { AddVault } from "../browse/screens/AddVault";
-import { VaultList } from "../browse/screens/VaultList";
-import type { EntryViewProps, KindModule } from "./types";
+import { AddVault } from '../browse/screens/AddVault';
+import { VaultList } from '../browse/screens/VaultList';
+import type { EntryViewProps, KindModule } from './types';
 
 /**
  * A drive (spec §3.1): any number of vaults, each encrypted or not, and what every repository made before kinds existed is. Its entry view is its vaults as folders, as rows or
@@ -8,16 +8,21 @@ import type { EntryViewProps, KindModule } from "./types";
  * can be shown as ("Show files").
  */
 export const driveKind: KindModule = {
-  id: "drive",
-  label: "Drive",
-  editor: "document",
+  id: 'drive',
+  label: 'Drive',
+  editor: 'document',
   writingView: false,
   EntryView: DriveEntry,
-  contentModel: { placement: "anywhere", fields: ["title", "tags"] },
+  contentModel: { placement: 'anywhere', fields: ['title', 'tags'] },
   actions: [],
 };
 
 function DriveEntry({ connection, read }: EntryViewProps) {
-  const add = read.manifest?.ok ? <AddVault connectionId={connection.id} existing={read.discovery.vaults.map((vault) => vault.directory)} /> : undefined;
+  const add = read.manifest?.ok ? (
+    <AddVault
+      connectionId={connection.id}
+      existing={read.discovery.vaults.map((vault) => vault.directory)}
+    />
+  ) : undefined;
   return <VaultList read={read} repo={connection.address} actions={add} />;
 }

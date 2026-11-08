@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes } from 'node:crypto';
 
 /**
  * The secret in a share link (DESIGN.md §12, ROADMAP 1c.3): 32 random bytes, written as 43 URL-safe characters. A Doc id is not
@@ -8,9 +8,9 @@ import { createHash, randomBytes } from "node:crypto";
 export const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
 export function newToken(random: (size: number) => Buffer = randomBytes): string {
-  return random(32).toString("base64url");
+  return random(32).toString('base64url');
 }
 
 export function hashToken(token: string): string {
-  return createHash("sha256").update(token, "utf8").digest("hex");
+  return createHash('sha256').update(token, 'utf8').digest('hex');
 }

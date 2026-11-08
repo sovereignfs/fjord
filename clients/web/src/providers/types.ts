@@ -46,7 +46,7 @@ export interface FileVersion {
   date: string;
 }
 
-export type EntryKind = "file" | "directory" | "symlink" | "submodule";
+export type EntryKind = 'file' | 'directory' | 'symlink' | 'submodule';
 
 export interface TreeEntry {
   /** From the repository root, with `/` separators. */
@@ -110,7 +110,7 @@ export interface CommitResult {
 }
 
 /** How a build, a check or a deployment of a commit stands. */
-export type BuildState = "pending" | "success" | "failure";
+export type BuildState = 'pending' | 'success' | 'failure';
 
 /** One thing the host reports of a commit: a check run, a status, or a deployment. */
 export interface BuildCheck {
@@ -127,7 +127,7 @@ export interface BuildCheck {
 export interface BuildStatus {
   commit: string;
   /** `none` when nothing is reported; else `failure` if any failed, `pending` if any is not done, `success` when all are. */
-  state: "none" | BuildState;
+  state: 'none' | BuildState;
   checks: BuildCheck[];
   /** Where the commit's site is, when a successful deployment of it says (`environment_url` on GitHub). */
   siteUrl?: string | undefined;
@@ -135,16 +135,23 @@ export interface BuildStatus {
 
 /** What a `push` webhook says: a branch moved. */
 export type WebhookEvent =
-  | { kind: "push"; repository: RepositoryRef; branch: string; before: string; after: string; deleted: boolean }
-  | { kind: "ping" }
+  | {
+      kind: 'push';
+      repository: RepositoryRef;
+      branch: string;
+      before: string;
+      after: string;
+      deleted: boolean;
+    }
+  | { kind: 'ping' }
   /**
    * Repositories the credential can no longer reach: some were taken off an installation of the GitHub App
    * (`installation_repositories`, action `removed`), or the installation was deleted (`installation`, action
    * `deleted`), which lists them all when GitHub says so.
    */
-  | { kind: "access_removed"; repositories: RepositoryRef[] }
+  | { kind: 'access_removed'; repositories: RepositoryRef[] }
   /** An event this app does not act on. */
-  | { kind: "ignored"; event: string };
+  | { kind: 'ignored'; event: string };
 
 export interface WebhookRequest {
   headers: Headers | Record<string, string | undefined>;
@@ -160,7 +167,11 @@ export interface Provider {
   getRepository(ref: RepositoryRef): Promise<Repository>;
 
   /** A branch's head. With an `etag` from an earlier head, says whether it has moved. */
-  getHead(ref: RepositoryRef, branch: string, options?: { etag?: string | undefined }): Promise<HeadResult>;
+  getHead(
+    ref: RepositoryRef,
+    branch: string,
+    options?: { etag?: string | undefined },
+  ): Promise<HeadResult>;
 
   /** Every path in the commit, with sizes and ids. See `Tree.complete`. */
   getTree(ref: RepositoryRef, commit: string): Promise<Tree>;
@@ -168,7 +179,11 @@ export interface Provider {
   listDirectory(ref: RepositoryRef, commit: string, path: string): Promise<TreeEntry[]>;
 
   /** A file's bytes by blob id. `too_large` if it is past `maxBytes`. */
-  readBlob(ref: RepositoryRef, blob: string, options?: { maxBytes?: number | undefined }): Promise<Uint8Array>;
+  readBlob(
+    ref: RepositoryRef,
+    blob: string,
+    options?: { maxBytes?: number | undefined },
+  ): Promise<Uint8Array>;
 
   /** Several file changes as one commit, on top of the head the caller read. See `CommitRequest`. */
   commit(ref: RepositoryRef, request: CommitRequest): Promise<CommitResult>;
@@ -207,7 +222,12 @@ export interface Provider {
    * The commits that changed a file, newest first, as of a commit: at most `limit` of them, and none for a path with no history. **Optional**, as `lastModified` is, and one file at a time. It does
    * not follow a rename: history before a file was moved is under its old name, as `git log` without `--follow` has it.
    */
-  fileHistory?(ref: RepositoryRef, commit: string, path: string, limit: number): Promise<FileVersion[]>;
+  fileHistory?(
+    ref: RepositoryRef,
+    commit: string,
+    path: string,
+    limit: number,
+  ): Promise<FileVersion[]>;
 
   /** The branches whose names begin with `prefix`, with their heads. */
   listBranches(ref: RepositoryRef, prefix: string): Promise<Branch[]>;

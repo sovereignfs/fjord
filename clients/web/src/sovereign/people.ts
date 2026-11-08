@@ -1,12 +1,12 @@
-import { sql } from "drizzle-orm";
-import { SOVEREIGN_PROVIDER_ID } from "../auth/config";
-import type { Database } from "../db/client";
-import { dbAll, dbGet, dbRun } from "../db/exec";
-import * as postgresSchema from "../db/schema/postgres";
-import * as postgresAuth from "../db/schema/postgres/auth";
-import * as sqliteSchema from "../db/schema/sqlite";
-import * as sqliteAuth from "../db/schema/sqlite/auth";
-import type { Editor } from "../working/service";
+import { sql } from 'drizzle-orm';
+import { SOVEREIGN_PROVIDER_ID } from '../auth/config';
+import type { Database } from '../db/client';
+import { dbAll, dbGet, dbRun } from '../db/exec';
+import * as postgresSchema from '../db/schema/postgres';
+import * as postgresAuth from '../db/schema/postgres/auth';
+import * as sqliteSchema from '../db/schema/sqlite';
+import * as sqliteAuth from '../db/schema/sqlite/auth';
+import type { Editor } from '../working/service';
 
 /**
  * What Fjord Web does about a person when their Sovereign instance tells it something about them: their core session ended (the
@@ -21,9 +21,9 @@ import type { Editor } from "../working/service";
  */
 
 /** What replaces the author of a comment that others have answered, and the name in a log or a resolution: nothing of the person remains. */
-export const DELETED_AUTHOR = "Deleted account";
+export const DELETED_AUTHOR = 'Deleted account';
 /** What replaces the words of a comment that others have answered. */
-export const DELETED_COMMENT = "This comment was deleted.";
+export const DELETED_COMMENT = 'This comment was deleted.';
 
 /** What the account's connections are removed through (`ConnectionService`), so that this has one way to remove a repository and not two. */
 export interface ConnectionRemover {
@@ -38,8 +38,10 @@ export interface PeopleDeps {
   connections: ConnectionRemover;
 }
 
-const authTables = (database: Database) => (database.dialect === "postgres" ? postgresAuth : sqliteAuth);
-const appTables = (database: Database) => (database.dialect === "postgres" ? postgresSchema : sqliteSchema);
+const authTables = (database: Database) =>
+  database.dialect === 'postgres' ? postgresAuth : sqliteAuth;
+const appTables = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema : sqliteSchema;
 
 export class People {
   constructor(private readonly deps: PeopleDeps) {}
@@ -63,7 +65,10 @@ export class People {
     let ended = 0;
     const { session } = authTables(this.deps.auth);
     for (const userId of await this.accountsOf(sub)) {
-      const rows = await dbAll<{ id: string }>(this.deps.auth, sql`SELECT id FROM ${session} WHERE user_id = ${userId}`);
+      const rows = await dbAll<{ id: string }>(
+        this.deps.auth,
+        sql`SELECT id FROM ${session} WHERE user_id = ${userId}`,
+      );
       await dbRun(this.deps.auth, sql`DELETE FROM ${session} WHERE user_id = ${userId}`);
       ended += rows.length;
     }
@@ -75,7 +80,10 @@ export class People {
     for (const userId of await this.accountsOf(sub)) await this.deleteAccount(userId);
     // Last, so that a run that stopped before here can be run again and still find the account.
     const { account } = authTables(this.deps.auth);
-    await dbRun(this.deps.auth, sql`DELETE FROM ${account} WHERE provider_id = ${SOVEREIGN_PROVIDER_ID} AND account_id = ${sub}`);
+    await dbRun(
+      this.deps.auth,
+      sql`DELETE FROM ${account} WHERE provider_id = ${SOVEREIGN_PROVIDER_ID} AND account_id = ${sub}`,
+    );
   }
 
   /**
@@ -91,7 +99,10 @@ export class People {
   private async deleteAccount(userId: string): Promise<void> {
     const { auth } = this.deps;
     const { user, session, account, passkey, twoFactor, verification } = authTables(auth);
-    const who = await dbGet<{ name: string; email: string }>(auth, sql`SELECT name, email FROM ${user} WHERE id = ${userId}`);
+    const who = await dbGet<{ name: string; email: string }>(
+      auth,
+      sql`SELECT name, email FROM ${user} WHERE id = ${userId}`,
+    );
 
     // The app's store first. A person with sessions open can no longer reach it once their sessions are gone, so end them now: nothing they
     // do while this runs is kept.
@@ -101,11 +112,18 @@ export class People {
     await dbRun(auth, sql`DELETE FROM ${passkey} WHERE user_id = ${userId}`);
     await dbRun(auth, sql`DELETE FROM ${twoFactor} WHERE user_id = ${userId}`);
     // A link to verify an address, or to reset a password: by the address it was sent to, or by the account it is for.
-    if (who) await dbRun(auth, sql`DELETE FROM ${verification} WHERE identifier = ${who.email} OR value = ${userId}`);
+    if (who)
+      await dbRun(
+        auth,
+        sql`DELETE FROM ${verification} WHERE identifier = ${who.email} OR value = ${userId}`,
+      );
     else await dbRun(auth, sql`DELETE FROM ${verification} WHERE value = ${userId}`);
     // The accounts linked to it (its Sovereign sign-in, and a password if it has one), then the person. Where foreign keys are enforced the
     // second is a cascade of the first, and where they are not (SQLite by default) this is what does it.
-    await dbRun(auth, sql`DELETE FROM ${account} WHERE user_id = ${userId} AND provider_id <> ${SOVEREIGN_PROVIDER_ID}`);
+    await dbRun(
+      auth,
+      sql`DELETE FROM ${account} WHERE user_id = ${userId} AND provider_id <> ${SOVEREIGN_PROVIDER_ID}`,
+    );
     await dbRun(auth, sql`DELETE FROM ${user} WHERE id = ${userId}`);
   }
 
@@ -148,7 +166,10 @@ export class People {
     if (name !== undefined) {
       const reachable = sql`EXISTS (SELECT 1 FROM ${t.shareUser} s WHERE s.account_id = ${userId} AND s.connection_id = ${t.commentActivity}.connection_id AND s.doc_id = ${t.commentActivity}.doc_id)`;
       const took = sql`${t.commentActivity}.thread_id IN (SELECT id FROM ${t.commentThread} WHERE author_kind = 'account' AND author_id = ${userId} UNION SELECT thread_id FROM ${t.commentReply} WHERE author_kind = 'account' AND author_id = ${userId})`;
-      await dbRun(app, sql`UPDATE ${t.commentActivity} SET actor_name = ${DELETED_AUTHOR} WHERE actor_kind = 'account' AND actor_name = ${name} AND (${reachable} OR ${took})`);
+      await dbRun(
+        app,
+        sql`UPDATE ${t.commentActivity} SET actor_name = ${DELETED_AUTHOR} WHERE actor_kind = 'account' AND actor_name = ${name} AND (${reachable} OR ${took})`,
+      );
       await dbRun(
         app,
         sql`UPDATE ${t.commentThread} SET resolved_by = ${DELETED_AUTHOR} WHERE resolved_by = ${name}
@@ -156,9 +177,15 @@ export class People {
       );
     }
 
-    await dbRun(app, sql`DELETE FROM ${t.commentReply} WHERE author_kind = 'account' AND author_id = ${userId}`);
+    await dbRun(
+      app,
+      sql`DELETE FROM ${t.commentReply} WHERE author_kind = 'account' AND author_id = ${userId}`,
+    );
     const unanswered = sql`author_kind = 'account' AND author_id = ${userId} AND NOT EXISTS (SELECT 1 FROM ${t.commentReply} r WHERE r.thread_id = ${t.commentThread}.id)`;
-    await dbRun(app, sql`DELETE FROM ${t.commentActivity} WHERE thread_id IN (SELECT id FROM ${t.commentThread} WHERE ${unanswered})`);
+    await dbRun(
+      app,
+      sql`DELETE FROM ${t.commentActivity} WHERE thread_id IN (SELECT id FROM ${t.commentThread} WHERE ${unanswered})`,
+    );
     await dbRun(app, sql`DELETE FROM ${t.commentThread} WHERE ${unanswered}`);
     await dbRun(
       app,
@@ -171,11 +198,18 @@ export class People {
   private async forgetEditor(userId: string): Promise<void> {
     const { app } = this.deps;
     const { workingCopy } = appTables(app);
-    const rows = await dbAll<{ id: number; editors: string }>(app, sql`SELECT id, editors FROM ${workingCopy} WHERE editors LIKE ${`%${userId}%`}`);
+    const rows = await dbAll<{ id: number; editors: string }>(
+      app,
+      sql`SELECT id, editors FROM ${workingCopy} WHERE editors LIKE ${`%${userId}%`}`,
+    );
     for (const row of rows) {
       const editors = JSON.parse(row.editors) as Editor[];
-      const kept = editors.filter((editor) => !(editor.type === "account" && editor.id === userId));
-      if (kept.length !== editors.length) await dbRun(app, sql`UPDATE ${workingCopy} SET editors = ${JSON.stringify(kept)} WHERE id = ${row.id}`);
+      const kept = editors.filter((editor) => !(editor.type === 'account' && editor.id === userId));
+      if (kept.length !== editors.length)
+        await dbRun(
+          app,
+          sql`UPDATE ${workingCopy} SET editors = ${JSON.stringify(kept)} WHERE id = ${row.id}`,
+        );
     }
   }
 }

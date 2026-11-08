@@ -47,7 +47,7 @@
   border-left: 1px solid var(--sv-color-border);
 }
 
-.toggle button[aria-pressed="true"] {
+.toggle button[aria-pressed='true'] {
   background-color: var(--sv-color-surface-sunken);
   color: var(--sv-color-text-primary);
 }
@@ -95,7 +95,7 @@ a.name {
 }
 
 a.name::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
 }
@@ -134,38 +134,38 @@ a.name:focus-visible {
 }
 
 /* Rows. */
-.list[data-view="list"] .item {
+.list[data-view='list'] .item {
   align-items: center;
   gap: var(--sv-space-3);
   padding: var(--sv-space-3) var(--sv-space-1);
   border-top: 1px solid var(--sv-color-border);
 }
 
-.list[data-view="list"] .item:last-child {
+.list[data-view='list'] .item:last-child {
   border-bottom: 1px solid var(--sv-color-border);
 }
 
-.list[data-view="list"] .icon {
+.list[data-view='list'] .icon {
   width: 20px;
   height: 20px;
 }
 
-.list[data-view="list"] .body {
+.list[data-view='list'] .body {
   flex: 1 1 auto;
 }
 
-.list[data-view="list"] .item:hover {
+.list[data-view='list'] .item:hover {
   background-color: var(--sv-color-surface-sunken);
 }
 
 /* Tiles. */
-.grid[data-view="grid"] {
+.grid[data-view='grid'] {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: var(--sv-space-3);
 }
 
-.grid[data-view="grid"] .item {
+.grid[data-view='grid'] .item {
   flex-direction: column;
   align-items: center;
   gap: var(--sv-space-2);
@@ -177,13 +177,13 @@ a.name:focus-visible {
 }
 
 @media (hover: hover) {
-  .grid[data-view="grid"] .item:hover {
+  .grid[data-view='grid'] .item:hover {
     border-color: var(--sv-color-border-strong);
     background-color: var(--sv-color-surface-sunken);
   }
 }
 
-.grid[data-view="grid"] .icon {
+.grid[data-view='grid'] .icon {
   width: 44px;
   height: 44px;
   padding: 10px;
@@ -191,13 +191,13 @@ a.name:focus-visible {
   background-color: var(--sv-color-surface-sunken);
 }
 
-.grid[data-view="grid"] .body {
+.grid[data-view='grid'] .body {
   flex-direction: column;
   justify-content: center;
   gap: var(--sv-space-1);
 }
 
-.grid[data-view="grid"] .meta {
+.grid[data-view='grid'] .meta {
   white-space: normal;
 }
 

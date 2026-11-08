@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { authClient } from "../client";
-import { Button, Icon } from "../../ui";
-import shell from "../../ui/AppShell.module.css";
+import { useState } from 'react';
+import { authClient } from '../client';
+import { Button, Icon } from '../../ui';
+import shell from '../../ui/AppShell.module.css';
 
 async function signOut() {
   await authClient.signOut();
-  window.location.assign("/");
+  window.location.assign('/');
 }
 
 /** The way out: a button with its name, or, in the shell's rail, an icon with the same name for a screen reader. */
@@ -19,7 +19,14 @@ export function SignOutButton({ icon = false }: { icon?: boolean }) {
   };
   if (icon) {
     return (
-      <button type="button" className={shell.icon} title="Sign out" aria-label="Sign out" disabled={busy} onClick={click}>
+      <button
+        type="button"
+        className={shell.icon}
+        title="Sign out"
+        aria-label="Sign out"
+        disabled={busy}
+        onClick={click}
+      >
         <Icon name="log-out" aria-hidden />
       </button>
     );

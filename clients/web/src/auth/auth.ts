@@ -1,17 +1,17 @@
-import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { passkey } from "@better-auth/passkey";
-import { betterAuth } from "better-auth";
-import { APIError } from "better-auth/api";
-import { nextCookies } from "better-auth/next-js";
-import { genericOAuth } from "better-auth/plugins/generic-oauth";
-import { twoFactor } from "better-auth/plugins/two-factor";
-import type { Database } from "../db/client";
-import * as postgresAuth from "../db/schema/postgres/auth";
-import * as sqliteAuth from "../db/schema/sqlite/auth";
-import type { Mailer } from "../mail/mailer";
-import { changeEmailConfirmation, passwordResetEmail, verificationEmail } from "../mail/templates";
-import { type EnabledAuthConfig, SOVEREIGN_PROVIDER_ID, SOVEREIGN_SCOPES } from "./config";
-import { countUsers } from "./users";
+import { drizzleAdapter } from '@better-auth/drizzle-adapter';
+import { passkey } from '@better-auth/passkey';
+import { betterAuth } from 'better-auth';
+import { APIError } from 'better-auth/api';
+import { nextCookies } from 'better-auth/next-js';
+import { genericOAuth } from 'better-auth/plugins/generic-oauth';
+import { twoFactor } from 'better-auth/plugins/two-factor';
+import type { Database } from '../db/client';
+import * as postgresAuth from '../db/schema/postgres/auth';
+import * as sqliteAuth from '../db/schema/sqlite/auth';
+import type { Mailer } from '../mail/mailer';
+import { changeEmailConfirmation, passwordResetEmail, verificationEmail } from '../mail/templates';
+import { type EnabledAuthConfig, SOVEREIGN_PROVIDER_ID, SOVEREIGN_SCOPES } from './config';
+import { countUsers } from './users';
 
 /**
  * Sign-in (DESIGN.md §6) on better-auth, stored in the auth store through its Drizzle adapter:
@@ -32,13 +32,13 @@ export interface AuthDependencies {
 export { SOVEREIGN_PROVIDER_ID, SOVEREIGN_SCOPES };
 
 /** The code a refused sign-up carries, in the API's answer and in the `?error=` of a redirect. */
-export const SIGNUP_CLOSED = "SIGNUP_CLOSED";
+export const SIGNUP_CLOSED = 'SIGNUP_CLOSED';
 
 /** The label better-auth reports sessions under, and the cookie prefix, so ours do not collide with another app's on localhost. */
-const COOKIE_PREFIX = "fjord";
+const COOKIE_PREFIX = 'fjord';
 
 export function createAuth({ config, database, mailer }: AuthDependencies) {
-  const schema = database.dialect === "postgres" ? postgresAuth : sqliteAuth;
+  const schema = database.dialect === 'postgres' ? postgresAuth : sqliteAuth;
   const { local, sovereign } = config;
 
   return betterAuth({
@@ -47,7 +47,7 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
     baseURL: config.url,
     trustedOrigins: [config.url],
     database: drizzleAdapter(database.db, {
-      provider: database.dialect === "postgres" ? "pg" : "sqlite",
+      provider: database.dialect === 'postgres' ? 'pg' : 'sqlite',
       schema,
     }),
     emailAndPassword: local
@@ -61,7 +61,13 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
           revokeSessionsOnPasswordReset: true,
           ...(mailer
             ? {
-                sendResetPassword: async ({ user, url }: { user: { email: string }; url: string }) => {
+                sendResetPassword: async ({
+                  user,
+                  url,
+                }: {
+                  user: { email: string };
+                  url: string;
+                }) => {
                   await mailer.send(passwordResetEmail(user.email, config.name, url));
                 },
               }
@@ -76,7 +82,13 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
           autoSignInAfterVerification: true,
           ...(mailer
             ? {
-                sendVerificationEmail: async ({ user, url }: { user: { email: string }; url: string }) => {
+                sendVerificationEmail: async ({
+                  user,
+                  url,
+                }: {
+                  user: { email: string };
+                  url: string;
+                }) => {
                   await mailer.send(verificationEmail(user.email, config.name, url));
                 },
               }
@@ -84,7 +96,7 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
         }
       : {},
     // An address is changed through `src/account/http.ts`, which asks for the password; better-auth's own route would take a session alone (research 0002, G4).
-    disabledPaths: ["/change-email"],
+    disabledPaths: ['/change-email'],
     user: {
       changeEmail: {
         enabled: local !== undefined,
@@ -92,7 +104,15 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
         updateEmailWithoutVerification: true,
         ...(mailer
           ? {
-              sendChangeEmailConfirmation: async ({ user, newEmail, url }: { user: { email: string }; newEmail: string; url: string }) => {
+              sendChangeEmailConfirmation: async ({
+                user,
+                newEmail,
+                url,
+              }: {
+                user: { email: string };
+                newEmail: string;
+                url: string;
+              }) => {
                 await mailer.send(changeEmailConfirmation(user.email, newEmail, config.name, url));
               },
             }
@@ -118,10 +138,10 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
       encryptOAuthTokens: true,
     },
     // Counted in the database, not in memory, so a limit holds across every process.
-    rateLimit: { enabled: true, storage: "database" },
+    rateLimit: { enabled: true, storage: 'database' },
     advanced: {
       cookiePrefix: COOKIE_PREFIX,
-      useSecureCookies: config.url.startsWith("https:"),
+      useSecureCookies: config.url.startsWith('https:'),
       // better-auth skips its origin check when NODE_ENV is "test", which would let a test pass
       // on behaviour production does not have. Say so, so the two are the same.
       disableOriginCheck: false,
@@ -130,11 +150,14 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
       user: {
         create: {
           before: async () => {
-            if (config.signUp === "open") return;
+            if (config.signUp === 'open') return;
             if ((await countUsers(database)) > 0) {
               // With a code, so that a refused Sovereign login is sent back to the sign-in page with
               // the reason; without one, better-auth answers the callback with bare JSON.
-              throw new APIError("FORBIDDEN", { message: "Sign-up is closed on this instance.", code: SIGNUP_CLOSED });
+              throw new APIError('FORBIDDEN', {
+                message: 'Sign-up is closed on this instance.',
+                code: SIGNUP_CLOSED,
+              });
             }
           },
         },
@@ -161,7 +184,7 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
               config: [
                 {
                   providerId: SOVEREIGN_PROVIDER_ID,
-                  name: "Sovereign",
+                  name: 'Sovereign',
                   discoveryUrl: `${sovereign.issuer}/.well-known/openid-configuration`,
                   // The profile comes from the ID token, so refuse to run on one that cannot be
                   // checked against the issuer's keys: a discovery document without them is not
@@ -169,7 +192,7 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
                   requireIdTokenVerification: true,
                   clientId: sovereign.clientId,
                   clientSecret: sovereign.clientSecret,
-                  authentication: "basic",
+                  authentication: 'basic',
                   scopes: SOVEREIGN_SCOPES,
                   pkce: true,
                   // Signing out of Fjord does not sign the person out of Sovereign, which is
@@ -177,7 +200,10 @@ export function createAuth({ config, database, mailer }: AuthDependencies) {
                   disableProviderLogout: true,
                   mapProfileToUser: (profile) => ({
                     // Sovereign's contract is `sub`, `email` and `name`; a missing name is not a reason to refuse.
-                    name: typeof profile.name === "string" && profile.name.trim() !== "" ? profile.name : String(profile.email ?? "").split("@")[0] || "Sovereign user",
+                    name:
+                      typeof profile.name === 'string' && profile.name.trim() !== ''
+                        ? profile.name
+                        : String(profile.email ?? '').split('@')[0] || 'Sovereign user',
                     emailVerified: profile.emailVerified === true,
                   }),
                 },

@@ -1,16 +1,16 @@
-import { notFound, redirect } from "next/navigation";
-import { AuthShell } from "../../src/auth/screens/AuthShell";
-import { SignUpForm } from "../../src/auth/screens/SignUpForm";
-import { AuthLink } from "../../src/ui";
-import { getSession, localAuthConfig, signUpAvailable } from "../../src/auth/server";
+import { notFound, redirect } from 'next/navigation';
+import { AuthShell } from '../../src/auth/screens/AuthShell';
+import { SignUpForm } from '../../src/auth/screens/SignUpForm';
+import { AuthLink } from '../../src/ui';
+import { getSession, localAuthConfig, signUpAvailable } from '../../src/auth/server';
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Create an account" };
+export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Create an account' };
 
 export default async function SignUpPage() {
   const config = localAuthConfig();
   if (!config) notFound();
-  if (await getSession()) redirect("/");
+  if (await getSession()) redirect('/');
 
   if (!(await signUpAvailable())) {
     return (
@@ -34,7 +34,10 @@ export default async function SignUpPage() {
         </>
       }
     >
-      <SignUpForm minLength={config.passwordMinLength} verifyEmail={config.requireEmailVerification} />
+      <SignUpForm
+        minLength={config.passwordMinLength}
+        verifyEmail={config.requireEmailVerification}
+      />
     </AuthShell>
   );
 }

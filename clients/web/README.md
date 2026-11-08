@@ -61,15 +61,15 @@ Fjord Web keeps accounts, connections, shares and the like in SQLite (the defaul
 in production too) or PostgreSQL (`DESIGN.md` §14). It makes its own namespaces,
 schemas and tables when it starts, from the variables below.
 
-| Variable | Meaning | Default |
-| --- | --- | --- |
-| `FJORD_DB_DIALECT` | `sqld`, `sqlite` (a plain file) or `postgres` | `sqld` |
-| `FJORD_SQLD_URL` | `http://host:port` of an [sqld](https://github.com/tursodatabase/libsql) service | `http://sqld:8080` |
-| `FJORD_SQLD_ADMIN_URL` | sqld's admin API, used to create its namespaces | `http://sqld:8081` |
-| `FJORD_SQLITE_URL` | `file:/path/fjord.db`, required for `sqlite` | |
-| `FJORD_POSTGRES_URL` or `_FILE` | `postgres://user:password@host:port/db`, required for `postgres` | |
-| `FJORD_POSTGRES_POOL_MAX`, `PGSSLROOTCERT` | pool size (5), and a CA file for `sslmode=verify-*` | |
-| `FJORD_DB_CONNECT_TIMEOUT_MS` | how long to wait for the database to come up | 30000 |
+| Variable                                   | Meaning                                                                          | Default            |
+| ------------------------------------------ | -------------------------------------------------------------------------------- | ------------------ |
+| `FJORD_DB_DIALECT`                         | `sqld`, `sqlite` (a plain file) or `postgres`                                    | `sqld`             |
+| `FJORD_SQLD_URL`                           | `http://host:port` of an [sqld](https://github.com/tursodatabase/libsql) service | `http://sqld:8080` |
+| `FJORD_SQLD_ADMIN_URL`                     | sqld's admin API, used to create its namespaces                                  | `http://sqld:8081` |
+| `FJORD_SQLITE_URL`                         | `file:/path/fjord.db`, required for `sqlite`                                     |                    |
+| `FJORD_POSTGRES_URL` or `_FILE`            | `postgres://user:password@host:port/db`, required for `postgres`                 |                    |
+| `FJORD_POSTGRES_POOL_MAX`, `PGSSLROOTCERT` | pool size (5), and a CA file for `sslmode=verify-*`                              |                    |
+| `FJORD_DB_CONNECT_TIMEOUT_MS`              | how long to wait for the database to come up                                     | 30000              |
 
 You need no database service to develop: a file works with no Docker.
 
@@ -107,34 +107,34 @@ export FJORD_AUTH_SECRET="$(openssl rand -base64 48)"   # 32 characters or more
 FJORD_DB_DIALECT=sqlite FJORD_SQLITE_URL=file:./data/fjord.db pnpm dev
 ```
 
-| Variable | Meaning | Default |
-| --- | --- | --- |
-| `FJORD_AUTH_LOCAL` | `1` or `true` turns local sign-in on | off |
-| `FJORD_CORE_URL` | a Sovereign instance's core, which is its OIDC issuer: its address with no path, e.g. `https://sovereign.example.com` (https, except on localhost) | off |
-| `FJORD_CORE_CLIENT_ID` | the client registered for this instance (below) | with the core |
-| `FJORD_CORE_CLIENT_SECRET` or `_FILE` | its secret. All three are needed together; some without the others is an error | with the core |
-| `FJORD_URL` | the address people use; https except on localhost. Passkeys, email links and the Sovereign redirect URI are made from it | required with either |
-| `FJORD_AUTH_SECRET` or `_FILE` | signs sessions and tokens, 32 characters or more | required with either |
-| `FJORD_AUTH_SIGNUP` | `closed`: the first account only. `open`: anyone. For either way in | `closed` |
-| `FJORD_AUTH_PASSWORD_MIN_LENGTH` | | 10 |
-| `FJORD_NAME` | what an authenticator app and a passkey call the instance | Fjord |
-| `FJORD_PASSKEY_RP_ID` | the passkey relying party, to share passkeys across subdomains | the host of `FJORD_URL` |
-| `FJORD_SMTP_HOST`, `_PORT`, `_SECURE`, `_USER`, `_PASSWORD` or `_PASSWORD_FILE`, `_FROM` | email, optional. With it, addresses are verified and a password can be reset by email; without it, neither | none |
-| `FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION` | `false` to skip verification even with SMTP | on with SMTP |
+| Variable                                                                                 | Meaning                                                                                                                                            | Default                 |
+| ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `FJORD_AUTH_LOCAL`                                                                       | `1` or `true` turns local sign-in on                                                                                                               | off                     |
+| `FJORD_CORE_URL`                                                                         | a Sovereign instance's core, which is its OIDC issuer: its address with no path, e.g. `https://sovereign.example.com` (https, except on localhost) | off                     |
+| `FJORD_CORE_CLIENT_ID`                                                                   | the client registered for this instance (below)                                                                                                    | with the core           |
+| `FJORD_CORE_CLIENT_SECRET` or `_FILE`                                                    | its secret. All three are needed together; some without the others is an error                                                                     | with the core           |
+| `FJORD_URL`                                                                              | the address people use; https except on localhost. Passkeys, email links and the Sovereign redirect URI are made from it                           | required with either    |
+| `FJORD_AUTH_SECRET` or `_FILE`                                                           | signs sessions and tokens, 32 characters or more                                                                                                   | required with either    |
+| `FJORD_AUTH_SIGNUP`                                                                      | `closed`: the first account only. `open`: anyone. For either way in                                                                                | `closed`                |
+| `FJORD_AUTH_PASSWORD_MIN_LENGTH`                                                         |                                                                                                                                                    | 10                      |
+| `FJORD_NAME`                                                                             | what an authenticator app and a passkey call the instance                                                                                          | Fjord                   |
+| `FJORD_PASSKEY_RP_ID`                                                                    | the passkey relying party, to share passkeys across subdomains                                                                                     | the host of `FJORD_URL` |
+| `FJORD_SMTP_HOST`, `_PORT`, `_SECURE`, `_USER`, `_PASSWORD` or `_PASSWORD_FILE`, `_FROM` | email, optional. With it, addresses are verified and a password can be reset by email; without it, neither                                         | none                    |
+| `FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION`                                                  | `false` to skip verification even with SMTP                                                                                                        | on with SMTP            |
 
 **Connecting a repository.** Signed in, open **Repositories**, give the repository's address and a
 **fine-grained personal access token**: on GitHub, Settings, Developer settings, Personal access tokens,
-Fine-grained tokens, with *Repository access* limited to that one repository and the repository
+Fine-grained tokens, with _Repository access_ limited to that one repository and the repository
 permission **Contents: Read and write** (Metadata: Read comes with it). To see a site's build on its page
-(repository kind `ssg`), also give it **Checks**, **Commit statuses** and **Deployments**, each *Read*; without them the page says
+(repository kind `ssg`), also give it **Checks**, **Commit statuses** and **Deployments**, each _Read_; without them the page says
 it cannot read the build, and the rest works. Fjord checks that the token
 works, and can write, before keeping it, and keeps it encrypted (it needs `FJORD_ENCRYPTION_KEY`,
 below; without one the page says so). `FJORD_GITHUB_API_URL` is only for a GitHub Enterprise Server
 (`https://github.example.com/api/v3`); tokens are sent there, so it must be https.
 
-**Changing an address.** Under *Account*, *Profile*, with the password. With email the address it has is asked first and the new one after; without it, it changes at once. An address that is Sovereign's to give is changed there.
+**Changing an address.** Under _Account_, _Profile_, with the password. With email the address it has is asked first and the new one after; without it, it changes at once. An address that is Sovereign's to give is changed there.
 
-**Deleting an account.** A person deletes their own under *Account*, *Profile*, with the address typed out and the password where it has one. What is deleted is what a Sovereign notice deletes (`src/sovereign/people.ts`). With `FJORD_AUTH_SIGNUP=closed`, deleting the only account means the next person to sign up is the first account again.
+**Deleting an account.** A person deletes their own under _Account_, _Profile_, with the address typed out and the password where it has one. What is deleted is what a Sovereign notice deletes (`src/sovereign/people.ts`). With `FJORD_AUTH_SIGNUP=closed`, deleting the only account means the next person to sign up is the first account again.
 
 When both ways of signing in are on, an account made with a password can **link** a Sovereign account on
 its security page: Sovereign must use the same email address as the account, or nothing is linked. After that
@@ -180,7 +180,7 @@ start if stored credentials need a key that is not set: the message names it by 
 If a key is lost the credentials it protected are lost; connect the repositories again.
 
 **Signing in with Sovereign.** An admin of the Sovereign instance registers Fjord Web in its
-Console, under *External clients*: a display name, the redirect URI
+Console, under _External clients_: a display name, the redirect URI
 `<FJORD_URL>/api/auth/callback/sovereign` (matched exactly, so `http://localhost:3001/...` for
 development and the `https://` address for production, each registered), and the scopes `openid
 profile email`. The Console shows the client id and secret once; they go in the three variables

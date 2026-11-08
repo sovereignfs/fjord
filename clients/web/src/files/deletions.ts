@@ -1,8 +1,8 @@
-import { sql } from "drizzle-orm";
-import type { Database } from "../db/client";
-import { dbAll, dbRun } from "../db/exec";
-import * as postgresSchema from "../db/schema/postgres";
-import * as sqliteSchema from "../db/schema/sqlite";
+import { sql } from 'drizzle-orm';
+import type { Database } from '../db/client';
+import { dbAll, dbRun } from '../db/exec';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
 
 /**
  * What was deleted through the app (DESIGN.md §8, ROADMAP 1b.12), so that it can be put back. Git keeps the file in its
@@ -17,7 +17,7 @@ export interface DeletionRecord {
   path: string;
   /** The Doc's `id`, when it was read; null otherwise. */
   docId: string | null;
-  kind: "doc" | "other";
+  kind: 'doc' | 'other';
   /** Its last blob. */
   blob: string;
   deletingCommit: string;
@@ -28,12 +28,13 @@ export interface DeletionRecord {
 
 export interface NewDeletion {
   path: string;
-  kind: DeletionRecord["kind"];
+  kind: DeletionRecord['kind'];
   blob: string;
   docId?: string | null | undefined;
 }
 
-const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion);
+const table = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.deletion : sqliteSchema.deletion;
 const COLUMNS = sql.raw(
   'id, path, doc_id AS "docId", kind, blob, deleting_commit AS "deletingCommit", deleted_by AS "deletedBy", deleted_at AS "deletedAt", restored_at AS "restoredAt"',
 );
@@ -59,7 +60,7 @@ const toRecord = (row: Row): DeletionRecord => ({
   path: row.path,
   docId: row.docId ?? null,
   // Rows written before there was one kind of Doc say `note` or `document`.
-  kind: row.kind === "other" ? "other" : "doc",
+  kind: row.kind === 'other' ? 'other' : 'doc',
   blob: row.blob,
   deletingCommit: row.deletingCommit,
   deletedBy: row.deletedBy,
@@ -78,13 +79,21 @@ export class DeletionService {
   }
 
   /** Remember that these files were deleted by this commit. Their ids, in the order given. */
-  async record(connectionId: number, commit: string, accountId: string, entries: NewDeletion[]): Promise<number[]> {
+  async record(
+    connectionId: number,
+    commit: string,
+    accountId: string,
+    entries: NewDeletion[],
+  ): Promise<number[]> {
     const at = this.now();
     const ids: number[] = [];
     for (let start = 0; start < entries.length; start += BATCH) {
       const rows = entries
         .slice(start, start + BATCH)
-        .map((entry) => sql`(${connectionId}, ${entry.path}, ${entry.docId ?? null}, ${entry.kind}, ${entry.blob}, ${commit}, ${accountId}, ${at})`);
+        .map(
+          (entry) =>
+            sql`(${connectionId}, ${entry.path}, ${entry.docId ?? null}, ${entry.kind}, ${entry.blob}, ${commit}, ${accountId}, ${at})`,
+        );
       const inserted = await dbAll<{ id: number | string }>(
         this.database,
         sql`INSERT INTO ${table(this.database)} (connection_id, path, doc_id, kind, blob, deleting_commit, deleted_by, deleted_at)
@@ -114,7 +123,10 @@ export class DeletionService {
     const rows = await dbAll<Row>(
       this.database,
       sql`SELECT ${COLUMNS} FROM ${table(this.database)}
-          WHERE connection_id = ${connectionId} AND id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+          WHERE connection_id = ${connectionId} AND id IN (${sql.join(
+            ids.map((id) => sql`${id}`),
+            sql`, `,
+          )})
           ORDER BY id ASC`,
     );
     return rows.map(toRecord);
@@ -126,7 +138,10 @@ export class DeletionService {
     const rows = await dbAll<{ id: number | string }>(
       this.database,
       sql`UPDATE ${table(this.database)} SET restored_at = ${this.now()}
-          WHERE connection_id = ${connectionId} AND restored_at IS NULL AND id IN (${sql.join(ids.map((id) => sql`${id}`), sql`, `)})
+          WHERE connection_id = ${connectionId} AND restored_at IS NULL AND id IN (${sql.join(
+            ids.map((id) => sql`${id}`),
+            sql`, `,
+          )})
           RETURNING id`,
     );
     return rows.map((row) => Number(row.id)).sort((a, b) => a - b);
@@ -134,6 +149,9 @@ export class DeletionService {
 
   /** Every record of a connection goes with it (it is disconnected). */
   async forget(connectionId: number): Promise<void> {
-    await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`,
+    );
   }
 }

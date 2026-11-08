@@ -1,9 +1,9 @@
-import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
-import { type IncomingMessage, type Server, type ServerResponse, createServer } from "node:http";
-import type { AddressInfo } from "node:net";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { type IncomingMessage, type Server, type ServerResponse, createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 /**
  * A stand-in for GitHub's REST API whose storage is a real git repository, answered with git's own
@@ -36,11 +36,11 @@ interface Failure {
 export interface RecordedRequest {
   method: string;
   path: string;
-  headers: IncomingMessage["headers"];
+  headers: IncomingMessage['headers'];
   body?: unknown;
 }
 
-const NULL_SHA = "0".repeat(40);
+const NULL_SHA = '0'.repeat(40);
 
 export class FakeGitHub {
   readonly requests: RecordedRequest[] = [];
@@ -65,7 +65,7 @@ export class FakeGitHub {
   private counter = 0;
 
   constructor(private readonly options: FakeGitHubOptions = {}) {
-    this.ref = { owner: options.owner ?? "acme", name: options.name ?? "notes" };
+    this.ref = { owner: options.owner ?? 'acme', name: options.name ?? 'notes' };
   }
 
   get url(): string {
@@ -73,12 +73,14 @@ export class FakeGitHub {
   }
 
   async start(): Promise<void> {
-    this.dir = mkdtempSync(join(tmpdir(), "fjord-fake-github-"));
-    this.repo = join(this.dir, "repo.git");
+    this.dir = mkdtempSync(join(tmpdir(), 'fjord-fake-github-'));
+    this.repo = join(this.dir, 'repo.git');
     mkdirSync(this.repo);
-    await this.git(["init", "--bare", "--initial-branch=main", "--quiet"]);
+    await this.git(['init', '--bare', '--initial-branch=main', '--quiet']);
     this.server = createServer((req, res) => void this.handle(req, res));
-    await new Promise<void>((resolve) => this.server.listen(this.options.port ?? 0, "127.0.0.1", resolve));
+    await new Promise<void>((resolve) =>
+      this.server.listen(this.options.port ?? 0, '127.0.0.1', resolve),
+    );
   }
 
   async stop(): Promise<void> {
@@ -92,105 +94,154 @@ export class FakeGitHub {
   }
 
   /** Answer the next requests that match with this failure instead of doing them. */
-  fail(match: RegExp, response: { status: number; headers?: Record<string, string>; body?: unknown; method?: string; times?: number }): void {
+  fail(
+    match: RegExp,
+    response: {
+      status: number;
+      headers?: Record<string, string>;
+      body?: unknown;
+      method?: string;
+      times?: number;
+    },
+  ): void {
     this.failures.push({ match, times: 1, ...response });
   }
 
   // --- Setting up, straight into git (not through the API) ---------------------------------
 
   /** Commit these files to the branch on top of what is there; `null` deletes. With `replace`, the branch holds exactly these. */
-  async commitFiles(files: Record<string, string | Uint8Array | null>, options: { branch?: string; replace?: boolean; message?: string } = {}): Promise<string> {
-    const branch = options.branch ?? "main";
+  async commitFiles(
+    files: Record<string, string | Uint8Array | null>,
+    options: { branch?: string; replace?: boolean; message?: string } = {},
+  ): Promise<string> {
+    const branch = options.branch ?? 'main';
     const parent = await this.revParse(`refs/heads/${branch}`);
     const index = this.newIndex();
-    if (parent && !options.replace) await this.git(["read-tree", parent], { index });
-    else await this.git(["read-tree", "--empty"], { index });
+    if (parent && !options.replace) await this.git(['read-tree', parent], { index });
+    else await this.git(['read-tree', '--empty'], { index });
     const lines: string[] = [];
     for (const [path, content] of Object.entries(files)) {
       if (content === null) {
         lines.push(`0 ${NULL_SHA}\t${path}`);
       } else {
-        const sha = await this.hashObject(typeof content === "string" ? Buffer.from(content) : Buffer.from(content));
+        const sha = await this.hashObject(
+          typeof content === 'string' ? Buffer.from(content) : Buffer.from(content),
+        );
         lines.push(`100644 ${sha}\t${path}`);
       }
     }
-    await this.git(["update-index", "--index-info"], { index, input: `${lines.join("\n")}\n` });
-    const tree = (await this.git(["write-tree"], { index })).toString().trim();
-    const commit = await this.commitTree(tree, parent ? [parent] : [], options.message ?? `commit ${++this.counter}`, { name: "Someone", email: "someone@example.com" });
-    await this.git(["update-ref", `refs/heads/${branch}`, commit]);
+    await this.git(['update-index', '--index-info'], { index, input: `${lines.join('\n')}\n` });
+    const tree = (await this.git(['write-tree'], { index })).toString().trim();
+    const commit = await this.commitTree(
+      tree,
+      parent ? [parent] : [],
+      options.message ?? `commit ${++this.counter}`,
+      { name: 'Someone', email: 'someone@example.com' },
+    );
+    await this.git(['update-ref', `refs/heads/${branch}`, commit]);
     return commit;
   }
 
   /** An integration posts about a commit's build, as GitHub would hold it. Each part is optional; GitHub's own shapes. */
   reportBuild(commit: string, report: Partial<FakeBuild>): void {
     const known = this.builds.get(commit) ?? { checkRuns: [], statuses: [], deployments: [] };
-    this.builds.set(commit, { checkRuns: [...known.checkRuns, ...(report.checkRuns ?? [])], statuses: [...known.statuses, ...(report.statuses ?? [])], deployments: [...known.deployments, ...(report.deployments ?? [])] });
+    this.builds.set(commit, {
+      checkRuns: [...known.checkRuns, ...(report.checkRuns ?? [])],
+      statuses: [...known.statuses, ...(report.statuses ?? [])],
+      deployments: [...known.deployments, ...(report.deployments ?? [])],
+    });
   }
 
   /** What git itself says about a commit, for asserting on what the provider wrote. */
   async show(commit: string, format: string): Promise<string> {
-    return (await this.git(["show", "--no-patch", `--format=${format}`, commit])).toString().trimEnd();
+    return (await this.git(['show', '--no-patch', `--format=${format}`, commit]))
+      .toString()
+      .trimEnd();
   }
 
-  async branchHead(branch = "main"): Promise<string | undefined> {
+  async branchHead(branch = 'main'): Promise<string | undefined> {
     return this.revParse(`refs/heads/${branch}`);
   }
 
   async fsck(): Promise<void> {
-    await this.git(["fsck", "--strict", "--no-dangling"]);
+    await this.git(['fsck', '--strict', '--no-dangling']);
   }
 
   async filesAt(commit: string): Promise<Record<string, string>> {
-    const listing = (await this.git(["ls-tree", "-r", "-z", commit])).toString("utf8").split("\0").filter(Boolean);
+    const listing = (await this.git(['ls-tree', '-r', '-z', commit]))
+      .toString('utf8')
+      .split('\0')
+      .filter(Boolean);
     const files: Record<string, string> = {};
     for (const line of listing) {
-      const [meta, path] = line.split("\t");
-      files[path!] = (await this.git(["cat-file", "blob", meta!.split(" ")[2]!])).toString("utf8");
+      const [meta, path] = line.split('\t');
+      files[path!] = (await this.git(['cat-file', 'blob', meta!.split(' ')[2]!])).toString('utf8');
     }
     return files;
   }
 
   /** One file at a commit, as the bytes git holds (`filesAt` reads text; an encrypted file is not). */
   async fileBytesAt(commit: string, path: string): Promise<Uint8Array> {
-    return new Uint8Array(await this.git(["cat-file", "blob", `${commit}:${path}`]));
+    return new Uint8Array(await this.git(['cat-file', 'blob', `${commit}:${path}`]));
   }
 
   // --- HTTP --------------------------------------------------------------------------------
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const url = new URL(req.url ?? "/", this.url);
+    const url = new URL(req.url ?? '/', this.url);
     const path = url.pathname;
-    const method = req.method ?? "GET";
+    const method = req.method ?? 'GET';
     const raw = await readBody(req);
-    const body = raw.length > 0 ? JSON.parse(raw.toString("utf8")) : undefined;
-    this.requests.push({ method, path: path + url.search, headers: req.headers, ...(body !== undefined ? { body } : {}) });
+    const body = raw.length > 0 ? JSON.parse(raw.toString('utf8')) : undefined;
+    this.requests.push({
+      method,
+      path: path + url.search,
+      headers: req.headers,
+      ...(body !== undefined ? { body } : {}),
+    });
 
     const reply = (status: number, payload?: unknown, headers: Record<string, string> = {}) => {
-      res.writeHead(status, { "content-type": "application/json; charset=utf-8", "x-github-request-id": `FAKE${this.requests.length}`, ...headers });
+      res.writeHead(status, {
+        'content-type': 'application/json; charset=utf-8',
+        'x-github-request-id': `FAKE${this.requests.length}`,
+        ...headers,
+      });
       res.end(payload === undefined ? undefined : JSON.stringify(payload));
     };
 
-    const hook = this.hooks.find((entry) => entry.match.test(path) && (!entry.method || entry.method === method));
+    const hook = this.hooks.find(
+      (entry) => entry.match.test(path) && (!entry.method || entry.method === method),
+    );
     if (hook) {
       this.hooks.splice(this.hooks.indexOf(hook), 1);
       await hook.action();
     }
 
-    const failure = this.failures.find((f) => f.match.test(path) && (!f.method || f.method === method));
+    const failure = this.failures.find(
+      (f) => f.match.test(path) && (!f.method || f.method === method),
+    );
     if (failure) {
       if (--failure.times <= 0) this.failures.splice(this.failures.indexOf(failure), 1);
-      return reply(failure.status, failure.body ?? { message: "Injected failure" }, failure.headers);
+      return reply(
+        failure.status,
+        failure.body ?? { message: 'Injected failure' },
+        failure.headers,
+      );
     }
 
-    const token = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ""))?.[1];
-    const tokens = this.options.tokens ?? { "test-token": { push: true } };
+    const token = /^Bearer (.+)$/.exec(String(req.headers.authorization ?? ''))?.[1];
+    const tokens = this.options.tokens ?? { 'test-token': { push: true } };
     const grant = token ? tokens[token] : undefined;
-    if (!grant) return reply(401, { message: "Bad credentials", documentation_url: "https://docs.github.com/rest" });
+    if (!grant)
+      return reply(401, {
+        message: 'Bad credentials',
+        documentation_url: 'https://docs.github.com/rest',
+      });
 
     try {
       await this.route(method, path, url, body, grant, req, res, reply);
     } catch (error) {
-      reply(500, { message: error instanceof Error ? error.message : "fake failed" });
+      reply(500, { message: error instanceof Error ? error.message : 'fake failed' });
     }
   }
 
@@ -204,86 +255,150 @@ export class FakeGitHub {
     res: ServerResponse,
     reply: (status: number, payload?: unknown, headers?: Record<string, string>) => void,
   ): Promise<void> {
-    const repoJson = () => ({ name: this.ref.name, owner: { login: this.ref.owner }, default_branch: "main", private: true, permissions: { push: grant.push, pull: true } });
+    const repoJson = () => ({
+      name: this.ref.name,
+      owner: { login: this.ref.owner },
+      default_branch: 'main',
+      private: true,
+      permissions: { push: grant.push, pull: true },
+    });
 
-    if (method === "GET" && (path === "/user/repos" || path === "/installation/repositories")) {
+    if (method === 'GET' && (path === '/user/repos' || path === '/installation/repositories')) {
       const all = [repoJson()];
-      const size = this.pageSize ?? Number(url.searchParams.get("per_page") ?? 30);
-      const page = Number(url.searchParams.get("page") ?? 1);
+      const size = this.pageSize ?? Number(url.searchParams.get('per_page') ?? 30);
+      const page = Number(url.searchParams.get('page') ?? 1);
       const slice = all.slice((page - 1) * size, page * size);
-      const next: Record<string, string> = page * size < all.length ? { link: `<${this.url}${path}?per_page=${size}&page=${page + 1}>; rel="next"` } : {};
-      return reply(200, path === "/user/repos" ? slice : { total_count: all.length, repositories: slice }, next);
+      const next: Record<string, string> =
+        page * size < all.length
+          ? { link: `<${this.url}${path}?per_page=${size}&page=${page + 1}>; rel="next"` }
+          : {};
+      return reply(
+        200,
+        path === '/user/repos' ? slice : { total_count: all.length, repositories: slice },
+        next,
+      );
     }
 
     const m = /^\/repos\/([^/]+)\/([^/]+)(\/.*)?$/.exec(path);
-    if (!m || m[1] !== this.ref.owner || m[2] !== this.ref.name) return reply(404, { message: "Not Found" });
-    const rest = m[3] ?? "";
-    if (method === "GET" && rest === "") return reply(200, repoJson());
+    if (!m || m[1] !== this.ref.owner || m[2] !== this.ref.name)
+      return reply(404, { message: 'Not Found' });
+    const rest = m[3] ?? '';
+    if (method === 'GET' && rest === '') return reply(200, repoJson());
 
-    const writes = method !== "GET";
-    if (writes && !grant.push) return reply(403, { message: "Resource not accessible by personal access token" });
+    const writes = method !== 'GET';
+    if (writes && !grant.push)
+      return reply(403, { message: 'Resource not accessible by personal access token' });
 
     let found: RegExpExecArray | null;
-    if (method === "GET" && (found = /^\/commits\/([0-9a-f]{40})\/(check-runs|status)$/.exec(rest))) {
-      if (!(await this.exists(found[1]!, "commit"))) return reply(422, { message: "No commit found for SHA" });
-      if (this.forbidBuildReads) return reply(403, { message: "Resource not accessible by personal access token" });
+    if (
+      method === 'GET' &&
+      (found = /^\/commits\/([0-9a-f]{40})\/(check-runs|status)$/.exec(rest))
+    ) {
+      if (!(await this.exists(found[1]!, 'commit')))
+        return reply(422, { message: 'No commit found for SHA' });
+      if (this.forbidBuildReads)
+        return reply(403, { message: 'Resource not accessible by personal access token' });
       const build = this.builds.get(found[1]!);
-      if (found[2] === "check-runs") return reply(200, { total_count: build?.checkRuns.length ?? 0, check_runs: build?.checkRuns ?? [] });
+      if (found[2] === 'check-runs')
+        return reply(200, {
+          total_count: build?.checkRuns.length ?? 0,
+          check_runs: build?.checkRuns ?? [],
+        });
       // GitHub's combined status is `pending` when nothing has posted one, which is why the provider reads the statuses and not this.
       const statuses = build?.statuses ?? [];
-      const state = statuses.length === 0 ? "pending" : statuses.some((s) => s.state === "failure" || s.state === "error") ? "failure" : statuses.some((s) => s.state === "pending") ? "pending" : "success";
+      const state =
+        statuses.length === 0
+          ? 'pending'
+          : statuses.some((s) => s.state === 'failure' || s.state === 'error')
+            ? 'failure'
+            : statuses.some((s) => s.state === 'pending')
+              ? 'pending'
+              : 'success';
       return reply(200, { state, total_count: statuses.length, statuses, sha: found[1] });
     }
 
-    if (method === "GET" && rest === "/commits") {
-      const sha = url.searchParams.get("sha") ?? "";
-      const where = url.searchParams.get("path") ?? "";
-      if (!/^[0-9a-f]{40}$/.test(sha) || !(await this.exists(sha, "commit"))) return reply(404, { message: "Not Found" });
-      const count = String(Number(url.searchParams.get("per_page") ?? "30"));
-      const out = (await this.git(["log", `-${count}`, "--format=%H%x00%cI%x00%an%x00%B%x1e", sha, "--", where])).toString();
-      const commits = out.split("\x1e").map((entry) => entry.trim()).filter((entry) => entry !== "");
-      return reply(200, commits.map((entry) => {
-        const [commit, date, name, message] = entry.split("\0");
-        return { sha: commit, commit: { message, committer: { date }, author: { name, date } } };
-      }));
+    if (method === 'GET' && rest === '/commits') {
+      const sha = url.searchParams.get('sha') ?? '';
+      const where = url.searchParams.get('path') ?? '';
+      if (!/^[0-9a-f]{40}$/.test(sha) || !(await this.exists(sha, 'commit')))
+        return reply(404, { message: 'Not Found' });
+      const count = String(Number(url.searchParams.get('per_page') ?? '30'));
+      const out = (
+        await this.git([
+          'log',
+          `-${count}`,
+          '--format=%H%x00%cI%x00%an%x00%B%x1e',
+          sha,
+          '--',
+          where,
+        ])
+      ).toString();
+      const commits = out
+        .split('\x1e')
+        .map((entry) => entry.trim())
+        .filter((entry) => entry !== '');
+      return reply(
+        200,
+        commits.map((entry) => {
+          const [commit, date, name, message] = entry.split('\0');
+          return { sha: commit, commit: { message, committer: { date }, author: { name, date } } };
+        }),
+      );
     }
 
-    if (method === "GET" && rest === "/deployments") {
-      if (this.forbidBuildReads) return reply(403, { message: "Resource not accessible by personal access token" });
-      const sha = url.searchParams.get("sha") ?? "";
-      return reply(200, (this.builds.get(sha)?.deployments ?? []).map(({ id, environment }) => ({ id, environment, sha })));
+    if (method === 'GET' && rest === '/deployments') {
+      if (this.forbidBuildReads)
+        return reply(403, { message: 'Resource not accessible by personal access token' });
+      const sha = url.searchParams.get('sha') ?? '';
+      return reply(
+        200,
+        (this.builds.get(sha)?.deployments ?? []).map(({ id, environment }) => ({
+          id,
+          environment,
+          sha,
+        })),
+      );
     }
 
-    if (method === "GET" && (found = /^\/deployments\/(\d+)\/statuses$/.exec(rest))) {
+    if (method === 'GET' && (found = /^\/deployments\/(\d+)\/statuses$/.exec(rest))) {
       for (const build of this.builds.values()) {
         const deployment = build.deployments.find((d) => d.id === Number(found![1]));
         if (deployment) return reply(200, [...deployment.statuses].reverse());
       }
-      return reply(404, { message: "Not Found" });
+      return reply(404, { message: 'Not Found' });
     }
 
-    if (method === "GET" && (found = /^\/git\/ref\/heads\/(.+)$/.exec(rest))) {
+    if (method === 'GET' && (found = /^\/git\/ref\/heads\/(.+)$/.exec(rest))) {
       const sha = await this.revParse(`refs/heads/${decodeURIComponent(found[1]!)}`);
-      if (!sha) return reply(404, { message: "Not Found" });
+      if (!sha) return reply(404, { message: 'Not Found' });
       const etag = `W/"${sha}"`;
-      if (req.headers["if-none-match"] === etag) return reply(304, undefined, { etag });
-      return reply(200, { ref: `refs/heads/${found[1]}`, object: { sha, type: "commit" } }, { etag });
+      if (req.headers['if-none-match'] === etag) return reply(304, undefined, { etag });
+      return reply(
+        200,
+        { ref: `refs/heads/${found[1]}`, object: { sha, type: 'commit' } },
+        { etag },
+      );
     }
 
-    if (method === "GET" && (found = /^\/git\/commits\/([0-9a-f]{40})$/.exec(rest))) {
-      if (!(await this.exists(found[1]!, "commit"))) return reply(404, { message: "Not Found" });
-      const tree = (await this.git(["rev-parse", `${found[1]}^{tree}`])).toString().trim();
+    if (method === 'GET' && (found = /^\/git\/commits\/([0-9a-f]{40})$/.exec(rest))) {
+      if (!(await this.exists(found[1]!, 'commit'))) return reply(404, { message: 'Not Found' });
+      const tree = (await this.git(['rev-parse', `${found[1]}^{tree}`])).toString().trim();
       return reply(200, { sha: found[1], tree: { sha: tree } });
     }
 
-    if (method === "GET" && (found = /^\/git\/trees\/([0-9a-f]{40})$/.exec(rest))) {
-      if (!(await this.exists(found[1]!))) return reply(404, { message: "Not Found" });
-      const recursive = url.searchParams.has("recursive");
-      const out = (await this.git(["ls-tree", ...(recursive ? ["-r", "-t"] : []), "-l", "-z", found[1]!])).toString("utf8").split("\0").filter(Boolean);
+    if (method === 'GET' && (found = /^\/git\/trees\/([0-9a-f]{40})$/.exec(rest))) {
+      if (!(await this.exists(found[1]!))) return reply(404, { message: 'Not Found' });
+      const recursive = url.searchParams.has('recursive');
+      const out = (
+        await this.git(['ls-tree', ...(recursive ? ['-r', '-t'] : []), '-l', '-z', found[1]!])
+      )
+        .toString('utf8')
+        .split('\0')
+        .filter(Boolean);
       let tree = out.map((line) => {
-        const [meta, path] = line.split("\t");
+        const [meta, path] = line.split('\t');
         const [mode, type, sha, size] = meta!.trim().split(/\s+/);
-        return { path, mode, type, sha, ...(type === "blob" ? { size: Number(size) } : {}) };
+        return { path, mode, type, sha, ...(type === 'blob' ? { size: Number(size) } : {}) };
       });
       let truncated = false;
       if (recursive && this.treeLimit !== undefined && tree.length > this.treeLimit) {
@@ -293,98 +408,145 @@ export class FakeGitHub {
       return reply(200, { sha: found[1], tree, truncated });
     }
 
-    if (method === "GET" && (found = /^\/git\/blobs\/([0-9a-f]{40})$/.exec(rest))) {
-      if (!(await this.exists(found[1]!, "blob"))) return reply(404, { message: "Not Found" });
-      const content = await this.git(["cat-file", "blob", found[1]!]);
+    if (method === 'GET' && (found = /^\/git\/blobs\/([0-9a-f]{40})$/.exec(rest))) {
+      if (!(await this.exists(found[1]!, 'blob'))) return reply(404, { message: 'Not Found' });
+      const content = await this.git(['cat-file', 'blob', found[1]!]);
       if (this.maxBlobBytes !== undefined && content.length > this.maxBlobBytes) {
-        return reply(403, { message: "The requested blob is too large to fetch via the API", errors: [{ resource: "Blob", field: "data", code: "too_large" }] });
+        return reply(403, {
+          message: 'The requested blob is too large to fetch via the API',
+          errors: [{ resource: 'Blob', field: 'data', code: 'too_large' }],
+        });
       }
-      if (String(req.headers.accept).includes("raw")) {
-        res.writeHead(200, { "content-type": "application/vnd.github.raw+json", "content-length": String(content.length) });
+      if (String(req.headers.accept).includes('raw')) {
+        res.writeHead(200, {
+          'content-type': 'application/vnd.github.raw+json',
+          'content-length': String(content.length),
+        });
         return void res.end(content);
       }
-      return reply(200, { sha: found[1], size: content.length, encoding: "base64", content: content.toString("base64") });
+      return reply(200, {
+        sha: found[1],
+        size: content.length,
+        encoding: 'base64',
+        content: content.toString('base64'),
+      });
     }
 
     // Writes go one at a time, as a repository's would.
-    if (method === "POST" && rest === "/git/blobs") {
-      const content = body.encoding === "base64" ? Buffer.from(body.content, "base64") : Buffer.from(body.content, "utf8");
+    if (method === 'POST' && rest === '/git/blobs') {
+      const content =
+        body.encoding === 'base64'
+          ? Buffer.from(body.content, 'base64')
+          : Buffer.from(body.content, 'utf8');
       return reply(201, { sha: await this.hashObject(content) });
     }
 
-    if (method === "POST" && rest === "/git/trees") {
+    if (method === 'POST' && rest === '/git/trees') {
       const index = this.newIndex();
       if (body.base_tree) {
-        if (!(await this.exists(body.base_tree, "tree"))) return reply(422, { message: "GitRPC::BadObjectState" });
-        await this.git(["read-tree", body.base_tree], { index });
+        if (!(await this.exists(body.base_tree, 'tree')))
+          return reply(422, { message: 'GitRPC::BadObjectState' });
+        await this.git(['read-tree', body.base_tree], { index });
       } else {
-        await this.git(["read-tree", "--empty"], { index });
+        await this.git(['read-tree', '--empty'], { index });
       }
       const lines: string[] = [];
       for (const entry of body.tree as { path: string; mode: string; sha: string | null }[]) {
         if (entry.sha === null) {
           lines.push(`0 ${NULL_SHA}\t${entry.path}`);
         } else {
-          if (!(await this.exists(entry.sha, "blob"))) return reply(422, { message: "GitRPC::BadObjectState" });
+          if (!(await this.exists(entry.sha, 'blob')))
+            return reply(422, { message: 'GitRPC::BadObjectState' });
           lines.push(`${entry.mode} ${entry.sha}\t${entry.path}`);
         }
       }
-      await this.git(["update-index", "--index-info"], { index, input: `${lines.join("\n")}\n` });
-      const sha = (await this.git(["write-tree"], { index })).toString().trim();
+      await this.git(['update-index', '--index-info'], { index, input: `${lines.join('\n')}\n` });
+      const sha = (await this.git(['write-tree'], { index })).toString().trim();
       return reply(201, { sha });
     }
 
-    if (method === "POST" && rest === "/git/commits") {
-      if (!(await this.exists(body.tree, "tree"))) return reply(422, { message: "Tree SHA does not exist" });
-      for (const parent of body.parents ?? []) if (!(await this.exists(parent, "commit"))) return reply(422, { message: "Parent does not exist" });
-      const commit = await this.commitTree(body.tree, body.parents ?? [], body.message, body.author ?? { name: "Fake GitHub", email: "fake@example.com" });
+    if (method === 'POST' && rest === '/git/commits') {
+      if (!(await this.exists(body.tree, 'tree')))
+        return reply(422, { message: 'Tree SHA does not exist' });
+      for (const parent of body.parents ?? [])
+        if (!(await this.exists(parent, 'commit')))
+          return reply(422, { message: 'Parent does not exist' });
+      const commit = await this.commitTree(
+        body.tree,
+        body.parents ?? [],
+        body.message,
+        body.author ?? { name: 'Fake GitHub', email: 'fake@example.com' },
+      );
       return reply(201, { sha: commit });
     }
 
-    if (method === "POST" && rest === "/git/refs") {
+    if (method === 'POST' && rest === '/git/refs') {
       return this.serialised(async () => {
-        if (typeof body?.ref !== "string" || !body.ref.startsWith("refs/heads/")) return reply(422, { message: "Reference name is not valid" });
-        if (await this.revParse(body.ref)) return reply(422, { message: "Reference already exists" });
-        if (!(await this.exists(body.sha, "commit"))) return reply(422, { message: "Object does not exist" });
-        await this.git(["update-ref", body.ref, body.sha]);
-        return reply(201, { ref: body.ref, object: { sha: body.sha, type: "commit" } });
+        if (typeof body?.ref !== 'string' || !body.ref.startsWith('refs/heads/'))
+          return reply(422, { message: 'Reference name is not valid' });
+        if (await this.revParse(body.ref))
+          return reply(422, { message: 'Reference already exists' });
+        if (!(await this.exists(body.sha, 'commit')))
+          return reply(422, { message: 'Object does not exist' });
+        await this.git(['update-ref', body.ref, body.sha]);
+        return reply(201, { ref: body.ref, object: { sha: body.sha, type: 'commit' } });
       });
     }
 
-    if (method === "DELETE" && (found = /^\/git\/refs\/heads\/(.+)$/.exec(rest))) {
+    if (method === 'DELETE' && (found = /^\/git\/refs\/heads\/(.+)$/.exec(rest))) {
       const ref = `refs/heads/${decodeURIComponent(found[1]!)}`;
       return this.serialised(async () => {
         const current = await this.revParse(ref);
-        if (!current) return reply(422, { message: "Reference does not exist" });
-        await this.git(["update-ref", "-d", ref, current]);
-        res.writeHead(204, { "x-github-request-id": `FAKE${this.requests.length}` });
+        if (!current) return reply(422, { message: 'Reference does not exist' });
+        await this.git(['update-ref', '-d', ref, current]);
+        res.writeHead(204, { 'x-github-request-id': `FAKE${this.requests.length}` });
         res.end();
       });
     }
 
-    if (method === "GET" && (found = /^\/git\/matching-refs\/heads\/(.*)$/.exec(rest))) {
+    if (method === 'GET' && (found = /^\/git\/matching-refs\/heads\/(.*)$/.exec(rest))) {
       const prefix = `refs/heads/${decodeURIComponent(found[1]!)}`;
       // GitHub matches by the string's prefix, not by path segments as `git for-each-ref <pattern>` does: `fjord/preview/ab-` finds `fjord/preview/ab-1`.
-      const lines = (await this.git(["for-each-ref", "--format=%(refname) %(objectname)", "refs/heads"])).toString().split("\n").filter((line) => line.startsWith(prefix));
-      return reply(200, lines.map((line) => ({ ref: line.split(" ")[0], object: { sha: line.split(" ")[1], type: "commit" } })));
+      const lines = (
+        await this.git(['for-each-ref', '--format=%(refname) %(objectname)', 'refs/heads'])
+      )
+        .toString()
+        .split('\n')
+        .filter((line) => line.startsWith(prefix));
+      return reply(
+        200,
+        lines.map((line) => ({
+          ref: line.split(' ')[0],
+          object: { sha: line.split(' ')[1], type: 'commit' },
+        })),
+      );
     }
 
-    if (method === "PATCH" && (found = /^\/git\/refs\/heads\/(.+)$/.exec(rest))) {
+    if (method === 'PATCH' && (found = /^\/git\/refs\/heads\/(.+)$/.exec(rest))) {
       const ref = `refs/heads/${decodeURIComponent(found[1]!)}`;
       return this.serialised(async () => {
         const current = await this.revParse(ref);
-        if (!current) return reply(422, { message: "Reference does not exist" });
-        if (!(await this.exists(body.sha, "commit"))) return reply(422, { message: "Object does not exist" });
+        if (!current) return reply(422, { message: 'Reference does not exist' });
+        if (!(await this.exists(body.sha, 'commit')))
+          return reply(422, { message: 'Object does not exist' });
         if (body.force !== true) {
-          const fastForward = await this.git(["merge-base", "--is-ancestor", current, body.sha]).then(() => true, () => false);
-          if (!fastForward) return reply(422, { message: "Update is not a fast forward" });
+          const fastForward = await this.git([
+            'merge-base',
+            '--is-ancestor',
+            current,
+            body.sha,
+          ]).then(
+            () => true,
+            () => false,
+          );
+          if (!fastForward) return reply(422, { message: 'Update is not a fast forward' });
         }
-        await this.git(["update-ref", ref, body.sha, current]);
-        return reply(200, { ref, object: { sha: body.sha, type: "commit" } });
+        await this.git(['update-ref', ref, body.sha, current]);
+        return reply(200, { ref, object: { sha: body.sha, type: 'commit' } });
       });
     }
 
-    return reply(404, { message: "Not Found", documentation_url: "https://docs.github.com/rest" });
+    return reply(404, { message: 'Not Found', documentation_url: 'https://docs.github.com/rest' });
   }
 
   // --- git ---------------------------------------------------------------------------------
@@ -401,7 +563,9 @@ export class FakeGitHub {
 
   private async revParse(ref: string): Promise<string | undefined> {
     try {
-      return (await this.git(["rev-parse", "--verify", "--quiet", ref])).toString().trim() || undefined;
+      return (
+        (await this.git(['rev-parse', '--verify', '--quiet', ref])).toString().trim() || undefined
+      );
     } catch {
       return undefined;
     }
@@ -410,48 +574,67 @@ export class FakeGitHub {
   private async exists(sha: string, type?: string): Promise<boolean> {
     if (!/^[0-9a-f]{40}$/.test(sha)) return false;
     try {
-      const actual = (await this.git(["cat-file", "-t", sha])).toString().trim();
-      return type === undefined || actual === type || (type === "tree" && actual === "commit");
+      const actual = (await this.git(['cat-file', '-t', sha])).toString().trim();
+      return type === undefined || actual === type || (type === 'tree' && actual === 'commit');
     } catch {
       return false;
     }
   }
 
   private async hashObject(content: Buffer): Promise<string> {
-    return (await this.git(["hash-object", "-w", "--stdin"], { input: content })).toString().trim();
+    return (await this.git(['hash-object', '-w', '--stdin'], { input: content })).toString().trim();
   }
 
-  private async commitTree(tree: string, parents: string[], message: string, author: { name: string; email: string }): Promise<string> {
-    const args = ["commit-tree", tree, ...parents.flatMap((parent) => ["-p", parent])];
+  private async commitTree(
+    tree: string,
+    parents: string[],
+    message: string,
+    author: { name: string; email: string },
+  ): Promise<string> {
+    const args = ['commit-tree', tree, ...parents.flatMap((parent) => ['-p', parent])];
     const env = {
       GIT_AUTHOR_NAME: author.name,
       GIT_AUTHOR_EMAIL: author.email,
-      GIT_COMMITTER_NAME: "Fake GitHub",
-      GIT_COMMITTER_EMAIL: "fake@example.com",
+      GIT_COMMITTER_NAME: 'Fake GitHub',
+      GIT_COMMITTER_EMAIL: 'fake@example.com',
     };
     return (await this.git(args, { input: message, env })).toString().trim();
   }
 
-  private git(args: string[], options: { index?: string; input?: Buffer | string; env?: Record<string, string> } = {}): Promise<Buffer> {
+  private git(
+    args: string[],
+    options: { index?: string; input?: Buffer | string; env?: Record<string, string> } = {},
+  ): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const env: Record<string, string> = {
-          PATH: process.env.PATH ?? "",
-          HOME: this.dir,
-          GIT_CONFIG_NOSYSTEM: "1",
-          GIT_CONFIG_GLOBAL: "/dev/null",
-          GIT_TERMINAL_PROMPT: "0",
-          LC_ALL: "C",
-          ...(options.index ? { GIT_INDEX_FILE: options.index } : {}),
-          ...options.env,
+        PATH: process.env.PATH ?? '',
+        HOME: this.dir,
+        GIT_CONFIG_NOSYSTEM: '1',
+        GIT_CONFIG_GLOBAL: '/dev/null',
+        GIT_TERMINAL_PROMPT: '0',
+        LC_ALL: 'C',
+        ...(options.index ? { GIT_INDEX_FILE: options.index } : {}),
+        ...options.env,
       };
-      const child: ChildProcessWithoutNullStreams = spawn("git", args, { cwd: this.repo, env: env as NodeJS.ProcessEnv });
+      const child: ChildProcessWithoutNullStreams = spawn('git', args, {
+        cwd: this.repo,
+        env: env as NodeJS.ProcessEnv,
+      });
       const out: Buffer[] = [];
       const err: Buffer[] = [];
-      child.stdout.on("data", (chunk: Buffer) => out.push(chunk));
-      child.stderr.on("data", (chunk: Buffer) => err.push(chunk));
-      child.on("error", reject);
-      child.on("close", (code) => (code === 0 ? resolve(Buffer.concat(out)) : reject(new Error(`git ${args.join(" ")} exited ${code}: ${Buffer.concat(err).toString().trim()}`))));
-      child.stdin.on("error", () => undefined);
+      child.stdout.on('data', (chunk: Buffer) => out.push(chunk));
+      child.stderr.on('data', (chunk: Buffer) => err.push(chunk));
+      child.on('error', reject);
+      child.on('close', (code) =>
+        code === 0
+          ? resolve(Buffer.concat(out))
+          : reject(
+              new Error(
+                `git ${args.join(' ')} exited ${code}: ${Buffer.concat(err).toString().trim()}`,
+              ),
+            ),
+      );
+      child.stdin.on('error', () => undefined);
       child.stdin.end(options.input);
     });
   }
@@ -465,9 +648,18 @@ async function readBody(req: IncomingMessage): Promise<Buffer> {
 
 /** What a git host holds of a commit's build, in GitHub's shapes (the fields the provider reads). */
 export interface FakeBuild {
-  checkRuns: { name: string; status: string; conclusion: string | null; html_url?: string | null; details_url?: string | null }[];
+  checkRuns: {
+    name: string;
+    status: string;
+    conclusion: string | null;
+    html_url?: string | null;
+    details_url?: string | null;
+  }[];
   statuses: { context: string; state: string; target_url?: string | null }[];
   /** Statuses oldest first; the fake answers newest first, as GitHub does. */
-  deployments: { id: number; environment: string; statuses: { state: string; environment_url?: string | null; target_url?: string | null }[] }[];
+  deployments: {
+    id: number;
+    environment: string;
+    statuses: { state: string; environment_url?: string | null; target_url?: string | null }[];
+  }[];
 }
-

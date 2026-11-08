@@ -1,7 +1,7 @@
-import { authConfig, getSession } from "../auth/server";
-import type { Caller } from "../working/http";
-import type { Deps } from "./http";
-import { filesAccessFor } from "./server";
+import { authConfig, getSession } from '../auth/server';
+import type { Caller } from '../working/http';
+import type { Deps } from './http';
+import { filesAccessFor } from './server';
 
 /**
  * Who is calling, and what `http.ts` needs to answer them. Null when the instance has no sign-in at all, in which case
@@ -13,21 +13,35 @@ export async function filesContext(): Promise<{ caller: Caller | null; deps: Dep
   const session = await getSession();
   const access = session ? await filesAccessFor() : undefined;
   return {
-    caller: session ? { accountId: session.user.id, name: session.user.name, email: session.user.email } : null,
+    caller: session
+      ? { accountId: session.user.id, name: session.user.name, email: session.user.email }
+      : null,
     deps: {
       origin: config.url,
-      header: (accountId, id, input) => (access as NonNullable<typeof access>).header(accountId, id, input),
-      entry: (accountId, id, input) => (access as NonNullable<typeof access>).entry(accountId, id, input),
-      post: (accountId, id, input) => (access as NonNullable<typeof access>).post(accountId, id, input),
-      create: (accountId, id, input) => (access as NonNullable<typeof access>).create(accountId, id, input),
-      transfer: (accountId, id, input) => (access as NonNullable<typeof access>).transfer(accountId, id, input),
-      snapshot: (accountId, id, vault) => (access as NonNullable<typeof access>).snapshot(accountId, id, vault),
-      convert: (accountId, id, input) => (access as NonNullable<typeof access>).convert(accountId, id, input),
-      createEncrypted: (accountId, id, input) => (access as NonNullable<typeof access>).createEncrypted(accountId, id, input),
-      move: (accountId, id, input) => (access as NonNullable<typeof access>).move(accountId, id, input),
-      delete: (accountId, id, input) => (access as NonNullable<typeof access>).delete(accountId, id, input),
-      identify: (accountId, id, input) => (access as NonNullable<typeof access>).identify(accountId, id, input),
-      restore: (accountId, id, input) => (access as NonNullable<typeof access>).restore(accountId, id, input),
+      header: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).header(accountId, id, input),
+      entry: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).entry(accountId, id, input),
+      post: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).post(accountId, id, input),
+      create: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).create(accountId, id, input),
+      transfer: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).transfer(accountId, id, input),
+      snapshot: (accountId, id, vault) =>
+        (access as NonNullable<typeof access>).snapshot(accountId, id, vault),
+      convert: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).convert(accountId, id, input),
+      createEncrypted: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).createEncrypted(accountId, id, input),
+      move: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).move(accountId, id, input),
+      delete: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).delete(accountId, id, input),
+      identify: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).identify(accountId, id, input),
+      restore: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).restore(accountId, id, input),
     },
   };
 }

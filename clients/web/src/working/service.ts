@@ -1,9 +1,9 @@
-import { sql } from "drizzle-orm";
-import type { Database } from "../db/client";
-import { dbAll, dbGet, dbRun } from "../db/exec";
-import * as postgresSchema from "../db/schema/postgres";
-import * as sqliteSchema from "../db/schema/sqlite";
-import { whyNotCiphertext } from "./ciphertext";
+import { sql } from 'drizzle-orm';
+import type { Database } from '../db/client';
+import { dbAll, dbGet, dbRun } from '../db/exec';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
+import { whyNotCiphertext } from './ciphertext';
 
 /**
  * Drafts of files being edited (DESIGN.md §11, ROADMAP 1b.8): what someone has typed so far, kept as they type so that
@@ -30,10 +30,12 @@ const ATTEMPTS = 8;
  * Who edited. Tagged so that a person without an account needs no migration: a `guest` is someone who edited through a share link
  * (ROADMAP 1c.6), known by the link and the display name they gave, and credited by that name.
  */
-export type Editor = { type: "account"; id: string } | { type: "guest"; link: number; name: string };
+export type Editor =
+  { type: 'account'; id: string } | { type: 'guest'; link: number; name: string };
 
 /** Who an editor is, for telling whether they are in the list already: an account by its id, a guest by the link and the name. */
-export const editorKey = (editor: Editor): string => (editor.type === "account" ? `account:${editor.id}` : `guest:${editor.link}:${editor.name}`);
+export const editorKey = (editor: Editor): string =>
+  editor.type === 'account' ? `account:${editor.id}` : `guest:${editor.link}:${editor.name}`;
 
 /** The most distinct editors a draft keeps: a link can be used under any number of names, and the list is stored with the draft. */
 export const MAX_EDITORS = 50;
@@ -52,16 +54,19 @@ export interface WorkingCopy {
 export type SaveResult =
   | { ok: true; workingCopy: WorkingCopy }
   /** The draft is of a different version of the file. `baseBlob` is the one it is of. */
-  | { ok: false; reason: "base_mismatch"; baseBlob: string }
-  | { ok: false; reason: "too_many" }
+  | { ok: false; reason: 'base_mismatch'; baseBlob: string }
+  | { ok: false; reason: 'too_many' }
   /** The draft is of the other kind: an encrypted draft is never replaced by plain text, nor a plain one by ciphertext. */
-  | { ok: false; reason: "encryption_mismatch" }
+  | { ok: false; reason: 'encryption_mismatch' }
   /** The draft has as many editors as it keeps, and this one is not among them. */
-  | { ok: false; reason: "too_many_editors" }
-  | { ok: false; reason: "unstorable"; message: string };
+  | { ok: false; reason: 'too_many_editors' }
+  | { ok: false; reason: 'unstorable'; message: string };
 
-const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy);
-const COLUMNS = sql.raw('id, path, base_blob AS "baseBlob", content, encrypted, editors, created_at AS "createdAt", last_edit AS "lastEdit"');
+const table = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.workingCopy : sqliteSchema.workingCopy;
+const COLUMNS = sql.raw(
+  'id, path, base_blob AS "baseBlob", content, encrypted, editors, created_at AS "createdAt", last_edit AS "lastEdit"',
+);
 
 interface Row {
   id: number;
@@ -87,17 +92,19 @@ const toCopy = (row: Row): WorkingCopy => ({
 /** Why a text cannot be kept as a draft, or `undefined` if it can. */
 export function whyUnstorable(content: string, encrypted = false): string | undefined {
   if (encrypted) return whyNotCiphertext(content);
-  if (content.includes("\u0000")) return "It contains a NUL character, which this kind of draft cannot hold.";
-  if (!content.isWellFormed()) return "It contains a character that is not valid Unicode text.";
-  if (new TextEncoder().encode(content).byteLength > MAX_CONTENT_BYTES) return "It is larger than 1 MB.";
+  if (content.includes('\u0000'))
+    return 'It contains a NUL character, which this kind of draft cannot hold.';
+  if (!content.isWellFormed()) return 'It contains a character that is not valid Unicode text.';
+  if (new TextEncoder().encode(content).byteLength > MAX_CONTENT_BYTES)
+    return 'It is larger than 1 MB.';
   return undefined;
 }
 
 export type RebaseResult =
   | { ok: true; workingCopy: WorkingCopy }
   /** The draft is not as it was looked at: gone, on another base, or typed into since. */
-  | { ok: false; reason: "changed" }
-  | { ok: false; reason: "unstorable"; message: string };
+  | { ok: false; reason: 'changed' }
+  | { ok: false; reason: 'unstorable'; message: string };
 
 export class WorkingCopyService {
   private readonly now: () => number;
@@ -118,17 +125,23 @@ export class WorkingCopyService {
    * Keep `content` as the draft of `path`, started from `baseBlob`, edited by `editor`. Creates the draft or replaces its
    * text; adds the editor to those who have edited since the last version.
    */
-  async save(connectionId: number, path: string, input: { baseBlob: string; content: string; encrypted?: boolean }, editor: Editor): Promise<SaveResult> {
+  async save(
+    connectionId: number,
+    path: string,
+    input: { baseBlob: string; content: string; encrypted?: boolean },
+    editor: Editor,
+  ): Promise<SaveResult> {
     const encrypted = input.encrypted === true;
     const unstorable = whyUnstorable(input.content, encrypted);
-    if (unstorable) return { ok: false, reason: "unstorable", message: unstorable };
+    if (unstorable) return { ok: false, reason: 'unstorable', message: unstorable };
 
     for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
       const existing = await this.row(connectionId, path);
       const now = this.now();
 
       if (!existing) {
-        if ((await this.count(connectionId)) >= MAX_DRAFTS_PER_CONNECTION) return { ok: false, reason: "too_many" };
+        if ((await this.count(connectionId)) >= MAX_DRAFTS_PER_CONNECTION)
+          return { ok: false, reason: 'too_many' };
         const created = await dbAll<Row>(
           this.database,
           sql`INSERT INTO ${table(this.database)} (connection_id, path, base_blob, content, encrypted, editors, created_at, last_edit)
@@ -140,12 +153,15 @@ export class WorkingCopyService {
         continue; // somebody else made it a moment ago: look again
       }
 
-      if (existing.baseBlob !== input.baseBlob) return { ok: false, reason: "base_mismatch", baseBlob: existing.baseBlob };
-      if ((Number(existing.encrypted) === 1) !== encrypted) return { ok: false, reason: "encryption_mismatch" };
+      if (existing.baseBlob !== input.baseBlob)
+        return { ok: false, reason: 'base_mismatch', baseBlob: existing.baseBlob };
+      if ((Number(existing.encrypted) === 1) !== encrypted)
+        return { ok: false, reason: 'encryption_mismatch' };
 
       const before = toCopy(existing);
       const known = before.editors.some((candidate) => editorKey(candidate) === editorKey(editor));
-      if (!known && before.editors.length >= MAX_EDITORS) return { ok: false, reason: "too_many_editors" };
+      if (!known && before.editors.length >= MAX_EDITORS)
+        return { ok: false, reason: 'too_many_editors' };
       const editors = known ? before.editors : [...before.editors, editor];
       const lastEdit = Math.max(now, before.lastEdit + 1);
       const updated = await dbAll<Row>(
@@ -157,12 +173,15 @@ export class WorkingCopyService {
       );
       if (updated[0]) return { ok: true, workingCopy: toCopy(updated[0]) };
     }
-    throw new Error("a draft could not be saved: it kept changing underneath");
+    throw new Error('a draft could not be saved: it kept changing underneath');
   }
 
   /** Throw the draft away. False if there was none. */
   async discard(connectionId: number, path: string): Promise<boolean> {
-    const rows = await dbAll<{ id: number }>(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path} RETURNING id`);
+    const rows = await dbAll<{ id: number }>(
+      this.database,
+      sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path} RETURNING id`,
+    );
     return rows.length > 0;
   }
 
@@ -178,11 +197,21 @@ export class WorkingCopyService {
     editor: Editor,
   ): Promise<RebaseResult> {
     const existing = await this.row(connectionId, path);
-    const unstorable = whyUnstorable(input.content, existing !== undefined && Number(existing.encrypted) === 1);
-    if (unstorable) return { ok: false, reason: "unstorable", message: unstorable };
-    if (!existing || existing.baseBlob !== input.fromBase || Number(existing.lastEdit) !== input.lastEdit) return { ok: false, reason: "changed" };
+    const unstorable = whyUnstorable(
+      input.content,
+      existing !== undefined && Number(existing.encrypted) === 1,
+    );
+    if (unstorable) return { ok: false, reason: 'unstorable', message: unstorable };
+    if (
+      !existing ||
+      existing.baseBlob !== input.fromBase ||
+      Number(existing.lastEdit) !== input.lastEdit
+    )
+      return { ok: false, reason: 'changed' };
     const before = toCopy(existing);
-    const editors = before.editors.some((candidate) => editorKey(candidate) === editorKey(editor)) ? before.editors : [...before.editors, editor];
+    const editors = before.editors.some((candidate) => editorKey(candidate) === editorKey(editor))
+      ? before.editors
+      : [...before.editors, editor];
     const updated = await dbAll<Row>(
       this.database,
       sql`UPDATE ${table(this.database)}
@@ -190,7 +219,9 @@ export class WorkingCopyService {
           WHERE id = ${existing.id} AND last_edit = ${existing.lastEdit} AND base_blob = ${input.fromBase}
           RETURNING ${COLUMNS}`,
     );
-    return updated[0] ? { ok: true, workingCopy: toCopy(updated[0]) } : { ok: false, reason: "changed" };
+    return updated[0]
+      ? { ok: true, workingCopy: toCopy(updated[0]) }
+      : { ok: false, reason: 'changed' };
   }
 
   /**
@@ -209,32 +240,55 @@ export class WorkingCopyService {
    * The drafts nobody has edited since `before` (ROADMAP 1b.13), the longest-idle first: the worker's to turn into versions.
    * Only where they are, never what they say.
    */
-  async idle(before: number, limit: number): Promise<{ connectionId: number; path: string; lastEdit: number }[]> {
-    const rows = await dbAll<{ connectionId: number | string; path: string; lastEdit: number | string }>(
+  async idle(
+    before: number,
+    limit: number,
+  ): Promise<{ connectionId: number; path: string; lastEdit: number }[]> {
+    const rows = await dbAll<{
+      connectionId: number | string;
+      path: string;
+      lastEdit: number | string;
+    }>(
       this.database,
       sql`SELECT connection_id AS "connectionId", path, last_edit AS "lastEdit" FROM ${table(this.database)}
           WHERE last_edit <= ${before} ORDER BY last_edit ASC LIMIT ${limit}`,
     );
-    return rows.map((row) => ({ connectionId: Number(row.connectionId), path: row.path, lastEdit: Number(row.lastEdit) }));
+    return rows.map((row) => ({
+      connectionId: Number(row.connectionId),
+      path: row.path,
+      lastEdit: Number(row.lastEdit),
+    }));
   }
 
   /** Every draft of a connection goes with it (it is disconnected). */
   async forget(connectionId: number): Promise<void> {
-    await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`,
+    );
   }
 
   /** The path of every draft of a connection (at most `MAX_DRAFTS_PER_CONNECTION`). */
   async paths(connectionId: number): Promise<string[]> {
-    const rows = await dbAll<{ path: string }>(this.database, sql`SELECT path FROM ${table(this.database)} WHERE connection_id = ${connectionId} ORDER BY path`);
+    const rows = await dbAll<{ path: string }>(
+      this.database,
+      sql`SELECT path FROM ${table(this.database)} WHERE connection_id = ${connectionId} ORDER BY path`,
+    );
     return rows.map((row) => row.path);
   }
 
   async count(connectionId: number): Promise<number> {
-    const row = await dbGet<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);
+    const row = await dbGet<{ n: number | string }>(
+      this.database,
+      sql`SELECT COUNT(*) AS n FROM ${table(this.database)} WHERE connection_id = ${connectionId}`,
+    );
     return Number(row?.n ?? 0);
   }
 
   private async row(connectionId: number, path: string): Promise<Row | undefined> {
-    return dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path}`);
+    return dbGet<Row>(
+      this.database,
+      sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path}`,
+    );
   }
 }

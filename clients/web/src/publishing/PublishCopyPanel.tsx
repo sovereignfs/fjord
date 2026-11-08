@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Alert, Button } from "../ui";
-import styles from "../auth/screens/screens.module.css";
-import { PageAddress } from "./PageAddress";
-import { copyOf, getCopyStatus, publishCopy, unpublishCopy } from "./client";
+import { useState } from 'react';
+import { Alert, Button } from '../ui';
+import styles from '../auth/screens/screens.module.css';
+import { PageAddress } from './PageAddress';
+import { copyOf, getCopyStatus, publishCopy, unpublishCopy } from './client';
 
 /**
  * "Publish as a page" for a file of an **encrypted** vault (DESIGN.md §12, ROADMAP 3h.2, RFC 0002). The server has no key, so it cannot render the file: this browser, which
@@ -12,7 +12,17 @@ import { copyOf, getCopyStatus, publishCopy, unpublishCopy } from "./client";
  * default: the panel says exactly what happens, and nothing is sent until the box is ticked. The copy is kept on the server until *Unpublish*; a later version is
  * published again by publishing again.
  */
-export function PublishCopyPanel({ connectionId, path, name, getText }: { connectionId: number; path: string; name: string; getText: () => string }) {
+export function PublishCopyPanel({
+  connectionId,
+  path,
+  name,
+  getText,
+}: {
+  connectionId: number;
+  path: string;
+  name: string;
+  getText: () => string;
+}) {
   const [loaded, setLoaded] = useState(false);
   const [published, setPublished] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -78,23 +88,38 @@ export function PublishCopyPanel({ connectionId, path, name, getText }: { connec
       ) : null}
       {published ? (
         <div className={styles.actions}>
-          <Button type="button" variant="secondary" size="sm" loading={busy} onClick={() => void end()}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            loading={busy}
+            onClick={() => void end()}
+          >
             Unpublish and delete the copy
           </Button>
         </div>
       ) : null}
       <div className={styles.notice}>
         <Alert variant="warning" heading="This puts a readable copy outside the encryption">
-          This file is encrypted. To publish it, this browser sends the server a <strong>plaintext copy</strong> of what is on screen now. Anyone with the page&apos;s address can read it, and
-          the server keeps the copy until you unpublish. The encrypted file in the repository is not changed, and nothing sent stays secret. A later version is published by publishing again.
+          This file is encrypted. To publish it, this browser sends the server a{' '}
+          <strong>plaintext copy</strong> of what is on screen now. Anyone with the page&apos;s
+          address can read it, and the server keeps the copy until you unpublish. The encrypted file
+          in the repository is not changed, and nothing sent stays secret. A later version is
+          published by publishing again.
         </Alert>
       </div>
-      <label style={{ display: "block" }}>
-        <input type="checkbox" checked={understood} disabled={busy} onChange={(event) => setUnderstood(event.target.checked)} /> I understand, and I want a readable copy of this file published
+      <label style={{ display: 'block' }}>
+        <input
+          type="checkbox"
+          checked={understood}
+          disabled={busy}
+          onChange={(event) => setUnderstood(event.target.checked)}
+        />{' '}
+        I understand, and I want a readable copy of this file published
       </label>
       <div className={styles.actions}>
         <Button type="button" loading={busy} disabled={!understood} onClick={() => void make()}>
-          {published ? "Publish this version" : "Publish a copy"}
+          {published ? 'Publish this version' : 'Publish a copy'}
         </Button>
       </div>
     </details>

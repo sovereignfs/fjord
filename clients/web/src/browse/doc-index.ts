@@ -1,8 +1,8 @@
-import { sql } from "drizzle-orm";
-import type { Database } from "../db/client";
-import { dbAll, dbGet, dbRun } from "../db/exec";
-import * as postgresSchema from "../db/schema/postgres";
-import * as sqliteSchema from "../db/schema/sqlite";
+import { sql } from 'drizzle-orm';
+import type { Database } from '../db/client';
+import { dbAll, dbGet, dbRun } from '../db/exec';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
 
 /**
  * Which Doc is at which path (DESIGN.md §9, §14, ROADMAP 1b.6): the store behind `/d/<id>`. It records
@@ -16,10 +16,11 @@ export interface IndexedFile {
   blob: string;
 }
 
-const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex);
+const table = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.docIndex : sqliteSchema.docIndex;
 const COLUMNS = sql.raw('path, doc_id AS "docId", blob');
 /** What every row's `kind` column says now: there is one kind of Doc (spec §8.4). Rows written before said `note` or `document`; nothing reads the column. */
-const KIND = "doc";
+const KIND = 'doc';
 /** Rows per insert: well under the limit on bound values either database has. */
 const BATCH = 200;
 
@@ -29,7 +30,11 @@ interface Row {
   blob: string;
 }
 
-const toFile = (row: Row): IndexedFile => ({ path: row.path, docId: row.docId ?? null, blob: row.blob });
+const toFile = (row: Row): IndexedFile => ({
+  path: row.path,
+  docId: row.docId ?? null,
+  blob: row.blob,
+});
 
 export class DocIndex {
   constructor(
@@ -39,23 +44,35 @@ export class DocIndex {
 
   /** Every file of a connection that has been read, by path. */
   async all(connectionId: number): Promise<Map<string, IndexedFile>> {
-    const rows = await dbAll<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);
+    const rows = await dbAll<Row>(
+      this.database,
+      sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE connection_id = ${connectionId}`,
+    );
     return new Map(rows.map((row) => [row.path, toFile(row)]));
   }
 
   /** What was read of one path of a connection, if anything. Believed only where its blob is still the repository's. */
   async at(connectionId: number, path: string): Promise<IndexedFile | undefined> {
-    const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path}`);
+    const row = await dbGet<Row>(
+      this.database,
+      sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path}`,
+    );
     return row ? toFile(row) : undefined;
   }
 
   /** The files these connections have with this `id`, as last read: the connection's id and the file. */
-  async find(connectionIds: number[], docId: string): Promise<{ connectionId: number; file: IndexedFile }[]> {
+  async find(
+    connectionIds: number[],
+    docId: string,
+  ): Promise<{ connectionId: number; file: IndexedFile }[]> {
     if (connectionIds.length === 0) return [];
     const rows = await dbAll<Row & { connectionId: number | string }>(
       this.database,
       sql`SELECT connection_id AS "connectionId", ${COLUMNS} FROM ${table(this.database)}
-          WHERE doc_id = ${docId} AND connection_id IN (${sql.join(connectionIds.map((id) => sql`${id}`), sql`, `)})
+          WHERE doc_id = ${docId} AND connection_id IN (${sql.join(
+            connectionIds.map((id) => sql`${id}`),
+            sql`, `,
+          )})
           ORDER BY connection_id ASC, path ASC`,
     );
     return rows.map((row) => ({ connectionId: Number(row.connectionId), file: toFile(row) }));
@@ -65,7 +82,12 @@ export class DocIndex {
   async put(connectionId: number, files: IndexedFile[]): Promise<void> {
     const at = this.now();
     for (let start = 0; start < files.length; start += BATCH) {
-      const rows = files.slice(start, start + BATCH).map((file) => sql`(${connectionId}, ${file.path}, ${file.docId}, ${KIND}, ${file.blob}, ${at})`);
+      const rows = files
+        .slice(start, start + BATCH)
+        .map(
+          (file) =>
+            sql`(${connectionId}, ${file.path}, ${file.docId}, ${KIND}, ${file.blob}, ${at})`,
+        );
       await dbRun(
         this.database,
         sql`INSERT INTO ${table(this.database)} (connection_id, path, doc_id, kind, blob, indexed_at)
@@ -87,19 +109,31 @@ export class DocIndex {
       return row ? [{ ...row, path: to }] : [];
     });
     await this.put(connectionId, moved);
-    await this.remove(connectionId, moves.map(({ from }) => from).filter((from) => !moves.some(({ to }) => to === from)));
+    await this.remove(
+      connectionId,
+      moves.map(({ from }) => from).filter((from) => !moves.some(({ to }) => to === from)),
+    );
   }
 
   /** Forget these paths: they are not in the repository any more. */
   async remove(connectionId: number, paths: string[]): Promise<void> {
     for (let start = 0; start < paths.length; start += BATCH) {
       const some = paths.slice(start, start + BATCH);
-      await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path IN (${sql.join(some.map((path) => sql`${path}`), sql`, `)})`);
+      await dbRun(
+        this.database,
+        sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path IN (${sql.join(
+          some.map((path) => sql`${path}`),
+          sql`, `,
+        )})`,
+      );
     }
   }
 
   /** Everything of a connection goes with it (it is disconnected). */
   async forget(connectionId: number): Promise<void> {
-    await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`,
+    );
   }
 }

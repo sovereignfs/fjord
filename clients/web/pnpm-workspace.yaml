@@ -9,3 +9,8 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - '@sovereignfs/ui@0.91.0'
   - '@sovereignfs/sdk@2.1.0'
+# eslint-plugin-jsx-a11y declares ESLint ^3..^9 but works on 10, as Sovereign and Tusk run it; allow exactly that one mismatch rather
+# than silencing peer warnings in general.
+peerDependencyRules:
+  allowedVersions:
+    'eslint-plugin-jsx-a11y>eslint': '10'

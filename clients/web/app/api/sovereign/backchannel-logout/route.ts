@@ -1,7 +1,7 @@
-import { handleBackChannelLogout } from "../../../../src/sovereign/http";
-import { noticeDeps } from "../../../../src/sovereign/server";
+import { handleBackChannelLogout } from '../../../../src/sovereign/http';
+import { noticeDeps } from '../../../../src/sovereign/server';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 /** Sovereign's notice (DESIGN.md §17). Its signed token is the credential: no session, no cookie, no `Origin`. Not found where Sovereign sign-in is not set up. */
 export async function POST(request: Request): Promise<Response> {

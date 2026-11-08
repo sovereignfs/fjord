@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { authClient } from "../../client";
-import { messageFor } from "../../messages";
-import { Alert, Button } from "../../../ui";
-import { useConfirm } from "../../../ui/useConfirm";
-import styles from "../screens.module.css";
+import { useState } from 'react';
+import { authClient } from '../../client';
+import { messageFor } from '../../messages';
+import { Alert, Button } from '../../../ui';
+import { useConfirm } from '../../../ui/useConfirm';
+import styles from '../screens.module.css';
 
 /**
  * Whether this account can be signed into through Sovereign (ROADMAP 1a.4). Linking sends the person to
@@ -34,28 +34,34 @@ export function SovereignSection({
     setError(null);
     // On success the browser is sent to Sovereign and brought back to this page, with the result.
     const { error: failure } = await authClient.linkSocial({
-      provider: "sovereign",
-      callbackURL: "/account?section=security&linked=1",
-      errorCallbackURL: "/account?section=security",
+      provider: 'sovereign',
+      callbackURL: '/account?section=security&linked=1',
+      errorCallbackURL: '/account?section=security',
     });
     if (failure) {
       setBusy(false);
-      setError(messageFor(failure, "Linking Sovereign did not work. Try again."));
+      setError(messageFor(failure, 'Linking Sovereign did not work. Try again.'));
     }
   }
 
   async function onUnlink() {
     if (!linkedAccountId) return;
-    if (!(await ask({ message: "Unlink Sovereign? You will sign in with your password from now on.", confirm: "Unlink" }))) return;
+    if (
+      !(await ask({
+        message: 'Unlink Sovereign? You will sign in with your password from now on.',
+        confirm: 'Unlink',
+      }))
+    )
+      return;
     setBusy(true);
     setError(null);
     const { error: failure } = await authClient.unlinkAccount({ accountId: linkedAccountId });
     setBusy(false);
     if (failure) {
-      setError(messageFor(failure, "Sovereign was not unlinked. Try again."));
+      setError(messageFor(failure, 'Sovereign was not unlinked. Try again.'));
       return;
     }
-    window.location.assign("/account?section=security&unlinked=1");
+    window.location.assign('/account?section=security&unlinked=1');
   }
 
   return (
@@ -63,14 +69,23 @@ export function SovereignSection({
       {asking}
       <h2 id="sovereign-title">Sovereign</h2>
       {linkedAccountId ? (
-        <p>You can sign in with Sovereign as well as with your password. Your Sovereign account uses the same email address as this one, {email}.</p>
+        <p>
+          You can sign in with Sovereign as well as with your password. Your Sovereign account uses
+          the same email address as this one, {email}.
+        </p>
       ) : (
         <p>
-          Link a Sovereign account to sign in with it as well as with your password. It has to use the same email address as this account, <strong>{email}</strong>: Fjord checks, and links
+          Link a Sovereign account to sign in with it as well as with your password. It has to use
+          the same email address as this account, <strong>{email}</strong>: Fjord checks, and links
           nothing if they differ.
         </p>
       )}
-      {twoFactorOn ? <p className={styles.itemMeta}>Signing in with Sovereign does not ask for a Fjord two-factor code: Sovereign asks for its own.</p> : null}
+      {twoFactorOn ? (
+        <p className={styles.itemMeta}>
+          Signing in with Sovereign does not ask for a Fjord two-factor code: Sovereign asks for its
+          own.
+        </p>
+      ) : null}
       {error ? (
         <div className={styles.notice}>
           <Alert variant="error">{error}</Alert>
@@ -87,7 +102,11 @@ export function SovereignSection({
           </Button>
         )}
       </div>
-      {linkedAccountId && !canUnlink ? <p className={styles.itemMeta}>It is the only way you can sign in, so it cannot be unlinked.</p> : null}
+      {linkedAccountId && !canUnlink ? (
+        <p className={styles.itemMeta}>
+          It is the only way you can sign in, so it cannot be unlinked.
+        </p>
+      ) : null}
     </section>
   );
 }

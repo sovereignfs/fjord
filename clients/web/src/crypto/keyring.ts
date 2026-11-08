@@ -1,5 +1,5 @@
-import { createHash, timingSafeEqual } from "node:crypto";
-import { ConfigError } from "../db/config";
+import { createHash, timingSafeEqual } from 'node:crypto';
+import { ConfigError } from '../db/config';
 
 /**
  * The instance's keys for wrapping credentials' own keys (DESIGN.md §7): one current key, which
@@ -23,7 +23,8 @@ export class Keyring {
     this.all = new Map([[this.current.id, this.current]]);
     for (const key of previous) {
       const kek = toKek(key);
-      if (this.all.has(kek.id)) throw new ConfigError("The same encryption key is configured twice.");
+      if (this.all.has(kek.id))
+        throw new ConfigError('The same encryption key is configured twice.');
       this.all.set(kek.id, kek);
     }
   }
@@ -41,17 +42,18 @@ export class Keyring {
 export const KEY_BYTES = 32;
 
 function toKek(key: Buffer): Kek {
-  if (key.length !== KEY_BYTES) throw new ConfigError(`An encryption key must be ${KEY_BYTES} bytes.`);
-  const id = createHash("sha256").update("fjord-kek-id-v1").update(key).digest("hex").slice(0, 16);
+  if (key.length !== KEY_BYTES)
+    throw new ConfigError(`An encryption key must be ${KEY_BYTES} bytes.`);
+  const id = createHash('sha256').update('fjord-kek-id-v1').update(key).digest('hex').slice(0, 16);
   return { id, key };
 }
 
 /** A key as an operator writes it: 64 hex characters, or base64 (`openssl rand -base64 32`). */
 export function parseKey(text: string): Buffer | undefined {
   const value = text.trim();
-  if (/^[0-9a-fA-F]{64}$/.test(value)) return Buffer.from(value, "hex");
+  if (/^[0-9a-fA-F]{64}$/.test(value)) return Buffer.from(value, 'hex');
   if (!/^[A-Za-z0-9+/_-]+={0,2}$/.test(value)) return undefined;
-  const bytes = Buffer.from(value.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+  const bytes = Buffer.from(value.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
   return bytes.length === KEY_BYTES ? bytes : undefined;
 }
 

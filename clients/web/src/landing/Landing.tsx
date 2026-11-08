@@ -1,8 +1,8 @@
-import { Alert, Badge, Card, Icon } from "../ui";
-import { LinkButton } from "../ui/LinkButton";
-import { routes, site } from "../site";
-import { exampleDocument, features, principles, questions, steps } from "./content";
-import styles from "./landing.module.css";
+import { Alert, Badge, Card, Icon } from '../ui';
+import { LinkButton } from '../ui/LinkButton';
+import { routes, site } from '../site';
+import { exampleDocument, features, principles, questions, steps } from './content';
+import styles from './landing.module.css';
 
 /**
  * The page a visitor sees at `/` (DESIGN.md §3, journey 1): what Fjord is, why, what it
@@ -43,7 +43,8 @@ export function Landing() {
         <div className={styles.container}>
           <div className={styles.notice}>
             <Alert variant="info" heading="Fjord Web is young, and built in the open">
-              Everything this page describes works today, and it is early software: your repository is the copy that counts, so keep it somewhere you trust.
+              Everything this page describes works today, and it is early software: your repository
+              is the copy that counts, so keep it somewhere you trust.
             </Alert>
           </div>
         </div>
@@ -54,8 +55,9 @@ export function Landing() {
               Documents and notes <span className={styles.titleEnd}>you actually own.</span>
             </h1>
             <p className={styles.lead}>
-              Write, share and comment on documents in your browser. Every file is plain Markdown in a Git repository you control,
-              readable without Fjord, with optional end-to-end encryption.
+              Write, share and comment on documents in your browser. Every file is plain Markdown in
+              a Git repository you control, readable without Fjord, with optional end-to-end
+              encryption.
             </p>
             <div className={styles.cta}>
               <LinkButton href={routes.signUp} size="lg">
@@ -75,7 +77,9 @@ export function Landing() {
             <pre className={styles.code}>
               <code>{exampleDocument.source}</code>
             </pre>
-            <p className={styles.exampleNote}>That is the whole file: Markdown with a small header. Nothing else to export.</p>
+            <p className={styles.exampleNote}>
+              That is the whole file: Markdown with a small header. Nothing else to export.
+            </p>
           </figure>
         </section>
 
@@ -85,7 +89,8 @@ export function Landing() {
               Why Fjord
             </h2>
             <p className={styles.sectionLead}>
-              Your documents should outlive any tool, including this one. So Fjord is built around three promises.
+              Your documents should outlive any tool, including this one. So Fjord is built around
+              three promises.
             </p>
             <ul className={styles.grid3}>
               {principles.map((principle) => (
@@ -106,7 +111,11 @@ export function Landing() {
           </div>
         </section>
 
-        <section id="features" className={`${styles.section} ${styles.sunken}`} aria-labelledby="features-title">
+        <section
+          id="features"
+          className={`${styles.section} ${styles.sunken}`}
+          aria-labelledby="features-title"
+        >
           <div className={styles.container}>
             <h2 id="features-title" className={styles.sectionTitle}>
               What you can do
@@ -152,7 +161,11 @@ export function Landing() {
           </div>
         </section>
 
-        <section id="faq" className={`${styles.section} ${styles.sunken}`} aria-labelledby="faq-title">
+        <section
+          id="faq"
+          className={`${styles.section} ${styles.sunken}`}
+          aria-labelledby="faq-title"
+        >
           <div className={`${styles.container} ${styles.narrow}`}>
             <h2 id="faq-title" className={styles.sectionTitle}>
               Questions

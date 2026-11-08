@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Alert, Badge, Button } from "../../ui";
-import { useConfirm } from "../../ui/useConfirm";
-import { connectionLabel } from "../label";
-import { MakeDefaultButton } from "./MakeDefaultButton";
-import styles from "../../auth/screens/screens.module.css";
-import { dayText } from "../../ui/dates";
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { Alert, Badge, Button } from '../../ui';
+import { useConfirm } from '../../ui/useConfirm';
+import { connectionLabel } from '../label';
+import { MakeDefaultButton } from './MakeDefaultButton';
+import styles from '../../auth/screens/screens.module.css';
+import { dayText } from '../../ui/dates';
 
 export interface ConnectionRow {
   id: number;
@@ -21,8 +21,8 @@ export interface ConnectionRow {
   createdAt: number;
   isDefault: boolean;
   /** `app`: through the GitHub App. Absent or `pat`: through an access token. `local`: kept on this server. */
-  kind?: "pat" | "app" | "local";
-  provider?: "github" | "local";
+  kind?: 'pat' | 'app' | 'local';
+  provider?: 'github' | 'local';
 }
 
 /** The repositories this account has connected, each with a way to disconnect it. */
@@ -32,16 +32,28 @@ export function ConnectionList({ connections }: { connections: ConnectionRow[] }
   const [error, setError] = useState<string | null>(null);
 
   async function onDisconnect(connection: ConnectionRow) {
-    const label = connectionLabel({ provider: connection.provider ?? "github", owner: connection.owner, name: connection.name });
+    const label = connectionLabel({
+      provider: connection.provider ?? 'github',
+      owner: connection.owner,
+      name: connection.name,
+    });
     const question =
-      connection.kind === "local"
+      connection.kind === 'local'
         ? `Delete ${label}? It is kept only on this server, so all its files are deleted with it and cannot be got back. To keep them, connect it to a git repository instead.`
-        : `Disconnect ${label}? ${connection.kind === "app" ? "Fjord will stop using the GitHub App for it; the App stays installed on GitHub until you remove it there." : "Fjord will forget its access token."} Nothing in the repository changes.`;
-    if (!(await ask({ message: question, confirm: connection.kind === "local" ? "Delete it" : "Disconnect" }))) return;
+        : `Disconnect ${label}? ${connection.kind === 'app' ? 'Fjord will stop using the GitHub App for it; the App stays installed on GitHub until you remove it there.' : 'Fjord will forget its access token.'} Nothing in the repository changes.`;
+    if (
+      !(await ask({
+        message: question,
+        confirm: connection.kind === 'local' ? 'Delete it' : 'Disconnect',
+      }))
+    )
+      return;
     setError(null);
-    const response = await fetch(`/api/connections/${connection.id}`, { method: "DELETE" });
+    const response = await fetch(`/api/connections/${connection.id}`, { method: 'DELETE' });
     if (!response.ok && response.status !== 404) {
-      setError(`${label} was not ${connection.kind === "local" ? "deleted" : "disconnected"}. Try again.`);
+      setError(
+        `${label} was not ${connection.kind === 'local' ? 'deleted' : 'disconnected'}. Try again.`,
+      );
       return;
     }
     router.refresh();
@@ -60,17 +72,36 @@ export function ConnectionList({ connections }: { connections: ConnectionRow[] }
         {connections.map((connection) => (
           <li key={connection.id} className={styles.item}>
             <span>
-              <a href={`/${connection.address}`}>{connectionLabel({ provider: connection.provider ?? "github", owner: connection.owner, name: connection.name })}</a>{" "}
+              <a href={`/${connection.address}`}>
+                {connectionLabel({
+                  provider: connection.provider ?? 'github',
+                  owner: connection.owner,
+                  name: connection.name,
+                })}
+              </a>{' '}
               {connection.isDefault ? <Badge>Default</Badge> : null}
               <span className={styles.itemMeta}>
-                {" "}
-                · {connection.kind === "local" ? "on this server" : `branch ${connection.branch}`} · {connection.kind === "local" ? "created" : "connected"} {dayText(connection.createdAt)}
+                {' '}
+                · {connection.kind === 'local'
+                  ? 'on this server'
+                  : `branch ${connection.branch}`} ·{' '}
+                {connection.kind === 'local' ? 'created' : 'connected'}{' '}
+                {dayText(connection.createdAt)}
               </span>
             </span>
             <span className={styles.actions}>
-              {connection.isDefault ? null : <MakeDefaultButton id={connection.id} label={connectionLabel({ provider: connection.provider ?? "github", owner: connection.owner, name: connection.name })} />}
+              {connection.isDefault ? null : (
+                <MakeDefaultButton
+                  id={connection.id}
+                  label={connectionLabel({
+                    provider: connection.provider ?? 'github',
+                    owner: connection.owner,
+                    name: connection.name,
+                  })}
+                />
+              )}
               <Button variant="ghost" size="sm" onClick={() => onDisconnect(connection)}>
-                {connection.kind === "local" ? "Delete" : "Disconnect"}
+                {connection.kind === 'local' ? 'Delete' : 'Disconnect'}
               </Button>
             </span>
           </li>

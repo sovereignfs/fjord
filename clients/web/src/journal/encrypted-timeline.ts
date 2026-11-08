@@ -1,5 +1,5 @@
-import type { JournalEntrySummary } from "../format/types";
-import type { TimelineEntry } from "./timeline";
+import type { JournalEntrySummary } from '../format/types';
+import type { TimelineEntry } from './timeline';
 
 /**
  * An **encrypted** journal's entries, read for its timeline in the browser (ROADMAP 3b.2, RFC 0001 "Security and privacy"): each entry's
@@ -18,7 +18,11 @@ export interface EncryptedTimelineDeps {
 
 const AT_ONCE = 4;
 
-export async function readEncryptedEntries(deps: EncryptedTimelineDeps, files: { path: string }[], onProgress?: (done: number) => void): Promise<{ entries: TimelineEntry[]; unreadable: number }> {
+export async function readEncryptedEntries(
+  deps: EncryptedTimelineDeps,
+  files: { path: string }[],
+  onProgress?: (done: number) => void,
+): Promise<{ entries: TimelineEntry[]; unreadable: number }> {
   const entries: TimelineEntry[] = [];
   let unreadable = 0;
   let done = 0;
@@ -30,8 +34,14 @@ export async function readEncryptedEntries(deps: EncryptedTimelineDeps, files: {
         const opened = deps.open(await deps.fetchCiphertext(file.path));
         if (opened && /\.md$/i.test(opened.name)) {
           // Its day is the folder it is filed in, which is public; the name inside the container is the minute. Together they are the path a plaintext journal files it by.
-          const folder = file.path.split("/").slice(-2, -1)[0];
-          entries.push({ ...deps.summarise(opened.text, folder === undefined ? opened.name : `${folder}/${opened.name}`), path: file.path });
+          const folder = file.path.split('/').slice(-2, -1)[0];
+          entries.push({
+            ...deps.summarise(
+              opened.text,
+              folder === undefined ? opened.name : `${folder}/${opened.name}`,
+            ),
+            path: file.path,
+          });
         } else if (!opened) unreadable += 1;
       } catch {
         unreadable += 1;
@@ -44,11 +54,16 @@ export async function readEncryptedEntries(deps: EncryptedTimelineDeps, files: {
 }
 
 /** How the page asks for an entry's ciphertext: by its path alone, with a GET and no body, from this site. */
-export function ciphertextFetcher(connectionId: number, fetcher: typeof fetch = fetch): (path: string) => Promise<Uint8Array> {
+export function ciphertextFetcher(
+  connectionId: number,
+  fetcher: typeof fetch = fetch,
+): (path: string) => Promise<Uint8Array> {
   return async (path) => {
-    const response = await fetcher(`/api/connections/${connectionId}/ciphertext?path=${encodeURIComponent(path)}`, { credentials: "same-origin" });
-    if (!response.ok) throw new Error("unreadable");
+    const response = await fetcher(
+      `/api/connections/${connectionId}/ciphertext?path=${encodeURIComponent(path)}`,
+      { credentials: 'same-origin' },
+    );
+    if (!response.ok) throw new Error('unreadable');
     return new Uint8Array(await response.arrayBuffer());
   };
 }
-

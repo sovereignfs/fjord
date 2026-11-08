@@ -7,48 +7,57 @@
 //   pnpm build && pnpm boot-check
 //
 // Exits 0 if /api/health answers ok on the expected dialect, 1 otherwise.
-import { spawn } from "node:child_process";
+import { spawn } from 'node:child_process';
 
-const port = process.env.BOOT_CHECK_PORT ?? "3999";
+const port = process.env.BOOT_CHECK_PORT ?? '3999';
 // Health says `sqlite` for both of SQLite's forms, an sqld service and a file. The old DB_DIALECT
 // (sqlite or postgres) is read too, for an environment that still uses it.
-const configured = (process.env.FJORD_DB_DIALECT || process.env.DB_DIALECT || "sqld").trim().toLowerCase();
-const expectedDialect = configured === "postgres" ? "postgres" : "sqlite";
+const configured = (process.env.FJORD_DB_DIALECT || process.env.DB_DIALECT || 'sqld')
+  .trim()
+  .toLowerCase();
+const expectedDialect = configured === 'postgres' ? 'postgres' : 'sqlite';
 const deadline = Date.now() + Number(process.env.BOOT_CHECK_TIMEOUT_MS ?? 90_000);
 
-const server = spawn("pnpm", ["exec", "next", "start", "--port", port], {
-  stdio: ["ignore", "pipe", "pipe"],
+const server = spawn('pnpm', ['exec', 'next', 'start', '--port', port], {
+  stdio: ['ignore', 'pipe', 'pipe'],
   env: { ...process.env, PORT: port },
 });
-let log = "";
-server.stdout.on("data", (chunk) => (log += chunk));
-server.stderr.on("data", (chunk) => (log += chunk));
+let log = '';
+server.stdout.on('data', (chunk) => (log += chunk));
+server.stderr.on('data', (chunk) => (log += chunk));
 let exited = false;
-server.on("exit", () => (exited = true));
+server.on('exit', () => (exited = true));
 
 function finish(code, message) {
   console.log(message);
   if (code !== 0) console.log(`--- server output ---\n${log}`);
-  server.kill("SIGTERM");
+  server.kill('SIGTERM');
   // Give it a moment to close its database connections before the process ends.
   setTimeout(() => process.exit(code), 500);
 }
 
 while (Date.now() < deadline) {
-  if (exited) finish(1, "the server exited before it answered");
+  if (exited) finish(1, 'the server exited before it answered');
   try {
     const response = await fetch(`http://localhost:${port}/api/health`);
     const body = await response.json();
-    if (response.ok && body.status === "ok") {
+    if (response.ok && body.status === 'ok') {
       if (body.database?.dialect !== expectedDialect) {
-        finish(1, `booted, but on ${body.database?.dialect}, not ${expectedDialect}: ${JSON.stringify(body)}`);
+        finish(
+          1,
+          `booted, but on ${body.database?.dialect}, not ${expectedDialect}: ${JSON.stringify(body)}`,
+        );
       } else {
         finish(0, `booted: ${JSON.stringify(body)}`);
       }
       break;
     }
     // The server is up but its database is not ready or failed: not yet, or never.
-    if (response.status === 503 && /ready|migrations applied/.test(log) === false && Date.now() + 5000 > deadline) {
+    if (
+      response.status === 503 &&
+      /ready|migrations applied/.test(log) === false &&
+      Date.now() + 5000 > deadline
+    ) {
       finish(1, `the server answered 503: ${JSON.stringify(body)}`);
       break;
     }
@@ -57,4 +66,4 @@ while (Date.now() < deadline) {
   }
   await new Promise((resolve) => setTimeout(resolve, 500));
 }
-if (Date.now() >= deadline) finish(1, "timed out waiting for /api/health");
+if (Date.now() >= deadline) finish(1, 'timed out waiting for /api/health');

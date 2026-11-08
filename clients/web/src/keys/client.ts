@@ -1,5 +1,5 @@
-import { loadModule } from "./module";
-import { KeyStore, indexedDbStorage } from "./store";
+import { loadModule } from './module';
+import { KeyStore, indexedDbStorage } from './store';
 
 /**
  * The page's one key store: the identity kept in this browser's IndexedDB, opened with the module served at `/fjord-wasm/`. One per page load, so an

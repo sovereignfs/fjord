@@ -16,12 +16,16 @@ export interface LocalLimits {
   files: number;
 }
 
-export const DEFAULT_LOCAL_LIMITS: LocalLimits = { repositories: 3, bytes: 50 * 1024 * 1024, files: 2000 };
+export const DEFAULT_LOCAL_LIMITS: LocalLimits = {
+  repositories: 3,
+  bytes: 50 * 1024 * 1024,
+  files: 2000,
+};
 
 const MIB = 1024 * 1024;
 
 function whole(raw: string | undefined, min: number, max: number, fallback: number): number {
-  const text = (raw ?? "").trim();
+  const text = (raw ?? '').trim();
   if (!/^[0-9]{1,9}$/.test(text)) return fallback;
   const value = Number(text);
   return value >= min && value <= max ? value : fallback;
@@ -29,7 +33,12 @@ function whole(raw: string | undefined, min: number, max: number, fallback: numb
 
 export function localLimits(env: Record<string, string | undefined> = process.env): LocalLimits {
   return {
-    repositories: whole(env.FJORD_LOCAL_MAX_REPOSITORIES, 0, 1000, DEFAULT_LOCAL_LIMITS.repositories),
+    repositories: whole(
+      env.FJORD_LOCAL_MAX_REPOSITORIES,
+      0,
+      1000,
+      DEFAULT_LOCAL_LIMITS.repositories,
+    ),
     bytes: whole(env.FJORD_LOCAL_MAX_MIB, 1, 100_000, DEFAULT_LOCAL_LIMITS.bytes / MIB) * MIB,
     files: whole(env.FJORD_LOCAL_MAX_FILES, 1, 1_000_000, DEFAULT_LOCAL_LIMITS.files),
   };
@@ -52,17 +61,17 @@ export interface LocalUsage {
 }
 
 /** Which limit a request ran into: the words for it, so that a person knows what to do. */
-export type LimitKind = "repositories" | "files" | "bytes";
+export type LimitKind = 'repositories' | 'files' | 'bytes';
 
 export function limitMessage(kind: LimitKind, limits: LocalLimits): string {
   switch (kind) {
-    case "repositories":
+    case 'repositories':
       return limits.repositories === 0
-        ? "This instance does not keep repositories on the server. Connect a git repository instead."
-        : `You can keep ${limits.repositories} ${limits.repositories === 1 ? "repository" : "repositories"} on this server until you connect them to git, and you have that many. Connect one to a git repository (which moves its files there and frees the space), or delete one, then try again.`;
-    case "files":
+        ? 'This instance does not keep repositories on the server. Connect a git repository instead.'
+        : `You can keep ${limits.repositories} ${limits.repositories === 1 ? 'repository' : 'repositories'} on this server until you connect them to git, and you have that many. Connect one to a git repository (which moves its files there and frees the space), or delete one, then try again.`;
+    case 'files':
       return `Repositories on this server can hold ${limits.files} files in all, and this would go over. Connect one to a git repository to move its files out, or delete some files, then try again.`;
-    case "bytes":
+    case 'bytes':
       return `Repositories on this server can hold ${formatBytes(limits.bytes)} in all, and this would go over. Connect one to a git repository to move its files out, or delete some files, then try again.`;
   }
 }

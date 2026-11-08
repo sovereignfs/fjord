@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Alert, Button, FormField, Input } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import type { Properties } from "../document";
+import { useState } from 'react';
+import { Alert, Button, FormField, Input } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import type { Properties } from '../document';
 
 /**
  * The fields of a header that a form can set (ROADMAP 3g.2, RFC 0002): for a site, `draft` and `description`; for any Doc, every other key whose value is text or
@@ -35,25 +35,55 @@ export function FieldsForm({
   }
 
   const editable = properties.others.filter((other) => other.editable !== undefined);
-  if (!site && editable.length === 0 && properties.others.length === 0) return <AddField disabled={disabled} busy={busy !== null} set={set} problem={problem} />;
+  if (!site && editable.length === 0 && properties.others.length === 0)
+    return <AddField disabled={disabled} busy={busy !== null} set={set} problem={problem} />;
 
   return (
     <div data-testid="fields-form">
       {site ? (
         <>
-          <label style={{ display: "block" }}>
-            <input type="checkbox" name="draft" checked={properties.draft === true} disabled={disabled || busy === "draft"} onChange={(event) => void set("draft", event.target.checked)} /> Draft: not for the site yet
+          <label style={{ display: 'block' }}>
+            <input
+              type="checkbox"
+              name="draft"
+              checked={properties.draft === true}
+              disabled={disabled || busy === 'draft'}
+              onChange={(event) => void set('draft', event.target.checked)}
+            />{' '}
+            Draft: not for the site yet
           </label>
-          <TextField name="description" label="Description" value={properties.description ?? ""} disabled={disabled} busy={busy === "description"} set={set} />
+          <TextField
+            name="description"
+            label="Description"
+            value={properties.description ?? ''}
+            disabled={disabled}
+            busy={busy === 'description'}
+            set={set}
+          />
         </>
       ) : null}
       {editable.map((other) =>
-        other.editable === "flag" ? (
-          <label key={other.key} style={{ display: "block" }}>
-            <input type="checkbox" name={other.key} checked={other.value === "true"} disabled={disabled || busy === other.key} onChange={(event) => void set(other.key, event.target.checked)} /> {other.key}
+        other.editable === 'flag' ? (
+          <label key={other.key} style={{ display: 'block' }}>
+            <input
+              type="checkbox"
+              name={other.key}
+              checked={other.value === 'true'}
+              disabled={disabled || busy === other.key}
+              onChange={(event) => void set(other.key, event.target.checked)}
+            />{' '}
+            {other.key}
           </label>
         ) : (
-          <TextField key={other.key} name={other.key} label={other.key} value={other.value} disabled={disabled} busy={busy === other.key} set={set} />
+          <TextField
+            key={other.key}
+            name={other.key}
+            label={other.key}
+            value={other.value}
+            disabled={disabled}
+            busy={busy === other.key}
+            set={set}
+          />
         ),
       )}
       <AddField disabled={disabled} busy={busy !== null} set={set} problem={problem} />
@@ -61,7 +91,21 @@ export function FieldsForm({
   );
 }
 
-function TextField({ name, label, value, disabled, busy, set }: { name: string; label: string; value: string; disabled: boolean; busy: boolean; set: (key: string, value: string | null) => Promise<void> }) {
+function TextField({
+  name,
+  label,
+  value,
+  disabled,
+  busy,
+  set,
+}: {
+  name: string;
+  label: string;
+  value: string;
+  disabled: boolean;
+  busy: boolean;
+  set: (key: string, value: string | null) => Promise<void>;
+}) {
   const [text, setText] = useState(value);
   const unchanged = text === value;
   return (
@@ -69,12 +113,30 @@ function TextField({ name, label, value, disabled, busy, set }: { name: string; 
       className={styles.form}
       onSubmit={(event) => {
         event.preventDefault();
-        void set(name, text === "" ? null : text);
+        void set(name, text === '' ? null : text);
       }}
     >
-      <FormField label={label}>{(field) => <Input {...field} name={name} autoComplete="off" maxLength={2000} value={text} onChange={(e) => setText(e.target.value)} disabled={disabled || busy} />}</FormField>
+      <FormField label={label}>
+        {(field) => (
+          <Input
+            {...field}
+            name={name}
+            autoComplete="off"
+            maxLength={2000}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            disabled={disabled || busy}
+          />
+        )}
+      </FormField>
       <div className={styles.actions}>
-        <Button type="submit" variant="secondary" size="sm" loading={busy} disabled={disabled || unchanged}>
+        <Button
+          type="submit"
+          variant="secondary"
+          size="sm"
+          loading={busy}
+          disabled={disabled || unchanged}
+        >
           Set {label}
         </Button>
       </div>
@@ -82,23 +144,58 @@ function TextField({ name, label, value, disabled, busy, set }: { name: string; 
   );
 }
 
-function AddField({ disabled, busy, set, problem }: { disabled: boolean; busy: boolean; set: (key: string, value: string | null) => Promise<void>; problem: string | null }) {
-  const [key, setKey] = useState("");
-  const [value, setValue] = useState("");
-  const valid = /^[A-Za-z0-9_-]{1,64}$/.test(key) && !["id", "created", "fjord"].includes(key);
+function AddField({
+  disabled,
+  busy,
+  set,
+  problem,
+}: {
+  disabled: boolean;
+  busy: boolean;
+  set: (key: string, value: string | null) => Promise<void>;
+  problem: string | null;
+}) {
+  const [key, setKey] = useState('');
+  const [value, setValue] = useState('');
+  const valid = /^[A-Za-z0-9_-]{1,64}$/.test(key) && !['id', 'created', 'fjord'].includes(key);
   return (
     <form
       className={styles.form}
       aria-label="Add a field"
       onSubmit={(event) => {
         event.preventDefault();
-        void set(key, value).then(() => (setKey(""), setValue("")));
+        void set(key, value).then(() => (setKey(''), setValue('')));
       }}
     >
-      <FormField label="Add a field" hint="A name (letters, digits, - and _) and its text, for a key your site or another tool reads. It is added at the end of the header.">
-        {(field) => <Input {...field} name="field-name" autoComplete="off" maxLength={64} value={key} onChange={(e) => setKey(e.target.value)} disabled={disabled || busy} />}
+      <FormField
+        label="Add a field"
+        hint="A name (letters, digits, - and _) and its text, for a key your site or another tool reads. It is added at the end of the header."
+      >
+        {(field) => (
+          <Input
+            {...field}
+            name="field-name"
+            autoComplete="off"
+            maxLength={64}
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            disabled={disabled || busy}
+          />
+        )}
       </FormField>
-      <FormField label="Its text">{(field) => <Input {...field} name="field-value" autoComplete="off" maxLength={2000} value={value} onChange={(e) => setValue(e.target.value)} disabled={disabled || busy} />}</FormField>
+      <FormField label="Its text">
+        {(field) => (
+          <Input
+            {...field}
+            name="field-value"
+            autoComplete="off"
+            maxLength={2000}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            disabled={disabled || busy}
+          />
+        )}
+      </FormField>
       {problem ? (
         <div className={styles.notice}>
           <Alert variant="error" heading="The field was not changed">
@@ -107,7 +204,12 @@ function AddField({ disabled, busy, set, problem }: { disabled: boolean; busy: b
         </div>
       ) : null}
       <div className={styles.actions}>
-        <Button type="submit" variant="secondary" size="sm" disabled={disabled || busy || !valid || value === ""}>
+        <Button
+          type="submit"
+          variant="secondary"
+          size="sm"
+          disabled={disabled || busy || !valid || value === ''}
+        >
           Add
         </Button>
       </div>

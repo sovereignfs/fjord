@@ -1,6 +1,6 @@
-import { verifyAccountDeletedToken, verifyLogoutToken } from "@sovereignfs/sdk";
-import type { Limiter } from "../limits/rate";
-import type { NoticeVerifiers } from "./http";
+import { verifyAccountDeletedToken, verifyLogoutToken } from '@sovereignfs/sdk';
+import type { Limiter } from '../limits/rate';
+import type { NoticeVerifiers } from './http';
 
 /**
  * Sovereign's notices are checked by `@sovereignfs/sdk` (its `verifyLogoutToken` and `verifyAccountDeletedToken`), which holds the rules of
@@ -30,9 +30,15 @@ export function sdkVerifiers(options: VerifierOptions): NoticeVerifiers {
  * replayed, in the database that every process shares. The first to ask is let in and every later one is refused, which is "seen before";
  * a notice is good for two minutes, so by the time the window ends it is no longer one the SDK will accept.
  */
-export function seenBy(limiter: Limiter, now: () => number = Date.now): (jti: string, expiresAt: number) => Promise<boolean> {
+export function seenBy(
+  limiter: Limiter,
+  now: () => number = Date.now,
+): (jti: string, expiresAt: number) => Promise<boolean> {
   return async (jti, expiresAt) => {
-    const taken = await limiter.take(`sovereign-notice:${jti}`, { limit: 1, windowMs: Math.max(expiresAt - now(), 1000) });
+    const taken = await limiter.take(`sovereign-notice:${jti}`, {
+      limit: 1,
+      windowMs: Math.max(expiresAt - now(), 1000),
+    });
     return !taken.ok;
   };
 }

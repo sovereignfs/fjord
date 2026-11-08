@@ -4,11 +4,24 @@
  */
 export const isFiledName = (title: string): boolean => /^\d\d-\d\d(-\d+)?$/.test(title);
 
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 
 /** `2026-11-05T00:03:00+01:00` as the writer read it: its own day and time, whatever the reader's. Null for what is not such a moment. */
 export function entryHeading(date: string | null | undefined): string | null {
-  const parts = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(date ?? "");
+  const parts = /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/.exec(date ?? '');
   const month = parts ? MONTHS[Number(parts[2]) - 1] : undefined;
   if (!parts || month === undefined) return null;
   const day = `${Number(parts[3])} ${month} ${parts[1]}`;

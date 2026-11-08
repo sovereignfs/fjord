@@ -1,12 +1,12 @@
-"use client";
+'use client';
 
-import { NoteEditor } from "fjord-editor";
-import "fjord-editor/styles.css";
-import { useState } from "react";
-import { Alert, Button } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import { discardDraft, sendResolve } from "../../working/client";
-import type { Preview } from "../../working/resolve";
+import { NoteEditor } from 'fjord-editor';
+import 'fjord-editor/styles.css';
+import { useState } from 'react';
+import { Alert, Button } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import { discardDraft, sendResolve } from '../../working/client';
+import type { Preview } from '../../working/resolve';
 
 /**
  * A note whose draft is of an older version than the repository has (DESIGN.md §11, ROADMAP 1b.10): someone changed the
@@ -42,11 +42,11 @@ export function UpstreamChanged({
   upstreamBlob: string;
   preview: Preview;
 }) {
-  const [busy, setBusy] = useState<"mine" | "combine" | "theirs" | null>(null);
+  const [busy, setBusy] = useState<'mine' | 'combine' | 'theirs' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
-  async function go(choice: "mine" | "combine") {
+  async function go(choice: 'mine' | 'combine') {
     setBusy(choice);
     setError(null);
     const done = await sendResolve(connectionId, path, choice, upstreamBlob);
@@ -60,25 +60,35 @@ export function UpstreamChanged({
   }
 
   async function takeTheirs() {
-    setBusy("theirs");
+    setBusy('theirs');
     setError(null);
     if (await discardDraft(connectionId, path)) {
       window.location.reload();
       return;
     }
-    setError("Could not discard your changes. Try again.");
+    setError('Could not discard your changes. Try again.');
     setBusy(null);
   }
 
   return (
     <div>
       <div className={styles.notice}>
-        <Alert variant="warning" heading="This note changed in the repository while you were editing it">
-          Someone changed it, from another device or tool. Nothing of yours or theirs has been lost: your changes are kept, and nothing was committed over their change. Choose how to go on.
+        <Alert
+          variant="warning"
+          heading="This note changed in the repository while you were editing it"
+        >
+          Someone changed it, from another device or tool. Nothing of yours or theirs has been lost:
+          your changes are kept, and nothing was committed over their change. Choose how to go on.
         </Alert>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(16rem, 1fr))", gap: "var(--sv-space-4, 1rem)" }}>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(16rem, 1fr))',
+          gap: 'var(--sv-space-4, 1rem)',
+        }}
+      >
         <section aria-labelledby="mine-title">
           <h3 id="mine-title" className={styles.itemMeta}>
             Your version (not saved)
@@ -94,11 +104,11 @@ export function UpstreamChanged({
       </div>
 
       <p className={styles.itemMeta} data-testid="combine-preview">
-        {preview.state === "clean"
-          ? "Your changes and theirs are in different places, so they can be combined without a conflict."
-          : preview.state === "conflicts"
-            ? `Your changes and theirs touch the same lines in ${preview.conflicts === 1 ? "1 place" : `${preview.conflicts} places`}. Combining keeps both there, between markers, for you to settle.`
-            : "These cannot be combined here (one of the versions could not be read as text). You can still keep yours or take theirs."}
+        {preview.state === 'clean'
+          ? 'Your changes and theirs are in different places, so they can be combined without a conflict.'
+          : preview.state === 'conflicts'
+            ? `Your changes and theirs touch the same lines in ${preview.conflicts === 1 ? '1 place' : `${preview.conflicts} places`}. Combining keeps both there, between markers, for you to settle.`
+            : 'These cannot be combined here (one of the versions could not be read as text). You can still keep yours or take theirs.'}
       </p>
 
       {error ? (
@@ -110,39 +120,75 @@ export function UpstreamChanged({
       ) : null}
 
       <ul className={styles.list} aria-label="Ways to go on">
-        {preview.state !== "unavailable" ? (
+        {preview.state !== 'unavailable' ? (
           <li className={styles.item}>
             <span>
-              <strong>Combine both.</strong> <span className={styles.itemMeta}>Their change is brought into your version. Nothing of either is dropped.</span>
+              <strong>Combine both.</strong>{' '}
+              <span className={styles.itemMeta}>
+                Their change is brought into your version. Nothing of either is dropped.
+              </span>
             </span>
-            <Button size="sm" onClick={() => go("combine")} loading={busy === "combine"} disabled={busy !== null && busy !== "combine"}>
+            <Button
+              size="sm"
+              onClick={() => go('combine')}
+              loading={busy === 'combine'}
+              disabled={busy !== null && busy !== 'combine'}
+            >
               Combine
             </Button>
           </li>
         ) : null}
         <li className={styles.item}>
           <span>
-            <strong>Keep mine.</strong> <span className={styles.itemMeta}>Your version is what you save next. Theirs stays in the repository&apos;s history.</span>
+            <strong>Keep mine.</strong>{' '}
+            <span className={styles.itemMeta}>
+              Your version is what you save next. Theirs stays in the repository&apos;s history.
+            </span>
           </span>
-          <Button variant="secondary" size="sm" onClick={() => go("mine")} loading={busy === "mine"} disabled={busy !== null && busy !== "mine"}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => go('mine')}
+            loading={busy === 'mine'}
+            disabled={busy !== null && busy !== 'mine'}
+          >
             Keep mine
           </Button>
         </li>
         <li className={styles.item}>
           <span>
-            <strong>Take theirs.</strong> <span className={styles.itemMeta}>Throw your changes away and show the note as the repository has it.</span>
+            <strong>Take theirs.</strong>{' '}
+            <span className={styles.itemMeta}>
+              Throw your changes away and show the note as the repository has it.
+            </span>
           </span>
           {confirming ? (
             <span>
-              <Button variant="destructive" size="sm" onClick={takeTheirs} loading={busy === "theirs"} disabled={busy !== null && busy !== "theirs"}>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={takeTheirs}
+                loading={busy === 'theirs'}
+                disabled={busy !== null && busy !== 'theirs'}
+              >
                 Yes, discard mine
-              </Button>{" "}
-              <Button variant="secondary" size="sm" onClick={() => setConfirming(false)} disabled={busy !== null}>
+              </Button>{' '}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setConfirming(false)}
+                disabled={busy !== null}
+              >
                 Cancel
               </Button>
             </span>
           ) : (
-            <Button variant="secondary" size="sm" onClick={() => setConfirming(true)} disabled={busy !== null}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setConfirming(true)}
+              disabled={busy !== null}
+            >
               Take theirs
             </Button>
           )}

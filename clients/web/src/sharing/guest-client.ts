@@ -1,4 +1,4 @@
-import type { Attempt } from "../working/saver";
+import type { Attempt } from '../working/saver';
 
 /**
  * The browser's side of `PUT /d/<id>/draft` (ROADMAP 1c.6): what the saver sends through when someone edits through a link, and what
@@ -6,49 +6,94 @@ import type { Attempt } from "../working/saver";
  */
 const KEEPALIVE_LIMIT = 40_000;
 
-export function guestAttemptFrom(status: number, body: { error?: { code?: string; message?: string } } | undefined): Attempt {
-  if (status >= 200 && status < 300) return { kind: "kept" };
+export function guestAttemptFrom(
+  status: number,
+  body: { error?: { code?: string; message?: string } } | undefined,
+): Attempt {
+  if (status >= 200 && status < 300) return { kind: 'kept' };
   const code = body?.error?.code;
   const message = body?.error?.message;
   switch (code) {
-    case "bad_name":
-      return { kind: "refused", stop: true, message: message ?? "That name cannot be used. Give another." };
-    case "read_only":
-      return { kind: "refused", stop: true, message: "This link lets you read the document, not change it, so changes are not being kept." };
-    case "not_editable":
-      return { kind: "refused", stop: true, message: message ?? "This document cannot be edited through a link." };
-    case "unstorable":
-    case "too_large":
-      return { kind: "refused", stop: false, message: message ?? "This text cannot be kept as a draft." };
-    case "too_many_drafts":
-    case "too_many_editors":
-      return { kind: "refused", stop: true, message: message ?? "The owner needs to save a version before more changes can be kept." };
+    case 'bad_name':
+      return {
+        kind: 'refused',
+        stop: true,
+        message: message ?? 'That name cannot be used. Give another.',
+      };
+    case 'read_only':
+      return {
+        kind: 'refused',
+        stop: true,
+        message:
+          'This link lets you read the document, not change it, so changes are not being kept.',
+      };
+    case 'not_editable':
+      return {
+        kind: 'refused',
+        stop: true,
+        message: message ?? 'This document cannot be edited through a link.',
+      };
+    case 'unstorable':
+    case 'too_large':
+      return {
+        kind: 'refused',
+        stop: false,
+        message: message ?? 'This text cannot be kept as a draft.',
+      };
+    case 'too_many_drafts':
+    case 'too_many_editors':
+      return {
+        kind: 'refused',
+        stop: true,
+        message: message ?? 'The owner needs to save a version before more changes can be kept.',
+      };
   }
-  if (status === 401) return { kind: "refused", stop: true, message: "You are signed out, so changes are not being kept. What you typed is still on this page: sign in again in another tab, then reload." };
-  if (status === 403 || status === 404) return { kind: "refused", stop: true, message: "This no longer works, so changes are not being kept. What you typed is still on this page." };
+  if (status === 401)
+    return {
+      kind: 'refused',
+      stop: true,
+      message:
+        'You are signed out, so changes are not being kept. What you typed is still on this page: sign in again in another tab, then reload.',
+    };
+  if (status === 403 || status === 404)
+    return {
+      kind: 'refused',
+      stop: true,
+      message:
+        'This no longer works, so changes are not being kept. What you typed is still on this page.',
+    };
   // Anything else is the host or our side being unwell, or the network: the text is not lost, so ask again later.
-  return { kind: "failed" };
+  return { kind: 'failed' };
 }
 
 /** Where an edit goes: through a link's cookie, under the name a guest gave, or as the signed-in account a document was shared with (its name is its own). */
-export type DraftTarget = { kind: "guest"; name: string } | { kind: "account" };
+export type DraftTarget = { kind: 'guest'; name: string } | { kind: 'account' };
 
-export async function sendGuestDraft(docId: string, name: string, body: string, target: DraftTarget = { kind: "guest", name }): Promise<Attempt> {
-  const payload = JSON.stringify(target.kind === "guest" ? { name: target.name, body } : { body });
+export async function sendGuestDraft(
+  docId: string,
+  name: string,
+  body: string,
+  target: DraftTarget = { kind: 'guest', name },
+): Promise<Attempt> {
+  const payload = JSON.stringify(target.kind === 'guest' ? { name: target.name, body } : { body });
   try {
-    const response = await fetch(target.kind === "guest" ? `/d/${docId}/draft` : `/api/shared/${docId}/draft`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: payload,
-      keepalive: payload.length <= KEEPALIVE_LIMIT,
-      credentials: "same-origin",
-    });
-    const parsed = (await response.json().catch(() => undefined)) as { error?: { code?: string; message?: string } } | undefined;
+    const response = await fetch(
+      target.kind === 'guest' ? `/d/${docId}/draft` : `/api/shared/${docId}/draft`,
+      {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: payload,
+        keepalive: payload.length <= KEEPALIVE_LIMIT,
+        credentials: 'same-origin',
+      },
+    );
+    const parsed = (await response.json().catch(() => undefined)) as
+      { error?: { code?: string; message?: string } } | undefined;
     return guestAttemptFrom(response.status, parsed);
   } catch {
-    return { kind: "failed" };
+    return { kind: 'failed' };
   }
 }
 
 /** Where the name a person gave is kept in their browser (DESIGN.md §12): theirs, shown on what they change. */
-export const NAME_KEY = "fjord:guest-name";
+export const NAME_KEY = 'fjord:guest-name';

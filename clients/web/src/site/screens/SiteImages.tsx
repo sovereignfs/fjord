@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import type { ImageChoice, ImageSource } from "fjord-editor";
-import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
-import { Alert, Dialog } from "../../ui";
-import { fetchDisplayUrl, fetchReference } from "../images-client";
-import { MediaLibrary } from "./MediaLibrary";
+import type { ImageChoice, ImageSource } from 'fjord-editor';
+import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
+import { Alert, Dialog } from '../../ui';
+import { fetchDisplayUrl, fetchReference } from '../images-client';
+import { MediaLibrary } from './MediaLibrary';
 
 interface Asking {
   /** Bumped for each question, so that the library starts again from nothing. */
@@ -20,7 +20,11 @@ interface Asking {
  *
  * Draw `dialog` once, anywhere in the page.
  */
-export function useSiteImages(connectionId: number, post: string, enabled: boolean): { source: ImageSource | undefined; dialog: ReactNode } {
+export function useSiteImages(
+  connectionId: number,
+  post: string,
+  enabled: boolean,
+): { source: ImageSource | undefined; dialog: ReactNode } {
   const [asking, setAsking] = useState<Asking | null>(null);
   const [error, setError] = useState<string | null>(null);
   const answer = useRef<((choice: ImageChoice | null) => void) | null>(null);
@@ -64,9 +68,15 @@ export function useSiteImages(connectionId: number, post: string, enabled: boole
   );
 
   const dialog = asking ? (
-    <Dialog open onClose={() => settle(null)} size="lg" aria-label="Choose an image" title="Choose an image">
+    <Dialog
+      open
+      onClose={() => settle(null)}
+      size="lg"
+      aria-label="Choose an image"
+      title="Choose an image"
+    >
       {error ? (
-        <div style={{ padding: "var(--sv-space-5) var(--sv-space-5) 0" }}>
+        <div style={{ padding: 'var(--sv-space-5) var(--sv-space-5) 0' }}>
           <Alert variant="error" heading="The image was not put in">
             {error}
           </Alert>

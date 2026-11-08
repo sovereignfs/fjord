@@ -1,10 +1,10 @@
-import { sql } from "drizzle-orm";
-import { getDatabase } from "../../../src/db/boot";
-import { dbGet } from "../../../src/db/exec";
-import { fjord } from "../../../src/format/wasm";
+import { sql } from 'drizzle-orm';
+import { getDatabase } from '../../../src/db/boot';
+import { dbGet } from '../../../src/db/exec';
+import { fjord } from '../../../src/format/wasm';
 
 // Answers from the live database every time, never from a cache.
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 /**
  * Whether this instance is up and can reach its database. For a load balancer or a
@@ -19,22 +19,27 @@ export async function GET(): Promise<Response> {
     const database = await getDatabase();
     await dbGet(database, sql`SELECT 1 AS ok`);
     return Response.json({
-      status: "ok",
-      database: { dialect: database.dialect, ...(database.dialect === "sqlite" ? { form: database.form } : {}) },
+      status: 'ok',
+      database: {
+        dialect: database.dialect,
+        ...(database.dialect === 'sqlite' ? { form: database.form } : {}),
+      },
       format: formatState(),
     });
   } catch (error) {
     // Not the error itself: its message may name a host or carry a connection string, and a log is read by more people than the settings are.
-    console.error(`[fjord] health check failed: ${error instanceof Error ? error.name : "failure"}`);
-    return Response.json({ status: "error" }, { status: 503 });
+    console.error(
+      `[fjord] health check failed: ${error instanceof Error ? error.name : 'failure'}`,
+    );
+    return Response.json({ status: 'error' }, { status: 503 });
   }
 }
 
-function formatState(): "ok" | "unavailable" {
+function formatState(): 'ok' | 'unavailable' {
   try {
     fjord().version;
-    return "ok";
+    return 'ok';
   } catch {
-    return "unavailable";
+    return 'unavailable';
   }
 }

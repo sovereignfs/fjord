@@ -11,7 +11,11 @@ export interface UndoOffer {
 
 const key = (connectionId: number) => `fjord:undo:${connectionId}`;
 
-export function rememberUndo(storage: Pick<Storage, "setItem">, connectionId: number, offer: UndoOffer): void {
+export function rememberUndo(
+  storage: Pick<Storage, 'setItem'>,
+  connectionId: number,
+  offer: UndoOffer,
+): void {
   try {
     storage.setItem(key(connectionId), JSON.stringify(offer));
   } catch {
@@ -20,15 +24,25 @@ export function rememberUndo(storage: Pick<Storage, "setItem">, connectionId: nu
 }
 
 /** The offer, once: it is gone after it is read. Undefined if there is none, or it is not one. */
-export function takeUndo(storage: Pick<Storage, "getItem" | "removeItem">, connectionId: number): UndoOffer | undefined {
+export function takeUndo(
+  storage: Pick<Storage, 'getItem' | 'removeItem'>,
+  connectionId: number,
+): UndoOffer | undefined {
   try {
     const raw = storage.getItem(key(connectionId));
     if (raw === null) return undefined;
     storage.removeItem(key(connectionId));
     const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return undefined;
+    if (typeof parsed !== 'object' || parsed === null) return undefined;
     const { ids, label } = parsed as Record<string, unknown>;
-    if (!Array.isArray(ids) || ids.length === 0 || ids.length > 1000 || !ids.every((id) => typeof id === "number" && Number.isSafeInteger(id) && id > 0) || typeof label !== "string") return undefined;
+    if (
+      !Array.isArray(ids) ||
+      ids.length === 0 ||
+      ids.length > 1000 ||
+      !ids.every((id) => typeof id === 'number' && Number.isSafeInteger(id) && id > 0) ||
+      typeof label !== 'string'
+    )
+      return undefined;
     return { ids: ids as number[], label: label.slice(0, 200) };
   } catch {
     return undefined;

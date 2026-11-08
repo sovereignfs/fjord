@@ -14,7 +14,7 @@ services:
       dockerfile: clients/web/Dockerfile
       # The port is written in clients/web/sovereign.manifest.json, which Compose cannot read; a test holds this to it.
       args:
-        PORT: "3001"
+        PORT: '3001'
     image: ${FJORD_IMAGE:-fjord-web}
     restart: unless-stopped
     env_file:
@@ -29,13 +29,13 @@ services:
         condition: service_healthy
     # Only the machine itself can reach this port: a reverse proxy with TLS in front of it is how people do.
     ports:
-      - "127.0.0.1:${FJORD_PORT:-3001}:3001"
+      - '127.0.0.1:${FJORD_PORT:-3001}:3001'
 
   sqld:
     # Pinned, not `latest`. 0.24.33 or later: earlier releases cannot create a namespace the way the app does.
     image: ghcr.io/tursodatabase/libsql-server:v0.24.33
     restart: unless-stopped
-    command: ["/bin/sqld", "--enable-namespaces"]
+    command: ['/bin/sqld', '--enable-namespaces']
     environment:
       SQLD_NODE: primary
       SQLD_ADMIN_LISTEN_ADDR: 0.0.0.0:8081
@@ -44,7 +44,13 @@ services:
     # sqld has no sign-in of its own, so it is not published: the app reaches it on this network and nothing else does.
     healthcheck:
       # The image has bash and no curl.
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q ' 200'"]
+      test:
+        [
+          'CMD',
+          'bash',
+          '-c',
+          "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q ' 200'",
+        ]
       interval: 5s
       timeout: 5s
       retries: 12

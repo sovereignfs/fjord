@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
-import { keyStore } from "../../keys/client";
-import { Alert, Badge, Button, FormField, Icon, Input } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import { ActionDialog } from "./ActionDialog";
+import { useRouter } from 'next/navigation';
+import { type FormEvent, useEffect, useState } from 'react';
+import { keyStore } from '../../keys/client';
+import { Alert, Badge, Button, FormField, Icon, Input } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import { ActionDialog } from './ActionDialog';
 
 /**
  * Adding a vault to a Fjord repository (ROADMAP 2d.1, DESIGN.md §7): a name, plaintext or encrypted, and for an encrypted one how its
@@ -15,13 +15,19 @@ import { ActionDialog } from "./ActionDialog";
  * An encrypted vault is made with at least one key, so that it is writable at once: this browser's own public key is put in the list
  * when there is one (it is not a secret), and the person can add others, one to a line.
  */
-export function AddVault({ connectionId, existing }: { connectionId: number; /** The directories of the vaults already there, to warn of a name that is taken before the button. */ existing: string[] }) {
+export function AddVault({
+  connectionId,
+  existing,
+}: {
+  connectionId: number;
+  /** The directories of the vaults already there, to warn of a name that is taken before the button. */ existing: string[];
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
   const [encrypted, setEncrypted] = useState(false);
   const [idNaming, setIdNaming] = useState(false);
-  const [keys, setKeys] = useState("");
+  const [keys, setKeys] = useState('');
   const [mine, setMine] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,35 +38,37 @@ export function AddVault({ connectionId, existing }: { connectionId: number; /**
     void keyStore()
       .status()
       .then((status) => {
-        if (status.state === "none") return;
+        if (status.state === 'none') return;
         setMine(status.recipient);
-        setKeys((current) => (current.trim() === "" ? status.recipient : current));
+        setKeys((current) => (current.trim() === '' ? status.recipient : current));
       })
       .catch(() => undefined);
   }, [open, encrypted, mine]);
 
   const trimmed = name.trim();
-  const taken = trimmed !== "" && existing.some((directory) => directory.toLowerCase() === trimmed.toLowerCase());
-  const recipients = keys.split(/\s+/).filter((key) => key !== "");
-  const folder = trimmed || "…";
+  const taken =
+    trimmed !== '' &&
+    existing.some((directory) => directory.toLowerCase() === trimmed.toLowerCase());
+  const recipients = keys.split(/\s+/).filter((key) => key !== '');
+  const folder = trimmed || '…';
   const files = [
-    { path: "fjord.json", note: "Lists the vault" },
-    { path: `${folder}/fjord.vault.json`, note: "New" },
+    { path: 'fjord.json', note: 'Lists the vault' },
+    { path: `${folder}/fjord.vault.json`, note: 'New' },
     ...(encrypted
       ? [
-          { path: `${folder}/recipients.txt`, note: "New" },
-          { path: `${folder}/.gitignore`, note: "New" },
-          { path: ".gitattributes", note: "One line added, if it lacks it" },
+          { path: `${folder}/recipients.txt`, note: 'New' },
+          { path: `${folder}/.gitignore`, note: 'New' },
+          { path: '.gitattributes', note: 'One line added, if it lacks it' },
         ]
       : []),
   ];
 
   function reset() {
     setOpen(false);
-    setName("");
+    setName('');
     setEncrypted(false);
     setIdNaming(false);
-    setKeys("");
+    setKeys('');
     setError(null);
   }
 
@@ -70,19 +78,28 @@ export function AddVault({ connectionId, existing }: { connectionId: number; /**
     setError(null);
     try {
       const response = await fetch(`/api/connections/${connectionId}/vaults`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: trimmed, encrypted, idNaming: encrypted && idNaming, recipients: encrypted ? recipients : [] }),
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: trimmed,
+          encrypted,
+          idNaming: encrypted && idNaming,
+          recipients: encrypted ? recipients : [],
+        }),
       });
-      const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+      const body = (await response.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
       if (!response.ok) {
-        setError(body?.error?.message ?? "The vault was not added. Nothing was written. Try again.");
+        setError(
+          body?.error?.message ?? 'The vault was not added. Nothing was written. Try again.',
+        );
         return;
       }
       reset();
       router.refresh();
     } catch {
-      setError("Could not reach this server. Nothing was written. Try again.");
+      setError('Could not reach this server. Nothing was written. Try again.');
     } finally {
       setBusy(false);
     }
@@ -99,72 +116,128 @@ export function AddVault({ connectionId, existing }: { connectionId: number; /**
     <>
       {trigger}
       <ActionDialog open onClose={busy ? () => undefined : reset} title="Create a new vault">
-    <form className={styles.form} onSubmit={onSubmit} aria-label="Create a new vault" style={{ marginTop: 0 }}>
-      <FormField label="Vault name" hint="A folder at the top of the repository. It is also the vault's name." required error={taken ? "Something here already has that name, case aside." : undefined}>
-        {(field) => <Input {...field} name="name" autoComplete="off" maxLength={255} autoFocus value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />}
-      </FormField>
-      <fieldset style={{ border: 0, padding: 0, margin: 0 }} disabled={busy}>
-        <legend>Who can read it</legend>
-        <label style={{ display: "block" }}>
-          <input type="radio" name="protection" checked={!encrypted} onChange={() => setEncrypted(false)} /> Anyone who can read the repository (plaintext)
-        </label>
-        <label style={{ display: "block" }}>
-          <input type="radio" name="protection" checked={encrypted} onChange={() => setEncrypted(true)} /> Only the people whose keys you list (encrypted)
-        </label>
-      </fieldset>
-      {encrypted ? (
-        <>
-          <label style={{ display: "block" }}>
-            <input type="checkbox" checked={idNaming} onChange={(e) => setIdNaming(e.target.checked)} disabled={busy} /> Hide file names too: name every file by an identifier
-          </label>
-          <label htmlFor="add-vault-keys">Public keys (<code>age1…</code>), one to a line</label>
-          <textarea
-            id="add-vault-keys"
-            name="recipients"
-            rows={3}
-            value={keys}
-            onChange={(e) => setKeys(e.target.value)}
-            disabled={busy}
-            spellCheck={false}
-            autoComplete="off"
-            style={{ width: "100%", font: "var(--sv-font-mono, monospace)", background: "var(--sv-color-surface, transparent)", color: "inherit", border: "1px solid var(--sv-color-border, currentColor)", borderRadius: "var(--sv-radius-md, 4px)", padding: "var(--sv-space-2, 0.5rem)" }}
-          />
-          <p className={styles.itemMeta}>
-            {mine === null ? (
-              <>
-                You have no key in this browser yet. <a href="/account?section=security&tab=keys">Make or import one</a> to put yours here; a vault needs at least one key to be written to.
-              </>
-            ) : (
-              "Your own key is listed. Only public keys go here; a public key is not a secret, and a secret key is refused."
+        <form
+          className={styles.form}
+          onSubmit={onSubmit}
+          aria-label="Create a new vault"
+          style={{ marginTop: 0 }}
+        >
+          <FormField
+            label="Vault name"
+            hint="A folder at the top of the repository. It is also the vault's name."
+            required
+            error={taken ? 'Something here already has that name, case aside.' : undefined}
+          >
+            {(field) => (
+              <Input
+                {...field}
+                name="name"
+                autoComplete="off"
+                maxLength={255}
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={busy}
+              />
             )}
-          </p>
-        </>
-      ) : null}
-      <ul className={styles.list} aria-label="What would be written">
-        {files.map((file) => (
-          <li key={file.path} className={styles.item}>
-            <span>
-              <Icon name="file-text" aria-hidden /> <code>{file.path}</code> <Badge>{file.note}</Badge>
-            </span>
-          </li>
-        ))}
-      </ul>
-      {error ? (
-        <div className={styles.notice}>
-          <Alert variant="error" heading="Nothing was written">
-            {error}
-          </Alert>
-        </div>
-      ) : null}
-      <div className={styles.actions}>
-        <Button type="submit" loading={busy} disabled={trimmed === "" || taken || (encrypted && recipients.length === 0)}>
-          Create vault
-        </Button>
-        <Button type="button" variant="secondary" onClick={reset} disabled={busy}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+          </FormField>
+          <fieldset style={{ border: 0, padding: 0, margin: 0 }} disabled={busy}>
+            <legend>Who can read it</legend>
+            <label style={{ display: 'block' }}>
+              <input
+                type="radio"
+                name="protection"
+                checked={!encrypted}
+                onChange={() => setEncrypted(false)}
+              />{' '}
+              Anyone who can read the repository (plaintext)
+            </label>
+            <label style={{ display: 'block' }}>
+              <input
+                type="radio"
+                name="protection"
+                checked={encrypted}
+                onChange={() => setEncrypted(true)}
+              />{' '}
+              Only the people whose keys you list (encrypted)
+            </label>
+          </fieldset>
+          {encrypted ? (
+            <>
+              <label style={{ display: 'block' }}>
+                <input
+                  type="checkbox"
+                  checked={idNaming}
+                  onChange={(e) => setIdNaming(e.target.checked)}
+                  disabled={busy}
+                />{' '}
+                Hide file names too: name every file by an identifier
+              </label>
+              <label htmlFor="add-vault-keys">
+                Public keys (<code>age1…</code>), one to a line
+              </label>
+              <textarea
+                id="add-vault-keys"
+                name="recipients"
+                rows={3}
+                value={keys}
+                onChange={(e) => setKeys(e.target.value)}
+                disabled={busy}
+                spellCheck={false}
+                autoComplete="off"
+                style={{
+                  width: '100%',
+                  font: 'var(--sv-font-mono, monospace)',
+                  background: 'var(--sv-color-surface, transparent)',
+                  color: 'inherit',
+                  border: '1px solid var(--sv-color-border, currentColor)',
+                  borderRadius: 'var(--sv-radius-md, 4px)',
+                  padding: 'var(--sv-space-2, 0.5rem)',
+                }}
+              />
+              <p className={styles.itemMeta}>
+                {mine === null ? (
+                  <>
+                    You have no key in this browser yet.{' '}
+                    <a href="/account?section=security&tab=keys">Make or import one</a> to put yours
+                    here; a vault needs at least one key to be written to.
+                  </>
+                ) : (
+                  'Your own key is listed. Only public keys go here; a public key is not a secret, and a secret key is refused.'
+                )}
+              </p>
+            </>
+          ) : null}
+          <ul className={styles.list} aria-label="What would be written">
+            {files.map((file) => (
+              <li key={file.path} className={styles.item}>
+                <span>
+                  <Icon name="file-text" aria-hidden /> <code>{file.path}</code>{' '}
+                  <Badge>{file.note}</Badge>
+                </span>
+              </li>
+            ))}
+          </ul>
+          {error ? (
+            <div className={styles.notice}>
+              <Alert variant="error" heading="Nothing was written">
+                {error}
+              </Alert>
+            </div>
+          ) : null}
+          <div className={styles.actions}>
+            <Button
+              type="submit"
+              loading={busy}
+              disabled={trimmed === '' || taken || (encrypted && recipients.length === 0)}
+            >
+              Create vault
+            </Button>
+            <Button type="button" variant="secondary" onClick={reset} disabled={busy}>
+              Cancel
+            </Button>
+          </div>
+        </form>
       </ActionDialog>
     </>
   );

@@ -1,15 +1,28 @@
-import { createHash, randomBytes } from "node:crypto";
-import { type SQL, sql } from "drizzle-orm";
-import type { Database } from "../db/client";
-import { dbAll, dbGet, dbRun } from "../db/exec";
-import * as postgresSchema from "../db/schema/postgres";
-import * as sqliteSchema from "../db/schema/sqlite";
-import { summarise } from "../providers/build-status";
-import { ProviderError } from "../providers/errors";
-import { gitBlobId } from "../providers/git-id";
-import type { Branch, BuildStatus, CommitRequest, CommitResult, EntryKind, FileVersion, HeadResult, Provider, Repository, RepositoryRef, Tree, TreeEntry } from "../providers/types";
-import { validateCommitRequest } from "../providers/validate";
-import { type LimitKind, type LocalLimits, limitMessage } from "./limits";
+import { createHash, randomBytes } from 'node:crypto';
+import { type SQL, sql } from 'drizzle-orm';
+import type { Database } from '../db/client';
+import { dbAll, dbGet, dbRun } from '../db/exec';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
+import { summarise } from '../providers/build-status';
+import { ProviderError } from '../providers/errors';
+import { gitBlobId } from '../providers/git-id';
+import type {
+  Branch,
+  BuildStatus,
+  CommitRequest,
+  CommitResult,
+  EntryKind,
+  FileVersion,
+  HeadResult,
+  Provider,
+  Repository,
+  RepositoryRef,
+  Tree,
+  TreeEntry,
+} from '../providers/types';
+import { validateCommitRequest } from '../providers/validate';
+import { type LimitKind, type LocalLimits, limitMessage } from './limits';
 
 /**
  * A git host that is this server's database (ROADMAP 3i, DESIGN.md §7a): the `Provider` for a repository that was made here and is not
@@ -27,9 +40,9 @@ import { type LimitKind, type LocalLimits, limitMessage } from "./limits";
  * that the account holds more than its byte limit again as history: the oldest of it goes first. A commit is never forced and never
  * retried, and the branch moves only if it is still where the caller read it (one statement, so it holds across processes).
  */
-export const LOCAL_OWNER = "local";
+export const LOCAL_OWNER = 'local';
 /** The branch a server-side repository starts with. */
-export const LOCAL_BRANCH = "main";
+export const LOCAL_BRANCH = 'main';
 /** How many commits before a head are kept, so that a tree read a moment ago can still be read. */
 const COMMITS_KEPT = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -63,21 +76,41 @@ interface TreeFile {
   size: number;
 }
 
-const sha1 = (text: string) => createHash("sha1").update(text).digest("hex");
+const sha1 = (text: string) => createHash('sha1').update(text).digest('hex');
 
 export const tables = (database: Database) =>
-  database.dialect === "postgres"
-    ? { repository: postgresSchema.localRepository, branch: postgresSchema.localBranch, commit: postgresSchema.localCommit, blob: postgresSchema.localBlob }
-    : { repository: sqliteSchema.localRepository, branch: sqliteSchema.localBranch, commit: sqliteSchema.localCommit, blob: sqliteSchema.localBlob };
+  database.dialect === 'postgres'
+    ? {
+        repository: postgresSchema.localRepository,
+        branch: postgresSchema.localBranch,
+        commit: postgresSchema.localCommit,
+        blob: postgresSchema.localBlob,
+      }
+    : {
+        repository: sqliteSchema.localRepository,
+        branch: sqliteSchema.localBranch,
+        commit: sqliteSchema.localCommit,
+        blob: sqliteSchema.localBlob,
+      };
 
-const encodeTree = (files: TreeFile[]): string => JSON.stringify(files.map((file) => [file.path, file.blob, file.executable ? 1 : 0, file.size]));
+const encodeTree = (files: TreeFile[]): string =>
+  JSON.stringify(files.map((file) => [file.path, file.blob, file.executable ? 1 : 0, file.size]));
 
 function decodeTree(text: string): TreeFile[] {
   const rows = JSON.parse(text) as [string, string, number, number][];
-  return rows.map(([path, blob, executable, size]) => ({ path, blob, executable: executable === 1, size }));
+  return rows.map(([path, blob, executable, size]) => ({
+    path,
+    blob,
+    executable: executable === 1,
+    size,
+  }));
 }
 
-const idList = (ids: string[]): SQL => sql.join(ids.map((id) => sql`${id}`), sql`, `);
+const idList = (ids: string[]): SQL =>
+  sql.join(
+    ids.map((id) => sql`${id}`),
+    sql`, `,
+  );
 
 const chunks = <T>(items: T[]): T[][] => {
   const out: T[][] = [];
@@ -85,15 +118,22 @@ const chunks = <T>(items: T[]): T[][] => {
   return out;
 };
 
-const reported = (kind: LimitKind, limits: LocalLimits) => new ProviderError("limit_reached", limitMessage(kind, limits), { limit: kind });
+const reported = (kind: LimitKind, limits: LocalLimits) =>
+  new ProviderError('limit_reached', limitMessage(kind, limits), { limit: kind });
 
 /** Whether a repository name is one a person can be given: something to call it, nothing that breaks a path or a line. */
 export function validRepositoryName(name: string): boolean {
-  return name === name.trim() && name.length >= 1 && name.length <= 64 && !/[\u0000-\u001f\u007f/\\]/.test(name) && !name.startsWith(".");
+  return (
+    name === name.trim() &&
+    name.length >= 1 &&
+    name.length <= 64 &&
+    !/[\u0000-\u001f\u007f/\\]/.test(name) &&
+    !name.startsWith('.')
+  );
 }
 
 export class LocalProvider implements Provider {
-  readonly name = "local";
+  readonly name = 'local';
   readonly webhooks = false;
   private readonly database: Database;
   private readonly accountId: string;
@@ -122,13 +162,22 @@ export class LocalProvider implements Provider {
    * `limit_reached` when the account already has as many repositories as it may, or the files do not fit; `branch_exists` is not it:
    * a name that is taken is `invalid_request`.
    */
-  async create(name: string, files: Record<string, Uint8Array>, options: { message?: string } = {}): Promise<RepositoryRef> {
-    if (!validRepositoryName(name)) throw new ProviderError("invalid_request", "that is not a name a repository can have");
+  async create(
+    name: string,
+    files: Record<string, Uint8Array>,
+    options: { message?: string } = {},
+  ): Promise<RepositoryRef> {
+    if (!validRepositoryName(name))
+      throw new ProviderError('invalid_request', 'that is not a name a repository can have');
     const t = tables(this.database);
-    if (this.limits.repositories === 0) throw reported("repositories", this.limits);
-    const mine = await dbAll<RepositoryRow & { name: string }>(this.database, sql`SELECT ${REPOSITORY_COLUMNS} FROM ${t.repository} WHERE account_id = ${this.accountId}`);
-    if (mine.length >= this.limits.repositories) throw reported("repositories", this.limits);
-    if (mine.some((row) => row.name.toLowerCase() === name.toLowerCase())) throw new ProviderError("invalid_request", `you already have a repository called “${name}”`);
+    if (this.limits.repositories === 0) throw reported('repositories', this.limits);
+    const mine = await dbAll<RepositoryRow & { name: string }>(
+      this.database,
+      sql`SELECT ${REPOSITORY_COLUMNS} FROM ${t.repository} WHERE account_id = ${this.accountId}`,
+    );
+    if (mine.length >= this.limits.repositories) throw reported('repositories', this.limits);
+    if (mine.some((row) => row.name.toLowerCase() === name.toLowerCase()))
+      throw new ProviderError('invalid_request', `you already have a repository called “${name}”`);
 
     const tree: TreeFile[] = [];
     const contents = new Map<string, Uint8Array>();
@@ -137,10 +186,13 @@ export class LocalProvider implements Provider {
       contents.set(blob, content);
       tree.push({ path, blob, executable: false, size: content.byteLength });
     }
-    const bytes = [...contents.keys()].reduce((sum, blob) => sum + (contents.get(blob)?.byteLength ?? 0), 0);
+    const bytes = [...contents.keys()].reduce(
+      (sum, blob) => sum + (contents.get(blob)?.byteLength ?? 0),
+      0,
+    );
     const totals = await this.totals(undefined);
-    if (totals.files + tree.length > this.limits.files) throw reported("files", this.limits);
-    if (totals.bytes + bytes > this.limits.bytes) throw reported("bytes", this.limits);
+    if (totals.files + tree.length > this.limits.files) throw reported('files', this.limits);
+    if (totals.bytes + bytes > this.limits.bytes) throw reported('bytes', this.limits);
 
     const now = this.now();
     const inserted = await dbAll<{ id: number }>(
@@ -151,21 +203,28 @@ export class LocalProvider implements Provider {
     const id = Number(inserted[0]?.id);
     try {
       // Two requests that each saw room for one more: the one that finds it was over is undone, so the limit holds however they interleave.
-      const counted = await dbAll<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${t.repository} WHERE account_id = ${this.accountId}`);
-      if (Number(counted[0]?.n ?? 0) > this.limits.repositories) throw reported("repositories", this.limits);
+      const counted = await dbAll<{ n: number | string }>(
+        this.database,
+        sql`SELECT COUNT(*) AS n FROM ${t.repository} WHERE account_id = ${this.accountId}`,
+      );
+      if (Number(counted[0]?.n ?? 0) > this.limits.repositories)
+        throw reported('repositories', this.limits);
       for (const [blob, content] of contents) {
         await dbRun(
           this.database,
-          sql`INSERT INTO ${t.blob} (repository_id, id, size, content, retired_at) VALUES (${id}, ${blob}, ${content.byteLength}, ${Buffer.from(content).toString("base64")}, NULL)`,
+          sql`INSERT INTO ${t.blob} (repository_id, id, size, content, retired_at) VALUES (${id}, ${blob}, ${content.byteLength}, ${Buffer.from(content).toString('base64')}, NULL)`,
         );
       }
-      const commit = this.commitId(undefined, options.message ?? "Create this repository", tree);
+      const commit = this.commitId(undefined, options.message ?? 'Create this repository', tree);
       await dbRun(
         this.database,
         sql`INSERT INTO ${t.commit} (repository_id, id, parent_id, message, author_name, author_email, tree, created_at)
-            VALUES (${id}, ${commit}, NULL, ${options.message ?? "Create this repository"}, NULL, NULL, ${encodeTree(tree)}, ${now})`,
+            VALUES (${id}, ${commit}, NULL, ${options.message ?? 'Create this repository'}, NULL, NULL, ${encodeTree(tree)}, ${now})`,
       );
-      await dbRun(this.database, sql`INSERT INTO ${t.branch} (repository_id, name, commit_id) VALUES (${id}, ${LOCAL_BRANCH}, ${commit})`);
+      await dbRun(
+        this.database,
+        sql`INSERT INTO ${t.branch} (repository_id, name, commit_id) VALUES (${id}, ${LOCAL_BRANCH}, ${commit})`,
+      );
     } catch (error) {
       // Nothing may be left of a repository that did not get made.
       await this.deleteRows(id);
@@ -197,26 +256,38 @@ export class LocalProvider implements Provider {
   /** Undo `freeze`, when the sync could not go on. */
   async thaw(ref: RepositoryRef, branch: string, expected: string): Promise<void> {
     const repo = await this.find(ref);
-    await dbRun(this.database, sql`UPDATE ${tables(this.database).branch} SET commit_id = ${expected} WHERE repository_id = ${repo.id} AND name = ${branch} AND commit_id = ${`frozen:${expected}`}`);
+    await dbRun(
+      this.database,
+      sql`UPDATE ${tables(this.database).branch} SET commit_id = ${expected} WHERE repository_id = ${repo.id} AND name = ${branch} AND commit_id = ${`frozen:${expected}`}`,
+    );
   }
 
   /** Every server-side repository this account has, with its files: for an account that is being deleted (`src/sovereign/people.ts`). Safe to run again. */
   async destroyAll(): Promise<void> {
-    const rows = await dbAll<{ id: number }>(this.database, sql`SELECT id FROM ${tables(this.database).repository} WHERE account_id = ${this.accountId}`);
+    const rows = await dbAll<{ id: number }>(
+      this.database,
+      sql`SELECT id FROM ${tables(this.database).repository} WHERE account_id = ${this.accountId}`,
+    );
     for (const row of rows) await this.deleteRows(Number(row.id));
   }
 
   /** What this account holds, over all its repositories. */
   async usage(): Promise<{ repositories: number; files: number; bytes: number }> {
     const totals = await this.totals(undefined);
-    const rows = await dbAll<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${tables(this.database).repository} WHERE account_id = ${this.accountId}`);
+    const rows = await dbAll<{ n: number | string }>(
+      this.database,
+      sql`SELECT COUNT(*) AS n FROM ${tables(this.database).repository} WHERE account_id = ${this.accountId}`,
+    );
     return { repositories: Number(rows[0]?.n ?? 0), ...totals };
   }
 
   // --- Provider ------------------------------------------------------------------------------
 
   async listRepositories(): Promise<Repository[]> {
-    const rows = await dbAll<RepositoryRow>(this.database, sql`SELECT ${REPOSITORY_COLUMNS} FROM ${tables(this.database).repository} WHERE account_id = ${this.accountId} ORDER BY id ASC`);
+    const rows = await dbAll<RepositoryRow>(
+      this.database,
+      sql`SELECT ${REPOSITORY_COLUMNS} FROM ${tables(this.database).repository} WHERE account_id = ${this.accountId} ORDER BY id ASC`,
+    );
     return rows.map((row) => this.describe(row));
   }
 
@@ -224,10 +295,14 @@ export class LocalProvider implements Provider {
     return this.describe(await this.find(ref));
   }
 
-  async getHead(ref: RepositoryRef, branch: string, options: { etag?: string | undefined } = {}): Promise<HeadResult> {
+  async getHead(
+    ref: RepositoryRef,
+    branch: string,
+    options: { etag?: string | undefined } = {},
+  ): Promise<HeadResult> {
     const repo = await this.find(ref);
     const commit = await this.headOf(repo, branch);
-    if (!commit) throw new ProviderError("not_found", `there is no branch "${branch}"`);
+    if (!commit) throw new ProviderError('not_found', `there is no branch "${branch}"`);
     const etag = `"${commit}"`;
     if (options.etag === etag) return { changed: false };
     return { changed: true, head: { branch, commit, etag } };
@@ -236,27 +311,46 @@ export class LocalProvider implements Provider {
   async getTree(ref: RepositoryRef, commit: string): Promise<Tree> {
     const repo = await this.find(ref);
     const entries = entriesOf(await this.treeOf(repo, commit), commit);
-    if (this.treeLimit !== undefined && entries.length > this.treeLimit) return { commit, entries: entries.slice(0, this.treeLimit), complete: false };
+    if (this.treeLimit !== undefined && entries.length > this.treeLimit)
+      return { commit, entries: entries.slice(0, this.treeLimit), complete: false };
     return { commit, entries, complete: true };
   }
 
-  async fileHistory(ref: RepositoryRef, commit: string, path: string, limit: number): Promise<FileVersion[]> {
+  async fileHistory(
+    ref: RepositoryRef,
+    commit: string,
+    path: string,
+    limit: number,
+  ): Promise<FileVersion[]> {
     const repo = await this.find(ref);
     const { commit: commits } = tables(this.database);
     const read = (id: string) =>
-      dbGet<{ id: string; parentId: string | null; message: string; author: string | null; createdAt: number; tree: string }>(
+      dbGet<{
+        id: string;
+        parentId: string | null;
+        message: string;
+        author: string | null;
+        createdAt: number;
+        tree: string;
+      }>(
         this.database,
         sql`SELECT id, parent_id AS "parentId", message, author_name AS author, created_at AS "createdAt", tree FROM ${commits} WHERE repository_id = ${repo.id} AND id = ${id}`,
       );
     const blobIn = (tree: string) => decodeTree(tree).find((file) => file.path === path)?.blob;
     const versions: FileVersion[] = [];
     let row = await read(commit);
-    if (!row) throw new ProviderError("not_found", `there is no commit ${commit.slice(0, 7)}`);
+    if (!row) throw new ProviderError('not_found', `there is no commit ${commit.slice(0, 7)}`);
     // Each commit against the one before it. A parent that has gone (old history is let go of, within the limits) ends it: what is known is told.
     while (row && versions.length < limit) {
       const parent: typeof row | undefined = row.parentId ? await read(row.parentId) : undefined;
       const here = blobIn(row.tree);
-      if (here !== undefined && here !== (parent ? blobIn(parent.tree) : undefined)) versions.push({ commit: row.id, message: (row.message.split("\n")[0] as string), author: row.author, date: new Date(Number(row.createdAt)).toISOString() });
+      if (here !== undefined && here !== (parent ? blobIn(parent.tree) : undefined))
+        versions.push({
+          commit: row.id,
+          message: row.message.split('\n')[0] as string,
+          author: row.author,
+          date: new Date(Number(row.createdAt)).toISOString(),
+        });
       row = parent;
     }
     return versions;
@@ -265,21 +359,36 @@ export class LocalProvider implements Provider {
   async listDirectory(ref: RepositoryRef, commit: string, path: string): Promise<TreeEntry[]> {
     const repo = await this.find(ref);
     const entries = entriesOf(await this.treeOf(repo, commit), commit);
-    if (path !== "" && !entries.some((entry) => entry.path === path && entry.kind === "directory")) {
-      throw new ProviderError("not_found", `there is no directory "${path}" in that commit`);
+    if (
+      path !== '' &&
+      !entries.some((entry) => entry.path === path && entry.kind === 'directory')
+    ) {
+      throw new ProviderError('not_found', `there is no directory "${path}" in that commit`);
     }
-    const prefix = path === "" ? "" : `${path}/`;
-    return entries.filter((entry) => entry.path.startsWith(prefix) && !entry.path.slice(prefix.length).includes("/"));
+    const prefix = path === '' ? '' : `${path}/`;
+    return entries.filter(
+      (entry) => entry.path.startsWith(prefix) && !entry.path.slice(prefix.length).includes('/'),
+    );
   }
 
-  async readBlob(ref: RepositoryRef, blob: string, options: { maxBytes?: number | undefined } = {}): Promise<Uint8Array> {
+  async readBlob(
+    ref: RepositoryRef,
+    blob: string,
+    options: { maxBytes?: number | undefined } = {},
+  ): Promise<Uint8Array> {
     const repo = await this.find(ref);
-    const row = await dbGet<{ size: number; content: string }>(this.database, sql`SELECT size, content FROM ${tables(this.database).blob} WHERE repository_id = ${repo.id} AND id = ${blob}`);
-    if (!row) throw new ProviderError("not_found", "there is no such file");
+    const row = await dbGet<{ size: number; content: string }>(
+      this.database,
+      sql`SELECT size, content FROM ${tables(this.database).blob} WHERE repository_id = ${repo.id} AND id = ${blob}`,
+    );
+    if (!row) throw new ProviderError('not_found', 'there is no such file');
     if (options.maxBytes !== undefined && Number(row.size) > options.maxBytes) {
-      throw new ProviderError("too_large", `the file is ${Number(row.size)} bytes, over the limit of ${options.maxBytes}`);
+      throw new ProviderError(
+        'too_large',
+        `the file is ${Number(row.size)} bytes, over the limit of ${options.maxBytes}`,
+      );
     }
-    return new Uint8Array(Buffer.from(row.content, "base64"));
+    return new Uint8Array(Buffer.from(row.content, 'base64'));
   }
 
   async commit(ref: RepositoryRef, request: CommitRequest): Promise<CommitResult> {
@@ -287,28 +396,50 @@ export class LocalProvider implements Provider {
     const t = tables(this.database);
     const repo = await this.find(ref);
     const head = await this.headOf(repo, request.branch);
-    if (!head) throw new ProviderError("not_found", `there is no branch "${request.branch}"`);
+    if (!head) throw new ProviderError('not_found', `there is no branch "${request.branch}"`);
     // The same rule as a fast-forward: only if the branch is still where the caller read it.
-    if (head !== request.expectedHead) throw new ProviderError("head_moved", `${request.branch} has moved on from ${request.expectedHead.slice(0, 7)}`);
+    if (head !== request.expectedHead)
+      throw new ProviderError(
+        'head_moved',
+        `${request.branch} has moved on from ${request.expectedHead.slice(0, 7)}`,
+      );
 
     const before = await this.treeOf(repo, head);
     const next = new Map(before.map((file) => [file.path, file]));
     const added = new Map<string, Uint8Array>();
     for (const change of request.changes) {
-      if ("delete" in change) {
+      if ('delete' in change) {
         next.delete(change.path);
-      } else if ("blob" in change) {
-        const known = await dbGet<{ size: number }>(this.database, sql`SELECT size FROM ${t.blob} WHERE repository_id = ${repo.id} AND id = ${change.blob}`);
-        if (!known) throw new ProviderError("invalid_request", `there is no blob ${change.blob.slice(0, 7)} to put at "${change.path}"`);
-        next.set(change.path, { path: change.path, blob: change.blob, executable: change.executable ?? false, size: Number(known.size) });
+      } else if ('blob' in change) {
+        const known = await dbGet<{ size: number }>(
+          this.database,
+          sql`SELECT size FROM ${t.blob} WHERE repository_id = ${repo.id} AND id = ${change.blob}`,
+        );
+        if (!known)
+          throw new ProviderError(
+            'invalid_request',
+            `there is no blob ${change.blob.slice(0, 7)} to put at "${change.path}"`,
+          );
+        next.set(change.path, {
+          path: change.path,
+          blob: change.blob,
+          executable: change.executable ?? false,
+          size: Number(known.size),
+        });
       } else {
         const blob = gitBlobId(change.content);
         added.set(blob, change.content);
-        next.set(change.path, { path: change.path, blob, executable: change.executable ?? false, size: change.content.byteLength });
+        next.set(change.path, {
+          path: change.path,
+          blob,
+          executable: change.executable ?? false,
+          size: change.content.byteLength,
+        });
       }
     }
     const after = [...next.values()].sort((a, b) => (a.path < b.path ? -1 : 1));
-    if (sameTree(before, after)) throw new ProviderError("no_changes", "the commit would not change anything");
+    if (sameTree(before, after))
+      throw new ProviderError('no_changes', 'the commit would not change anything');
 
     // What the repository would hold: the new tree and every other branch's head, each blob once.
     const live = new Map<string, number>(after.map((file) => [file.blob, file.size]));
@@ -319,14 +450,16 @@ export class LocalProvider implements Provider {
     const liveBytes = [...live.values()].reduce((sum, size) => sum + size, 0);
     // A limit only ever refuses a commit that makes the account hold more: one that deletes is always let through.
     const others = await this.totals(repo.id);
-    if (after.length > repo.fileCount && others.files + after.length > this.limits.files) throw reported("files", this.limits);
-    if (liveBytes > repo.liveBytes && others.bytes + liveBytes > this.limits.bytes) throw reported("bytes", this.limits);
+    if (after.length > repo.fileCount && others.files + after.length > this.limits.files)
+      throw reported('files', this.limits);
+    if (liveBytes > repo.liveBytes && others.bytes + liveBytes > this.limits.bytes)
+      throw reported('bytes', this.limits);
 
     const now = this.now();
     for (const [blob, content] of added) {
       await dbRun(
         this.database,
-        sql`INSERT INTO ${t.blob} (repository_id, id, size, content, retired_at) VALUES (${repo.id}, ${blob}, ${content.byteLength}, ${Buffer.from(content).toString("base64")}, NULL)
+        sql`INSERT INTO ${t.blob} (repository_id, id, size, content, retired_at) VALUES (${repo.id}, ${blob}, ${content.byteLength}, ${Buffer.from(content).toString('base64')}, NULL)
             ON CONFLICT (repository_id, id) DO NOTHING`,
       );
     }
@@ -342,9 +475,15 @@ export class LocalProvider implements Provider {
       sql`UPDATE ${t.branch} SET commit_id = ${commit} WHERE repository_id = ${repo.id} AND name = ${request.branch} AND commit_id = ${head} RETURNING name`,
     );
     if (moved.length === 0) {
-      await dbRun(this.database, sql`DELETE FROM ${t.commit} WHERE repository_id = ${repo.id} AND id = ${commit}`);
+      await dbRun(
+        this.database,
+        sql`DELETE FROM ${t.commit} WHERE repository_id = ${repo.id} AND id = ${commit}`,
+      );
       await this.settle(repo, now);
-      throw new ProviderError("head_moved", `${request.branch} has moved on from ${request.expectedHead.slice(0, 7)}`);
+      throw new ProviderError(
+        'head_moved',
+        `${request.branch} has moved on from ${request.expectedHead.slice(0, 7)}`,
+      );
     }
     await this.settle(repo, now);
     return { commit, parent: head, branch: request.branch };
@@ -359,14 +498,22 @@ export class LocalProvider implements Provider {
   async createBranch(ref: RepositoryRef, branch: string, fromCommit: string): Promise<void> {
     const t = tables(this.database);
     const repo = await this.find(ref);
-    const known = await dbGet<{ id: string }>(this.database, sql`SELECT id FROM ${t.commit} WHERE repository_id = ${repo.id} AND id = ${fromCommit}`);
-    if (!known) throw new ProviderError("not_found", `there is no commit ${fromCommit}`);
-    if (await this.headOf(repo, branch)) throw new ProviderError("branch_exists", `there is already a branch ${branch}`);
+    const known = await dbGet<{ id: string }>(
+      this.database,
+      sql`SELECT id FROM ${t.commit} WHERE repository_id = ${repo.id} AND id = ${fromCommit}`,
+    );
+    if (!known) throw new ProviderError('not_found', `there is no commit ${fromCommit}`);
+    if (await this.headOf(repo, branch))
+      throw new ProviderError('branch_exists', `there is already a branch ${branch}`);
     try {
-      await dbRun(this.database, sql`INSERT INTO ${t.branch} (repository_id, name, commit_id) VALUES (${repo.id}, ${branch}, ${fromCommit})`);
+      await dbRun(
+        this.database,
+        sql`INSERT INTO ${t.branch} (repository_id, name, commit_id) VALUES (${repo.id}, ${branch}, ${fromCommit})`,
+      );
     } catch (error) {
       // A branch made at the same moment by another request: the unique index decided, and it was there first.
-      if (await this.headOf(repo, branch)) throw new ProviderError("branch_exists", `there is already a branch ${branch}`);
+      if (await this.headOf(repo, branch))
+        throw new ProviderError('branch_exists', `there is already a branch ${branch}`);
       throw error;
     }
     await this.settle(repo, this.now());
@@ -375,9 +522,13 @@ export class LocalProvider implements Provider {
   async deleteBranch(ref: RepositoryRef, branch: string): Promise<void> {
     const t = tables(this.database);
     const repo = await this.find(ref);
-    if (branch === repo.defaultBranch) throw new ProviderError("invalid_request", "the default branch is not deleted from here");
-    const gone = await dbAll<{ name: string }>(this.database, sql`DELETE FROM ${t.branch} WHERE repository_id = ${repo.id} AND name = ${branch} RETURNING name`);
-    if (gone.length === 0) throw new ProviderError("not_found", `there is no branch ${branch}`);
+    if (branch === repo.defaultBranch)
+      throw new ProviderError('invalid_request', 'the default branch is not deleted from here');
+    const gone = await dbAll<{ name: string }>(
+      this.database,
+      sql`DELETE FROM ${t.branch} WHERE repository_id = ${repo.id} AND name = ${branch} RETURNING name`,
+    );
+    if (gone.length === 0) throw new ProviderError('not_found', `there is no branch ${branch}`);
     await this.settle(repo, this.now());
   }
 
@@ -391,8 +542,11 @@ export class LocalProvider implements Provider {
 
   async getBuildStatus(ref: RepositoryRef, commit: string): Promise<BuildStatus> {
     const repo = await this.find(ref);
-    const known = await dbGet<{ id: string }>(this.database, sql`SELECT id FROM ${tables(this.database).commit} WHERE repository_id = ${repo.id} AND id = ${commit}`);
-    if (!known) throw new ProviderError("not_found", `there is no commit ${commit}`);
+    const known = await dbGet<{ id: string }>(
+      this.database,
+      sql`SELECT id FROM ${tables(this.database).commit} WHERE repository_id = ${repo.id} AND id = ${commit}`,
+    );
+    if (!known) throw new ProviderError('not_found', `there is no commit ${commit}`);
     // Nothing builds a repository that is on this server.
     return summarise(commit, []);
   }
@@ -400,17 +554,38 @@ export class LocalProvider implements Provider {
   // --- Internals ---------------------------------------------------------------------------
 
   private describe(row: RepositoryRow): Repository {
-    return { ref: { owner: LOCAL_OWNER, name: row.name }, defaultBranch: row.defaultBranch, private: true, canPush: true };
+    return {
+      ref: { owner: LOCAL_OWNER, name: row.name },
+      defaultBranch: row.defaultBranch,
+      private: true,
+      canPush: true,
+    };
   }
 
   private async find(ref: RepositoryRef): Promise<RepositoryRow> {
-    const row = ref.owner === LOCAL_OWNER ? await dbGet<RepositoryRow>(this.database, sql`SELECT ${REPOSITORY_COLUMNS} FROM ${tables(this.database).repository} WHERE account_id = ${this.accountId} AND name = ${ref.name}`) : undefined;
-    if (!row) throw new ProviderError("not_found", `there is no repository ${ref.owner}/${ref.name}`);
-    return { ...row, id: Number(row.id), fileCount: Number(row.fileCount), liveBytes: Number(row.liveBytes), retiredBytes: Number(row.retiredBytes) };
+    const row =
+      ref.owner === LOCAL_OWNER
+        ? await dbGet<RepositoryRow>(
+            this.database,
+            sql`SELECT ${REPOSITORY_COLUMNS} FROM ${tables(this.database).repository} WHERE account_id = ${this.accountId} AND name = ${ref.name}`,
+          )
+        : undefined;
+    if (!row)
+      throw new ProviderError('not_found', `there is no repository ${ref.owner}/${ref.name}`);
+    return {
+      ...row,
+      id: Number(row.id),
+      fileCount: Number(row.fileCount),
+      liveBytes: Number(row.liveBytes),
+      retiredBytes: Number(row.retiredBytes),
+    };
   }
 
   private async heads(repo: RepositoryRow): Promise<{ name: string; commitId: string }[]> {
-    return dbAll<{ name: string; commitId: string }>(this.database, sql`SELECT name, commit_id AS "commitId" FROM ${tables(this.database).branch} WHERE repository_id = ${repo.id}`);
+    return dbAll<{ name: string; commitId: string }>(
+      this.database,
+      sql`SELECT name, commit_id AS "commitId" FROM ${tables(this.database).branch} WHERE repository_id = ${repo.id}`,
+    );
   }
 
   private async headOf(repo: RepositoryRow, branch: string): Promise<string | undefined> {
@@ -418,8 +593,11 @@ export class LocalProvider implements Provider {
   }
 
   private async treeOf(repo: RepositoryRow, commit: string): Promise<TreeFile[]> {
-    const row = await dbGet<{ tree: string }>(this.database, sql`SELECT tree FROM ${tables(this.database).commit} WHERE repository_id = ${repo.id} AND id = ${commit}`);
-    if (!row) throw new ProviderError("not_found", `there is no commit ${commit.slice(0, 7)}`);
+    const row = await dbGet<{ tree: string }>(
+      this.database,
+      sql`SELECT tree FROM ${tables(this.database).commit} WHERE repository_id = ${repo.id} AND id = ${commit}`,
+    );
+    if (!row) throw new ProviderError('not_found', `there is no commit ${commit.slice(0, 7)}`);
     return decodeTree(row.tree);
   }
 
@@ -436,8 +614,8 @@ export class LocalProvider implements Provider {
   }
 
   private commitId(parent: string | undefined, message: string, tree: TreeFile[]): string {
-    const listing = tree.map((file) => `${file.path}:${file.blob}:${file.executable}`).join("\n");
-    return sha1(`${parent ?? ""}\n${message}\n${listing}\n${randomBytes(8).toString("hex")}`);
+    const listing = tree.map((file) => `${file.path}:${file.blob}:${file.executable}`).join('\n');
+    return sha1(`${parent ?? ''}\n${message}\n${listing}\n${randomBytes(8).toString('hex')}`);
   }
 
   /**
@@ -449,7 +627,10 @@ export class LocalProvider implements Provider {
   private async settle(repo: RepositoryRow, now: number): Promise<void> {
     const t = tables(this.database);
     const heads = await this.heads(repo);
-    const commits = await dbAll<{ id: string; parentId: string | null }>(this.database, sql`SELECT id, parent_id AS "parentId" FROM ${t.commit} WHERE repository_id = ${repo.id}`);
+    const commits = await dbAll<{ id: string; parentId: string | null }>(
+      this.database,
+      sql`SELECT id, parent_id AS "parentId" FROM ${t.commit} WHERE repository_id = ${repo.id}`,
+    );
     const parents = new Map(commits.map((commit) => [commit.id, commit.parentId]));
 
     const live = new Set<string>();
@@ -460,16 +641,35 @@ export class LocalProvider implements Provider {
       for (const file of tree) live.add(file.blob);
     }
 
-    const blobs = await dbAll<{ id: string; size: number; retiredAt: number | null }>(this.database, sql`SELECT id, size, retired_at AS "retiredAt" FROM ${t.blob} WHERE repository_id = ${repo.id}`);
-    const revive = blobs.filter((blob) => live.has(blob.id) && blob.retiredAt !== null).map((blob) => blob.id);
-    const retire = blobs.filter((blob) => !live.has(blob.id) && blob.retiredAt === null).map((blob) => blob.id);
-    for (const part of chunks(revive)) await dbRun(this.database, sql`UPDATE ${t.blob} SET retired_at = NULL WHERE repository_id = ${repo.id} AND id IN (${idList(part)})`);
-    for (const part of chunks(retire)) await dbRun(this.database, sql`UPDATE ${t.blob} SET retired_at = ${now} WHERE repository_id = ${repo.id} AND id IN (${idList(part)})`);
+    const blobs = await dbAll<{ id: string; size: number; retiredAt: number | null }>(
+      this.database,
+      sql`SELECT id, size, retired_at AS "retiredAt" FROM ${t.blob} WHERE repository_id = ${repo.id}`,
+    );
+    const revive = blobs
+      .filter((blob) => live.has(blob.id) && blob.retiredAt !== null)
+      .map((blob) => blob.id);
+    const retire = blobs
+      .filter((blob) => !live.has(blob.id) && blob.retiredAt === null)
+      .map((blob) => blob.id);
+    for (const part of chunks(revive))
+      await dbRun(
+        this.database,
+        sql`UPDATE ${t.blob} SET retired_at = NULL WHERE repository_id = ${repo.id} AND id IN (${idList(part)})`,
+      );
+    for (const part of chunks(retire))
+      await dbRun(
+        this.database,
+        sql`UPDATE ${t.blob} SET retired_at = ${now} WHERE repository_id = ${repo.id} AND id IN (${idList(part)})`,
+      );
 
     // What is kept only as history: not past the window, and not more than the account may hold.
     let kept = blobs
       .filter((blob) => !live.has(blob.id))
-      .map((blob) => ({ id: blob.id, size: Number(blob.size), retiredAt: blob.retiredAt === null ? now : Number(blob.retiredAt) }))
+      .map((blob) => ({
+        id: blob.id,
+        size: Number(blob.size),
+        retiredAt: blob.retiredAt === null ? now : Number(blob.retiredAt),
+      }))
       .sort((a, b) => a.retiredAt - b.retiredAt);
     const expired = kept.filter((blob) => blob.retiredAt < now - this.restoreWindowMs);
     kept = kept.filter((blob) => blob.retiredAt >= now - this.restoreWindowMs);
@@ -480,7 +680,11 @@ export class LocalProvider implements Provider {
       retiredBytes -= oldest.size;
       dropped.push(oldest.id);
     }
-    for (const part of chunks(dropped)) await dbRun(this.database, sql`DELETE FROM ${t.blob} WHERE repository_id = ${repo.id} AND id IN (${idList(part)})`);
+    for (const part of chunks(dropped))
+      await dbRun(
+        this.database,
+        sql`DELETE FROM ${t.blob} WHERE repository_id = ${repo.id} AND id IN (${idList(part)})`,
+      );
 
     // The commits kept: every head and the few before each.
     const keep = new Set<string>();
@@ -492,10 +696,19 @@ export class LocalProvider implements Provider {
       }
     }
     const goneCommits = commits.map((commit) => commit.id).filter((id) => !keep.has(id));
-    for (const part of chunks(goneCommits)) await dbRun(this.database, sql`DELETE FROM ${t.commit} WHERE repository_id = ${repo.id} AND id IN (${idList(part)})`);
+    for (const part of chunks(goneCommits))
+      await dbRun(
+        this.database,
+        sql`DELETE FROM ${t.commit} WHERE repository_id = ${repo.id} AND id IN (${idList(part)})`,
+      );
 
-    const liveBytes = blobs.filter((blob) => live.has(blob.id)).reduce((sum, blob) => sum + Number(blob.size), 0);
-    await dbRun(this.database, sql`UPDATE ${t.repository} SET file_count = ${files}, live_bytes = ${liveBytes}, retired_bytes = ${retiredBytes} WHERE id = ${repo.id}`);
+    const liveBytes = blobs
+      .filter((blob) => live.has(blob.id))
+      .reduce((sum, blob) => sum + Number(blob.size), 0);
+    await dbRun(
+      this.database,
+      sql`UPDATE ${t.repository} SET file_count = ${files}, live_bytes = ${liveBytes}, retired_bytes = ${retiredBytes} WHERE id = ${repo.id}`,
+    );
   }
 
   private async deleteRows(id: number): Promise<void> {
@@ -507,7 +720,9 @@ export class LocalProvider implements Provider {
   }
 }
 
-const REPOSITORY_COLUMNS = sql.raw('id, name, default_branch AS "defaultBranch", file_count AS "fileCount", live_bytes AS "liveBytes", retired_bytes AS "retiredBytes"');
+const REPOSITORY_COLUMNS = sql.raw(
+  'id, name, default_branch AS "defaultBranch", file_count AS "fileCount", live_bytes AS "liveBytes", retired_bytes AS "retiredBytes"',
+);
 
 function sameTree(a: TreeFile[], b: TreeFile[]): boolean {
   if (a.length !== b.length) return false;
@@ -522,18 +737,36 @@ function sameTree(a: TreeFile[], b: TreeFile[]): boolean {
 function entriesOf(files: TreeFile[], commit: string): TreeEntry[] {
   const entries = new Map<string, TreeEntry>();
   for (const file of files) {
-    const parts = file.path.split("/");
+    const parts = file.path.split('/');
     for (let i = 1; i < parts.length; i++) {
-      const dir = parts.slice(0, i).join("/");
-      if (!entries.has(dir)) entries.set(dir, { path: dir, kind: "directory" as EntryKind, id: sha1(`tree:${dir}:${commit}`), executable: false });
+      const dir = parts.slice(0, i).join('/');
+      if (!entries.has(dir))
+        entries.set(dir, {
+          path: dir,
+          kind: 'directory' as EntryKind,
+          id: sha1(`tree:${dir}:${commit}`),
+          executable: false,
+        });
     }
-    entries.set(file.path, { path: file.path, kind: "file", id: file.blob, size: file.size, executable: file.executable });
+    entries.set(file.path, {
+      path: file.path,
+      kind: 'file',
+      id: file.blob,
+      size: file.size,
+      executable: file.executable,
+    });
   }
   return [...entries.values()].sort((a, b) => (a.path < b.path ? -1 : 1));
 }
 
 /** The local repository an account's connection is of, by name, or undefined. For the connection service's checks. */
-export async function localRepositoryNames(database: Database, accountId: string): Promise<string[]> {
-  const rows = await dbAll<{ name: string }>(database, sql`SELECT name FROM ${tables(database).repository} WHERE account_id = ${accountId} ORDER BY id ASC`);
+export async function localRepositoryNames(
+  database: Database,
+  accountId: string,
+): Promise<string[]> {
+  const rows = await dbAll<{ name: string }>(
+    database,
+    sql`SELECT name FROM ${tables(database).repository} WHERE account_id = ${accountId} ORDER BY id ASC`,
+  );
   return rows.map((row) => row.name);
 }

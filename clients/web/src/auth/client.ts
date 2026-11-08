@@ -1,8 +1,8 @@
-"use client";
+'use client';
 
-import { passkeyClient } from "@better-auth/passkey/client";
-import { twoFactorClient } from "better-auth/client/plugins";
-import { createAuthClient } from "better-auth/react";
+import { passkeyClient } from '@better-auth/passkey/client';
+import { twoFactorClient } from 'better-auth/client/plugins';
+import { createAuthClient } from 'better-auth/react';
 
 /**
  * better-auth in the browser, talking to /api/auth on the same origin. When a password is
@@ -13,7 +13,7 @@ export const authClient = createAuthClient({
   plugins: [
     twoFactorClient({
       onTwoFactorRedirect() {
-        window.location.assign("/sign-in/two-factor");
+        window.location.assign('/sign-in/two-factor');
       },
     }),
     passkeyClient(),

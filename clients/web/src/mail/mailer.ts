@@ -1,5 +1,5 @@
-import { createTransport } from "nodemailer";
-import type { SmtpConfig } from "../auth/config";
+import { createTransport } from 'nodemailer';
+import type { SmtpConfig } from '../auth/config';
 
 /**
  * Sending email: a verification link, a password reset. A small interface so the auth code
@@ -21,7 +21,7 @@ export function createSmtpMailer(config: SmtpConfig): Mailer {
     host: config.host,
     port: config.port,
     secure: config.secure,
-    ...(config.user ? { auth: { user: config.user, pass: config.password ?? "" } } : {}),
+    ...(config.user ? { auth: { user: config.user, pass: config.password ?? '' } } : {}),
     // Without a timeout a mail server that does not answer holds a request open until the
     // platform gives up; a sign-up should fail fast and say so.
     connectionTimeout: 10_000,

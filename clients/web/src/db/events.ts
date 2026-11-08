@@ -1,8 +1,8 @@
-import { sql } from "drizzle-orm";
-import type { Database } from "./client";
-import { dbAll } from "./exec";
-import * as postgresSchema from "./schema/postgres";
-import * as sqliteSchema from "./schema/sqlite";
+import { sql } from 'drizzle-orm';
+import type { Database } from './client';
+import { dbAll } from './exec';
+import * as postgresSchema from './schema/postgres';
+import * as sqliteSchema from './schema/sqlite';
 
 /**
  * Notices from the worker to the web processes (DESIGN.md §14): the worker appends,
@@ -23,7 +23,8 @@ export interface AppEvent {
   createdAt: number;
 }
 
-const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.event : sqliteSchema.event);
+const table = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.event : sqliteSchema.event;
 
 /** Append an event; `now` is for tests. */
 export async function appendEvent(
@@ -41,7 +42,11 @@ export async function appendEvent(
 }
 
 /** Up to `limit` events with an id greater than `afterId`, oldest first. */
-export async function eventsAfter(database: Database, afterId: number, limit = 100): Promise<AppEvent[]> {
+export async function eventsAfter(
+  database: Database,
+  afterId: number,
+  limit = 100,
+): Promise<AppEvent[]> {
   const rows = await dbAll<AppEvent>(
     database,
     sql`SELECT id, kind, subject, created_at AS "createdAt"
@@ -73,5 +78,10 @@ export async function pruneEvents(database: Database, olderThanMs: number): Prom
 
 // libSQL rows carry both positional and named keys; hand back a plain object.
 function normalise(row: AppEvent): AppEvent {
-  return { id: Number(row.id), kind: String(row.kind), subject: String(row.subject), createdAt: Number(row.createdAt) };
+  return {
+    id: Number(row.id),
+    kind: String(row.kind),
+    subject: String(row.subject),
+    createdAt: Number(row.createdAt),
+  };
 }

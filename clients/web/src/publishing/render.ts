@@ -1,8 +1,8 @@
-import { fromMarkdown } from "mdast-util-from-markdown";
-import { gfmStrikethroughFromMarkdown } from "mdast-util-gfm-strikethrough";
-import { gfmTableFromMarkdown } from "mdast-util-gfm-table";
-import { gfmStrikethrough } from "micromark-extension-gfm-strikethrough";
-import { gfmTable } from "micromark-extension-gfm-table";
+import { fromMarkdown } from 'mdast-util-from-markdown';
+import { gfmStrikethroughFromMarkdown } from 'mdast-util-gfm-strikethrough';
+import { gfmTableFromMarkdown } from 'mdast-util-gfm-table';
+import { gfmStrikethrough } from 'micromark-extension-gfm-strikethrough';
+import { gfmTable } from 'micromark-extension-gfm-table';
 
 /**
  * Markdown to the HTML of a published page (DESIGN.md §12, ROADMAP 3h.1, RFC 0002). A page open to anyone is made of untrusted text, so this is not a
@@ -25,8 +25,15 @@ interface Node {
   align?: (string | null)[] | null;
 }
 
-const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-export const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, (character) => ESCAPES[character] as string);
+const ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+export const escapeHtml = (text: string): string =>
+  text.replace(/[&<>"']/g, (character) => ESCAPES[character] as string);
 
 /** An address a published page may link to: absolute `http(s)` or `mailto`, or a place in the same page. Anything else is not a link. */
 export function safeHref(url: string): string | undefined {
@@ -37,7 +44,10 @@ export function safeHref(url: string): string | undefined {
   if (/^#[^#]*$/.test(trimmed) && trimmed.length <= 200) return trimmed;
   try {
     const parsed = new URL(trimmed);
-    return ["http:", "https:", "mailto:"].includes(parsed.protocol) && trimmed.toLowerCase().startsWith(parsed.protocol) ? parsed.href : undefined;
+    return ['http:', 'https:', 'mailto:'].includes(parsed.protocol) &&
+      trimmed.toLowerCase().startsWith(parsed.protocol)
+      ? parsed.href
+      : undefined;
   } catch {
     return undefined;
   }
@@ -45,84 +55,102 @@ export function safeHref(url: string): string | undefined {
 
 function text(node: Node): string {
   if (node.value !== undefined) return node.value;
-  return (node.children ?? []).map(text).join("");
+  return (node.children ?? []).map(text).join('');
 }
 
-const inline = (nodes: Node[] | undefined): string => (nodes ?? []).map(write).join("");
-const block = (nodes: Node[] | undefined): string => (nodes ?? []).map(write).filter((html) => html !== "").join("\n");
+const inline = (nodes: Node[] | undefined): string => (nodes ?? []).map(write).join('');
+const block = (nodes: Node[] | undefined): string =>
+  (nodes ?? [])
+    .map(write)
+    .filter((html) => html !== '')
+    .join('\n');
 
 function write(node: Node): string {
   switch (node.type) {
-    case "root":
+    case 'root':
       return block(node.children);
-    case "paragraph":
+    case 'paragraph':
       return `<p>${inline(node.children)}</p>`;
-    case "heading": {
+    case 'heading': {
       const level = Math.min(Math.max(node.depth ?? 1, 1), 6);
       return `<h${level}>${inline(node.children)}</h${level}>`;
     }
-    case "blockquote":
+    case 'blockquote':
       return `<blockquote>\n${block(node.children)}\n</blockquote>`;
-    case "list": {
-      const tag = node.ordered ? "ol" : "ul";
-      const start = node.ordered && typeof node.start === "number" && node.start !== 1 && Number.isSafeInteger(node.start) ? ` start="${node.start}"` : "";
+    case 'list': {
+      const tag = node.ordered ? 'ol' : 'ul';
+      const start =
+        node.ordered &&
+        typeof node.start === 'number' &&
+        node.start !== 1 &&
+        Number.isSafeInteger(node.start)
+          ? ` start="${node.start}"`
+          : '';
       return `<${tag}${start}>\n${block(node.children)}\n</${tag}>`;
     }
-    case "listItem": {
-      const box = node.checked === true ? "[x] " : node.checked === false ? "[ ] " : "";
-      return `<li>${box}${(node.children ?? []).map((child) => (child.type === "paragraph" ? inline(child.children) : write(child))).join("\n")}</li>`;
+    case 'listItem': {
+      const box = node.checked === true ? '[x] ' : node.checked === false ? '[ ] ' : '';
+      return `<li>${box}${(node.children ?? []).map((child) => (child.type === 'paragraph' ? inline(child.children) : write(child))).join('\n')}</li>`;
     }
-    case "code":
-      return `<pre><code>${escapeHtml(node.value ?? "")}</code></pre>`;
-    case "thematicBreak":
-      return "<hr>";
-    case "table": {
+    case 'code':
+      return `<pre><code>${escapeHtml(node.value ?? '')}</code></pre>`;
+    case 'thematicBreak':
+      return '<hr>';
+    case 'table': {
       // A column's alignment (`:---`, `:-:`, `---:`) is one of three fixed words in an `align` attribute: nothing else of the document is ever written into one.
       const align = node.align ?? [];
-      const row = (cells: Node[], tag: "th" | "td") =>
+      const row = (cells: Node[], tag: 'th' | 'td') =>
         `<tr>${cells
           .map((cell, column) => {
             const where = align[column];
-            const attribute = where === "left" || where === "center" || where === "right" ? ` align="${where}"` : "";
+            const attribute =
+              where === 'left' || where === 'center' || where === 'right'
+                ? ` align="${where}"`
+                : '';
             return `<${tag}${attribute}>${inline(cell.children)}</${tag}>`;
           })
-          .join("")}</tr>`;
-      return `<table>\n${(node.children ?? []).map((cells, index) => row(cells.children ?? [], index === 0 ? "th" : "td")).join("\n")}\n</table>`;
+          .join('')}</tr>`;
+      return `<table>\n${(node.children ?? []).map((cells, index) => row(cells.children ?? [], index === 0 ? 'th' : 'td')).join('\n')}\n</table>`;
     }
-    case "text":
-      return escapeHtml(node.value ?? "");
-    case "emphasis":
+    case 'text':
+      return escapeHtml(node.value ?? '');
+    case 'emphasis':
       return `<em>${inline(node.children)}</em>`;
-    case "strong":
+    case 'strong':
       return `<strong>${inline(node.children)}</strong>`;
-    case "delete":
+    case 'delete':
       return `<del>${inline(node.children)}</del>`;
-    case "inlineCode":
-      return `<code>${escapeHtml(node.value ?? "")}</code>`;
-    case "break":
-      return "<br>";
-    case "link": {
-      const href = safeHref(node.url ?? "");
-      return href === undefined ? inline(node.children) : `<a href="${escapeHtml(href)}" rel="noopener noreferrer nofollow">${inline(node.children)}</a>`;
+    case 'inlineCode':
+      return `<code>${escapeHtml(node.value ?? '')}</code>`;
+    case 'break':
+      return '<br>';
+    case 'link': {
+      const href = safeHref(node.url ?? '');
+      return href === undefined
+        ? inline(node.children)
+        : `<a href="${escapeHtml(href)}" rel="noopener noreferrer nofollow">${inline(node.children)}</a>`;
     }
-    case "image":
+    case 'image':
       // Never loaded: a page makes no request to another server. The description is what is left.
-      return escapeHtml(node.alt ?? "");
-    case "html":
+      return escapeHtml(node.alt ?? '');
+    case 'html':
       // Raw HTML is the document's own markup, which a page open to anyone does not run. It is shown as the text it is.
-      return escapeHtml(node.value ?? "");
-    case "definition":
-    case "footnoteDefinition":
-    case "yaml":
-      return "";
+      return escapeHtml(node.value ?? '');
+    case 'definition':
+    case 'footnoteDefinition':
+    case 'yaml':
+      return '';
     default:
       // A node this does not know is written as the text it holds, in a paragraph if it holds block content.
-      return node.children ? `<p>${escapeHtml(text(node))}</p>` : escapeHtml(node.value ?? "");
+      return node.children ? `<p>${escapeHtml(text(node))}</p>` : escapeHtml(node.value ?? '');
   }
 }
 
 /** The HTML of a Markdown body, safe to put in a page: see the comment at the top of this file. */
 export function renderMarkdown(source: string): string {
-  const tree = fromMarkdown(source, { extensions: [gfmTable(), gfmStrikethrough()], mdastExtensions: [gfmTableFromMarkdown(), gfmStrikethroughFromMarkdown()] }) as unknown as Node;
+  const tree = fromMarkdown(source, {
+    extensions: [gfmTable(), gfmStrikethrough()],
+    mdastExtensions: [gfmTableFromMarkdown(), gfmStrikethroughFromMarkdown()],
+  }) as unknown as Node;
   return write(tree);
 }

@@ -1,9 +1,17 @@
-import { readFileSync } from "node:fs";
-import type { LibSQLDatabase } from "drizzle-orm/libsql";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { Pool } from "pg";
-import { APP_STORE, AUTH_STORE, type DatabaseConfig, type FileConfig, type PostgresConfig, type SqldConfig, type Store } from "./config";
-import { createSqldClient } from "./sqld";
+import { readFileSync } from 'node:fs';
+import type { LibSQLDatabase } from 'drizzle-orm/libsql';
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
+import type { Pool } from 'pg';
+import {
+  APP_STORE,
+  AUTH_STORE,
+  type DatabaseConfig,
+  type FileConfig,
+  type PostgresConfig,
+  type SqldConfig,
+  type Store,
+} from './config';
+import { createSqldClient } from './sqld';
 
 /**
  * A database handle, tagged with its dialect so the portable helpers (`exec.ts`)
@@ -18,15 +26,15 @@ export type Database = SqliteDatabase | PostgresDatabase;
  * would serve is not used.
  */
 export interface SqliteDatabase {
-  dialect: "sqlite";
-  form: "sqld" | "file";
+  dialect: 'sqlite';
+  form: 'sqld' | 'file';
   store: Store;
   db: LibSQLDatabase;
   close(): Promise<void>;
 }
 
 export interface PostgresDatabase {
-  dialect: "postgres";
+  dialect: 'postgres';
   store: Store;
   db: NodePgDatabase & { $client: Pool };
   close(): Promise<void>;
@@ -37,17 +45,20 @@ export interface PostgresDatabase {
  * an sqld or PostgreSQL instance never loads libSQL's native addon, which has no
  * build for every platform (a musl image has none) and would fail at import time.
  */
-export async function openDatabase(config: DatabaseConfig, store: Store = "app"): Promise<Database> {
-  if (config.dialect === "postgres") return openPostgres(config, store);
-  return config.form === "sqld" ? openSqld(config, store) : openFile(config, store);
+export async function openDatabase(
+  config: DatabaseConfig,
+  store: Store = 'app',
+): Promise<Database> {
+  if (config.dialect === 'postgres') return openPostgres(config, store);
+  return config.form === 'sqld' ? openSqld(config, store) : openFile(config, store);
 }
 
 async function openSqld(config: SqldConfig, store: Store): Promise<SqliteDatabase> {
-  const { drizzle } = await import("drizzle-orm/libsql/web");
-  const client = await createSqldClient(config.url, store === "auth" ? AUTH_STORE : APP_STORE);
+  const { drizzle } = await import('drizzle-orm/libsql/web');
+  const client = await createSqldClient(config.url, store === 'auth' ? AUTH_STORE : APP_STORE);
   return {
-    dialect: "sqlite",
-    form: "sqld",
+    dialect: 'sqlite',
+    form: 'sqld',
     store,
     db: drizzle(client),
     close: async () => client.close(),
@@ -55,18 +66,18 @@ async function openSqld(config: SqldConfig, store: Store): Promise<SqliteDatabas
 }
 
 async function openFile(config: FileConfig, store: Store): Promise<SqliteDatabase> {
-  const { createClient } = await import("@libsql/client/node");
-  const { drizzle } = await import("drizzle-orm/libsql/node");
-  const client = createClient({ url: `file:${store === "auth" ? config.authPath : config.path}` });
+  const { createClient } = await import('@libsql/client/node');
+  const { drizzle } = await import('drizzle-orm/libsql/node');
+  const client = createClient({ url: `file:${store === 'auth' ? config.authPath : config.path}` });
   // Several processes (web and worker) may share the file on one host: WAL lets
   // readers and a writer overlap, and a busy timeout makes a second writer wait for
   // the first instead of failing. Foreign keys are off in SQLite until asked.
-  await client.execute("PRAGMA journal_mode = WAL");
-  await client.execute("PRAGMA busy_timeout = 5000");
-  await client.execute("PRAGMA foreign_keys = ON");
+  await client.execute('PRAGMA journal_mode = WAL');
+  await client.execute('PRAGMA busy_timeout = 5000');
+  await client.execute('PRAGMA foreign_keys = ON');
   return {
-    dialect: "sqlite",
-    form: "file",
+    dialect: 'sqlite',
+    form: 'file',
     store,
     db: drizzle(client),
     close: async () => client.close(),
@@ -74,8 +85,8 @@ async function openFile(config: FileConfig, store: Store): Promise<SqliteDatabas
 }
 
 async function openPostgres(config: PostgresConfig, store: Store): Promise<PostgresDatabase> {
-  const { default: pg } = await import("pg");
-  const { drizzle } = await import("drizzle-orm/node-postgres");
+  const { default: pg } = await import('pg');
+  const { drizzle } = await import('drizzle-orm/node-postgres');
   // `bigint` comes back as a string by default, which is how a 64-bit integer stays
   // exact. Ours are ids and epoch milliseconds, far below 2^53, and the app wants
   // numbers on both dialects, in raw SQL as in the query builder. It is set on pg's
@@ -85,12 +96,15 @@ async function openPostgres(config: PostgresConfig, store: Store): Promise<Postg
   // rounded number.
   pg.types.setTypeParser(pg.types.builtins.INT8, (value: string) => {
     const number = Number(value);
-    if (!Number.isSafeInteger(number)) throw new RangeError(`a bigint column holds ${value}, which a number cannot represent exactly`);
+    if (!Number.isSafeInteger(number))
+      throw new RangeError(
+        `a bigint column holds ${value}, which a number cannot represent exactly`,
+      );
     return number;
   });
   const pool = new pg.Pool({ ...pgConnectionOptions(config), max: config.poolMax });
   return {
-    dialect: "postgres",
+    dialect: 'postgres',
     store,
     db: drizzle(pool),
     close: async () => pool.end(),
@@ -98,7 +112,10 @@ async function openPostgres(config: PostgresConfig, store: Store): Promise<Postg
 }
 
 /** The connection string and TLS settings, shared by the pool and by provisioning. */
-export function pgConnectionOptions(config: PostgresConfig): { connectionString: string; ssl: ReturnType<typeof pgSsl> } {
+export function pgConnectionOptions(config: PostgresConfig): {
+  connectionString: string;
+  ssl: ReturnType<typeof pgSsl>;
+} {
   return { connectionString: config.url, ssl: pgSsl(config) };
 }
 
@@ -108,9 +125,9 @@ export function pgConnectionOptions(config: PostgresConfig): { connectionString:
  * anything else encrypts without verifying.
  */
 function pgSsl(config: PostgresConfig): false | { rejectUnauthorized: boolean; ca?: string } {
-  const sslmode = new URL(config.url).searchParams.get("sslmode");
-  if (!sslmode || sslmode === "disable") return false;
-  const verify = sslmode === "verify-ca" || sslmode === "verify-full";
-  const ca = config.sslRootCertPath ? readFileSync(config.sslRootCertPath, "utf8") : undefined;
+  const sslmode = new URL(config.url).searchParams.get('sslmode');
+  if (!sslmode || sslmode === 'disable') return false;
+  const verify = sslmode === 'verify-ca' || sslmode === 'verify-full';
+  const ca = config.sslRootCertPath ? readFileSync(config.sslRootCertPath, 'utf8') : undefined;
   return { rejectUnauthorized: verify, ...(ca ? { ca } : {}) };
 }

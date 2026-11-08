@@ -4,7 +4,7 @@
  * for the rail down the side of the page, and a different one for the bar along the top (768px and under, `AppShell.module.css`), below.
  */
 @media (min-width: 769px) {
-  .menu [role="dialog"] {
+  .menu [role='dialog'] {
     top: auto !important;
     bottom: -4px !important;
     right: auto !important;
@@ -14,7 +14,7 @@
 
 /* As a bar along the top the page scrolls the bar sideways, which would clip a panel that hangs from the avatar: it is fixed under the bar instead, at the right. */
 @media (max-width: 768px) {
-  .menu [role="dialog"] {
+  .menu [role='dialog'] {
     position: fixed !important;
     top: 64px !important;
     bottom: auto !important;

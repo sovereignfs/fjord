@@ -7,7 +7,7 @@ export const DEFAULT_RESTORE_WINDOW_DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function restoreWindowMs(env: Record<string, string | undefined> = process.env): number {
-  const raw = (env.FJORD_RESTORE_WINDOW_DAYS ?? "").trim();
+  const raw = (env.FJORD_RESTORE_WINDOW_DAYS ?? '').trim();
   const days = /^[1-9][0-9]{0,3}$/.test(raw) ? Number(raw) : DEFAULT_RESTORE_WINDOW_DAYS;
   return (days <= 3650 ? days : DEFAULT_RESTORE_WINDOW_DAYS) * DAY_MS;
 }

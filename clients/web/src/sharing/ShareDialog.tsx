@@ -1,16 +1,16 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useState } from "react";
-import { Icon } from "../ui";
-import { ActionDialog } from "../browse/screens/ActionDialog";
-import { IconButton } from "../browse/screens/IconButton";
-import { PublishPanel } from "../publishing/PublishPanel";
-import { SharePanel } from "./SharePanel";
-import { IdentifyStep } from "./IdentifyAndShare";
+import { useRouter } from 'next/navigation';
+import { startTransition, useEffect, useState } from 'react';
+import { Icon } from '../ui';
+import { ActionDialog } from '../browse/screens/ActionDialog';
+import { IconButton } from '../browse/screens/IconButton';
+import { PublishPanel } from '../publishing/PublishPanel';
+import { SharePanel } from './SharePanel';
+import { IdentifyStep } from './IdentifyAndShare';
 
 /** What is kept across the page's move to the file's new address (it is a new page, so the dialog is made again): the identifier of the file the dialog was open for. */
-const RESUME = "fjord:share-dialog";
+const RESUME = 'fjord:share-dialog';
 
 /**
  * Sharing a document, from an icon at the end of its title: one dialog over the page, whatever state the file is in. A Doc (a file with an `id`) opens on the sharing controls: the people it is
@@ -18,7 +18,19 @@ const RESUME = "fjord:share-dialog";
  * becomes the sharing controls** (the owner's request: it used to close the dialog and reload the page, which looked like something had gone wrong). The page behind is refreshed in the background, so that
  * it has the file as it now is: the header, and the version of it a later save is made on.
  */
-export function ShareDialog({ connectionId, docId, path, blob, hasDraft }: { connectionId: number; docId: string | undefined; path: string | undefined; blob: string | undefined; hasDraft: boolean }) {
+export function ShareDialog({
+  connectionId,
+  docId,
+  path,
+  blob,
+  hasDraft,
+}: {
+  connectionId: number;
+  docId: string | undefined;
+  path: string | undefined;
+  blob: string | undefined;
+  hasDraft: boolean;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [made, setMade] = useState<string | null>(null);
@@ -46,7 +58,12 @@ export function ShareDialog({ connectionId, docId, path, blob, hasDraft }: { con
       <ActionDialog open={open} onClose={() => setOpen(false)} title="Sharing">
         {id ? (
           <div data-testid="share-panel">
-            <SharePanel connectionId={connectionId} docId={id} publish={<PublishPanel connectionId={connectionId} docId={id} />} justIdentified={made !== null || resumed} />
+            <SharePanel
+              connectionId={connectionId}
+              docId={id}
+              publish={<PublishPanel connectionId={connectionId} docId={id} />}
+              justIdentified={made !== null || resumed}
+            />
           </div>
         ) : path !== undefined && blob !== undefined ? (
           <IdentifyStep

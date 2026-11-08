@@ -1,8 +1,8 @@
-import { authConfig, getSession } from "../auth/server";
-import type { Deps } from "./http";
-import { linksAccessFor, sharingAccessFor } from "./server";
-import type { Deps as LinksDeps } from "./links-http";
-import type { Caller } from "../working/http";
+import { authConfig, getSession } from '../auth/server';
+import type { Deps } from './http';
+import { linksAccessFor, sharingAccessFor } from './server';
+import type { Deps as LinksDeps } from './links-http';
+import type { Caller } from '../working/http';
 
 /** Who is calling, and what `http.ts` needs to answer them. Null when the instance has no sign-in at all (404). */
 export async function sharingContext(): Promise<{ caller: Caller | null; deps: Deps } | null> {
@@ -11,12 +11,17 @@ export async function sharingContext(): Promise<{ caller: Caller | null; deps: D
   const session = await getSession();
   const access = session ? await sharingAccessFor() : undefined;
   return {
-    caller: session ? { accountId: session.user.id, name: session.user.name, email: session.user.email } : null,
+    caller: session
+      ? { accountId: session.user.id, name: session.user.name, email: session.user.email }
+      : null,
     deps: {
       origin: config.url,
-      share: (accountId, id, input) => (access as NonNullable<typeof access>).share(accountId, id, input),
-      list: (accountId, id, docId) => (access as NonNullable<typeof access>).list(accountId, id, docId),
-      unshare: (accountId, id, input) => (access as NonNullable<typeof access>).unshare(accountId, id, input),
+      share: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).share(accountId, id, input),
+      list: (accountId, id, docId) =>
+        (access as NonNullable<typeof access>).list(accountId, id, docId),
+      unshare: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).unshare(accountId, id, input),
     },
   };
 }
@@ -28,13 +33,19 @@ export async function linksContext(): Promise<{ caller: Caller | null; deps: Lin
   const session = await getSession();
   const access = session ? await linksAccessFor() : undefined;
   return {
-    caller: session ? { accountId: session.user.id, name: session.user.name, email: session.user.email } : null,
+    caller: session
+      ? { accountId: session.user.id, name: session.user.name, email: session.user.email }
+      : null,
     deps: {
       origin: config.url,
-      create: (accountId, id, input) => (access as NonNullable<typeof access>).create(accountId, id, input),
-      list: (accountId, id, docId) => (access as NonNullable<typeof access>).list(accountId, id, docId),
-      revoke: (accountId, id, input) => (access as NonNullable<typeof access>).revoke(accountId, id, input),
-      update: (accountId, id, input) => (access as NonNullable<typeof access>).update(accountId, id, input),
+      create: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).create(accountId, id, input),
+      list: (accountId, id, docId) =>
+        (access as NonNullable<typeof access>).list(accountId, id, docId),
+      revoke: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).revoke(accountId, id, input),
+      update: (accountId, id, input) =>
+        (access as NonNullable<typeof access>).update(accountId, id, input),
     },
   };
 }

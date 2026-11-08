@@ -1,10 +1,20 @@
-"use client";
+'use client';
 
-import { type FormEvent, useEffect, useState } from "react";
-import { authClient } from "../client";
-import { messageFor } from "../messages";
-import { rememberNext } from "../next";
-import { AuthButton, AuthDivider, AuthError, AuthField, AuthFooter, AuthForm, AuthLink, AuthNotice, Input } from "../../ui";
+import { type FormEvent, useEffect, useState } from 'react';
+import { authClient } from '../client';
+import { messageFor } from '../messages';
+import { rememberNext } from '../next';
+import {
+  AuthButton,
+  AuthDivider,
+  AuthError,
+  AuthField,
+  AuthFooter,
+  AuthForm,
+  AuthLink,
+  AuthNotice,
+  Input,
+} from '../../ui';
 
 /**
  * The ways this instance offers: email and password or a passkey (two-factor, if the account has
@@ -28,19 +38,19 @@ export function SignInForm({
   /** Where the person was on their way to (`auth/next.ts`), already checked; signing in goes on there. */
   next?: string | null;
 }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(initialError ?? null);
-  const [busy, setBusy] = useState<"password" | "passkey" | "sovereign" | null>(null);
-  const landing = next ?? "/open";
+  const [busy, setBusy] = useState<'password' | 'passkey' | 'sovereign' | null>(null);
+  const landing = next ?? '/open';
   // Known only in the browser, so it is read after the first render, never during it.
   const [passkeysSupported, setPasskeysSupported] = useState(false);
 
-  useEffect(() => setPasskeysSupported(typeof window.PublicKeyCredential === "function"), []);
+  useEffect(() => setPasskeysSupported(typeof window.PublicKeyCredential === 'function'), []);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setBusy("password");
+    setBusy('password');
     setError(null);
     rememberNext(next);
     const { data, error: failure } = await authClient.signIn.email({ email, password });
@@ -50,7 +60,7 @@ export function SignInForm({
       return;
     }
     // With two-factor on, the client has already sent the person to the code page.
-    if (data && "twoFactorRedirect" in data && data.twoFactorRedirect) return;
+    if (data && 'twoFactorRedirect' in data && data.twoFactorRedirect) return;
     rememberNext(null);
     // A full navigation, not a client-side one: `/` is a different page now that there is a
     // session, and the server decides which.
@@ -58,12 +68,12 @@ export function SignInForm({
   }
 
   async function onPasskey() {
-    setBusy("passkey");
+    setBusy('passkey');
     setError(null);
     const { error: failure } = await authClient.signIn.passkey();
     if (failure) {
       setBusy(null);
-      setError(messageFor(failure, "Passkey sign-in did not work. Try your password instead."));
+      setError(messageFor(failure, 'Passkey sign-in did not work. Try your password instead.'));
       return;
     }
     window.location.assign(landing);
@@ -71,19 +81,29 @@ export function SignInForm({
 
   async function onSovereign(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
-    setBusy("sovereign");
+    setBusy('sovereign');
     setError(null);
     // On success the browser is sent to Sovereign, so there is nothing to do after the call;
     // a person who comes back with a failure lands on this page again with the reason.
-    const { error: failure } = await authClient.signIn.social({ provider: "sovereign", callbackURL: landing, errorCallbackURL: "/sign-in" });
+    const { error: failure } = await authClient.signIn.social({
+      provider: 'sovereign',
+      callbackURL: landing,
+      errorCallbackURL: '/sign-in',
+    });
     if (failure) {
       setBusy(null);
-      setError(messageFor(failure, "Signing in with Sovereign did not work. Try again."));
+      setError(messageFor(failure, 'Signing in with Sovereign did not work. Try again.'));
     }
   }
 
   const sovereignButton = (
-    <AuthButton type={local ? "button" : "submit"} variant={local ? "secondary" : "primary"} onClick={local ? () => void onSovereign() : undefined} loading={busy === "sovereign"} disabled={busy !== null}>
+    <AuthButton
+      type={local ? 'button' : 'submit'}
+      variant={local ? 'secondary' : 'primary'}
+      onClick={local ? () => void onSovereign() : undefined}
+      loading={busy === 'sovereign'}
+      disabled={busy !== null}
+    >
       Sign in with Sovereign
     </AuthButton>
   );
@@ -96,10 +116,22 @@ export function SignInForm({
           <AuthForm onSubmit={(event) => void onSubmit(event)}>
             <AuthField label="Email">
               {(field) => (
-                <Input {...field} type="email" name="email" autoComplete="username webauthn" required disabled={busy !== null} value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Input
+                  {...field}
+                  type="email"
+                  name="email"
+                  autoComplete="username webauthn"
+                  required
+                  disabled={busy !== null}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               )}
             </AuthField>
-            <AuthField label="Password" aside={local.canReset ? <a href="/forgot-password">Forgot password?</a> : undefined}>
+            <AuthField
+              label="Password"
+              aside={local.canReset ? <a href="/forgot-password">Forgot password?</a> : undefined}
+            >
               {(field) => (
                 <Input
                   {...field}
@@ -114,14 +146,19 @@ export function SignInForm({
               )}
             </AuthField>
             {error ? <AuthError>{error}</AuthError> : null}
-            <AuthButton type="submit" loading={busy === "password"} disabled={busy !== null}>
+            <AuthButton type="submit" loading={busy === 'password'} disabled={busy !== null}>
               Sign in
             </AuthButton>
           </AuthForm>
           {passkeysSupported ? (
             <>
               <AuthDivider />
-              <AuthButton variant="secondary" onClick={() => void onPasskey()} loading={busy === "passkey"} disabled={busy !== null}>
+              <AuthButton
+                variant="secondary"
+                onClick={() => void onPasskey()}
+                loading={busy === 'passkey'}
+                disabled={busy !== null}
+              >
                 Sign in with a passkey
               </AuthButton>
             </>

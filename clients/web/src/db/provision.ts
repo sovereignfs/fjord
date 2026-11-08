@@ -1,9 +1,9 @@
-import { mkdir } from "node:fs/promises";
-import { dirname } from "node:path";
-import { pgConnectionOptions } from "./client";
-import { APP_STORE, AUTH_STORE, type DatabaseConfig } from "./config";
-import { retryUntil } from "./retry";
-import { provisionNamespace } from "./sqld";
+import { mkdir } from 'node:fs/promises';
+import { dirname } from 'node:path';
+import { pgConnectionOptions } from './client';
+import { APP_STORE, AUTH_STORE, type DatabaseConfig } from './config';
+import { retryUntil } from './retry';
+import { provisionNamespace } from './sqld';
 
 /**
  * Make sure the places the two stores live in exist, before anything connects to
@@ -16,29 +16,31 @@ import { provisionNamespace } from "./sqld";
  * they are not made here too: it would find them already there and fail.
  */
 export async function provisionStores(config: DatabaseConfig, timeoutMs = 30_000): Promise<void> {
-  if (config.dialect === "sqlite" && config.form === "file") {
+  if (config.dialect === 'sqlite' && config.form === 'file') {
     await mkdir(dirname(config.path), { recursive: true });
     return;
   }
 
-  if (config.dialect === "sqlite") {
+  if (config.dialect === 'sqlite') {
     try {
       await retryUntil(async () => {
         await provisionNamespace(config.adminUrl, APP_STORE);
         await provisionNamespace(config.adminUrl, AUTH_STORE);
       }, timeoutMs);
     } catch (error) {
-      throw new Error(`could not reach the sqld admin API at ${config.adminUrl} (set FJORD_SQLD_ADMIN_URL): ${message(error)}`);
+      throw new Error(
+        `could not reach the sqld admin API at ${config.adminUrl} (set FJORD_SQLD_ADMIN_URL): ${message(error)}`,
+      );
     }
     return;
   }
 
-  const { default: pg } = await import("pg");
+  const { default: pg } = await import('pg');
   await retryUntil(async () => {
     const client = new pg.Client(pgConnectionOptions(config));
     await client.connect();
     try {
-      await client.query("SELECT 1");
+      await client.query('SELECT 1');
     } finally {
       await client.end();
     }

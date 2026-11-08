@@ -1,13 +1,14 @@
-import { bigint } from "drizzle-orm/pg-core";
+import { bigint } from 'drizzle-orm/pg-core';
 
 /**
  * The same column vocabulary as `schema/sqlite/columns.ts`; see there. PostgreSQL
  * returns `bigint` as a string unless it is told a mode, so every 64-bit column
  * declares `mode: "number"` (and the client parses `int8` the same way for raw SQL).
  */
-export const id64 = (name: string) => bigint(name, { mode: "number" }).primaryKey().generatedAlwaysAsIdentity();
+export const id64 = (name: string) =>
+  bigint(name, { mode: 'number' }).primaryKey().generatedAlwaysAsIdentity();
 
-export const epochMs = (name: string) => bigint(name, { mode: "number" });
+export const epochMs = (name: string) => bigint(name, { mode: 'number' });
 
 /** A reference to another table's `id64`; see `schema/sqlite/columns.ts`. */
-export const ref64 = (name: string) => bigint(name, { mode: "number" });
+export const ref64 = (name: string) => bigint(name, { mode: 'number' });

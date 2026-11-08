@@ -1,30 +1,30 @@
-import { randomBytes } from "node:crypto";
-import { sql } from "drizzle-orm";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { Keyring } from "../crypto/keyring";
-import { CredentialStore } from "../crypto/store";
-import type { Database } from "../db/client";
-import { dbAll, dbRun } from "../db/exec";
-import { runMigrations } from "../db/migrate";
-import * as postgresSchema from "../db/schema/postgres";
-import * as sqliteSchema from "../db/schema/sqlite";
-import { freshDatabase, testTarget } from "../db/test-support";
-import { GitHubProvider } from "../providers/github/provider";
-import { MemoryProvider } from "../providers/memory";
-import { FakeGitHub } from "../providers/testing/fake-github";
-import { TreeCache } from "../browse/tree-cache";
-import { DocIndex } from "../browse/doc-index";
-import { FileHandles } from "../browse/handles";
-import { PublicationService } from "../publishing/publications";
-import { CommentService } from "../comments/service";
-import { SealedShareService } from "../sealed/service";
-import { LinkService } from "../sharing/links";
-import { ShareService } from "../sharing/shares";
-import { DeletionService } from "../files/deletions";
-import { WorkingCopyService } from "../working/service";
-import { isPublicId } from "./public-id";
-import { type ConnectionErrorCode, isConnectionError } from "./errors";
-import { ConnectionService } from "./service";
+import { randomBytes } from 'node:crypto';
+import { sql } from 'drizzle-orm';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { Keyring } from '../crypto/keyring';
+import { CredentialStore } from '../crypto/store';
+import type { Database } from '../db/client';
+import { dbAll, dbRun } from '../db/exec';
+import { runMigrations } from '../db/migrate';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
+import { freshDatabase, testTarget } from '../db/test-support';
+import { GitHubProvider } from '../providers/github/provider';
+import { MemoryProvider } from '../providers/memory';
+import { FakeGitHub } from '../providers/testing/fake-github';
+import { TreeCache } from '../browse/tree-cache';
+import { DocIndex } from '../browse/doc-index';
+import { FileHandles } from '../browse/handles';
+import { PublicationService } from '../publishing/publications';
+import { CommentService } from '../comments/service';
+import { SealedShareService } from '../sealed/service';
+import { LinkService } from '../sharing/links';
+import { ShareService } from '../sharing/shares';
+import { DeletionService } from '../files/deletions';
+import { WorkingCopyService } from '../working/service';
+import { isPublicId } from './public-id';
+import { type ConnectionErrorCode, isConnectionError } from './errors';
+import { ConnectionService } from './service';
 
 /**
  * Connecting a repository with a token, over the real databases and against a GitHub whose storage
@@ -38,17 +38,32 @@ let fake: FakeGitHub;
 let credentials: CredentialStore;
 let service: ConnectionService;
 
-const GOOD = "github_pat_goodtoken0123456789abcdefghijklmnopqrstuvwxyz";
-const READ_ONLY = "github_pat_readonlytoken0123456789abcdefghijklmnopqrstu";
-const REVOKED = "github_pat_revokedtoken0123456789abcdefghijklmnopqrstu";
-const ALICE = "user-alice";
-const BOB = "user-bob";
+const GOOD = 'github_pat_goodtoken0123456789abcdefghijklmnopqrstuvwxyz';
+const READ_ONLY = 'github_pat_readonlytoken0123456789abcdefghijklmnopqrstu';
+const REVOKED = 'github_pat_revokedtoken0123456789abcdefghijklmnopqrstu';
+const ALICE = 'user-alice';
+const BOB = 'user-bob';
 
-const connectionTable = () => (database.dialect === "postgres" ? postgresSchema.connection : sqliteSchema.connection);
-const credentialTable = () => (database.dialect === "postgres" ? postgresSchema.credential : sqliteSchema.credential);
-const defaultTable = () => (database.dialect === "postgres" ? postgresSchema.accountDefault : sqliteSchema.accountDefault);
-const count = async (table: unknown) => Number((await dbAll<{ n: number | string }>(database, sql`SELECT COUNT(*) AS n FROM ${table as never}`))[0]!.n);
-const everything = async () => JSON.stringify([...(await dbAll(database, sql`SELECT * FROM ${connectionTable()}`)), ...(await dbAll(database, sql`SELECT * FROM ${credentialTable()}`))]);
+const connectionTable = () =>
+  database.dialect === 'postgres' ? postgresSchema.connection : sqliteSchema.connection;
+const credentialTable = () =>
+  database.dialect === 'postgres' ? postgresSchema.credential : sqliteSchema.credential;
+const defaultTable = () =>
+  database.dialect === 'postgres' ? postgresSchema.accountDefault : sqliteSchema.accountDefault;
+const count = async (table: unknown) =>
+  Number(
+    (
+      await dbAll<{ n: number | string }>(
+        database,
+        sql`SELECT COUNT(*) AS n FROM ${table as never}`,
+      )
+    )[0]!.n,
+  );
+const everything = async () =>
+  JSON.stringify([
+    ...(await dbAll(database, sql`SELECT * FROM ${connectionTable()}`)),
+    ...(await dbAll(database, sql`SELECT * FROM ${credentialTable()}`)),
+  ]);
 
 beforeAll(async () => {
   ({ database } = await freshDatabase());
@@ -59,7 +74,13 @@ beforeAll(async () => {
   service = new ConnectionService({
     database,
     credentials,
-    github: (token) => new GitHubProvider({ apiUrl: fake.url, token: async () => token, scope: "user", sleep: async () => undefined }),
+    github: (token) =>
+      new GitHubProvider({
+        apiUrl: fake.url,
+        token: async () => token,
+        scope: 'user',
+        sleep: async () => undefined,
+      }),
     now: () => 1_800_000_000_000,
   });
 });
@@ -71,19 +92,58 @@ beforeEach(async () => {
   await dbRun(database, sql`DELETE FROM ${connectionTable()}`);
   await dbRun(database, sql`DELETE FROM ${credentialTable()}`);
   await dbRun(database, sql`DELETE FROM ${defaultTable()}`);
-  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.treeCache : sqliteSchema.treeCache}`);
-  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy}`);
-  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion}`);
-  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex}`);
-  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.fileHandle : sqliteSchema.fileHandle}`);
-  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.publication : sqliteSchema.publication}`);
-  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser}`);
-  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.shareLink : sqliteSchema.shareLink}`);
-  await dbRun(database, sql`DELETE FROM ${database.dialect === "postgres" ? postgresSchema.sealedShare : sqliteSchema.sealedShare}`);
-  for (const table of database.dialect === "postgres" ? [postgresSchema.commentReply, postgresSchema.commentThread, postgresSchema.commentActivity, postgresSchema.commentClosed] : [sqliteSchema.commentReply, sqliteSchema.commentThread, sqliteSchema.commentActivity, sqliteSchema.commentClosed]) {
+  await dbRun(
+    database,
+    sql`DELETE FROM ${database.dialect === 'postgres' ? postgresSchema.treeCache : sqliteSchema.treeCache}`,
+  );
+  await dbRun(
+    database,
+    sql`DELETE FROM ${database.dialect === 'postgres' ? postgresSchema.workingCopy : sqliteSchema.workingCopy}`,
+  );
+  await dbRun(
+    database,
+    sql`DELETE FROM ${database.dialect === 'postgres' ? postgresSchema.deletion : sqliteSchema.deletion}`,
+  );
+  await dbRun(
+    database,
+    sql`DELETE FROM ${database.dialect === 'postgres' ? postgresSchema.docIndex : sqliteSchema.docIndex}`,
+  );
+  await dbRun(
+    database,
+    sql`DELETE FROM ${database.dialect === 'postgres' ? postgresSchema.fileHandle : sqliteSchema.fileHandle}`,
+  );
+  await dbRun(
+    database,
+    sql`DELETE FROM ${database.dialect === 'postgres' ? postgresSchema.publication : sqliteSchema.publication}`,
+  );
+  await dbRun(
+    database,
+    sql`DELETE FROM ${database.dialect === 'postgres' ? postgresSchema.shareUser : sqliteSchema.shareUser}`,
+  );
+  await dbRun(
+    database,
+    sql`DELETE FROM ${database.dialect === 'postgres' ? postgresSchema.shareLink : sqliteSchema.shareLink}`,
+  );
+  await dbRun(
+    database,
+    sql`DELETE FROM ${database.dialect === 'postgres' ? postgresSchema.sealedShare : sqliteSchema.sealedShare}`,
+  );
+  for (const table of database.dialect === 'postgres'
+    ? [
+        postgresSchema.commentReply,
+        postgresSchema.commentThread,
+        postgresSchema.commentActivity,
+        postgresSchema.commentClosed,
+      ]
+    : [
+        sqliteSchema.commentReply,
+        sqliteSchema.commentThread,
+        sqliteSchema.commentActivity,
+        sqliteSchema.commentClosed,
+      ]) {
     await dbRun(database, sql`DELETE FROM ${table}`);
   }
-  await fake.commitFiles({ "fjord.json": "{}" }, { replace: true });
+  await fake.commitFiles({ 'fjord.json': '{}' }, { replace: true });
 });
 
 async function refused(promise: Promise<unknown>, code: ConnectionErrorCode): Promise<Error> {
@@ -96,85 +156,139 @@ async function refused(promise: Promise<unknown>, code: ConnectionErrorCode): Pr
 }
 
 describe(`connecting with a token (${leg})`, () => {
-  it("keeps a repository the token can read and write", async () => {
-    const { connection, warnings } = await service.addWithToken(ALICE, { repository: "https://github.com/acme/notes", token: GOOD });
-    expect(connection).toEqual({ id: expect.any(Number), publicId: expect.stringMatching(/^[0-9a-hjkmnp-tv-z]{8}$/), address: expect.stringMatching(/^drive\/[0-9a-hjkmnp-tv-z]{8}$/), provider: "github", kind: "pat", owner: "acme", name: "notes", branch: "main", createdAt: 1_800_000_000_000, isDefault: true, defaultVault: null, repoKind: null });
+  it('keeps a repository the token can read and write', async () => {
+    const { connection, warnings } = await service.addWithToken(ALICE, {
+      repository: 'https://github.com/acme/notes',
+      token: GOOD,
+    });
+    expect(connection).toEqual({
+      id: expect.any(Number),
+      publicId: expect.stringMatching(/^[0-9a-hjkmnp-tv-z]{8}$/),
+      address: expect.stringMatching(/^drive\/[0-9a-hjkmnp-tv-z]{8}$/),
+      provider: 'github',
+      kind: 'pat',
+      owner: 'acme',
+      name: 'notes',
+      branch: 'main',
+      createdAt: 1_800_000_000_000,
+      isDefault: true,
+      defaultVault: null,
+      repoKind: null,
+    });
     expect(warnings).toEqual([]);
     expect(await service.list(ALICE)).toEqual([connection]);
   });
 
-  it("keeps the token only as encrypted, and not in any column of either table", async () => {
-    await service.addWithToken(ALICE, { repository: "acme/notes", token: GOOD });
+  it('keeps the token only as encrypted, and not in any column of either table', async () => {
+    await service.addWithToken(ALICE, { repository: 'acme/notes', token: GOOD });
     const dump = await everything();
     expect(dump).not.toContain(GOOD);
-    expect(dump).not.toContain("github_pat_");
+    expect(dump).not.toContain('github_pat_');
     expect(await count(credentialTable())).toBe(1);
   });
 
-  it("changes nothing in the repository to find out that the token can write", async () => {
+  it('changes nothing in the repository to find out that the token can write', async () => {
     const before = await fake.branchHead();
     fake.requests.length = 0;
-    await service.addWithToken(ALICE, { repository: "acme/notes", token: GOOD });
+    await service.addWithToken(ALICE, { repository: 'acme/notes', token: GOOD });
     expect(await fake.branchHead()).toBe(before);
     await fake.fsck();
     // Looked, and made a no-op update, and never forced it.
-    const writes = fake.requests.filter((r) => r.method !== "GET");
-    expect(writes.map((r) => `${r.method} ${r.path}`)).toEqual(["PATCH /repos/acme/notes/git/refs/heads/main"]);
+    const writes = fake.requests.filter((r) => r.method !== 'GET');
+    expect(writes.map((r) => `${r.method} ${r.path}`)).toEqual([
+      'PATCH /repos/acme/notes/git/refs/heads/main',
+    ]);
     expect(writes[0]!.body).toMatchObject({ force: false });
   });
 
   it("uses the repository's own spelling of its name, however it was typed", async () => {
-    const { connection } = await service.addWithToken(ALICE, { repository: "git@github.com:acme/notes.git", token: GOOD });
-    expect(connection).toMatchObject({ owner: "acme", name: "notes" });
+    const { connection } = await service.addWithToken(ALICE, {
+      repository: 'git@github.com:acme/notes.git',
+      token: GOOD,
+    });
+    expect(connection).toMatchObject({ owner: 'acme', name: 'notes' });
   });
 
-  describe("refuses, in words a person can act on, and keeps nothing", () => {
+  describe('refuses, in words a person can act on, and keeps nothing', () => {
     const nothingKept = async () => {
       expect(await count(connectionTable())).toBe(0);
       expect(await count(credentialTable())).toBe(0);
     };
 
-    it("a token that can read but not write", async () => {
-      const error = await refused(service.addWithToken(ALICE, { repository: "acme/notes", token: READ_ONLY }), "read_only");
+    it('a token that can read but not write', async () => {
+      const error = await refused(
+        service.addWithToken(ALICE, { repository: 'acme/notes', token: READ_ONLY }),
+        'read_only',
+      );
       expect(error.message).toMatch(/Contents: Read and write/);
       await nothingKept();
     });
 
-    it("a token GitHub does not accept", async () => {
-      const error = await refused(service.addWithToken(ALICE, { repository: "acme/notes", token: REVOKED }), "bad_token");
+    it('a token GitHub does not accept', async () => {
+      const error = await refused(
+        service.addWithToken(ALICE, { repository: 'acme/notes', token: REVOKED }),
+        'bad_token',
+      );
       expect(error.message).toMatch(/expired or been revoked/);
       await nothingKept();
     });
 
-    it("a repository the token cannot see", async () => {
-      const error = await refused(service.addWithToken(ALICE, { repository: "acme/secret", token: GOOD }), "not_found");
+    it('a repository the token cannot see', async () => {
+      const error = await refused(
+        service.addWithToken(ALICE, { repository: 'acme/secret', token: GOOD }),
+        'not_found',
+      );
       expect(error.message).toMatch(/given access to this repository/);
       await nothingKept();
     });
 
-    it("an address that is not a repository, and an address on another host", async () => {
-      await refused(service.addWithToken(ALICE, { repository: "https://github.com/acme", token: GOOD }), "invalid_repository");
-      await refused(service.addWithToken(ALICE, { repository: "https://gitlab.com/acme/notes", token: GOOD }), "unsupported_host");
+    it('an address that is not a repository, and an address on another host', async () => {
+      await refused(
+        service.addWithToken(ALICE, { repository: 'https://github.com/acme', token: GOOD }),
+        'invalid_repository',
+      );
+      await refused(
+        service.addWithToken(ALICE, { repository: 'https://gitlab.com/acme/notes', token: GOOD }),
+        'unsupported_host',
+      );
       await nothingKept();
     });
 
-    it("an empty token, and one that is not in one piece", async () => {
-      await refused(service.addWithToken(ALICE, { repository: "acme/notes", token: "   " }), "invalid_token");
-      await refused(service.addWithToken(ALICE, { repository: "acme/notes", token: "two words" }), "invalid_token");
-      await refused(service.addWithToken(ALICE, { repository: "acme/notes", token: "x".repeat(2000) }), "invalid_token");
+    it('an empty token, and one that is not in one piece', async () => {
+      await refused(
+        service.addWithToken(ALICE, { repository: 'acme/notes', token: '   ' }),
+        'invalid_token',
+      );
+      await refused(
+        service.addWithToken(ALICE, { repository: 'acme/notes', token: 'two words' }),
+        'invalid_token',
+      );
+      await refused(
+        service.addWithToken(ALICE, { repository: 'acme/notes', token: 'x'.repeat(2000) }),
+        'invalid_token',
+      );
       await nothingKept();
     });
 
-    it("a repository with nothing in it yet", async () => {
+    it('a repository with nothing in it yet', async () => {
       const empty = new FakeGitHub({ tokens: { [GOOD]: { push: true } } });
       await empty.start();
       try {
         const onEmpty = new ConnectionService({
           database,
           credentials,
-          github: (token) => new GitHubProvider({ apiUrl: empty.url, token: async () => token, scope: "user", sleep: async () => undefined }),
+          github: (token) =>
+            new GitHubProvider({
+              apiUrl: empty.url,
+              token: async () => token,
+              scope: 'user',
+              sleep: async () => undefined,
+            }),
         });
-        const error = await refused(onEmpty.addWithToken(ALICE, { repository: "acme/notes", token: GOOD }), "empty_repository");
+        const error = await refused(
+          onEmpty.addWithToken(ALICE, { repository: 'acme/notes', token: GOOD }),
+          'empty_repository',
+        );
         expect(error.message).toMatch(/README/);
         await nothingKept();
       } finally {
@@ -182,67 +296,105 @@ describe(`connecting with a token (${leg})`, () => {
       }
     });
 
-    it("a repository this account has already connected, without a second copy of the token", async () => {
-      await service.addWithToken(ALICE, { repository: "acme/notes", token: GOOD });
-      await refused(service.addWithToken(ALICE, { repository: "https://github.com/acme/notes", token: GOOD }), "already_connected");
+    it('a repository this account has already connected, without a second copy of the token', async () => {
+      await service.addWithToken(ALICE, { repository: 'acme/notes', token: GOOD });
+      await refused(
+        service.addWithToken(ALICE, { repository: 'https://github.com/acme/notes', token: GOOD }),
+        'already_connected',
+      );
       expect(await count(connectionTable())).toBe(1);
       expect(await count(credentialTable())).toBe(1);
     });
 
-    it("when GitHub is down or limiting, and says so plainly", async () => {
-      fake.fail(/\/repos\/acme\/notes$/, { status: 503, body: { message: "Service Unavailable" }, times: 3 });
-      await refused(service.addWithToken(ALICE, { repository: "acme/notes", token: GOOD }), "unavailable");
-      fake.fail(/\/repos\/acme\/notes$/, { status: 403, headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(Math.floor(Date.now() / 1000) + 60) }, body: { message: "API rate limit exceeded" } });
-      await refused(service.addWithToken(ALICE, { repository: "acme/notes", token: GOOD }), "rate_limited");
+    it('when GitHub is down or limiting, and says so plainly', async () => {
+      fake.fail(/\/repos\/acme\/notes$/, {
+        status: 503,
+        body: { message: 'Service Unavailable' },
+        times: 3,
+      });
+      await refused(
+        service.addWithToken(ALICE, { repository: 'acme/notes', token: GOOD }),
+        'unavailable',
+      );
+      fake.fail(/\/repos\/acme\/notes$/, {
+        status: 403,
+        headers: {
+          'x-ratelimit-remaining': '0',
+          'x-ratelimit-reset': String(Math.floor(Date.now() / 1000) + 60),
+        },
+        body: { message: 'API rate limit exceeded' },
+      });
+      await refused(
+        service.addWithToken(ALICE, { repository: 'acme/notes', token: GOOD }),
+        'rate_limited',
+      );
       await nothingKept();
     });
 
     it("without ever putting the token, or anything of GitHub's text, in the message", async () => {
       for (const [repository, token] of [
-        ["acme/notes", READ_ONLY],
-        ["acme/notes", REVOKED],
-        ["acme/secret", GOOD],
+        ['acme/notes', READ_ONLY],
+        ['acme/notes', REVOKED],
+        ['acme/secret', GOOD],
       ] as const) {
-        const error = await service.addWithToken(ALICE, { repository, token }).catch((e: unknown) => e as Error);
+        const error = await service
+          .addWithToken(ALICE, { repository, token })
+          .catch((e: unknown) => e as Error);
         expect((error as Error).message).not.toContain(token);
-        expect((error as Error).message).not.toMatch(/Bad credentials|Resource not accessible|documentation/i);
+        expect((error as Error).message).not.toMatch(
+          /Bad credentials|Resource not accessible|documentation/i,
+        );
       }
     });
   });
 
-  it("warns, and still connects, when the token reaches other repositories too", async () => {
+  it('warns, and still connects, when the token reaches other repositories too', async () => {
     const memory = new MemoryProvider();
-    memory.createRepository({ owner: "acme", name: "notes" });
-    memory.seed({ owner: "acme", name: "notes" }, { "fjord.json": "{}" });
-    memory.createRepository({ owner: "acme", name: "other-one" });
-    memory.createRepository({ owner: "acme", name: "other-two" });
+    memory.createRepository({ owner: 'acme', name: 'notes' });
+    memory.seed({ owner: 'acme', name: 'notes' }, { 'fjord.json': '{}' });
+    memory.createRepository({ owner: 'acme', name: 'other-one' });
+    memory.createRepository({ owner: 'acme', name: 'other-two' });
     const broad = new ConnectionService({ database, credentials, github: () => memory });
-    const { connection, warnings } = await broad.addWithToken(ALICE, { repository: "acme/notes", token: GOOD });
-    expect(connection.name).toBe("notes");
+    const { connection, warnings } = await broad.addWithToken(ALICE, {
+      repository: 'acme/notes',
+      token: GOOD,
+    });
+    expect(connection.name).toBe('notes');
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toMatch(/2 other repositories/);
     expect(warnings[0]).not.toContain(GOOD);
   });
 
-  it("refuses a repository the memory provider says is read-only, as it does a real one", async () => {
+  it('refuses a repository the memory provider says is read-only, as it does a real one', async () => {
     const memory = new MemoryProvider();
-    memory.createRepository({ owner: "acme", name: "notes" }, { canPush: false });
-    memory.seed({ owner: "acme", name: "notes" }, { "a.md": "a" });
+    memory.createRepository({ owner: 'acme', name: 'notes' }, { canPush: false });
+    memory.seed({ owner: 'acme', name: 'notes' }, { 'a.md': 'a' });
     const readOnly = new ConnectionService({ database, credentials, github: () => memory });
-    await refused(readOnly.addWithToken(ALICE, { repository: "acme/notes", token: GOOD }), "read_only");
+    await refused(
+      readOnly.addWithToken(ALICE, { repository: 'acme/notes', token: GOOD }),
+      'read_only',
+    );
   });
 
-  it("does not leave a token behind when it cannot record the connection", async () => {
+  it('does not leave a token behind when it cannot record the connection', async () => {
     // Everything passes and the token is stored; only recording the connection fails (a time that
     // cannot be written), so what is under test is the clean-up and not an earlier check.
     let calls = 0;
     const failing = new ConnectionService({
       database,
       credentials,
-      github: (token) => new GitHubProvider({ apiUrl: fake.url, token: async () => token, scope: "user", sleep: async () => undefined }),
+      github: (token) =>
+        new GitHubProvider({
+          apiUrl: fake.url,
+          token: async () => token,
+          scope: 'user',
+          sleep: async () => undefined,
+        }),
       now: () => (++calls === 1 ? 1_800_000_000_000 : (null as unknown as number)),
     });
-    await expect(failing.addWithToken(ALICE, { repository: "acme/notes", token: GOOD })).rejects.toBeInstanceOf(Error);
+    await expect(
+      failing.addWithToken(ALICE, { repository: 'acme/notes', token: GOOD }),
+    ).rejects.toBeInstanceOf(Error);
     expect(calls).toBe(2);
     expect(await count(connectionTable())).toBe(0);
     expect(await count(credentialTable())).toBe(0);
@@ -250,12 +402,15 @@ describe(`connecting with a token (${leg})`, () => {
 });
 
 describe(`using and removing a connection (${leg})`, () => {
-  it("gives the server a provider that works with the stored token, and no way to read the token", async () => {
-    const { connection } = await service.addWithToken(ALICE, { repository: "acme/notes", token: GOOD });
+  it('gives the server a provider that works with the stored token, and no way to read the token', async () => {
+    const { connection } = await service.addWithToken(ALICE, {
+      repository: 'acme/notes',
+      token: GOOD,
+    });
     const used = await service.provider(ALICE, connection.id);
     expect(used).toBeDefined();
-    expect(Object.keys(used!.connection)).not.toContain("token");
-    const head = await used!.provider.getHead(fake.ref, "main");
+    expect(Object.keys(used!.connection)).not.toContain('token');
+    const head = await used!.provider.getHead(fake.ref, 'main');
     expect(head.changed).toBe(true);
     expect(JSON.stringify(used!.connection)).not.toContain(GOOD);
     // The request that proved it used the token that was stored.
@@ -264,33 +419,33 @@ describe(`using and removing a connection (${leg})`, () => {
 
   it("forgets the repository's cached trees when it is disconnected, and no other's", async () => {
     const memory = new MemoryProvider();
-    for (const name of ["one", "two"]) {
-      memory.createRepository({ owner: "acme", name });
-      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    for (const name of ['one', 'two']) {
+      memory.createRepository({ owner: 'acme', name });
+      memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
     }
     const s = new ConnectionService({ database, credentials, github: () => memory });
-    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
-    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const one = (await s.addWithToken(ALICE, { repository: 'acme/one', token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: 'acme/two', token: GOOD })).connection;
     const cache = new TreeCache(database);
-    const tree = { commit: "c1", complete: true, entries: [] };
+    const tree = { commit: 'c1', complete: true, entries: [] };
     await cache.put(one.id, tree);
     await cache.put(two.id, tree);
 
     await s.remove(ALICE, one.id);
-    expect(await cache.get(one.id, "c1")).toBeUndefined();
-    expect(await cache.get(two.id, "c1")).toBeDefined();
+    expect(await cache.get(one.id, 'c1')).toBeUndefined();
+    expect(await cache.get(two.id, 'c1')).toBeDefined();
   });
 
   it("removes every connection an account has, with each credential, and its default, and no other account's", async () => {
     const memory = new MemoryProvider();
-    for (const name of ["one", "two", "three"]) {
-      memory.createRepository({ owner: "acme", name });
-      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    for (const name of ['one', 'two', 'three']) {
+      memory.createRepository({ owner: 'acme', name });
+      memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
     }
     const s = new ConnectionService({ database, credentials, github: () => memory });
-    await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD });
-    await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD });
-    const bobs = (await s.addWithToken(BOB, { repository: "acme/three", token: GOOD })).connection;
+    await s.addWithToken(ALICE, { repository: 'acme/one', token: GOOD });
+    await s.addWithToken(ALICE, { repository: 'acme/two', token: GOOD });
+    const bobs = (await s.addWithToken(BOB, { repository: 'acme/three', token: GOOD })).connection;
 
     expect(await s.removeAll(ALICE)).toBe(2);
     expect(await s.list(ALICE)).toEqual([]);
@@ -299,38 +454,42 @@ describe(`using and removing a connection (${leg})`, () => {
     expect(await count(credentialTable())).toBe(1);
     // Again, and for an account with none: nothing to do.
     expect(await s.removeAll(ALICE)).toBe(0);
-    expect(await s.removeAll("user-nobody")).toBe(0);
+    expect(await s.removeAll('user-nobody')).toBe(0);
   });
 
   it("forgets the repository's drafts when it is disconnected, and no other's", async () => {
     const memory = new MemoryProvider();
-    for (const name of ["one", "two"]) {
-      memory.createRepository({ owner: "acme", name });
-      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    for (const name of ['one', 'two']) {
+      memory.createRepository({ owner: 'acme', name });
+      memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
     }
     const s = new ConnectionService({ database, credentials, github: () => memory });
-    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
-    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const one = (await s.addWithToken(ALICE, { repository: 'acme/one', token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: 'acme/two', token: GOOD })).connection;
     const drafts = new WorkingCopyService(database);
-    const editor = { type: "account" as const, id: ALICE };
-    for (const { id } of [one, two]) await drafts.save(id, "Notes/a.md", { baseBlob: "b".repeat(40), content: "unsaved" }, editor);
+    const editor = { type: 'account' as const, id: ALICE };
+    for (const { id } of [one, two])
+      await drafts.save(id, 'Notes/a.md', { baseBlob: 'b'.repeat(40), content: 'unsaved' }, editor);
 
     await s.remove(ALICE, one.id);
-    expect(await drafts.get(one.id, "Notes/a.md")).toBeUndefined();
-    expect(await drafts.get(two.id, "Notes/a.md")).toBeDefined();
+    expect(await drafts.get(one.id, 'Notes/a.md')).toBeUndefined();
+    expect(await drafts.get(two.id, 'Notes/a.md')).toBeDefined();
   });
 
   it("forgets the record of what was deleted when the repository is disconnected, and no other's", async () => {
     const memory = new MemoryProvider();
-    for (const name of ["one", "two"]) {
-      memory.createRepository({ owner: "acme", name });
-      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    for (const name of ['one', 'two']) {
+      memory.createRepository({ owner: 'acme', name });
+      memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
     }
     const s = new ConnectionService({ database, credentials, github: () => memory });
-    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
-    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const one = (await s.addWithToken(ALICE, { repository: 'acme/one', token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: 'acme/two', token: GOOD })).connection;
     const deletions = new DeletionService(database);
-    for (const { id } of [one, two]) await deletions.record(id, "c".repeat(40), ALICE, [{ path: "Notes/a.md", kind: "doc", blob: "b".repeat(40) }]);
+    for (const { id } of [one, two])
+      await deletions.record(id, 'c'.repeat(40), ALICE, [
+        { path: 'Notes/a.md', kind: 'doc', blob: 'b'.repeat(40) },
+      ]);
 
     await s.remove(ALICE, one.id);
     expect(await deletions.list(one.id, 1e12)).toEqual([]);
@@ -338,7 +497,8 @@ describe(`using and removing a connection (${leg})`, () => {
   });
 
   it("shows an account only its own connections, and answers for another's as if there were none", async () => {
-    const mine = (await service.addWithToken(ALICE, { repository: "acme/notes", token: GOOD })).connection;
+    const mine = (await service.addWithToken(ALICE, { repository: 'acme/notes', token: GOOD }))
+      .connection;
     expect(await service.list(BOB)).toEqual([]);
     expect(await service.get(BOB, mine.id)).toBeUndefined();
     expect(await service.provider(BOB, mine.id)).toBeUndefined();
@@ -349,15 +509,18 @@ describe(`using and removing a connection (${leg})`, () => {
 
   it("forgets which Doc is where when the repository is disconnected, and for no other's", async () => {
     const memory = new MemoryProvider();
-    for (const name of ["one", "two"]) {
-      memory.createRepository({ owner: "acme", name });
-      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    for (const name of ['one', 'two']) {
+      memory.createRepository({ owner: 'acme', name });
+      memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
     }
     const s = new ConnectionService({ database, credentials, github: () => memory });
-    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
-    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const one = (await s.addWithToken(ALICE, { repository: 'acme/one', token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: 'acme/two', token: GOOD })).connection;
     const index = new DocIndex(database);
-    for (const { id } of [one, two]) await index.put(id, [{ path: "Notes/a.md", docId: "01jagc4k7pt8y3wqnmzv5xrb8j", blob: "b".repeat(40) }]);
+    for (const { id } of [one, two])
+      await index.put(id, [
+        { path: 'Notes/a.md', docId: '01jagc4k7pt8y3wqnmzv5xrb8j', blob: 'b'.repeat(40) },
+      ]);
 
     await s.remove(ALICE, one.id);
     expect((await index.all(one.id)).size).toBe(0);
@@ -366,71 +529,81 @@ describe(`using and removing a connection (${leg})`, () => {
 
   it("forgets the handles made for a repository's paths when it is disconnected, and for no other's", async () => {
     const memory = new MemoryProvider();
-    for (const name of ["one", "two"]) {
-      memory.createRepository({ owner: "acme", name });
-      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    for (const name of ['one', 'two']) {
+      memory.createRepository({ owner: 'acme', name });
+      memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
     }
     const s = new ConnectionService({ database, credentials, github: () => memory });
-    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
-    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const one = (await s.addWithToken(ALICE, { repository: 'acme/one', token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: 'acme/two', token: GOOD })).connection;
     const handles = new FileHandles(database);
-    const [gone, kept] = [await handles.forPath(one.id, "Notes/a.md"), await handles.forPath(two.id, "Notes/a.md")];
+    const [gone, kept] = [
+      await handles.forPath(one.id, 'Notes/a.md'),
+      await handles.forPath(two.id, 'Notes/a.md'),
+    ];
 
     await s.remove(ALICE, one.id);
     expect(await handles.resolve(gone)).toBeUndefined();
-    expect(await handles.resolve(kept)).toEqual({ connectionId: two.id, path: "Notes/a.md" });
+    expect(await handles.resolve(kept)).toEqual({ connectionId: two.id, path: 'Notes/a.md' });
   });
 
   it("ends the pages published from a repository when it is disconnected, and no other's", async () => {
     const memory = new MemoryProvider();
-    for (const name of ["one", "two"]) {
-      memory.createRepository({ owner: "acme", name });
-      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    for (const name of ['one', 'two']) {
+      memory.createRepository({ owner: 'acme', name });
+      memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
     }
     const s = new ConnectionService({ database, credentials, github: () => memory });
-    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
-    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const one = (await s.addWithToken(ALICE, { repository: 'acme/one', token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: 'acme/two', token: GOOD })).connection;
     const pages = new PublicationService(database, Date.now, undefined, credentials);
-    const [gone, kept] = [await pages.publish(one.id, "01jagc4k7pt8y3wqnmzv5xrb8j", ALICE), await pages.publish(two.id, "01jagc4k7pt8y3wqnmzv5xrb8j", ALICE)];
+    const [gone, kept] = [
+      await pages.publish(one.id, '01jagc4k7pt8y3wqnmzv5xrb8j', ALICE),
+      await pages.publish(two.id, '01jagc4k7pt8y3wqnmzv5xrb8j', ALICE),
+    ];
 
     await s.remove(ALICE, one.id);
     expect(await pages.find(gone.token)).toBeUndefined();
     // The sealed address of the page that ended went with it; the other's is still there to show.
-    expect(await pages.address(one.id, "01jagc4k7pt8y3wqnmzv5xrb8j")).toBeUndefined();
-    expect(await pages.address(two.id, "01jagc4k7pt8y3wqnmzv5xrb8j")).toBe(kept.token);
-    expect(await pages.find(kept.token)).toMatchObject({ connectionId: two.id, docId: "01jagc4k7pt8y3wqnmzv5xrb8j" });
+    expect(await pages.address(one.id, '01jagc4k7pt8y3wqnmzv5xrb8j')).toBeUndefined();
+    expect(await pages.address(two.id, '01jagc4k7pt8y3wqnmzv5xrb8j')).toBe(kept.token);
+    expect(await pages.find(kept.token)).toMatchObject({
+      connectionId: two.id,
+      docId: '01jagc4k7pt8y3wqnmzv5xrb8j',
+    });
   });
 
   it("forgets what was shared from a repository when it is disconnected, and for no other's", async () => {
     const memory = new MemoryProvider();
-    for (const name of ["one", "two"]) {
-      memory.createRepository({ owner: "acme", name });
-      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    for (const name of ['one', 'two']) {
+      memory.createRepository({ owner: 'acme', name });
+      memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
     }
     const s = new ConnectionService({ database, credentials, github: () => memory });
-    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
-    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const one = (await s.addWithToken(ALICE, { repository: 'acme/one', token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: 'acme/two', token: GOOD })).connection;
     const shares = new ShareService(database);
-    for (const { id } of [one, two]) await shares.set(id, "01jagc4k7pt8y3wqnmzv5xrb8j", BOB, "view", ALICE);
+    for (const { id } of [one, two])
+      await shares.set(id, '01jagc4k7pt8y3wqnmzv5xrb8j', BOB, 'view', ALICE);
 
     await s.remove(ALICE, one.id);
-    expect(await shares.list(one.id, "01jagc4k7pt8y3wqnmzv5xrb8j")).toEqual([]);
-    expect(await shares.list(two.id, "01jagc4k7pt8y3wqnmzv5xrb8j")).toHaveLength(1);
+    expect(await shares.list(one.id, '01jagc4k7pt8y3wqnmzv5xrb8j')).toEqual([]);
+    expect(await shares.list(two.id, '01jagc4k7pt8y3wqnmzv5xrb8j')).toHaveLength(1);
   });
 
-  it("forgets the links of a repository when it is disconnected, and of no other", async () => {
+  it('forgets the links of a repository when it is disconnected, and of no other', async () => {
     const memory = new MemoryProvider();
-    for (const name of ["one", "two"]) {
-      memory.createRepository({ owner: "acme", name });
-      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    for (const name of ['one', 'two']) {
+      memory.createRepository({ owner: 'acme', name });
+      memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
     }
     const s = new ConnectionService({ database, credentials, github: () => memory });
-    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
-    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const one = (await s.addWithToken(ALICE, { repository: 'acme/one', token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: 'acme/two', token: GOOD })).connection;
     const links = new LinkService(database);
     const tokens: string[] = [];
     for (const { id } of [one, two]) {
-      const made = await links.create(id, "01jagc4k7pt8y3wqnmzv5xrb8j", "view", null, ALICE);
+      const made = await links.create(id, '01jagc4k7pt8y3wqnmzv5xrb8j', 'view', null, ALICE);
       if (made.ok) tokens.push(made.token);
     }
     await s.remove(ALICE, one.id);
@@ -438,61 +611,73 @@ describe(`using and removing a connection (${leg})`, () => {
     expect(await links.byToken(tokens[1]!)).toBeDefined();
   });
 
-  it("deletes the sealed copies of a repository when it is disconnected, and of no other (security review of phase 2)", async () => {
+  it('deletes the sealed copies of a repository when it is disconnected, and of no other (security review of phase 2)', async () => {
     const memory = new MemoryProvider();
-    for (const name of ["one", "two"]) {
-      memory.createRepository({ owner: "acme", name });
-      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    for (const name of ['one', 'two']) {
+      memory.createRepository({ owner: 'acme', name });
+      memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
     }
     const s = new ConnectionService({ database, credentials, github: () => memory });
-    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
-    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const one = (await s.addWithToken(ALICE, { repository: 'acme/one', token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: 'acme/two', token: GOOD })).connection;
     const sealed = new SealedShareService(database);
     const tokens: string[] = [];
     for (const { id } of [one, two]) {
-      const made = await sealed.create(id, { path: "Secret/a.md.age", mode: "key", ciphertext: Buffer.from("age-encryption.org/v1\nx").toString("base64"), createdBy: ALICE });
+      const made = await sealed.create(id, {
+        path: 'Secret/a.md.age',
+        mode: 'key',
+        ciphertext: Buffer.from('age-encryption.org/v1\nx').toString('base64'),
+        createdBy: ALICE,
+      });
       if (made.ok) tokens.push(made.token);
     }
     await s.remove(ALICE, one.id);
     expect(await sealed.byToken(tokens[0]!)).toBeUndefined();
     expect(await sealed.byToken(tokens[1]!)).toBeDefined();
-    expect(await sealed.list(one.id, "Secret/a.md.age")).toEqual([]);
+    expect(await sealed.list(one.id, 'Secret/a.md.age')).toEqual([]);
   });
 
   it("forgets what was said about a repository's documents when it is disconnected, and about no other's", async () => {
     const memory = new MemoryProvider();
-    for (const name of ["one", "two"]) {
-      memory.createRepository({ owner: "acme", name });
-      memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    for (const name of ['one', 'two']) {
+      memory.createRepository({ owner: 'acme', name });
+      memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
     }
     const s = new ConnectionService({ database, credentials, github: () => memory });
-    const one = (await s.addWithToken(ALICE, { repository: "acme/one", token: GOOD })).connection;
-    const two = (await s.addWithToken(ALICE, { repository: "acme/two", token: GOOD })).connection;
+    const one = (await s.addWithToken(ALICE, { repository: 'acme/one', token: GOOD })).connection;
+    const two = (await s.addWithToken(ALICE, { repository: 'acme/two', token: GOOD })).connection;
     const comments = new CommentService(database);
-    const anchor = { type: "text-quote" as const, quote: "q", prefix: "", suffix: "", position: 0 };
-    const doc = "01jagc4k7pt8y3wqnmzv5xrb8j";
-    const author = { kind: "account" as const, id: ALICE, name: "Alice" };
+    const anchor = { type: 'text-quote' as const, quote: 'q', prefix: '', suffix: '', position: 0 };
+    const doc = '01jagc4k7pt8y3wqnmzv5xrb8j';
+    const author = { kind: 'account' as const, id: ALICE, name: 'Alice' };
     for (const { id } of [one, two]) {
-      const thread = await comments.createThread(id, doc, anchor, "a comment", author);
-      if (thread.ok) await comments.reply(id, doc, thread.id, "a reply", author);
+      const thread = await comments.createThread(id, doc, anchor, 'a comment', author);
+      if (thread.ok) await comments.reply(id, doc, thread.id, 'a reply', author);
       await comments.setClosed(id, doc, true, author);
     }
     await s.remove(ALICE, one.id);
-    expect(await comments.list(one.id, doc, undefined)).toEqual({ threads: [], closed: false, version: 0 });
+    expect(await comments.list(one.id, doc, undefined)).toEqual({
+      threads: [],
+      closed: false,
+      version: 0,
+    });
     expect(await comments.activity(one.id, doc)).toEqual([]);
     expect((await comments.list(two.id, doc, undefined)).threads).toHaveLength(1);
     expect((await comments.list(two.id, doc, undefined)).closed).toBe(true);
   });
 
-  it("lets two accounts connect the same repository, each with a token of their own", async () => {
-    await service.addWithToken(ALICE, { repository: "acme/notes", token: GOOD });
-    await service.addWithToken(BOB, { repository: "acme/notes", token: GOOD });
+  it('lets two accounts connect the same repository, each with a token of their own', async () => {
+    await service.addWithToken(ALICE, { repository: 'acme/notes', token: GOOD });
+    await service.addWithToken(BOB, { repository: 'acme/notes', token: GOOD });
     expect(await count(connectionTable())).toBe(2);
     expect(await count(credentialTable())).toBe(2);
   });
 
-  it("disconnects, deleting the connection and the token with it", async () => {
-    const { connection } = await service.addWithToken(ALICE, { repository: "acme/notes", token: GOOD });
+  it('disconnects, deleting the connection and the token with it', async () => {
+    const { connection } = await service.addWithToken(ALICE, {
+      repository: 'acme/notes',
+      token: GOOD,
+    });
     expect(await service.remove(ALICE, connection.id)).toBe(true);
     expect(await service.list(ALICE)).toEqual([]);
     expect(await count(credentialTable())).toBe(0);
@@ -504,39 +689,43 @@ describe(`using and removing a connection (${leg})`, () => {
 function serviceWithRepositories(...names: string[]): ConnectionService {
   const memory = new MemoryProvider();
   for (const name of names) {
-    memory.createRepository({ owner: "acme", name });
-    memory.seed({ owner: "acme", name }, { "fjord.json": "{}" });
+    memory.createRepository({ owner: 'acme', name });
+    memory.seed({ owner: 'acme', name }, { 'fjord.json': '{}' });
   }
   return new ConnectionService({ database, credentials, github: () => memory });
 }
-const connect = (s: ConnectionService, account: string, name: string) => s.addWithToken(account, { repository: `acme/${name}`, token: GOOD });
+const connect = (s: ConnectionService, account: string, name: string) =>
+  s.addWithToken(account, { repository: `acme/${name}`, token: GOOD });
 
 describe(`the default repository (${leg})`, () => {
-  it("is the first one an account connects, and the ones after it are not", async () => {
-    const s = serviceWithRepositories("one", "two", "three");
-    const one = (await connect(s, ALICE, "one")).connection;
-    const two = (await connect(s, ALICE, "two")).connection;
-    const three = (await connect(s, ALICE, "three")).connection;
+  it('is the first one an account connects, and the ones after it are not', async () => {
+    const s = serviceWithRepositories('one', 'two', 'three');
+    const one = (await connect(s, ALICE, 'one')).connection;
+    const two = (await connect(s, ALICE, 'two')).connection;
+    const three = (await connect(s, ALICE, 'three')).connection;
     expect([one.isDefault, two.isDefault, three.isDefault]).toEqual([true, false, false]);
-    expect((await s.list(ALICE)).filter((c) => c.isDefault).map((c) => c.name)).toEqual(["one"]);
-    expect((await s.defaultFor(ALICE))?.name).toBe("one");
+    expect((await s.list(ALICE)).filter((c) => c.isDefault).map((c) => c.name)).toEqual(['one']);
+    expect((await s.defaultFor(ALICE))?.name).toBe('one');
   });
 
   it("can be changed to another of the account's own, and there is only ever one", async () => {
-    const s = serviceWithRepositories("one", "two");
-    await connect(s, ALICE, "one");
-    const two = (await connect(s, ALICE, "two")).connection;
+    const s = serviceWithRepositories('one', 'two');
+    await connect(s, ALICE, 'one');
+    const two = (await connect(s, ALICE, 'two')).connection;
     expect(await s.setDefault(ALICE, two.id)).toBe(true);
-    expect((await s.list(ALICE)).map((c) => [c.name, c.isDefault])).toEqual([["one", false], ["two", true]]);
-    expect((await s.defaultFor(ALICE))?.name).toBe("two");
+    expect((await s.list(ALICE)).map((c) => [c.name, c.isDefault])).toEqual([
+      ['one', false],
+      ['two', true],
+    ]);
+    expect((await s.defaultFor(ALICE))?.name).toBe('two');
     expect(await s.setDefault(ALICE, two.id)).toBe(true);
     expect(await count(defaultTable())).toBe(1);
   });
 
   it("cannot be set to someone else's connection, or one that is not there, and then nothing changes", async () => {
-    const s = serviceWithRepositories("one", "two");
-    const alices = (await connect(s, ALICE, "one")).connection;
-    const bobs = (await connect(s, BOB, "two")).connection;
+    const s = serviceWithRepositories('one', 'two');
+    const alices = (await connect(s, ALICE, 'one')).connection;
+    const bobs = (await connect(s, BOB, 'two')).connection;
     expect(await s.setDefault(ALICE, bobs.id)).toBe(false);
     expect(await s.setDefault(BOB, alices.id)).toBe(false);
     expect(await s.setDefault(ALICE, 999_999)).toBe(false);
@@ -545,17 +734,17 @@ describe(`the default repository (${leg})`, () => {
   });
 
   it("is an account's own: each account's first connection is its default", async () => {
-    const s = serviceWithRepositories("one", "two");
-    const a = (await connect(s, ALICE, "two")).connection;
-    const b = (await connect(s, BOB, "one")).connection;
+    const s = serviceWithRepositories('one', 'two');
+    const a = (await connect(s, ALICE, 'two')).connection;
+    const b = (await connect(s, BOB, 'one')).connection;
     expect([a.isDefault, b.isDefault]).toEqual([true, true]);
   });
 
-  it("moves to the first one left when the default is disconnected, and stays when another is", async () => {
-    const s = serviceWithRepositories("one", "two", "three");
-    const one = (await connect(s, ALICE, "one")).connection;
-    const two = (await connect(s, ALICE, "two")).connection;
-    const three = (await connect(s, ALICE, "three")).connection;
+  it('moves to the first one left when the default is disconnected, and stays when another is', async () => {
+    const s = serviceWithRepositories('one', 'two', 'three');
+    const one = (await connect(s, ALICE, 'one')).connection;
+    const two = (await connect(s, ALICE, 'two')).connection;
+    const three = (await connect(s, ALICE, 'three')).connection;
     await s.setDefault(ALICE, two.id);
 
     await s.remove(ALICE, three.id);
@@ -569,47 +758,50 @@ describe(`the default repository (${leg})`, () => {
     expect(await s.defaultFor(ALICE)).toBeUndefined();
   });
 
-  it("makes the next one connected the default again after the last was disconnected", async () => {
-    const s = serviceWithRepositories("one", "two");
-    const one = (await connect(s, ALICE, "one")).connection;
+  it('makes the next one connected the default again after the last was disconnected', async () => {
+    const s = serviceWithRepositories('one', 'two');
+    const one = (await connect(s, ALICE, 'one')).connection;
     await s.remove(ALICE, one.id);
-    const two = (await connect(s, ALICE, "two")).connection;
+    const two = (await connect(s, ALICE, 'two')).connection;
     expect(two.isDefault).toBe(true);
   });
 
-  it("is repaired on reading when the connection it names has gone some other way", async () => {
-    const s = serviceWithRepositories("one", "two");
-    const one = (await connect(s, ALICE, "one")).connection;
-    const two = (await connect(s, ALICE, "two")).connection;
+  it('is repaired on reading when the connection it names has gone some other way', async () => {
+    const s = serviceWithRepositories('one', 'two');
+    const one = (await connect(s, ALICE, 'one')).connection;
+    const two = (await connect(s, ALICE, 'two')).connection;
     await dbRun(database, sql`DELETE FROM ${connectionTable()} WHERE id = ${one.id}`);
     expect((await s.defaultFor(ALICE))?.id).toBe(two.id);
-    const three = serviceWithRepositories("one", "two", "three");
-    expect((await connect(three, ALICE, "three")).connection.isDefault).toBe(false);
+    const three = serviceWithRepositories('one', 'two', 'three');
+    expect((await connect(three, ALICE, 'three')).connection.isDefault).toBe(false);
   });
 });
 
 describe(`the kind a repository was last read as (${leg})`, () => {
   it("is nothing until one is kept, is kept for that account's repository only, and a value that is not a kind reads as nothing", async () => {
-    const s = serviceWithRepositories("one", "two");
-    const one = (await connect(s, ALICE, "one")).connection;
-    const two = (await connect(s, ALICE, "two")).connection;
+    const s = serviceWithRepositories('one', 'two');
+    const one = (await connect(s, ALICE, 'one')).connection;
+    const two = (await connect(s, ALICE, 'two')).connection;
     expect(one.repoKind).toBeNull();
-    await s.setRepoKind(ALICE, one.id, "journal");
-    expect((await s.get(ALICE, one.id))?.repoKind).toBe("journal");
+    await s.setRepoKind(ALICE, one.id, 'journal');
+    expect((await s.get(ALICE, one.id))?.repoKind).toBe('journal');
     expect((await s.get(ALICE, two.id))?.repoKind).toBeNull();
     // Someone else's id changes nothing.
-    await s.setRepoKind("someone-else", two.id, "ssg");
+    await s.setRepoKind('someone-else', two.id, 'ssg');
     expect((await s.get(ALICE, two.id))?.repoKind).toBeNull();
-    await dbRun(database, sql`UPDATE ${connectionTable()} SET repo_kind = 'something-new' WHERE id = ${two.id}`);
+    await dbRun(
+      database,
+      sql`UPDATE ${connectionTable()} SET repo_kind = 'something-new' WHERE id = ${two.id}`,
+    );
     expect((await s.get(ALICE, two.id))?.repoKind).toBeNull();
   });
 });
 
 describe(`what a repository is called in an address (${leg})`, () => {
-  it("is a short lower-case name of its own, different for each repository, and is what finds it", async () => {
-    const s = serviceWithRepositories("one", "two");
-    const one = (await connect(s, ALICE, "one")).connection;
-    const two = (await connect(s, ALICE, "two")).connection;
+  it('is a short lower-case name of its own, different for each repository, and is what finds it', async () => {
+    const s = serviceWithRepositories('one', 'two');
+    const one = (await connect(s, ALICE, 'one')).connection;
+    const two = (await connect(s, ALICE, 'two')).connection;
     expect(isPublicId(one.publicId)).toBe(true);
     expect(isPublicId(two.publicId)).toBe(true);
     expect(one.publicId).not.toBe(two.publicId);
@@ -619,72 +811,77 @@ describe(`what a repository is called in an address (${leg})`, () => {
   });
 
   it("begins its addresses with the kind it was last read as: a drive's until it has been read", async () => {
-    const s = serviceWithRepositories("one");
-    const one = (await connect(s, ALICE, "one")).connection;
+    const s = serviceWithRepositories('one');
+    const one = (await connect(s, ALICE, 'one')).connection;
     expect(one.address).toBe(`drive/${one.publicId}`);
-    await s.setRepoKind(ALICE, one.id, "journal");
+    await s.setRepoKind(ALICE, one.id, 'journal');
     expect((await s.get(ALICE, one.id))?.address).toBe(`journal/${one.publicId}`);
-    await s.setRepoKind(ALICE, one.id, "ssg");
+    await s.setRepoKind(ALICE, one.id, 'ssg');
     expect((await s.get(ALICE, one.id))?.address).toBe(`ssg/${one.publicId}`);
   });
 
   it("finds only the account's own, and nothing for a name that is not one", async () => {
-    const s = serviceWithRepositories("one");
-    const one = (await connect(s, ALICE, "one")).connection;
+    const s = serviceWithRepositories('one');
+    const one = (await connect(s, ALICE, 'one')).connection;
     expect(await s.getByPublicId(BOB, one.publicId)).toBeUndefined();
-    expect(await s.getByPublicId(ALICE, "zzzzzzzz")).toBeUndefined();
+    expect(await s.getByPublicId(ALICE, 'zzzzzzzz')).toBeUndefined();
     expect(await s.getByPublicId(ALICE, String(one.id))).toBeUndefined();
   });
 
-  it("is given once to a connection made before there were names, and then stays", async () => {
-    const s = serviceWithRepositories("one", "two");
-    const one = (await connect(s, ALICE, "one")).connection;
-    const two = (await connect(s, ALICE, "two")).connection;
+  it('is given once to a connection made before there were names, and then stays', async () => {
+    const s = serviceWithRepositories('one', 'two');
+    const one = (await connect(s, ALICE, 'one')).connection;
+    const two = (await connect(s, ALICE, 'two')).connection;
     await dbRun(database, sql`UPDATE ${connectionTable()} SET public_id = NULL`);
     const named = await s.list(ALICE);
     expect(named.every((connection) => isPublicId(connection.publicId))).toBe(true);
     expect(named[0]?.publicId).not.toBe(named[1]?.publicId);
-    expect((await s.list(ALICE)).map((connection) => connection.publicId)).toEqual(named.map((connection) => connection.publicId));
+    expect((await s.list(ALICE)).map((connection) => connection.publicId)).toEqual(
+      named.map((connection) => connection.publicId),
+    );
     expect(named.map((connection) => connection.id)).toEqual([one.id, two.id]);
   });
 });
 
 describe(`the vault a repository opens on (${leg})`, () => {
-  it("is nothing until it is chosen, then the chosen directory, and can be forgotten", async () => {
-    const s = serviceWithRepositories("one");
-    const one = (await connect(s, ALICE, "one")).connection;
+  it('is nothing until it is chosen, then the chosen directory, and can be forgotten', async () => {
+    const s = serviceWithRepositories('one');
+    const one = (await connect(s, ALICE, 'one')).connection;
     expect(one.defaultVault).toBeNull();
-    expect(await s.setDefaultVault(ALICE, one.id, "Public")).toBe(true);
-    expect((await s.get(ALICE, one.id))?.defaultVault).toBe("Public");
-    expect(await s.setDefaultVault(ALICE, one.id, "Private")).toBe(true);
-    expect((await s.list(ALICE))[0]?.defaultVault).toBe("Private");
+    expect(await s.setDefaultVault(ALICE, one.id, 'Public')).toBe(true);
+    expect((await s.get(ALICE, one.id))?.defaultVault).toBe('Public');
+    expect(await s.setDefaultVault(ALICE, one.id, 'Private')).toBe(true);
+    expect((await s.list(ALICE))[0]?.defaultVault).toBe('Private');
     expect(await s.setDefaultVault(ALICE, one.id, null)).toBe(true);
     expect((await s.get(ALICE, one.id))?.defaultVault).toBeNull();
   });
 
   it("is each repository's own, and choosing one changes no other", async () => {
-    const s = serviceWithRepositories("one", "two");
-    const one = (await connect(s, ALICE, "one")).connection;
-    const two = (await connect(s, ALICE, "two")).connection;
-    await s.setDefaultVault(ALICE, two.id, "Public");
-    expect((await s.list(ALICE)).map((c) => [c.name, c.defaultVault])).toEqual([["one", null], ["two", "Public"]]);
+    const s = serviceWithRepositories('one', 'two');
+    const one = (await connect(s, ALICE, 'one')).connection;
+    const two = (await connect(s, ALICE, 'two')).connection;
+    await s.setDefaultVault(ALICE, two.id, 'Public');
+    expect((await s.list(ALICE)).map((c) => [c.name, c.defaultVault])).toEqual([
+      ['one', null],
+      ['two', 'Public'],
+    ]);
     expect((await s.get(ALICE, one.id))?.defaultVault).toBeNull();
   });
 
   it("cannot be set on someone else's connection, or one that is not there, and then nothing changes", async () => {
-    const s = serviceWithRepositories("one", "two");
-    const alices = (await connect(s, ALICE, "one")).connection;
-    const bobs = (await connect(s, BOB, "two")).connection;
-    expect(await s.setDefaultVault(ALICE, bobs.id, "Public")).toBe(false);
-    expect(await s.setDefaultVault(BOB, alices.id, "Public")).toBe(false);
-    expect(await s.setDefaultVault(ALICE, 999_999, "Public")).toBe(false);
+    const s = serviceWithRepositories('one', 'two');
+    const alices = (await connect(s, ALICE, 'one')).connection;
+    const bobs = (await connect(s, BOB, 'two')).connection;
+    expect(await s.setDefaultVault(ALICE, bobs.id, 'Public')).toBe(false);
+    expect(await s.setDefaultVault(BOB, alices.id, 'Public')).toBe(false);
+    expect(await s.setDefaultVault(ALICE, 999_999, 'Public')).toBe(false);
     expect((await s.get(ALICE, alices.id))?.defaultVault).toBeNull();
     expect((await s.get(BOB, bobs.id))?.defaultVault).toBeNull();
   });
 
-  it("is bound as a value: a name that looks like SQL is kept as the text it is", async () => {
-    const s = serviceWithRepositories("one");
-    const one = (await connect(s, ALICE, "one")).connection;
+  it('is bound as a value: a name that looks like SQL is kept as the text it is', async () => {
+    const s = serviceWithRepositories('one');
+    const one = (await connect(s, ALICE, 'one')).connection;
     const odd = "x'; DROP TABLE connection; --";
     await s.setDefaultVault(ALICE, one.id, odd);
     expect((await s.get(ALICE, one.id))?.defaultVault).toBe(odd);

@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useState } from "react";
-import { Alert, Button } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import type { PreviewView } from "../preview";
-import { describe, PreviewRows } from "./PreviewRows";
+import { useCallback, useEffect, useState } from 'react';
+import { Alert, Button } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import type { PreviewView } from '../preview';
+import { describe, PreviewRows } from './PreviewRows';
 
 interface Listing {
   previews: PreviewView[];
@@ -27,8 +27,11 @@ export function PreviewPanel({ connectionId }: { connectionId: number }) {
 
   const load = useCallback(async () => {
     try {
-      const response = await fetch(`/api/connections/${connectionId}/previews`, { credentials: "same-origin" });
-      const body = (await response.json().catch(() => null)) as (Listing & { error?: { message?: string } }) | null;
+      const response = await fetch(`/api/connections/${connectionId}/previews`, {
+        credentials: 'same-origin',
+      });
+      const body = (await response.json().catch(() => null)) as
+        (Listing & { error?: { message?: string } }) | null;
       if (!response.ok) {
         // A repository that is not a site, or cannot be read just now, has no previews to show: the page is not the worse for it.
         setListing(null);
@@ -56,11 +59,19 @@ export function PreviewPanel({ connectionId }: { connectionId: number }) {
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(`/api/connections/${connectionId}/previews`, { method: "POST", credentials: "same-origin" });
-      const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
-      if (!response.ok) setError(body?.error?.message ?? "The preview was not started. Nothing was changed. Try again.");
+      const response = await fetch(`/api/connections/${connectionId}/previews`, {
+        method: 'POST',
+        credentials: 'same-origin',
+      });
+      const body = (await response.json().catch(() => null)) as {
+        error?: { message?: string };
+      } | null;
+      if (!response.ok)
+        setError(
+          body?.error?.message ?? 'The preview was not started. Nothing was changed. Try again.',
+        );
     } catch {
-      setError("Could not reach this server. Nothing was changed. Try again.");
+      setError('Could not reach this server. Nothing was changed. Try again.');
     }
     setBusy(false);
     await load();
@@ -70,10 +81,14 @@ export function PreviewPanel({ connectionId }: { connectionId: number }) {
     setStopping(branch);
     setError(null);
     try {
-      const response = await fetch(`/api/connections/${connectionId}/previews?branch=${encodeURIComponent(branch)}`, { method: "DELETE", credentials: "same-origin" });
-      if (!response.ok && response.status !== 404) setError("The preview was not stopped. Try again.");
+      const response = await fetch(
+        `/api/connections/${connectionId}/previews?branch=${encodeURIComponent(branch)}`,
+        { method: 'DELETE', credentials: 'same-origin' },
+      );
+      if (!response.ok && response.status !== 404)
+        setError('The preview was not stopped. Try again.');
     } catch {
-      setError("Could not reach this server. The preview was not stopped.");
+      setError('Could not reach this server. The preview was not stopped.');
     }
     setStopping(null);
     await load();
@@ -86,10 +101,15 @@ export function PreviewPanel({ connectionId }: { connectionId: number }) {
       <h3>Preview</h3>
       <p className={styles.itemMeta}>
         {changes > 0
-          ? `You have ${changes === 1 ? "an unsaved change" : `${changes} unsaved changes`} to this site's posts. Preview puts ${changes === 1 ? "it" : "them"} on a branch of its own for your host to build; the site as it is does not change.`
-          : "Edit a post and it is kept as you type. Then preview it here, on a branch of its own that your host builds, before you save a version."}
+          ? `You have ${changes === 1 ? 'an unsaved change' : `${changes} unsaved changes`} to this site's posts. Preview puts ${changes === 1 ? 'it' : 'them'} on a branch of its own for your host to build; the site as it is does not change.`
+          : 'Edit a post and it is kept as you type. Then preview it here, on a branch of its own that your host builds, before you save a version.'}
       </p>
-      {listing.pending.skipped.length > 0 ? <p className={styles.itemMeta}>Left out: {listing.pending.skipped.map((entry) => entry.path).join(", ")}, which changed in the repository after you began editing.</p> : null}
+      {listing.pending.skipped.length > 0 ? (
+        <p className={styles.itemMeta}>
+          Left out: {listing.pending.skipped.map((entry) => entry.path).join(', ')}, which changed
+          in the repository after you began editing.
+        </p>
+      ) : null}
       {error ? (
         <div className={styles.notice}>
           <Alert variant="error" heading="Nothing was changed">
@@ -97,12 +117,26 @@ export function PreviewPanel({ connectionId }: { connectionId: number }) {
           </Alert>
         </div>
       ) : null}
-      <PreviewRows previews={listing.previews} onStop={(branch) => void stop(branch)} stopping={stopping} />
+      <PreviewRows
+        previews={listing.previews}
+        onStop={(branch) => void stop(branch)}
+        stopping={stopping}
+      />
       <p>
-        <Button variant="secondary" loading={busy} disabled={changes === 0 || listing.previews.length >= listing.max} onClick={() => void start()}>
+        <Button
+          variant="secondary"
+          loading={busy}
+          disabled={changes === 0 || listing.previews.length >= listing.max}
+          onClick={() => void start()}
+        >
           Preview
         </Button>
-        {listing.previews.length >= listing.max ? <span className={styles.itemMeta}> You have {listing.max} previews; stop one to start another.</span> : null}
+        {listing.previews.length >= listing.max ? (
+          <span className={styles.itemMeta}>
+            {' '}
+            You have {listing.max} previews; stop one to start another.
+          </span>
+        ) : null}
       </p>
     </section>
   );

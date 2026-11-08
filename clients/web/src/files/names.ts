@@ -5,8 +5,10 @@
  */
 export function renameProblem(name: string): string | null {
   const typed = name.trim();
-  if (typed.includes("/") || typed.includes("\\")) return "A name cannot hold a slash. To put it in another folder, use Move.";
-  if (typed.startsWith(".")) return "A name cannot start with a dot: other tools would leave it out of what they list.";
-  if (typed.endsWith(".")) return "A name cannot end with a dot.";
+  if (typed.includes('/') || typed.includes('\\'))
+    return 'A name cannot hold a slash. To put it in another folder, use Move.';
+  if (typed.startsWith('.'))
+    return 'A name cannot start with a dot: other tools would leave it out of what they list.';
+  if (typed.endsWith('.')) return 'A name cannot end with a dot.';
   return null;
 }

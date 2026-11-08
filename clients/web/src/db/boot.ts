@@ -1,7 +1,7 @@
-import { type Database, openDatabase } from "./client";
-import { type Env, describeConfig, resolveDatabaseConfig } from "./config";
-import { runMigrations } from "./migrate";
-import { provisionStores } from "./provision";
+import { type Database, openDatabase } from './client';
+import { type Env, describeConfig, resolveDatabaseConfig } from './config';
+import { runMigrations } from './migrate';
+import { provisionStores } from './provision';
 
 /**
  * Bring the database up: read the configuration, make sure the stores exist, open both,
@@ -19,7 +19,7 @@ export interface Stores {
   close(): Promise<void>;
 }
 
-const KEY = Symbol.for("fjord.database");
+const KEY = Symbol.for('fjord.database');
 type Holder = { [KEY]?: Promise<Stores> };
 
 export function getStores(env: Env = process.env): Promise<Stores> {
@@ -48,8 +48,8 @@ async function boot(env: Env): Promise<Stores> {
   console.info(`[fjord] database: ${describeConfig(config)}`);
   await provisionStores(config, timeoutMs);
 
-  const app = await openDatabase(config, "app");
-  const auth = await openDatabase(config, "auth");
+  const app = await openDatabase(config, 'app');
+  const auth = await openDatabase(config, 'auth');
   const close = async () => {
     await Promise.all([app.close(), auth.close()]);
   };
@@ -60,6 +60,6 @@ async function boot(env: Env): Promise<Stores> {
     await close();
     throw error;
   }
-  console.info("[fjord] database: ready, migrations applied");
+  console.info('[fjord] database: ready, migrations applied');
   return { app, auth, close };
 }

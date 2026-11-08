@@ -1,4 +1,4 @@
-import { argon2, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { argon2, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 /**
  * Passwords on share links (DESIGN.md §12, ROADMAP 1c.5): hashed with **Argon2id**, by Node's own implementation (no dependency to
@@ -6,28 +6,51 @@ import { argon2, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
  * so they can be raised later without invalidating what is stored. The parameters are OWASP's minimum for Argon2id (19 MiB, two
  * passes, one lane). Only the hash is kept; the password itself is never stored, logged or returned.
  */
-export const ARGON2 = { memory: 19456, passes: 2, parallelism: 1, tagLength: 32, saltLength: 16 } as const;
+export const ARGON2 = {
+  memory: 19456,
+  passes: 2,
+  parallelism: 1,
+  tagLength: 32,
+  saltLength: 16,
+} as const;
 
 /** What a password may be: long enough to be worth hashing, and not a megabyte. */
 export const MIN_PASSWORD_CHARS = 8;
 export const MAX_PASSWORD_CHARS = 200;
 
 export function isAcceptablePassword(value: unknown): value is string {
-  return typeof value === "string" && value.length >= MIN_PASSWORD_CHARS && value.length <= MAX_PASSWORD_CHARS && value.isWellFormed() && !value.includes("\0");
+  return (
+    typeof value === 'string' &&
+    value.length >= MIN_PASSWORD_CHARS &&
+    value.length <= MAX_PASSWORD_CHARS &&
+    value.isWellFormed() &&
+    !value.includes('\0')
+  );
 }
 
 type Params = { memory: number; passes: number; parallelism: number; tagLength: number };
 
 function derive(password: string, salt: Buffer, params: Params): Promise<Buffer> {
   return new Promise((resolve, reject) => {
-    argon2("argon2id", { message: password, nonce: salt, parallelism: params.parallelism, tagLength: params.tagLength, memory: params.memory, passes: params.passes }, (error, key) => {
-      if (error) reject(error);
-      else resolve(key);
-    });
+    argon2(
+      'argon2id',
+      {
+        message: password,
+        nonce: salt,
+        parallelism: params.parallelism,
+        tagLength: params.tagLength,
+        memory: params.memory,
+        passes: params.passes,
+      },
+      (error, key) => {
+        if (error) reject(error);
+        else resolve(key);
+      },
+    );
   });
 }
 
-const b64 = (bytes: Buffer) => bytes.toString("base64").replace(/=+$/, "");
+const b64 = (bytes: Buffer) => bytes.toString('base64').replace(/=+$/, '');
 
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(ARGON2.saltLength);
@@ -37,13 +60,22 @@ export async function hashPassword(password: string): Promise<string> {
 
 /** The parameters, salt and hash of a stored string; undefined for anything that is not one this module wrote or would accept. */
 function parse(stored: string): (Params & { salt: Buffer; key: Buffer }) | undefined {
-  const match = /^\$argon2id\$v=19\$m=(\d+),t=(\d+),p=(\d+)\$([A-Za-z0-9+/]+)\$([A-Za-z0-9+/]+)$/.exec(stored);
+  const match =
+    /^\$argon2id\$v=19\$m=(\d+),t=(\d+),p=(\d+)\$([A-Za-z0-9+/]+)\$([A-Za-z0-9+/]+)$/.exec(stored);
   if (!match) return undefined;
   const [memory, passes, parallelism] = [Number(match[1]), Number(match[2]), Number(match[3])];
   // A stored string is ours, but it is read back from a database: refuse parameters that would make a check cost a server.
-  if (memory < 8 || memory > 262_144 || passes < 1 || passes > 10 || parallelism < 1 || parallelism > 8) return undefined;
-  const salt = Buffer.from(match[4]!, "base64");
-  const key = Buffer.from(match[5]!, "base64");
+  if (
+    memory < 8 ||
+    memory > 262_144 ||
+    passes < 1 ||
+    passes > 10 ||
+    parallelism < 1 ||
+    parallelism > 8
+  )
+    return undefined;
+  const salt = Buffer.from(match[4]!, 'base64');
+  const key = Buffer.from(match[5]!, 'base64');
   if (salt.length < 8 || key.length < 16 || key.length > 64) return undefined;
   return { memory, passes, parallelism, tagLength: key.length, salt, key };
 }
@@ -62,14 +94,27 @@ export async function verifyPassword(password: string, stored: string): Promise<
  * carries this too, and the page asks for it. It is made with a secret only the server has (`FJORD_AUTH_SECRET`), and it is
  * bound to the password hash, so changing the password ends every cookie given for the old one.
  */
-export function unlockProof(secret: string, linkId: number, passwordHash: string, purpose: UnlockPurpose = "fjord-share-unlock"): string {
-  return createHmac("sha256", secret).update(`${purpose}\0${linkId}\0${passwordHash}`).digest("base64url");
+export function unlockProof(
+  secret: string,
+  linkId: number,
+  passwordHash: string,
+  purpose: UnlockPurpose = 'fjord-share-unlock',
+): string {
+  return createHmac('sha256', secret)
+    .update(`${purpose}\0${linkId}\0${passwordHash}`)
+    .digest('base64url');
 }
 
 /** What a proof is for: a link's password, or a published page's. A proof made for one is never right for the other, whatever the numbers. */
-export type UnlockPurpose = "fjord-share-unlock" | "fjord-publication-unlock";
+export type UnlockPurpose = 'fjord-share-unlock' | 'fjord-publication-unlock';
 
-export function proofIsRight(secret: string, linkId: number, passwordHash: string, proof: string | undefined, purpose: UnlockPurpose = "fjord-share-unlock"): boolean {
+export function proofIsRight(
+  secret: string,
+  linkId: number,
+  passwordHash: string,
+  proof: string | undefined,
+  purpose: UnlockPurpose = 'fjord-share-unlock',
+): boolean {
   if (proof === undefined) return false;
   const expected = Buffer.from(unlockProof(secret, linkId, passwordHash, purpose));
   const given = Buffer.from(proof);

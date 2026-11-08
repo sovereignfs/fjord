@@ -1,5 +1,5 @@
-import type { CryptoModule } from "./module";
-import { KeyError } from "./store";
+import type { CryptoModule } from './module';
+import { KeyError } from './store';
 
 /**
  * Opening and sealing the text of an encrypted file, in the browser (ROADMAP 2b.2, 2b.3). The module and the lent identity are given, so this is tested with the
@@ -9,34 +9,49 @@ import { KeyError } from "./store";
  * Plaintext buffers are wiped as soon as they are text or ciphertext. The text itself is a string, which a page cannot wipe: that is why a page hides it when it
  * is done and when the identity locks.
  */
-export type Shown = { kind: "text"; name: string; text: string } | { kind: "binary"; name: string; bytes: number } | { kind: "large"; name: string; bytes: number };
+export type Shown =
+  | { kind: 'text'; name: string; text: string }
+  | { kind: 'binary'; name: string; bytes: number }
+  | { kind: 'large'; name: string; bytes: number };
 
 /** The most text that is opened to be read or edited: a note's limit (1 MiB), which is also what a draft may be. A larger file is allowed in a repository but is not put in an editor. */
 export const MAX_TEXT_BYTES = 1024 * 1024;
 
-export type Naming = "plain" | "id";
+export type Naming = 'plain' | 'id';
 
-const decoder = new TextDecoder("utf-8", { fatal: true });
+const decoder = new TextDecoder('utf-8', { fatal: true });
 const encoder = new TextEncoder();
 
 /** Decrypt `ciphertext` with the identity `keys` lends, unpack the container of an `id`-named vault, and read the text. */
-export function openCiphertext(module: CryptoModule, keys: { with<T>(use: (secret: Uint8Array) => T): T }, ciphertext: Uint8Array, naming: Naming, logical: string): Shown {
+export function openCiphertext(
+  module: CryptoModule,
+  keys: { with<T>(use: (secret: Uint8Array) => T): T },
+  ciphertext: Uint8Array,
+  naming: Naming,
+  logical: string,
+): Shown {
   let plain: Uint8Array;
   try {
     plain = keys.with((secret) => module.decrypt(ciphertext, secret));
   } catch (error) {
     if (error instanceof KeyError) throw error;
-    throw new KeyError("unreadable", "This identity cannot open the file: it is not one of the keys it was encrypted to, or the file is damaged.");
+    throw new KeyError(
+      'unreadable',
+      'This identity cannot open the file: it is not one of the keys it was encrypted to, or the file is damaged.',
+    );
   }
-  let name = logical.slice(logical.lastIndexOf("/") + 1);
+  let name = logical.slice(logical.lastIndexOf('/') + 1);
   let contents = plain;
-  if (naming === "id") {
+  if (naming === 'id') {
     try {
       const unwrapped = module.unwrapContainer(plain);
       name = unwrapped.name;
       contents = unwrapped.contents;
     } catch {
-      throw new KeyError("unreadable", "The file opened, but what is inside it is not the container the format asks for.");
+      throw new KeyError(
+        'unreadable',
+        'The file opened, but what is inside it is not the container the format asks for.',
+      );
     } finally {
       plain.fill(0);
     }
@@ -45,23 +60,26 @@ export function openCiphertext(module: CryptoModule, keys: { with<T>(use: (secre
   if (contents.byteLength > MAX_TEXT_BYTES) {
     const bytes = contents.byteLength;
     contents.fill(0);
-    return { kind: "large", name, bytes };
+    return { kind: 'large', name, bytes };
   }
   try {
-    return { kind: "text", name, text: decoder.decode(contents) };
+    return { kind: 'text', name, text: decoder.decode(contents) };
   } catch {
-    return { kind: "binary", name, bytes: contents.byteLength };
+    return { kind: 'binary', name, bytes: contents.byteLength };
   } finally {
     contents.fill(0);
   }
 }
 
 /** The ciphertext of `text` for a file called `name`, to every recipient in `recipients` (the text of the vault's recipients file): never to nobody. */
-export function sealText(module: CryptoModule, input: { text: string; name: string; naming: Naming; recipients: string }): Uint8Array {
+export function sealText(
+  module: CryptoModule,
+  input: { text: string; name: string; naming: Naming; recipients: string },
+): Uint8Array {
   const contents = encoder.encode(input.text);
   let plain: Uint8Array = contents;
   try {
-    if (input.naming === "id") plain = module.wrapContainer(input.name, contents);
+    if (input.naming === 'id') plain = module.wrapContainer(input.name, contents);
     return module.encrypt(plain, input.recipients, false);
   } finally {
     contents.fill(0);
@@ -71,8 +89,9 @@ export function sealText(module: CryptoModule, input: { text: string; name: stri
 
 /** Base64 of bytes, as an encrypted draft is kept on the server (`src/working/ciphertext.ts`). */
 export function toBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (let at = 0; at < bytes.length; at += 0x8000) binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
+  let binary = '';
+  for (let at = 0; at < bytes.length; at += 0x8000)
+    binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
   return btoa(binary);
 }
 
@@ -92,7 +111,7 @@ export interface LocalMinute {
   minute: number;
 }
 
-export type NewFile = { ok: true; ciphertext: string } | { ok: false; reason: "bad_title" };
+export type NewFile = { ok: true; ciphertext: string } | { ok: false; reason: 'bad_title' };
 
 /**
  * A new document in an encrypted vault (ROADMAP 2b.4), written and encrypted here: the server is only given the ciphertext (and, for a vault whose file
@@ -102,20 +121,46 @@ export type NewFile = { ok: true; ciphertext: string } | { ok: false; reason: "b
  */
 export function newEncryptedFile(
   module: CryptoModule,
-  input: { title: string; naming: Naming; recipients: string; when: LocalMinute; now: number; random: Uint8Array },
+  input: {
+    title: string;
+    naming: Naming;
+    recipients: string;
+    when: LocalMinute;
+    now: number;
+    random: Uint8Array;
+  },
 ): NewFile {
   const title = input.title.trim();
-  const stem = title === "" ? undefined : module.titleFromText(title);
-  if (title !== "" && !stem) return { ok: false, reason: "bad_title" };
+  const stem = title === '' ? undefined : module.titleFromText(title);
+  if (title !== '' && !stem) return { ok: false, reason: 'bad_title' };
   const created = module.rfc3339FromUnix(Math.floor(input.now / 1000));
-  if (created === undefined) throw new Error("that time cannot be written as a date");
-  const name = stem ? module.freeName(stem, ".md", "[]") : module.quickNoteName("", "[]", input.when.year, input.when.month, input.when.day, input.when.hour, input.when.minute);
-  const text = module.newDocument(module.newUlid(input.now, input.random), title === "" ? name.replace(/\.md$/i, "") : title, created);
-  return { ok: true, ciphertext: toBase64(sealText(module, { text, name, naming: input.naming, recipients: input.recipients })) };
+  if (created === undefined) throw new Error('that time cannot be written as a date');
+  const name = stem
+    ? module.freeName(stem, '.md', '[]')
+    : module.quickNoteName(
+        '',
+        '[]',
+        input.when.year,
+        input.when.month,
+        input.when.day,
+        input.when.hour,
+        input.when.minute,
+      );
+  const text = module.newDocument(
+    module.newUlid(input.now, input.random),
+    title === '' ? name.replace(/\.md$/i, '') : title,
+    created,
+  );
+  return {
+    ok: true,
+    ciphertext: toBase64(
+      sealText(module, { text, name, naming: input.naming, recipients: input.recipients }),
+    ),
+  };
 }
 
 /** Where a file can be moved to in another vault (ROADMAP 2b.6): a plaintext vault, or an encrypted one with the recipients to encrypt to (or why there is none). */
-export type TransferForm = { form: "plaintext" } | { form: "encrypted"; naming: Naming };
+export type TransferForm = { form: 'plaintext' } | { form: 'encrypted'; naming: Naming };
 
 /** The text of a vault's recipients file, or why there is none. */
 export type Recipients = { ok: true; text: string } | { ok: false; message: string };
@@ -134,15 +179,44 @@ export interface TransferTarget {
  */
 export function prepareTransfer(
   module: CryptoModule,
-  input: { text: string; name: string; to: TransferForm; recipients?: Recipients | undefined; now: number; random: Uint8Array },
+  input: {
+    text: string;
+    name: string;
+    to: TransferForm;
+    recipients?: Recipients | undefined;
+    now: number;
+    random: Uint8Array;
+  },
 ): { ok: true; leaf: string; content: string } | { ok: false; message: string } {
-  if (input.to.form === "plaintext") return { ok: true, leaf: input.name, content: toBase64(encoder.encode(input.text)) };
-  if (!input.recipients?.ok) return { ok: false, message: input.recipients?.message ?? "The vault's recipients were not read, so there is no one to encrypt to." };
-  const sealed = toBase64(sealText(module, { text: input.text, name: input.name, naming: input.to.naming, recipients: input.recipients.text }));
-  return { ok: true, leaf: input.to.naming === "id" ? `${module.newUlid(input.now, input.random)}.age` : `${input.name}.age`, content: sealed };
+  if (input.to.form === 'plaintext')
+    return { ok: true, leaf: input.name, content: toBase64(encoder.encode(input.text)) };
+  if (!input.recipients?.ok)
+    return {
+      ok: false,
+      message:
+        input.recipients?.message ??
+        "The vault's recipients were not read, so there is no one to encrypt to.",
+    };
+  const sealed = toBase64(
+    sealText(module, {
+      text: input.text,
+      name: input.name,
+      naming: input.to.naming,
+      recipients: input.recipients.text,
+    }),
+  );
+  return {
+    ok: true,
+    leaf:
+      input.to.naming === 'id'
+        ? `${module.newUlid(input.now, input.random)}.age`
+        : `${input.name}.age`,
+    content: sealed,
+  };
 }
 
 /** How many recipients a recipients file lists: its lines that are not blank or comments. Shown, so that someone who added a key to the file is not invisible to a person about to encrypt to it. */
 export function recipientCount(text: string): number {
-  return text.split(/\r?\n/).filter((line) => line.trim() !== "" && !line.trim().startsWith("#")).length;
+  return text.split(/\r?\n/).filter((line) => line.trim() !== '' && !line.trim().startsWith('#'))
+    .length;
 }

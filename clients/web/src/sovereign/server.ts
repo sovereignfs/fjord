@@ -1,21 +1,21 @@
-import { randomBytes } from "node:crypto";
-import { sovereignAuthConfig } from "../auth/server";
-import { Keyring } from "../crypto/keyring";
-import { encryptionKeyring } from "../crypto/server";
-import { CredentialStore } from "../crypto/store";
-import { getAuthDatabase, getDatabase } from "../db/boot";
-import { ConnectionService } from "../connections/service";
-import { RateLimiter } from "../limits/rate";
-import type { NoticeDeps } from "./http";
-import { People } from "./people";
-import { sdkVerifiers, seenBy } from "./verifiers";
+import { randomBytes } from 'node:crypto';
+import { sovereignAuthConfig } from '../auth/server';
+import { Keyring } from '../crypto/keyring';
+import { encryptionKeyring } from '../crypto/server';
+import { CredentialStore } from '../crypto/store';
+import { getAuthDatabase, getDatabase } from '../db/boot';
+import { ConnectionService } from '../connections/service';
+import { RateLimiter } from '../limits/rate';
+import type { NoticeDeps } from './http';
+import { People } from './people';
+import { sdkVerifiers, seenBy } from './verifiers';
 
 /**
  * What the routes for Sovereign's notices are handed (`http.ts`): the SDK's verifiers for this instance's settings, the people to act on, and
  * the limit on how many requests are taken. Undefined when Sovereign sign-in is not set up, when there is nothing to hear from, and the
  * routes answer 404. Never for a test, which makes its own.
  */
-const KEY = Symbol.for("fjord.sovereign-notices");
+const KEY = Symbol.for('fjord.sovereign-notices');
 type Holder = { [KEY]?: Promise<NoticeDeps | undefined> };
 
 export function noticeDeps(): Promise<NoticeDeps | undefined> {
@@ -37,11 +37,15 @@ async function make(): Promise<NoticeDeps | undefined> {
     database: app,
     credentials,
     github: () => {
-      throw new Error("removing a repository does not reach its git host");
+      throw new Error('removing a repository does not reach its git host');
     },
   });
   return {
-    verify: sdkVerifiers({ coreUrl: sovereign.issuer, clientId: sovereign.clientId, seen: seenBy(limiter) }),
+    verify: sdkVerifiers({
+      coreUrl: sovereign.issuer,
+      clientId: sovereign.clientId,
+      seen: seenBy(limiter),
+    }),
     people: new People({ app, auth: await getAuthDatabase(), connections }),
     limiter,
     log: (line) => console.error(line),

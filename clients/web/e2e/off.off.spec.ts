@@ -1,37 +1,49 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from '@playwright/test';
 
 /** An instance on which FJORD_AUTH_LOCAL is not set: there is no local sign-in, not a disabled one. */
-test.describe("with local sign-in off", () => {
-  test("the landing page still renders", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.getByRole("heading", { name: /Documents and notes/ })).toBeVisible();
+test.describe('with local sign-in off', () => {
+  test('the landing page still renders', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: /Documents and notes/ })).toBeVisible();
   });
 
-  for (const path of ["/sign-in", "/sign-up", "/sign-in/two-factor", "/forgot-password", "/reset-password", "/home", "/account/security"]) {
+  for (const path of [
+    '/sign-in',
+    '/sign-up',
+    '/sign-in/two-factor',
+    '/forgot-password',
+    '/reset-password',
+    '/home',
+    '/account/security',
+  ]) {
     test(`${path} is not found`, async ({ page }) => {
       const response = await page.goto(path);
       expect(response?.status()).toBe(404);
     });
   }
 
-  for (const path of ["/api/auth/ok", "/api/auth/get-session", "/api/auth/passkey/generate-authenticate-options"]) {
+  for (const path of [
+    '/api/auth/ok',
+    '/api/auth/get-session',
+    '/api/auth/passkey/generate-authenticate-options',
+  ]) {
     test(`${path} is not found`, async ({ request }) => {
       expect((await request.get(path)).status()).toBe(404);
     });
   }
 
   // There is no Sovereign to hear from, so the addresses its notices come to are not there (ROADMAP H3).
-  for (const path of ["/api/sovereign/backchannel-logout", "/api/sovereign/account-deleted"]) {
+  for (const path of ['/api/sovereign/backchannel-logout', '/api/sovereign/account-deleted']) {
     test(`${path} is not found, even with a notice`, async ({ request }) => {
-      const form = { logout_token: "a.b.c", account_deleted_token: "a.b.c" };
+      const form = { logout_token: 'a.b.c', account_deleted_token: 'a.b.c' };
       expect((await request.post(path, { form })).status()).toBe(404);
     });
   }
 
-  test("signing up through the API is not found either", async ({ request }) => {
-    const response = await request.post("/api/auth/sign-up/email", {
-      data: { name: "X", email: "x@example.com", password: "correct horse battery" },
-      headers: { origin: "http://localhost:3203" },
+  test('signing up through the API is not found either', async ({ request }) => {
+    const response = await request.post('/api/auth/sign-up/email', {
+      data: { name: 'X', email: 'x@example.com', password: 'correct horse battery' },
+      headers: { origin: 'http://localhost:3203' },
     });
     expect(response.status()).toBe(404);
   });

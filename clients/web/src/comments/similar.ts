@@ -15,7 +15,11 @@ export function editDistance(a: string, b: string, limit: number): number {
     const next = [i];
     let least = i;
     for (let j = 1; j <= y.length; j++) {
-      const value = Math.min(row[j - 1]! + (x[i - 1] === y[j - 1] ? 0 : 1), row[j]! + 1, next[j - 1]! + 1);
+      const value = Math.min(
+        row[j - 1]! + (x[i - 1] === y[j - 1] ? 0 : 1),
+        row[j]! + 1,
+        next[j - 1]! + 1,
+      );
       next.push(value);
       if (value < least) least = value;
     }

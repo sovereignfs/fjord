@@ -14,21 +14,21 @@
  *    longer allowed) stops the saving, and says so.
  */
 export type Attempt =
-  | { kind: "kept" }
+  | { kind: 'kept' }
   /** The server said no. `stop` is for a refusal that no change to the text can fix. */
-  | { kind: "refused"; stop: boolean; message: string }
+  | { kind: 'refused'; stop: boolean; message: string }
   /** The request did not get an answer, or the server could not keep it just now: try again. */
-  | { kind: "failed" };
+  | { kind: 'failed' };
 
 export type SaverStatus =
   /** Nothing has been changed (or it is all as the server has it). */
-  | { state: "idle" }
-  | { state: "pending" }
-  | { state: "saving" }
-  | { state: "kept" }
-  | { state: "retrying"; attempt: number }
-  | { state: "refused"; message: string }
-  | { state: "stopped"; message: string };
+  | { state: 'idle' }
+  | { state: 'pending' }
+  | { state: 'saving' }
+  | { state: 'kept' }
+  | { state: 'retrying'; attempt: number }
+  | { state: 'refused'; message: string }
+  | { state: 'stopped'; message: string };
 
 export interface Timers {
   setTimeout: (callback: () => void, ms: number) => unknown;
@@ -47,10 +47,14 @@ export interface SaverOptions {
   timers?: Timers;
 }
 
-const BROWSER_TIMERS: Timers = { setTimeout: (callback, ms) => globalThis.setTimeout(callback, ms), clearTimeout: (handle) => globalThis.clearTimeout(handle as never), now: () => Date.now() };
+const BROWSER_TIMERS: Timers = {
+  setTimeout: (callback, ms) => globalThis.setTimeout(callback, ms),
+  clearTimeout: (handle) => globalThis.clearTimeout(handle as never),
+  now: () => Date.now(),
+};
 
 export class DraftSaver {
-  private readonly send: SaverOptions["send"];
+  private readonly send: SaverOptions['send'];
   private readonly delay: number;
   private readonly maxWait: number;
   private readonly backoff: number[];
@@ -63,7 +67,7 @@ export class DraftSaver {
   private failures = 0;
   private everKept = false;
   private halted = false;
-  private current: SaverStatus = { state: "idle" };
+  private current: SaverStatus = { state: 'idle' };
   private readonly listeners = new Set<(status: SaverStatus) => void>();
 
   constructor(options: SaverOptions) {
@@ -102,11 +106,11 @@ export class DraftSaver {
     if (!this.unsaved && this.running === undefined) {
       this.cancel();
       this.waitingSince = undefined;
-      this.set(this.everKept ? { state: "kept" } : { state: "idle" });
+      this.set(this.everKept ? { state: 'kept' } : { state: 'idle' });
       return;
     }
     if (this.running !== undefined) return; // sent after the one on its way, as the latest text
-    if (this.failures === 0) this.set({ state: "pending" });
+    if (this.failures === 0) this.set({ state: 'pending' });
     // A retry is on its timer already: more typing must not push it back, or typing could put it off for ever.
     if (this.failures === 0 || this.timer === undefined) this.schedule();
   }
@@ -130,7 +134,10 @@ export class DraftSaver {
     this.cancel();
     const now = this.timers.now();
     this.waitingSince ??= now;
-    const wait = this.failures > 0 ? (this.backoff[Math.min(this.failures - 1, this.backoff.length - 1)] as number) : Math.max(0, Math.min(this.delay, this.maxWait - (now - this.waitingSince)));
+    const wait =
+      this.failures > 0
+        ? (this.backoff[Math.min(this.failures - 1, this.backoff.length - 1)] as number)
+        : Math.max(0, Math.min(this.delay, this.maxWait - (now - this.waitingSince)));
     this.timer = this.timers.setTimeout(() => {
       this.timer = undefined;
       this.start();
@@ -152,38 +159,38 @@ export class DraftSaver {
   private async run(): Promise<void> {
     const snapshot = this.latest;
     this.waitingSince = undefined;
-    this.set({ state: "saving" });
+    this.set({ state: 'saving' });
     let attempt: Attempt;
     try {
       attempt = await this.send(snapshot);
     } catch {
-      attempt = { kind: "failed" };
+      attempt = { kind: 'failed' };
     }
     if (this.halted) return;
 
-    if (attempt.kind === "kept") {
+    if (attempt.kind === 'kept') {
       this.kept = snapshot;
       this.everKept = true;
       this.failures = 0;
       if (this.unsaved) {
-        this.set({ state: "pending" });
+        this.set({ state: 'pending' });
         this.schedule();
       } else {
-        this.set({ state: "kept" });
+        this.set({ state: 'kept' });
       }
-    } else if (attempt.kind === "refused") {
+    } else if (attempt.kind === 'refused') {
       this.failures = 0;
       if (attempt.stop) {
         this.halted = true;
-        this.set({ state: "stopped", message: attempt.message });
+        this.set({ state: 'stopped', message: attempt.message });
       } else {
-        this.set({ state: "refused", message: attempt.message });
+        this.set({ state: 'refused', message: attempt.message });
         // What was refused is not what is on screen any more: that may be fine.
         if (this.latest !== snapshot) this.schedule();
       }
     } else {
       this.failures += 1;
-      this.set({ state: "retrying", attempt: this.failures });
+      this.set({ state: 'retrying', attempt: this.failures });
       this.schedule();
     }
   }

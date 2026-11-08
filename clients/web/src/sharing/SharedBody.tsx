@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { DocumentEditor } from "fjord-editor";
-import "fjord-editor/styles.css";
-import type { Role } from "../access/policy";
-import { useComments } from "../comments/Comments";
-import { GuestEditor } from "./GuestEditor";
+import { DocumentEditor } from 'fjord-editor';
+import 'fjord-editor/styles.css';
+import type { Role } from '../access/policy';
+import { useComments } from '../comments/Comments';
+import { GuestEditor } from './GuestEditor';
 
 /**
  * A document shared with someone (ROADMAP 1c.2, 1c.3, 1c.6, 1d.1): to be read, in the document editor, with the comments beside it; or, for a
@@ -12,17 +12,49 @@ import { GuestEditor } from "./GuestEditor";
  * document and its comments, `comment` also starts threads and replies. `guest` is someone who came by a link, who is asked for a name before
  * they write. The header is not in it, as for its owner.
  */
-export function SharedBody({ title, body, docId, editable, role, guest }: { title: string; body: string; docId: string; editable: boolean; role: Role; guest: boolean }) {
+export function SharedBody({
+  title,
+  body,
+  docId,
+  editable,
+  role,
+  guest,
+}: {
+  title: string;
+  body: string;
+  docId: string;
+  editable: boolean;
+  role: Role;
+  guest: boolean;
+}) {
   // An account (`guest` is false) that may edit types into the same working copy a link's guest does, by its session.
   if (editable) return <GuestEditor docId={docId} title={title} body={body} member={!guest} />;
   return <ReadAndComment title={title} body={body} docId={docId} role={role} guest={guest} />;
 }
 
-function ReadAndComment({ title, body, docId, role, guest }: { title: string; body: string; docId: string; role: Role; guest: boolean }) {
+function ReadAndComment({
+  title,
+  body,
+  docId,
+  role,
+  guest,
+}: {
+  title: string;
+  body: string;
+  docId: string;
+  role: Role;
+  guest: boolean;
+}) {
   const { adapter, onNeedName, panel } = useComments(docId, { guest });
   return (
     <>
-      <DocumentEditor aria-label={title} role={role === "view" ? "view" : "comment"} value={body} comments={adapter} onNeedName={onNeedName} />
+      <DocumentEditor
+        aria-label={title}
+        role={role === 'view' ? 'view' : 'comment'}
+        value={body}
+        comments={adapter}
+        onNeedName={onNeedName}
+      />
       {panel}
     </>
   );

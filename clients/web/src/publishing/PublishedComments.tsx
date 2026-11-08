@@ -1,4 +1,4 @@
-import type { CommentMode } from "./publications";
+import type { CommentMode } from './publications';
 
 /**
  * Where a published page's comments will be (the owner deferred them): the page keeps who may comment (`off`, for `anyone`, or for `users` with an account here), which the owner sets when

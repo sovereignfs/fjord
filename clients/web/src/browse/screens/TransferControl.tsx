@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Alert, Button, FormField, Input, Select } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import { fetchRecipients, sendTransfer } from "../../files/client";
-import { keyStore } from "../../keys/client";
-import { type Recipients, type TransferTarget, prepareTransfer } from "../../keys/files";
-import { loadModule } from "../../keys/module";
-import { NodeIcon } from "../../ui/icons";
-import { repositoryHref } from "../links";
-import { ActionDialog } from "./ActionDialog";
-import { IconButton } from "./IconButton";
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { Alert, Button, FormField, Input, Select } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import { fetchRecipients, sendTransfer } from '../../files/client';
+import { keyStore } from '../../keys/client';
+import { type Recipients, type TransferTarget, prepareTransfer } from '../../keys/files';
+import { loadModule } from '../../keys/module';
+import { NodeIcon } from '../../ui/icons';
+import { repositoryHref } from '../links';
+import { ActionDialog } from './ActionDialog';
+import { IconButton } from './IconButton';
 
 /**
  * "Move to another vault" for a file when one of the two vaults is encrypted (ROADMAP 2b.6, DESIGN.md §8). The server has no key, so this page does the one thing
@@ -31,7 +31,7 @@ export function TransferControl({
   sourceEncrypted,
   targets,
   blocked,
-  appearance = "text",
+  appearance = 'text',
 }: {
   connectionId: number;
   /** Where the repository's addresses begin (`ConnectionInfo.address`), for the link a finished action goes to; `connectionId` is for the API. */
@@ -48,7 +48,7 @@ export function TransferControl({
   /** Why it cannot be moved now, such as unsaved changes. */
   blocked?: string | undefined;
   /** `icon`: an icon named *Move to another vault* (a document's actions, at the end of its title). */
-  appearance?: "text" | "icon";
+  appearance?: 'text' | 'icon';
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -62,20 +62,23 @@ export function TransferControl({
   const [recipients, setRecipients] = useState<Record<string, Recipients>>({});
   const target = targets[choice];
   const vaultOfTarget = target?.vault;
-  const needsRecipients = target?.to.form === "encrypted";
+  const needsRecipients = target?.to.form === 'encrypted';
 
   useEffect(() => {
     if (!open) return;
     void keyStore()
       .status()
-      .then((status) => setMine(status.state === "none" ? null : status.recipient))
+      .then((status) => setMine(status.state === 'none' ? null : status.recipient))
       .catch(() => setMine(null));
   }, [open]);
 
   useEffect(() => {
-    if (!open || !needsRecipients || vaultOfTarget === undefined || recipients[vaultOfTarget]) return;
+    if (!open || !needsRecipients || vaultOfTarget === undefined || recipients[vaultOfTarget])
+      return;
     let current = true;
-    void fetchRecipients(connectionId, vaultOfTarget).then((found) => current && setRecipients((now) => ({ ...now, [vaultOfTarget]: found })));
+    void fetchRecipients(connectionId, vaultOfTarget).then(
+      (found) => current && setRecipients((now) => ({ ...now, [vaultOfTarget]: found })),
+    );
     return () => {
       current = false;
     };
@@ -84,12 +87,17 @@ export function TransferControl({
   if (targets.length === 0) return null;
   const close = () => (setOpen(false), setConfirming(false), setError(null));
   const trigger =
-    appearance === "icon" ? (
-      <IconButton label="Move to another vault" disabled={Boolean(blocked)} title={blocked ?? "Move to another vault"} onClick={() => setOpen(true)}>
+    appearance === 'icon' ? (
+      <IconButton
+        label="Move to another vault"
+        disabled={Boolean(blocked)}
+        title={blocked ?? 'Move to another vault'}
+        onClick={() => setOpen(true)}
+      >
         <NodeIcon name="arrow-right-left" aria-hidden />
       </IconButton>
     ) : null;
-  if (blocked && appearance !== "icon") return <p className={styles.itemMeta}>{blocked}</p>;
+  if (blocked && appearance !== 'icon') return <p className={styles.itemMeta}>{blocked}</p>;
   if (!open) {
     return (
       trigger ?? (
@@ -100,28 +108,41 @@ export function TransferControl({
     );
   }
 
-  const toEncrypted = target?.to.form === "encrypted";
-  const idNamed = target?.to.form === "encrypted" && target.to.naming === "id";
-  const label = (candidate: TransferTarget) => `${candidate.folder}${candidate.to.form === "encrypted" ? " (encrypted)" : ""}`;
+  const toEncrypted = target?.to.form === 'encrypted';
+  const idNamed = target?.to.form === 'encrypted' && target.to.naming === 'id';
+  const label = (candidate: TransferTarget) =>
+    `${candidate.folder}${candidate.to.form === 'encrypted' ? ' (encrypted)' : ''}`;
 
   async function go() {
     if (!target) return;
     setBusy(true);
     setError(null);
     try {
-      const prepared = prepareTransfer(await loadModule(), { text, name: newName.trim(), to: target.to, recipients: recipients[target.vault], now: Date.now(), random: crypto.getRandomValues(new Uint8Array(16)) });
+      const prepared = prepareTransfer(await loadModule(), {
+        text,
+        name: newName.trim(),
+        to: target.to,
+        recipients: recipients[target.vault],
+        now: Date.now(),
+        random: crypto.getRandomValues(new Uint8Array(16)),
+      });
       if (!prepared.ok) {
         setError(prepared.message);
         return;
       }
-      const made = await sendTransfer(connectionId, { path, blob, destination: `${target.folder}/${prepared.leaf}`, content: prepared.content });
+      const made = await sendTransfer(connectionId, {
+        path,
+        blob,
+        destination: `${target.folder}/${prepared.leaf}`,
+        content: prepared.content,
+      });
       if (made.ok) {
-        router.push(repositoryHref(repo, ...made.path.split("/")));
+        router.push(repositoryHref(repo, ...made.path.split('/')));
         return;
       }
       setError(made.message);
     } catch {
-      setError("The file could not be prepared here, so nothing was moved.");
+      setError('The file could not be prepared here, so nothing was moved.');
     } finally {
       setBusy(false);
       setConfirming(false);
@@ -136,82 +157,120 @@ export function TransferControl({
         </Button>
       )}
       <ActionDialog open onClose={busy ? () => undefined : close} title="Move to another vault">
-    <form
-      className={styles.form}
-      style={{ marginTop: 0 }}
-      aria-label="Move to another vault"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (confirming) void go();
-        else setConfirming(true);
-      }}
-    >
-      <FormField label="Move to">
-        {(field) => (
-          <Select
-            {...field}
-            name="place"
-            value={choice}
-            onChange={(e) => {
-              setChoice(Number(e.target.value));
-              setConfirming(false);
-            }}
-            disabled={busy}
-          >
-            {targets.map((candidate, index) => (
-              <option key={`${candidate.folder}:${index}`} value={index}>
-                {label(candidate)}
-              </option>
-            ))}
-          </Select>
-        )}
-      </FormField>
-      {idNamed ? null : (
-        <FormField label="Name" hint="The file's name there.">
-          {(field) => <Input {...field} name="name" autoComplete="off" maxLength={200} value={newName} onChange={(e) => setNewName(e.target.value)} disabled={busy} />}
-        </FormField>
-      )}
-      {toEncrypted && target && recipients[target.vault]?.ok === false ? (
-        <div className={styles.notice}>
-          <Alert variant="error" heading="That vault has no one to encrypt to">
-            {(recipients[target.vault] as { message: string }).message}
-          </Alert>
-        </div>
-      ) : null}
-      {toEncrypted && target && mine !== null && recipients[target.vault]?.ok === true && !(recipients[target.vault] as { text: string }).text.includes(mine) ? (
-        <div className={styles.notice}>
-          <Alert variant="warning" heading="Your key is not among that vault's recipients">
-            The file would be encrypted to the recipients in that vault&apos;s recipients file, which does not list your key: you could not open it afterwards.
-          </Alert>
-        </div>
-      ) : null}
-      {confirming ? (
-        <div className={styles.notice}>
-          <Alert variant="warning" heading={sourceEncrypted && !toEncrypted ? "This decrypts the file" : toEncrypted ? "The plain text stays in the history" : "Move this file?"}>
-            {sourceEncrypted && !toEncrypted
-              ? "The file is decrypted in your browser and committed as plain text. Everyone who can read the repository will be able to read it, and the encrypted copy stays in its history."
-              : sourceEncrypted
-                ? "The file is decrypted here and encrypted again to the other vault's recipients. People who can open one vault but not the other lose or gain access to it."
-                : "The file is encrypted here, to that vault's recipients, and its plain text is taken out of this commit. The repository's earlier commits still hold the plain text; removing it from them is a job for git."}
-          </Alert>
-        </div>
-      ) : null}
-      {error ? (
-        <div className={styles.notice}>
-          <Alert variant="error" heading="Nothing was moved">
-            {error}
-          </Alert>
-        </div>
-      ) : null}
-      <div className={styles.actions}>
-        <Button type="submit" size="sm" loading={busy} disabled={!target || newName.trim() === "" || (toEncrypted && target !== undefined && recipients[target.vault]?.ok !== true)} variant={confirming ? "destructive" : "primary"}>
-          {confirming ? (sourceEncrypted && !toEncrypted ? "Yes, decrypt and move" : "Yes, move it") : "Move"}
-        </Button>{" "}
-        <Button type="button" variant="secondary" size="sm" onClick={close} disabled={busy}>
-          Cancel
-        </Button>
-      </div>
-    </form>
+        <form
+          className={styles.form}
+          style={{ marginTop: 0 }}
+          aria-label="Move to another vault"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (confirming) void go();
+            else setConfirming(true);
+          }}
+        >
+          <FormField label="Move to">
+            {(field) => (
+              <Select
+                {...field}
+                name="place"
+                value={choice}
+                onChange={(e) => {
+                  setChoice(Number(e.target.value));
+                  setConfirming(false);
+                }}
+                disabled={busy}
+              >
+                {targets.map((candidate, index) => (
+                  <option key={`${candidate.folder}:${index}`} value={index}>
+                    {label(candidate)}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </FormField>
+          {idNamed ? null : (
+            <FormField label="Name" hint="The file's name there.">
+              {(field) => (
+                <Input
+                  {...field}
+                  name="name"
+                  autoComplete="off"
+                  maxLength={200}
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  disabled={busy}
+                />
+              )}
+            </FormField>
+          )}
+          {toEncrypted && target && recipients[target.vault]?.ok === false ? (
+            <div className={styles.notice}>
+              <Alert variant="error" heading="That vault has no one to encrypt to">
+                {(recipients[target.vault] as { message: string }).message}
+              </Alert>
+            </div>
+          ) : null}
+          {toEncrypted &&
+          target &&
+          mine !== null &&
+          recipients[target.vault]?.ok === true &&
+          !(recipients[target.vault] as { text: string }).text.includes(mine) ? (
+            <div className={styles.notice}>
+              <Alert variant="warning" heading="Your key is not among that vault's recipients">
+                The file would be encrypted to the recipients in that vault&apos;s recipients file,
+                which does not list your key: you could not open it afterwards.
+              </Alert>
+            </div>
+          ) : null}
+          {confirming ? (
+            <div className={styles.notice}>
+              <Alert
+                variant="warning"
+                heading={
+                  sourceEncrypted && !toEncrypted
+                    ? 'This decrypts the file'
+                    : toEncrypted
+                      ? 'The plain text stays in the history'
+                      : 'Move this file?'
+                }
+              >
+                {sourceEncrypted && !toEncrypted
+                  ? 'The file is decrypted in your browser and committed as plain text. Everyone who can read the repository will be able to read it, and the encrypted copy stays in its history.'
+                  : sourceEncrypted
+                    ? "The file is decrypted here and encrypted again to the other vault's recipients. People who can open one vault but not the other lose or gain access to it."
+                    : "The file is encrypted here, to that vault's recipients, and its plain text is taken out of this commit. The repository's earlier commits still hold the plain text; removing it from them is a job for git."}
+              </Alert>
+            </div>
+          ) : null}
+          {error ? (
+            <div className={styles.notice}>
+              <Alert variant="error" heading="Nothing was moved">
+                {error}
+              </Alert>
+            </div>
+          ) : null}
+          <div className={styles.actions}>
+            <Button
+              type="submit"
+              size="sm"
+              loading={busy}
+              disabled={
+                !target ||
+                newName.trim() === '' ||
+                (toEncrypted && target !== undefined && recipients[target.vault]?.ok !== true)
+              }
+              variant={confirming ? 'destructive' : 'primary'}
+            >
+              {confirming
+                ? sourceEncrypted && !toEncrypted
+                  ? 'Yes, decrypt and move'
+                  : 'Yes, move it'
+                : 'Move'}
+            </Button>{' '}
+            <Button type="button" variant="secondary" size="sm" onClick={close} disabled={busy}>
+              Cancel
+            </Button>
+          </div>
+        </form>
       </ActionDialog>
     </>
   );

@@ -1,6 +1,29 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import type { AdoptExisting, AdoptOptions, AdoptResult, DetectedSite, Discovery, JournalEntrySummary, KindSetupOptions, KindSetupResult, ListedFile, LocalMinute, MergeResult, RepositoryKind, RepositoryManifest, SetupExisting, SetupOptions, SetupResult, SiteEngine, VaultDecryptionPlan, VaultEncryptionPlan, VaultOptions, VaultResult, WithKindResult } from "./types";
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import type {
+  AdoptExisting,
+  AdoptOptions,
+  AdoptResult,
+  DetectedSite,
+  Discovery,
+  JournalEntrySummary,
+  KindSetupOptions,
+  KindSetupResult,
+  ListedFile,
+  LocalMinute,
+  MergeResult,
+  RepositoryKind,
+  RepositoryManifest,
+  SetupExisting,
+  SetupOptions,
+  SetupResult,
+  SiteEngine,
+  VaultDecryptionPlan,
+  VaultEncryptionPlan,
+  VaultOptions,
+  VaultResult,
+  WithKindResult,
+} from './types';
 
 /**
  * `fjord-core` as WebAssembly, in Node (DESIGN.md §2: the server reads the format, the browser never does in
@@ -21,10 +44,21 @@ interface Module {
   discover(filesJson: string, manifestsJson: string): string;
   describeRepositoryManifest(text: string): string;
   planSetup(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
-  planVault(optionsJson: string, manifest: string, existingJson: string, nowMs: number, random: Uint8Array): string;
+  planVault(
+    optionsJson: string,
+    manifest: string,
+    existingJson: string,
+    nowMs: number,
+    random: Uint8Array,
+  ): string;
   planVaultEncryption(manifest: string, optionsJson: string): string;
   planVaultDecryption(manifest: string): string;
-  planSetupKind(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
+  planSetupKind(
+    optionsJson: string,
+    existingJson: string,
+    nowMs: number,
+    random: Uint8Array,
+  ): string;
   planAdopt(optionsJson: string, existingJson: string, nowMs: number, random: Uint8Array): string;
   detectSite(existingJson: string): string;
   withKind(manifest: string, kind: string, engine: string | undefined): string;
@@ -39,7 +73,14 @@ interface Module {
   entryDateFromUnix(seconds: number, offsetMinutes: number): string | undefined;
   isEntryDate(text: string): boolean;
   sitePostPath(engine: string, date: string, title: string, draft: boolean): string | undefined;
-  siteNewPost(engine: string, id: string, title: string, created: string, date: string, draft: boolean): string;
+  siteNewPost(
+    engine: string,
+    id: string,
+    title: string,
+    created: string,
+    date: string,
+    draft: boolean,
+  ): string;
   siteTagProblem(engine: string, tag: string): string | undefined;
   siteImageType(bytes: Uint8Array): string | undefined;
   siteImageMime(extension: string): string | undefined;
@@ -52,8 +93,22 @@ interface Module {
   sameTag(a: string, b: string): boolean;
   tagIsUnder(tag: string, parent: string): boolean;
   freeVaultName(preferred: string, existingJson: string): string;
-  mergeTexts(base: string, ours: string, theirs: string, oursLabel: string, theirsLabel: string): string;
-  quickNoteName(text: string, existingJson: string, year: number, month: number, day: number, hour: number, minute: number): string;
+  mergeTexts(
+    base: string,
+    ours: string,
+    theirs: string,
+    oursLabel: string,
+    theirsLabel: string,
+  ): string;
+  quickNoteName(
+    text: string,
+    existingJson: string,
+    year: number,
+    month: number,
+    day: number,
+    hour: number,
+    minute: number,
+  ): string;
   titleFromText(text: string): string | undefined;
   freeName(stem: string, extension: string, existingJson: string): string;
   newDocument(id: string, title: string, created: string): string;
@@ -69,21 +124,29 @@ interface Module {
 
 /** The module has not been built, or cannot be loaded: a setup problem, never a repository's. */
 export class FormatUnavailableError extends Error {
-  override name = "FormatUnavailableError";
+  override name = 'FormatUnavailableError';
 }
 
 export function wasmDirectory(env: Record<string, string | undefined> = process.env): string {
-  const set = (env.FJORD_WASM_DIR ?? "").trim();
-  if (set !== "") return set;
-  return join(/*turbopackIgnore: true*/ process.cwd(), "..", "..", "crates", "fjord-wasm", "pkg", "node");
+  const set = (env.FJORD_WASM_DIR ?? '').trim();
+  if (set !== '') return set;
+  return join(
+    /*turbopackIgnore: true*/ process.cwd(),
+    '..',
+    '..',
+    'crates',
+    'fjord-wasm',
+    'pkg',
+    'node',
+  );
 }
 
 /** Whether the module is there to load. */
 export function wasmAvailable(directory: string = wasmDirectory()): boolean {
-  return existsSync(join(/*turbopackIgnore: true*/ directory, "fjord_wasm.js"));
+  return existsSync(join(/*turbopackIgnore: true*/ directory, 'fjord_wasm.js'));
 }
 
-const KEY = Symbol.for("fjord.wasm");
+const KEY = Symbol.for('fjord.wasm');
 type Holder = { [KEY]?: Map<string, Fjord> };
 
 /** The format, loaded once per process (and across a development reload). */
@@ -99,7 +162,7 @@ export function fjord(directory: string = wasmDirectory()): Fjord {
 }
 
 function load(directory: string): Module {
-  const file = join(/*turbopackIgnore: true*/ directory, "fjord_wasm.js");
+  const file = join(/*turbopackIgnore: true*/ directory, 'fjord_wasm.js');
   if (!existsSync(file)) {
     throw new FormatUnavailableError(
       `The Fjord format module is not built (looked for ${file}). Run \`pnpm build:wasm\` (it needs Rust and wasm-bindgen: crates/fjord-wasm/README.md), or set FJORD_WASM_DIR.`,
@@ -109,10 +172,12 @@ function load(directory: string): Module {
     // Through `process.getBuiltinModule`, not an `import`: the bundler treats `createRequire(...)(path)` as a
     // `require` it must resolve at build time and refuses a path it cannot see ("too dynamic"). This is a file
     // the build produced elsewhere, loaded by Node itself at run time.
-    const { createRequire } = process.getBuiltinModule("node:module");
+    const { createRequire } = process.getBuiltinModule('node:module');
     return createRequire(import.meta.url)(file) as Module;
   } catch (error) {
-    throw new FormatUnavailableError(`The Fjord format module could not be loaded from ${directory}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new FormatUnavailableError(
+      `The Fjord format module could not be loaded from ${directory}: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -145,7 +210,9 @@ export class Fjord {
    * keyed by repository-relative path.
    */
   discover(files: ListedFile[], manifests: Record<string, string>): Discovery {
-    return JSON.parse(this.module.discover(JSON.stringify(files), JSON.stringify(manifests))) as Discovery;
+    return JSON.parse(
+      this.module.discover(JSON.stringify(files), JSON.stringify(manifests)),
+    ) as Discovery;
   }
 
   /** `fjord.json`, read. */
@@ -159,8 +226,15 @@ export class Fjord {
    * bytes are given, and the same call gives the same answer. A finding about the repository (it is one already, the
    * name is taken) is `ok: false`; a malformed call throws.
    */
-  planSetup(options: SetupOptions, existing: SetupExisting, nowMs: number, random: Uint8Array): SetupResult {
-    return JSON.parse(this.module.planSetup(JSON.stringify(options), JSON.stringify(existing), nowMs, random)) as SetupResult;
+  planSetup(
+    options: SetupOptions,
+    existing: SetupExisting,
+    nowMs: number,
+    random: Uint8Array,
+  ): SetupResult {
+    return JSON.parse(
+      this.module.planSetup(JSON.stringify(options), JSON.stringify(existing), nowMs, random),
+    ) as SetupResult;
   }
 
   /**
@@ -169,13 +243,33 @@ export class Fjord {
    * `fjord vault add` is the same planner. Pure: the time and at least 16 random bytes are given. A finding (the name is taken,
    * a key that is not one) is `ok: false`; a malformed call throws.
    */
-  planVault(options: VaultOptions, manifest: string, existing: SetupExisting, nowMs: number, random: Uint8Array): VaultResult {
-    return JSON.parse(this.module.planVault(JSON.stringify(options), manifest, JSON.stringify(existing), nowMs, random)) as VaultResult;
+  planVault(
+    options: VaultOptions,
+    manifest: string,
+    existing: SetupExisting,
+    nowMs: number,
+    random: Uint8Array,
+  ): VaultResult {
+    return JSON.parse(
+      this.module.planVault(
+        JSON.stringify(options),
+        manifest,
+        JSON.stringify(existing),
+        nowMs,
+        random,
+      ),
+    ) as VaultResult;
   }
 
   /** What making the plaintext vault whose manifest is `manifest` an encrypted one writes (RFC 0003), or why not. A finding is `ok: false`; a malformed call throws. */
-  planVaultEncryption(manifest: string, recipients: string[], gitattributes: string | null): VaultEncryptionPlan {
-    return JSON.parse(this.module.planVaultEncryption(manifest, JSON.stringify({ recipients, gitattributes }))) as VaultEncryptionPlan;
+  planVaultEncryption(
+    manifest: string,
+    recipients: string[],
+    gitattributes: string | null,
+  ): VaultEncryptionPlan {
+    return JSON.parse(
+      this.module.planVaultEncryption(manifest, JSON.stringify({ recipients, gitattributes })),
+    ) as VaultEncryptionPlan;
   }
 
   /** What making the encrypted vault whose manifest is `manifest` a plaintext one writes (RFC 0003), or why not. */
@@ -188,8 +282,15 @@ export class Fjord {
    * its one vault (an encrypted journal's written to `recipients` at once) and, for a site, its engine's files, refusing one that is
    * already there. Pure, as `planSetup` is. A finding is `ok: false`; a malformed call throws.
    */
-  planSetupKind(options: KindSetupOptions, existing: SetupExisting, nowMs: number, random: Uint8Array): KindSetupResult {
-    return JSON.parse(this.module.planSetupKind(JSON.stringify(options), JSON.stringify(existing), nowMs, random)) as KindSetupResult;
+  planSetupKind(
+    options: KindSetupOptions,
+    existing: SetupExisting,
+    nowMs: number,
+    random: Uint8Array,
+  ): KindSetupResult {
+    return JSON.parse(
+      this.module.planSetupKind(JSON.stringify(options), JSON.stringify(existing), nowMs, random),
+    ) as KindSetupResult;
   }
 
   /**
@@ -198,13 +299,22 @@ export class Fjord {
    * The CLI's `fjord init --adopt` is the same planner. Pure: the time and at least `16 * (1 + vaults)` random bytes are given.
    * A finding is `ok: false`; a malformed call throws.
    */
-  planAdopt(options: AdoptOptions, existing: AdoptExisting, nowMs: number, random: Uint8Array): AdoptResult {
-    return JSON.parse(this.module.planAdopt(JSON.stringify(options), JSON.stringify(existing), nowMs, random)) as AdoptResult;
+  planAdopt(
+    options: AdoptOptions,
+    existing: AdoptExisting,
+    nowMs: number,
+    random: Uint8Array,
+  ): AdoptResult {
+    return JSON.parse(
+      this.module.planAdopt(JSON.stringify(options), JSON.stringify(existing), nowMs, random),
+    ) as AdoptResult;
   }
 
   /** The static site these paths are (`astro.config.*` at the root: Astro, content in `src/content`; `_config.yml`: Jekyll, `_posts`), or null. */
   detectSite(paths: string[]): DetectedSite {
-    return JSON.parse(this.module.detectSite(JSON.stringify({ paths, gitattributes: null }))) as DetectedSite;
+    return JSON.parse(
+      this.module.detectSite(JSON.stringify({ paths, gitattributes: null })),
+    ) as DetectedSite;
   }
 
   /** `fjord.json`'s text with its kind changed (spec §3.1), every other field kept; a site's engine is written with it. */
@@ -213,8 +323,8 @@ export class Fjord {
   }
 
   /** The rule of spec §3.1 a repository of `kind` would break with vaults that are, in order, encrypted or not: `E111`, `E112`, or none. */
-  kindRule(kind: RepositoryKind, encrypted: boolean[]): "E111" | "E112" | undefined {
-    return this.module.kindRule(kind, JSON.stringify(encrypted)) as "E111" | "E112" | undefined;
+  kindRule(kind: RepositoryKind, encrypted: boolean[]): 'E111' | 'E112' | undefined {
+    return this.module.kindRule(kind, JSON.stringify(encrypted)) as 'E111' | 'E112' | undefined;
   }
 
   /** A new journal entry's text: `id`, `title` if any, `created` and `date` (spec §8.1). */
@@ -267,7 +377,14 @@ export class Fjord {
   }
 
   /** A site's new post: what its engine reads. */
-  siteNewPost(engine: string, id: string, title: string, created: string, date: string, draft: boolean): string {
+  siteNewPost(
+    engine: string,
+    id: string,
+    title: string,
+    created: string,
+    date: string,
+    draft: boolean,
+  ): string {
     return this.module.siteNewPost(engine, id, title, created, date, draft);
   }
 
@@ -331,8 +448,15 @@ export class Fjord {
    * Merge two edits (`ours`, `theirs`) of one text (`base`) by lines, as the CLI does. Never an error: when the edits overlap
    * the text has both sides between marker lines labelled with these names, and `clean` is false.
    */
-  mergeTexts(base: string, ours: string, theirs: string, labels: { ours: string; theirs: string }): MergeResult {
-    return JSON.parse(this.module.mergeTexts(base, ours, theirs, labels.ours, labels.theirs)) as MergeResult;
+  mergeTexts(
+    base: string,
+    ours: string,
+    theirs: string,
+    labels: { ours: string; theirs: string },
+  ): MergeResult {
+    return JSON.parse(
+      this.module.mergeTexts(base, ours, theirs, labels.ours, labels.theirs),
+    ) as MergeResult;
   }
 
   /**
@@ -340,7 +464,15 @@ export class Fjord {
    * from the writer's local date and time, and numbered past the names the folder already has, case aside. Ends in `.md`.
    */
   quickNoteName(text: string, existing: string[], when: LocalMinute): string {
-    return this.module.quickNoteName(text, JSON.stringify(existing), when.year, when.month, when.day, when.hour, when.minute);
+    return this.module.quickNoteName(
+      text,
+      JSON.stringify(existing),
+      when.year,
+      when.month,
+      when.day,
+      when.hour,
+      when.minute,
+    );
   }
 
   /** What a text's first line asks to be called, without an extension; null if there is nothing in it to name a file by. */
@@ -396,7 +528,7 @@ export class Fjord {
   /** Seconds since the epoch as RFC 3339 in UTC. */
   rfc3339FromUnix(seconds: number): string {
     const text = this.module.rfc3339FromUnix(seconds);
-    if (text === undefined) throw new Error("that time cannot be written as a date");
+    if (text === undefined) throw new Error('that time cannot be written as a date');
     return text;
   }
 

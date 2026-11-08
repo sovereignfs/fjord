@@ -1,320 +1,626 @@
-import { describe, expect, it, vi } from "vitest";
-import { type AccessDeps, filesAccess } from "./access";
+import { describe, expect, it, vi } from 'vitest';
+import { type AccessDeps, filesAccess } from './access';
 
 /** Whose, and where (`access.ts`), with stand-ins for the connection and the repository. */
 const WHEN = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
-const input = { vault: "Notes", folder: "", kind: "note" as const, title: "Plan", localMinute: WHEN, author: { name: "Alice", email: "alice@example.com" } };
+const input = {
+  vault: 'Notes',
+  folder: '',
+  kind: 'note' as const,
+  title: 'Plan',
+  localMinute: WHEN,
+  author: { name: 'Alice', email: 'alice@example.com' },
+};
 
-function setup(over: { owns?: boolean; encrypted?: Awaited<ReturnType<AccessDeps["encryptedVaultFor"]>>; vault?: Awaited<ReturnType<AccessDeps["vaultFor"]>>; vaults?: Record<string, Awaited<ReturnType<AccessDeps["vaultFor"]>>> } = {}) {
+function setup(
+  over: {
+    owns?: boolean;
+    encrypted?: Awaited<ReturnType<AccessDeps['encryptedVaultFor']>>;
+    vault?: Awaited<ReturnType<AccessDeps['vaultFor']>>;
+    vaults?: Record<string, Awaited<ReturnType<AccessDeps['vaultFor']>>>;
+  } = {},
+) {
   const owns = vi.fn(async (..._args: unknown[]) => over.owns ?? true);
-  const vaultFor = vi.fn(async (_a: string, _i: number, vault: string) => over.vaults?.[vault] ?? over.vault ?? ("ok" as const));
-  const create = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, path: "Notes/Plan.md", commit: "c".repeat(40) }));
-  const remove = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "d".repeat(40), files: 1, deletions: [1] }));
-  const restore = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "e".repeat(40), paths: ["Notes/Plan.md"] }));
-  const setTitle = vi.fn((header: string, title: string): string | undefined => (header.includes("broken") ? undefined : `${header}title: ${title}\n`));
-  const move = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "f".repeat(40), files: 1, moved: [{ from: "Notes/a.md", to: "Other/a.md" }] }));
-  const encryptedVaultFor = vi.fn(async (..._args: unknown[]): Promise<{ ok: true; target: { naming: "plain" | "id"; suffix: string } } | { ok: false; reason: "unknown_vault" | "not_encrypted" | "unsupported_vault" | "unavailable" }> => over.encrypted ?? { ok: true, target: { naming: "plain", suffix: ".age" } });
-  const createEncrypted = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, path: "Secret/Plan.md.age", commit: "c".repeat(40) }));
-  const transfer = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, commit: "c".repeat(40), path: "Locked/Plan.md.age" }));
-  const identify = vi.fn(async (..._args: unknown[]) => ({ ok: true as const, docId: "01jagc4k7pt8y3wqnmzv5xrb8j", commit: "a".repeat(40) as string | null }));
+  const vaultFor = vi.fn(
+    async (_a: string, _i: number, vault: string) =>
+      over.vaults?.[vault] ?? over.vault ?? ('ok' as const),
+  );
+  const create = vi.fn(async (..._args: unknown[]) => ({
+    ok: true as const,
+    path: 'Notes/Plan.md',
+    commit: 'c'.repeat(40),
+  }));
+  const remove = vi.fn(async (..._args: unknown[]) => ({
+    ok: true as const,
+    commit: 'd'.repeat(40),
+    files: 1,
+    deletions: [1],
+  }));
+  const restore = vi.fn(async (..._args: unknown[]) => ({
+    ok: true as const,
+    commit: 'e'.repeat(40),
+    paths: ['Notes/Plan.md'],
+  }));
+  const setTitle = vi.fn((header: string, title: string): string | undefined =>
+    header.includes('broken') ? undefined : `${header}title: ${title}\n`,
+  );
+  const move = vi.fn(async (..._args: unknown[]) => ({
+    ok: true as const,
+    commit: 'f'.repeat(40),
+    files: 1,
+    moved: [{ from: 'Notes/a.md', to: 'Other/a.md' }],
+  }));
+  const encryptedVaultFor = vi.fn(
+    async (
+      ..._args: unknown[]
+    ): Promise<
+      | { ok: true; target: { naming: 'plain' | 'id'; suffix: string } }
+      | {
+          ok: false;
+          reason: 'unknown_vault' | 'not_encrypted' | 'unsupported_vault' | 'unavailable';
+        }
+    > => over.encrypted ?? { ok: true, target: { naming: 'plain', suffix: '.age' } },
+  );
+  const createEncrypted = vi.fn(async (..._args: unknown[]) => ({
+    ok: true as const,
+    path: 'Secret/Plan.md.age',
+    commit: 'c'.repeat(40),
+  }));
+  const transfer = vi.fn(async (..._args: unknown[]) => ({
+    ok: true as const,
+    commit: 'c'.repeat(40),
+    path: 'Locked/Plan.md.age',
+  }));
+  const identify = vi.fn(async (..._args: unknown[]) => ({
+    ok: true as const,
+    docId: '01jagc4k7pt8y3wqnmzv5xrb8j',
+    commit: 'a'.repeat(40) as string | null,
+  }));
   const access = filesAccess({
     identify: (a, i, x) => identify(a, i, x),
     transfer: (a, i, x) => transfer(a, i, x),
-    snapshot: async () => ({ ok: true as const, encrypted: false, naming: "plain" as const, files: [] }),
-    convert: async () => ({ ok: true as const, commit: "c".repeat(40), files: [] }),
+    snapshot: async () => ({
+      ok: true as const,
+      encrypted: false,
+      naming: 'plain' as const,
+      files: [],
+    }),
+    convert: async () => ({ ok: true as const, commit: 'c'.repeat(40), files: [] }),
     encryptedVaultFor: (a, i, v) => encryptedVaultFor(a, i, v),
     createEncrypted: (a, i, x) => createEncrypted(a, i, x),
     owns: (a, i) => owns(a, i),
     setTitle: (header, title) => setTitle(header, title),
-    setDate: (header, date) => (date === "yesterday" ? "bad_date" : `${header}date: ${date}\n`),
-    setTags: (header, tags) => `${header}tags: ${tags.join(",")}\n`,
-    setField: (header, key, value) => (key === "id" ? undefined : `${header}${key}: ${String(value)}\n`),
-    entry: async () => ({ ok: true, path: "journal/2026/11/02/0100.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" }),
-    post: async () => ({ ok: true, path: "content/posts/a.md", commit: "c".repeat(40), date: "2026-11-02T01:00:00+05:30" }),
-    tagProblem: async (_account, _id, tags) => (tags.some((tag) => tag.includes(" ")) ? "Jekyll reads a tag with a space as two." : undefined),
+    setDate: (header, date) => (date === 'yesterday' ? 'bad_date' : `${header}date: ${date}\n`),
+    setTags: (header, tags) => `${header}tags: ${tags.join(',')}\n`,
+    setField: (header, key, value) =>
+      key === 'id' ? undefined : `${header}${key}: ${String(value)}\n`,
+    entry: async () => ({
+      ok: true,
+      path: 'journal/2026/11/02/0100.md',
+      commit: 'c'.repeat(40),
+      date: '2026-11-02T01:00:00+05:30',
+    }),
+    post: async () => ({
+      ok: true,
+      path: 'content/posts/a.md',
+      commit: 'c'.repeat(40),
+      date: '2026-11-02T01:00:00+05:30',
+    }),
+    tagProblem: async (_account, _id, tags) =>
+      tags.some((tag) => tag.includes(' ')) ? 'Jekyll reads a tag with a space as two.' : undefined,
     vaultFor: (a, i, v) => vaultFor(a, i, v),
     create: (a, i, x) => create(a, i, x),
     delete: (a, i, x) => remove(a, i, x),
     restore: (a, i, x) => restore(a, i, x),
     move: (a, i, x) => move(a, i, x),
   });
-  return { access, identify, owns, vaultFor, create, remove, restore, setTitle, move, encryptedVaultFor, createEncrypted, transfer };
+  return {
+    access,
+    identify,
+    owns,
+    vaultFor,
+    create,
+    remove,
+    restore,
+    setTitle,
+    move,
+    encryptedVaultFor,
+    createEncrypted,
+    transfer,
+  };
 }
 
-describe("giving a Doc an identifier", () => {
-  const request = { path: "Notes/Plan.md", blob: "b".repeat(40), author: { name: "Ada", email: "ada@example.com" } };
+describe('giving a Doc an identifier', () => {
+  const request = {
+    path: 'Notes/Plan.md',
+    blob: 'b'.repeat(40),
+    author: { name: 'Ada', email: 'ada@example.com' },
+  };
 
   it("is for the caller's own connection only: another's is not found, and nothing is read or changed", async () => {
     const { access, vaultFor, identify } = setup({ owns: false });
-    expect(await access.identify("mallory", 1, request)).toEqual({ found: false });
+    expect(await access.identify('mallory', 1, request)).toEqual({ found: false });
     expect(vaultFor).not.toHaveBeenCalled();
     expect(identify).not.toHaveBeenCalled();
   });
 
-  it("is asked of the vault the file is in, and done by the caller on the connection asked", async () => {
+  it('is asked of the vault the file is in, and done by the caller on the connection asked', async () => {
     const { access, vaultFor, identify } = setup();
-    expect(await access.identify("alice", 7, request)).toEqual({ found: true, result: { ok: true, docId: "01jagc4k7pt8y3wqnmzv5xrb8j", commit: "a".repeat(40) } });
+    expect(await access.identify('alice', 7, request)).toEqual({
+      found: true,
+      result: { ok: true, docId: '01jagc4k7pt8y3wqnmzv5xrb8j', commit: 'a'.repeat(40) },
+    });
     // The whole path is asked of: a vault may be below the root, and the one that holds the file is the answer.
-    expect(vaultFor).toHaveBeenCalledWith("alice", 7, "Notes/Plan.md");
-    expect(identify).toHaveBeenCalledWith("alice", 7, request);
+    expect(vaultFor).toHaveBeenCalledWith('alice', 7, 'Notes/Plan.md');
+    expect(identify).toHaveBeenCalledWith('alice', 7, request);
   });
 
-  it.each(["unknown_vault", "encrypted_vault", "unsupported_vault", "unavailable"] as const)("is not done in a vault that is %s, and the reason is told", async (vault) => {
-    const { access, identify } = setup({ vault });
-    expect(await access.identify("alice", 1, request)).toEqual({ found: true, result: { ok: false, reason: vault } });
-    expect(identify).not.toHaveBeenCalled();
-  });
+  it.each(['unknown_vault', 'encrypted_vault', 'unsupported_vault', 'unavailable'] as const)(
+    'is not done in a vault that is %s, and the reason is told',
+    async (vault) => {
+      const { access, identify } = setup({ vault });
+      expect(await access.identify('alice', 1, request)).toEqual({
+        found: true,
+        result: { ok: false, reason: vault },
+      });
+      expect(identify).not.toHaveBeenCalled();
+    },
+  );
 });
 
-describe("making a file", () => {
+describe('making a file', () => {
   it("is for the caller's own connection only: another's is not found, and nothing is read or made", async () => {
     const { access, vaultFor, create } = setup({ owns: false });
-    expect(await access.create("mallory", 1, input)).toEqual({ found: false });
+    expect(await access.create('mallory', 1, input)).toEqual({ found: false });
     expect(vaultFor).not.toHaveBeenCalled();
     expect(create).not.toHaveBeenCalled();
   });
 
-  it("is made for the connection asked, in the vault asked, by the caller", async () => {
+  it('is made for the connection asked, in the vault asked, by the caller', async () => {
     const { access, vaultFor, create } = setup();
-    expect(await access.create("alice", 7, input)).toEqual({ found: true, result: { ok: true, path: "Notes/Plan.md", commit: "c".repeat(40) } });
-    expect(vaultFor).toHaveBeenCalledWith("alice", 7, "Notes");
-    expect(create).toHaveBeenCalledWith("alice", 7, input);
+    expect(await access.create('alice', 7, input)).toEqual({
+      found: true,
+      result: { ok: true, path: 'Notes/Plan.md', commit: 'c'.repeat(40) },
+    });
+    expect(vaultFor).toHaveBeenCalledWith('alice', 7, 'Notes');
+    expect(create).toHaveBeenCalledWith('alice', 7, input);
   });
 
-  it.each(["unknown_vault", "encrypted_vault", "unsupported_vault", "unavailable"] as const)("is not made in a vault that is %s, and the reason is told", async (vault) => {
-    const { access, create } = setup({ vault });
-    expect(await access.create("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: vault } });
-    expect(create).not.toHaveBeenCalled();
-  });
+  it.each(['unknown_vault', 'encrypted_vault', 'unsupported_vault', 'unavailable'] as const)(
+    'is not made in a vault that is %s, and the reason is told',
+    async (vault) => {
+      const { access, create } = setup({ vault });
+      expect(await access.create('alice', 1, input)).toEqual({
+        found: true,
+        result: { ok: false, reason: vault },
+      });
+      expect(create).not.toHaveBeenCalled();
+    },
+  );
 });
 
-describe("deleting", () => {
-  const input = { vault: "Notes", target: { type: "file" as const, path: "Notes/Plan.md", blob: "a".repeat(40) }, author: { name: "Alice", email: "alice@example.com" } };
+describe('deleting', () => {
+  const input = {
+    vault: 'Notes',
+    target: { type: 'file' as const, path: 'Notes/Plan.md', blob: 'a'.repeat(40) },
+    author: { name: 'Alice', email: 'alice@example.com' },
+  };
 
   it("is for the caller's own connection only: another's is not found, and nothing is read or deleted", async () => {
     const { access, vaultFor, remove } = setup({ owns: false });
-    expect(await access.delete("mallory", 1, input)).toEqual({ found: false });
+    expect(await access.delete('mallory', 1, input)).toEqual({ found: false });
     expect(vaultFor).not.toHaveBeenCalled();
     expect(remove).not.toHaveBeenCalled();
   });
 
-  it("is done for the connection asked, by the caller, in a vault that is written to", async () => {
+  it('is done for the connection asked, by the caller, in a vault that is written to', async () => {
     const { access, vaultFor, remove } = setup();
-    expect(await access.delete("alice", 7, input)).toEqual({ found: true, result: { ok: true, commit: "d".repeat(40), files: 1, deletions: [1] } });
-    expect(vaultFor).toHaveBeenCalledWith("alice", 7, "Notes");
-    expect(remove).toHaveBeenCalledWith("alice", 7, input);
+    expect(await access.delete('alice', 7, input)).toEqual({
+      found: true,
+      result: { ok: true, commit: 'd'.repeat(40), files: 1, deletions: [1] },
+    });
+    expect(vaultFor).toHaveBeenCalledWith('alice', 7, 'Notes');
+    expect(remove).toHaveBeenCalledWith('alice', 7, input);
   });
 
-  it.each(["unknown_vault", "unsupported_vault", "unavailable"] as const)("is not done in a vault that is %s, and the reason is told", async (vault) => {
-    const { access, remove } = setup({ vault });
-    expect(await access.delete("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: vault } });
-    expect(remove).not.toHaveBeenCalled();
-  });
+  it.each(['unknown_vault', 'unsupported_vault', 'unavailable'] as const)(
+    'is not done in a vault that is %s, and the reason is told',
+    async (vault) => {
+      const { access, remove } = setup({ vault });
+      expect(await access.delete('alice', 1, input)).toEqual({
+        found: true,
+        result: { ok: false, reason: vault },
+      });
+      expect(remove).not.toHaveBeenCalled();
+    },
+  );
 
-  it("is done in an encrypted vault this version writes (ROADMAP 2b.5), and not in one it does not", async () => {
-    const payload = { ...input, target: { ...input.target, path: "Notes/Plan.md.age" } };
-    const written = setup({ vault: "encrypted_vault" });
-    expect((await written.access.delete("alice", 1, payload)).found).toBe(true);
+  it('is done in an encrypted vault this version writes (ROADMAP 2b.5), and not in one it does not', async () => {
+    const payload = { ...input, target: { ...input.target, path: 'Notes/Plan.md.age' } };
+    const written = setup({ vault: 'encrypted_vault' });
+    expect((await written.access.delete('alice', 1, payload)).found).toBe(true);
     expect(written.remove).toHaveBeenCalledOnce();
-    const unsupported = setup({ vault: "encrypted_vault", encrypted: { ok: false, reason: "unsupported_vault" } });
-    expect(await unsupported.access.delete("alice", 1, payload)).toEqual({ found: true, result: { ok: false, reason: "unsupported_vault" } });
-    const away = setup({ vault: "encrypted_vault", encrypted: { ok: false, reason: "unavailable" } });
-    expect(await away.access.delete("alice", 1, payload)).toEqual({ found: true, result: { ok: false, reason: "unavailable" } });
+    const unsupported = setup({
+      vault: 'encrypted_vault',
+      encrypted: { ok: false, reason: 'unsupported_vault' },
+    });
+    expect(await unsupported.access.delete('alice', 1, payload)).toEqual({
+      found: true,
+      result: { ok: false, reason: 'unsupported_vault' },
+    });
+    const away = setup({
+      vault: 'encrypted_vault',
+      encrypted: { ok: false, reason: 'unavailable' },
+    });
+    expect(await away.access.delete('alice', 1, payload)).toEqual({
+      found: true,
+      result: { ok: false, reason: 'unavailable' },
+    });
     expect(unsupported.remove).not.toHaveBeenCalled();
     expect(away.remove).not.toHaveBeenCalled();
   });
 });
 
-describe("putting back", () => {
-  const input = { ids: [1, 2], path: undefined, author: { name: "Alice", email: "alice@example.com" } };
+describe('putting back', () => {
+  const input = {
+    ids: [1, 2],
+    path: undefined,
+    author: { name: 'Alice', email: 'alice@example.com' },
+  };
 
   it("is for the caller's own connection only: another's is not found, and nothing is put back", async () => {
     const { access, restore } = setup({ owns: false });
-    expect(await access.restore("mallory", 1, input)).toEqual({ found: false });
+    expect(await access.restore('mallory', 1, input)).toEqual({ found: false });
     expect(restore).not.toHaveBeenCalled();
   });
 
-  it("is done for the connection asked, by the caller", async () => {
+  it('is done for the connection asked, by the caller', async () => {
     const { access, restore } = setup();
-    expect(await access.restore("alice", 7, input)).toEqual({ found: true, result: { ok: true, commit: "e".repeat(40), paths: ["Notes/Plan.md"] } });
-    expect(restore).toHaveBeenCalledWith("alice", 7, input);
+    expect(await access.restore('alice', 7, input)).toEqual({
+      found: true,
+      result: { ok: true, commit: 'e'.repeat(40), paths: ['Notes/Plan.md'] },
+    });
+    expect(restore).toHaveBeenCalledWith('alice', 7, input);
   });
 });
 
 describe("changing a header's title", () => {
   it("is for the caller's own connection only: another's is not found, and the header is not touched", async () => {
     const { access, setTitle } = setup({ owns: false });
-    expect(await access.header("mallory", 1, { header: "---\n", title: "x" })).toEqual({ found: false });
+    expect(await access.header('mallory', 1, { header: '---\n', title: 'x' })).toEqual({
+      found: false,
+    });
     expect(setTitle).not.toHaveBeenCalled();
   });
 
-  it("gives the header the module wrote, or says it cannot be read", async () => {
+  it('gives the header the module wrote, or says it cannot be read', async () => {
     const { access } = setup();
-    expect(await access.header("alice", 1, { header: "---\n", title: "x" })).toEqual({ found: true, result: { ok: true, header: "---\ntitle: x\n" } });
-    expect(await access.header("alice", 1, { header: "broken", title: "x" })).toEqual({ found: true, result: { ok: false, reason: "unreadable" } });
-    expect(await access.header("alice", 1, { header: "---\n", field: { key: "draft", value: true } })).toEqual({ found: true, result: { ok: true, header: "---\ndraft: true\n" } });
-    expect(await access.header("alice", 1, { header: "---\n", field: { key: "id", value: "x" } })).toEqual({ found: true, result: { ok: false, reason: "unreadable" } });
-    expect(await access.header("alice", 1, { header: "---\n", date: "2026-11-02" })).toEqual({ found: true, result: { ok: true, header: "---\ndate: 2026-11-02\n" } });
-    expect(await access.header("alice", 1, { header: "---\n", date: "yesterday" })).toEqual({ found: true, result: { ok: false, reason: "bad_date" } });
-    expect(await access.header("alice", 1, { header: "---\n", tags: ["a", "b"] })).toEqual({ found: true, result: { ok: true, header: "---\ntags: a,b\n" } });
+    expect(await access.header('alice', 1, { header: '---\n', title: 'x' })).toEqual({
+      found: true,
+      result: { ok: true, header: '---\ntitle: x\n' },
+    });
+    expect(await access.header('alice', 1, { header: 'broken', title: 'x' })).toEqual({
+      found: true,
+      result: { ok: false, reason: 'unreadable' },
+    });
+    expect(
+      await access.header('alice', 1, { header: '---\n', field: { key: 'draft', value: true } }),
+    ).toEqual({ found: true, result: { ok: true, header: '---\ndraft: true\n' } });
+    expect(
+      await access.header('alice', 1, { header: '---\n', field: { key: 'id', value: 'x' } }),
+    ).toEqual({ found: true, result: { ok: false, reason: 'unreadable' } });
+    expect(await access.header('alice', 1, { header: '---\n', date: '2026-11-02' })).toEqual({
+      found: true,
+      result: { ok: true, header: '---\ndate: 2026-11-02\n' },
+    });
+    expect(await access.header('alice', 1, { header: '---\n', date: 'yesterday' })).toEqual({
+      found: true,
+      result: { ok: false, reason: 'bad_date' },
+    });
+    expect(await access.header('alice', 1, { header: '---\n', tags: ['a', 'b'] })).toEqual({
+      found: true,
+      result: { ok: true, header: '---\ntags: a,b\n' },
+    });
   });
 
   it("refuses tags the site's engine would read differently, writing nothing, and says which", async () => {
     const { access } = setup();
-    expect(await access.header("alice", 1, { header: "---\n", tags: ["two words"] })).toEqual({ found: true, result: { ok: false, reason: "bad_tag", message: "Jekyll reads a tag with a space as two." } });
-    expect(await access.header("alice", 1, { header: "---\n", tags: ["one-word"] })).toMatchObject({ found: true, result: { ok: true } });
+    expect(await access.header('alice', 1, { header: '---\n', tags: ['two words'] })).toEqual({
+      found: true,
+      result: { ok: false, reason: 'bad_tag', message: 'Jekyll reads a tag with a space as two.' },
+    });
+    expect(await access.header('alice', 1, { header: '---\n', tags: ['one-word'] })).toMatchObject({
+      found: true,
+      result: { ok: true },
+    });
   });
 
   it("changes a date or tags, or makes an entry, for the caller's own connection only", async () => {
     const { access } = setup({ owns: false });
-    expect(await access.header("mallory", 1, { header: "---\n", date: "2026-11-02" })).toEqual({ found: false });
-    expect(await access.entry("mallory", 1, { at: 0, offsetMinutes: 0, title: "", author: { name: "M", email: "m@example.com" } })).toEqual({ found: false });
-    expect(await access.post("mallory", 1, { at: 0, offsetMinutes: 0, title: "", draft: false, author: { name: "M", email: "m@example.com" } })).toEqual({ found: false });
+    expect(await access.header('mallory', 1, { header: '---\n', date: '2026-11-02' })).toEqual({
+      found: false,
+    });
+    expect(
+      await access.entry('mallory', 1, {
+        at: 0,
+        offsetMinutes: 0,
+        title: '',
+        author: { name: 'M', email: 'm@example.com' },
+      }),
+    ).toEqual({ found: false });
+    expect(
+      await access.post('mallory', 1, {
+        at: 0,
+        offsetMinutes: 0,
+        title: '',
+        draft: false,
+        author: { name: 'M', email: 'm@example.com' },
+      }),
+    ).toEqual({ found: false });
   });
 });
 
-describe("renaming and moving", () => {
-  const input = { vault: "Notes", target: { type: "file" as const, path: "Notes/a.md", blob: "b".repeat(40) }, destination: "Other/a.md", author: { name: "Alice", email: "alice@example.com" } };
+describe('renaming and moving', () => {
+  const input = {
+    vault: 'Notes',
+    target: { type: 'file' as const, path: 'Notes/a.md', blob: 'b'.repeat(40) },
+    destination: 'Other/a.md',
+    author: { name: 'Alice', email: 'alice@example.com' },
+  };
 
   it("is for the caller's own connection only: another's is not found, and no vault is asked about", async () => {
     const { access, vaultFor, move } = setup({ owns: false });
-    expect(await access.move("mallory", 1, input)).toEqual({ found: false });
+    expect(await access.move('mallory', 1, input)).toEqual({ found: false });
     expect(vaultFor).not.toHaveBeenCalled();
     expect(move).not.toHaveBeenCalled();
   });
 
-  it("keeps a file of an encrypted vault in it: another vault is not a place for it, and nothing is asked or moved", async () => {
-    const { access, vaultFor, move } = setup({ vaults: { Notes: "encrypted_vault" }, encrypted: { ok: true, target: { naming: "id", suffix: ".age" } } });
-    const payload = { ...input, target: { ...input.target, path: "Notes/a.md.age" } };
-    expect(await access.move("alice", 1, payload)).toEqual({ found: true, result: { ok: false, reason: "other_vault", where: "destination" } });
+  it('keeps a file of an encrypted vault in it: another vault is not a place for it, and nothing is asked or moved', async () => {
+    const { access, vaultFor, move } = setup({
+      vaults: { Notes: 'encrypted_vault' },
+      encrypted: { ok: true, target: { naming: 'id', suffix: '.age' } },
+    });
+    const payload = { ...input, target: { ...input.target, path: 'Notes/a.md.age' } };
+    expect(await access.move('alice', 1, payload)).toEqual({
+      found: true,
+      result: { ok: false, reason: 'other_vault', where: 'destination' },
+    });
     expect(vaultFor).toHaveBeenCalledTimes(1);
     expect(move).not.toHaveBeenCalled();
   });
 
-  it("moves within an encrypted vault, telling the move how the vault names its files and that it is encrypted", async () => {
-    for (const naming of ["plain", "id"] as const) {
-      const { access, move } = setup({ vaults: { Notes: "encrypted_vault" }, encrypted: { ok: true, target: { naming, suffix: ".age" } } });
-      const payload = { ...input, target: { ...input.target, path: "Notes/a.md.age" } };
-      await access.move("alice", 1, { ...payload, destination: "Notes/Sub/a.md.age" });
-      expect(move).toHaveBeenCalledWith("alice", 1, { ...payload, destination: "Notes/Sub/a.md.age", encrypted: { idNamed: naming === "id" } });
+  it('moves within an encrypted vault, telling the move how the vault names its files and that it is encrypted', async () => {
+    for (const naming of ['plain', 'id'] as const) {
+      const { access, move } = setup({
+        vaults: { Notes: 'encrypted_vault' },
+        encrypted: { ok: true, target: { naming, suffix: '.age' } },
+      });
+      const payload = { ...input, target: { ...input.target, path: 'Notes/a.md.age' } };
+      await access.move('alice', 1, { ...payload, destination: 'Notes/Sub/a.md.age' });
+      expect(move).toHaveBeenCalledWith('alice', 1, {
+        ...payload,
+        destination: 'Notes/Sub/a.md.age',
+        encrypted: { idNamed: naming === 'id' },
+      });
     }
   });
 
-  it("never moves a plaintext file into an encrypted vault", async () => {
-    const { access, move } = setup({ vaults: { Other: "encrypted_vault" } });
-    expect(await access.move("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "encrypted_vault", where: "destination" } });
+  it('never moves a plaintext file into an encrypted vault', async () => {
+    const { access, move } = setup({ vaults: { Other: 'encrypted_vault' } });
+    expect(await access.move('alice', 1, input)).toEqual({
+      found: true,
+      result: { ok: false, reason: 'encrypted_vault', where: 'destination' },
+    });
     expect(move).not.toHaveBeenCalled();
   });
 
-  it("asks of both vaults, the one it is in and the one it goes to, and says which was refused", async () => {
-    const encrypted = setup({ vaults: { Other: "encrypted_vault" } });
-    expect(await encrypted.access.move("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "encrypted_vault", where: "destination" } });
-    const from = setup({ vaults: { Notes: "unsupported_vault" } });
-    expect(await from.access.move("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unsupported_vault", where: "source" } });
-    const unknown = setup({ vaults: { Other: "unknown_vault" } });
-    expect(await unknown.access.move("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unknown_vault", where: "destination" } });
+  it('asks of both vaults, the one it is in and the one it goes to, and says which was refused', async () => {
+    const encrypted = setup({ vaults: { Other: 'encrypted_vault' } });
+    expect(await encrypted.access.move('alice', 1, input)).toEqual({
+      found: true,
+      result: { ok: false, reason: 'encrypted_vault', where: 'destination' },
+    });
+    const from = setup({ vaults: { Notes: 'unsupported_vault' } });
+    expect(await from.access.move('alice', 1, input)).toEqual({
+      found: true,
+      result: { ok: false, reason: 'unsupported_vault', where: 'source' },
+    });
+    const unknown = setup({ vaults: { Other: 'unknown_vault' } });
+    expect(await unknown.access.move('alice', 1, input)).toEqual({
+      found: true,
+      result: { ok: false, reason: 'unknown_vault', where: 'destination' },
+    });
     for (const refused of [encrypted, from, unknown]) expect(refused.move).not.toHaveBeenCalled();
   });
 
-  it("moves when both are fine, asking of the destination only when it is another vault", async () => {
+  it('moves when both are fine, asking of the destination only when it is another vault', async () => {
     const { access, vaultFor, move } = setup();
-    expect((await access.move("alice", 1, input)).found).toBe(true);
+    expect((await access.move('alice', 1, input)).found).toBe(true);
     expect(vaultFor).toHaveBeenCalledTimes(2);
-    expect(move).toHaveBeenCalledWith("alice", 1, input);
+    expect(move).toHaveBeenCalledWith('alice', 1, input);
     vaultFor.mockClear();
-    await access.move("alice", 1, { ...input, destination: "Notes/Sub/a.md" });
+    await access.move('alice', 1, { ...input, destination: 'Notes/Sub/a.md' });
     expect(vaultFor).toHaveBeenCalledTimes(1);
   });
 });
 
-describe("making a file in an encrypted vault (ROADMAP 2b.4)", () => {
-  const secret = { ...input, vault: "Secret", ciphertext: new Uint8Array([1, 2, 3]) };
+describe('making a file in an encrypted vault (ROADMAP 2b.4)', () => {
+  const secret = { ...input, vault: 'Secret', ciphertext: new Uint8Array([1, 2, 3]) };
 
   it("is for the caller's own connection only: another's is not found, and nothing is read or made", async () => {
     const { access, encryptedVaultFor, createEncrypted } = setup({ owns: false });
-    expect(await access.createEncrypted("mallory", 1, secret)).toEqual({ found: false });
+    expect(await access.createEncrypted('mallory', 1, secret)).toEqual({ found: false });
     expect(encryptedVaultFor).not.toHaveBeenCalled();
     expect(createEncrypted).not.toHaveBeenCalled();
   });
 
   it("is made with the vault's own naming and suffix, which the repository decides and not the caller", async () => {
-    const { access, createEncrypted } = setup({ encrypted: { ok: true, target: { naming: "plain", suffix: ".age" } } });
-    expect(await access.createEncrypted("alice", 7, secret)).toMatchObject({ found: true, result: { ok: true } });
-    expect(createEncrypted).toHaveBeenCalledWith("alice", 7, { ...secret, target: { naming: "plain", suffix: ".age" } });
+    const { access, createEncrypted } = setup({
+      encrypted: { ok: true, target: { naming: 'plain', suffix: '.age' } },
+    });
+    expect(await access.createEncrypted('alice', 7, secret)).toMatchObject({
+      found: true,
+      result: { ok: true },
+    });
+    expect(createEncrypted).toHaveBeenCalledWith('alice', 7, {
+      ...secret,
+      target: { naming: 'plain', suffix: '.age' },
+    });
   });
 
-  it.each(["unknown_vault", "not_encrypted", "unsupported_vault", "unavailable"] as const)("is not made in a vault that is %s, and the reason is told", async (reason) => {
-    const { access, createEncrypted } = setup({ encrypted: { ok: false, reason } });
-    expect(await access.createEncrypted("alice", 1, secret)).toEqual({ found: true, result: { ok: false, reason } });
-    expect(createEncrypted).not.toHaveBeenCalled();
-  });
+  it.each(['unknown_vault', 'not_encrypted', 'unsupported_vault', 'unavailable'] as const)(
+    'is not made in a vault that is %s, and the reason is told',
+    async (reason) => {
+      const { access, createEncrypted } = setup({ encrypted: { ok: false, reason } });
+      expect(await access.createEncrypted('alice', 1, secret)).toEqual({
+        found: true,
+        result: { ok: false, reason },
+      });
+      expect(createEncrypted).not.toHaveBeenCalled();
+    },
+  );
 
-  it("is refused if a title came for a vault that keeps its names secret, so it never reaches the commit", async () => {
-    const { access, createEncrypted } = setup({ encrypted: { ok: true, target: { naming: "id", suffix: ".age" } } });
-    expect(await access.createEncrypted("alice", 1, secret)).toEqual({ found: true, result: { ok: false, reason: "wrong_shape" } });
-    expect(await access.createEncrypted("alice", 1, { ...secret, title: "  " })).toMatchObject({ found: true, result: { ok: true } });
+  it('is refused if a title came for a vault that keeps its names secret, so it never reaches the commit', async () => {
+    const { access, createEncrypted } = setup({
+      encrypted: { ok: true, target: { naming: 'id', suffix: '.age' } },
+    });
+    expect(await access.createEncrypted('alice', 1, secret)).toEqual({
+      found: true,
+      result: { ok: false, reason: 'wrong_shape' },
+    });
+    expect(await access.createEncrypted('alice', 1, { ...secret, title: '  ' })).toMatchObject({
+      found: true,
+      result: { ok: true },
+    });
     expect(createEncrypted).toHaveBeenCalledOnce();
   });
 
-  it("is never made through the way a plaintext vault is, which still refuses an encrypted one", async () => {
-    const { access, create } = setup({ vault: "encrypted_vault" });
-    expect(await access.create("alice", 1, { ...input, vault: "Secret" })).toEqual({ found: true, result: { ok: false, reason: "encrypted_vault" } });
+  it('is never made through the way a plaintext vault is, which still refuses an encrypted one', async () => {
+    const { access, create } = setup({ vault: 'encrypted_vault' });
+    expect(await access.create('alice', 1, { ...input, vault: 'Secret' })).toEqual({
+      found: true,
+      result: { ok: false, reason: 'encrypted_vault' },
+    });
     expect(create).not.toHaveBeenCalled();
   });
 });
 
-describe("moving a file between vaults, one of them encrypted (ROADMAP 2b.6)", () => {
-  const input = { path: "Notes/Plan.md", blob: "a".repeat(40), destination: "Locked/Plan.md.age", content: new Uint8Array([1]), author: { name: "Alice", email: "alice@example.com" } };
+describe('moving a file between vaults, one of them encrypted (ROADMAP 2b.6)', () => {
+  const input = {
+    path: 'Notes/Plan.md',
+    blob: 'a'.repeat(40),
+    destination: 'Locked/Plan.md.age',
+    content: new Uint8Array([1]),
+    author: { name: 'Alice', email: 'alice@example.com' },
+  };
 
   it("is for the caller's own connection only: another's is not found, and nothing is read or moved", async () => {
     const { access, vaultFor, transfer } = setup({ owns: false });
-    expect(await access.transfer("mallory", 1, input)).toEqual({ found: false });
+    expect(await access.transfer('mallory', 1, input)).toEqual({ found: false });
     expect(vaultFor).not.toHaveBeenCalled();
     expect(transfer).not.toHaveBeenCalled();
   });
 
-  it("tells the move the form of each vault from the repository, not the request: plaintext to plain-named, and to id-named", async () => {
-    for (const naming of ["plain", "id"] as const) {
-      const { access, transfer } = setup({ vaults: { Notes: "ok", Locked: "encrypted_vault" }, encrypted: { ok: true, target: { naming, suffix: ".age" } } });
-      expect((await access.transfer("alice", 1, input)).found).toBe(true);
-      expect(transfer).toHaveBeenCalledWith("alice", 1, { ...input, source: { form: "plaintext" }, target: { form: "encrypted", naming } });
+  it('tells the move the form of each vault from the repository, not the request: plaintext to plain-named, and to id-named', async () => {
+    for (const naming of ['plain', 'id'] as const) {
+      const { access, transfer } = setup({
+        vaults: { Notes: 'ok', Locked: 'encrypted_vault' },
+        encrypted: { ok: true, target: { naming, suffix: '.age' } },
+      });
+      expect((await access.transfer('alice', 1, input)).found).toBe(true);
+      expect(transfer).toHaveBeenCalledWith('alice', 1, {
+        ...input,
+        source: { form: 'plaintext' },
+        target: { form: 'encrypted', naming },
+      });
     }
   });
 
-  it("is not for two plaintext vaults, which need no browser", async () => {
+  it('is not for two plaintext vaults, which need no browser', async () => {
     const { access, transfer } = setup();
-    expect(await access.transfer("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "no_encryption", where: "destination" } });
+    expect(await access.transfer('alice', 1, input)).toEqual({
+      found: true,
+      result: { ok: false, reason: 'no_encryption', where: 'destination' },
+    });
     expect(transfer).not.toHaveBeenCalled();
   });
 
-  it("says which vault is refused, and moves nothing", async () => {
-    const source = setup({ vaults: { Notes: "unsupported_vault" } });
-    expect(await source.access.transfer("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unsupported_vault", where: "source" } });
-    const destination = setup({ vaults: { Locked: "unknown_vault" } });
-    expect(await destination.access.transfer("alice", 1, input)).toEqual({ found: true, result: { ok: false, reason: "unknown_vault", where: "destination" } });
+  it('says which vault is refused, and moves nothing', async () => {
+    const source = setup({ vaults: { Notes: 'unsupported_vault' } });
+    expect(await source.access.transfer('alice', 1, input)).toEqual({
+      found: true,
+      result: { ok: false, reason: 'unsupported_vault', where: 'source' },
+    });
+    const destination = setup({ vaults: { Locked: 'unknown_vault' } });
+    expect(await destination.access.transfer('alice', 1, input)).toEqual({
+      found: true,
+      result: { ok: false, reason: 'unknown_vault', where: 'destination' },
+    });
     expect(source.transfer).not.toHaveBeenCalled();
     expect(destination.transfer).not.toHaveBeenCalled();
   });
 });
 
 describe("an encrypted vault's own files are not its owner's to delete or move by an API call (security review of phase 2)", () => {
-  const encrypted = { vaults: { Secret: "encrypted_vault" as const }, encrypted: { ok: true as const, target: { naming: "plain" as const, suffix: ".age" as const } } };
-  const author = { name: "Alice", email: "alice@example.com" };
+  const encrypted = {
+    vaults: { Secret: 'encrypted_vault' as const },
+    encrypted: { ok: true as const, target: { naming: 'plain' as const, suffix: '.age' as const } },
+  };
+  const author = { name: 'Alice', email: 'alice@example.com' };
 
-  it.each(["Secret/recipients.txt", "Secret/.gitignore", "Secret/fjord.vault.json", "Secret/notes.md"])("%s is refused: only an encrypted file (.age) of the vault is changed", async (path) => {
+  it.each([
+    'Secret/recipients.txt',
+    'Secret/.gitignore',
+    'Secret/fjord.vault.json',
+    'Secret/notes.md',
+  ])('%s is refused: only an encrypted file (.age) of the vault is changed', async (path) => {
     const { access, remove, move, transfer } = setup(encrypted);
-    const target = { type: "file" as const, path, blob: "a".repeat(40) };
-    expect(await access.delete("alice", 1, { vault: "Secret", target, author })).toEqual({ found: true, result: { ok: false, reason: "protected" } });
-    expect(await access.move("alice", 1, { vault: "Secret", target, destination: "Secret/other.txt", author })).toEqual({ found: true, result: { ok: false, reason: "protected", where: "source" } });
-    expect(await access.transfer("alice", 1, { path, blob: "a".repeat(40), destination: "Elsewhere/x.md", content: new Uint8Array([1]), author })).toEqual({ found: true, result: { ok: false, reason: "protected", where: "source" } });
+    const target = { type: 'file' as const, path, blob: 'a'.repeat(40) };
+    expect(await access.delete('alice', 1, { vault: 'Secret', target, author })).toEqual({
+      found: true,
+      result: { ok: false, reason: 'protected' },
+    });
+    expect(
+      await access.move('alice', 1, {
+        vault: 'Secret',
+        target,
+        destination: 'Secret/other.txt',
+        author,
+      }),
+    ).toEqual({ found: true, result: { ok: false, reason: 'protected', where: 'source' } });
+    expect(
+      await access.transfer('alice', 1, {
+        path,
+        blob: 'a'.repeat(40),
+        destination: 'Elsewhere/x.md',
+        content: new Uint8Array([1]),
+        author,
+      }),
+    ).toEqual({ found: true, result: { ok: false, reason: 'protected', where: 'source' } });
     expect([remove, move, transfer].map((fn) => fn.mock.calls.length)).toEqual([0, 0, 0]);
   });
 
-  it("still changes a payload, and a folder", async () => {
+  it('still changes a payload, and a folder', async () => {
     const { access, remove, move } = setup(encrypted);
-    expect((await access.delete("alice", 1, { vault: "Secret", target: { type: "file", path: "Secret/a.md.age", blob: "a".repeat(40) }, author })).found).toBe(true);
-    expect((await access.move("alice", 1, { vault: "Secret", target: { type: "folder", path: "Secret/Sub", files: 2 }, destination: "Secret/Sub2", author })).found).toBe(true);
+    expect(
+      (
+        await access.delete('alice', 1, {
+          vault: 'Secret',
+          target: { type: 'file', path: 'Secret/a.md.age', blob: 'a'.repeat(40) },
+          author,
+        })
+      ).found,
+    ).toBe(true);
+    expect(
+      (
+        await access.move('alice', 1, {
+          vault: 'Secret',
+          target: { type: 'folder', path: 'Secret/Sub', files: 2 },
+          destination: 'Secret/Sub2',
+          author,
+        })
+      ).found,
+    ).toBe(true);
     expect([remove, move].map((fn) => fn.mock.calls.length)).toEqual([1, 1]);
   });
 });
-

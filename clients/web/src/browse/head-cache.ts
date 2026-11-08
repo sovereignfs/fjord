@@ -1,4 +1,4 @@
-import type { RepositoryRef } from "../providers/types";
+import type { RepositoryRef } from '../providers/types';
 
 /**
  * The last head a connection's branch was seen at, with the host's `ETag` for it, kept in this process (DESIGN.md §8, ROADMAP 1a.6
@@ -40,7 +40,6 @@ export class HeadCache {
     this.kept.set(key, head);
     while (this.kept.size > this.max) this.kept.delete(this.kept.keys().next().value as string);
   }
-
 }
 
 /** The process's own, shared by every request. */

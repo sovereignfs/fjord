@@ -1,12 +1,12 @@
-import { requireSession } from "../../src/auth/server";
-import { FirstRun } from "../../src/connections/screens/FirstRun";
-import { RepositoryGrid } from "../../src/connections/screens/RepositoryGrid";
-import { connectionService } from "../../src/connections/server";
-import { encryptionKeyring } from "../../src/crypto/server";
-import { sharedCountFor } from "../../src/sharing/count";
+import { requireSession } from '../../src/auth/server';
+import { FirstRun } from '../../src/connections/screens/FirstRun';
+import { RepositoryGrid } from '../../src/connections/screens/RepositoryGrid';
+import { connectionService } from '../../src/connections/server';
+import { encryptionKeyring } from '../../src/crypto/server';
+import { sharedCountFor } from '../../src/sharing/count';
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Home" };
+export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Home' };
 
 /**
  * What someone signed in sees at `/` (the proxy shows this page there): a tile for each repository they have connected, to open one, and before they
@@ -16,6 +16,7 @@ export default async function HomePage() {
   const { user } = await requireSession();
   const canConnect = encryptionKeyring() !== undefined;
   const connections = canConnect ? await (await connectionService()).list(user.id) : [];
-  if (connections.length === 0) return <FirstRun user={user} canConnect={canConnect} shared={await sharedCountFor(user.id)} />;
+  if (connections.length === 0)
+    return <FirstRun user={user} canConnect={canConnect} shared={await sharedCountFor(user.id)} />;
   return <RepositoryGrid user={user} connections={connections} />;
 }

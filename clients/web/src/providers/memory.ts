@@ -1,10 +1,25 @@
-import { ProviderError } from "./errors";
-import { gitBlobId } from "./git-id";
-import { summarise } from "./build-status";
-import type { Branch, BuildCheck, BuildStatus, Change, CommitRequest, CommitResult, EntryKind, FileVersion, HeadResult, Provider, Repository, RepositoryRef, Tree, TreeEntry } from "./types";
-import { repositoryKey } from "./types";
-import { validateCommitRequest } from "./validate";
-import { createHash } from "node:crypto";
+import { ProviderError } from './errors';
+import { gitBlobId } from './git-id';
+import { summarise } from './build-status';
+import type {
+  Branch,
+  BuildCheck,
+  BuildStatus,
+  Change,
+  CommitRequest,
+  CommitResult,
+  EntryKind,
+  FileVersion,
+  HeadResult,
+  Provider,
+  Repository,
+  RepositoryRef,
+  Tree,
+  TreeEntry,
+} from './types';
+import { repositoryKey } from './types';
+import { validateCommitRequest } from './validate';
+import { createHash } from 'node:crypto';
 
 /**
  * A git host in memory: the second implementation of `Provider`, which the rest of the app is
@@ -39,11 +54,11 @@ export interface MemoryProviderOptions {
   treeLimit?: number;
 }
 
-const sha1 = (text: string) => createHash("sha1").update(text).digest("hex");
+const sha1 = (text: string) => createHash('sha1').update(text).digest('hex');
 const encoder = new TextEncoder();
 
 export class MemoryProvider implements Provider {
-  readonly name = "memory";
+  readonly name = 'memory';
   readonly webhooks = false;
   private readonly repositories = new Map<string, StoredRepository>();
   private treeLimit: number | undefined;
@@ -54,10 +69,18 @@ export class MemoryProvider implements Provider {
 
   // --- Setting up (not part of Provider) ---------------------------------------------------
 
-  createRepository(ref: RepositoryRef, options: { defaultBranch?: string; private?: boolean; canPush?: boolean } = {}): void {
-    const defaultBranch = options.defaultBranch ?? "main";
+  createRepository(
+    ref: RepositoryRef,
+    options: { defaultBranch?: string; private?: boolean; canPush?: boolean } = {},
+  ): void {
+    const defaultBranch = options.defaultBranch ?? 'main';
     this.repositories.set(repositoryKey(ref), {
-      info: { ref, defaultBranch, private: options.private ?? true, canPush: options.canPush ?? true },
+      info: {
+        ref,
+        defaultBranch,
+        private: options.private ?? true,
+        canPush: options.canPush ?? true,
+      },
       branches: new Map(),
       commits: new Map(),
       blobs: new Map(),
@@ -66,7 +89,11 @@ export class MemoryProvider implements Provider {
   }
 
   /** The host's integrations report on a commit's build (not part of Provider): what `getBuildStatus` then says of it. */
-  reportBuild(ref: RepositoryRef, commit: string, report: { checks: BuildCheck[]; siteUrl?: string | undefined }): void {
+  reportBuild(
+    ref: RepositoryRef,
+    commit: string,
+    report: { checks: BuildCheck[]; siteUrl?: string | undefined },
+  ): void {
     const repo = this.repositories.get(repositoryKey(ref));
     if (!repo?.commits.has(commit)) throw new Error(`no such commit ${commit}`);
     repo.builds.set(commit, report);
@@ -77,14 +104,25 @@ export class MemoryProvider implements Provider {
   }
 
   /** Make the branch contain exactly these files, as one commit on top of what is there. Returns the commit. */
-  seed(ref: RepositoryRef, files: Record<string, string | Uint8Array | null>, options: { branch?: string; replace?: boolean } = {}): string {
+  seed(
+    ref: RepositoryRef,
+    files: Record<string, string | Uint8Array | null>,
+    options: { branch?: string; replace?: boolean } = {},
+  ): string {
     const repo = this.repo(ref);
     const branch = options.branch ?? repo.info.defaultBranch;
     const parent = repo.branches.get(branch);
-    const next = options.replace || !parent ? new Map<string, StoredFile>() : new Map(repo.commits.get(parent)!.files);
+    const next =
+      options.replace || !parent
+        ? new Map<string, StoredFile>()
+        : new Map(repo.commits.get(parent)!.files);
     for (const [path, content] of Object.entries(files)) {
       if (content === null) next.delete(path);
-      else next.set(path, { blob: this.store(repo, typeof content === "string" ? encoder.encode(content) : content), executable: false });
+      else
+        next.set(path, {
+          blob: this.store(repo, typeof content === 'string' ? encoder.encode(content) : content),
+          executable: false,
+        });
     }
     return this.record(repo, branch, parent, next, `seed ${repo.commits.size + 1}`);
   }
@@ -99,9 +137,13 @@ export class MemoryProvider implements Provider {
     return this.repo(ref).info;
   }
 
-  async getHead(ref: RepositoryRef, branch: string, options: { etag?: string | undefined } = {}): Promise<HeadResult> {
+  async getHead(
+    ref: RepositoryRef,
+    branch: string,
+    options: { etag?: string | undefined } = {},
+  ): Promise<HeadResult> {
     const commit = this.repo(ref).branches.get(branch);
-    if (!commit) throw new ProviderError("not_found", `there is no branch "${branch}"`);
+    if (!commit) throw new ProviderError('not_found', `there is no branch "${branch}"`);
     const etag = `"${commit}"`;
     if (options.etag === etag) return { changed: false };
     return { changed: true, head: { branch, commit, etag } };
@@ -109,24 +151,32 @@ export class MemoryProvider implements Provider {
 
   async createBranch(ref: RepositoryRef, branch: string, fromCommit: string): Promise<void> {
     const repo = this.repo(ref);
-    if (!repo.commits.has(fromCommit)) throw new ProviderError("not_found", `there is no commit ${fromCommit}`);
-    if (repo.branches.has(branch)) throw new ProviderError("branch_exists", `there is already a branch ${branch}`);
+    if (!repo.commits.has(fromCommit))
+      throw new ProviderError('not_found', `there is no commit ${fromCommit}`);
+    if (repo.branches.has(branch))
+      throw new ProviderError('branch_exists', `there is already a branch ${branch}`);
     repo.branches.set(branch, fromCommit);
   }
 
   async deleteBranch(ref: RepositoryRef, branch: string): Promise<void> {
     const repo = this.repo(ref);
-    if (branch === repo.info.defaultBranch) throw new ProviderError("invalid_request", "the default branch is not deleted from here");
-    if (!repo.branches.delete(branch)) throw new ProviderError("not_found", `there is no branch ${branch}`);
+    if (branch === repo.info.defaultBranch)
+      throw new ProviderError('invalid_request', 'the default branch is not deleted from here');
+    if (!repo.branches.delete(branch))
+      throw new ProviderError('not_found', `there is no branch ${branch}`);
   }
 
   async listBranches(ref: RepositoryRef, prefix: string): Promise<Branch[]> {
-    return [...this.repo(ref).branches].filter(([name]) => name.startsWith(prefix)).map(([branch, commit]) => ({ branch, commit })).sort((a, b) => (a.branch < b.branch ? -1 : 1));
+    return [...this.repo(ref).branches]
+      .filter(([name]) => name.startsWith(prefix))
+      .map(([branch, commit]) => ({ branch, commit }))
+      .sort((a, b) => (a.branch < b.branch ? -1 : 1));
   }
 
   async getBuildStatus(ref: RepositoryRef, commit: string): Promise<BuildStatus> {
     const repo = this.repo(ref);
-    if (!repo.commits.has(commit)) throw new ProviderError("not_found", `there is no commit ${commit}`);
+    if (!repo.commits.has(commit))
+      throw new ProviderError('not_found', `there is no commit ${commit}`);
     const report = repo.builds.get(commit);
     return summarise(commit, report?.checks ?? [], report?.siteUrl);
   }
@@ -140,36 +190,58 @@ export class MemoryProvider implements Provider {
   async getTree(ref: RepositoryRef, commit: string): Promise<Tree> {
     const stored = this.commitOf(this.repo(ref), commit);
     const entries = this.allEntries(this.repo(ref), stored);
-    if (this.treeLimit !== undefined && entries.length > this.treeLimit) return { commit, entries: entries.slice(0, this.treeLimit), complete: false };
+    if (this.treeLimit !== undefined && entries.length > this.treeLimit)
+      return { commit, entries: entries.slice(0, this.treeLimit), complete: false };
     return { commit, entries, complete: true };
   }
 
   async listDirectory(ref: RepositoryRef, commit: string, path: string): Promise<TreeEntry[]> {
     const repo = this.repo(ref);
     const entries = this.allEntries(repo, this.commitOf(repo, commit));
-    if (path !== "" && !entries.some((entry) => entry.path === path && entry.kind === "directory")) {
-      throw new ProviderError("not_found", `there is no directory "${path}" in that commit`);
+    if (
+      path !== '' &&
+      !entries.some((entry) => entry.path === path && entry.kind === 'directory')
+    ) {
+      throw new ProviderError('not_found', `there is no directory "${path}" in that commit`);
     }
-    const prefix = path === "" ? "" : `${path}/`;
-    return entries.filter((entry) => entry.path.startsWith(prefix) && !entry.path.slice(prefix.length).includes("/"));
+    const prefix = path === '' ? '' : `${path}/`;
+    return entries.filter(
+      (entry) => entry.path.startsWith(prefix) && !entry.path.slice(prefix.length).includes('/'),
+    );
   }
 
-  async readBlob(ref: RepositoryRef, blob: string, options: { maxBytes?: number | undefined } = {}): Promise<Uint8Array> {
+  async readBlob(
+    ref: RepositoryRef,
+    blob: string,
+    options: { maxBytes?: number | undefined } = {},
+  ): Promise<Uint8Array> {
     const content = this.repo(ref).blobs.get(blob);
-    if (!content) throw new ProviderError("not_found", "there is no such file");
+    if (!content) throw new ProviderError('not_found', 'there is no such file');
     if (options.maxBytes !== undefined && content.byteLength > options.maxBytes) {
-      throw new ProviderError("too_large", `the file is ${content.byteLength} bytes, over the limit of ${options.maxBytes}`);
+      throw new ProviderError(
+        'too_large',
+        `the file is ${content.byteLength} bytes, over the limit of ${options.maxBytes}`,
+      );
     }
     return content;
   }
 
-  async fileHistory(ref: RepositoryRef, commit: string, path: string, limit: number): Promise<FileVersion[]> {
+  async fileHistory(
+    ref: RepositoryRef,
+    commit: string,
+    path: string,
+    limit: number,
+  ): Promise<FileVersion[]> {
     const repo = this.repo(ref);
     const versions: FileVersion[] = [];
-    for (let at: StoredCommit | undefined = this.commitOf(repo, commit); at && versions.length < limit; ) {
+    for (
+      let at: StoredCommit | undefined = this.commitOf(repo, commit);
+      at && versions.length < limit;
+    ) {
       const parent: StoredCommit | undefined = at.parent ? repo.commits.get(at.parent) : undefined;
       const here: string | undefined = at.files.get(path)?.blob;
-      if (here !== undefined && here !== parent?.files.get(path)?.blob) versions.push({ commit: at.id, message: at.message, author: at.author, date: at.date });
+      if (here !== undefined && here !== parent?.files.get(path)?.blob)
+        versions.push({ commit: at.id, message: at.message, author: at.author, date: at.date });
       at = parent;
     }
     return versions;
@@ -179,15 +251,27 @@ export class MemoryProvider implements Provider {
     validateCommitRequest(request);
     const repo = this.repo(ref);
     const head = repo.branches.get(request.branch);
-    if (!head) throw new ProviderError("not_found", `there is no branch "${request.branch}"`);
+    if (!head) throw new ProviderError('not_found', `there is no branch "${request.branch}"`);
     // The same rule as a fast-forward: only if the branch is still where the caller read it.
-    if (head !== request.expectedHead) throw new ProviderError("head_moved", `${request.branch} has moved on from ${request.expectedHead.slice(0, 7)}`);
+    if (head !== request.expectedHead)
+      throw new ProviderError(
+        'head_moved',
+        `${request.branch} has moved on from ${request.expectedHead.slice(0, 7)}`,
+      );
 
     const next = new Map(repo.commits.get(head)!.files);
     for (const change of request.changes) this.apply(repo, next, change);
-    if (sameFiles(next, repo.commits.get(head)!.files)) throw new ProviderError("no_changes", "the commit would not change anything");
+    if (sameFiles(next, repo.commits.get(head)!.files))
+      throw new ProviderError('no_changes', 'the commit would not change anything');
 
-    const commit = this.record(repo, request.branch, head, next, request.message, request.author?.name);
+    const commit = this.record(
+      repo,
+      request.branch,
+      head,
+      next,
+      request.message,
+      request.author?.name,
+    );
     return { commit, parent: head, branch: request.branch };
   }
 
@@ -195,13 +279,13 @@ export class MemoryProvider implements Provider {
 
   private repo(ref: RepositoryRef): StoredRepository {
     const repo = this.repositories.get(repositoryKey(ref));
-    if (!repo) throw new ProviderError("not_found", `there is no repository ${repositoryKey(ref)}`);
+    if (!repo) throw new ProviderError('not_found', `there is no repository ${repositoryKey(ref)}`);
     return repo;
   }
 
   private commitOf(repo: StoredRepository, id: string): StoredCommit {
     const commit = repo.commits.get(id);
-    if (!commit) throw new ProviderError("not_found", `there is no commit ${id.slice(0, 7)}`);
+    if (!commit) throw new ProviderError('not_found', `there is no commit ${id.slice(0, 7)}`);
     return commit;
   }
 
@@ -212,20 +296,44 @@ export class MemoryProvider implements Provider {
   }
 
   private apply(repo: StoredRepository, files: Map<string, StoredFile>, change: Change): void {
-    if ("delete" in change) {
+    if ('delete' in change) {
       files.delete(change.path);
-    } else if ("blob" in change) {
-      if (!repo.blobs.has(change.blob)) throw new ProviderError("invalid_request", `there is no blob ${change.blob.slice(0, 7)} to put at "${change.path}"`);
+    } else if ('blob' in change) {
+      if (!repo.blobs.has(change.blob))
+        throw new ProviderError(
+          'invalid_request',
+          `there is no blob ${change.blob.slice(0, 7)} to put at "${change.path}"`,
+        );
       files.set(change.path, { blob: change.blob, executable: change.executable ?? false });
     } else {
-      files.set(change.path, { blob: this.store(repo, change.content), executable: change.executable ?? false });
+      files.set(change.path, {
+        blob: this.store(repo, change.content),
+        executable: change.executable ?? false,
+      });
     }
   }
 
-  private record(repo: StoredRepository, branch: string, parent: string | undefined, files: Map<string, StoredFile>, message: string, author?: string): string {
-    const listing = [...files].sort(([a], [b]) => (a < b ? -1 : 1)).map(([path, file]) => `${path}:${file.blob}:${file.executable}`).join("\n");
-    const id = sha1(`${parent ?? ""}\n${message}\n${listing}\n${repo.commits.size}`);
-    repo.commits.set(id, { id, ...(parent ? { parent } : {}), files, message: message.split("\n")[0] as string, author: author ?? null, date: new Date().toISOString() });
+  private record(
+    repo: StoredRepository,
+    branch: string,
+    parent: string | undefined,
+    files: Map<string, StoredFile>,
+    message: string,
+    author?: string,
+  ): string {
+    const listing = [...files]
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([path, file]) => `${path}:${file.blob}:${file.executable}`)
+      .join('\n');
+    const id = sha1(`${parent ?? ''}\n${message}\n${listing}\n${repo.commits.size}`);
+    repo.commits.set(id, {
+      id,
+      ...(parent ? { parent } : {}),
+      files,
+      message: message.split('\n')[0] as string,
+      author: author ?? null,
+      date: new Date().toISOString(),
+    });
     repo.branches.set(branch, id);
     return id;
   }
@@ -234,12 +342,24 @@ export class MemoryProvider implements Provider {
   private allEntries(repo: StoredRepository, commit: StoredCommit): TreeEntry[] {
     const entries = new Map<string, TreeEntry>();
     for (const [path, file] of commit.files) {
-      const parts = path.split("/");
+      const parts = path.split('/');
       for (let i = 1; i < parts.length; i++) {
-        const dir = parts.slice(0, i).join("/");
-        if (!entries.has(dir)) entries.set(dir, { path: dir, kind: "directory" as EntryKind, id: sha1(`tree:${dir}:${commit.id}`), executable: false });
+        const dir = parts.slice(0, i).join('/');
+        if (!entries.has(dir))
+          entries.set(dir, {
+            path: dir,
+            kind: 'directory' as EntryKind,
+            id: sha1(`tree:${dir}:${commit.id}`),
+            executable: false,
+          });
       }
-      entries.set(path, { path, kind: "file", id: file.blob, size: repo.blobs.get(file.blob)!.byteLength, executable: file.executable });
+      entries.set(path, {
+        path,
+        kind: 'file',
+        id: file.blob,
+        size: repo.blobs.get(file.blob)!.byteLength,
+        executable: file.executable,
+      });
     }
     return [...entries.values()].sort((a, b) => (a.path < b.path ? -1 : 1));
   }

@@ -1,7 +1,7 @@
-import type { Identity, Provider, RepositoryRef } from "../providers/types";
-import { hasConflictMarkers } from "../working/markers";
-import type { Editor, WorkingCopyService } from "../working/service";
-import { type VersionResult, saveVersion } from "../working/version";
+import type { Identity, Provider, RepositoryRef } from '../providers/types';
+import { hasConflictMarkers } from '../working/markers';
+import type { Editor, WorkingCopyService } from '../working/service';
+import { type VersionResult, saveVersion } from '../working/version';
 
 /**
  * Idle versions (DESIGN.md §11, ROADMAP 1b.13): a draft nobody has edited for the quiet period becomes a version, by the same
@@ -26,7 +26,7 @@ export interface IdleTarget {
 }
 
 export interface IdleDeps {
-  drafts: Pick<WorkingCopyService, "idle" | "get" | "discardUnchanged">;
+  drafts: Pick<WorkingCopyService, 'idle' | 'get' | 'discardUnchanged'>;
   /** The connection a draft is of, with its token; undefined if it is gone. */
   target: (connectionId: number) => Promise<IdleTarget | undefined>;
   identityOf: (editor: Editor) => Promise<Identity | undefined>;
@@ -39,7 +39,12 @@ export interface IdleDeps {
   perPass?: number;
 }
 
-export type IdleOutcome = VersionResult | { ok: false; reason: "skipped_conflict" | "skipped_no_author" | "skipped_no_connection" | "failed" };
+export type IdleOutcome =
+  | VersionResult
+  | {
+      ok: false;
+      reason: 'skipped_conflict' | 'skipped_no_author' | 'skipped_no_connection' | 'failed';
+    };
 
 export interface IdleReport {
   made: number;
@@ -61,25 +66,42 @@ export function createIdleVersions(deps: IdleDeps) {
 
   async function attempt(connectionId: number, path: string): Promise<IdleOutcome> {
     const draft = await deps.drafts.get(connectionId, path);
-    if (!draft) return { ok: false, reason: "no_draft" };
-    if (hasConflictMarkers(draft.content)) return { ok: false, reason: "skipped_conflict" };
+    if (!draft) return { ok: false, reason: 'no_draft' };
+    if (hasConflictMarkers(draft.content)) return { ok: false, reason: 'skipped_conflict' };
     const target = await deps.target(connectionId);
-    if (!target) return { ok: false, reason: "skipped_no_connection" };
+    if (!target) return { ok: false, reason: 'skipped_no_connection' };
 
-    const ordered = [...draft.editors].sort((a, b) => Number(!(a.type === "account" && a.id === target.ownerId)) - Number(!(b.type === "account" && b.id === target.ownerId)));
+    const ordered = [...draft.editors].sort(
+      (a, b) =>
+        Number(!(a.type === 'account' && a.id === target.ownerId)) -
+        Number(!(b.type === 'account' && b.id === target.ownerId)),
+    );
     let author: { identity: Identity; id: string } | undefined;
     for (const editor of ordered) {
       const identity = await deps.identityOf(editor);
       if (identity) {
-        author = { identity, id: editor.type === "account" ? editor.id : "" };
+        author = { identity, id: editor.type === 'account' ? editor.id : '' };
         break;
       }
     }
-    if (!author) return { ok: false, reason: "skipped_no_author" };
+    if (!author) return { ok: false, reason: 'skipped_no_author' };
 
     return saveVersion(
-      { drafts: deps.drafts, provider: target.provider, ref: target.ref, branch: target.branch, identityOf: deps.identityOf },
-      { connectionId, path, message: undefined, author: author.identity, authorId: author.id, automatic: true },
+      {
+        drafts: deps.drafts,
+        provider: target.provider,
+        ref: target.ref,
+        branch: target.branch,
+        identityOf: deps.identityOf,
+      },
+      {
+        connectionId,
+        path,
+        message: undefined,
+        author: author.identity,
+        authorId: author.id,
+        automatic: true,
+      },
     );
   }
 
@@ -103,14 +125,16 @@ export function createIdleVersions(deps: IdleDeps) {
         outcome = await attempt(connectionId, path);
       } catch (error) {
         // Never the message: it may carry a path or a host's words. The name says what kind of failure it was.
-        console.error(`[fjord] idle versions: unexpected ${error instanceof Error ? error.name : "failure"}`);
-        outcome = { ok: false, reason: "failed" };
+        console.error(
+          `[fjord] idle versions: unexpected ${error instanceof Error ? error.name : 'failure'}`,
+        );
+        outcome = { ok: false, reason: 'failed' };
       }
       report.results.push({ connectionId, path, outcome });
       if (outcome.ok) {
         report.made++;
         backoff.delete(key);
-      } else if (outcome.reason !== "no_draft" && outcome.reason !== "nothing_to_save") {
+      } else if (outcome.reason !== 'no_draft' && outcome.reason !== 'nothing_to_save') {
         backoff.set(key, { lastEdit, until: now + retryMs });
       }
     }

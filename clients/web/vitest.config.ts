@@ -1,8 +1,8 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ["src/**/*.test.{ts,tsx}", "proxy.test.ts"],
+    include: ['src/**/*.test.{ts,tsx}', 'proxy.test.ts'],
     // The design system is shipped as ESM that imports CSS Modules. Node cannot import a
     // .css file, so Vite has to process the package, as it does a source file.
     server: { deps: { inline: [/@sovereignfs\/ui/] } },

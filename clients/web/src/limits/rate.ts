@@ -1,8 +1,8 @@
-import { sql } from "drizzle-orm";
-import type { Database } from "../db/client";
-import { dbAll, dbRun } from "../db/exec";
-import * as postgresSchema from "../db/schema/postgres";
-import * as sqliteSchema from "../db/schema/sqlite";
+import { sql } from 'drizzle-orm';
+import type { Database } from '../db/client';
+import { dbAll, dbRun } from '../db/exec';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
 
 /**
  * Rate limits (DESIGN.md §13, §15, ROADMAP 1d.4): at most `limit` of a kind of thing by one holder (an account, a link, a browser) in a window.
@@ -27,7 +27,8 @@ export interface Limiter {
   take(key: string, rule: Rule): Promise<Taken>;
 }
 
-const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.rateBucket : sqliteSchema.rateBucket);
+const table = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.rateBucket : sqliteSchema.rateBucket;
 
 /** How often (in counts made by one limiter) it sweeps up the rows whose window is long over. */
 const SWEEP_EVERY = 200;
@@ -54,7 +55,7 @@ export class RateLimiter implements Limiter {
     );
     if (++this.takes % SWEEP_EVERY === 0) await this.sweep();
     const row = rows[0];
-    if (!row) throw new Error("a rate limit could not be counted");
+    if (!row) throw new Error('a rate limit could not be counted');
     if (Number(row.count) <= rule.limit) return { ok: true };
     return { ok: false, retryAfterMs: Math.max(1, Number(row.windowStart) + rule.windowMs - now) };
   }
@@ -70,18 +71,27 @@ export class RateLimiter implements Limiter {
 
   /** Forget the rows whose window began more than a day ago. */
   async sweep(): Promise<void> {
-    await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE window_start < ${this.now() - KEEP_MS}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${table(this.database)} WHERE window_start < ${this.now() - KEEP_MS}`,
+    );
   }
 
   /** How many rows there are, for tests. */
   async rows(): Promise<number> {
-    const rows = await dbAll<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${table(this.database)}`);
+    const rows = await dbAll<{ n: number | string }>(
+      this.database,
+      sql`SELECT COUNT(*) AS n FROM ${table(this.database)}`,
+    );
     return Number(rows[0]?.n ?? 0);
   }
 }
 
 /** Count one against each of `entries` with `limiter` if there is one; no limiter, no limit. */
-export async function takeAll(limiter: Limiter | undefined, entries: readonly { key: string; rule: Rule }[]): Promise<Taken> {
+export async function takeAll(
+  limiter: Limiter | undefined,
+  entries: readonly { key: string; rule: Rule }[],
+): Promise<Taken> {
   if (!limiter) return { ok: true };
   for (const entry of entries) {
     const taken = await limiter.take(entry.key, entry.rule);

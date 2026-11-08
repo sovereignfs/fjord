@@ -1,5 +1,5 @@
-import type { SQL } from "drizzle-orm";
-import type { Database } from "./client";
+import type { SQL } from 'drizzle-orm';
+import type { Database } from './client';
 
 /**
  * Run raw SQL on either dialect. The query builder is the usual way in; this is
@@ -30,7 +30,7 @@ export async function dbGet<T>(database: Database, query: SQL): Promise<T | unde
 
 /** Every row. */
 export async function dbAll<T>(database: Database, query: SQL): Promise<T[]> {
-  if (database.dialect === "sqlite") {
+  if (database.dialect === 'sqlite') {
     return (await database.db.all(query)) as T[];
   }
   const result = await database.db.execute(query);
@@ -39,7 +39,7 @@ export async function dbAll<T>(database: Database, query: SQL): Promise<T[]> {
 
 /** A statement run for its effect, with no rows wanted. */
 export async function dbRun(database: Database, query: SQL): Promise<void> {
-  if (database.dialect === "sqlite") {
+  if (database.dialect === 'sqlite') {
     await database.db.run(query);
     return;
   }

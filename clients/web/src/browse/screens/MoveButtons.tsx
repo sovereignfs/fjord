@@ -1,15 +1,15 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Alert, Button, FormField, Input, Select } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import { type DeleteTarget, sendMove } from "../../files/client";
-import { MAX_TITLE_CHARS } from "../../files/limits";
-import { renameProblem } from "../../files/names";
-import { repositoryHref } from "../links";
-import { NodeIcon } from "../../ui/icons";
-import { ActionDialog } from "./ActionDialog";
-import { IconButton } from "./IconButton";
+import { useState } from 'react';
+import { Alert, Button, FormField, Input, Select } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import { type DeleteTarget, sendMove } from '../../files/client';
+import { MAX_TITLE_CHARS } from '../../files/limits';
+import { renameProblem } from '../../files/names';
+import { repositoryHref } from '../links';
+import { NodeIcon } from '../../ui/icons';
+import { ActionDialog } from './ActionDialog';
+import { IconButton } from './IconButton';
 
 /**
  * Rename and move a note, a document or a folder (ROADMAP 1b.11), from the page of the file or the folder. Rename edits the
@@ -26,7 +26,7 @@ export function MoveButtons({
   suffix,
   destinations,
   canRename = true,
-  appearance = "text",
+  appearance = 'text',
 }: {
   connectionId: number;
   /** Where the repository's addresses begin (`ConnectionInfo.address`), for the link a finished action goes to; `connectionId` is for the API. */
@@ -40,56 +40,73 @@ export function MoveButtons({
   /** False for a file whose name is its identifier (a vault that names its files by id): it is moved, and renamed by the name inside it. */
   canRename?: boolean;
   /** `icon`: each button is an icon (a document's actions, at the end of its title), named the same. */
-  appearance?: "text" | "icon";
+  appearance?: 'text' | 'icon';
 }) {
-  const [mode, setMode] = useState<"rename" | "move" | null>(null);
+  const [mode, setMode] = useState<'rename' | 'move' | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<{ message: string; lookAgain: boolean; taken: string[] } | null>(null);
+  const [error, setError] = useState<{
+    message: string;
+    lookAgain: boolean;
+    taken: string[];
+  } | null>(null);
 
-  const leaf = target.path.slice(target.path.lastIndexOf("/") + 1);
-  const parent = target.path.includes("/") ? target.path.slice(0, target.path.lastIndexOf("/")) : "";
-  const stem = suffix === "" ? leaf : leaf.slice(0, leaf.length - suffix.length);
+  const leaf = target.path.slice(target.path.lastIndexOf('/') + 1);
+  const parent = target.path.includes('/')
+    ? target.path.slice(0, target.path.lastIndexOf('/'))
+    : '';
+  const stem = suffix === '' ? leaf : leaf.slice(0, leaf.length - suffix.length);
   const [name, setName] = useState(stem);
   // Not where it is, and for a folder not into itself.
-  const places = destinations.filter((place) => place !== parent && (target.type === "file" || (place !== target.path && !place.startsWith(`${target.path}/`))));
-  const [place, setPlace] = useState(places[0] ?? "");
+  const places = destinations.filter(
+    (place) =>
+      place !== parent &&
+      (target.type === 'file' || (place !== target.path && !place.startsWith(`${target.path}/`))),
+  );
+  const [place, setPlace] = useState(places[0] ?? '');
 
   async function go(destination: string) {
     setBusy(true);
     setError(null);
     const done = await sendMove(connectionId, vault, target, destination);
     if (done.ok) {
-      window.location.assign(repositoryHref(repo, ...destination.split("/")));
+      window.location.assign(repositoryHref(repo, ...destination.split('/')));
       return;
     }
     setError({ message: done.message, lookAgain: done.lookAgain, taken: done.taken });
     setBusy(false);
   }
 
-  const noun = target.type === "folder" ? "folder" : "file";
+  const noun = target.type === 'folder' ? 'folder' : 'file';
   const close = () => (setMode(null), setError(null));
-  const title = mode === "move" ? (target.type === "folder" ? "Move folder" : "Move") : target.type === "folder" ? "Rename folder" : "Rename";
+  const title =
+    mode === 'move'
+      ? target.type === 'folder'
+        ? 'Move folder'
+        : 'Move'
+      : target.type === 'folder'
+        ? 'Rename folder'
+        : 'Rename';
   return (
     <>
       {canRename ? (
-        appearance === "icon" ? (
-          <IconButton label="Rename" onClick={() => setMode("rename")}>
+        appearance === 'icon' ? (
+          <IconButton label="Rename" onClick={() => setMode('rename')}>
             <NodeIcon name="pencil" aria-hidden />
           </IconButton>
         ) : (
-          <Button variant="secondary" size="sm" onClick={() => setMode("rename")}>
-            {target.type === "folder" ? "Rename folder" : "Rename"}
+          <Button variant="secondary" size="sm" onClick={() => setMode('rename')}>
+            {target.type === 'folder' ? 'Rename folder' : 'Rename'}
           </Button>
         )
       ) : null}
       {places.length > 0 ? (
-        appearance === "icon" ? (
-          <IconButton label="Move" onClick={() => setMode("move")}>
+        appearance === 'icon' ? (
+          <IconButton label="Move" onClick={() => setMode('move')}>
             <NodeIcon name="folder-input" aria-hidden />
           </IconButton>
         ) : (
-          <Button variant="secondary" size="sm" onClick={() => setMode("move")}>
-            {target.type === "folder" ? "Move folder" : "Move"}
+          <Button variant="secondary" size="sm" onClick={() => setMode('move')}>
+            {target.type === 'folder' ? 'Move folder' : 'Move'}
           </Button>
         )
       ) : null}
@@ -97,7 +114,7 @@ export function MoveButtons({
         {error ? (
           <div className={styles.notice}>
             <Alert variant="error" heading={`The ${noun} was not changed`}>
-              {error.message}{" "}
+              {error.message}{' '}
               {error.lookAgain ? (
                 <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
                   Look again
@@ -106,7 +123,7 @@ export function MoveButtons({
             </Alert>
           </div>
         ) : null}
-        {mode === "rename" ? (
+        {mode === 'rename' ? (
           <form
             className={styles.form}
             style={{ marginTop: 0 }}
@@ -117,19 +134,35 @@ export function MoveButtons({
               else void go(`${parent}/${name.trim()}${suffix}`);
             }}
           >
-            <FormField label="New name" hint={suffix === "" ? undefined : `It stays ${suffix}.`}>
-              {(field) => <Input {...field} name="name" autoComplete="off" maxLength={MAX_TITLE_CHARS} autoFocus value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />}
+            <FormField label="New name" hint={suffix === '' ? undefined : `It stays ${suffix}.`}>
+              {(field) => (
+                <Input
+                  {...field}
+                  name="name"
+                  autoComplete="off"
+                  maxLength={MAX_TITLE_CHARS}
+                  autoFocus
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={busy}
+                />
+              )}
             </FormField>
             <div className={styles.actions}>
-              <Button type="submit" size="sm" loading={busy} disabled={name.trim() === "" || name.trim() === stem}>
+              <Button
+                type="submit"
+                size="sm"
+                loading={busy}
+                disabled={name.trim() === '' || name.trim() === stem}
+              >
                 Rename
-              </Button>{" "}
+              </Button>{' '}
               <Button type="button" variant="secondary" size="sm" onClick={close} disabled={busy}>
                 Cancel
               </Button>
             </div>
           </form>
-        ) : mode === "move" ? (
+        ) : mode === 'move' ? (
           <form
             className={styles.form}
             style={{ marginTop: 0 }}
@@ -140,7 +173,13 @@ export function MoveButtons({
           >
             <FormField label="Move to">
               {(field) => (
-                <Select {...field} name="place" value={place} onChange={(e) => setPlace(e.target.value)} disabled={busy}>
+                <Select
+                  {...field}
+                  name="place"
+                  value={place}
+                  onChange={(e) => setPlace(e.target.value)}
+                  disabled={busy}
+                >
                   {places.map((candidate) => (
                     <option key={candidate} value={candidate}>
                       {candidate}
@@ -150,9 +189,9 @@ export function MoveButtons({
               )}
             </FormField>
             <div className={styles.actions}>
-              <Button type="submit" size="sm" loading={busy} disabled={place === ""}>
+              <Button type="submit" size="sm" loading={busy} disabled={place === ''}>
                 Move
-              </Button>{" "}
+              </Button>{' '}
               <Button type="button" variant="secondary" size="sm" onClick={close} disabled={busy}>
                 Cancel
               </Button>

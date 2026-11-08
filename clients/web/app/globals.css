@@ -13,16 +13,16 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
-html[data-theme="dark"] {
+html[data-theme='dark'] {
   color-scheme: dark;
 }
 
 /* Account, Preferences, Text size: the tokens are in rem, so the root's size is all there is to enlarge. */
-html[data-text-size="large"] {
+html[data-text-size='large'] {
   font-size: 112.5%;
 }
 
-html[data-text-size="larger"] {
+html[data-text-size='larger'] {
   font-size: 125%;
 }
 
@@ -80,4 +80,3 @@ summary:focus-visible {
   overflow: hidden;
   clip-path: inset(50%);
 }
-

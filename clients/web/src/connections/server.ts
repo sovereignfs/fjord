@@ -1,9 +1,9 @@
-import { credentialStore } from "../crypto/server";
-import { getDatabase } from "../db/boot";
-import { GitHubProvider } from "../providers/github/provider";
-import { resolveGitHubApiUrl } from "./config";
-import { gitHubApp, installationProvider } from "../github-app/server";
-import { ConnectionService } from "./service";
+import { credentialStore } from '../crypto/server';
+import { getDatabase } from '../db/boot';
+import { GitHubProvider } from '../providers/github/provider';
+import { resolveGitHubApiUrl } from './config';
+import { gitHubApp, installationProvider } from '../github-app/server';
+import { ConnectionService } from './service';
 
 /**
  * The server's connection service, for routes and pages: the app's database, the credential
@@ -16,7 +16,7 @@ export async function connectionService(): Promise<ConnectionService> {
   return new ConnectionService({
     database: await getDatabase(),
     credentials,
-    github: (token) => new GitHubProvider({ apiUrl, token: async () => token, scope: "user" }),
+    github: (token) => new GitHubProvider({ apiUrl, token: async () => token, scope: 'user' }),
     ...(gitHubApp() ? { githubApp: installationProvider } : {}),
   });
 }

@@ -1,18 +1,18 @@
-import { notFound } from "next/navigation";
-import { connectionLabel } from "../../connections/label";
-import { requireSession } from "../../auth/server";
-import { SignedInShell } from "../../auth/screens/SignedInShell";
-import styles from "../../auth/screens/screens.module.css";
-import { isPublicId } from "../../connections/public-id";
-import { connectionService } from "../../connections/server";
-import { encryptionKeyring } from "../../crypto/server";
-import { getDatabase } from "../../db/boot";
-import { restoreWindowMs } from "../../files/config";
-import { DeletionService } from "../../files/deletions";
-import { Card } from "../../ui";
-import { repositoryHref } from "../links";
-import { RecentlyDeleted } from "./RecentlyDeleted";
-import { momentText } from "../../ui/dates";
+import { notFound } from 'next/navigation';
+import { connectionLabel } from '../../connections/label';
+import { requireSession } from '../../auth/server';
+import { SignedInShell } from '../../auth/screens/SignedInShell';
+import styles from '../../auth/screens/screens.module.css';
+import { isPublicId } from '../../connections/public-id';
+import { connectionService } from '../../connections/server';
+import { encryptionKeyring } from '../../crypto/server';
+import { getDatabase } from '../../db/boot';
+import { restoreWindowMs } from '../../files/config';
+import { DeletionService } from '../../files/deletions';
+import { Card } from '../../ui';
+import { repositoryHref } from '../links';
+import { RecentlyDeleted } from './RecentlyDeleted';
+import { momentText } from '../../ui/dates';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -50,10 +50,16 @@ export async function RecentlyDeletedScreen({ connection }: { connection: string
       <div className={styles.workspace}>
         <h1 className={styles.title}>Recently deleted</h1>
         <p className={styles.lead}>
-          {connectionLabel(current)} · <a href={repositoryHref(current.address)}>Back to the repository</a>
+          {connectionLabel(current)} ·{' '}
+          <a href={repositoryHref(current.address)}>Back to the repository</a>
         </p>
         <Card as="article" padding="lg">
-          <RecentlyDeleted connectionId={current.id} repo={current.address} groups={groups} days={Math.round(window / DAY)} />
+          <RecentlyDeleted
+            connectionId={current.id}
+            repo={current.address}
+            groups={groups}
+            days={Math.round(window / DAY)}
+          />
         </Card>
       </div>
     </SignedInShell>

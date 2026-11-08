@@ -1,7 +1,7 @@
-import { readFileSync } from "node:fs";
-import { ConfigError, type Env } from "../db/config";
-import { smtpEnv, sovereignEnv } from "../env-renames";
-import { type ReadFile, resolveSecret } from "../secret-env";
+import { readFileSync } from 'node:fs';
+import { ConfigError, type Env } from '../db/config';
+import { smtpEnv, sovereignEnv } from '../env-renames';
+import { type ReadFile, resolveSecret } from '../secret-env';
 
 /**
  * How people sign in, read from the environment in one place (DESIGN.md §6). Nothing else
@@ -63,7 +63,7 @@ export interface InstanceSettings {
   /** The instance's origin, no trailing slash. */
   url: string;
   secret: string;
-  signUp: "open" | "closed";
+  signUp: 'open' | 'closed';
   name: string;
 }
 
@@ -100,36 +100,43 @@ export interface SmtpConfig {
 }
 
 /** The id Sovereign sign-in is known by: it is in the callback URL registered with Sovereign, and it is the `provider_id` of the account it links. */
-export const SOVEREIGN_PROVIDER_ID = "sovereign";
+export const SOVEREIGN_PROVIDER_ID = 'sovereign';
 
 /** What Fjord Web asks Sovereign for. The manifest (sovereign.manifest.json) says the same, which a test holds. */
-export const SOVEREIGN_SCOPES = ["openid", "profile", "email"];
+export const SOVEREIGN_SCOPES = ['openid', 'profile', 'email'];
 
 const MIN_SECRET_LENGTH = 32;
 const DEFAULT_PASSWORD_MIN_LENGTH = 10;
 
-export function resolveAuthConfig(env: Env = process.env, readSecretFile: ReadFile = (path) => readFileSync(path, "utf8")): AuthConfig {
+export function resolveAuthConfig(
+  env: Env = process.env,
+  readSecretFile: ReadFile = (path) => readFileSync(path, 'utf8'),
+): AuthConfig {
   const local = isOn(env.FJORD_AUTH_LOCAL);
   const sovereign = resolveSovereign(env, readSecretFile);
   if (!local && !sovereign) return { enabled: false };
 
-  const why = local ? "FJORD_AUTH_LOCAL is on" : "Sovereign sign-in is set";
+  const why = local ? 'FJORD_AUTH_LOCAL is on' : 'Sovereign sign-in is set';
   const url = resolveUrl(env.FJORD_URL, why);
-  const secret = resolveSecret("FJORD_AUTH_SECRET", env, readSecretFile);
-  if (secret === undefined) throw new ConfigError(`${why}, so FJORD_AUTH_SECRET (or FJORD_AUTH_SECRET_FILE) is required.`);
+  const secret = resolveSecret('FJORD_AUTH_SECRET', env, readSecretFile);
+  if (secret === undefined)
+    throw new ConfigError(`${why}, so FJORD_AUTH_SECRET (or FJORD_AUTH_SECRET_FILE) is required.`);
   if (secret.length < MIN_SECRET_LENGTH) {
-    throw new ConfigError(`FJORD_AUTH_SECRET must be at least ${MIN_SECRET_LENGTH} characters (openssl rand -base64 32 makes one).`);
+    throw new ConfigError(
+      `FJORD_AUTH_SECRET must be at least ${MIN_SECRET_LENGTH} characters (openssl rand -base64 32 makes one).`,
+    );
   }
 
-  const signUp = (env.FJORD_AUTH_SIGNUP ?? "").trim().toLowerCase() || "closed";
-  if (signUp !== "open" && signUp !== "closed") throw new ConfigError(`FJORD_AUTH_SIGNUP must be "open" or "closed" (got "${signUp}").`);
+  const signUp = (env.FJORD_AUTH_SIGNUP ?? '').trim().toLowerCase() || 'closed';
+  if (signUp !== 'open' && signUp !== 'closed')
+    throw new ConfigError(`FJORD_AUTH_SIGNUP must be "open" or "closed" (got "${signUp}").`);
 
   return {
     enabled: true,
     url,
     secret,
     signUp,
-    name: (env.FJORD_NAME ?? "").trim() || "Fjord",
+    name: (env.FJORD_NAME ?? '').trim() || 'Fjord',
     ...(local ? { local: resolveLocal(env, url, readSecretFile) } : {}),
     ...(sovereign ? { sovereign } : {}),
   };
@@ -138,9 +145,13 @@ export function resolveAuthConfig(env: Env = process.env, readSecretFile: ReadFi
 function resolveLocal(env: Env, url: string, readSecretFile: ReadFile): LocalSettings {
   const smtp = resolveSmtp(env, readSecretFile);
   return {
-    passwordMinLength: positiveInt(env.FJORD_AUTH_PASSWORD_MIN_LENGTH) ?? DEFAULT_PASSWORD_MIN_LENGTH,
-    passkeyRpId: (env.FJORD_PASSKEY_RP_ID ?? "").trim() || new URL(url).hostname,
-    requireEmailVerification: resolveVerification(env.FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION, smtp !== undefined),
+    passwordMinLength:
+      positiveInt(env.FJORD_AUTH_PASSWORD_MIN_LENGTH) ?? DEFAULT_PASSWORD_MIN_LENGTH,
+    passkeyRpId: (env.FJORD_PASSKEY_RP_ID ?? '').trim() || new URL(url).hostname,
+    requireEmailVerification: resolveVerification(
+      env.FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION,
+      smtp !== undefined,
+    ),
     ...(smtp ? { smtp } : {}),
   };
 }
@@ -148,17 +159,20 @@ function resolveLocal(env: Env, url: string, readSecretFile: ReadFile): LocalSet
 /** Off when none of the three is set; an error when only some are, which is never what was meant. */
 function resolveSovereign(given: Env, readFile: ReadFile): SovereignSettings | undefined {
   const env = sovereignEnv(given);
-  const issuer = (env.FJORD_CORE_URL ?? "").trim();
-  const clientId = (env.FJORD_CORE_CLIENT_ID ?? "").trim();
-  const clientSecret = resolveSecret("FJORD_CORE_CLIENT_SECRET", env, readFile);
-  if (issuer === "" && clientId === "" && clientSecret === undefined) return undefined;
+  const issuer = (env.FJORD_CORE_URL ?? '').trim();
+  const clientId = (env.FJORD_CORE_CLIENT_ID ?? '').trim();
+  const clientSecret = resolveSecret('FJORD_CORE_CLIENT_SECRET', env, readFile);
+  if (issuer === '' && clientId === '' && clientSecret === undefined) return undefined;
 
   const missing = [
-    issuer === "" ? "FJORD_CORE_URL" : "",
-    clientId === "" ? "FJORD_CORE_CLIENT_ID" : "",
-    clientSecret === undefined ? "FJORD_CORE_CLIENT_SECRET (or _FILE)" : "",
+    issuer === '' ? 'FJORD_CORE_URL' : '',
+    clientId === '' ? 'FJORD_CORE_CLIENT_ID' : '',
+    clientSecret === undefined ? 'FJORD_CORE_CLIENT_SECRET (or _FILE)' : '',
   ].filter(Boolean);
-  if (missing.length > 0) throw new ConfigError(`Sovereign sign-in needs all of its settings; missing ${missing.join(", ")}.`);
+  if (missing.length > 0)
+    throw new ConfigError(
+      `Sovereign sign-in needs all of its settings; missing ${missing.join(', ')}.`,
+    );
   return { issuer: resolveIssuer(issuer), clientId, clientSecret: clientSecret as string };
 }
 
@@ -167,62 +181,89 @@ function resolveIssuer(value: string): string {
   try {
     url = new URL(value);
   } catch {
-    throw new ConfigError("FJORD_CORE_URL is not a valid URL.");
+    throw new ConfigError('FJORD_CORE_URL is not a valid URL.');
   }
   // The client secret goes to this host, and the people who sign in trust what it says about them.
-  if (url.protocol !== "https:" && !(url.protocol === "http:" && isLocalHost(url.hostname))) {
-    throw new ConfigError("FJORD_CORE_URL must be https, except on localhost.");
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isLocalHost(url.hostname))) {
+    throw new ConfigError('FJORD_CORE_URL must be https, except on localhost.');
   }
-  if (url.search !== "" || url.hash !== "") throw new ConfigError("FJORD_CORE_URL must have no query or fragment.");
-  return `${url.origin}${url.pathname}`.replace(/\/+$/, "");
+  if (url.search !== '' || url.hash !== '')
+    throw new ConfigError('FJORD_CORE_URL must have no query or fragment.');
+  return `${url.origin}${url.pathname}`.replace(/\/+$/, '');
 }
 
 function isOn(value: string | undefined): boolean {
   const v = value?.trim().toLowerCase();
-  return v === "1" || v === "true";
+  return v === '1' || v === 'true';
 }
 
 function resolveUrl(raw: string | undefined, why: string): string {
-  const value = (raw ?? "").trim();
-  if (value === "") throw new ConfigError(`${why}, so FJORD_URL (the address people use) is required.`);
+  const value = (raw ?? '').trim();
+  if (value === '')
+    throw new ConfigError(`${why}, so FJORD_URL (the address people use) is required.`);
   let url: URL;
   try {
     url = new URL(value);
   } catch {
-    throw new ConfigError("FJORD_URL is not a valid URL.");
+    throw new ConfigError('FJORD_URL is not a valid URL.');
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") throw new ConfigError("FJORD_URL must be an http(s) URL.");
+  if (url.protocol !== 'https:' && url.protocol !== 'http:')
+    throw new ConfigError('FJORD_URL must be an http(s) URL.');
   // A passkey and a session cookie need a secure origin, and a password must not cross the
   // network in the clear. localhost is the one exception, for development.
-  if (url.protocol === "http:" && !isLocalHost(url.hostname)) throw new ConfigError("FJORD_URL must be https, except on localhost.");
-  if (url.pathname !== "/" || url.search !== "" || url.hash !== "") throw new ConfigError("FJORD_URL must be an origin, with no path.");
+  if (url.protocol === 'http:' && !isLocalHost(url.hostname))
+    throw new ConfigError('FJORD_URL must be https, except on localhost.');
+  if (url.pathname !== '/' || url.search !== '' || url.hash !== '')
+    throw new ConfigError('FJORD_URL must be an origin, with no path.');
   return url.origin;
 }
 
 function isLocalHost(hostname: string): boolean {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]" || hostname.endsWith(".localhost");
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]' ||
+    hostname.endsWith('.localhost')
+  );
 }
 
 function resolveSmtp(given: Env, readFile: ReadFile): SmtpConfig | undefined {
   const env = smtpEnv(given);
-  const host = (env.FJORD_SMTP_HOST ?? "").trim();
-  if (host === "") return undefined;
-  const from = (env.FJORD_SMTP_FROM ?? "").trim();
-  if (from === "") throw new ConfigError("FJORD_SMTP_HOST is set, so FJORD_SMTP_FROM (the sender address) is required.");
+  const host = (env.FJORD_SMTP_HOST ?? '').trim();
+  if (host === '') return undefined;
+  const from = (env.FJORD_SMTP_FROM ?? '').trim();
+  if (from === '')
+    throw new ConfigError(
+      'FJORD_SMTP_HOST is set, so FJORD_SMTP_FROM (the sender address) is required.',
+    );
   const port = positiveInt(env.FJORD_SMTP_PORT) ?? 587;
-  const secure = env.FJORD_SMTP_SECURE === undefined || env.FJORD_SMTP_SECURE === "" ? port === 465 : isOn(env.FJORD_SMTP_SECURE);
-  const user = (env.FJORD_SMTP_USER ?? "").trim();
-  const password = resolveSecret("FJORD_SMTP_PASSWORD", env, readFile);
-  return { host, port, secure, from, ...(user ? { user } : {}), ...(password !== undefined ? { password } : {}) };
+  const secure =
+    env.FJORD_SMTP_SECURE === undefined || env.FJORD_SMTP_SECURE === ''
+      ? port === 465
+      : isOn(env.FJORD_SMTP_SECURE);
+  const user = (env.FJORD_SMTP_USER ?? '').trim();
+  const password = resolveSecret('FJORD_SMTP_PASSWORD', env, readFile);
+  return {
+    host,
+    port,
+    secure,
+    from,
+    ...(user ? { user } : {}),
+    ...(password !== undefined ? { password } : {}),
+  };
 }
 
 function resolveVerification(raw: string | undefined, smtpSet: boolean): boolean {
-  const value = (raw ?? "").trim().toLowerCase();
-  if (value === "") return smtpSet;
-  const on = value === "1" || value === "true";
-  const off = value === "0" || value === "false";
-  if (!on && !off) throw new ConfigError('FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION must be "true" or "false".');
-  if (on && !smtpSet) throw new ConfigError("FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION needs FJORD_SMTP_HOST: nothing could send the link.");
+  const value = (raw ?? '').trim().toLowerCase();
+  if (value === '') return smtpSet;
+  const on = value === '1' || value === 'true';
+  const off = value === '0' || value === 'false';
+  if (!on && !off)
+    throw new ConfigError('FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION must be "true" or "false".');
+  if (on && !smtpSet)
+    throw new ConfigError(
+      'FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION needs FJORD_SMTP_HOST: nothing could send the link.',
+    );
   return on;
 }
 
@@ -233,12 +274,16 @@ function positiveInt(raw: string | undefined): number | undefined {
 
 /** What is safe to print about the settings: never the secret, a password or a token. */
 export function describeAuth(config: AuthConfig): string {
-  if (!config.enabled) return "sign-in is off";
+  if (!config.enabled) return 'sign-in is off';
   const ways: string[] = [];
   if (config.local) {
-    const mail = config.local.smtp ? `email via ${config.local.smtp.host}:${config.local.smtp.port}` : "no email";
-    ways.push(`local (${mail}${config.local.requireEmailVerification ? ", address verification required" : ""})`);
+    const mail = config.local.smtp
+      ? `email via ${config.local.smtp.host}:${config.local.smtp.port}`
+      : 'no email';
+    ways.push(
+      `local (${mail}${config.local.requireEmailVerification ? ', address verification required' : ''})`,
+    );
   }
   if (config.sovereign) ways.push(`Sovereign (${config.sovereign.issuer})`);
-  return `sign-in on at ${config.url} by ${ways.join(" and ")}, sign-up ${config.signUp}`;
+  return `sign-in on at ${config.url} by ${ways.join(' and ')}, sign-up ${config.signUp}`;
 }

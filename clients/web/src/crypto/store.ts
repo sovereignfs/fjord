@@ -1,13 +1,13 @@
-import { randomBytes } from "node:crypto";
-import { sql } from "drizzle-orm";
-import type { Database } from "../db/client";
-import { ConfigError } from "../db/config";
-import { dbAll, dbGet, dbRun } from "../db/exec";
-import * as postgresSchema from "../db/schema/postgres";
-import * as sqliteSchema from "../db/schema/sqlite";
-import { CredentialError } from "./errors";
-import { open, rewrap, seal } from "./envelope";
-import type { Keyring } from "./keyring";
+import { randomBytes } from 'node:crypto';
+import { sql } from 'drizzle-orm';
+import type { Database } from '../db/client';
+import { ConfigError } from '../db/config';
+import { dbAll, dbGet, dbRun } from '../db/exec';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
+import { CredentialError } from './errors';
+import { open, rewrap, seal } from './envelope';
+import type { Keyring } from './keyring';
 
 /**
  * The instance's credentials, in the database and never as they are (DESIGN.md §7): the
@@ -40,7 +40,8 @@ export interface KeyStatus {
   unknown: Record<string, number>;
 }
 
-const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.credential : sqliteSchema.credential);
+const table = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.credential : sqliteSchema.credential;
 const columns = sql.raw('id, purpose, kek_id AS "kekId", wrapped_key AS "wrappedKey", ciphertext');
 
 export class CredentialStore {
@@ -51,7 +52,7 @@ export class CredentialStore {
 
   /** Seal and store a secret; returns the id to keep. `now` is for tests. */
   async put(purpose: string, secret: string, now: number = Date.now()): Promise<string> {
-    const id = randomBytes(16).toString("base64url");
+    const id = randomBytes(16).toString('base64url');
     const sealed = seal(this.keyring, { id, purpose }, secret);
     await dbRun(
       this.database,
@@ -63,15 +64,25 @@ export class CredentialStore {
 
   /** The secret, for the server to use. `not_found` for an id that is not there. */
   async get(id: string): Promise<Credential> {
-    const row = await dbGet<Row>(this.database, sql`SELECT ${columns} FROM ${table(this.database)} WHERE id = ${id}`);
-    if (!row) throw new CredentialError("not_found", "There is no stored credential with that id.");
-    return { id, purpose: row.purpose, secret: open(this.keyring, { id, purpose: row.purpose }, row) };
+    const row = await dbGet<Row>(
+      this.database,
+      sql`SELECT ${columns} FROM ${table(this.database)} WHERE id = ${id}`,
+    );
+    if (!row) throw new CredentialError('not_found', 'There is no stored credential with that id.');
+    return {
+      id,
+      purpose: row.purpose,
+      secret: open(this.keyring, { id, purpose: row.purpose }, row),
+    };
   }
 
   /** Replace the secret under an id, keeping its purpose. */
   async replace(id: string, secret: string, now: number = Date.now()): Promise<void> {
-    const row = await dbGet<{ purpose: string }>(this.database, sql`SELECT purpose FROM ${table(this.database)} WHERE id = ${id}`);
-    if (!row) throw new CredentialError("not_found", "There is no stored credential with that id.");
+    const row = await dbGet<{ purpose: string }>(
+      this.database,
+      sql`SELECT purpose FROM ${table(this.database)} WHERE id = ${id}`,
+    );
+    if (!row) throw new CredentialError('not_found', 'There is no stored credential with that id.');
     const sealed = seal(this.keyring, { id, purpose: row.purpose }, secret);
     await dbRun(
       this.database,
@@ -98,7 +109,10 @@ export class CredentialStore {
    * re-wrapped and is left as it is (see `status().unknown`).
    */
   async rewrapAll(now: number = Date.now()): Promise<{ rewrapped: number }> {
-    const rows = await dbAll<Row>(this.database, sql`SELECT ${columns} FROM ${table(this.database)} WHERE kek_id <> ${this.keyring.current.id}`);
+    const rows = await dbAll<Row>(
+      this.database,
+      sql`SELECT ${columns} FROM ${table(this.database)} WHERE kek_id <> ${this.keyring.current.id}`,
+    );
     let rewrapped = 0;
     for (const row of rows) {
       if (!this.keyring.find(row.kekId)) continue;
@@ -117,7 +131,10 @@ export class CredentialStore {
 }
 
 async function keyStatus(database: Database, keyring: Keyring | undefined): Promise<KeyStatus> {
-  const rows = await dbAll<{ kekId: string; n: number | string }>(database, sql`SELECT kek_id AS "kekId", COUNT(*) AS n FROM ${table(database)} GROUP BY kek_id`);
+  const rows = await dbAll<{ kekId: string; n: number | string }>(
+    database,
+    sql`SELECT kek_id AS "kekId", COUNT(*) AS n FROM ${table(database)} GROUP BY kek_id`,
+  );
   const status: KeyStatus = { total: 0, current: 0, older: 0, unknown: {} };
   for (const row of rows) {
     const n = Number(row.n);
@@ -135,11 +152,14 @@ async function keyStatus(database: Database, keyring: Keyring | undefined): Prom
  * operator should hear about now and not when someone's repository stops syncing), and wrap
  * everything under the current key, which is all a rotation asks of an operator.
  */
-export async function prepareCredentials(database: Database, keyring: Keyring | undefined): Promise<KeyStatus & { rewrapped: number }> {
+export async function prepareCredentials(
+  database: Database,
+  keyring: Keyring | undefined,
+): Promise<KeyStatus & { rewrapped: number }> {
   const status = await keyStatus(database, keyring);
   const unknown = Object.entries(status.unknown);
   if (unknown.length > 0) {
-    const which = unknown.map(([id, n]) => `${n} under key ${id}`).join(", ");
+    const which = unknown.map(([id, n]) => `${n} under key ${id}`).join(', ');
     throw new ConfigError(
       keyring
         ? `Stored credentials cannot be opened: ${which}. Set the key they were sealed under as FJORD_ENCRYPTION_KEY or FJORD_ENCRYPTION_KEY_PREVIOUS.`

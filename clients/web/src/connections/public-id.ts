@@ -3,17 +3,22 @@
  * an address shows neither how many repositories an instance holds nor in what order they were connected, and cannot be told from a handle (`src/browse/handles.ts`)
  * by anything but its length. It is a name and not a secret: reaching a repository still takes the account that connected it.
  */
-const ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
+const ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz';
 export const PUBLIC_ID_LENGTH = 8;
 
 /** Whether a string can be a repository's public id, before anything is looked up. */
 export function isPublicId(value: string): boolean {
-  return value.length === PUBLIC_ID_LENGTH && [...value].every((character) => ALPHABET.includes(character));
+  return (
+    value.length === PUBLIC_ID_LENGTH &&
+    [...value].every((character) => ALPHABET.includes(character))
+  );
 }
 
 /** A new public id from random bytes (at least `PUBLIC_ID_LENGTH` of them; the default source is the platform's). */
-export function newPublicId(random: Uint8Array = globalThis.crypto.getRandomValues(new Uint8Array(PUBLIC_ID_LENGTH))): string {
-  let out = "";
+export function newPublicId(
+  random: Uint8Array = globalThis.crypto.getRandomValues(new Uint8Array(PUBLIC_ID_LENGTH)),
+): string {
+  let out = '';
   for (let i = 0; i < PUBLIC_ID_LENGTH; i++) out += ALPHABET[(random[i] as number) & 31];
   return out;
 }

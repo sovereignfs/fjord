@@ -1,5 +1,5 @@
-import type { SVGProps } from "react";
-import { LUCIDE } from "./lucide-nodes";
+import type { SVGProps } from 'react';
+import { LUCIDE } from './lucide-nodes';
 
 /**
  * Icons from Lucide (https://lucide.dev, ISC licence) that `@sovereignfs/ui`'s curated set does not have yet, drawn as it draws its own: 24px
@@ -8,13 +8,24 @@ import { LUCIDE } from "./lucide-nodes";
  */
 function Svg({ size = 20, children, ...props }: SVGProps<SVGSVGElement> & { size?: number }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       {children}
     </svg>
   );
 }
 
-type IconProps = Omit<SVGProps<SVGSVGElement>, "children"> & { size?: number };
+type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & { size?: number };
 
 /** A drive: files and folders in vaults. */
 export function HardDriveIcon(props: IconProps) {
@@ -72,15 +83,22 @@ export function FingerprintPatternIcon(props: IconProps) {
 }
 
 /** What a repository is, as a picture: a drive's, a journal's or a site's. A repository whose kind is not known yet is a drive. */
-export type RepositoryKindId = "drive" | "journal" | "ssg";
+export type RepositoryKindId = 'drive' | 'journal' | 'ssg';
 
-export function RepositoryKindIcon({ kind, ...props }: IconProps & { kind: RepositoryKindId | null }) {
-  if (kind === "journal") return <NotebookPenIcon aria-hidden="true" {...props} />;
-  if (kind === "ssg") return <GlobeCodeIcon aria-hidden="true" {...props} />;
+export function RepositoryKindIcon({
+  kind,
+  ...props
+}: IconProps & { kind: RepositoryKindId | null }) {
+  if (kind === 'journal') return <NotebookPenIcon aria-hidden="true" {...props} />;
+  if (kind === 'ssg') return <GlobeCodeIcon aria-hidden="true" {...props} />;
   return <HardDriveIcon aria-hidden="true" {...props} />;
 }
 
-export const KIND_LABEL: Record<RepositoryKindId, string> = { drive: "Drive", journal: "Journal", ssg: "Site" };
+export const KIND_LABEL: Record<RepositoryKindId, string> = {
+  drive: 'Drive',
+  journal: 'Journal',
+  ssg: 'Site',
+};
 
 /** Two sliders: the settings of a list, here the repositories that are connected. Lucide's `settings-2`. */
 export function Settings2Icon(props: IconProps) {

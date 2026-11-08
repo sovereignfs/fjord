@@ -1,8 +1,8 @@
-import { sql } from "drizzle-orm";
-import type { Database } from "../db/client";
-import { dbAll, dbGet, dbRun } from "../db/exec";
-import * as postgresSchema from "../db/schema/postgres";
-import * as sqliteSchema from "../db/schema/sqlite";
+import { sql } from 'drizzle-orm';
+import type { Database } from '../db/client';
+import { dbAll, dbGet, dbRun } from '../db/exec';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
 
 /**
  * The opaque names in `/f/<handle>` (DESIGN.md §9, ROADMAP 3e.2, RFC 0002): the address of a file or a folder that has no Doc `id`, so that no address
@@ -11,10 +11,11 @@ import * as sqliteSchema from "../db/schema/sqlite";
  * not there, which the page says is moved or gone; a handle never leads to a different file than the one it was made for, because a path that is
  * taken again by another file is what its handle is of, and nothing else (a path is its identity).
  */
-const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.fileHandle : sqliteSchema.fileHandle);
+const table = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.fileHandle : sqliteSchema.fileHandle;
 
 /** Crockford's base32 in lower case, 16 characters: 80 random bits. */
-const ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
+const ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz';
 const LENGTH = 16;
 
 /** Whether a string can be a handle, before anything is looked up. */
@@ -23,7 +24,7 @@ export function isHandle(value: string): boolean {
 }
 
 function newHandle(random: Uint8Array): string {
-  let out = "";
+  let out = '';
   for (let i = 0; i < LENGTH; i++) out += ALPHABET[(random[i] as number) & 31];
   return out;
 }
@@ -32,27 +33,37 @@ export class FileHandles {
   constructor(
     private readonly database: Database,
     private readonly now: () => number = Date.now,
-    private readonly random: () => Uint8Array = () => globalThis.crypto.getRandomValues(new Uint8Array(LENGTH)),
+    private readonly random: () => Uint8Array = () =>
+      globalThis.crypto.getRandomValues(new Uint8Array(LENGTH)),
   ) {}
 
   /** The handle of a path, made if there is none yet. */
   async forPath(connectionId: number, path: string): Promise<string> {
-    const existing = await dbGet<{ handle: string }>(this.database, sql`SELECT handle FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path}`);
+    const existing = await dbGet<{ handle: string }>(
+      this.database,
+      sql`SELECT handle FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path}`,
+    );
     if (existing) return existing.handle;
     // A collision of 80 random bits is not expected; the unique index would refuse it, and the next try has other bits.
     for (let attempt = 0; attempt < 5; attempt++) {
       const handle = newHandle(this.random());
       try {
-        await dbRun(this.database, sql`INSERT INTO ${table(this.database)} (connection_id, path, handle, created_at) VALUES (${connectionId}, ${path}, ${handle}, ${this.now()})`);
+        await dbRun(
+          this.database,
+          sql`INSERT INTO ${table(this.database)} (connection_id, path, handle, created_at) VALUES (${connectionId}, ${path}, ${handle}, ${this.now()})`,
+        );
         return handle;
       } catch (error) {
         // Another request made this path's handle meanwhile: that one is the handle.
-        const raced = await dbGet<{ handle: string }>(this.database, sql`SELECT handle FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path}`);
+        const raced = await dbGet<{ handle: string }>(
+          this.database,
+          sql`SELECT handle FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${path}`,
+        );
         if (raced) return raced.handle;
         if (attempt === 4) throw error;
       }
     }
-    throw new Error("a handle could not be made");
+    throw new Error('a handle could not be made');
   }
 
   /**
@@ -66,27 +77,42 @@ export class FileHandles {
     const CHUNK = 200;
     const read = async (batch: string[]) => {
       if (batch.length === 0) return;
-      const rows = await dbAll<{ path: string; handle: string }>(this.database, sql`SELECT path, handle FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path IN (${sql.join(batch.map((path) => sql`${path}`), sql`, `)})`);
+      const rows = await dbAll<{ path: string; handle: string }>(
+        this.database,
+        sql`SELECT path, handle FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path IN (${sql.join(
+          batch.map((path) => sql`${path}`),
+          sql`, `,
+        )})`,
+      );
       for (const row of rows) found.set(row.path, row.handle);
     };
     for (let i = 0; i < unique.length; i += CHUNK) await read(unique.slice(i, i + CHUNK));
     const missing = unique.filter((path) => !found.has(path));
     for (let i = 0; i < missing.length; i += CHUNK) {
       const batch = missing.slice(i, i + CHUNK);
-      const values = batch.map((path) => sql`(${connectionId}, ${path}, ${newHandle(this.random())}, ${this.now()})`);
+      const values = batch.map(
+        (path) => sql`(${connectionId}, ${path}, ${newHandle(this.random())}, ${this.now()})`,
+      );
       // The unique indexes refuse a clash (of a path made meanwhile, or, not expected of 80 random bits, a handle); what is refused is read back below.
-      await dbRun(this.database, sql`INSERT INTO ${table(this.database)} (connection_id, path, handle, created_at) VALUES ${sql.join(values, sql`, `)} ON CONFLICT DO NOTHING`);
+      await dbRun(
+        this.database,
+        sql`INSERT INTO ${table(this.database)} (connection_id, path, handle, created_at) VALUES ${sql.join(values, sql`, `)} ON CONFLICT DO NOTHING`,
+      );
       await read(batch);
     }
     // A path still without one lost a clash of handles: that one is made alone, with the retries `forPath` has.
-    for (const path of unique) if (!found.has(path)) found.set(path, await this.forPath(connectionId, path));
+    for (const path of unique)
+      if (!found.has(path)) found.set(path, await this.forPath(connectionId, path));
     return found;
   }
 
   /** Where a handle points, or nothing if there is no such handle. Whether anything is there is for the repository to say. */
   async resolve(handle: string): Promise<{ connectionId: number; path: string } | undefined> {
     if (!isHandle(handle)) return undefined;
-    const row = await dbGet<{ connectionId: number | string; path: string }>(this.database, sql`SELECT connection_id AS "connectionId", path FROM ${table(this.database)} WHERE handle = ${handle}`);
+    const row = await dbGet<{ connectionId: number | string; path: string }>(
+      this.database,
+      sql`SELECT connection_id AS "connectionId", path FROM ${table(this.database)} WHERE handle = ${handle}`,
+    );
     return row ? { connectionId: Number(row.connectionId), path: row.path } : undefined;
   }
 
@@ -96,16 +122,26 @@ export class FileHandles {
    */
   async move(connectionId: number, from: string, to: string): Promise<void> {
     if (from === to) return;
-    const inside = `${from.replace(/[\\%_]/g, "\\$&")}/%`;
+    const inside = `${from.replace(/[\\%_]/g, '\\$&')}/%`;
     const rows = await this.rowsUnder(connectionId, from, inside);
     for (const row of rows) {
       const target = row.path === from ? to : `${to}${row.path.slice(from.length)}`;
-      await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${target}`);
-      await dbRun(this.database, sql`UPDATE ${table(this.database)} SET path = ${target} WHERE id = ${row.id}`);
+      await dbRun(
+        this.database,
+        sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND path = ${target}`,
+      );
+      await dbRun(
+        this.database,
+        sql`UPDATE ${table(this.database)} SET path = ${target} WHERE id = ${row.id}`,
+      );
     }
   }
 
-  private async rowsUnder(connectionId: number, path: string, inside: string): Promise<{ id: number; path: string }[]> {
+  private async rowsUnder(
+    connectionId: number,
+    path: string,
+    inside: string,
+  ): Promise<{ id: number; path: string }[]> {
     const rows = await dbAll<{ id: number | string; path: string }>(
       this.database,
       sql`SELECT id, path FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND (path = ${path} OR path LIKE ${inside} ESCAPE '\\')`,

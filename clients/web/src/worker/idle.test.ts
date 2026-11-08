@@ -1,19 +1,19 @@
-import { sql } from "drizzle-orm";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Database } from "../db/client";
-import { dbRun } from "../db/exec";
-import { runMigrations } from "../db/migrate";
-import * as postgresSchema from "../db/schema/postgres";
-import * as sqliteSchema from "../db/schema/sqlite";
-import { freshDatabase, testTarget } from "../db/test-support";
-import type { FakeGitHub } from "../providers/testing/fake-github";
-import { githubHarness } from "../providers/testing/harnesses";
-import type { Identity } from "../providers/types";
-import { wasmAvailable } from "../format/wasm";
-import { type Editor, WorkingCopyService } from "../working/service";
-import { encryptedDraft } from "../working/test-ciphertext";
-import { guestIdentity } from "../working/version";
-import { type IdleDeps, createIdleVersions } from "./idle";
+import { sql } from 'drizzle-orm';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Database } from '../db/client';
+import { dbRun } from '../db/exec';
+import { runMigrations } from '../db/migrate';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
+import { freshDatabase, testTarget } from '../db/test-support';
+import type { FakeGitHub } from '../providers/testing/fake-github';
+import { githubHarness } from '../providers/testing/harnesses';
+import type { Identity } from '../providers/types';
+import { wasmAvailable } from '../format/wasm';
+import { type Editor, WorkingCopyService } from '../working/service';
+import { encryptedDraft } from '../working/test-ciphertext';
+import { guestIdentity } from '../working/version';
+import { type IdleDeps, createIdleVersions } from './idle';
 
 /**
  * Idle versions (ROADMAP 1b.13), against a GitHub whose storage is a real git repository, so that what git says about the commit
@@ -31,11 +31,12 @@ const T0 = 1_800_000_000_000;
 let clock = T0;
 
 const PEOPLE: Record<string, Identity> = {
-  ada: { name: "Ada Lovelace", email: "ada@example.com" },
-  grace: { name: "Grace Hopper", email: "grace@example.com" },
+  ada: { name: 'Ada Lovelace', email: 'ada@example.com' },
+  grace: { name: 'Grace Hopper', email: 'grace@example.com' },
 };
-const ed = (id: string): Editor => ({ type: "account", id });
-const table = () => (database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy);
+const ed = (id: string): Editor => ({ type: 'account', id });
+const table = () =>
+  database.dialect === 'postgres' ? postgresSchema.workingCopy : sqliteSchema.workingCopy;
 
 beforeAll(async () => {
   ({ database } = await freshDatabase());
@@ -52,27 +53,31 @@ beforeEach(async () => {
 afterEach(async () => h.close());
 
 const blobOf = async (path: string) => {
-  const head = await h.provider.getHead(h.repo, "main");
-  if (!head.changed) throw new Error("no head");
-  const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
-  return (await h.provider.listDirectory(h.repo, head.head.commit, dir)).find((entry) => entry.path === path)!.id;
+  const head = await h.provider.getHead(h.repo, 'main');
+  if (!head.changed) throw new Error('no head');
+  const dir = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+  return (await h.provider.listDirectory(h.repo, head.head.commit, dir)).find(
+    (entry) => entry.path === path,
+  )!.id;
 };
 /** A draft of `path` as the file is now, typed at the clock's time by these people in turn. */
 async function draftOf(path: string, content: string, ...by: Editor[]) {
   const baseBlob = await blobOf(path);
-  for (const who of by.length ? by : [ed("ada")]) await drafts.save(1, path, { baseBlob, content }, who);
+  for (const who of by.length ? by : [ed('ada')])
+    await drafts.save(1, path, { baseBlob, content }, who);
 }
 /** The branch's head commit; there is always one, the seed's at least. */
 async function head(): Promise<string> {
   const commit = await fake.branchHead();
-  if (!commit) throw new Error("the branch has no head");
+  if (!commit) throw new Error('the branch has no head');
   return commit;
 }
 function worker(over: Partial<IdleDeps> = {}) {
   return createIdleVersions({
     drafts,
-    target: async () => ({ provider: h.provider, ref: h.repo, branch: "main", ownerId: "ada" }),
-    identityOf: async (editor) => (editor.type === "account" ? PEOPLE[editor.id] : guestIdentity(editor)),
+    target: async () => ({ provider: h.provider, ref: h.repo, branch: 'main', ownerId: 'ada' }),
+    identityOf: async (editor) =>
+      editor.type === 'account' ? PEOPLE[editor.id] : guestIdentity(editor),
     now: () => clock,
     idleMs: IDLE,
     ...over,
@@ -80,25 +85,27 @@ function worker(over: Partial<IdleDeps> = {}) {
 }
 
 describe(`idle versions (${leg})`, () => {
-  it("makes one version of a draft nobody has edited for the quiet period, and removes the draft", async () => {
-    const before = await h.seed({ "n.md": "old\n", "other.md": "keep" });
-    await draftOf("n.md", "new\n");
+  it('makes one version of a draft nobody has edited for the quiet period, and removes the draft', async () => {
+    const before = await h.seed({ 'n.md': 'old\n', 'other.md': 'keep' });
+    await draftOf('n.md', 'new\n');
     clock = T0 + IDLE;
 
     const report = await worker().pass();
     expect(report.made).toBe(1);
     const commit = await head();
-    expect(await fake.show(commit, "%P")).toBe(before);
-    expect(await fake.filesAt(commit)).toEqual({ "n.md": "new\n", "other.md": "keep" });
-    expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-    expect(await fake.show(commit, "%B")).toMatch(/^Edit “n” \(\+1 −1\)\n\nn\.md\n[^]*\nSaved automatically after a quiet period, from what had been typed\.$/);
-    expect(await drafts.get(1, "n.md")).toBeUndefined();
+    expect(await fake.show(commit, '%P')).toBe(before);
+    expect(await fake.filesAt(commit)).toEqual({ 'n.md': 'new\n', 'other.md': 'keep' });
+    expect(await fake.show(commit, '%an <%ae>')).toBe('Ada Lovelace <ada@example.com>');
+    expect(await fake.show(commit, '%B')).toMatch(
+      /^Edit “n” \(\+1 −1\)\n\nn\.md\n[^]*\nSaved automatically after a quiet period, from what had been typed\.$/,
+    );
+    expect(await drafts.get(1, 'n.md')).toBeUndefined();
     await fake.fsck();
   });
 
-  it("makes a draft one version only, however many passes look at it", async () => {
-    await h.seed({ "n.md": "old" });
-    await draftOf("n.md", "new");
+  it('makes a draft one version only, however many passes look at it', async () => {
+    await h.seed({ 'n.md': 'old' });
+    await draftOf('n.md', 'new');
     clock = T0 + IDLE;
     const idle = worker();
     await idle.pass();
@@ -108,110 +115,130 @@ describe(`idle versions (${leg})`, () => {
     expect(await head()).toBe(first);
   });
 
-  it("does not touch a draft edited within the quiet period", async () => {
-    const before = await h.seed({ "n.md": "old" });
-    await draftOf("n.md", "new");
+  it('does not touch a draft edited within the quiet period', async () => {
+    const before = await h.seed({ 'n.md': 'old' });
+    await draftOf('n.md', 'new');
     clock = T0 + IDLE - 1;
     expect((await worker().pass()).results).toEqual([]);
     expect(await head()).toBe(before);
-    expect(await drafts.get(1, "n.md")).toBeDefined();
+    expect(await drafts.get(1, 'n.md')).toBeDefined();
   });
 
-  it("starts the quiet period again at each edit", async () => {
-    await h.seed({ "n.md": "old" });
-    await draftOf("n.md", "one");
+  it('starts the quiet period again at each edit', async () => {
+    await h.seed({ 'n.md': 'old' });
+    await draftOf('n.md', 'one');
     clock = T0 + IDLE - MINUTE;
-    await draftOf("n.md", "two");
+    await draftOf('n.md', 'two');
     clock = T0 + IDLE + 1;
     expect((await worker().pass()).made).toBe(0);
     clock = T0 + 2 * IDLE;
     expect((await worker().pass()).made).toBe(1);
-    expect(await fake.filesAt(await head())).toEqual({ "n.md": "two" });
+    expect(await fake.filesAt(await head())).toEqual({ 'n.md': 'two' });
   });
 
-  describe("who is credited", () => {
-    it("is the owner of the connection as the author when they edited, and the others as co-authors", async () => {
-      await h.seed({ "n.md": "old" });
-      await draftOf("n.md", "new", ed("grace"), ed("ada"));
+  describe('who is credited', () => {
+    it('is the owner of the connection as the author when they edited, and the others as co-authors', async () => {
+      await h.seed({ 'n.md': 'old' });
+      await draftOf('n.md', 'new', ed('grace'), ed('ada'));
       clock = T0 + IDLE + 10;
       await worker().pass();
       const commit = await head();
-      expect(await fake.show(commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-      expect(await fake.show(commit, "%B")).toMatch(/^Edit “n”[^]*\n\nCo-authored-by: Grace Hopper <grace@example.com>$/);
+      expect(await fake.show(commit, '%an <%ae>')).toBe('Ada Lovelace <ada@example.com>');
+      expect(await fake.show(commit, '%B')).toMatch(
+        /^Edit “n”[^]*\n\nCo-authored-by: Grace Hopper <grace@example.com>$/,
+      );
     });
 
-    it("is the first editor who can be found when the owner did not edit", async () => {
-      await h.seed({ "n.md": "old" });
-      await draftOf("n.md", "new", ed("gone"), ed("grace"));
+    it('is the first editor who can be found when the owner did not edit', async () => {
+      await h.seed({ 'n.md': 'old' });
+      await draftOf('n.md', 'new', ed('gone'), ed('grace'));
       clock = T0 + IDLE + 10;
-      await worker({ target: async () => ({ provider: h.provider, ref: h.repo, branch: "main", ownerId: "someone-else" }) }).pass();
+      await worker({
+        target: async () => ({
+          provider: h.provider,
+          ref: h.repo,
+          branch: 'main',
+          ownerId: 'someone-else',
+        }),
+      }).pass();
       const commit = await head();
-      expect(await fake.show(commit, "%an <%ae>")).toBe("Grace Hopper <grace@example.com>");
-      expect(await fake.show(commit, "%B")).toMatch(/^Edit “n” \(\+1 −1\)\n\nn\.md\n[^]*\nSaved automatically after a quiet period, from what had been typed\.$/);
+      expect(await fake.show(commit, '%an <%ae>')).toBe('Grace Hopper <grace@example.com>');
+      expect(await fake.show(commit, '%B')).toMatch(
+        /^Edit “n” \(\+1 −1\)\n\nn\.md\n[^]*\nSaved automatically after a quiet period, from what had been typed\.$/,
+      );
     });
 
-    it("is a person without an account, by the name they gave, when that is all there is", async () => {
-      await h.seed({ "n.md": "old" });
-      const guest: Editor = { type: "guest", link: 7, name: "Visiting Vera" };
-      await draftOf("n.md", "new", guest);
+    it('is a person without an account, by the name they gave, when that is all there is', async () => {
+      await h.seed({ 'n.md': 'old' });
+      const guest: Editor = { type: 'guest', link: 7, name: 'Visiting Vera' };
+      await draftOf('n.md', 'new', guest);
       clock = T0 + IDLE;
       await worker().pass();
       const commit = await head();
-      expect(await fake.show(commit, "%an <%ae>")).toBe(`Visiting Vera <${guestIdentity({ link: 7, name: "Visiting Vera" }).email}>`);
-      expect(await fake.show(commit, "%B")).toMatch(/^Edit “n” \(\+1 −1\)\n\nn\.md\n[^]*\nSaved automatically after a quiet period, from what had been typed\.$/);
+      expect(await fake.show(commit, '%an <%ae>')).toBe(
+        `Visiting Vera <${guestIdentity({ link: 7, name: 'Visiting Vera' }).email}>`,
+      );
+      expect(await fake.show(commit, '%B')).toMatch(
+        /^Edit “n” \(\+1 −1\)\n\nn\.md\n[^]*\nSaved automatically after a quiet period, from what had been typed\.$/,
+      );
     });
 
-    it("leaves a draft alone when none of its editors can be found", async () => {
-      const before = await h.seed({ "n.md": "old" });
-      await draftOf("n.md", "new", ed("gone"));
+    it('leaves a draft alone when none of its editors can be found', async () => {
+      const before = await h.seed({ 'n.md': 'old' });
+      await draftOf('n.md', 'new', ed('gone'));
       clock = T0 + IDLE;
       const report = await worker().pass();
-      expect(report.results[0]?.outcome).toEqual({ ok: false, reason: "skipped_no_author" });
+      expect(report.results[0]?.outcome).toEqual({ ok: false, reason: 'skipped_no_author' });
       expect(await head()).toBe(before);
-      expect(await drafts.get(1, "n.md")).toBeDefined();
+      expect(await drafts.get(1, 'n.md')).toBeDefined();
     });
   });
 
-  describe("what is left for a person", () => {
+  describe('what is left for a person', () => {
     it("is a draft with a combine's conflict markers in it", async () => {
-      const before = await h.seed({ "n.md": "old" });
-      await draftOf("n.md", "<<<<<<< Your changes\na\n=======\nb\n>>>>>>> In the repository\n");
+      const before = await h.seed({ 'n.md': 'old' });
+      await draftOf('n.md', '<<<<<<< Your changes\na\n=======\nb\n>>>>>>> In the repository\n');
       clock = T0 + IDLE;
       const report = await worker().pass();
-      expect(report.results[0]?.outcome).toEqual({ ok: false, reason: "skipped_conflict" });
+      expect(report.results[0]?.outcome).toEqual({ ok: false, reason: 'skipped_conflict' });
       expect(await head()).toBe(before);
-      expect(await drafts.get(1, "n.md")).toBeDefined();
+      expect(await drafts.get(1, 'n.md')).toBeDefined();
     });
 
-    it("is a draft whose file changed in the repository since: nothing is written, the draft is kept", async () => {
-      await h.seed({ "n.md": "old" });
-      await draftOf("n.md", "mine");
-      const theirs = await h.seed({ "n.md": "theirs" });
+    it('is a draft whose file changed in the repository since: nothing is written, the draft is kept', async () => {
+      await h.seed({ 'n.md': 'old' });
+      await draftOf('n.md', 'mine');
+      const theirs = await h.seed({ 'n.md': 'theirs' });
       clock = T0 + IDLE;
       const report = await worker().pass();
       expect(report.made).toBe(0);
-      expect(report.results[0]?.outcome).toEqual({ ok: false, reason: "upstream_changed" });
+      expect(report.results[0]?.outcome).toEqual({ ok: false, reason: 'upstream_changed' });
       expect(await head()).toBe(theirs);
-      expect((await drafts.get(1, "n.md"))?.content).toBe("mine");
+      expect((await drafts.get(1, 'n.md'))?.content).toBe('mine');
     });
 
-    it("is a draft of a connection that is gone", async () => {
-      await h.seed({ "n.md": "old" });
-      await draftOf("n.md", "new");
+    it('is a draft of a connection that is gone', async () => {
+      await h.seed({ 'n.md': 'old' });
+      await draftOf('n.md', 'new');
       clock = T0 + IDLE;
       const report = await worker({ target: async () => undefined }).pass();
-      expect(report.results[0]?.outcome).toEqual({ ok: false, reason: "skipped_no_connection" });
-      expect(await drafts.get(1, "n.md")).toBeDefined();
+      expect(report.results[0]?.outcome).toEqual({ ok: false, reason: 'skipped_no_connection' });
+      expect(await drafts.get(1, 'n.md')).toBeDefined();
     });
   });
 
-  describe("a draft that could not be made a version", () => {
-    it("is not tried again before the delay, and is then", async () => {
-      await h.seed({ "n.md": "old" });
-      await draftOf("n.md", "mine");
-      await h.seed({ "n.md": "theirs" });
+  describe('a draft that could not be made a version', () => {
+    it('is not tried again before the delay, and is then', async () => {
+      await h.seed({ 'n.md': 'old' });
+      await draftOf('n.md', 'mine');
+      await h.seed({ 'n.md': 'theirs' });
       clock = T0 + IDLE;
-      const asked = vi.fn(async () => ({ provider: h.provider, ref: h.repo, branch: "main", ownerId: "ada" }));
+      const asked = vi.fn(async () => ({
+        provider: h.provider,
+        ref: h.repo,
+        branch: 'main',
+        ownerId: 'ada',
+      }));
       const idle = worker({ target: asked, retryMs: 15 * MINUTE });
 
       expect((await idle.pass()).results).toHaveLength(1);
@@ -223,9 +250,9 @@ describe(`idle versions (${leg})`, () => {
       expect(asked).toHaveBeenCalledTimes(2);
     });
 
-    it("is tried again at once, once idle, when it is edited", async () => {
-      const base = await h.seed({ "n.md": "old" });
-      await draftOf("n.md", "mine");
+    it('is tried again at once, once idle, when it is edited', async () => {
+      const base = await h.seed({ 'n.md': 'old' });
+      await draftOf('n.md', 'mine');
       clock = T0 + IDLE;
       const asked = vi.fn(async () => undefined);
       const idle = worker({ target: asked });
@@ -233,60 +260,73 @@ describe(`idle versions (${leg})`, () => {
       expect(asked).toHaveBeenCalledTimes(1);
 
       clock += MINUTE;
-      await drafts.save(1, "n.md", { baseBlob: await blobOf("n.md"), content: "mine, more" }, ed("ada"));
+      await drafts.save(
+        1,
+        'n.md',
+        { baseBlob: await blobOf('n.md'), content: 'mine, more' },
+        ed('ada'),
+      );
       clock += IDLE;
       await idle.pass();
       expect(asked).toHaveBeenCalledTimes(2);
       expect(await head()).toBe(base);
     });
 
-    it("is logged by the name of what went wrong, never its message, and the other drafts go on", async () => {
-      await h.seed({ "a.md": "a", "b.md": "b" });
-      await draftOf("a.md", "A");
-      await draftOf("b.md", "B");
+    it('is logged by the name of what went wrong, never its message, and the other drafts go on', async () => {
+      await h.seed({ 'a.md': 'a', 'b.md': 'b' });
+      await draftOf('a.md', 'A');
+      await draftOf('b.md', 'B');
       clock = T0 + IDLE;
-      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+      const log = vi.spyOn(console, 'error').mockImplementation(() => {});
       let calls = 0;
       const report = await worker({
         target: async () => {
-          if (calls++ === 0) throw new RangeError("token ghp_secret");
-          return { provider: h.provider, ref: h.repo, branch: "main", ownerId: "ada" };
+          if (calls++ === 0) throw new RangeError('token ghp_secret');
+          return { provider: h.provider, ref: h.repo, branch: 'main', ownerId: 'ada' };
         },
       }).pass();
-      expect(report.results.map((r) => ("reason" in r.outcome ? r.outcome.reason : "ok"))).toEqual(["failed", "ok"]);
-      expect(log).toHaveBeenCalledWith("[fjord] idle versions: unexpected RangeError");
-      expect(JSON.stringify(log.mock.calls)).not.toContain("ghp_secret");
+      expect(report.results.map((r) => ('reason' in r.outcome ? r.outcome.reason : 'ok'))).toEqual([
+        'failed',
+        'ok',
+      ]);
+      expect(log).toHaveBeenCalledWith('[fjord] idle versions: unexpected RangeError');
+      expect(JSON.stringify(log.mock.calls)).not.toContain('ghp_secret');
       log.mockRestore();
     });
   });
 
-  it("makes at most so many versions in one pass, the longest idle first, and the rest in the next", async () => {
-    await h.seed({ "a.md": "a", "b.md": "b", "c.md": "c" });
-    await draftOf("b.md", "B");
+  it('makes at most so many versions in one pass, the longest idle first, and the rest in the next', async () => {
+    await h.seed({ 'a.md': 'a', 'b.md': 'b', 'c.md': 'c' });
+    await draftOf('b.md', 'B');
     clock += 1;
-    await draftOf("a.md", "A");
+    await draftOf('a.md', 'A');
     clock += 1;
-    await draftOf("c.md", "C");
+    await draftOf('c.md', 'C');
     clock = T0 + IDLE + 10;
     const idle = worker({ perPass: 2 });
-    expect((await idle.pass()).results.map((r) => r.path)).toEqual(["b.md", "a.md"]);
-    expect((await idle.pass()).results.map((r) => r.path)).toEqual(["c.md"]);
-    expect(await fake.filesAt(await head())).toEqual({ "a.md": "A", "b.md": "B", "c.md": "C" });
+    expect((await idle.pass()).results.map((r) => r.path)).toEqual(['b.md', 'a.md']);
+    expect((await idle.pass()).results.map((r) => r.path)).toEqual(['c.md']);
+    expect(await fake.filesAt(await head())).toEqual({ 'a.md': 'A', 'b.md': 'B', 'c.md': 'C' });
   });
 });
 
 describe.skipIf(!wasmAvailable())(`idle versions of encrypted drafts (${leg})`, () => {
-  it("commits the ciphertext as it is, needing no key, and nothing readable is in the repository", async () => {
-    await h.seed({ "Secret/n.age": "old ciphertext" });
-    const { content, bytes } = encryptedDraft("SECRET PLAINTEXT of the note");
-    await drafts.save(1, "Secret/n.age", { baseBlob: await blobOf("Secret/n.age"), content, encrypted: true }, ed("ada"));
+  it('commits the ciphertext as it is, needing no key, and nothing readable is in the repository', async () => {
+    await h.seed({ 'Secret/n.age': 'old ciphertext' });
+    const { content, bytes } = encryptedDraft('SECRET PLAINTEXT of the note');
+    await drafts.save(
+      1,
+      'Secret/n.age',
+      { baseBlob: await blobOf('Secret/n.age'), content, encrypted: true },
+      ed('ada'),
+    );
     clock = T0 + IDLE;
 
     expect((await worker().pass()).made).toBe(1);
-    const stored = await h.provider.readBlob(h.repo, await blobOf("Secret/n.age"));
+    const stored = await h.provider.readBlob(h.repo, await blobOf('Secret/n.age'));
     expect([...stored]).toEqual([...bytes]);
-    expect(Buffer.from(stored).toString("latin1")).not.toContain("SECRET PLAINTEXT");
-    expect(await drafts.get(1, "Secret/n.age")).toBeUndefined();
+    expect(Buffer.from(stored).toString('latin1')).not.toContain('SECRET PLAINTEXT');
+    expect(await drafts.get(1, 'Secret/n.age')).toBeUndefined();
     await fake.fsck();
   });
 });

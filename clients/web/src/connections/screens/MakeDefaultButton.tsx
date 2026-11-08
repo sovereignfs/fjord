@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Alert, Button } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { Alert, Button } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
 
 /** Make this repository the one `/` opens. */
 export function MakeDefaultButton({ id, label }: { id: number; label: string }) {
@@ -15,14 +15,14 @@ export function MakeDefaultButton({ id, label }: { id: number; label: string }) 
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch(`/api/connections/${id}/default`, { method: "POST" });
+      const response = await fetch(`/api/connections/${id}/default`, { method: 'POST' });
       if (!response.ok) {
         setError(`${label} was not made your default. Try again.`);
         return;
       }
       router.refresh();
     } catch {
-      setError("Could not reach this server. Try again.");
+      setError('Could not reach this server. Try again.');
     } finally {
       setBusy(false);
     }

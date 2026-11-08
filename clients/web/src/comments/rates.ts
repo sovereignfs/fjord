@@ -1,6 +1,6 @@
-import type { Rule } from "../limits/rate";
-import type { Viewer } from "./access";
-import type { Author } from "./service";
+import type { Rule } from '../limits/rate';
+import type { Viewer } from './access';
+import type { Author } from './service';
 
 /**
  * How fast comments may be written (DESIGN.md §13, §15, ROADMAP 1d.4). A write (a thread, a reply, an edit, a resolving) is counted against the
@@ -18,19 +18,34 @@ import type { Author } from "./service";
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 
-const ACCOUNT: Rule[] = [{ limit: 30, windowMs: MINUTE }, { limit: 600, windowMs: HOUR }];
-const GUEST: Rule[] = [{ limit: 20, windowMs: MINUTE }, { limit: 200, windowMs: HOUR }];
-const LINK: Rule[] = [{ limit: 60, windowMs: MINUTE }, { limit: 600, windowMs: HOUR }];
+const ACCOUNT: Rule[] = [
+  { limit: 30, windowMs: MINUTE },
+  { limit: 600, windowMs: HOUR },
+];
+const GUEST: Rule[] = [
+  { limit: 20, windowMs: MINUTE },
+  { limit: 200, windowMs: HOUR },
+];
+const LINK: Rule[] = [
+  { limit: 60, windowMs: MINUTE },
+  { limit: 600, windowMs: HOUR },
+];
 
 /** Moving threads onto edited words (ROADMAP 1d.2) is the page's doing, a few at a time; this is only to stop it being used as a flood. */
 export const REANCHOR_RATE: Rule = { limit: 120, windowMs: MINUTE };
 
-const named = (holder: string, rules: Rule[]) => rules.map((rule) => ({ key: `comment:${holder}:${rule.windowMs}`, rule }));
+const named = (holder: string, rules: Rule[]) =>
+  rules.map((rule) => ({ key: `comment:${holder}:${rule.windowMs}`, rule }));
 
 /** What a write by `author`, who came in as `viewer`, is counted against. */
 export function writeRates(viewer: Viewer, author: Author): { key: string; rule: Rule }[] {
-  const person = author.kind === "account" ? named(`account:${author.id}`, ACCOUNT) : named(`guest:${author.id}`, GUEST);
-  return viewer.linkId === undefined ? person : [...person, ...named(`link:${viewer.linkId}`, LINK)];
+  const person =
+    author.kind === 'account'
+      ? named(`account:${author.id}`, ACCOUNT)
+      : named(`guest:${author.id}`, GUEST);
+  return viewer.linkId === undefined
+    ? person
+    : [...person, ...named(`link:${viewer.linkId}`, LINK)];
 }
 
 /** What moving a thread is counted against: the account, else the link. */

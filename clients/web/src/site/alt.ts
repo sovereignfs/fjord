@@ -3,5 +3,5 @@
  * looks. Nothing is put in until one is true, so no picture is added without its alt text by forgetting it.
  */
 export function canInsert(chosen: boolean, alt: string, decorative: boolean): boolean {
-  return chosen && (decorative || alt.trim() !== "");
+  return chosen && (decorative || alt.trim() !== '');
 }

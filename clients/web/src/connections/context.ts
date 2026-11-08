@@ -1,7 +1,12 @@
-import { authConfig, getSession } from "../auth/server";
-import { addVaultToRepository, changeRepositoryKind, readConnection, setUpRepository } from "../browse/server";
-import { connectionService } from "./server";
-import type { Caller, Deps } from "./http";
+import { authConfig, getSession } from '../auth/server';
+import {
+  addVaultToRepository,
+  changeRepositoryKind,
+  readConnection,
+  setUpRepository,
+} from '../browse/server';
+import { connectionService } from './server';
+import type { Caller, Deps } from './http';
 
 /**
  * Who is calling, and what `http.ts` needs to answer them. Null when the instance has no sign-in
@@ -20,7 +25,10 @@ export async function connectionContext(): Promise<{ caller: Caller | null; deps
         const connection = await (await connectionService()).get(accountId, id);
         if (!connection) return { found: false };
         const outcome = await readConnection(accountId, connection);
-        return { found: true, vaults: outcome.ok ? outcome.read.discovery.vaults.map((vault) => vault.directory) : null };
+        return {
+          found: true,
+          vaults: outcome.ok ? outcome.read.discovery.vaults.map((vault) => vault.directory) : null,
+        };
       },
       connected: async (accountId, connection) => {
         await readConnection(accountId, connection);

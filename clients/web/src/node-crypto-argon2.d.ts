@@ -3,7 +3,7 @@
  * a dependency. The project's `@types/node` is the 22 line, which does not know them, so they are declared here, as Node documents them.
  * Delete this file when `@types/node` is 24 or later and has them.
  */
-declare module "node:crypto" {
+declare module 'node:crypto' {
   interface Argon2Parameters {
     message: string | NodeJS.ArrayBufferView;
     nonce: string | NodeJS.ArrayBufferView;
@@ -14,7 +14,11 @@ declare module "node:crypto" {
     secret?: string | NodeJS.ArrayBufferView;
     associatedData?: string | NodeJS.ArrayBufferView;
   }
-  type Argon2Algorithm = "argon2d" | "argon2i" | "argon2id";
-  function argon2(algorithm: Argon2Algorithm, parameters: Argon2Parameters, callback: (error: Error | null, key: Buffer) => void): void;
+  type Argon2Algorithm = 'argon2d' | 'argon2i' | 'argon2id';
+  function argon2(
+    algorithm: Argon2Algorithm,
+    parameters: Argon2Parameters,
+    callback: (error: Error | null, key: Buffer) => void,
+  ): void;
   function argon2Sync(algorithm: Argon2Algorithm, parameters: Argon2Parameters): Buffer;
 }

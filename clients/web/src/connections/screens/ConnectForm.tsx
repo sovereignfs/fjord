@@ -1,20 +1,28 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
-import { Alert, Button, FormField, Input } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import own from "./ConnectForm.module.css";
+import { useRouter } from 'next/navigation';
+import { type FormEvent, useState } from 'react';
+import { Alert, Button, FormField, Input } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import own from './ConnectForm.module.css';
 
 /**
  * Connect a repository by its address and a fine-grained access token. The token goes to this
  * server in one request and is checked there; it is not kept in the page after, and it is never
  * shown again.
  */
-export function ConnectForm({ heading = "Connect a repository", onConnected }: { heading?: string; /** Told when a repository was connected, with the warnings worth showing: a dialog around the form closes on none. */ onConnected?: (warnings: string[]) => void }) {
+export function ConnectForm({
+  heading = 'Connect a repository',
+  onConnected,
+}: {
+  heading?: string;
+  /** Told when a repository was connected, with the warnings worth showing: a dialog around the form closes on none. */ onConnected?: (
+    warnings: string[],
+  ) => void;
+}) {
   const router = useRouter();
-  const [repository, setRepository] = useState("");
-  const [token, setToken] = useState("");
+  const [repository, setRepository] = useState('');
+  const [token, setToken] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -25,23 +33,26 @@ export function ConnectForm({ heading = "Connect a repository", onConnected }: {
     setError(null);
     setWarnings([]);
     try {
-      const response = await fetch("/api/connections", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+      const response = await fetch('/api/connections', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ repository, token }),
       });
-      const body = (await response.json().catch(() => null)) as { error?: { message?: string }; warnings?: string[] } | null;
+      const body = (await response.json().catch(() => null)) as {
+        error?: { message?: string };
+        warnings?: string[];
+      } | null;
       if (!response.ok) {
-        setError(body?.error?.message ?? "The repository was not connected. Try again.");
+        setError(body?.error?.message ?? 'The repository was not connected. Try again.');
         return;
       }
-      setRepository("");
-      setToken("");
+      setRepository('');
+      setToken('');
       setWarnings(body?.warnings ?? []);
       router.refresh();
       onConnected?.(body?.warnings ?? []);
     } catch {
-      setError("Could not reach this server. Check your connection and try again.");
+      setError('Could not reach this server. Check your connection and try again.');
     } finally {
       setBusy(false);
     }
@@ -52,8 +63,10 @@ export function ConnectForm({ heading = "Connect a repository", onConnected }: {
       <h2 id="connect-title">{heading}</h2>
       <div className={own.guide}>
         <Alert variant="info">
-          On GitHub, create a <strong>fine-grained personal access token</strong> (Settings, Developer settings, Personal access tokens) with access to <em>only this repository</em> and the
-          permission <strong>Contents: Read and write</strong>. Fjord checks that it works before keeping it, and keeps it encrypted.
+          On GitHub, create a <strong>fine-grained personal access token</strong> (Settings,
+          Developer settings, Personal access tokens) with access to <em>only this repository</em>{' '}
+          and the permission <strong>Contents: Read and write</strong>. Fjord checks that it works
+          before keeping it, and keeps it encrypted.
         </Alert>
       </div>
       {error ? (
@@ -68,10 +81,30 @@ export function ConnectForm({ heading = "Connect a repository", onConnected }: {
       ))}
       <form className={own.form} onSubmit={onSubmit}>
         <FormField label="Repository" hint="Its address, or owner/name." required>
-          {(field) => <Input {...field} name="repository" placeholder="https://github.com/you/notes" autoComplete="off" value={repository} onChange={(e) => setRepository(e.target.value)} disabled={busy} />}
+          {(field) => (
+            <Input
+              {...field}
+              name="repository"
+              placeholder="https://github.com/you/notes"
+              autoComplete="off"
+              value={repository}
+              onChange={(e) => setRepository(e.target.value)}
+              disabled={busy}
+            />
+          )}
         </FormField>
         <FormField label="Access token" required>
-          {(field) => <Input {...field} type="password" name="token" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} disabled={busy} />}
+          {(field) => (
+            <Input
+              {...field}
+              type="password"
+              name="token"
+              autoComplete="off"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              disabled={busy}
+            />
+          )}
         </FormField>
         <div className={own.actions}>
           <Button type="submit" loading={busy}>

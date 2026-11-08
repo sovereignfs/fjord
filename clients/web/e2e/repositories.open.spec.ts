@@ -1,21 +1,34 @@
-import { createHash } from "node:crypto";
-import { createRequire } from "node:module";
-import { join } from "node:path";
-import type { Page } from "@playwright/test";
-import { ROUTES } from "../src/access/routes";
-import { addressOf, alertOn, expect, openAccount, openUserMenu, repoOf, signUp, test, DOC_PLACE, FILE_PLACE, PLACE, docPlace } from "./helpers";
-import { wasmDirectory } from "../src/format/wasm";
-import { type TwoGitHubs, startTwoGitHubs } from "./two-github";
+import { createHash } from 'node:crypto';
+import { createRequire } from 'node:module';
+import { join } from 'node:path';
+import type { Page } from '@playwright/test';
+import { ROUTES } from '../src/access/routes';
+import {
+  addressOf,
+  alertOn,
+  expect,
+  openAccount,
+  openUserMenu,
+  repoOf,
+  signUp,
+  test,
+  DOC_PLACE,
+  FILE_PLACE,
+  PLACE,
+  docPlace,
+} from './helpers';
+import { wasmDirectory } from '../src/format/wasm';
+import { type TwoGitHubs, startTwoGitHubs } from './two-github';
 
 /**
  * Connecting a repository by token, in a browser, on an instance that has an encryption key and
  * whose GitHub is a fake with a real git repository behind it (port 3192; see playwright.config.ts).
  */
-test.describe.configure({ mode: "serial" });
+test.describe.configure({ mode: 'serial' });
 
-const GOOD = "github_pat_e2egoodtoken0123456789abcdefghijklmnopqrstuvwx";
-const READ_ONLY = "github_pat_e2ereadonlytoken0123456789abcdefghijklmnopqrs";
-const BASE = "http://localhost:3201";
+const GOOD = 'github_pat_e2egoodtoken0123456789abcdefghijklmnopqrstuvwx';
+const READ_ONLY = 'github_pat_e2ereadonlytoken0123456789abcdefghijklmnopqrs';
+const BASE = 'http://localhost:3201';
 
 /**
  * A note's text after its first edit here: the first edit of a note with no header gives it one (spec §8.1, ROADMAP 1b.5),
@@ -23,435 +36,594 @@ const BASE = "http://localhost:3201";
  * select it away) and the text as typed.
  */
 const promoted = (title: string, text: string) => {
-  const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return expect.stringMatching(new RegExp(`^---\\nid: [0-9a-hjkmnp-tv-z]{26}\\ntitle: \"?${escape(title)}\"?\\ncreated: \"\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ\"\\n---\\n(?:\\n)?${escape(text)}$`));
+  const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return expect.stringMatching(
+    new RegExp(
+      `^---\\nid: [0-9a-hjkmnp-tv-z]{26}\\ntitle: \"?${escape(title)}\"?\\ncreated: \"\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ\"\\n---\\n(?:\\n)?${escape(text)}$`,
+    ),
+  );
 };
 
 /** The connect form's own alert, never the route announcer that Next puts outside `<main>`. */
-const connectAlert = (page: Page) => page.getByRole("region", { name: "Connect a repository" }).getByRole("alert");
+const connectAlert = (page: Page) =>
+  page.getByRole('region', { name: 'Connect a repository' }).getByRole('alert');
 
 let hubs: TwoGitHubs;
 test.beforeAll(async () => {
   hubs = await startTwoGitHubs(3192, { [GOOD]: { push: true }, [READ_ONLY]: { push: false } });
   await hubs.notes.commitFiles(
     {
-      "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3md", name: "Notes", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Public", id: "01jagc4k7pr9tbm3ykwx6zq2hv" }, { path: "Private", id: "01jagc4k7pr9tbm3ykwx6zq2hw" }] }),
-      "Public/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "Public notes", createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" }),
-      "Public/plan.fj.md": "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n---\n# Plan\n",
-      "Public/idea.md": "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8k\n---\n# Idea\n",
-      "Public/photo.png": "png",
-      "Public/Q4/report.fj.md": "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8m\n---\n# Report\n",
-      "Public/Q4/data.csv": "a,b",
-      "Private/fjord.vault.json": JSON.stringify({
+      'fjord.json': JSON.stringify({
         fjord: 1,
-        id: "01jagc4k7pr9tbm3ykwx6zq2hw",
-        name: "Private",
-        createdAt: "2026-10-16T09:34:00Z",
-        encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container: "none", armor: false },
-        fileNaming: "plain",
+        id: '01jagc4k7pqw2xn8rvty5zb3md',
+        name: 'Notes',
+        createdAt: '2026-10-16T09:34:00Z',
+        vaults: [
+          { path: 'Public', id: '01jagc4k7pr9tbm3ykwx6zq2hv' },
+          { path: 'Private', id: '01jagc4k7pr9tbm3ykwx6zq2hw' },
+        ],
       }),
-      "Private/recipients.txt": "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n",
-      "Private/secret.md.age": "age-encryption.org/v1",
+      'Public/fjord.vault.json': JSON.stringify({
+        fjord: 1,
+        id: '01jagc4k7pr9tbm3ykwx6zq2hv',
+        name: 'Public notes',
+        createdAt: '2026-10-16T09:34:00Z',
+        encryption: null,
+        fileNaming: 'plain',
+      }),
+      'Public/plan.fj.md': '---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n---\n# Plan\n',
+      'Public/idea.md': '---\nid: 01jagc4k7pt8y3wqnmzv5xrb8k\n---\n# Idea\n',
+      'Public/photo.png': 'png',
+      'Public/Q4/report.fj.md': '---\nid: 01jagc4k7pt8y3wqnmzv5xrb8m\n---\n# Report\n',
+      'Public/Q4/data.csv': 'a,b',
+      'Private/fjord.vault.json': JSON.stringify({
+        fjord: 1,
+        id: '01jagc4k7pr9tbm3ykwx6zq2hw',
+        name: 'Private',
+        createdAt: '2026-10-16T09:34:00Z',
+        encryption: {
+          tool: 'age',
+          recipients: 'recipients.txt',
+          suffix: '.age',
+          container: 'none',
+          armor: false,
+        },
+        fileNaming: 'plain',
+      }),
+      'Private/recipients.txt': 'age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n',
+      'Private/secret.md.age': 'age-encryption.org/v1',
     },
     { replace: true },
   );
-  await hubs.more.commitFiles({ "fjord.json": "{}" }, { replace: true });
+  await hubs.more.commitFiles({ 'fjord.json': '{}' }, { replace: true });
 });
 test.afterAll(async () => hubs.stop());
 
 /** The repository's own page (`/repo/<repo>`: its vaults, and the top of the one that opens first), by the home page's tile for it. */
-async function openRepository(page: Page, repository = "acme/notes") {
-  await page.goto("/");
-  await page.getByRole("list", { name: "Repositories", exact: true }).getByRole("link", { name: new RegExp(repository.replace("/", "\\/")) }).click();
+async function openRepository(page: Page, repository = 'acme/notes') {
+  await page.goto('/');
+  await page
+    .getByRole('list', { name: 'Repositories', exact: true })
+    .getByRole('link', { name: new RegExp(repository.replace('/', '\\/')) })
+    .click();
 }
 
-async function connect(page: import("@playwright/test").Page, repository: string) {
-  await page.getByRole("textbox", { name: "Repository" }).fill(repository);
-  await page.getByLabel("Access token").fill(GOOD);
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+async function connect(page: import('@playwright/test').Page, repository: string) {
+  await page.getByRole('textbox', { name: 'Repository' }).fill(repository);
+  await page.getByLabel('Access token').fill(GOOD);
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
 }
 
-test("nobody who is not signed in can list, connect or disconnect", async ({ request }) => {
-  expect((await request.get("/api/connections")).status()).toBe(401);
-  expect((await request.post("/api/connections", { headers: { origin: BASE }, data: { repository: "acme/notes", token: GOOD } })).status()).toBe(401);
-  expect((await request.delete("/api/connections/1", { headers: { origin: BASE } })).status()).toBe(401);
+test('nobody who is not signed in can list, connect or disconnect', async ({ request }) => {
+  expect((await request.get('/api/connections')).status()).toBe(401);
+  expect(
+    (
+      await request.post('/api/connections', {
+        headers: { origin: BASE },
+        data: { repository: 'acme/notes', token: GOOD },
+      })
+    ).status(),
+  ).toBe(401);
+  expect((await request.delete('/api/connections/1', { headers: { origin: BASE } })).status()).toBe(
+    401,
+  );
 });
 
-test("a read-only token is refused with a clear message, and nothing is kept", async ({ page }) => {
+test('a read-only token is refused with a clear message, and nothing is kept', async ({ page }) => {
   await signUp(page);
-  await page.goto("/repositories");
-  await expect(page.getByText("No repositories are connected yet.")).toBeVisible();
+  await page.goto('/repositories');
+  await expect(page.getByText('No repositories are connected yet.')).toBeVisible();
 
-  await page.getByRole("textbox", { name: "Repository" }).fill("https://github.com/acme/notes");
-  await page.getByLabel("Access token").fill(READ_ONLY);
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await page.getByRole('textbox', { name: 'Repository' }).fill('https://github.com/acme/notes');
+  await page.getByLabel('Access token').fill(READ_ONLY);
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
 
-  await expect(connectAlert(page)).toContainText("can read this repository but not write to it");
-  await expect(connectAlert(page)).toContainText("Contents: Read and write");
-  await expect(page.getByText("No repositories are connected yet.")).toBeVisible();
+  await expect(connectAlert(page)).toContainText('can read this repository but not write to it');
+  await expect(connectAlert(page)).toContainText('Contents: Read and write');
+  await expect(page.getByText('No repositories are connected yet.')).toBeVisible();
   // What was typed stays in its own field, so it can be corrected and sent again; nothing the page
   // says back repeats it.
   expect(await connectAlert(page).innerText()).not.toContain(READ_ONLY);
-  expect(await page.getByRole("main").innerText()).not.toContain(READ_ONLY);
+  expect(await page.getByRole('main').innerText()).not.toContain(READ_ONLY);
 });
 
-test("a token that works connects the repository, and the page never shows it again", async ({ page }) => {
+test('a token that works connects the repository, and the page never shows it again', async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/repositories");
-  await page.getByRole("textbox", { name: "Repository" }).fill("acme/notes");
-  await page.getByLabel("Access token").fill(GOOD);
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
+  await page.goto('/repositories');
+  await page.getByRole('textbox', { name: 'Repository' }).fill('acme/notes');
+  await page.getByLabel('Access token').fill(GOOD);
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
 
-  const list = page.getByRole("list", { name: "Connected repositories" });
-  await expect(list).toContainText("acme/notes");
-  await expect(list).toContainText("branch main");
+  const list = page.getByRole('list', { name: 'Connected repositories' });
+  await expect(list).toContainText('acme/notes');
+  await expect(list).toContainText('branch main');
   // The form is empty again, and the token is nowhere in what the browser has.
-  await expect(page.getByLabel("Access token")).toHaveValue("");
+  await expect(page.getByLabel('Access token')).toHaveValue('');
   expect(await page.content()).not.toContain(GOOD);
   await page.reload();
-  await expect(list).toContainText("acme/notes");
+  await expect(list).toContainText('acme/notes');
   expect(await page.content()).not.toContain(GOOD);
   // The repository was only looked at, not changed.
   await hubs.notes.fsck();
 });
 
-test("the same repository twice is refused, and another person does not see it", async ({ page, browser }) => {
+test('the same repository twice is refused, and another person does not see it', async ({
+  page,
+  browser,
+}) => {
   const { email } = await signUp(page);
-  await page.goto("/repositories");
-  await page.getByRole("textbox", { name: "Repository" }).fill("acme/notes");
-  await page.getByLabel("Access token").fill(GOOD);
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
+  await page.goto('/repositories');
+  await page.getByRole('textbox', { name: 'Repository' }).fill('acme/notes');
+  await page.getByLabel('Access token').fill(GOOD);
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
 
-  await page.getByRole("textbox", { name: "Repository" }).fill("https://github.com/acme/notes.git");
-  await page.getByLabel("Access token").fill(GOOD);
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
-  await expect(connectAlert(page)).toContainText("already connected");
+  await page.getByRole('textbox', { name: 'Repository' }).fill('https://github.com/acme/notes.git');
+  await page.getByLabel('Access token').fill(GOOD);
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(connectAlert(page)).toContainText('already connected');
 
   // Someone else, in their own browser.
-  const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.2" } });
+  const other = await browser.newContext({
+    baseURL: BASE,
+    extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.2' },
+  });
   const otherPage = await other.newPage();
-  await signUp(otherPage, `other-${email}`, "Grace Hopper");
-  await otherPage.goto("/repositories");
-  await expect(otherPage.getByText("No repositories are connected yet.")).toBeVisible();
-  const listed = await otherPage.request.get("/api/connections");
+  await signUp(otherPage, `other-${email}`, 'Grace Hopper');
+  await otherPage.goto('/repositories');
+  await expect(otherPage.getByText('No repositories are connected yet.')).toBeVisible();
+  const listed = await otherPage.request.get('/api/connections');
   expect(await listed.json()).toEqual({ connections: [] });
   // Their attempt at disconnecting someone else's is "not found", not "forbidden": it is not theirs to know about.
-  const mine = (await (await page.request.get("/api/connections")).json()).connections[0];
-  const attempt = await otherPage.request.delete(`/api/connections/${mine.id}`, { headers: { origin: BASE } });
+  const mine = (await (await page.request.get('/api/connections')).json()).connections[0];
+  const attempt = await otherPage.request.delete(`/api/connections/${mine.id}`, {
+    headers: { origin: BASE },
+  });
   expect(attempt.status()).toBe(404);
   await page.reload();
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
   await other.close();
 });
 
-test("a page on another site cannot connect a repository for a signed-in person", async ({ page }) => {
+test('a page on another site cannot connect a repository for a signed-in person', async ({
+  page,
+}) => {
   await signUp(page);
-  const response = await page.request.post("/api/connections", { headers: { origin: "https://evil.example" }, data: { repository: "acme/notes", token: GOOD } });
+  const response = await page.request.post('/api/connections', {
+    headers: { origin: 'https://evil.example' },
+    data: { repository: 'acme/notes', token: GOOD },
+  });
   expect(response.status()).toBe(403);
-  expect((await (await page.request.get("/api/connections")).json()).connections).toEqual([]);
+  expect((await (await page.request.get('/api/connections')).json()).connections).toEqual([]);
 });
 
-test("disconnecting forgets the repository", async ({ page }) => {
+test('disconnecting forgets the repository', async ({ page }) => {
   await signUp(page);
-  await page.goto("/repositories");
-  await page.getByRole("textbox", { name: "Repository" }).fill("acme/notes");
-  await page.getByLabel("Access token").fill(GOOD);
-  await page.getByRole("button", { name: "Connect", exact: true }).click();
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
+  await page.goto('/repositories');
+  await page.getByRole('textbox', { name: 'Repository' }).fill('acme/notes');
+  await page.getByLabel('Access token').fill(GOOD);
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
 
-  await page.getByRole("button", { name: "Disconnect" }).click();
-  await page.getByRole("dialog", { name: "Please confirm" }).getByRole("button", { name: "Disconnect", exact: true }).click();
-  await expect(page.getByText("No repositories are connected yet.")).toBeVisible();
+  await page.getByRole('button', { name: 'Disconnect' }).click();
+  await page
+    .getByRole('dialog', { name: 'Please confirm' })
+    .getByRole('button', { name: 'Disconnect', exact: true })
+    .click();
+  await expect(page.getByText('No repositories are connected yet.')).toBeVisible();
 });
 
-test("a new account is prompted to connect a repository, and the first one becomes where / lands", async ({ page }) => {
+test('a new account is prompted to connect a repository, and the first one becomes where / lands', async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/open");
-  await expect(page.getByRole("heading", { name: "Connect your first repository" })).toBeVisible();
+  await page.goto('/open');
+  await expect(page.getByRole('heading', { name: 'Connect your first repository' })).toBeVisible();
 
-  await connect(page, "acme/notes");
+  await connect(page, 'acme/notes');
   // The same page, now the home page's grid, with a tile for it, marked as the default; opening it shows the repository: its name, its branch.
-  await expect(page.getByRole("list", { name: "Repositories", exact: true }).getByRole("link", { name: /acme\/notes/ })).toContainText("Default");
-  await page.getByRole("list", { name: "Repositories", exact: true }).getByRole("link", { name: /acme\/notes/ }).click();
-  await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
-  await expect(page.getByText("Branch main")).toBeVisible();
-  await expect(page.getByText("Default", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole('list', { name: 'Repositories', exact: true })
+      .getByRole('link', { name: /acme\/notes/ }),
+  ).toContainText('Default');
+  await page
+    .getByRole('list', { name: 'Repositories', exact: true })
+    .getByRole('link', { name: /acme\/notes/ })
+    .click();
+  await expect(page.getByRole('heading', { name: 'acme/notes', level: 1 })).toBeVisible();
+  await expect(page.getByText('Branch main')).toBeVisible();
+  await expect(page.getByText('Default', { exact: true })).toBeVisible();
 
   // The second visit lands there with no prompt.
-  await page.goto("/open");
-  await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Connect your first repository" })).toHaveCount(0);
+  await page.goto('/open');
+  await expect(page.getByRole('heading', { name: 'acme/notes', level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Connect your first repository' })).toHaveCount(0);
 });
 
-test("the rail's + opens a dialog to connect a repository, which closes when it is connected and puts the repository in the rail", async ({ page }) => {
+test("the rail's + opens a dialog to connect a repository, which closes when it is connected and puts the repository in the rail", async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/open");
-  await page.getByRole("button", { name: "Add a repository", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Add a repository" });
+  await page.goto('/open');
+  await page.getByRole('button', { name: 'Add a repository', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add a repository' });
   // It opens on making one here (ROADMAP 3i); this is about connecting one.
-  await dialog.getByText("Connect from GitHub").click();
+  await dialog.getByText('Connect from GitHub').click();
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("textbox", { name: "Repository" }).fill("acme/notes");
-  await dialog.getByLabel("Access token").fill(GOOD);
-  await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+  await dialog.getByRole('textbox', { name: 'Repository' }).fill('acme/notes');
+  await dialog.getByLabel('Access token').fill(GOOD);
+  await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByRole("list", { name: "Your repositories" }).getByRole("link", { name: "acme/notes" })).toBeVisible();
+  await expect(
+    page.getByRole('list', { name: 'Your repositories' }).getByRole('link', { name: 'acme/notes' }),
+  ).toBeVisible();
 });
 
-test("the connect dialog offers only the form, and closes when the repository is connected", async ({ page }) => {
+test('the connect dialog offers only the form, and closes when the repository is connected', async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/open");
-  await page.getByRole("button", { name: "Add a repository", exact: true }).click();
-  const dialog = page.getByRole("dialog", { name: "Add a repository" });
+  await page.goto('/open');
+  await page.getByRole('button', { name: 'Add a repository', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add a repository' });
   // It opens on making one here (ROADMAP 3i); this is about connecting one.
-  await dialog.getByText("Connect from GitHub").click();
+  await dialog.getByText('Connect from GitHub').click();
   // Nothing but the form: no way to disconnect, and no link to a GitHub App that is not set up.
-  await expect(dialog.getByRole("link")).toHaveCount(0);
-  await dialog.getByRole("textbox", { name: "Repository" }).fill("acme/notes");
-  await dialog.getByLabel("Access token").fill(GOOD);
-  await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+  await expect(dialog.getByRole('link')).toHaveCount(0);
+  await dialog.getByRole('textbox', { name: 'Repository' }).fill('acme/notes');
+  await dialog.getByLabel('Access token').fill(GOOD);
+  await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
   await expect(dialog).toHaveCount(0);
 });
 
-test("the account opens from the menu on the avatar as a dialog over the page it was opened from, and as a page at its own address", async ({ page }) => {
+test('the account opens from the menu on the avatar as a dialog over the page it was opened from, and as a page at its own address', async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/open");
-  await connect(page, "acme/notes");
-  await page.getByRole("list", { name: "Repositories", exact: true }).getByRole("link", { name: /acme\/notes/ }).click();
-  await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
+  await page.goto('/open');
+  await connect(page, 'acme/notes');
+  await page
+    .getByRole('list', { name: 'Repositories', exact: true })
+    .getByRole('link', { name: /acme\/notes/ })
+    .click();
+  await expect(page.getByRole('heading', { name: 'acme/notes', level: 1 })).toBeVisible();
   const repository = new URL(page.url()).pathname;
 
   // The rail has no icon for it any more: the account is in the menu at the foot of the rail, from the avatar.
-  await expect(page.getByRole("link", { name: "Security", exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Security', exact: true })).toHaveCount(0);
   await openUserMenu(page);
-  const menu = page.getByRole("menu");
+  const menu = page.getByRole('menu');
   // Who they are, above the items; the account first and the way out last.
-  await expect(page.getByText("Ada Lovelace", { exact: true })).toBeVisible();
-  await expect(menu.getByRole("menuitem")).toHaveText(["Account", "Sign out"]);
-  await menu.getByRole("menuitem", { name: "Account" }).click();
-  const dialog = page.getByRole("dialog", { name: "Account" });
+  await expect(page.getByText('Ada Lovelace', { exact: true })).toBeVisible();
+  await expect(menu.getByRole('menuitem')).toHaveText(['Account', 'Sign out']);
+  await menu.getByRole('menuitem', { name: 'Account' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Account' });
   await expect(dialog).toBeVisible();
   await expect(page).toHaveURL(/\/account$/);
   // Its sections, down the left: Profile opens, and Security is what the security page was, with its two parts.
-  const sections = dialog.getByRole("navigation", { name: "Account sections" }).getByRole("button");
-  await expect(sections).toHaveText(["Profile", "Security", "Preferences"]);
-  await expect(sections.first()).toHaveAttribute("aria-current", "page");
-  await expect(dialog.getByRole("textbox", { name: "Name" })).toHaveValue("Ada Lovelace");
+  const sections = dialog.getByRole('navigation', { name: 'Account sections' }).getByRole('button');
+  await expect(sections).toHaveText(['Profile', 'Security', 'Preferences']);
+  await expect(sections.first()).toHaveAttribute('aria-current', 'page');
+  await expect(dialog.getByRole('textbox', { name: 'Name' })).toHaveValue('Ada Lovelace');
   await sections.nth(1).click();
-  await expect(dialog.getByRole("tab", { name: "General" })).toBeVisible();
-  await expect(dialog.getByRole("tab").first()).toHaveText("General");
-  await expect(dialog.getByRole("tab", { name: "Encryption identity" })).toBeVisible();
+  await expect(dialog.getByRole('tab', { name: 'General' })).toBeVisible();
+  await expect(dialog.getByRole('tab').first()).toHaveText('General');
+  await expect(dialog.getByRole('tab', { name: 'Encryption identity' })).toBeVisible();
   // The page it was opened from is still there behind it, and closing the dialog goes back to it.
-  await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
-  await page.keyboard.press("Escape");
+  await expect(page.getByRole('heading', { name: 'acme/notes', level: 1 })).toBeVisible();
+  await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   await expect(page).toHaveURL(new RegExp(`${repository}$`));
 
   // At its own address it is a page, not a dialog, and what it was called still arrives.
-  await page.goto("/account");
-  await expect(page.getByRole("heading", { name: "Account", level: 1 })).toBeVisible();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await page.goto("/account/security");
+  await page.goto('/account');
+  await expect(page.getByRole('heading', { name: 'Account', level: 1 })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.goto('/account/security');
   await expect(page).toHaveURL(/\/account\?section=security$/);
-  await expect(page.getByRole("button", { name: "Turn on" })).toBeVisible();
-  await page.goto("/account/keys");
+  await expect(page.getByRole('button', { name: 'Turn on' })).toBeVisible();
+  await page.goto('/account/keys');
   await expect(page).toHaveURL(/\/account\?section=security&tab=keys$/);
-  await page.goto("/security?linked=1");
+  await page.goto('/security?linked=1');
   await expect(page).toHaveURL(/\/account\?section=security&linked=1$/);
-  await page.goto("/account?tab=keys");
-  await expect(page.getByRole("heading", { name: "Encryption identity" }).first()).toBeVisible();
+  await page.goto('/account?tab=keys');
+  await expect(page.getByRole('heading', { name: 'Encryption identity' }).first()).toBeVisible();
 });
 
-test("the account's name is changed in Profile, shown at once in the menu, and the way out is the menu's last item", async ({ page }) => {
+test("the account's name is changed in Profile, shown at once in the menu, and the way out is the menu's last item", async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/open");
-  await openAccount(page, "Profile");
-  const dialog = page.getByRole("dialog", { name: "Account" });
-  await expect(dialog.getByRole("form", { name: "Change your address" })).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Save name" })).toBeDisabled();
-  await dialog.getByRole("textbox", { name: "Name" }).fill("Augusta Ada King");
-  await dialog.getByRole("button", { name: "Save name" }).click();
-  await expect(dialog.getByText("Your name is saved.")).toBeVisible();
-  await page.keyboard.press("Escape");
+  await page.goto('/open');
+  await openAccount(page, 'Profile');
+  const dialog = page.getByRole('dialog', { name: 'Account' });
+  await expect(dialog.getByRole('form', { name: 'Change your address' })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Save name' })).toBeDisabled();
+  await dialog.getByRole('textbox', { name: 'Name' }).fill('Augusta Ada King');
+  await dialog.getByRole('button', { name: 'Save name' }).click();
+  await expect(dialog.getByText('Your name is saved.')).toBeVisible();
+  await page.keyboard.press('Escape');
   await openUserMenu(page);
-  await expect(page.getByText("Augusta Ada King", { exact: true })).toBeVisible();
+  await expect(page.getByText('Augusta Ada King', { exact: true })).toBeVisible();
   await page.reload();
   await openUserMenu(page);
-  await expect(page.getByText("Augusta Ada King", { exact: true })).toBeVisible();
+  await expect(page.getByText('Augusta Ada King', { exact: true })).toBeVisible();
 });
 
-test("preferences are kept in this browser and applied at once: the theme, and the size of text, before the page is painted", async ({ page }) => {
+test('preferences are kept in this browser and applied at once: the theme, and the size of text, before the page is painted', async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/account?section=preferences");
-  const root = page.locator("html");
-  await page.getByRole("radio", { name: "Dark" }).click();
-  await expect(root).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("radio", { name: "Larger" }).click();
-  await expect(root).toHaveAttribute("data-text-size", "larger");
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe("20px");
+  await page.goto('/account?section=preferences');
+  const root = page.locator('html');
+  await page.getByRole('radio', { name: 'Dark' }).click();
+  await expect(root).toHaveAttribute('data-theme', 'dark');
+  await page.getByRole('radio', { name: 'Larger' }).click();
+  await expect(root).toHaveAttribute('data-text-size', 'larger');
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe(
+    '20px',
+  );
   // Kept: a reload has them from the first paint.
   await page.reload();
-  await expect(root).toHaveAttribute("data-theme", "dark");
-  await expect(root).toHaveAttribute("data-text-size", "larger");
-  await expect(page.getByRole("radio", { name: "Dark" })).toBeChecked();
+  await expect(root).toHaveAttribute('data-theme', 'dark');
+  await expect(root).toHaveAttribute('data-text-size', 'larger');
+  await expect(page.getByRole('radio', { name: 'Dark' })).toBeChecked();
   // The system's own again is the absence of a choice.
-  await page.getByRole("radio", { name: "System" }).click();
-  await page.getByRole("radio", { name: "Default" }).click();
-  expect(await page.evaluate(() => [localStorage.getItem("fjord.theme"), localStorage.getItem("fjord.textSize")])).toEqual([null, null]);
-  await expect(root).not.toHaveAttribute("data-text-size", /./);
+  await page.getByRole('radio', { name: 'System' }).click();
+  await page.getByRole('radio', { name: 'Default' }).click();
+  expect(
+    await page.evaluate(() => [
+      localStorage.getItem('fjord.theme'),
+      localStorage.getItem('fjord.textSize'),
+    ]),
+  ).toEqual([null, null]);
+  await expect(root).not.toHaveAttribute('data-text-size', /./);
 });
 
-test("with two repositories, the first stays the default until another is chosen, and disconnecting moves it", async ({ page }) => {
+test('with two repositories, the first stays the default until another is chosen, and disconnecting moves it', async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/notes");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
-  await connect(page, "acme/more");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/more");
+  await page.goto('/repositories');
+  await connect(page, 'acme/notes');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
+  await connect(page, 'acme/more');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/more',
+  );
 
-  await page.goto("/open");
-  await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
+  await page.goto('/open');
+  await expect(page.getByRole('heading', { name: 'acme/notes', level: 1 })).toBeVisible();
 
   // Move to the other one, which is not the default, and make it so.
-  const switcher = page.getByRole("list", { name: "Your repositories" });
-  await switcher.getByRole("link", { name: "acme/more" }).click();
-  await expect(page.getByRole("heading", { name: "acme/more", level: 1 })).toBeVisible();
+  const switcher = page.getByRole('list', { name: 'Your repositories' });
+  await switcher.getByRole('link', { name: 'acme/more' }).click();
+  await expect(page.getByRole('heading', { name: 'acme/more', level: 1 })).toBeVisible();
   // Exactly one repository is the default, and the rail says which in its tooltip.
-  await expect(switcher.getByRole("link", { name: "acme/notes" })).toHaveAttribute("title", "acme/notes (default)");
-  await expect(switcher.getByRole("link", { name: "acme/more" })).toHaveAttribute("title", "acme/more");
-  await page.getByRole("button", { name: "Repository settings" }).click();
-  await page.getByRole("button", { name: "Make this my default" }).click();
-  await expect(page.getByRole("button", { name: "Make this my default" })).toHaveCount(0);
+  await expect(switcher.getByRole('link', { name: 'acme/notes' })).toHaveAttribute(
+    'title',
+    'acme/notes (default)',
+  );
+  await expect(switcher.getByRole('link', { name: 'acme/more' })).toHaveAttribute(
+    'title',
+    'acme/more',
+  );
+  await page.getByRole('button', { name: 'Repository settings' }).click();
+  await page.getByRole('button', { name: 'Make this my default' }).click();
+  await expect(page.getByRole('button', { name: 'Make this my default' })).toHaveCount(0);
 
-  await page.goto("/open");
-  await expect(page.getByRole("heading", { name: "acme/more", level: 1 })).toBeVisible();
+  await page.goto('/open');
+  await expect(page.getByRole('heading', { name: 'acme/more', level: 1 })).toBeVisible();
 
   // Disconnect the default: / falls to the one that is left.
-  await page.goto("/repositories");
-  const more = page.getByRole("listitem").filter({ hasText: "acme/more" });
-  await more.getByRole("button", { name: "Disconnect" }).click();
-  await page.getByRole("dialog", { name: "Please confirm" }).getByRole("button", { name: "Disconnect", exact: true }).click();
-  await expect(page.getByRole("list", { name: "Connected repositories" })).not.toContainText("acme/more");
-  await page.goto("/open");
-  await expect(page.getByRole("heading", { name: "acme/notes", level: 1 })).toBeVisible();
+  await page.goto('/repositories');
+  const more = page.getByRole('listitem').filter({ hasText: 'acme/more' });
+  await more.getByRole('button', { name: 'Disconnect' }).click();
+  await page
+    .getByRole('dialog', { name: 'Please confirm' })
+    .getByRole('button', { name: 'Disconnect', exact: true })
+    .click();
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).not.toContainText(
+    'acme/more',
+  );
+  await page.goto('/open');
+  await expect(page.getByRole('heading', { name: 'acme/notes', level: 1 })).toBeVisible();
 });
 
-test("another person's repository page is not found, and they cannot make it their default", async ({ page, browser }) => {
+test("another person's repository page is not found, and they cannot make it their default", async ({
+  page,
+  browser,
+}) => {
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/notes");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
-  const mine = (await (await page.request.get("/api/connections")).json()).connections[0];
+  await page.goto('/repositories');
+  await connect(page, 'acme/notes');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
+  const mine = (await (await page.request.get('/api/connections')).json()).connections[0];
 
-  const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.3" } });
+  const other = await browser.newContext({
+    baseURL: BASE,
+    extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.3' },
+  });
   const otherPage = await other.newPage();
-  await signUp(otherPage, `visitor-${Date.now()}@example.com`, "Grace Hopper");
+  await signUp(otherPage, `visitor-${Date.now()}@example.com`, 'Grace Hopper');
   expect((await otherPage.goto(`/repo/${mine.id}`))?.status()).toBe(404);
   // Nor a place inside it: nothing of it is shown to someone it is not connected to.
   expect((await otherPage.goto(`/repo/${mine.id}/Public`))?.status()).toBe(404);
-  expect((await otherPage.request.post(`/api/connections/${mine.id}/default`, { headers: { origin: BASE } })).status()).toBe(404);
+  expect(
+    (
+      await otherPage.request.post(`/api/connections/${mine.id}/default`, {
+        headers: { origin: BASE },
+      })
+    ).status(),
+  ).toBe(404);
   expect((await page.goto(`/repo/${mine.id}`))?.status()).toBe(200);
   await other.close();
 });
 
-test("the repository page lists its vaults and what is in each, from names alone", async ({ page }) => {
+test('the repository page lists its vaults and what is in each, from names alone', async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/notes");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
+  await page.goto('/repositories');
+  await connect(page, 'acme/notes');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
 
   await openRepository(page);
-  const vaults = page.getByRole("list", { name: "Vaults" });
-  const publicVault = vaults.getByRole("listitem").filter({ hasText: "Public notes" });
-  await expect(publicVault).toContainText("3 documents, 2 other files");
-  const privateVault = vaults.getByRole("listitem").filter({ hasText: "Private" });
-  await expect(privateVault).toContainText("Encrypted");
-  await expect(privateVault).toContainText("1 encrypted file");
+  const vaults = page.getByRole('list', { name: 'Vaults' });
+  const publicVault = vaults.getByRole('listitem').filter({ hasText: 'Public notes' });
+  await expect(publicVault).toContainText('3 documents, 2 other files');
+  const privateVault = vaults.getByRole('listitem').filter({ hasText: 'Private' });
+  await expect(privateVault).toContainText('Encrypted');
+  await expect(privateVault).toContainText('1 encrypted file');
 });
 
-test("looking at a repository again reads no tree and no document from the host", async ({ page }) => {
+test('looking at a repository again reads no tree and no document from the host', async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/notes");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
+  await page.goto('/repositories');
+  await connect(page, 'acme/notes');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
 
   await openRepository(page);
-  await expect(page.getByRole("list", { name: "Vaults" })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Vaults' })).toBeVisible();
   hubs.notes.requests.length = 0;
   await page.reload();
-  await expect(page.getByRole("list", { name: "Vaults" })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Vaults' })).toBeVisible();
   await openRepository(page);
-  await expect(page.getByRole("list", { name: "Vaults" })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Vaults' })).toBeVisible();
 
   // The head is asked for each time; the commit's tree and the vaults' manifests were kept.
-  const asked = hubs.notes.requests.map((request) => `${request.method} ${request.path.replace("/repos/acme/notes", "")}`);
-  expect(asked.filter((path) => path.startsWith("GET /git/trees/"))).toEqual([]);
-  expect(asked.filter((path) => path.startsWith("GET /git/blobs/"))).toEqual([]);
-  expect(asked.filter((path) => path.startsWith("GET /git/ref/"))).not.toEqual([]);
+  const asked = hubs.notes.requests.map(
+    (request) => `${request.method} ${request.path.replace('/repos/acme/notes', '')}`,
+  );
+  expect(asked.filter((path) => path.startsWith('GET /git/trees/'))).toEqual([]);
+  expect(asked.filter((path) => path.startsWith('GET /git/blobs/'))).toEqual([]);
+  expect(asked.filter((path) => path.startsWith('GET /git/ref/'))).not.toEqual([]);
 });
 
-test("when GitHub stops accepting the token, the page says so and what to do", async ({ page }) => {
+test('when GitHub stops accepting the token, the page says so and what to do', async ({ page }) => {
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/notes");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
+  await page.goto('/repositories');
+  await connect(page, 'acme/notes');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
 
-  hubs.notes.fail(/git\/ref\/heads/, { status: 401, body: { message: "Bad credentials" }, times: 2 }); // /open reads once to find the default vault, and the repository page it lands on reads again
-  await page.goto("/open");
+  hubs.notes.fail(/git\/ref\/heads/, {
+    status: 401,
+    body: { message: 'Bad credentials' },
+    times: 2,
+  }); // /open reads once to find the default vault, and the repository page it lands on reads again
+  await page.goto('/open');
   await expect(alertOn(page)).toContainText("no longer accepts this repository's token");
-  expect(await page.getByRole("main").innerText()).not.toContain("Bad credentials");
+  expect(await page.getByRole('main').innerText()).not.toContain('Bad credentials');
 });
 
-test("a vault is opened to its folders and files, and what can be opened is told from what cannot by name alone", async ({ page }) => {
+test('a vault is opened to its folders and files, and what can be opened is told from what cannot by name alone', async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/notes");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
+  await page.goto('/repositories');
+  await connect(page, 'acme/notes');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
 
   await openRepository(page);
-  await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
+  await page
+    .getByRole('list', { name: 'Vaults' })
+    .getByRole('link', { name: 'Public notes' })
+    .click();
   await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
 
-  const contents = page.getByRole("list", { name: "Folder contents" });
+  const contents = page.getByRole('list', { name: 'Folder contents' });
   // A folder first, with how many files are in it; then the files.
-  await expect(contents.getByRole("listitem").first()).toContainText("Q4");
-  await expect(contents.getByRole("listitem").first()).toContainText("2 files");
-  await expect(contents.getByRole("link", { name: "plan.fj.md" })).toBeVisible();
-  await expect(contents.getByRole("listitem").filter({ hasText: "plan.fj.md" })).toContainText("Document");
-  await expect(contents.getByRole("listitem").filter({ hasText: "idea.md" })).toContainText("Document");
+  await expect(contents.getByRole('listitem').first()).toContainText('Q4');
+  await expect(contents.getByRole('listitem').first()).toContainText('2 files');
+  await expect(contents.getByRole('link', { name: 'plan.fj.md' })).toBeVisible();
+  await expect(contents.getByRole('listitem').filter({ hasText: 'plan.fj.md' })).toContainText(
+    'Document',
+  );
+  await expect(contents.getByRole('listitem').filter({ hasText: 'idea.md' })).toContainText(
+    'Document',
+  );
   // Any other file has a page of its own.
-  await expect(contents.getByText("photo.png")).toBeVisible();
-  await expect(contents.getByRole("link", { name: "photo.png" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Path" })).toContainText("acme/notes");
+  await expect(contents.getByText('photo.png')).toBeVisible();
+  await expect(contents.getByRole('link', { name: 'photo.png' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Path' })).toContainText('acme/notes');
 
-  await contents.getByRole("link", { name: "Q4" }).click();
+  await contents.getByRole('link', { name: 'Q4' }).click();
   await expect(page).toHaveURL(FILE_PLACE);
-  const inside = page.getByRole("list", { name: "Folder contents" });
-  await expect(inside.getByRole("link", { name: "report.fj.md" })).toBeVisible();
-  await expect(inside.getByRole("link", { name: "data.csv" })).toBeVisible();
+  const inside = page.getByRole('list', { name: 'Folder contents' });
+  await expect(inside.getByRole('link', { name: 'report.fj.md' })).toBeVisible();
+  await expect(inside.getByRole('link', { name: 'data.csv' })).toBeVisible();
 
-  await inside.getByRole("link", { name: "report.fj.md" }).click();
+  await inside.getByRole('link', { name: 'report.fj.md' }).click();
   await expect(page).toHaveURL(PLACE);
-  await expect(page.getByRole("heading", { name: "Report", level: 2 })).toBeVisible();
-  await expect(noteEditor(page, "report.fj.md")).toContainText("Report"); // a document opens in its editor
+  await expect(page.getByRole('heading', { name: 'Report', level: 2 })).toBeVisible();
+  await expect(noteEditor(page, 'report.fj.md')).toContainText('Report'); // a document opens in its editor
   // The way back is in the path above it.
-  await page.getByRole("navigation", { name: "Path" }).getByRole("link", { name: "Public notes" }).click();
+  await page
+    .getByRole('navigation', { name: 'Path' })
+    .getByRole('link', { name: 'Public notes' })
+    .click();
   await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
 });
 
-async function connected(page: import("@playwright/test").Page): Promise<number> {
+async function connected(page: import('@playwright/test').Page): Promise<number> {
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/notes");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
-  return (await (await page.request.get("/api/connections")).json()).connections[0].id;
+  await page.goto('/repositories');
+  await connect(page, 'acme/notes');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
+  return (await (await page.request.get('/api/connections')).json()).connections[0].id;
 }
 
-test("places have addresses made of ids; a path, an address with a stale vault and one that is not made of ids are answered by the one that is right, or by a 404", async ({ page }) => {
+test('places have addresses made of ids; a path, an address with a stale vault and one that is not made of ids are answered by the one that is right, or by a 404', async ({
+  page,
+}) => {
   const id = await connected(page);
-  const PUBLIC = "01jagc4k7pr9tbm3ykwx6zq2hv";
-  const PRIVATE = "01jagc4k7pr9tbm3ykwx6zq2hw";
+  const PUBLIC = '01jagc4k7pr9tbm3ykwx6zq2hv';
+  const PRIVATE = '01jagc4k7pr9tbm3ykwx6zq2hw';
 
   // The old address by path is sent to the vault's own, and a folder's to a handle in the vault's address.
   await page.goto(`/repo/${id}/Public`);
@@ -459,13 +631,17 @@ test("places have addresses made of ids; a path, an address with a stale vault a
   await page.goto(`/repo/${id}/Public/Q4`);
   await expect(page).toHaveURL(FILE_PLACE);
   const folder = new URL(page.url()).pathname;
-  await expect(page.getByRole("list", { name: "Folder contents" }).getByRole("link", { name: "report.fj.md" })).toBeVisible();
+  await expect(
+    page.getByRole('list', { name: 'Folder contents' }).getByRole('link', { name: 'report.fj.md' }),
+  ).toBeVisible();
 
   // Opened again by that address it stays, and from the folder the file is one level in: the folder's handle, then the Doc's id.
   await page.goto(folder);
   await expect(page).toHaveURL(`${BASE}${folder}`);
-  await page.getByRole("link", { name: "report.fj.md" }).click();
-  await expect(page).toHaveURL(new RegExp(`${folder.replace(/\//g, "\\/")}/d/[0-9a-hjkmnp-tv-z]{26}$`));
+  await page.getByRole('link', { name: 'report.fj.md' }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`${folder.replace(/\//g, '\\/')}/d/[0-9a-hjkmnp-tv-z]{26}$`),
+  );
 
   // The vault in front of an address only describes it: a stale one is corrected, by the id that decides what is shown.
   const wrongVault = folder.replace(PUBLIC, PRIVATE);
@@ -478,214 +654,317 @@ test("places have addresses made of ids; a path, an address with a stale vault a
   expect((await page.goto(`/repo/${id}/v/${PUBLIC}/0123456789abcdef`))?.status()).toBe(404);
 });
 
-test("a repository opens on the first vault its fjord.json lists, not the first by name", async ({ page }) => {
+test('a repository opens on the first vault its fjord.json lists, not the first by name', async ({
+  page,
+}) => {
   const id = await connected(page);
   await page.goto(`/repo/${id}`);
-  const vaults = page.getByRole("list", { name: "Vaults" });
+  const vaults = page.getByRole('list', { name: 'Vaults' });
   // The directories sort Private before Public; fjord.json lists Public first. No vault says which opens first: it is a setting, and `/open` shows it.
-  await expect(vaults.getByRole("listitem").first()).toContainText("Private");
-  await expect(vaults.getByText("Opens first", { exact: false })).toHaveCount(0);
-  await expect(vaults.getByRole("button")).toHaveCount(0);
+  await expect(vaults.getByRole('listitem').first()).toContainText('Private');
+  await expect(vaults.getByText('Opens first', { exact: false })).toHaveCount(0);
+  await expect(vaults.getByRole('button')).toHaveCount(0);
   // The page is the vaults, as folders: what is inside one is one level down, when it is opened.
-  await expect(page.getByRole("list", { name: "Folder contents" })).toHaveCount(0);
+  await expect(page.getByRole('list', { name: 'Folder contents' })).toHaveCount(0);
   // Signing in lands in that vault (`/open`), at its own address.
-  await page.goto("/open");
+  await page.goto('/open');
   await expect(page).toHaveURL(`${BASE}/${await addressOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hv`);
-  await expect(page.getByRole("list", { name: "Folder contents" }).getByRole("link", { name: "plan.fj.md" })).toBeVisible();
+  await expect(
+    page.getByRole('list', { name: 'Folder contents' }).getByRole('link', { name: 'plan.fj.md' }),
+  ).toBeVisible();
 });
 
-test("a repository's vaults are folders, a plain one and a locked one, as rows or as tiles, and the choice is kept", async ({ page }) => {
+test("a repository's vaults are folders, a plain one and a locked one, as rows or as tiles, and the choice is kept", async ({
+  page,
+}) => {
   const id = await connected(page);
   await page.goto(`/repo/${id}`);
-  const vaults = page.getByRole("list", { name: "Vaults" });
-  await expect(vaults).toHaveAttribute("data-view", "list");
-  await expect(vaults.getByRole("listitem").filter({ hasText: "Public notes" }).locator("[data-icon]")).toHaveAttribute("data-icon", "folder");
-  await expect(vaults.getByRole("listitem").filter({ hasText: "Private" }).locator("[data-icon]")).toHaveAttribute("data-icon", "folder-lock");
-  await expect(vaults.getByRole("listitem").filter({ hasText: "Private" })).toContainText("Encrypted");
+  const vaults = page.getByRole('list', { name: 'Vaults' });
+  await expect(vaults).toHaveAttribute('data-view', 'list');
+  await expect(
+    vaults.getByRole('listitem').filter({ hasText: 'Public notes' }).locator('[data-icon]'),
+  ).toHaveAttribute('data-icon', 'folder');
+  await expect(
+    vaults.getByRole('listitem').filter({ hasText: 'Private' }).locator('[data-icon]'),
+  ).toHaveAttribute('data-icon', 'folder-lock');
+  await expect(vaults.getByRole('listitem').filter({ hasText: 'Private' })).toContainText(
+    'Encrypted',
+  );
 
-  await page.getByRole("button", { name: "Grid view" }).click();
-  await expect(vaults).toHaveAttribute("data-view", "grid");
-  await expect(page.getByRole("button", { name: "Grid view" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole('button', { name: 'Grid view' }).click();
+  await expect(vaults).toHaveAttribute('data-view', 'grid');
+  await expect(page.getByRole('button', { name: 'Grid view' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
   // Kept in this browser: a reload, and another repository's vaults, are tiles too.
   await page.reload();
-  await expect(page.getByRole("list", { name: "Vaults" })).toHaveAttribute("data-view", "grid");
-  await page.getByRole("button", { name: "List view" }).click();
-  await expect(page.getByRole("list", { name: "Vaults" })).toHaveAttribute("data-view", "list");
+  await expect(page.getByRole('list', { name: 'Vaults' })).toHaveAttribute('data-view', 'grid');
+  await page.getByRole('button', { name: 'List view' }).click();
+  await expect(page.getByRole('list', { name: 'Vaults' })).toHaveAttribute('data-view', 'list');
   // The new-vault button is one of the listing's actions, and a vault opens on a click anywhere in its row.
-  await expect(page.getByRole("button", { name: "Create a new vault" })).toBeVisible();
-  await page.getByRole("list", { name: "Vaults" }).getByRole("listitem").filter({ hasText: "Public notes" }).getByText("Public notes").click();
+  await expect(page.getByRole('button', { name: 'Create a new vault' })).toBeVisible();
+  await page
+    .getByRole('list', { name: 'Vaults' })
+    .getByRole('listitem')
+    .filter({ hasText: 'Public notes' })
+    .getByText('Public notes')
+    .click();
   await expect(page).toHaveURL(PLACE);
 });
 
-test("the files of a vault have an icon by what they are, a folder is closed in its row and open in the path, and the listing has the vault's actions and the same toggle", async ({ page }) => {
+test("the files of a vault have an icon by what they are, a folder is closed in its row and open in the path, and the listing has the vault's actions and the same toggle", async ({
+  page,
+}) => {
   const id = await connected(page);
   await page.goto(`/repo/${id}`);
-  await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
-  const contents = page.getByRole("list", { name: "Folder contents" });
-  const iconOf = (name: string) => contents.getByRole("listitem").filter({ hasText: name }).locator("[data-icon]").first();
-  await expect(iconOf("Q4")).toHaveAttribute("data-icon", "folder-closed");
-  await expect(iconOf("idea.md")).toHaveAttribute("data-icon", "file-text");
-  await expect(iconOf("photo.png")).toHaveAttribute("data-icon", "file-image");
+  await page
+    .getByRole('list', { name: 'Vaults' })
+    .getByRole('link', { name: 'Public notes' })
+    .click();
+  const contents = page.getByRole('list', { name: 'Folder contents' });
+  const iconOf = (name: string) =>
+    contents.getByRole('listitem').filter({ hasText: name }).locator('[data-icon]').first();
+  await expect(iconOf('Q4')).toHaveAttribute('data-icon', 'folder-closed');
+  await expect(iconOf('idea.md')).toHaveAttribute('data-icon', 'file-text');
+  await expect(iconOf('photo.png')).toHaveAttribute('data-icon', 'file-image');
   // The actions are the listing's buttons, with the toggle at the other end of the line.
-  await expect(page.getByRole("button", { name: "New document" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "New folder" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Grid view" })).toBeVisible();
-  await page.getByRole("button", { name: "Grid view" }).click();
-  await expect(contents).toHaveAttribute("data-view", "grid");
-  await contents.getByRole("link", { name: "Q4" }).click();
+  await expect(page.getByRole('button', { name: 'New document' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New folder' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Grid view' })).toBeVisible();
+  await page.getByRole('button', { name: 'Grid view' }).click();
+  await expect(contents).toHaveAttribute('data-view', 'grid');
+  await contents.getByRole('link', { name: 'Q4' }).click();
   await expect(page).toHaveURL(FILE_PLACE);
   // The folder that is open is drawn open in the path, and the choice of view is still the tiles.
-  await expect(page.getByRole("navigation", { name: "Path" }).locator("svg")).toHaveCount(1);
-  await expect(page.getByRole("list", { name: "Folder contents" })).toHaveAttribute("data-view", "grid");
-  await page.getByRole("button", { name: "List view" }).click();
+  await expect(page.getByRole('navigation', { name: 'Path' }).locator('svg')).toHaveCount(1);
+  await expect(page.getByRole('list', { name: 'Folder contents' })).toHaveAttribute(
+    'data-view',
+    'grid',
+  );
+  await page.getByRole('button', { name: 'List view' }).click();
 });
 
-test("a new folder is made with its first document, in the vault's top and in a folder, and not over what is there", async ({ page }) => {
+test("a new folder is made with its first document, in the vault's top and in a folder, and not over what is there", async ({
+  page,
+}) => {
   const id = await connected(page);
   await page.goto(`/repo/${id}`);
-  await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
+  await page
+    .getByRole('list', { name: 'Vaults' })
+    .getByRole('link', { name: 'Public notes' })
+    .click();
 
-  await page.getByRole("button", { name: "New folder" }).click();
-  await page.getByLabel("Folder name").fill("Ideas");
-  await page.getByRole("button", { name: "Create folder" }).click();
+  await page.getByRole('button', { name: 'New folder' }).click();
+  await page.getByLabel('Folder name').fill('Ideas');
+  await page.getByRole('button', { name: 'Create folder' }).click();
   // The person is taken to the folder, which holds the document that made it.
   await expect(page).toHaveURL(FILE_PLACE);
-  await expect(page.getByRole("navigation", { name: "Path" })).toContainText("Ideas");
-  const files = Object.keys(await hubs.notes.filesAt((await hubs.notes.branchHead()) as string)).filter((path) => path.startsWith("Public/Ideas/"));
+  await expect(page.getByRole('navigation', { name: 'Path' })).toContainText('Ideas');
+  const files = Object.keys(
+    await hubs.notes.filesAt((await hubs.notes.branchHead()) as string),
+  ).filter((path) => path.startsWith('Public/Ideas/'));
   expect(files).toHaveLength(1);
   expect(files[0]).toMatch(/^Public\/Ideas\/[^/]+\.md$/);
 
   // One level further in, from inside it.
-  await page.getByRole("button", { name: "New folder" }).click();
-  await page.getByLabel("Folder name").fill("Deep");
-  await page.getByRole("button", { name: "Create folder" }).click();
-  await expect(page.getByRole("navigation", { name: "Path" })).toContainText("Deep");
-  expect(Object.keys(await hubs.notes.filesAt((await hubs.notes.branchHead()) as string)).some((path) => /^Public\/Ideas\/Deep\/[^/]+\.md$/.test(path))).toBe(true);
+  await page.getByRole('button', { name: 'New folder' }).click();
+  await page.getByLabel('Folder name').fill('Deep');
+  await page.getByRole('button', { name: 'Create folder' }).click();
+  await expect(page.getByRole('navigation', { name: 'Path' })).toContainText('Deep');
+  expect(
+    Object.keys(await hubs.notes.filesAt((await hubs.notes.branchHead()) as string)).some((path) =>
+      /^Public\/Ideas\/Deep\/[^/]+\.md$/.test(path),
+    ),
+  ).toBe(true);
 
   // Not over a folder that is there, however it is spelled, and not with a name a folder cannot have.
   await page.goto(`/repo/${id}`);
-  await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
+  await page
+    .getByRole('list', { name: 'Vaults' })
+    .getByRole('link', { name: 'Public notes' })
+    .click();
   const before = (await hubs.notes.branchHead()) as string;
-  await page.getByRole("button", { name: "New folder" }).click();
-  await page.getByLabel("Folder name").fill("ideas");
-  await page.getByRole("button", { name: "Create folder" }).click();
-  await expect(page.getByText("already there")).toBeVisible();
-  await page.getByLabel("Folder name").fill("a/b");
-  await page.getByRole("button", { name: "Create folder" }).click();
-  await expect(page.getByText("cannot hold a slash")).toBeVisible();
-  await page.getByLabel("Folder name").fill("bad:name");
-  await page.getByRole("button", { name: "Create folder" }).click();
-  await expect(page.getByText("not a name a folder can have")).toBeVisible();
+  await page.getByRole('button', { name: 'New folder' }).click();
+  await page.getByLabel('Folder name').fill('ideas');
+  await page.getByRole('button', { name: 'Create folder' }).click();
+  await expect(page.getByText('already there')).toBeVisible();
+  await page.getByLabel('Folder name').fill('a/b');
+  await page.getByRole('button', { name: 'Create folder' }).click();
+  await expect(page.getByText('cannot hold a slash')).toBeVisible();
+  await page.getByLabel('Folder name').fill('bad:name');
+  await page.getByRole('button', { name: 'Create folder' }).click();
+  await expect(page.getByText('not a name a folder can have')).toBeVisible();
   expect(await hubs.notes.branchHead()).toBe(before);
 });
 
-test("a repository's settings are a dialog, and what was deleted is at /drive/<repo>/deleted, which the old address is sent to", async ({ page }) => {
+test("a repository's settings are a dialog, and what was deleted is at /drive/<repo>/deleted, which the old address is sent to", async ({
+  page,
+}) => {
   const id = await connected(page);
   const repo = await repoOf(page, id);
   await page.goto(`/repo/${id}`);
-  await page.getByRole("button", { name: "Repository settings" }).click();
-  const dialog = page.getByRole("dialog", { name: "Repository settings" });
+  await page.getByRole('button', { name: 'Repository settings' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Repository settings' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Change its kind" })).toBeVisible();
-  await expect(dialog.getByText("This is your default repository")).toBeVisible();
-  await expect(dialog.getByRole("link", { name: "Connect or disconnect repositories" })).toHaveAttribute("href", "/repositories");
-  await page.keyboard.press("Escape");
+  await expect(dialog.getByRole('button', { name: 'Change its kind' })).toBeVisible();
+  await expect(dialog.getByText('This is your default repository')).toBeVisible();
+  await expect(
+    dialog.getByRole('link', { name: 'Connect or disconnect repositories' }),
+  ).toHaveAttribute('href', '/repositories');
+  await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   // The things that used to be under the card are not there any more.
-  await expect(page.getByRole("link", { name: "Connect or disconnect repositories" })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Connect or disconnect repositories' })).toHaveCount(
+    0,
+  );
 
-  await page.getByRole("link", { name: "Recently deleted" }).click();
+  await page.getByRole('link', { name: 'Recently deleted' }).click();
   await expect(page).toHaveURL(new RegExp(`/drive/${repo}/deleted$`));
-  await expect(page.getByRole("heading", { name: "Recently deleted", level: 1 })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Recently deleted', level: 1 })).toBeVisible();
   for (const old of [`/deleted/${repo}`, `/deleted/${id}`]) {
     await page.goto(old);
     await expect(page).toHaveURL(new RegExp(`/drive/${repo}/deleted$`));
   }
-  expect((await page.goto("/deleted/zzzzzzzz"))?.status()).toBe(404);
+  expect((await page.goto('/deleted/zzzzzzzz'))?.status()).toBe(404);
 });
 
-test("choosing another vault changes where the repository opens, from the repository's settings, and the choice is kept", async ({ page }) => {
+test("choosing another vault changes where the repository opens, from the repository's settings, and the choice is kept", async ({
+  page,
+}) => {
   const id = await connected(page);
   await openRepository(page);
-  await page.getByRole("button", { name: "Repository settings" }).click();
-  const dialog = page.getByRole("dialog", { name: "Repository settings" });
-  const select = dialog.getByLabel("Opens on");
+  await page.getByRole('button', { name: 'Repository settings' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Repository settings' });
+  const select = dialog.getByLabel('Opens on');
   // fjord.json lists Public first, and it is what it opens on until another is chosen.
-  await expect(select).toHaveValue("Public");
-  await expect(dialog.getByRole("button", { name: "Use this vault" })).toBeDisabled();
-  await select.selectOption("Private");
-  const saved = page.waitForResponse((response) => response.url().includes("/vault") && response.request().method() === "PUT");
-  await dialog.getByRole("button", { name: "Use this vault" }).click();
+  await expect(select).toHaveValue('Public');
+  await expect(dialog.getByRole('button', { name: 'Use this vault' })).toBeDisabled();
+  await select.selectOption('Private');
+  const saved = page.waitForResponse(
+    (response) => response.url().includes('/vault') && response.request().method() === 'PUT',
+  );
+  await dialog.getByRole('button', { name: 'Use this vault' }).click();
   expect((await saved).status()).toBe(204);
-  await page.keyboard.press("Escape");
+  await page.keyboard.press('Escape');
 
   // Signing in lands in the vault chosen, and a reload keeps the choice.
-  await page.goto("/open");
+  await page.goto('/open');
   await expect(page).toHaveURL(`${BASE}/${await addressOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hw`);
   await page.goto(`/repo/${id}`);
-  await page.getByRole("button", { name: "Repository settings" }).click();
-  await expect(page.getByRole("dialog", { name: "Repository settings" }).getByLabel("Opens on")).toHaveValue("Private");
+  await page.getByRole('button', { name: 'Repository settings' }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'Repository settings' }).getByLabel('Opens on'),
+  ).toHaveValue('Private');
 });
 
 test("who may choose a repository's vault, and which", async ({ page, browser }) => {
   const id = await connected(page);
-  const put = (vault: unknown, headers: Record<string, string> = { origin: BASE }) => page.request.put(`/api/connections/${id}/vault`, { headers, data: { vault } });
+  const put = (vault: unknown, headers: Record<string, string> = { origin: BASE }) =>
+    page.request.put(`/api/connections/${id}/vault`, { headers, data: { vault } });
 
-  expect((await put("Private", { origin: "https://evil.example" })).status()).toBe(403);
-  expect((await put("Nope")).status()).toBe(422);
-  expect((await put("Private/secret.md.age")).status()).toBe(422);
-  expect((await put("Private")).status()).toBe(204);
-  expect((await (await page.request.get("/api/connections")).json()).connections[0].defaultVault).toBe("Private");
+  expect((await put('Private', { origin: 'https://evil.example' })).status()).toBe(403);
+  expect((await put('Nope')).status()).toBe(422);
+  expect((await put('Private/secret.md.age')).status()).toBe(422);
+  expect((await put('Private')).status()).toBe(204);
+  expect(
+    (await (await page.request.get('/api/connections')).json()).connections[0].defaultVault,
+  ).toBe('Private');
   // Nothing was stored by the refusals; and null forgets the choice.
   expect((await put(null)).status()).toBe(204);
-  expect((await (await page.request.get("/api/connections")).json()).connections[0].defaultVault).toBeNull();
+  expect(
+    (await (await page.request.get('/api/connections')).json()).connections[0].defaultVault,
+  ).toBeNull();
 
-  const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.4" } });
+  const stranger = await browser.newContext({
+    baseURL: BASE,
+    extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.4' },
+  });
   const other = await stranger.newPage();
-  expect((await other.request.put(`/api/connections/${id}/vault`, { headers: { origin: BASE }, data: { vault: "Private" } })).status()).toBe(401);
+  expect(
+    (
+      await other.request.put(`/api/connections/${id}/vault`, {
+        headers: { origin: BASE },
+        data: { vault: 'Private' },
+      })
+    ).status(),
+  ).toBe(401);
   await signUp(other);
-  expect((await other.request.put(`/api/connections/${id}/vault`, { headers: { origin: BASE }, data: { vault: "Private" } })).status()).toBe(404);
-  expect((await other.request.put(`/api/connections/${id}/vault`, { headers: { origin: BASE }, data: { vault: null } })).status()).toBe(404);
+  expect(
+    (
+      await other.request.put(`/api/connections/${id}/vault`, {
+        headers: { origin: BASE },
+        data: { vault: 'Private' },
+      })
+    ).status(),
+  ).toBe(404);
+  expect(
+    (
+      await other.request.put(`/api/connections/${id}/vault`, {
+        headers: { origin: BASE },
+        data: { vault: null },
+      })
+    ).status(),
+  ).toBe(404);
   await stranger.close();
 });
 
-test("an encrypted vault's files are shown by name, with a lock, and open to an identity", async ({ page }) => {
+test("an encrypted vault's files are shown by name, with a lock, and open to an identity", async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/notes");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
+  await page.goto('/repositories');
+  await connect(page, 'acme/notes');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
 
   await openRepository(page);
-  await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Private" }).click();
-  const contents = page.getByRole("list", { name: "Folder contents" });
+  await page.getByRole('list', { name: 'Vaults' }).getByRole('link', { name: 'Private' }).click();
+  const contents = page.getByRole('list', { name: 'Folder contents' });
   // The name without the `.age` it is stored under, a label that it is encrypted, and a way to its page, which asks for the identity that opens it (2b.2).
-  await expect(contents.getByRole("link", { name: "secret.md" })).toBeVisible();
-  await expect(contents.getByRole("listitem").filter({ hasText: "secret.md" })).toContainText("Encrypted");
+  await expect(contents.getByRole('link', { name: 'secret.md' })).toBeVisible();
+  await expect(contents.getByRole('listitem').filter({ hasText: 'secret.md' })).toContainText(
+    'Encrypted',
+  );
 });
 
-test("browsing reads no tree and no file from the host, and a path that is not there is a 404", async ({ page }) => {
+test('browsing reads no tree and no file from the host, and a path that is not there is a 404', async ({
+  page,
+}) => {
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/notes");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
-  const id = (await (await page.request.get("/api/connections")).json()).connections[0].id;
+  await page.goto('/repositories');
+  await connect(page, 'acme/notes');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
+  const id = (await (await page.request.get('/api/connections')).json()).connections[0].id;
 
   await page.goto(`/repo/${id}/Public`);
-  await expect(page.getByRole("list", { name: "Folder contents" })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Folder contents' })).toBeVisible();
   hubs.notes.requests.length = 0;
   await page.goto(`/repo/${id}/Public/Q4`);
-  await expect(page.getByRole("list", { name: "Folder contents" })).toBeVisible();
-  const reads = () => hubs.notes.requests.map((request) => `${request.method} ${request.path.replace("/repos/acme/notes", "")}`).filter((path) => path.startsWith("GET /git/trees/") || path.startsWith("GET /git/blobs/"));
+  await expect(page.getByRole('list', { name: 'Folder contents' })).toBeVisible();
+  const reads = () =>
+    hubs.notes.requests
+      .map((request) => `${request.method} ${request.path.replace('/repos/acme/notes', '')}`)
+      .filter((path) => path.startsWith('GET /git/trees/') || path.startsWith('GET /git/blobs/'));
   // Looking at folders reads nothing...
   expect(reads()).toEqual([]);
   // ...and opening a file reads that file, once, and no tree.
   await page.goto(`/repo/${id}/Public/Q4/report.fj.md`);
-  await expect(noteEditor(page, "report.fj.md")).toContainText("Report");
+  await expect(noteEditor(page, 'report.fj.md')).toContainText('Report');
   // RFC 0002: a path with no id is read once to find its address (/f/<handle>) and once by the page there; an address is read once.
-  expect(reads().filter((path) => path.startsWith("GET /git/blobs/"))).toHaveLength(2);
-  expect(reads().filter((path) => path.startsWith("GET /git/trees/"))).toEqual([]);
+  expect(reads().filter((path) => path.startsWith('GET /git/blobs/'))).toHaveLength(2);
+  expect(reads().filter((path) => path.startsWith('GET /git/trees/'))).toEqual([]);
 
-  for (const path of ["Public/nope", "Nope", "Public/Q4/nope.md", "Public/%2e%2e%2fPrivate", "Public/a%5Cb"]) {
+  for (const path of [
+    'Public/nope',
+    'Nope',
+    'Public/Q4/nope.md',
+    'Public/%2e%2e%2fPrivate',
+    'Public/a%5Cb',
+  ]) {
     expect((await page.goto(`/repo/${id}/${path}`))?.status(), path).toBe(404);
   }
 });
@@ -693,57 +972,87 @@ test("browsing reads no tree and no file from the host, and a path that is not t
 // --- A repository that is not a Fjord repository (ROADMAP 1a.10) ----------------------------------------------
 
 const PLAIN_FILES = {
-  "README.md": "# My code\n",
-  "src/main.rs": "fn main() {}\n",
-  ".gitattributes": "* text=auto\n*.png binary\n",
+  'README.md': '# My code\n',
+  'src/main.rs': 'fn main() {}\n',
+  '.gitattributes': '* text=auto\n*.png binary\n',
 };
 
 /** `acme/more` as somebody's code repository, connected by a new account, whose page is open. Put back by `restoreMore`. */
-async function plainRepository(page: import("@playwright/test").Page): Promise<{ id: number; before: string }> {
+async function plainRepository(
+  page: import('@playwright/test').Page,
+): Promise<{ id: number; before: string }> {
   const before = await hubs.more.commitFiles(PLAIN_FILES, { replace: true });
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/more");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/more");
-  const id = (await (await page.request.get("/api/connections")).json()).connections[0].id as number;
+  await page.goto('/repositories');
+  await connect(page, 'acme/more');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/more',
+  );
+  const id = (await (await page.request.get('/api/connections')).json()).connections[0]
+    .id as number;
   await page.goto(`/repo/${id}`);
   return { id, before };
 }
 
-const restoreMore = () => hubs.more.commitFiles({ "fjord.json": "{}" }, { replace: true });
+const restoreMore = () => hubs.more.commitFiles({ 'fjord.json': '{}' }, { replace: true });
 
-test("a repository that is not a Fjord repository is offered the setup, which writes nothing until the button, and is one after", async ({ page }) => {
+test('a repository that is not a Fjord repository is offered the setup, which writes nothing until the button, and is one after', async ({
+  page,
+}) => {
   try {
     const { before } = await plainRepository(page);
 
-    await expect(page.getByRole("heading", { name: "This is not a Fjord repository yet" })).toBeVisible();
-    const files = page.getByRole("list", { name: "What would be added" });
-    await expect(files.getByRole("listitem")).toHaveCount(4);
-    await expect(files.getByRole("listitem").filter({ hasText: "fjord.json" }).first()).toContainText("New");
-    await expect(files.getByRole("listitem").filter({ hasText: ".gitattributes" })).toContainText("One line added");
-    await expect(files.getByRole("listitem").filter({ hasText: "Public/welcome.md" })).toContainText("New");
+    await expect(
+      page.getByRole('heading', { name: 'This is not a Fjord repository yet' }),
+    ).toBeVisible();
+    const files = page.getByRole('list', { name: 'What would be added' });
+    await expect(files.getByRole('listitem')).toHaveCount(4);
+    await expect(
+      files.getByRole('listitem').filter({ hasText: 'fjord.json' }).first(),
+    ).toContainText('New');
+    await expect(files.getByRole('listitem').filter({ hasText: '.gitattributes' })).toContainText(
+      'One line added',
+    );
+    await expect(
+      files.getByRole('listitem').filter({ hasText: 'Public/welcome.md' }),
+    ).toContainText('New');
     // The page says it changes one line of a file that is there, and the README and .gitignore are not touched.
-    await expect(page.getByText("one line is added to the end of your .gitattributes")).toBeVisible();
-    expect(await files.innerText()).not.toContain("README");
+    await expect(
+      page.getByText('one line is added to the end of your .gitattributes'),
+    ).toBeVisible();
+    expect(await files.innerText()).not.toContain('README');
 
     // Looking is not writing: the branch has not moved.
     expect(await hubs.more.branchHead()).toBe(before);
 
-    await page.getByRole("button", { name: "Set up Fjord here" }).click();
-    await expect(page.getByRole("list", { name: "Vaults" })).toContainText("Public");
-    await expect(page.getByRole("heading", { name: "This is not a Fjord repository yet" })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Set up Fjord here' }).click();
+    await expect(page.getByRole('list', { name: 'Vaults' })).toContainText('Public');
+    await expect(
+      page.getByRole('heading', { name: 'This is not a Fjord repository yet' }),
+    ).toHaveCount(0);
 
     // One commit on top of what was there, adding only what the page said, and leaving the rest as it was.
     const after = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(after, "%P")).toBe(before);
-    expect(await hubs.more.show(after, "%B")).toContain("Set up Fjord");
+    expect(await hubs.more.show(after, '%P')).toBe(before);
+    expect(await hubs.more.show(after, '%B')).toContain('Set up Fjord');
     const written = await hubs.more.filesAt(after);
-    expect(Object.keys(written).sort()).toEqual([".gitattributes", "Public/fjord.vault.json", "Public/welcome.md", "README.md", "fjord.json", "src/main.rs"]);
-    expect(written["README.md"]).toBe(PLAIN_FILES["README.md"]);
-    expect(written["src/main.rs"]).toBe(PLAIN_FILES["src/main.rs"]);
-    expect(written[".gitattributes"]?.startsWith(PLAIN_FILES[".gitattributes"])).toBe(true);
-    expect(written[".gitattributes"]).toContain("*.age binary -diff -merge");
-    expect(JSON.parse(written["fjord.json"] as string)).toMatchObject({ fjord: 1, name: "more", vaults: [{ path: "Public" }] });
+    expect(Object.keys(written).sort()).toEqual([
+      '.gitattributes',
+      'Public/fjord.vault.json',
+      'Public/welcome.md',
+      'README.md',
+      'fjord.json',
+      'src/main.rs',
+    ]);
+    expect(written['README.md']).toBe(PLAIN_FILES['README.md']);
+    expect(written['src/main.rs']).toBe(PLAIN_FILES['src/main.rs']);
+    expect(written['.gitattributes']?.startsWith(PLAIN_FILES['.gitattributes'])).toBe(true);
+    expect(written['.gitattributes']).toContain('*.age binary -diff -merge');
+    expect(JSON.parse(written['fjord.json'] as string)).toMatchObject({
+      fjord: 1,
+      name: 'more',
+      vaults: [{ path: 'Public' }],
+    });
     await hubs.more.fsck();
   } finally {
     await restoreMore();
@@ -754,41 +1063,54 @@ test("the setup cannot be done twice, and a name is the person's to choose", asy
   try {
     const { id } = await plainRepository(page);
 
-    await page.getByLabel("Vault name").fill("My notes");
+    await page.getByLabel('Vault name').fill('My notes');
     // The list follows the name.
-    await expect(page.getByRole("list", { name: "What would be added" })).toContainText("My notes/welcome.md");
-    await page.getByRole("button", { name: "Set up Fjord here" }).click();
-    await expect(page.getByRole("list", { name: "Vaults" })).toContainText("My notes");
+    await expect(page.getByRole('list', { name: 'What would be added' })).toContainText(
+      'My notes/welcome.md',
+    );
+    await page.getByRole('button', { name: 'Set up Fjord here' }).click();
+    await expect(page.getByRole('list', { name: 'Vaults' })).toContainText('My notes');
 
     // Now it is a Fjord repository: no offer, and the API will not do it again.
     await page.goto(`/repo/${id}`);
-    await expect(page.getByRole("heading", { name: "This is not a Fjord repository yet" })).toHaveCount(0);
-    const again = await page.request.post(`/api/connections/${id}/setup`, { headers: { origin: BASE }, data: { vault: "Other" } });
+    await expect(
+      page.getByRole('heading', { name: 'This is not a Fjord repository yet' }),
+    ).toHaveCount(0);
+    const again = await page.request.post(`/api/connections/${id}/setup`, {
+      headers: { origin: BASE },
+      data: { vault: 'Other' },
+    });
     expect(again.status()).toBe(409);
-    expect((await again.json()).error.code).toBe("already_fjord");
+    expect((await again.json()).error.code).toBe('already_fjord');
   } finally {
     await restoreMore();
   }
 });
 
-test("a name that is taken or cannot be a directory is refused, with the reason, and nothing is written", async ({ page }) => {
+test('a name that is taken or cannot be a directory is refused, with the reason, and nothing is written', async ({
+  page,
+}) => {
   try {
     const { id, before } = await plainRepository(page);
-    const post = (vault: string) => page.request.post(`/api/connections/${id}/setup`, { headers: { origin: BASE }, data: { vault } });
+    const post = (vault: string) =>
+      page.request.post(`/api/connections/${id}/setup`, {
+        headers: { origin: BASE },
+        data: { vault },
+      });
 
-    const taken = await post("SRC");
+    const taken = await post('SRC');
     expect(taken.status()).toBe(422);
-    expect((await taken.json()).error.code).toBe("vault_name_taken");
-    const hidden = await post(".hidden");
+    expect((await taken.json()).error.code).toBe('vault_name_taken');
+    const hidden = await post('.hidden');
     expect(hidden.status()).toBe(422);
-    expect((await hidden.json()).error.code).toBe("invalid_vault_name");
-    expect((await hidden.json()).error.message).toContain("hidden");
+    expect((await hidden.json()).error.code).toBe('invalid_vault_name');
+    expect((await hidden.json()).error.message).toContain('hidden');
     expect(await hubs.more.branchHead()).toBe(before);
 
     // From the page, the same words.
-    await page.getByLabel("Vault name").fill("src");
-    await page.getByRole("button", { name: "Set up Fjord here" }).click();
-    await expect(alertOn(page).filter({ hasText: "already used" })).toBeVisible();
+    await page.getByLabel('Vault name').fill('src');
+    await page.getByRole('button', { name: 'Set up Fjord here' }).click();
+    await expect(alertOn(page).filter({ hasText: 'already used' })).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(before);
   } finally {
     await restoreMore();
@@ -797,174 +1119,280 @@ test("a name that is taken or cannot be a directory is refused, with the reason,
 
 /** `acme/more` as somebody's Fjord repository, with one plaintext vault, connected by a new account, whose page is open. Put back by `restoreMore`. */
 const FJORD_FILES = {
-  "fjord.json": `${JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3md", name: "more", createdAt: "2026-10-16T09:34:00Z", "x-custom": { keep: true }, vaults: [{ path: "Public", id: "01jagc4k7pr9tbm3ykwx6zq2hv" }] }, null, 2)}\n`,
-  "Public/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "Public", createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" }),
-  "Public/hello.md": "# Hello\n",
-  ".gitattributes": "*.age binary -diff -merge\n",
+  'fjord.json': `${JSON.stringify({ fjord: 1, id: '01jagc4k7pqw2xn8rvty5zb3md', name: 'more', createdAt: '2026-10-16T09:34:00Z', 'x-custom': { keep: true }, vaults: [{ path: 'Public', id: '01jagc4k7pr9tbm3ykwx6zq2hv' }] }, null, 2)}\n`,
+  'Public/fjord.vault.json': JSON.stringify({
+    fjord: 1,
+    id: '01jagc4k7pr9tbm3ykwx6zq2hv',
+    name: 'Public',
+    createdAt: '2026-10-16T09:34:00Z',
+    encryption: null,
+    fileNaming: 'plain',
+  }),
+  'Public/hello.md': '# Hello\n',
+  '.gitattributes': '*.age binary -diff -merge\n',
 };
-const A_KEY = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p";
+const A_KEY = 'age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p';
 
-async function fjordRepository(page: import("@playwright/test").Page): Promise<{ id: number; before: string }> {
+async function fjordRepository(
+  page: import('@playwright/test').Page,
+): Promise<{ id: number; before: string }> {
   const before = await hubs.more.commitFiles(FJORD_FILES, { replace: true });
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/more");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/more");
-  const id = (await (await page.request.get("/api/connections")).json()).connections[0].id as number;
+  await page.goto('/repositories');
+  await connect(page, 'acme/more');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/more',
+  );
+  const id = (await (await page.request.get('/api/connections')).json()).connections[0]
+    .id as number;
   await page.goto(`/repo/${id}`);
   return { id, before };
 }
 
-test("a plaintext vault is added from the page in one commit, listed in fjord.json, and nothing else is changed", async ({ page }) => {
+test('a plaintext vault is added from the page in one commit, listed in fjord.json, and nothing else is changed', async ({
+  page,
+}) => {
   try {
     const { before } = await fjordRepository(page);
-    await expect(page.getByRole("list", { name: "Vaults" })).toContainText("Public");
+    await expect(page.getByRole('list', { name: 'Vaults' })).toContainText('Public');
 
-    await page.getByRole("button", { name: "Create a new vault" }).click();
-    await page.getByLabel("Vault name").fill("Journal");
-    const files = page.getByRole("list", { name: "What would be written" });
-    await expect(files.getByRole("listitem")).toHaveCount(2);
-    await expect(files).toContainText("Journal/fjord.vault.json");
+    await page.getByRole('button', { name: 'Create a new vault' }).click();
+    await page.getByLabel('Vault name').fill('Journal');
+    const files = page.getByRole('list', { name: 'What would be written' });
+    await expect(files.getByRole('listitem')).toHaveCount(2);
+    await expect(files).toContainText('Journal/fjord.vault.json');
     // Looking is not writing.
     expect(await hubs.more.branchHead()).toBe(before);
 
-    await page.getByRole("button", { name: "Create vault" }).click();
-    await expect(page.getByRole("list", { name: "Vaults" })).toContainText("Journal");
+    await page.getByRole('button', { name: 'Create vault' }).click();
+    await expect(page.getByRole('list', { name: 'Vaults' })).toContainText('Journal');
 
     const after = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(after, "%P")).toBe(before);
-    expect(await hubs.more.show(after, "%B")).toContain('Add vault "Journal"');
+    expect(await hubs.more.show(after, '%P')).toBe(before);
+    expect(await hubs.more.show(after, '%B')).toContain('Add vault "Journal"');
     const written = await hubs.more.filesAt(after);
-    expect(Object.keys(written).sort()).toEqual([".gitattributes", "Journal/fjord.vault.json", "Public/fjord.vault.json", "Public/hello.md", "fjord.json"]);
-    expect(written[".gitattributes"]).toBe(FJORD_FILES[".gitattributes"]);
-    expect(written["Public/hello.md"]).toBe(FJORD_FILES["Public/hello.md"]);
-    const manifest = JSON.parse(written["fjord.json"] as string);
-    expect(manifest["x-custom"]).toEqual({ keep: true });
-    expect(manifest.vaults.map((vault: { path: string }) => vault.path)).toEqual(["Public", "Journal"]);
-    expect(JSON.parse(written["Journal/fjord.vault.json"] as string)).toMatchObject({ name: "Journal", encryption: null, fileNaming: "plain" });
+    expect(Object.keys(written).sort()).toEqual([
+      '.gitattributes',
+      'Journal/fjord.vault.json',
+      'Public/fjord.vault.json',
+      'Public/hello.md',
+      'fjord.json',
+    ]);
+    expect(written['.gitattributes']).toBe(FJORD_FILES['.gitattributes']);
+    expect(written['Public/hello.md']).toBe(FJORD_FILES['Public/hello.md']);
+    const manifest = JSON.parse(written['fjord.json'] as string);
+    expect(manifest['x-custom']).toEqual({ keep: true });
+    expect(manifest.vaults.map((vault: { path: string }) => vault.path)).toEqual([
+      'Public',
+      'Journal',
+    ]);
+    expect(JSON.parse(written['Journal/fjord.vault.json'] as string)).toMatchObject({
+      name: 'Journal',
+      encryption: null,
+      fileNaming: 'plain',
+    });
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("an encrypted vault is added with its keys, shows as encrypted, and the recipients file is written", async ({ page }) => {
+test('an encrypted vault is added with its keys, shows as encrypted, and the recipients file is written', async ({
+  page,
+}) => {
   try {
     await fjordRepository(page);
-    await page.getByRole("button", { name: "Create a new vault" }).click();
-    await page.getByLabel("Vault name").fill("Secret");
+    await page.getByRole('button', { name: 'Create a new vault' }).click();
+    await page.getByLabel('Vault name').fill('Secret');
     await page.getByLabel(/Only the people whose keys you list/).check();
     await page.getByLabel(/Hide file names too/).check();
 
     // The files follow the choice, and without a key there is nothing to press.
-    const files = page.getByRole("list", { name: "What would be written" });
-    await expect(files).toContainText("Secret/recipients.txt");
-    await expect(files).toContainText("Secret/.gitignore");
-    await expect(page.getByRole("button", { name: "Create vault" })).toBeDisabled();
+    const files = page.getByRole('list', { name: 'What would be written' });
+    await expect(files).toContainText('Secret/recipients.txt');
+    await expect(files).toContainText('Secret/.gitignore');
+    await expect(page.getByRole('button', { name: 'Create vault' })).toBeDisabled();
 
     await page.getByLabel(/Public keys/).fill(`${A_KEY}\n${A_KEY}`);
-    await page.getByRole("button", { name: "Create vault" }).click();
-    const vaults = page.getByRole("list", { name: "Vaults" });
-    await expect(vaults.getByRole("listitem").filter({ hasText: "Secret" })).toContainText("Encrypted");
+    await page.getByRole('button', { name: 'Create vault' }).click();
+    const vaults = page.getByRole('list', { name: 'Vaults' });
+    await expect(vaults.getByRole('listitem').filter({ hasText: 'Secret' })).toContainText(
+      'Encrypted',
+    );
 
     const after = (await hubs.more.branchHead()) as string;
     const written = await hubs.more.filesAt(after);
-    expect(written["Secret/recipients.txt"]?.match(new RegExp(A_KEY, "g"))).toHaveLength(1);
-    expect(JSON.parse(written["Secret/fjord.vault.json"] as string).encryption).toMatchObject({ tool: "age", container: "tar" });
-    expect(written["Secret/.gitignore"]).toContain("!*.age");
-    expect(written[".gitattributes"], "the repository had the guard").toBe(FJORD_FILES[".gitattributes"]);
+    expect(written['Secret/recipients.txt']?.match(new RegExp(A_KEY, 'g'))).toHaveLength(1);
+    expect(JSON.parse(written['Secret/fjord.vault.json'] as string).encryption).toMatchObject({
+      tool: 'age',
+      container: 'tar',
+    });
+    expect(written['Secret/.gitignore']).toContain('!*.age');
+    expect(written['.gitattributes'], 'the repository had the guard').toBe(
+      FJORD_FILES['.gitattributes'],
+    );
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("a vault that cannot be added is refused with the reason, from the page and the API, and nothing is written", async ({ page }) => {
+test('a vault that cannot be added is refused with the reason, from the page and the API, and nothing is written', async ({
+  page,
+}) => {
   try {
     const { id, before } = await fjordRepository(page);
-    const post = (data: object) => page.request.post(`/api/connections/${id}/vaults`, { headers: { origin: BASE }, data });
+    const post = (data: object) =>
+      page.request.post(`/api/connections/${id}/vaults`, { headers: { origin: BASE }, data });
     const refused = async (data: object, code: string) => {
       const response = await post(data);
       expect(response.status(), JSON.stringify(data)).toBe(422);
       expect((await response.json()).error.code).toBe(code);
     };
-    await refused({ name: "public" }, "vault_name_taken");
-    await refused({ name: ".hidden" }, "invalid_vault_name");
-    await refused({ name: "Notes", recipients: [A_KEY] }, "invalid_vault_options");
-    await refused({ name: "Notes", idNaming: true }, "invalid_vault_options");
-    await refused({ name: "Secret", encrypted: true, recipients: ["not a key"] }, "invalid_vault_options");
-    await refused({ name: "Secret", encrypted: true, recipients: [] }, "invalid_vault_options");
+    await refused({ name: 'public' }, 'vault_name_taken');
+    await refused({ name: '.hidden' }, 'invalid_vault_name');
+    await refused({ name: 'Notes', recipients: [A_KEY] }, 'invalid_vault_options');
+    await refused({ name: 'Notes', idNaming: true }, 'invalid_vault_options');
+    await refused(
+      { name: 'Secret', encrypted: true, recipients: ['not a key'] },
+      'invalid_vault_options',
+    );
+    await refused({ name: 'Secret', encrypted: true, recipients: [] }, 'invalid_vault_options');
     expect(await hubs.more.branchHead()).toBe(before);
 
     // A name that is taken is said before the button.
-    await page.getByRole("button", { name: "Create a new vault" }).click();
-    await page.getByLabel("Vault name").fill("PUBLIC");
-    await expect(page.getByText("already has that name")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Create vault" })).toBeDisabled();
+    await page.getByRole('button', { name: 'Create a new vault' }).click();
+    await page.getByLabel('Vault name').fill('PUBLIC');
+    await expect(page.getByText('already has that name')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create vault' })).toBeDisabled();
 
     // A key that is not one is refused by the server, in words.
-    await page.getByLabel("Vault name").fill("Secret");
+    await page.getByLabel('Vault name').fill('Secret');
     await page.getByLabel(/Only the people whose keys you list/).check();
-    await page.getByLabel(/Public keys/).fill("age1notakey");
-    await page.getByRole("button", { name: "Create vault" }).click();
-    await expect(page.getByRole("dialog").getByRole("alert").filter({ hasText: "Nothing was written" })).toBeVisible();
+    await page.getByLabel(/Public keys/).fill('age1notakey');
+    await page.getByRole('button', { name: 'Create vault' }).click();
+    await expect(
+      page.getByRole('dialog').getByRole('alert').filter({ hasText: 'Nothing was written' }),
+    ).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(before);
   } finally {
     await restoreMore();
   }
 });
 
-test("adding a vault is for a signed-in person, from this site, and not to a repository that is not Fjord's", async ({ page, request }) => {
+test("adding a vault is for a signed-in person, from this site, and not to a repository that is not Fjord's", async ({
+  page,
+  request,
+}) => {
   try {
     const { id } = await fjordRepository(page);
-    const body = { name: "Journal" };
-    expect((await request.post(`/api/connections/${id}/vaults`, { headers: { origin: BASE }, data: body })).status(), "signed out").toBe(401);
-    expect((await page.request.post(`/api/connections/${id}/vaults`, { headers: { origin: "https://evil.example" }, data: body })).status(), "another site").toBe(403);
-    expect((await page.request.post(`/api/connections/${id + 1000}/vaults`, { headers: { origin: BASE }, data: body })).status(), "not theirs").toBe(404);
+    const body = { name: 'Journal' };
+    expect(
+      (
+        await request.post(`/api/connections/${id}/vaults`, {
+          headers: { origin: BASE },
+          data: body,
+        })
+      ).status(),
+      'signed out',
+    ).toBe(401);
+    expect(
+      (
+        await page.request.post(`/api/connections/${id}/vaults`, {
+          headers: { origin: 'https://evil.example' },
+          data: body,
+        })
+      ).status(),
+      'another site',
+    ).toBe(403);
+    expect(
+      (
+        await page.request.post(`/api/connections/${id + 1000}/vaults`, {
+          headers: { origin: BASE },
+          data: body,
+        })
+      ).status(),
+      'not theirs',
+    ).toBe(404);
   } finally {
     await restoreMore();
   }
 });
 
-test("when the repository changes while the person looks, nothing is written, and looking again works", async ({ page }) => {
+test('when the repository changes while the person looks, nothing is written, and looking again works', async ({
+  page,
+}) => {
   try {
     await plainRepository(page);
     // Somebody commits just as the setup is about to move the branch.
-    hubs.more.before(/\/git\/commits$/, async () => void (await hubs.more.commitFiles({ "someone-else.txt": "landed in between" })), "POST");
+    hubs.more.before(
+      /\/git\/commits$/,
+      async () => void (await hubs.more.commitFiles({ 'someone-else.txt': 'landed in between' })),
+      'POST',
+    );
 
-    await page.getByRole("button", { name: "Set up Fjord here" }).click();
-    await expect(alertOn(page).filter({ hasText: "changed while you were looking" })).toBeVisible();
+    await page.getByRole('button', { name: 'Set up Fjord here' }).click();
+    await expect(alertOn(page).filter({ hasText: 'changed while you were looking' })).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     const files = await hubs.more.filesAt(head);
-    expect(files["someone-else.txt"]).toBe("landed in between");
-    expect(files["fjord.json"]).toBeUndefined();
+    expect(files['someone-else.txt']).toBe('landed in between');
+    expect(files['fjord.json']).toBeUndefined();
 
-    await page.getByRole("button", { name: "Set up Fjord here" }).click();
-    await expect(page.getByRole("list", { name: "Vaults" })).toContainText("Public");
-    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["someone-else.txt"]).toBe("landed in between");
+    await page.getByRole('button', { name: 'Set up Fjord here' }).click();
+    await expect(page.getByRole('list', { name: 'Vaults' })).toContainText('Public');
+    expect(
+      (await hubs.more.filesAt((await hubs.more.branchHead()) as string))['someone-else.txt'],
+    ).toBe('landed in between');
   } finally {
     await restoreMore();
   }
 });
 
-test("who may set a repository up: a signed-in person, from this site, for their own repository", async ({ page, browser }) => {
+test('who may set a repository up: a signed-in person, from this site, for their own repository', async ({
+  page,
+  browser,
+}) => {
   try {
     const { id } = await plainRepository(page);
     const url = `/api/connections/${id}/setup`;
 
-    expect((await page.request.post(url, { headers: { origin: "https://evil.example" }, data: { vault: "Public" } })).status()).toBe(403);
-    expect((await page.request.post(url, { headers: { origin: BASE }, data: {} })).status()).toBe(400);
+    expect(
+      (
+        await page.request.post(url, {
+          headers: { origin: 'https://evil.example' },
+          data: { vault: 'Public' },
+        })
+      ).status(),
+    ).toBe(403);
+    expect((await page.request.post(url, { headers: { origin: BASE }, data: {} })).status()).toBe(
+      400,
+    );
     expect((await page.request.get(url)).status()).toBe(405);
 
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.5" } });
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.5' },
+    });
     const other = await stranger.newPage();
-    expect((await other.request.post(url, { headers: { origin: BASE }, data: { vault: "Public" } })).status()).toBe(401);
+    expect(
+      (
+        await other.request.post(url, { headers: { origin: BASE }, data: { vault: 'Public' } })
+      ).status(),
+    ).toBe(401);
     await signUp(other);
-    expect((await other.request.post(url, { headers: { origin: BASE }, data: { vault: "Public" } })).status()).toBe(404);
+    expect(
+      (
+        await other.request.post(url, { headers: { origin: BASE }, data: { vault: 'Public' } })
+      ).status(),
+    ).toBe(404);
     await stranger.close();
 
     // None of those wrote anything.
-    expect(await hubs.more.filesAt((await hubs.more.branchHead()) as string).then((f) => f["fjord.json"])).toBeUndefined();
+    expect(
+      await hubs.more
+        .filesAt((await hubs.more.branchHead()) as string)
+        .then((f) => f['fjord.json']),
+    ).toBeUndefined();
   } finally {
     await restoreMore();
   }
@@ -972,45 +1400,81 @@ test("who may set a repository up: a signed-in person, from this site, for their
 
 // --- Encrypted files, edited in the browser (ROADMAP 2b.3) ---
 
-const PASSPHRASE = "a passphrase of some length";
+const PASSPHRASE = 'a passphrase of some length';
 const vaultManifest = (id: string, naming: string, container: string) =>
-  JSON.stringify({ fjord: 1, id, name: id, createdAt: "2026-10-16T09:34:00Z", encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container, armor: false }, fileNaming: naming });
+  JSON.stringify({
+    fjord: 1,
+    id,
+    name: id,
+    createdAt: '2026-10-16T09:34:00Z',
+    encryption: {
+      tool: 'age',
+      recipients: 'recipients.txt',
+      suffix: '.age',
+      container,
+      armor: false,
+    },
+    fileNaming: naming,
+  });
 
 /** A repository with a plain-named and an id-named encrypted vault, an identity brought into the browser, and a record of everything sent and said. */
-async function encryptedWorkbench(page: Page, files: (recipient: string) => Record<string, string | Uint8Array>) {
+async function encryptedWorkbench(
+  page: Page,
+  files: (recipient: string) => Record<string, string | Uint8Array>,
+) {
   const secret = wasm.generateIdentity();
   const recipient = wasm.identityRecipient(secret);
   const id = await repositoryWith(page, {
-    "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3me", name: "Secrets", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Open", id: "01jagc4k7pr9tbm3ykwx6zq2hx" }, { path: "Sealed", id: "01jagc4k7pr9tbm3ykwx6zq2hy" }] }),
-    "Open/fjord.vault.json": vaultManifest("01jagc4k7pr9tbm3ykwx6zq2hx", "plain", "none"),
-    "Open/recipients.txt": `${recipient}\n`,
-    "Sealed/fjord.vault.json": vaultManifest("01jagc4k7pr9tbm3ykwx6zq2hy", "id", "tar"),
-    "Sealed/recipients.txt": `${recipient}\n`,
+    'fjord.json': JSON.stringify({
+      fjord: 1,
+      id: '01jagc4k7pqw2xn8rvty5zb3me',
+      name: 'Secrets',
+      createdAt: '2026-10-16T09:34:00Z',
+      vaults: [
+        { path: 'Open', id: '01jagc4k7pr9tbm3ykwx6zq2hx' },
+        { path: 'Sealed', id: '01jagc4k7pr9tbm3ykwx6zq2hy' },
+      ],
+    }),
+    'Open/fjord.vault.json': vaultManifest('01jagc4k7pr9tbm3ykwx6zq2hx', 'plain', 'none'),
+    'Open/recipients.txt': `${recipient}\n`,
+    'Sealed/fjord.vault.json': vaultManifest('01jagc4k7pr9tbm3ykwx6zq2hy', 'id', 'tar'),
+    'Sealed/recipients.txt': `${recipient}\n`,
     ...files(recipient),
   });
   const record: string[] = [];
-  page.on("request", (request) => record.push(`${request.method()} ${request.url()} ${request.postData() ?? ""}`));
-  page.on("response", async (response) => {
-    if (response.url().includes("/api/")) record.push(`${response.url()} ${(await response.body().catch(() => Buffer.alloc(0))).toString("latin1")}`);
+  page.on('request', (request) =>
+    record.push(`${request.method()} ${request.url()} ${request.postData() ?? ''}`),
+  );
+  page.on('response', async (response) => {
+    if (response.url().includes('/api/'))
+      record.push(
+        `${response.url()} ${(await response.body().catch(() => Buffer.alloc(0))).toString('latin1')}`,
+      );
   });
   await page.addInitScript(() => {
     (window as unknown as { __violations: string[] }).__violations = [];
-    document.addEventListener("securitypolicyviolation", (event) => (window as unknown as { __violations: string[] }).__violations.push(`${event.violatedDirective} ${event.blockedURI}`));
+    document.addEventListener('securitypolicyviolation', (event) =>
+      (window as unknown as { __violations: string[] }).__violations.push(
+        `${event.violatedDirective} ${event.blockedURI}`,
+      ),
+    );
   });
-  await page.goto("/account/keys");
-  await page.getByRole("button", { name: "I already have one" }).click();
-  await page.getByLabel("Your secret key").fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
-  await page.getByLabel("Passphrase").fill(PASSPHRASE);
-  await page.getByRole("button", { name: "Keep this identity" }).click();
-  await expect(page.getByTestId("recipient")).toHaveText(recipient, { timeout: 60_000 });
+  await page.goto('/account/keys');
+  await page.getByRole('button', { name: 'I already have one' }).click();
+  await page
+    .getByLabel('Your secret key')
+    .fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
+  await page.getByLabel('Passphrase').fill(PASSPHRASE);
+  await page.getByRole('button', { name: 'Keep this identity' }).click();
+  await expect(page.getByTestId('recipient')).toHaveText(recipient, { timeout: 60_000 });
   return { id, secret, recipient, record };
 }
 
 /** Open an encrypted file and unlock the identity (each page load starts locked). */
 async function openEncrypted(page: Page, path: string, name: string) {
   await page.goto(path);
-  await page.getByLabel("Passphrase").fill(PASSPHRASE);
-  await page.getByRole("button", { name: "Unlock and open" }).click();
+  await page.getByLabel('Passphrase').fill(PASSPHRASE);
+  await page.getByRole('button', { name: 'Unlock and open' }).click();
   const editor = noteEditor(page, name);
   await expect(editor).toBeVisible({ timeout: 60_000 });
   return editor;
@@ -1019,109 +1483,167 @@ async function openEncrypted(page: Page, path: string, name: string) {
 const decryptedAt = (secret: Uint8Array, bytes: Uint8Array) => wasm.decrypt(bytes, secret);
 const textOf = (bytes: Uint8Array) => new TextDecoder().decode(bytes);
 
-test("an encrypted file is edited in the browser: the draft is ciphertext, the version is committed with no key, and it opens again", async ({ page }) => {
+test('an encrypted file is edited in the browser: the draft is ciphertext, the version is committed with no key, and it opens again', async ({
+  page,
+}) => {
   test.setTimeout(300_000);
-  const PLAIN = "# Plain-named secret\n\nstarts like this";
-  const TYPED = " AND THEN TYPED SECRET WORDS";
+  const PLAIN = '# Plain-named secret\n\nstarts like this';
+  const TYPED = ' AND THEN TYPED SECRET WORDS';
   try {
-    const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({ "Open/note.md.age": wasm.encrypt(bytes(PLAIN), recipient, false) }));
+    const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({
+      'Open/note.md.age': wasm.encrypt(bytes(PLAIN), recipient, false),
+    }));
     const before = await hubs.more.branchHead();
 
-    const editor = await openEncrypted(page, `/repo/${id}/Open/note.md.age`, "note.md");
-    await expect(editor).toHaveAttribute("contenteditable", "true");
+    const editor = await openEncrypted(page, `/repo/${id}/Open/note.md.age`, 'note.md');
+    await expect(editor).toHaveAttribute('contenteditable', 'true');
     await editor.click();
-    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.press('ControlOrMeta+End');
     await page.keyboard.type(TYPED);
-    await expect(status(page)).toHaveText("Changes kept as an encrypted draft.", { timeout: 30_000 });
+    await expect(status(page)).toHaveText('Changes kept as an encrypted draft.', {
+      timeout: 30_000,
+    });
 
     // What the server was sent is ciphertext, flagged: it begins as an age file does, and holds no word that was typed.
-    const drafts = record.filter((line) => line.startsWith("PUT ") && line.includes("/working-copy"));
+    const drafts = record.filter(
+      (line) => line.startsWith('PUT ') && line.includes('/working-copy'),
+    );
     expect(drafts.length).toBeGreaterThan(0);
     for (const draft of drafts) {
       expect(draft).toContain('"encrypted":true');
-      expect(draft).toContain("YWdlLWVuY3J5cHRpb24ub3JnL3Yx"); // base64 of "age-encryption.org/v1"
-      expect(draft).not.toContain("SECRET WORDS");
+      expect(draft).toContain('YWdlLWVuY3J5cHRpb24ub3JnL3Yx'); // base64 of "age-encryption.org/v1"
+      expect(draft).not.toContain('SECRET WORDS');
     }
     // Typing is not a commit.
     expect(await hubs.more.branchHead()).toBe(before);
 
     // Opened again: locked, it says there are changes; unlocked, they are there, decrypted from the draft.
     await page.goto(`/repo/${id}/Open/note.md.age`);
-    await expect(page.getByText("Changes you made earlier are kept on this server as an encrypted draft")).toBeVisible();
-    await page.getByLabel("Passphrase").fill(PASSPHRASE);
-    await page.getByRole("button", { name: "Unlock and open" }).click();
-    await expect(noteEditor(page, "note.md")).toContainText("TYPED SECRET WORDS", { timeout: 60_000 });
+    await expect(
+      page.getByText('Changes you made earlier are kept on this server as an encrypted draft'),
+    ).toBeVisible();
+    await page.getByLabel('Passphrase').fill(PASSPHRASE);
+    await page.getByRole('button', { name: 'Unlock and open' }).click();
+    await expect(noteEditor(page, 'note.md')).toContainText('TYPED SECRET WORDS', {
+      timeout: 60_000,
+    });
 
     // Hidden and opened again within the page: what was typed is still what comes back.
-    await page.getByRole("button", { name: "Hide" }).click();
-    await expect(noteEditor(page, "note.md")).toHaveCount(0);
-    await page.getByRole("button", { name: "Open" }).click();
-    await expect(noteEditor(page, "note.md")).toContainText("TYPED SECRET WORDS");
+    await page.getByRole('button', { name: 'Hide' }).click();
+    await expect(noteEditor(page, 'note.md')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Open' }).click();
+    await expect(noteEditor(page, 'note.md')).toContainText('TYPED SECRET WORDS');
 
     // A version: the draft's bytes, committed.
-    await page.getByLabel("Message").fill("Reword the secret");
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible({ timeout: 30_000 });
+    await page.getByLabel('Message').fill('Reword the secret');
+    await page.getByRole('button', { name: 'Save version' }).click();
+    await expect(page.getByText('Version saved')).toBeVisible({ timeout: 30_000 });
     const head = (await hubs.more.branchHead())!;
     expect(head).not.toBe(before);
-    expect(await hubs.more.show(head, "%P")).toBe(before);
-    const reworded = await hubs.more.show(head, "%B");
-    expect(reworded.split("\n\n")[0], "what the person wrote comes first, whole").toBe("Reword the secret");
-    expect(reworded, "an encrypted file's message says nothing of what changed").toContain("Encrypted with age: the history shows that it changed, and nothing of what changed.");
+    expect(await hubs.more.show(head, '%P')).toBe(before);
+    const reworded = await hubs.more.show(head, '%B');
+    expect(reworded.split('\n\n')[0], 'what the person wrote comes first, whole').toBe(
+      'Reword the secret',
+    );
+    expect(reworded, "an encrypted file's message says nothing of what changed").toContain(
+      'Encrypted with age: the history shows that it changed, and nothing of what changed.',
+    );
     expect(reworded).not.toMatch(/lines? added|words|Changed:/);
-    const stored = await hubs.more.fileBytesAt(head, "Open/note.md.age");
+    const stored = await hubs.more.fileBytesAt(head, 'Open/note.md.age');
     expect(textOf(decryptedAt(secret, stored))).toBe(PLAIN + TYPED);
-    expect(Buffer.from(stored).toString("latin1")).not.toContain("TYPED SECRET");
-    expect(Object.keys(await hubs.more.filesAt(head)).sort()).toEqual(["Open/fjord.vault.json", "Open/note.md.age", "Open/recipients.txt", "Sealed/fjord.vault.json", "Sealed/recipients.txt", "fjord.json"]);
+    expect(Buffer.from(stored).toString('latin1')).not.toContain('TYPED SECRET');
+    expect(Object.keys(await hubs.more.filesAt(head)).sort()).toEqual([
+      'Open/fjord.vault.json',
+      'Open/note.md.age',
+      'Open/recipients.txt',
+      'Sealed/fjord.vault.json',
+      'Sealed/recipients.txt',
+      'fjord.json',
+    ]);
     await hubs.more.fsck();
 
     // And the page now shows the saved file, not a draft.
-    await expect(page.getByText("Changes you made earlier")).toHaveCount(0);
-    expect(await page.evaluate(() => (window as unknown as { __violations: string[] }).__violations)).toEqual([]);
-    for (const forbidden of ["TYPED SECRET", "starts like this", PASSPHRASE, textOf(secret).slice(0, 24)]) expect(record.join("\n"), forbidden).not.toContain(forbidden);
+    await expect(page.getByText('Changes you made earlier')).toHaveCount(0);
+    expect(
+      await page.evaluate(() => (window as unknown as { __violations: string[] }).__violations),
+    ).toEqual([]);
+    for (const forbidden of [
+      'TYPED SECRET',
+      'starts like this',
+      PASSPHRASE,
+      textOf(secret).slice(0, 24),
+    ])
+      expect(record.join('\n'), forbidden).not.toContain(forbidden);
   } finally {
     await restoreMore();
   }
 });
 
-test("an id-named encrypted file keeps its name inside the container when edited, and a change from elsewhere is chosen about, never combined", async ({ page }) => {
+test('an id-named encrypted file keeps its name inside the container when edited, and a change from elsewhere is chosen about, never combined', async ({
+  page,
+}) => {
   test.setTimeout(300_000);
-  const name = "01jagc4k7pr9tbm3ykwx6zq2hz";
+  const name = '01jagc4k7pr9tbm3ykwx6zq2hz';
   const path = `Sealed/${name}.age`;
-  const MINE = " MINE, TYPED HERE";
+  const MINE = ' MINE, TYPED HERE';
   try {
-    const { id, secret, recipient } = await encryptedWorkbench(page, (recipient) => ({ [path]: wasm.encrypt(wasm.wrapContainer("Plan.md", bytes("# Plan\n\nfirst")), recipient, false) }));
+    const { id, secret, recipient } = await encryptedWorkbench(page, (recipient) => ({
+      [path]: wasm.encrypt(
+        wasm.wrapContainer('Plan.md', bytes('# Plan\n\nfirst')),
+        recipient,
+        false,
+      ),
+    }));
 
-    const editor = await openEncrypted(page, `/repo/${id}/${path}`, "Plan.md");
+    const editor = await openEncrypted(page, `/repo/${id}/${path}`, 'Plan.md');
     await editor.click();
-    await page.keyboard.press("ControlOrMeta+End");
+    await page.keyboard.press('ControlOrMeta+End');
     await page.keyboard.type(MINE);
-    await expect(status(page)).toHaveText("Changes kept as an encrypted draft.", { timeout: 30_000 });
+    await expect(status(page)).toHaveText('Changes kept as an encrypted draft.', {
+      timeout: 30_000,
+    });
 
     // Someone saves another version from elsewhere (the CLI, say): the draft's base is no longer the file.
-    const theirs = await hubs.more.commitFiles({ [path]: wasm.encrypt(wasm.wrapContainer("Plan.md", bytes("# Plan\n\nsecond, from elsewhere")), recipient, false) });
-    await openEncrypted(page, `/repo/${id}/${path}`, "Plan.md");
-    await expect(page.getByText("This file changed in the repository after you started")).toBeVisible();
-    await expect(noteEditor(page, "Plan.md")).toHaveAttribute("contenteditable", "false");
-    await expect(page.getByRole("button", { name: "Combine" })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Save version" })).toHaveCount(0);
+    const theirs = await hubs.more.commitFiles({
+      [path]: wasm.encrypt(
+        wasm.wrapContainer('Plan.md', bytes('# Plan\n\nsecond, from elsewhere')),
+        recipient,
+        false,
+      ),
+    });
+    await openEncrypted(page, `/repo/${id}/${path}`, 'Plan.md');
+    await expect(
+      page.getByText('This file changed in the repository after you started'),
+    ).toBeVisible();
+    await expect(noteEditor(page, 'Plan.md')).toHaveAttribute('contenteditable', 'false');
+    await expect(page.getByRole('button', { name: 'Combine' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Save version' })).toHaveCount(0);
 
     // Keep mine: the draft moves onto the file as it is. Nothing is written to the repository by that.
-    await page.getByRole("button", { name: "Keep mine" }).click();
-    await expect(page.getByText("This file changed in the repository after you started")).toHaveCount(0, { timeout: 30_000 });
+    await page.getByRole('button', { name: 'Keep mine' }).click();
+    await expect(
+      page.getByText('This file changed in the repository after you started'),
+    ).toHaveCount(0, { timeout: 30_000 });
     expect(await hubs.more.branchHead()).toBe(theirs);
-    await openEncrypted(page, `/repo/${id}/${path}`, "Plan.md");
-    await expect(noteEditor(page, "Plan.md")).toContainText("MINE, TYPED HERE");
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible({ timeout: 30_000 });
+    await openEncrypted(page, `/repo/${id}/${path}`, 'Plan.md');
+    await expect(noteEditor(page, 'Plan.md')).toContainText('MINE, TYPED HERE');
+    await page.getByRole('button', { name: 'Save version' }).click();
+    await expect(page.getByText('Version saved')).toBeVisible({ timeout: 30_000 });
 
     // The version is on top of theirs, which stays in the history; its container still holds the name, and its text is ours.
     const head = (await hubs.more.branchHead())!;
-    expect(await hubs.more.show(head, "%P")).toBe(theirs);
-    const unwrapped = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(head, path)));
-    expect(unwrapped.name).toBe("Plan.md");
+    expect(await hubs.more.show(head, '%P')).toBe(theirs);
+    const unwrapped = wasm.unwrapContainer(
+      decryptedAt(secret, await hubs.more.fileBytesAt(head, path)),
+    );
+    expect(unwrapped.name).toBe('Plan.md');
     expect(textOf(unwrapped.contents)).toBe(`# Plan\n\nfirst${MINE}`);
-    expect(textOf(wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(theirs, path))).contents)).toContain("second, from elsewhere");
+    expect(
+      textOf(
+        wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(theirs, path)))
+          .contents,
+      ),
+    ).toContain('second, from elsewhere');
     await hubs.more.fsck();
   } finally {
     await restoreMore();
@@ -1131,20 +1653,28 @@ test("an id-named encrypted file keeps its name inside the container when edited
 test("taking the repository's version drops an encrypted draft", async ({ page }) => {
   test.setTimeout(300_000);
   try {
-    const { id, recipient } = await encryptedWorkbench(page, (recipient) => ({ "Open/note.md.age": wasm.encrypt(bytes("original"), recipient, false) }));
-    const editor = await openEncrypted(page, `/repo/${id}/Open/note.md.age`, "note.md");
+    const { id, recipient } = await encryptedWorkbench(page, (recipient) => ({
+      'Open/note.md.age': wasm.encrypt(bytes('original'), recipient, false),
+    }));
+    const editor = await openEncrypted(page, `/repo/${id}/Open/note.md.age`, 'note.md');
     await editor.click();
-    await page.keyboard.press("ControlOrMeta+End");
-    await page.keyboard.type(" draft words");
-    await expect(status(page)).toHaveText("Changes kept as an encrypted draft.", { timeout: 30_000 });
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.type(' draft words');
+    await expect(status(page)).toHaveText('Changes kept as an encrypted draft.', {
+      timeout: 30_000,
+    });
 
-    await hubs.more.commitFiles({ "Open/note.md.age": wasm.encrypt(bytes("changed elsewhere"), recipient, false) });
-    await openEncrypted(page, `/repo/${id}/Open/note.md.age`, "note.md");
-    await page.getByRole("button", { name: "Take theirs" }).click();
-    await expect(page.getByText("This file changed in the repository after you started")).toHaveCount(0, { timeout: 30_000 });
-    await openEncrypted(page, `/repo/${id}/Open/note.md.age`, "note.md");
-    await expect(noteEditor(page, "note.md")).toContainText("changed elsewhere");
-    await expect(noteEditor(page, "note.md")).not.toContainText("draft words");
+    await hubs.more.commitFiles({
+      'Open/note.md.age': wasm.encrypt(bytes('changed elsewhere'), recipient, false),
+    });
+    await openEncrypted(page, `/repo/${id}/Open/note.md.age`, 'note.md');
+    await page.getByRole('button', { name: 'Take theirs' }).click();
+    await expect(
+      page.getByText('This file changed in the repository after you started'),
+    ).toHaveCount(0, { timeout: 30_000 });
+    await openEncrypted(page, `/repo/${id}/Open/note.md.age`, 'note.md');
+    await expect(noteEditor(page, 'note.md')).toContainText('changed elsewhere');
+    await expect(noteEditor(page, 'note.md')).not.toContainText('draft words');
   } finally {
     await restoreMore();
   }
@@ -1152,75 +1682,119 @@ test("taking the repository's version drops an encrypted draft", async ({ page }
 
 // --- Creating files in encrypted vaults (ROADMAP 2b.4) ---
 
-test("a note and a document are made in an encrypted vault, encrypted in the browser, in both namings, and the server is sent no plaintext", async ({ page }) => {
+test('a note and a document are made in an encrypted vault, encrypted in the browser, in both namings, and the server is sent no plaintext', async ({
+  page,
+}) => {
   test.setTimeout(300_000);
   try {
-    const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({ "Open/seed.md.age": wasm.encrypt(bytes("seed"), recipient, false), "Sealed/01jagc4k7pr9tbm3ykwx6zq2hz.age": wasm.encrypt(wasm.wrapContainer("Seed.md", bytes("seed")), recipient, false) }));
+    const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({
+      'Open/seed.md.age': wasm.encrypt(bytes('seed'), recipient, false),
+      'Sealed/01jagc4k7pr9tbm3ykwx6zq2hz.age': wasm.encrypt(
+        wasm.wrapContainer('Seed.md', bytes('seed')),
+        recipient,
+        false,
+      ),
+    }));
     const before = await hubs.more.branchHead();
 
     // A plain-named vault: the title names the file (that is public), and the text is encrypted before it is sent.
     await page.goto(`/repo/${id}/Open`);
-    await page.getByRole("button", { name: "New document" }).click();
-    await expect(page.getByText("Its name is public")).toBeVisible();
-    await page.getByLabel("Title").fill("Plain titled");
-    await page.getByRole("button", { name: "Create document" }).click();
-    await headSays("Create encrypted “Plain titled”");
+    await page.getByRole('button', { name: 'New document' }).click();
+    await expect(page.getByText('Its name is public')).toBeVisible();
+    await page.getByLabel('Title').fill('Plain titled');
+    await page.getByRole('button', { name: 'Create document' }).click();
+    await headSays('Create encrypted “Plain titled”');
     const afterNote = (await hubs.more.branchHead())!;
-    expect(await hubs.more.show(afterNote, "%P")).toBe(before);
-    expect((await hubs.more.show(afterNote, "%B")).split("\n")[0]).toBe("Create encrypted “Plain titled”");
-    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(afterNote, "Open/Plain titled.md.age")))).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Plain titled\n[\s\S]*# Plain titled\n$/);
+    expect(await hubs.more.show(afterNote, '%P')).toBe(before);
+    expect((await hubs.more.show(afterNote, '%B')).split('\n')[0]).toBe(
+      'Create encrypted “Plain titled”',
+    );
+    expect(
+      textOf(
+        decryptedAt(secret, await hubs.more.fileBytesAt(afterNote, 'Open/Plain titled.md.age')),
+      ),
+    ).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Plain titled\n[\s\S]*# Plain titled\n$/);
 
     // It opens like any encrypted file (the identity is locked on this page load).
-    await page.getByLabel("Passphrase").fill(PASSPHRASE);
-    await page.getByRole("button", { name: "Unlock and open" }).click();
-    await expect(noteEditor(page, "Plain titled.md")).toContainText("Plain titled", { timeout: 60_000 });
+    await page.getByLabel('Passphrase').fill(PASSPHRASE);
+    await page.getByRole('button', { name: 'Unlock and open' }).click();
+    await expect(noteEditor(page, 'Plain titled.md')).toContainText('Plain titled', {
+      timeout: 60_000,
+    });
 
     // A document, made with the identity locked: encrypting needs only the recipients' public keys.
     await page.goto(`/repo/${id}/Open`);
-    await page.getByRole("button", { name: "New document" }).click();
-    await page.getByLabel("Title").fill("Q4 plan");
-    await page.getByRole("button", { name: "Create document" }).click();
-    await headHas("Open/Q4 plan.md.age");
+    await page.getByRole('button', { name: 'New document' }).click();
+    await page.getByLabel('Title').fill('Q4 plan');
+    await page.getByRole('button', { name: 'Create document' }).click();
+    await headHas('Open/Q4 plan.md.age');
     const afterDocument = (await hubs.more.branchHead())!;
-    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(afterDocument, "Open/Q4 plan.md.age")))).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\n/);
+    expect(
+      textOf(
+        decryptedAt(secret, await hubs.more.fileBytesAt(afterDocument, 'Open/Q4 plan.md.age')),
+      ),
+    ).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\n/);
 
     // An id-named vault: the file is a new identifier, its real name is inside, and nothing of it is sent.
     await page.goto(`/repo/${id}/Sealed`);
-    await page.getByRole("button", { name: "New document" }).click();
-    await expect(page.getByText("Its name is kept inside it")).toBeVisible();
-    await page.getByLabel("Title").fill("Hidden budget");
-    await page.getByRole("button", { name: "Create document" }).click();
-    await headSays("Create an encrypted file in Sealed");
+    await page.getByRole('button', { name: 'New document' }).click();
+    await expect(page.getByText('Its name is kept inside it')).toBeVisible();
+    await page.getByLabel('Title').fill('Hidden budget');
+    await page.getByRole('button', { name: 'Create document' }).click();
+    await headSays('Create an encrypted file in Sealed');
     const afterSealed = (await hubs.more.branchHead())!;
-    expect((await hubs.more.show(afterSealed, "%B")).split("\n")[0]).toBe("Create an encrypted file in Sealed");
-    const created = Object.keys(await hubs.more.filesAt(afterSealed)).filter((path) => path.startsWith("Sealed/") && !path.includes("0000") && path.endsWith(".age") && !path.includes("01jagc4k7pr9tbm3ykwx6zq2hz"));
+    expect((await hubs.more.show(afterSealed, '%B')).split('\n')[0]).toBe(
+      'Create an encrypted file in Sealed',
+    );
+    const created = Object.keys(await hubs.more.filesAt(afterSealed)).filter(
+      (path) =>
+        path.startsWith('Sealed/') &&
+        !path.includes('0000') &&
+        path.endsWith('.age') &&
+        !path.includes('01jagc4k7pr9tbm3ykwx6zq2hz'),
+    );
     expect(created).toHaveLength(1);
-    const unwrapped = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(afterSealed, created[0]!)));
-    expect(unwrapped.name).toBe("Hidden budget.md");
-    expect(textOf(unwrapped.contents)).toContain("title: Hidden budget");
+    const unwrapped = wasm.unwrapContainer(
+      decryptedAt(secret, await hubs.more.fileBytesAt(afterSealed, created[0]!)),
+    );
+    expect(unwrapped.name).toBe('Hidden budget.md');
+    expect(textOf(unwrapped.contents)).toContain('title: Hidden budget');
     await hubs.more.fsck();
 
     // The server was sent ciphertext only: what the id-named vault's file says of itself is in no request, and no text is in any.
-    const sent = record.filter((line) => line.startsWith("POST ") && line.includes("/files/encrypted"));
+    const sent = record.filter(
+      (line) => line.startsWith('POST ') && line.includes('/files/encrypted'),
+    );
     expect(sent).toHaveLength(3);
     for (const line of sent) {
-      expect(line).toContain("YWdlLWVuY3J5cHRpb24ub3JnL3Yx");
-      expect(line).not.toContain("# Plain titled");
-      expect(line).not.toContain("title: Q4 plan");
+      expect(line).toContain('YWdlLWVuY3J5cHRpb24ub3JnL3Yx');
+      expect(line).not.toContain('# Plain titled');
+      expect(line).not.toContain('title: Q4 plan');
     }
-    expect(sent[2]).not.toContain("Hidden budget");
-    expect(record.join("\n")).not.toContain("Hidden budget");
+    expect(sent[2]).not.toContain('Hidden budget');
+    expect(record.join('\n')).not.toContain('Hidden budget');
 
     // Anything but ciphertext is refused by the server, and a plaintext vault's way still refuses an encrypted vault.
     const refused = await page.request.post(`/api/connections/${id}/files/encrypted`, {
       headers: { origin: BASE },
-      data: { vault: "Open", folder: "", title: "Sneaky", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 }, ciphertext: Buffer.from("# plain").toString("base64") },
+      data: {
+        vault: 'Open',
+        folder: '',
+        title: 'Sneaky',
+        localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 },
+        ciphertext: Buffer.from('# plain').toString('base64'),
+      },
       failOnStatusCode: false,
     });
     expect(refused.status()).toBe(422);
     const plainWay = await page.request.post(`/api/connections/${id}/files`, {
       headers: { origin: BASE },
-      data: { vault: "Open", folder: "", title: "Sneaky", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 } },
+      data: {
+        vault: 'Open',
+        folder: '',
+        title: 'Sneaky',
+        localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 },
+      },
       failOnStatusCode: false,
     });
     expect(plainWay.status()).toBe(422);
@@ -1232,122 +1806,176 @@ test("a note and a document are made in an encrypted vault, encrypted in the bro
 
 // --- Renaming, moving and deleting in encrypted vaults (ROADMAP 2b.5) ---
 
-test("encrypted files are renamed, moved, deleted and put back as the bytes they are, in a plain-named vault, and the server needs no key", async ({ page }) => {
+test('encrypted files are renamed, moved, deleted and put back as the bytes they are, in a plain-named vault, and the server needs no key', async ({
+  page,
+}) => {
   test.setTimeout(300_000);
   try {
     const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({
-      "Open/note.md.age": wasm.encrypt(bytes("SECRET PLAINTEXT a note"), recipient, false),
-      "Open/Sub/other.md.age": wasm.encrypt(bytes("SECRET PLAINTEXT other"), recipient, false),
+      'Open/note.md.age': wasm.encrypt(bytes('SECRET PLAINTEXT a note'), recipient, false),
+      'Open/Sub/other.md.age': wasm.encrypt(bytes('SECRET PLAINTEXT other'), recipient, false),
     }));
-    const blobAt = async (commit: string, path: string) => (await hubs.more.fileBytesAt(commit, path)).join(",");
-    const original = await blobAt((await hubs.more.branchHead())!, "Open/note.md.age");
+    const blobAt = async (commit: string, path: string) =>
+      (await hubs.more.fileBytesAt(commit, path)).join(',');
+    const original = await blobAt((await hubs.more.branchHead())!, 'Open/note.md.age');
 
     // Rename: the name before .md.age changes, and the same ciphertext is at the new name.
     await page.goto(`/repo/${id}/Open/note.md.age`);
-    await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(page.getByText("It stays .md.age.")).toBeVisible();
-    await page.getByLabel("New name").fill("Renamed");
-    await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
-    await headHas("Open/Renamed.md.age");
+    await page.getByRole('button', { name: 'Rename', exact: true }).click();
+    await expect(page.getByText('It stays .md.age.')).toBeVisible();
+    await page.getByLabel('New name').fill('Renamed');
+    await page.getByRole('dialog').getByRole('button', { name: 'Rename', exact: true }).click();
+    await headHas('Open/Renamed.md.age');
     let head = (await hubs.more.branchHead())!;
-    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Rename note to Renamed");
-    expect(await blobAt(head, "Open/Renamed.md.age")).toBe(original);
-    expect(Object.keys(await hubs.more.filesAt(head))).not.toContain("Open/note.md.age");
+    expect((await hubs.more.show(head, '%B')).split('\n')[0]).toBe('Rename note to Renamed');
+    expect(await blobAt(head, 'Open/Renamed.md.age')).toBe(original);
+    expect(Object.keys(await hubs.more.filesAt(head))).not.toContain('Open/note.md.age');
 
     // Move into a folder of the same vault (only that vault's folders are offered).
-    await page.getByRole("button", { name: "Move", exact: true }).click();
-    await expect(page.getByLabel("Move to")).toBeVisible();
-    const places = await page.getByLabel("Move to").locator("option").allTextContents();
-    expect(places.every((place) => place === "Open" || place.startsWith("Open/"))).toBe(true);
-    await page.getByLabel("Move to").selectOption("Open/Sub");
-    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
-    await headHas("Open/Sub/Renamed.md.age");
+    await page.getByRole('button', { name: 'Move', exact: true }).click();
+    await expect(page.getByLabel('Move to')).toBeVisible();
+    const places = await page.getByLabel('Move to').locator('option').allTextContents();
+    expect(places.every((place) => place === 'Open' || place.startsWith('Open/'))).toBe(true);
+    await page.getByLabel('Move to').selectOption('Open/Sub');
+    await page.getByRole('dialog').getByRole('button', { name: 'Move', exact: true }).click();
+    await headHas('Open/Sub/Renamed.md.age');
     head = (await hubs.more.branchHead())!;
-    expect(await blobAt(head, "Open/Sub/Renamed.md.age")).toBe(original);
+    expect(await blobAt(head, 'Open/Sub/Renamed.md.age')).toBe(original);
 
     // Delete, then Undo: the same bytes come back.
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
-    await page.getByRole("button", { name: "Yes, delete" }).click();
-    await expect(page.getByText("Deleted “Renamed”")).toBeVisible({ timeout: 30_000 });
-    expect(Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!))).not.toContain("Open/Sub/Renamed.md.age");
-    await page.getByRole("button", { name: "Undo" }).click();
-    await expect(page.getByRole("link", { name: "Renamed.md" })).toBeVisible({ timeout: 30_000 });
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByRole('button', { name: 'Yes, delete' }).click();
+    await expect(page.getByText('Deleted “Renamed”')).toBeVisible({ timeout: 30_000 });
+    expect(Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!))).not.toContain(
+      'Open/Sub/Renamed.md.age',
+    );
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByRole('link', { name: 'Renamed.md' })).toBeVisible({ timeout: 30_000 });
     head = (await hubs.more.branchHead())!;
-    expect(await blobAt(head, "Open/Sub/Renamed.md.age")).toBe(original);
+    expect(await blobAt(head, 'Open/Sub/Renamed.md.age')).toBe(original);
     await hubs.more.fsck();
 
     // A folder is renamed with its files as they are.
     await page.goto(`/repo/${id}/Open/Sub`);
-    await page.getByRole("button", { name: "Rename folder" }).click();
-    await page.getByLabel("New name").fill("Archive");
-    await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
-    await headHas("Open/Archive/Renamed.md.age");
-    expect(Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!)).filter((path) => path.startsWith("Open/Archive/")).sort()).toEqual(["Open/Archive/Renamed.md.age", "Open/Archive/other.md.age"]);
+    await page.getByRole('button', { name: 'Rename folder' }).click();
+    await page.getByLabel('New name').fill('Archive');
+    await page.getByRole('dialog').getByRole('button', { name: 'Rename', exact: true }).click();
+    await headHas('Open/Archive/Renamed.md.age');
+    expect(
+      Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!))
+        .filter((path) => path.startsWith('Open/Archive/'))
+        .sort(),
+    ).toEqual(['Open/Archive/Renamed.md.age', 'Open/Archive/other.md.age']);
 
     // The server was never sent a key or a word of the text, and it opens with the identity as before.
-    expect(record.join("\n")).not.toContain("SECRET PLAINTEXT");
-    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt((await hubs.more.branchHead())!, "Open/Archive/other.md.age")))).toBe("SECRET PLAINTEXT other");
+    expect(record.join('\n')).not.toContain('SECRET PLAINTEXT');
+    expect(
+      textOf(
+        decryptedAt(
+          secret,
+          await hubs.more.fileBytesAt((await hubs.more.branchHead())!, 'Open/Archive/other.md.age'),
+        ),
+      ),
+    ).toBe('SECRET PLAINTEXT other');
 
     // Out of its vault, and an extension changed, are refused by the server whatever the page says (RFC 0002: there is no longer a kind in the name).
-    const moveVia = (destination: string, path = "Open/Archive/other.md.age") =>
-      page.request.post(`/api/connections/${id}/files/move`, { headers: { origin: BASE }, data: { vault: "Open", type: "file", path, blob: "0".repeat(40), destination }, failOnStatusCode: false });
-    expect((await moveVia("Sealed/other.md.age")).status()).toBe(422);
-    expect((await (await moveVia("Open/other.txt.age")).json()).error.code).toBe("extension_changed");
+    const moveVia = (destination: string, path = 'Open/Archive/other.md.age') =>
+      page.request.post(`/api/connections/${id}/files/move`, {
+        headers: { origin: BASE },
+        data: { vault: 'Open', type: 'file', path, blob: '0'.repeat(40), destination },
+        failOnStatusCode: false,
+      });
+    expect((await moveVia('Sealed/other.md.age')).status()).toBe(422);
+    expect((await (await moveVia('Open/other.txt.age')).json()).error.code).toBe(
+      'extension_changed',
+    );
   } finally {
     await restoreMore();
   }
 });
 
-test("a file of an id-named encrypted vault is renamed by the name inside it, keeping its identifier, and moved by its identifier", async ({ page }) => {
+test('a file of an id-named encrypted vault is renamed by the name inside it, keeping its identifier, and moved by its identifier', async ({
+  page,
+}) => {
   test.setTimeout(300_000);
-  const name = "01jagc4k7pr9tbm3ykwx6zq2hz";
+  const name = '01jagc4k7pr9tbm3ykwx6zq2hz';
   try {
     const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({
-      [`Sealed/${name}.age`]: wasm.encrypt(wasm.wrapContainer("Plan.md", bytes("# Plan\n\nSECRET PLAINTEXT")), recipient, false),
-      "Sealed/Sub/01jagc4k7pr9tbm3ykwx6zq2h0.age": wasm.encrypt(wasm.wrapContainer("Other.md", bytes("o")), recipient, false),
+      [`Sealed/${name}.age`]: wasm.encrypt(
+        wasm.wrapContainer('Plan.md', bytes('# Plan\n\nSECRET PLAINTEXT')),
+        recipient,
+        false,
+      ),
+      'Sealed/Sub/01jagc4k7pr9tbm3ykwx6zq2h0.age': wasm.encrypt(
+        wasm.wrapContainer('Other.md', bytes('o')),
+        recipient,
+        false,
+      ),
     }));
     const before = (await hubs.more.branchHead())!;
 
     // The page offers no rename by path (the name is the identifier), and the server would refuse one.
     await page.goto(`/repo/${id}/Sealed/${name}.age`);
-    await expect(page.getByRole("button", { name: "Move", exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Rename", exact: true })).toHaveCount(0); // not until it is opened: the real name is inside
+    await expect(page.getByRole('button', { name: 'Move', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Rename', exact: true })).toHaveCount(0); // not until it is opened: the real name is inside
     const refused = await page.request.post(`/api/connections/${id}/files/move`, {
       headers: { origin: BASE },
-      data: { vault: "Sealed", type: "file", path: `Sealed/${name}.age`, blob: "0".repeat(40), destination: "Sealed/Plan.age" },
+      data: {
+        vault: 'Sealed',
+        type: 'file',
+        path: `Sealed/${name}.age`,
+        blob: '0'.repeat(40),
+        destination: 'Sealed/Plan.age',
+      },
       failOnStatusCode: false,
     });
-    expect((await refused.json()).error.code).toBe("id_named");
+    expect((await refused.json()).error.code).toBe('id_named');
 
     // Opened, it can be renamed: the container is rewritten, the file keeps its identifier, and the new name is inside.
-    await page.getByLabel("Passphrase").fill(PASSPHRASE);
-    await page.getByRole("button", { name: "Unlock and open" }).click();
-    await expect(noteEditor(page, "Plan.md")).toBeVisible({ timeout: 60_000 });
-    await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await page.getByLabel("New name").fill("Roadmap");
-    await page.getByRole("form", { name: "Rename" }).getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(page.getByText("Version saved")).toBeVisible({ timeout: 30_000 });
+    await page.getByLabel('Passphrase').fill(PASSPHRASE);
+    await page.getByRole('button', { name: 'Unlock and open' }).click();
+    await expect(noteEditor(page, 'Plan.md')).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'Rename', exact: true }).click();
+    await page.getByLabel('New name').fill('Roadmap');
+    await page
+      .getByRole('form', { name: 'Rename' })
+      .getByRole('button', { name: 'Rename', exact: true })
+      .click();
+    await expect(page.getByText('Version saved')).toBeVisible({ timeout: 30_000 });
     const head = (await hubs.more.branchHead())!;
     expect(head).not.toBe(before);
-    expect(await hubs.more.show(head, "%P")).toBe(before);
-    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Rename an encrypted file");
-    expect(Object.keys(await hubs.more.filesAt(head)).filter((path) => path.endsWith(".age")).sort()).toEqual([`Sealed/${name}.age`, "Sealed/Sub/01jagc4k7pr9tbm3ykwx6zq2h0.age"]);
-    const unwrapped = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(head, `Sealed/${name}.age`)));
-    expect(unwrapped.name).toBe("Roadmap.md");
-    expect(textOf(unwrapped.contents)).toBe("# Plan\n\nSECRET PLAINTEXT");
+    expect(await hubs.more.show(head, '%P')).toBe(before);
+    expect((await hubs.more.show(head, '%B')).split('\n')[0]).toBe('Rename an encrypted file');
+    expect(
+      Object.keys(await hubs.more.filesAt(head))
+        .filter((path) => path.endsWith('.age'))
+        .sort(),
+    ).toEqual([`Sealed/${name}.age`, 'Sealed/Sub/01jagc4k7pr9tbm3ykwx6zq2h0.age']);
+    const unwrapped = wasm.unwrapContainer(
+      decryptedAt(secret, await hubs.more.fileBytesAt(head, `Sealed/${name}.age`)),
+    );
+    expect(unwrapped.name).toBe('Roadmap.md');
+    expect(textOf(unwrapped.contents)).toBe('# Plan\n\nSECRET PLAINTEXT');
     await hubs.more.fsck();
 
     // Moved to a folder: the identifier and the bytes are the same.
     await page.goto(`/repo/${id}/Sealed/${name}.age`);
-    await page.getByRole("button", { name: "Move", exact: true }).click();
-    await page.getByLabel("Move to").selectOption("Sealed/Sub");
-    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
+    await page.getByRole('button', { name: 'Move', exact: true }).click();
+    await page.getByLabel('Move to').selectOption('Sealed/Sub');
+    await page.getByRole('dialog').getByRole('button', { name: 'Move', exact: true }).click();
     await headHas(`Sealed/Sub/${name}.age`);
     const moved = (await hubs.more.branchHead())!;
-    expect(textOf(wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(moved, `Sealed/Sub/${name}.age`))).contents)).toBe("# Plan\n\nSECRET PLAINTEXT");
+    expect(
+      textOf(
+        wasm.unwrapContainer(
+          decryptedAt(secret, await hubs.more.fileBytesAt(moved, `Sealed/Sub/${name}.age`)),
+        ).contents,
+      ),
+    ).toBe('# Plan\n\nSECRET PLAINTEXT');
 
     // Nothing the server saw holds the old or the new name, or the text.
-    for (const forbidden of ["SECRET PLAINTEXT", "Roadmap", "Plan.md"]) expect(record.join("\n"), forbidden).not.toContain(forbidden);
+    for (const forbidden of ['SECRET PLAINTEXT', 'Roadmap', 'Plan.md'])
+      expect(record.join('\n'), forbidden).not.toContain(forbidden);
   } finally {
     await restoreMore();
   }
@@ -1355,98 +1983,132 @@ test("a file of an id-named encrypted vault is renamed by the name inside it, ke
 
 // --- Moving files in and out of encrypted vaults (ROADMAP 2b.6) ---
 
-test("a file is encrypted on the way into an encrypted vault, decrypted on the way out after asking, and re-encrypted between two, all in the browser", async ({ page }) => {
+test('a file is encrypted on the way into an encrypted vault, decrypted on the way out after asking, and re-encrypted between two, all in the browser', async ({
+  page,
+}) => {
   test.setTimeout(300_000);
-  const sealedId = "01jagc4k7pr9tbm3ykwx6zq2hz";
+  const sealedId = '01jagc4k7pr9tbm3ykwx6zq2hz';
   try {
     const { id, secret, record } = await encryptedWorkbench(page, (recipient) => ({
-      "Notes/fjord.vault.json": VAULT_MANIFEST,
-      "Notes/Plan.md": "# Plan\n\nSECRET PLAINTEXT of the plan",
-      "Notes/Other.md": "SECRET PLAINTEXT other",
-      "Open/Enc.md.age": wasm.encrypt(bytes("SECRET PLAINTEXT encrypted note"), recipient, false),
-      [`Sealed/${sealedId}.age`]: wasm.encrypt(wasm.wrapContainer("Inner.md", bytes("SECRET PLAINTEXT inner")), recipient, false),
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.md': '# Plan\n\nSECRET PLAINTEXT of the plan',
+      'Notes/Other.md': 'SECRET PLAINTEXT other',
+      'Open/Enc.md.age': wasm.encrypt(bytes('SECRET PLAINTEXT encrypted note'), recipient, false),
+      [`Sealed/${sealedId}.age`]: wasm.encrypt(
+        wasm.wrapContainer('Inner.md', bytes('SECRET PLAINTEXT inner')),
+        recipient,
+        false,
+      ),
     }));
-    const filesAt = async () => Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!));
-    const choose = (page2: Page, option: string) => page2.getByLabel("Move to", { exact: true }).selectOption({ label: option });
+    const filesAt = async () =>
+      Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!));
+    const choose = (page2: Page, option: string) =>
+      page2.getByLabel('Move to', { exact: true }).selectOption({ label: option });
 
     // Into a plain-named encrypted vault: asked first, and the new commit holds no plaintext of the file.
     await page.goto(`/repo/${id}/Notes/Plan.md`);
-    await page.getByRole("button", { name: "Move to another vault" }).click();
-    await expect(page.getByLabel("Move to", { exact: true })).toBeVisible();
-    const options = await page.getByLabel("Move to", { exact: true }).locator("option").allTextContents();
-    expect(options).toEqual(expect.arrayContaining(["Open (encrypted)", "Sealed (encrypted)"]));
-    expect(options.some((option) => option.startsWith("Notes"))).toBe(false); // plaintext to plaintext is Move
-    await choose(page, "Open (encrypted)");
-    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
-    await expect(page.getByText("The plain text stays in the history")).toBeVisible();
+    await page.getByRole('button', { name: 'Move to another vault' }).click();
+    await expect(page.getByLabel('Move to', { exact: true })).toBeVisible();
+    const options = await page
+      .getByLabel('Move to', { exact: true })
+      .locator('option')
+      .allTextContents();
+    expect(options).toEqual(expect.arrayContaining(['Open (encrypted)', 'Sealed (encrypted)']));
+    expect(options.some((option) => option.startsWith('Notes'))).toBe(false); // plaintext to plaintext is Move
+    await choose(page, 'Open (encrypted)');
+    await page.getByRole('dialog').getByRole('button', { name: 'Move', exact: true }).click();
+    await expect(page.getByText('The plain text stays in the history')).toBeVisible();
     const before = await hubs.more.branchHead();
     expect(await hubs.more.branchHead()).toBe(before); // asking is not doing
-    await page.getByRole("button", { name: "Yes, move it" }).click();
-    await headSays("Move Plan into the encrypted vault Open");
+    await page.getByRole('button', { name: 'Yes, move it' }).click();
+    await headSays('Move Plan into the encrypted vault Open');
     let head = (await hubs.more.branchHead())!;
-    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Plan into the encrypted vault Open");
-    expect(await filesAt()).not.toContain("Notes/Plan.md");
-    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(head, "Open/Plan.md.age")))).toBe("# Plan\n\nSECRET PLAINTEXT of the plan");
-    for (const [path, text] of Object.entries(await hubs.more.filesAt(head))) if (path.startsWith("Open/") || path.startsWith("Sealed/")) expect(text, path).not.toContain("SECRET PLAINTEXT");
+    expect((await hubs.more.show(head, '%B')).split('\n')[0]).toBe(
+      'Move Plan into the encrypted vault Open',
+    );
+    expect(await filesAt()).not.toContain('Notes/Plan.md');
+    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(head, 'Open/Plan.md.age')))).toBe(
+      '# Plan\n\nSECRET PLAINTEXT of the plan',
+    );
+    for (const [path, text] of Object.entries(await hubs.more.filesAt(head)))
+      if (path.startsWith('Open/') || path.startsWith('Sealed/'))
+        expect(text, path).not.toContain('SECRET PLAINTEXT');
 
     // Into an id-named one: a new identifier, the real name inside.
     await page.goto(`/repo/${id}/Notes/Other.md`);
-    await page.getByRole("button", { name: "Move to another vault" }).click();
-    await choose(page, "Sealed (encrypted)");
-    await expect(page.getByRole("dialog").getByLabel("Name")).toHaveCount(0); // the name is kept inside
-    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
-    await page.getByRole("button", { name: "Yes, move it" }).click();
-    await headSays("Move Other into the encrypted vault Sealed");
+    await page.getByRole('button', { name: 'Move to another vault' }).click();
+    await choose(page, 'Sealed (encrypted)');
+    await expect(page.getByRole('dialog').getByLabel('Name')).toHaveCount(0); // the name is kept inside
+    await page.getByRole('dialog').getByRole('button', { name: 'Move', exact: true }).click();
+    await page.getByRole('button', { name: 'Yes, move it' }).click();
+    await headSays('Move Other into the encrypted vault Sealed');
     head = (await hubs.more.branchHead())!;
-    const made = (await filesAt()).find((path) => path.startsWith("Sealed/") && path.endsWith(".age") && !path.includes(sealedId))!;
-    const inside = wasm.unwrapContainer(decryptedAt(secret, await hubs.more.fileBytesAt(head, made)));
-    expect([inside.name, textOf(inside.contents)]).toEqual(["Other.md", "SECRET PLAINTEXT other"]);
-    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Other into the encrypted vault Sealed");
+    const made = (await filesAt()).find(
+      (path) => path.startsWith('Sealed/') && path.endsWith('.age') && !path.includes(sealedId),
+    )!;
+    const inside = wasm.unwrapContainer(
+      decryptedAt(secret, await hubs.more.fileBytesAt(head, made)),
+    );
+    expect([inside.name, textOf(inside.contents)]).toEqual(['Other.md', 'SECRET PLAINTEXT other']);
+    expect((await hubs.more.show(head, '%B')).split('\n')[0]).toBe(
+      'Move Other into the encrypted vault Sealed',
+    );
 
     // Out of an encrypted vault: it needs the identity, says what it does, and does nothing until told.
     await page.goto(`/repo/${id}/Open/Enc.md.age`);
-    await page.getByLabel("Passphrase").fill(PASSPHRASE);
-    await page.getByRole("button", { name: "Unlock and open" }).click();
-    await expect(noteEditor(page, "Enc.md")).toBeVisible({ timeout: 60_000 });
-    await page.getByRole("button", { name: "Move to another vault" }).click();
-    await choose(page, "Notes");
-    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
-    await expect(page.getByText("This decrypts the file")).toBeVisible();
+    await page.getByLabel('Passphrase').fill(PASSPHRASE);
+    await page.getByRole('button', { name: 'Unlock and open' }).click();
+    await expect(noteEditor(page, 'Enc.md')).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'Move to another vault' }).click();
+    await choose(page, 'Notes');
+    await page.getByRole('dialog').getByRole('button', { name: 'Move', exact: true }).click();
+    await expect(page.getByText('This decrypts the file')).toBeVisible();
     const asked = await hubs.more.branchHead();
-    expect(await filesAt()).toContain("Open/Enc.md.age"); // nothing yet
-    await page.getByRole("button", { name: "Yes, decrypt and move" }).click();
-    await headSays("Move Enc out of the encrypted vault Open");
+    expect(await filesAt()).toContain('Open/Enc.md.age'); // nothing yet
+    await page.getByRole('button', { name: 'Yes, decrypt and move' }).click();
+    await headSays('Move Enc out of the encrypted vault Open');
     head = (await hubs.more.branchHead())!;
     expect(head).not.toBe(asked);
-    expect((await hubs.more.filesAt(head))["Notes/Enc.md"]).toBe("SECRET PLAINTEXT encrypted note");
-    expect(await filesAt()).not.toContain("Open/Enc.md.age");
-    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Enc out of the encrypted vault Open");
+    expect((await hubs.more.filesAt(head))['Notes/Enc.md']).toBe('SECRET PLAINTEXT encrypted note');
+    expect(await filesAt()).not.toContain('Open/Enc.md.age');
+    expect((await hubs.more.show(head, '%B')).split('\n')[0]).toBe(
+      'Move Enc out of the encrypted vault Open',
+    );
 
     // Between two encrypted vaults, the id-named one's real name comes out of the container.
     await page.goto(`/repo/${id}/Sealed/${sealedId}.age`);
-    await page.getByLabel("Passphrase").fill(PASSPHRASE);
-    await page.getByRole("button", { name: "Unlock and open" }).click();
-    await expect(noteEditor(page, "Inner.md")).toBeVisible({ timeout: 60_000 });
-    await page.getByRole("button", { name: "Move to another vault" }).click();
-    await choose(page, "Open (encrypted)");
-    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
-    await page.getByRole("button", { name: "Yes, move it" }).click();
-    await headHas("Open/Inner.md.age");
+    await page.getByLabel('Passphrase').fill(PASSPHRASE);
+    await page.getByRole('button', { name: 'Unlock and open' }).click();
+    await expect(noteEditor(page, 'Inner.md')).toBeVisible({ timeout: 60_000 });
+    await page.getByRole('button', { name: 'Move to another vault' }).click();
+    await choose(page, 'Open (encrypted)');
+    await page.getByRole('dialog').getByRole('button', { name: 'Move', exact: true }).click();
+    await page.getByRole('button', { name: 'Yes, move it' }).click();
+    await headHas('Open/Inner.md.age');
     head = (await hubs.more.branchHead())!;
-    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(head, "Open/Inner.md.age")))).toBe("SECRET PLAINTEXT inner");
+    expect(
+      textOf(decryptedAt(secret, await hubs.more.fileBytesAt(head, 'Open/Inner.md.age'))),
+    ).toBe('SECRET PLAINTEXT inner');
     expect(await filesAt()).not.toContain(`Sealed/${sealedId}.age`);
     await hubs.more.fsck();
 
     // No request carried the text of any file; the server refuses plain text for an encrypted vault, whatever the page says.
-    const transfers = record.filter((line) => line.startsWith("POST ") && line.includes("/files/transfer"));
+    const transfers = record.filter(
+      (line) => line.startsWith('POST ') && line.includes('/files/transfer'),
+    );
     expect(transfers.length).toBe(4);
-    expect(transfers.slice(0, 2).join("\n")).not.toContain("SECRET PLAINTEXT");
+    expect(transfers.slice(0, 2).join('\n')).not.toContain('SECRET PLAINTEXT');
     const refused = await page.request.post(`/api/connections/${id}/files/transfer`, {
       headers: { origin: BASE },
-      data: { path: "Notes/Enc.md", blob: "0".repeat(40), destination: "Open/Enc.md.age", content: Buffer.from("SECRET PLAINTEXT").toString("base64") },
+      data: {
+        path: 'Notes/Enc.md',
+        blob: '0'.repeat(40),
+        destination: 'Open/Enc.md.age',
+        content: Buffer.from('SECRET PLAINTEXT').toString('base64'),
+      },
       failOnStatusCode: false,
     });
-    expect((await refused.json()).error.code).toBe("wrong_form");
+    expect((await refused.json()).error.code).toBe('wrong_form');
     expect(await hubs.more.branchHead()).toBe(head);
   } finally {
     await restoreMore();
@@ -1455,90 +2117,174 @@ test("a file is encrypted on the way into an encrypted vault, decrypted on the w
 
 // --- Sealed link shares of encrypted files (ROADMAP 2c.1) ---
 
-test("an encrypted file is shared by a sealed link: the server holds a copy it cannot read, a private window opens it, and revoking ends it", async ({ page, browser }) => {
+test('an encrypted file is shared by a sealed link: the server holds a copy it cannot read, a private window opens it, and revoking ends it', async ({
+  page,
+  browser,
+}) => {
   test.setTimeout(300_000);
-  const TEXT = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\ntitle: Budget\n---\n\n# Budget\n\nSECRET PLAINTEXT of the budget\n";
-  const SHARE_PASSWORD = "a password for sharing";
+  const TEXT =
+    '---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\ntitle: Budget\n---\n\n# Budget\n\nSECRET PLAINTEXT of the budget\n';
+  const SHARE_PASSWORD = 'a password for sharing';
   try {
-    const { id, record } = await encryptedWorkbench(page, (recipient) => ({ "Open/Budget.fj.md.age": wasm.encrypt(bytes(TEXT), recipient, false) }));
-    await openEncrypted(page, `/repo/${id}/Open/Budget.fj.md.age`, "Budget.fj.md");
-    const panel = page.getByTestId("sealed-shares");
+    const { id, record } = await encryptedWorkbench(page, (recipient) => ({
+      'Open/Budget.fj.md.age': wasm.encrypt(bytes(TEXT), recipient, false),
+    }));
+    await openEncrypted(page, `/repo/${id}/Open/Budget.fj.md.age`, 'Budget.fj.md');
+    const panel = page.getByTestId('sealed-shares');
 
     // A link with the key in it.
-    await panel.getByRole("button", { name: "Make a sealed link" }).click();
-    await panel.getByRole("button", { name: "Make link" }).click();
-    const keyLink = (await panel.getByTestId("sealed-link").textContent())!;
-    expect(keyLink).toMatch(/^http:\/\/localhost:3201\/s\/[A-Za-z0-9_-]{43}#key=AGE-SECRET-KEY-1[A-Z0-9]+$/);
-    const [keyAddress, key] = keyLink.split("#key=") as [string, string];
-    const token = keyAddress.split("/s/")[1]!;
+    await panel.getByRole('button', { name: 'Make a sealed link' }).click();
+    await panel.getByRole('button', { name: 'Make link' }).click();
+    const keyLink = (await panel.getByTestId('sealed-link').textContent())!;
+    expect(keyLink).toMatch(
+      /^http:\/\/localhost:3201\/s\/[A-Za-z0-9_-]{43}#key=AGE-SECRET-KEY-1[A-Z0-9]+$/,
+    );
+    const [keyAddress, key] = keyLink.split('#key=') as [string, string];
+    const token = keyAddress.split('/s/')[1]!;
 
     // A private window reads it: no account, no cookies, and nothing it sent or was sent holds the key or the text.
-    const visitor = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.91" } });
+    const visitor = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.91' },
+    });
     const guest = await visitor.newPage();
     const seen: string[] = [];
-    guest.on("request", (request) => seen.push(`${request.method()} ${request.url()} ${JSON.stringify(request.headers())} ${request.postData() ?? ""}`));
-    guest.on("response", async (response) => seen.push(`${response.url()} ${(await response.body().catch(() => Buffer.alloc(0))).toString("latin1")}`));
+    guest.on('request', (request) =>
+      seen.push(
+        `${request.method()} ${request.url()} ${JSON.stringify(request.headers())} ${request.postData() ?? ''}`,
+      ),
+    );
+    guest.on('response', async (response) =>
+      seen.push(
+        `${response.url()} ${(await response.body().catch(() => Buffer.alloc(0))).toString('latin1')}`,
+      ),
+    );
     await guest.goto(keyLink);
-    await expect(noteEditor(guest, "Budget.fj.md")).toContainText("SECRET PLAINTEXT of the budget", { timeout: 60_000 });
-    await guest.waitForLoadState("networkidle");
+    await expect(noteEditor(guest, 'Budget.fj.md')).toContainText(
+      'SECRET PLAINTEXT of the budget',
+      { timeout: 60_000 },
+    );
+    await guest.waitForLoadState('networkidle');
     expect(seen.some((line) => line.includes(`/api/sealed/${token}`))).toBe(true);
-    for (const forbidden of [key, key.slice(0, 20), "SECRET PLAINTEXT"]) expect(seen.join("\n"), forbidden).not.toContain(forbidden);
+    for (const forbidden of [key, key.slice(0, 20), 'SECRET PLAINTEXT'])
+      expect(seen.join('\n'), forbidden).not.toContain(forbidden);
     expect(JSON.stringify(await visitor.cookies())).not.toContain(token);
 
     // What the server was sent and says: the copy, sealed, and neither the key nor the text.
-    const made = record.filter((line) => line.startsWith("POST ") && line.includes("/sealed-shares"));
+    const made = record.filter(
+      (line) => line.startsWith('POST ') && line.includes('/sealed-shares'),
+    );
     expect(made).toHaveLength(1);
-    expect(made[0]).toContain("YWdlLWVuY3J5cHRpb24ub3JnL3Yx");
-    for (const forbidden of [key, "SECRET PLAINTEXT", PASSPHRASE]) expect(record.join("\n"), forbidden).not.toContain(forbidden);
+    expect(made[0]).toContain('YWdlLWVuY3J5cHRpb24ub3JnL3Yx');
+    for (const forbidden of [key, 'SECRET PLAINTEXT', PASSPHRASE])
+      expect(record.join('\n'), forbidden).not.toContain(forbidden);
     const served = await visitor.request.get(`/api/sealed/${token}`);
     expect(served.status()).toBe(200);
-    expect(JSON.stringify(await served.json())).not.toContain("SECRET PLAINTEXT");
+    expect(JSON.stringify(await served.json())).not.toContain('SECRET PLAINTEXT');
 
     // The link without its key says so; a made-up token is the same 404 as a revoked one.
     const incomplete = await visitor.newPage();
     await incomplete.goto(keyAddress);
-    await expect(incomplete.getByText("the key that opens the copy is missing")).toBeVisible({ timeout: 30_000 });
-    expect((await visitor.request.get(`/api/sealed/${"A".repeat(43)}`, { failOnStatusCode: false })).status()).toBe(404);
+    await expect(incomplete.getByText('the key that opens the copy is missing')).toBeVisible({
+      timeout: 30_000,
+    });
+    expect(
+      (
+        await visitor.request.get(`/api/sealed/${'A'.repeat(43)}`, { failOnStatusCode: false })
+      ).status(),
+    ).toBe(404);
 
     // A link with a password: the password is not in the link, and is typed by the viewer.
-    await panel.getByRole("button", { name: "Make a sealed link" }).click();
-    await panel.getByLabel("A password opens it").check();
-    await panel.getByRole("textbox", { name: "Password" }).fill(SHARE_PASSWORD);
-    await panel.getByRole("button", { name: "Make link" }).click();
-    await expect(panel.getByTestId("sealed-link")).toHaveText(/^http:\/\/localhost:3201\/s\/[A-Za-z0-9_-]{43}$/, { timeout: 60_000 });
-    const passwordLink = (await panel.getByTestId("sealed-link").textContent())!;
+    await panel.getByRole('button', { name: 'Make a sealed link' }).click();
+    await panel.getByLabel('A password opens it').check();
+    await panel.getByRole('textbox', { name: 'Password' }).fill(SHARE_PASSWORD);
+    await panel.getByRole('button', { name: 'Make link' }).click();
+    await expect(panel.getByTestId('sealed-link')).toHaveText(
+      /^http:\/\/localhost:3201\/s\/[A-Za-z0-9_-]{43}$/,
+      { timeout: 60_000 },
+    );
+    const passwordLink = (await panel.getByTestId('sealed-link').textContent())!;
     const secondVisitor = await visitor.newPage();
     await secondVisitor.goto(passwordLink);
-    await secondVisitor.getByLabel("Password").fill("not the password at all");
-    await secondVisitor.getByRole("button", { name: "Open" }).click();
-    await expect(secondVisitor.getByText("That password does not open it.")).toBeVisible({ timeout: 60_000 });
-    await secondVisitor.getByLabel("Password").fill(SHARE_PASSWORD);
-    await secondVisitor.getByRole("button", { name: "Open" }).click();
-    await expect(noteEditor(secondVisitor, "Budget.fj.md")).toContainText("SECRET PLAINTEXT of the budget", { timeout: 60_000 });
-    expect(record.join("\n")).not.toContain(SHARE_PASSWORD);
+    await secondVisitor.getByLabel('Password').fill('not the password at all');
+    await secondVisitor.getByRole('button', { name: 'Open' }).click();
+    await expect(secondVisitor.getByText('That password does not open it.')).toBeVisible({
+      timeout: 60_000,
+    });
+    await secondVisitor.getByLabel('Password').fill(SHARE_PASSWORD);
+    await secondVisitor.getByRole('button', { name: 'Open' }).click();
+    await expect(noteEditor(secondVisitor, 'Budget.fj.md')).toContainText(
+      'SECRET PLAINTEXT of the budget',
+      { timeout: 60_000 },
+    );
+    expect(record.join('\n')).not.toContain(SHARE_PASSWORD);
 
     // Revoking deletes the copy: the link stops working, and the list says there is one less.
-    await expect(panel.getByRole("list", { name: "Sealed links" }).getByRole("listitem")).toHaveCount(2);
-    await panel.getByRole("listitem").filter({ hasText: "Key in the link" }).getByRole("button", { name: "Revoke" }).click();
-    await expect(panel.getByRole("list", { name: "Sealed links" }).getByRole("listitem")).toHaveCount(1, { timeout: 30_000 });
-    expect((await visitor.request.get(`/api/sealed/${token}`, { failOnStatusCode: false })).status()).toBe(404);
+    await expect(
+      panel.getByRole('list', { name: 'Sealed links' }).getByRole('listitem'),
+    ).toHaveCount(2);
+    await panel
+      .getByRole('listitem')
+      .filter({ hasText: 'Key in the link' })
+      .getByRole('button', { name: 'Revoke' })
+      .click();
+    await expect(
+      panel.getByRole('list', { name: 'Sealed links' }).getByRole('listitem'),
+    ).toHaveCount(1, { timeout: 30_000 });
+    expect(
+      (await visitor.request.get(`/api/sealed/${token}`, { failOnStatusCode: false })).status(),
+    ).toBe(404);
     const again = await visitor.newPage();
     await again.goto(keyLink);
-    await expect(again.getByText("This link does not work")).toBeVisible({ timeout: 30_000 });
+    await expect(again.getByText('This link does not work')).toBeVisible({ timeout: 30_000 });
     await visitor.close();
 
     // Only the owner makes or revokes a share; the plain file of a plaintext vault is not shared this way.
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.92" } });
-    expect((await stranger.request.get(`/api/connections/${id}/sealed-shares?path=Open/Budget.fj.md.age`, { failOnStatusCode: false })).status()).toBe(401);
-    expect((await stranger.request.post(`/api/connections/${id}/sealed-shares`, { headers: { origin: BASE }, data: {}, failOnStatusCode: false })).status()).toBe(401);
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.92' },
+    });
+    expect(
+      (
+        await stranger.request.get(
+          `/api/connections/${id}/sealed-shares?path=Open/Budget.fj.md.age`,
+          { failOnStatusCode: false },
+        )
+      ).status(),
+    ).toBe(401);
+    expect(
+      (
+        await stranger.request.post(`/api/connections/${id}/sealed-shares`, {
+          headers: { origin: BASE },
+          data: {},
+          failOnStatusCode: false,
+        })
+      ).status(),
+    ).toBe(401);
     await stranger.close();
     const plainFile = await page.request.post(`/api/connections/${id}/sealed-shares`, {
       headers: { origin: BASE },
-      data: { path: "Open/recipients.txt", mode: "key", ciphertext: Buffer.from("age-encryption.org/v1\n-> X25519 x\nbody").toString("base64") },
+      data: {
+        path: 'Open/recipients.txt',
+        mode: 'key',
+        ciphertext: Buffer.from('age-encryption.org/v1\n-> X25519 x\nbody').toString('base64'),
+      },
       failOnStatusCode: false,
     });
     expect(plainFile.status()).toBe(422);
-    expect((await page.request.post(`/api/connections/${id}/sealed-shares`, { headers: { origin: BASE }, data: { path: "Open/Budget.fj.md.age", mode: "key", ciphertext: Buffer.from("# plain").toString("base64") }, failOnStatusCode: false })).status()).toBe(422);
+    expect(
+      (
+        await page.request.post(`/api/connections/${id}/sealed-shares`, {
+          headers: { origin: BASE },
+          data: {
+            path: 'Open/Budget.fj.md.age',
+            mode: 'key',
+            ciphertext: Buffer.from('# plain').toString('base64'),
+          },
+          failOnStatusCode: false,
+        })
+      ).status(),
+    ).toBe(422);
   } finally {
     await restoreMore();
   }
@@ -1546,68 +2292,249 @@ test("an encrypted file is shared by a sealed link: the server holds a copy it c
 
 // --- Security review of phase 2 (ROADMAP 2c.2, docs/security-review-phase-2.md) ---
 
-test("review of phase 2: nothing but ciphertext can be made to land in an encrypted vault, by any route, whatever is sent, and another account reaches none of it", async ({ page, browser }) => {
+test('review of phase 2: nothing but ciphertext can be made to land in an encrypted vault, by any route, whatever is sent, and another account reaches none of it', async ({
+  page,
+  browser,
+}) => {
   test.setTimeout(300_000);
-  const MARK = "SECRET PLAINTEXT MARK";
-  const AGE_B64 = (bytesIn: Uint8Array) => Buffer.from(bytesIn).toString("base64");
+  const MARK = 'SECRET PLAINTEXT MARK';
+  const AGE_B64 = (bytesIn: Uint8Array) => Buffer.from(bytesIn).toString('base64');
   const minute = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
   try {
     const { id, secret } = await encryptedWorkbench(page, (recipient) => ({
-      "Notes/fjord.vault.json": VAULT_MANIFEST,
-      "Notes/Plan.md": `# Plan ${MARK}`,
-      "Notes/Gone.md": `gone ${MARK}`,
-      "Open/Enc.md.age": wasm.encrypt(bytes("encrypted"), recipient, false),
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.md': `# Plan ${MARK}`,
+      'Notes/Gone.md': `gone ${MARK}`,
+      'Open/Enc.md.age': wasm.encrypt(bytes('encrypted'), recipient, false),
     }));
-    const post = (path: string, data: unknown, method: "POST" | "PUT" = "POST") => page.request.fetch(`/api/connections/${id}${path}`, { method, headers: { origin: BASE }, data, failOnStatusCode: false });
-    const code = async (response: Awaited<ReturnType<typeof post>>) => (await response.json().catch(() => ({}))).error?.code as string | undefined;
+    const post = (path: string, data: unknown, method: 'POST' | 'PUT' = 'POST') =>
+      page.request.fetch(`/api/connections/${id}${path}`, {
+        method,
+        headers: { origin: BASE },
+        data,
+        failOnStatusCode: false,
+      });
+    const code = async (response: Awaited<ReturnType<typeof post>>) =>
+      (await response.json().catch(() => ({}))).error?.code as string | undefined;
     const plain = bytes(MARK);
-    const cipher = wasm.encrypt(bytes("x"), wasm.identityRecipient(wasm.generateIdentity()), false);
-    const NOTE_BLOB = createHash("sha1").update(`blob ${Buffer.byteLength(`# Plan ${MARK}`)}\0`).update(`# Plan ${MARK}`).digest("hex");
+    const cipher = wasm.encrypt(bytes('x'), wasm.identityRecipient(wasm.generateIdentity()), false);
+    const NOTE_BLOB = createHash('sha1')
+      .update(`blob ${Buffer.byteLength(`# Plan ${MARK}`)}\0`)
+      .update(`# Plan ${MARK}`)
+      .digest('hex');
 
     // A deletion to put back from: a plaintext file whose record the restore route can be asked about.
-    const deleted = await post("/files/delete", { vault: "Notes", type: "file", path: "Notes/Gone.md", blob: gitBlobId(`gone ${MARK}`) });
+    const deleted = await post('/files/delete', {
+      vault: 'Notes',
+      type: 'file',
+      path: 'Notes/Gone.md',
+      blob: gitBlobId(`gone ${MARK}`),
+    });
     expect(deleted.status()).toBe(200);
     const deletionIds = (await deleted.json()).deletions as number[];
     const before = (await hubs.more.branchHead())!;
 
     const refused: [string, Awaited<ReturnType<typeof post>>, number, string | undefined][] = [
-      ["a plain note made in an encrypted vault", await post("/files", { vault: "Open", folder: "", title: "Sneaky", localMinute: minute }), 422, "encrypted_vault"],
-      ["plain text sent as a new encrypted file", await post("/files/encrypted", { vault: "Open", folder: "", title: "Sneaky", localMinute: minute, ciphertext: AGE_B64(plain) }), 422, "not_ciphertext"],
-      ["a plain draft of an encrypted file", await post("/working-copy", { path: "Open/Enc.md.age", baseBlob: "0".repeat(40), content: MARK }, "PUT"), 422, "not_editable"],
-      ["plain text as an encrypted draft", await post("/working-copy", { path: "Open/Enc.md.age", baseBlob: "0".repeat(40), content: AGE_B64(plain), encrypted: true }, "PUT"), 422, "unstorable"],
-      ["an encrypted draft of a plaintext note", await post("/working-copy", { path: "Notes/Plan.md", baseBlob: NOTE_BLOB, content: AGE_B64(cipher), encrypted: true }, "PUT"), 422, "not_editable"],
-      ["a plaintext note moved into an encrypted vault", await post("/files/move", { vault: "Notes", type: "file", path: "Notes/Plan.md", blob: NOTE_BLOB, destination: "Open/Plan.md" }), 422, "encrypted_vault"],
-      ["an encrypted file moved to a plaintext vault by Move", await post("/files/move", { vault: "Open", type: "file", path: "Open/Enc.md.age", blob: "0".repeat(40), destination: "Notes/Enc.md.age" }), 422, "other_vault"],
-      ["plain text transferred into an encrypted vault", await post("/files/transfer", { path: "Notes/Plan.md", blob: NOTE_BLOB, destination: "Open/Plan.md.age", content: AGE_B64(plain) }), 422, "wrong_form"],
-      ["ciphertext transferred into a plaintext vault", await post("/files/transfer", { path: "Open/Enc.md.age", blob: "0".repeat(40), destination: "Notes/Enc.md", content: AGE_B64(cipher) }), 422, "wrong_form"],
-      ["a vault's recipients file deleted", await post("/files/delete", { vault: "Open", type: "file", path: "Open/recipients.txt", blob: "0".repeat(40) }), 422, "protected"],
-      ["a vault's recipients file moved", await post("/files/move", { vault: "Open", type: "file", path: "Open/recipients.txt", blob: "0".repeat(40), destination: "Open/keys.txt" }), 422, "protected"],
-      ["a plaintext deletion put back into an encrypted vault", await post("/files/restore", { ids: deletionIds, path: "Open/Gone.md" }), 422, "bad_path"],
-      ["plain text kept as a sealed copy", await post("/sealed-shares", { path: "Open/Enc.md.age", mode: "key", ciphertext: AGE_B64(plain) }), 422, "not_ciphertext"],
-      ["a plaintext note shared as a sealed copy", await post("/sealed-shares", { path: "Notes/Plan.md", mode: "key", ciphertext: AGE_B64(cipher) }), 422, "not_encrypted"],
+      [
+        'a plain note made in an encrypted vault',
+        await post('/files', { vault: 'Open', folder: '', title: 'Sneaky', localMinute: minute }),
+        422,
+        'encrypted_vault',
+      ],
+      [
+        'plain text sent as a new encrypted file',
+        await post('/files/encrypted', {
+          vault: 'Open',
+          folder: '',
+          title: 'Sneaky',
+          localMinute: minute,
+          ciphertext: AGE_B64(plain),
+        }),
+        422,
+        'not_ciphertext',
+      ],
+      [
+        'a plain draft of an encrypted file',
+        await post(
+          '/working-copy',
+          { path: 'Open/Enc.md.age', baseBlob: '0'.repeat(40), content: MARK },
+          'PUT',
+        ),
+        422,
+        'not_editable',
+      ],
+      [
+        'plain text as an encrypted draft',
+        await post(
+          '/working-copy',
+          {
+            path: 'Open/Enc.md.age',
+            baseBlob: '0'.repeat(40),
+            content: AGE_B64(plain),
+            encrypted: true,
+          },
+          'PUT',
+        ),
+        422,
+        'unstorable',
+      ],
+      [
+        'an encrypted draft of a plaintext note',
+        await post(
+          '/working-copy',
+          { path: 'Notes/Plan.md', baseBlob: NOTE_BLOB, content: AGE_B64(cipher), encrypted: true },
+          'PUT',
+        ),
+        422,
+        'not_editable',
+      ],
+      [
+        'a plaintext note moved into an encrypted vault',
+        await post('/files/move', {
+          vault: 'Notes',
+          type: 'file',
+          path: 'Notes/Plan.md',
+          blob: NOTE_BLOB,
+          destination: 'Open/Plan.md',
+        }),
+        422,
+        'encrypted_vault',
+      ],
+      [
+        'an encrypted file moved to a plaintext vault by Move',
+        await post('/files/move', {
+          vault: 'Open',
+          type: 'file',
+          path: 'Open/Enc.md.age',
+          blob: '0'.repeat(40),
+          destination: 'Notes/Enc.md.age',
+        }),
+        422,
+        'other_vault',
+      ],
+      [
+        'plain text transferred into an encrypted vault',
+        await post('/files/transfer', {
+          path: 'Notes/Plan.md',
+          blob: NOTE_BLOB,
+          destination: 'Open/Plan.md.age',
+          content: AGE_B64(plain),
+        }),
+        422,
+        'wrong_form',
+      ],
+      [
+        'ciphertext transferred into a plaintext vault',
+        await post('/files/transfer', {
+          path: 'Open/Enc.md.age',
+          blob: '0'.repeat(40),
+          destination: 'Notes/Enc.md',
+          content: AGE_B64(cipher),
+        }),
+        422,
+        'wrong_form',
+      ],
+      [
+        "a vault's recipients file deleted",
+        await post('/files/delete', {
+          vault: 'Open',
+          type: 'file',
+          path: 'Open/recipients.txt',
+          blob: '0'.repeat(40),
+        }),
+        422,
+        'protected',
+      ],
+      [
+        "a vault's recipients file moved",
+        await post('/files/move', {
+          vault: 'Open',
+          type: 'file',
+          path: 'Open/recipients.txt',
+          blob: '0'.repeat(40),
+          destination: 'Open/keys.txt',
+        }),
+        422,
+        'protected',
+      ],
+      [
+        'a plaintext deletion put back into an encrypted vault',
+        await post('/files/restore', { ids: deletionIds, path: 'Open/Gone.md' }),
+        422,
+        'bad_path',
+      ],
+      [
+        'plain text kept as a sealed copy',
+        await post('/sealed-shares', {
+          path: 'Open/Enc.md.age',
+          mode: 'key',
+          ciphertext: AGE_B64(plain),
+        }),
+        422,
+        'not_ciphertext',
+      ],
+      [
+        'a plaintext note shared as a sealed copy',
+        await post('/sealed-shares', {
+          path: 'Notes/Plan.md',
+          mode: 'key',
+          ciphertext: AGE_B64(cipher),
+        }),
+        422,
+        'not_encrypted',
+      ],
     ];
     const wrong = [];
-    for (const [what, response, status, expected] of refused) if (response.status() !== status || (await code(response)) !== expected) wrong.push(`${what}: ${response.status()} ${await code(response)}`);
+    for (const [what, response, status, expected] of refused)
+      if (response.status() !== status || (await code(response)) !== expected)
+        wrong.push(`${what}: ${response.status()} ${await code(response)}`);
     expect(wrong).toEqual([]);
 
     // Nothing was written by any of it, and no file of an encrypted vault holds a word of plain text.
     expect(await hubs.more.branchHead()).toBe(before);
-    for (const [path, text] of Object.entries(await hubs.more.filesAt(before))) if (path.startsWith("Open/")) expect(text, path).not.toContain(MARK);
-    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(before, "Open/Enc.md.age")))).toBe("encrypted");
+    for (const [path, text] of Object.entries(await hubs.more.filesAt(before)))
+      if (path.startsWith('Open/')) expect(text, path).not.toContain(MARK);
+    expect(
+      textOf(decryptedAt(secret, await hubs.more.fileBytesAt(before, 'Open/Enc.md.age'))),
+    ).toBe('encrypted');
 
     // Another account reaches none of it: the same answer as for something that is not there.
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.95" } });
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.95' },
+    });
     const other = await stranger.newPage();
-    await signUp(other, `mallory-${Date.now()}@example.com`, "Mallory");
-    const theirs = (path: string, method = "GET", data?: unknown) => other.request.fetch(`/api/connections/${id}${path}`, { method, headers: { origin: BASE }, ...(data === undefined ? {} : { data }), failOnStatusCode: false });
+    await signUp(other, `mallory-${Date.now()}@example.com`, 'Mallory');
+    const theirs = (path: string, method = 'GET', data?: unknown) =>
+      other.request.fetch(`/api/connections/${id}${path}`, {
+        method,
+        headers: { origin: BASE },
+        ...(data === undefined ? {} : { data }),
+        failOnStatusCode: false,
+      });
     const sees = [
-      await theirs("/ciphertext?path=Open/Enc.md.age"),
-      await theirs("/recipients?vault=Open"),
-      await theirs("/sealed-shares?path=Open/Enc.md.age"),
-      await theirs("/sealed-shares?share=1", "DELETE"),
-      await theirs("/sealed-shares", "POST", { path: "Open/Enc.md.age", mode: "key", ciphertext: AGE_B64(cipher) }),
-      await theirs("/files/transfer", "POST", { path: "Open/Enc.md.age", blob: "0".repeat(40), destination: "Notes/x.md", content: AGE_B64(plain) }),
-      await theirs("/files/encrypted", "POST", { vault: "Open", folder: "", title: "x", localMinute: minute, ciphertext: AGE_B64(cipher) }),
+      await theirs('/ciphertext?path=Open/Enc.md.age'),
+      await theirs('/recipients?vault=Open'),
+      await theirs('/sealed-shares?path=Open/Enc.md.age'),
+      await theirs('/sealed-shares?share=1', 'DELETE'),
+      await theirs('/sealed-shares', 'POST', {
+        path: 'Open/Enc.md.age',
+        mode: 'key',
+        ciphertext: AGE_B64(cipher),
+      }),
+      await theirs('/files/transfer', 'POST', {
+        path: 'Open/Enc.md.age',
+        blob: '0'.repeat(40),
+        destination: 'Notes/x.md',
+        content: AGE_B64(plain),
+      }),
+      await theirs('/files/encrypted', 'POST', {
+        vault: 'Open',
+        folder: '',
+        title: 'x',
+        localMinute: minute,
+        ciphertext: AGE_B64(cipher),
+      }),
     ];
     expect(sees.map((response) => response.status())).toEqual(sees.map(() => 404));
     await stranger.close();
@@ -1617,10 +2544,15 @@ test("review of phase 2: nothing but ciphertext can be made to land in an encryp
   }
 });
 
-test("review of phase 2: a sealed link from someone hostile is shown as text and does nothing, its page is sent with the policy and no referrer, and a copy asking for ruinous work is not opened", async ({ page, browser }) => {
+test('review of phase 2: a sealed link from someone hostile is shown as text and does nothing, its page is sent with the policy and no referrer, and a copy asking for ruinous work is not opened', async ({
+  page,
+  browser,
+}) => {
   test.setTimeout(300_000);
   try {
-    const { id, record } = await encryptedWorkbench(page, (recipient) => ({ "Open/Enc.md.age": wasm.encrypt(bytes("x"), recipient, false) }));
+    const { id, record } = await encryptedWorkbench(page, (recipient) => ({
+      'Open/Enc.md.age': wasm.encrypt(bytes('x'), recipient, false),
+    }));
     void record;
     // The hostile sharer is a person with a link, so the copy is made here with the same module that makes ours.
     const hostileName = `<img src=x onerror="window.__owned=1"><script>window.__owned=2</script>.md`;
@@ -1628,51 +2560,85 @@ test("review of phase 2: a sealed link from someone hostile is shown as text and
     const identity = wasm.generateIdentity();
     const payload = bytes(JSON.stringify({ v: 1, name: hostileName, text: hostileText }));
     const sealed = wasm.encrypt(payload, `${wasm.identityRecipient(identity)}\n`, false);
-    const made = await page.request.post(`/api/connections/${id}/sealed-shares`, { headers: { origin: BASE }, data: { path: "Open/Enc.md.age", mode: "key", ciphertext: Buffer.from(sealed).toString("base64") } });
+    const made = await page.request.post(`/api/connections/${id}/sealed-shares`, {
+      headers: { origin: BASE },
+      data: {
+        path: 'Open/Enc.md.age',
+        mode: 'key',
+        ciphertext: Buffer.from(sealed).toString('base64'),
+      },
+    });
     expect(made.status()).toBe(201);
     const token = (await made.json()).token as string;
     const link = `${BASE}/s/${token}#key=${new TextDecoder().decode(identity)}`;
 
-    const visitor = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.96" } });
+    const visitor = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.96' },
+    });
     const guest = await visitor.newPage();
     const requested: string[] = [];
-    guest.on("request", (request) => requested.push(request.url()));
+    guest.on('request', (request) => requested.push(request.url()));
     await guest.addInitScript(() => {
       (window as unknown as { __violations: string[] }).__violations = [];
-      document.addEventListener("securitypolicyviolation", (event) => (window as unknown as { __violations: string[] }).__violations.push(event.violatedDirective));
+      document.addEventListener('securitypolicyviolation', (event) =>
+        (window as unknown as { __violations: string[] }).__violations.push(
+          event.violatedDirective,
+        ),
+      );
     });
     const loaded = await guest.goto(link);
     // The page is sent with the policy (with a nonce of its own), no referrer, and no leave to be framed or kept.
     const headers = loaded!.headers();
-    expect(headers["content-security-policy"]).toMatch(/script-src[^;]*'nonce-[A-Za-z0-9+/=_-]+'/);
-    expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
-    expect(headers["content-security-policy"]).not.toMatch(/(?<!wasm-)'unsafe-eval'/);
-    expect(headers["referrer-policy"]).toBe("no-referrer");
-    expect(headers["x-frame-options"]).toBe("DENY");
-    expect(await guest.locator('meta[name="robots"]').getAttribute("content")).toContain("noindex");
+    expect(headers['content-security-policy']).toMatch(/script-src[^;]*'nonce-[A-Za-z0-9+/=_-]+'/);
+    expect(headers['content-security-policy']).toContain("frame-ancestors 'none'");
+    expect(headers['content-security-policy']).not.toMatch(/(?<!wasm-)'unsafe-eval'/);
+    expect(headers['referrer-policy']).toBe('no-referrer');
+    expect(headers['x-frame-options']).toBe('DENY');
+    expect(await guest.locator('meta[name="robots"]').getAttribute('content')).toContain('noindex');
     const served = await visitor.request.get(`/api/sealed/${token}`);
-    expect(served.headers()["cache-control"]).toContain("no-store");
+    expect(served.headers()['cache-control']).toContain('no-store');
 
     // The copy opens, and what is in it is only text: nothing ran, nothing was fetched from another site.
-    await expect(guest.getByRole("heading", { name: hostileName })).toBeVisible({ timeout: 60_000 });
-    await expect(guest.getByRole("textbox", { name: hostileName, exact: true })).toContainText("<script>window.__owned=3</script>");
-    await guest.waitForLoadState("networkidle");
-    expect(await guest.evaluate(() => (window as unknown as { __owned?: number }).__owned)).toBeUndefined();
-    expect(await guest.locator("iframe, img[src*='evil'], script:not([src]):has-text('__owned')").count()).toBe(0);
+    await expect(guest.getByRole('heading', { name: hostileName })).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(guest.getByRole('textbox', { name: hostileName, exact: true })).toContainText(
+      '<script>window.__owned=3</script>',
+    );
+    await guest.waitForLoadState('networkidle');
+    expect(
+      await guest.evaluate(() => (window as unknown as { __owned?: number }).__owned),
+    ).toBeUndefined();
+    expect(
+      await guest
+        .locator("iframe, img[src*='evil'], script:not([src]):has-text('__owned')")
+        .count(),
+    ).toBe(0);
     expect(requested.filter((url) => !url.startsWith(BASE))).toEqual([]);
-    expect(await guest.evaluate(() => (window as unknown as { __violations: string[] }).__violations)).toEqual([]);
+    expect(
+      await guest.evaluate(() => (window as unknown as { __violations: string[] }).__violations),
+    ).toEqual([]);
 
     // A password copy that asks for far more work than the identity's own is refused before any is done.
-    const costly = wasm.sealWithPassphrase(payload, bytes("a password of some length"), 10);
-    const rewritten = Buffer.from(Buffer.from(costly).toString("latin1").replace(/^(-> scrypt \S+ )10$/m, "$120"), "latin1");
-    const second = await page.request.post(`/api/connections/${id}/sealed-shares`, { headers: { origin: BASE }, data: { path: "Open/Enc.md.age", mode: "password", ciphertext: rewritten.toString("base64") } });
+    const costly = wasm.sealWithPassphrase(payload, bytes('a password of some length'), 10);
+    const rewritten = Buffer.from(
+      Buffer.from(costly)
+        .toString('latin1')
+        .replace(/^(-> scrypt \S+ )10$/m, '$120'),
+      'latin1',
+    );
+    const second = await page.request.post(`/api/connections/${id}/sealed-shares`, {
+      headers: { origin: BASE },
+      data: { path: 'Open/Enc.md.age', mode: 'password', ciphertext: rewritten.toString('base64') },
+    });
     expect(second.status()).toBe(201);
     const costlyPage = await visitor.newPage();
     await costlyPage.goto(`${BASE}/s/${(await second.json()).token as string}`);
-    await costlyPage.getByLabel("Password").fill("a password of some length");
+    await costlyPage.getByLabel('Password').fill('a password of some length');
     const asked = Date.now();
-    await costlyPage.getByRole("button", { name: "Open" }).click();
-    await expect(costlyPage.getByText("asks for far more work")).toBeVisible({ timeout: 10_000 });
+    await costlyPage.getByRole('button', { name: 'Open' }).click();
+    await expect(costlyPage.getByText('asks for far more work')).toBeVisible({ timeout: 10_000 });
     expect(Date.now() - asked).toBeLessThan(5_000);
     await visitor.close();
   } finally {
@@ -1683,29 +2649,69 @@ test("review of phase 2: a sealed link from someone hostile is shown as text and
 // --- A note in the note editor (ROADMAP 1b.2) -----------------------------------------------------------------
 
 /** `acme/more` holding these files, connected by a new account. */
-async function repositoryWith(page: import("@playwright/test").Page, files: Record<string, string | Uint8Array>, who?: { email: string; name: string }): Promise<number> {
+async function repositoryWith(
+  page: import('@playwright/test').Page,
+  files: Record<string, string | Uint8Array>,
+  who?: { email: string; name: string },
+): Promise<number> {
   await hubs.more.commitFiles(files, { replace: true });
   await signUp(page, who?.email, who?.name);
-  await page.goto("/repositories");
-  await connect(page, "acme/more");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/more");
-  return (await (await page.request.get("/api/connections")).json()).connections[0].id as number;
+  await page.goto('/repositories');
+  await connect(page, 'acme/more');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/more',
+  );
+  return (await (await page.request.get('/api/connections')).json()).connections[0].id as number;
 }
 
-const VAULT_MANIFEST = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "Notes", createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" });
+const VAULT_MANIFEST = JSON.stringify({
+  fjord: 1,
+  id: '01jagc4k7pr9tbm3ykwx6zq2hv',
+  name: 'Notes',
+  createdAt: '2026-10-16T09:34:00Z',
+  encryption: null,
+  fileNaming: 'plain',
+});
 /** The repository's head holds the file, whatever the page's address says: an encrypted file's address is `/f/<handle>` (RFC 0002), before and after. */
-const headHas = (path: string) => expect.poll(async () => Object.keys(await hubs.more.filesAt((await hubs.more.branchHead()) as string)), { timeout: 30_000 }).toContain(path);
+const headHas = (path: string) =>
+  expect
+    .poll(
+      async () => Object.keys(await hubs.more.filesAt((await hubs.more.branchHead()) as string)),
+      { timeout: 30_000 },
+    )
+    .toContain(path);
 /** The first line of the head commit's message: what the commit was, when the address cannot say that it was made. */
-const headSays = (subject: string | RegExp) => expect.poll(async () => ((await hubs.more.show((await hubs.more.branchHead()) as string, "%B")) as string).split("\n")[0], { timeout: 30_000 })[typeof subject === "string" ? "toBe" : "toMatch"](subject as never);
+const headSays = (subject: string | RegExp) =>
+  expect
+    .poll(
+      async () =>
+        ((await hubs.more.show((await hubs.more.branchHead()) as string, '%B')) as string).split(
+          '\n',
+        )[0],
+      { timeout: 30_000 },
+    )
+    [typeof subject === 'string' ? 'toBe' : 'toMatch'](subject as never);
 
 /**
  * A repository whose kind has the note editor (RFC 0002: a drive has the document editor, a journal and a site have this one), with the vault
  * the working-copy tests write to. The mechanics under test - drafts, versions, the changed and the deleted - are the same whatever the editor.
  */
-const SITE_ROOT = JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3mx", name: "Site", createdAt: "2026-10-16T09:34:00Z", kind: "ssg", ssg: { engine: "astro" }, vaults: [{ path: "Notes", id: "01jagc4k7pr9tbm3ykwx6zq2hv" }] });
-const siteWith = (page: import("@playwright/test").Page, files: Record<string, string | Uint8Array>, who?: { email: string; name: string }) =>
-  repositoryWith(page, { "fjord.json": SITE_ROOT, ...files }, who);
-const noteEditor = (page: import("@playwright/test").Page, name: string) => page.getByRole("textbox", { name, exact: true });
+const SITE_ROOT = JSON.stringify({
+  fjord: 1,
+  id: '01jagc4k7pqw2xn8rvty5zb3mx',
+  name: 'Site',
+  createdAt: '2026-10-16T09:34:00Z',
+  kind: 'ssg',
+  ssg: { engine: 'astro' },
+  vaults: [{ path: 'Notes', id: '01jagc4k7pr9tbm3ykwx6zq2hv' }],
+});
+const siteWith = (
+  page: import('@playwright/test').Page,
+  files: Record<string, string | Uint8Array>,
+  who?: { email: string; name: string },
+) => repositoryWith(page, { 'fjord.json': SITE_ROOT, ...files }, who);
+const noteEditor = (page: import('@playwright/test').Page, name: string) =>
+  page.getByRole('textbox', { name, exact: true });
 
 test("a file opens in its kind's editor, and is read once by its address", async ({ page }) => {
   const id = await connected(page);
@@ -1713,126 +2719,187 @@ test("a file opens in its kind's editor, and is read once by its address", async
   hubs.notes.requests.length = 0;
   await page.goto(`/repo/${id}/Public/idea.md`);
 
-  const editor = noteEditor(page, "idea.md");
+  const editor = noteEditor(page, 'idea.md');
   await expect(editor).toBeVisible();
-  await expect(editor).toContainText("Idea"); // a drive has the document editor, which shows the heading and not its marker
-  await expect(editor).toHaveAttribute("contenteditable", "true");
-  await expect(page.getByTestId("draft-status")).toHaveText("No changes yet. What you type is kept as a draft.");
+  await expect(editor).toContainText('Idea'); // a drive has the document editor, which shows the heading and not its marker
+  await expect(editor).toHaveAttribute('contenteditable', 'true');
+  await expect(page.getByTestId('draft-status')).toHaveText(
+    'No changes yet. What you type is kept as a draft.',
+  );
 
   // The file was read by its blob, and nothing else was (finding a draft asks our own database, not the host). A path with no id is read once to
   // find its address and once by the page there (RFC 0002).
-  const blobReads = hubs.notes.requests.filter((request) => request.path.includes("/git/blobs/"));
+  const blobReads = hubs.notes.requests.filter((request) => request.path.includes('/git/blobs/'));
   expect(blobReads).toHaveLength(2);
-  expect(hubs.notes.requests.filter((request) => request.path.includes("/git/trees/"))).toEqual([]);
+  expect(hubs.notes.requests.filter((request) => request.path.includes('/git/trees/'))).toEqual([]);
 });
 
 // --- Working copies (ROADMAP 1b.8) ----------------------------------------------------------------------------
 
-const status = (page: import("@playwright/test").Page) => page.getByTestId("draft-status");
+const status = (page: import('@playwright/test').Page) => page.getByTestId('draft-status');
 
 /** Saves a version with a message: the arrow after the save icon, its menu's one item, and the dialog that asks for it. */
-async function saveWithMessage(page: import("@playwright/test").Page, message: string) {
-  await page.getByRole("button", { name: "Save options" }).click();
-  await page.getByRole("menuitem", { name: "Save with a message…" }).click();
-  const dialog = page.getByRole("dialog", { name: "Save with a message" });
-  await dialog.getByLabel("Message").fill(message);
-  await dialog.getByRole("button", { name: "Save version" }).click();
+async function saveWithMessage(page: import('@playwright/test').Page, message: string) {
+  await page.getByRole('button', { name: 'Save options' }).click();
+  await page.getByRole('menuitem', { name: 'Save with a message…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Save with a message' });
+  await dialog.getByLabel('Message').fill(message);
+  await dialog.getByRole('button', { name: 'Save version' }).click();
 }
 
-test("what is typed in a note is kept as a draft, found again on opening it, and never committed", async ({ page }) => {
+test('what is typed in a note is kept as a draft, found again on opening it, and never committed', async ({
+  page,
+}) => {
   try {
-    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "# Title\n\nbody\n" });
+    const id = await siteWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': '# Title\n\nbody\n',
+    });
     const head = await hubs.more.branchHead();
 
     await page.goto(`/repo/${id}/Notes/n.md`);
-    const editor = noteEditor(page, "n.md");
+    const editor = noteEditor(page, 'n.md');
     await editor.click();
-    await page.keyboard.press("ControlOrMeta+End");
-    await page.keyboard.type("more words, kept");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.type('more words, kept');
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
 
     // Opened again, it is the draft that is shown, and it is said to be one.
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await expect(noteEditor(page, "n.md")).toContainText("more words, kept");
-    await expect(page.getByText("Your changes were kept")).toBeVisible();
+    await expect(noteEditor(page, 'n.md')).toContainText('more words, kept');
+    await expect(page.getByText('Your changes were kept')).toBeVisible();
 
     // The repository was not touched: typing is not a commit.
     expect(await hubs.more.branchHead()).toBe(head);
     await hubs.more.fsck();
 
     // Discarding goes back to the note as the repository has it.
-    await page.getByRole("button", { name: "Discard changes" }).click();
-    await page.getByRole("button", { name: "Yes, discard" }).click();
-    await expect(noteEditor(page, "n.md")).not.toContainText("more words, kept");
-    await expect(noteEditor(page, "n.md")).toContainText("# Title");
-    await expect(page.getByText("Your changes were kept")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Discard changes" })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Discard changes' }).click();
+    await page.getByRole('button', { name: 'Yes, discard' }).click();
+    await expect(noteEditor(page, 'n.md')).not.toContainText('more words, kept');
+    await expect(noteEditor(page, 'n.md')).toContainText('# Title');
+    await expect(page.getByText('Your changes were kept')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Discard changes' })).toHaveCount(0);
   } finally {
     await restoreMore();
   }
 });
 
-test("typing and deleting it again leaves no draft", async ({ page }) => {
+test('typing and deleting it again leaves no draft', async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "x\n" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'x\n',
+    });
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await noteEditor(page, "n.md").click();
-    await page.keyboard.press("ControlOrMeta+End");
-    await page.keyboard.type("abc");
-    await page.keyboard.press("Backspace");
-    await page.keyboard.press("Backspace");
-    await page.keyboard.press("Backspace");
+    await noteEditor(page, 'n.md').click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.type('abc');
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('Backspace');
+    await page.keyboard.press('Backspace');
     await page.waitForTimeout(2500);
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await expect(page.getByText("Your changes were kept")).toHaveCount(0);
+    await expect(page.getByText('Your changes were kept')).toHaveCount(0);
   } finally {
     await restoreMore();
   }
 });
 
-test("drafts are kept only for the caller's own repository, from this site, for notes", async ({ page, browser }) => {
+test("drafts are kept only for the caller's own repository, from this site, for notes", async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "x\n", "Notes/d.fj.md": "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8m\n---\nbody\n", "Notes/pic.png": "png" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'x\n',
+      'Notes/d.fj.md': '---\nid: 01jagc4k7pt8y3wqnmzv5xrb8m\n---\nbody\n',
+      'Notes/pic.png': 'png',
+    });
     const url = `/api/connections/${id}/working-copy`;
-    const blob = "a".repeat(40);
-    const put = (data: unknown, origin: string = BASE) => page.request.put(url, { headers: { origin }, data });
+    const blob = 'a'.repeat(40);
+    const put = (data: unknown, origin: string = BASE) =>
+      page.request.put(url, { headers: { origin }, data });
 
-    expect((await put({ path: "Notes/n.md", baseBlob: blob, content: "ok" }, "https://evil.example")).status()).toBe(403);
-    expect((await put({ path: "../escape.md", baseBlob: blob, content: "ok" })).status()).toBe(400);
-    expect((await put({ path: "Notes/n.md", baseBlob: "main", content: "ok" })).status()).toBe(400);
+    expect(
+      (
+        await put({ path: 'Notes/n.md', baseBlob: blob, content: 'ok' }, 'https://evil.example')
+      ).status(),
+    ).toBe(403);
+    expect((await put({ path: '../escape.md', baseBlob: blob, content: 'ok' })).status()).toBe(400);
+    expect((await put({ path: 'Notes/n.md', baseBlob: 'main', content: 'ok' })).status()).toBe(400);
     // A file that is not a note or a document in a plaintext vault: a picture, a file that is not there, a folder.
-    for (const path of ["Notes/pic.png", "Notes/missing.md", "Notes"]) {
-      const response = await put({ path, baseBlob: blob, content: "ok" });
+    for (const path of ['Notes/pic.png', 'Notes/missing.md', 'Notes']) {
+      const response = await put({ path, baseBlob: blob, content: 'ok' });
       expect([path, response.status()]).toEqual([path, 422]);
-      expect((await response.json()).error.code).toBe("not_editable");
+      expect((await response.json()).error.code).toBe('not_editable');
     }
-    const kept = await put({ path: "Notes/n.md", baseBlob: blob, content: "ok" });
+    const kept = await put({ path: 'Notes/n.md', baseBlob: blob, content: 'ok' });
     expect(kept.status()).toBe(200);
-    expect(Object.keys((await kept.json()).workingCopy).sort()).toEqual(["baseBlob", "createdAt", "lastEdit"]);
+    expect(Object.keys((await kept.json()).workingCopy).sort()).toEqual([
+      'baseBlob',
+      'createdAt',
+      'lastEdit',
+    ]);
     // Another version's text is not mixed into the draft.
-    const mismatch = await put({ path: "Notes/n.md", baseBlob: "b".repeat(40), content: "other" });
+    const mismatch = await put({ path: 'Notes/n.md', baseBlob: 'b'.repeat(40), content: 'other' });
     expect(mismatch.status()).toBe(409);
     expect((await mismatch.json()).error.baseBlob).toBe(blob);
     // A text that cannot be kept in the database is refused and does not replace the draft.
-    expect((await put({ path: "Notes/n.md", baseBlob: blob, content: "a\u0000b" })).status()).toBe(422);
+    expect((await put({ path: 'Notes/n.md', baseBlob: blob, content: 'a\u0000b' })).status()).toBe(
+      422,
+    );
 
     // Nobody else can touch it: signed out, it is 401; another account's, 404.
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.9" } });
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.9' },
+    });
     const other = await stranger.newPage();
-    expect((await other.request.put(url, { headers: { origin: BASE }, data: { path: "Notes/n.md", baseBlob: blob, content: "mine now" } })).status()).toBe(401);
+    expect(
+      (
+        await other.request.put(url, {
+          headers: { origin: BASE },
+          data: { path: 'Notes/n.md', baseBlob: blob, content: 'mine now' },
+        })
+      ).status(),
+    ).toBe(401);
     await signUp(other);
-    expect((await other.request.put(url, { headers: { origin: BASE }, data: { path: "Notes/n.md", baseBlob: blob, content: "mine now" } })).status()).toBe(404);
-    expect((await other.request.delete(`${url}?path=Notes/n.md`, { headers: { origin: BASE } })).status()).toBe(404);
+    expect(
+      (
+        await other.request.put(url, {
+          headers: { origin: BASE },
+          data: { path: 'Notes/n.md', baseBlob: blob, content: 'mine now' },
+        })
+      ).status(),
+    ).toBe(404);
+    expect(
+      (
+        await other.request.delete(`${url}?path=Notes/n.md`, { headers: { origin: BASE } })
+      ).status(),
+    ).toBe(404);
     await stranger.close();
 
     // ...so the draft is still the owner's (its base was made up above, so the page says the note is not the one it was started from).
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await expect(page.getByText("This note changed in the repository while you were editing it")).toBeVisible();
-    await expect(noteEditor(page, "Your version of n.md")).toHaveText("ok");
+    await expect(
+      page.getByText('This note changed in the repository while you were editing it'),
+    ).toBeVisible();
+    await expect(noteEditor(page, 'Your version of n.md')).toHaveText('ok');
 
     // Disconnecting takes the drafts with it.
-    expect((await page.request.delete(`/api/connections/${id}`, { headers: { origin: BASE } })).status()).toBe(204);
-    expect((await page.request.put(url, { headers: { origin: BASE }, data: { path: "Notes/n.md", baseBlob: blob, content: "x" } })).status()).toBe(404);
+    expect(
+      (await page.request.delete(`/api/connections/${id}`, { headers: { origin: BASE } })).status(),
+    ).toBe(204);
+    expect(
+      (
+        await page.request.put(url, {
+          headers: { origin: BASE },
+          data: { path: 'Notes/n.md', baseBlob: blob, content: 'x' },
+        })
+      ).status(),
+    ).toBe(404);
   } finally {
     await restoreMore();
   }
@@ -1840,37 +2907,52 @@ test("drafts are kept only for the caller's own repository, from this site, for 
 
 // --- Versions (ROADMAP 1b.9) ----------------------------------------------------------------------------------
 
-test("Save version makes one commit of the draft, authored by the person, and the note is then the repository's", async ({ page }) => {
+test("Save version makes one commit of the draft, authored by the person, and the note is then the repository's", async ({
+  page,
+}) => {
   try {
-    const who = { email: `grace-${Date.now()}@example.com`, name: "Grace Hopper" };
-    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "# Title\n", "Notes/other.md": "untouched" }, who);
+    const who = { email: `grace-${Date.now()}@example.com`, name: 'Grace Hopper' };
+    const id = await siteWith(
+      page,
+      {
+        'Notes/fjord.vault.json': VAULT_MANIFEST,
+        'Notes/n.md': '# Title\n',
+        'Notes/other.md': 'untouched',
+      },
+      who,
+    );
     const before = (await hubs.more.branchHead()) as string;
 
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await expect(page.getByRole("button", { name: "Save version" })).toBeDisabled(); // nothing to save yet
-    await noteEditor(page, "n.md").click();
-    await page.keyboard.press("ControlOrMeta+End");
-    await page.keyboard.type("A new line, saved at once.");
+    await expect(page.getByRole('button', { name: 'Save version' })).toBeDisabled(); // nothing to save yet
+    await noteEditor(page, 'n.md').click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.type('A new line, saved at once.');
     // No wait for the debounce: saving a version keeps what is on screen first.
-    await saveWithMessage(page, "Add a line");
+    await saveWithMessage(page, 'Add a line');
 
-    await expect(page.getByText("Version saved")).toBeVisible();
+    await expect(page.getByText('Version saved')).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     expect(head).not.toBe(before);
-    expect(await hubs.more.show(head, "%P")).toBe(before);
-    expect(await hubs.more.show(head, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
-    expect(await hubs.more.show(head, "%B")).toMatch(/^Add a line\n\n.+\n\d+ lines? added, \d+ removed/);
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "# Title\nA new line, saved at once.", "Notes/other.md": "untouched" });
+    expect(await hubs.more.show(head, '%P')).toBe(before);
+    expect(await hubs.more.show(head, '%an <%ae>')).toBe(`Grace Hopper <${who.email}>`);
+    expect(await hubs.more.show(head, '%B')).toMatch(
+      /^Add a line\n\n.+\n\d+ lines? added, \d+ removed/,
+    );
+    expect(await hubs.more.filesAt(head)).toMatchObject({
+      'Notes/n.md': '# Title\nA new line, saved at once.',
+      'Notes/other.md': 'untouched',
+    });
     await hubs.more.fsck();
 
     // The draft is gone: the note is what the repository has, and nothing says there are unsaved changes.
-    await expect(noteEditor(page, "n.md")).toContainText("A new line, saved at once.");
-    await expect(page.getByText("Your changes were kept")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Save version" })).toBeDisabled();
-    await expect(page.getByRole("button", { name: "Discard changes" })).toHaveCount(0);
+    await expect(noteEditor(page, 'n.md')).toContainText('A new line, saved at once.');
+    await expect(page.getByText('Your changes were kept')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Save version' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Discard changes' })).toHaveCount(0);
     // And it is said once.
     await page.reload();
-    await expect(page.getByText("Version saved")).toHaveCount(0);
+    await expect(page.getByText('Version saved')).toHaveCount(0);
   } finally {
     await restoreMore();
   }
@@ -1878,68 +2960,101 @@ test("Save version makes one commit of the draft, authored by the person, and th
 
 test("a version without a message is called Edit and the note's name", async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Meeting notes.md": "x\n" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Meeting notes.md': 'x\n',
+    });
     await page.goto(`/repo/${id}/Notes/Meeting notes.md`);
-    await noteEditor(page, "Meeting notes.md").click();
-    await page.keyboard.type("y");
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible();
-    expect(await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).toMatch(/^Edit “Meeting notes” \(\+\d+ −\d+\)\n\nNotes\/Meeting notes\.md\n/);
+    await noteEditor(page, 'Meeting notes.md').click();
+    await page.keyboard.type('y');
+    await page.getByRole('button', { name: 'Save version' }).click();
+    await expect(page.getByText('Version saved')).toBeVisible();
+    expect(await hubs.more.show((await hubs.more.branchHead()) as string, '%B')).toMatch(
+      /^Edit “Meeting notes” \(\+\d+ −\d+\)\n\nNotes\/Meeting notes\.md\n/,
+    );
   } finally {
     await restoreMore();
   }
 });
 
-test("a version is not made on top of a note that changed in the repository: both versions are shown instead", async ({ page }) => {
+test('a version is not made on top of a note that changed in the repository: both versions are shown instead', async ({
+  page,
+}) => {
   try {
-    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
+    const id = await siteWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'original\n',
+    });
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await noteEditor(page, "n.md").click();
-    await page.keyboard.type("MINE ");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
-    const theirs = await hubs.more.commitFiles({ "Notes/n.md": "changed elsewhere\n" });
+    await noteEditor(page, 'n.md').click();
+    await page.keyboard.type('MINE ');
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
+    const theirs = await hubs.more.commitFiles({ 'Notes/n.md': 'changed elsewhere\n' });
 
-    await page.getByRole("button", { name: "Save version" }).click();
+    await page.getByRole('button', { name: 'Save version' }).click();
     // Nothing was written; the page looks again and shows both.
-    await expect(page.getByText("This note changed in the repository while you were editing it")).toBeVisible();
+    await expect(
+      page.getByText('This note changed in the repository while you were editing it'),
+    ).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(theirs);
-    await expect(noteEditor(page, "Your version of n.md")).toContainText("MINE");
-    await expect(noteEditor(page, "n.md in the repository now")).toContainText("changed elsewhere");
-    await expect(page.getByRole("button", { name: "Save version" })).toHaveCount(0);
+    await expect(noteEditor(page, 'Your version of n.md')).toContainText('MINE');
+    await expect(noteEditor(page, 'n.md in the repository now')).toContainText('changed elsewhere');
+    await expect(page.getByRole('button', { name: 'Save version' })).toHaveCount(0);
   } finally {
     await restoreMore();
   }
 });
 
-test("who may make a version: a signed-in person, from this site, of their own draft", async ({ page, browser }) => {
+test('who may make a version: a signed-in person, from this site, of their own draft', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "x\n" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'x\n',
+    });
     const url = `/api/connections/${id}/working-copy/version`;
     const head = (await hubs.more.branchHead()) as string;
-    const post = (data: unknown, origin: string = BASE) => page.request.post(url, { headers: { origin }, data });
+    const post = (data: unknown, origin: string = BASE) =>
+      page.request.post(url, { headers: { origin }, data });
 
-    expect((await post({ path: "Notes/n.md" }, "https://evil.example")).status()).toBe(403);
-    expect((await post({ path: "../x.md" })).status()).toBe(400);
-    expect((await post({ path: "Notes/n.md", message: "x".repeat(1001) })).status()).toBe(400);
+    expect((await post({ path: 'Notes/n.md' }, 'https://evil.example')).status()).toBe(403);
+    expect((await post({ path: '../x.md' })).status()).toBe(400);
+    expect((await post({ path: 'Notes/n.md', message: 'x'.repeat(1001) })).status()).toBe(400);
     expect((await page.request.get(url)).status()).toBe(405);
-    const none = await post({ path: "Notes/n.md" });
+    const none = await post({ path: 'Notes/n.md' });
     expect(none.status()).toBe(409);
-    expect((await none.json()).error.code).toBe("no_draft");
+    expect((await none.json()).error.code).toBe('no_draft');
 
     // A draft that is another person's draft cannot be turned into a version by someone else.
-    await page.request.put(`/api/connections/${id}/working-copy`, { headers: { origin: BASE }, data: { path: "Notes/n.md", baseBlob: "a".repeat(40), content: "draft" } });
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.11" } });
+    await page.request.put(`/api/connections/${id}/working-copy`, {
+      headers: { origin: BASE },
+      data: { path: 'Notes/n.md', baseBlob: 'a'.repeat(40), content: 'draft' },
+    });
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.11' },
+    });
     const other = await stranger.newPage();
-    expect((await other.request.post(url, { headers: { origin: BASE }, data: { path: "Notes/n.md" } })).status()).toBe(401);
+    expect(
+      (
+        await other.request.post(url, { headers: { origin: BASE }, data: { path: 'Notes/n.md' } })
+      ).status(),
+    ).toBe(401);
     await signUp(other);
-    expect((await other.request.post(url, { headers: { origin: BASE }, data: { path: "Notes/n.md" } })).status()).toBe(404);
+    expect(
+      (
+        await other.request.post(url, { headers: { origin: BASE }, data: { path: 'Notes/n.md' } })
+      ).status(),
+    ).toBe(404);
     await stranger.close();
 
     // Nothing above wrote anything; and the owner's draft, of a made-up base, is refused rather than committed.
     expect(await hubs.more.branchHead()).toBe(head);
-    const refused = await post({ path: "Notes/n.md" });
+    const refused = await post({ path: 'Notes/n.md' });
     expect(refused.status()).toBe(409);
-    expect((await refused.json()).error.code).toBe("upstream_changed");
+    expect((await refused.json()).error.code).toBe('upstream_changed');
     expect(await hubs.more.branchHead()).toBe(head);
   } finally {
     await restoreMore();
@@ -1949,176 +3064,247 @@ test("who may make a version: a signed-in person, from this site, of their own d
 // --- Going on after the file changed (ROADMAP 1b.10) ---------------------------------------------------------
 
 /** What git calls a blob with this text, which is what a draft's base is. */
-const gitBlobId = (text: string) => createHash("sha1").update(`blob ${Buffer.byteLength(text)}\0`).update(text).digest("hex");
+const gitBlobId = (text: string) =>
+  createHash('sha1')
+    .update(`blob ${Buffer.byteLength(text)}\0`)
+    .update(text)
+    .digest('hex');
 
 /** Open the note, type at the very start, and wait until the draft is kept. */
-async function typeAtStart(page: import("@playwright/test").Page, id: number, name: string, text: string) {
+async function typeAtStart(
+  page: import('@playwright/test').Page,
+  id: number,
+  name: string,
+  text: string,
+) {
   await page.goto(`/repo/${id}/Notes/${name}`);
   await noteEditor(page, name).click();
-  await page.keyboard.press("ControlOrMeta+Home");
+  await page.keyboard.press('ControlOrMeta+Home');
   await page.keyboard.type(text);
-  await expect(status(page)).toHaveText("Changes kept as a draft.");
+  await expect(status(page)).toHaveText('Changes kept as a draft.');
 }
 
-const FIVE = "one\ntwo\nthree\nfour\nfive\n";
+const FIVE = 'one\ntwo\nthree\nfour\nfive\n';
 
-test("when the note changed in the repository, both versions are shown, and taking theirs throws the draft away", async ({ page }) => {
+test('when the note changed in the repository, both versions are shown, and taking theirs throws the draft away', async ({
+  page,
+}) => {
   try {
-    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
-    await typeAtStart(page, id, "n.md", "MINE ");
-    const theirs = await hubs.more.commitFiles({ "Notes/n.md": "changed elsewhere\n" });
+    const id = await siteWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'original\n',
+    });
+    await typeAtStart(page, id, 'n.md', 'MINE ');
+    const theirs = await hubs.more.commitFiles({ 'Notes/n.md': 'changed elsewhere\n' });
 
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await expect(page.getByText("This note changed in the repository while you were editing it")).toBeVisible();
-    const mine = noteEditor(page, "Your version of n.md");
-    const other = noteEditor(page, "n.md in the repository now");
-    await expect(mine).toContainText("MINE original");
-    await expect(other).toContainText("changed elsewhere");
-    for (const editor of [mine, other]) await expect(editor).toHaveAttribute("aria-readonly", "true");
-    await expect(page.getByTestId("combine-preview")).toContainText("touch the same lines in 1 place");
+    await expect(
+      page.getByText('This note changed in the repository while you were editing it'),
+    ).toBeVisible();
+    const mine = noteEditor(page, 'Your version of n.md');
+    const other = noteEditor(page, 'n.md in the repository now');
+    await expect(mine).toContainText('MINE original');
+    await expect(other).toContainText('changed elsewhere');
+    for (const editor of [mine, other])
+      await expect(editor).toHaveAttribute('aria-readonly', 'true');
+    await expect(page.getByTestId('combine-preview')).toContainText(
+      'touch the same lines in 1 place',
+    );
 
-    await page.getByRole("button", { name: "Take theirs" }).click();
-    await page.getByRole("button", { name: "Yes, discard mine" }).click();
-    await expect(noteEditor(page, "n.md")).toContainText("changed elsewhere");
-    await expect(page.getByText("Your changes were kept")).toHaveCount(0);
+    await page.getByRole('button', { name: 'Take theirs' }).click();
+    await page.getByRole('button', { name: 'Yes, discard mine' }).click();
+    await expect(noteEditor(page, 'n.md')).toContainText('changed elsewhere');
+    await expect(page.getByText('Your changes were kept')).toHaveCount(0);
     expect(await hubs.more.branchHead()).toBe(theirs);
   } finally {
     await restoreMore();
   }
 });
 
-test("keeping mine puts the draft on their version, and the next version is on top of theirs, which stays in the history", async ({ page }) => {
+test('keeping mine puts the draft on their version, and the next version is on top of theirs, which stays in the history', async ({
+  page,
+}) => {
   try {
-    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
-    await typeAtStart(page, id, "n.md", "MINE ");
-    const theirs = await hubs.more.commitFiles({ "Notes/n.md": "changed elsewhere\n" });
+    const id = await siteWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'original\n',
+    });
+    await typeAtStart(page, id, 'n.md', 'MINE ');
+    const theirs = await hubs.more.commitFiles({ 'Notes/n.md': 'changed elsewhere\n' });
 
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await page.getByRole("button", { name: "Keep mine" }).click();
-    await expect(noteEditor(page, "n.md")).toContainText("MINE original");
-    await expect(page.getByText("Your changes were kept")).toBeVisible();
+    await page.getByRole('button', { name: 'Keep mine' }).click();
+    await expect(noteEditor(page, 'n.md')).toContainText('MINE original');
+    await expect(page.getByText('Your changes were kept')).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(theirs); // nothing written yet
 
-    await saveWithMessage(page, "Mine, over theirs");
-    await expect(page.getByText("Version saved")).toBeVisible();
+    await saveWithMessage(page, 'Mine, over theirs');
+    await expect(page.getByText('Version saved')).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(head, "%P")).toBe(theirs);
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "MINE original\n" });
-    expect(await hubs.more.filesAt(theirs)).toMatchObject({ "Notes/n.md": "changed elsewhere\n" });
+    expect(await hubs.more.show(head, '%P')).toBe(theirs);
+    expect(await hubs.more.filesAt(head)).toMatchObject({ 'Notes/n.md': 'MINE original\n' });
+    expect(await hubs.more.filesAt(theirs)).toMatchObject({ 'Notes/n.md': 'changed elsewhere\n' });
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("combining edits in different places keeps both, as a draft, and the version has both", async ({ page }) => {
+test('combining edits in different places keeps both, as a draft, and the version has both', async ({
+  page,
+}) => {
   try {
-    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": FIVE });
-    await typeAtStart(page, id, "n.md", "ZERO ");
-    const theirs = await hubs.more.commitFiles({ "Notes/n.md": FIVE.replace("five", "FIVE") });
+    const id = await siteWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': FIVE,
+    });
+    await typeAtStart(page, id, 'n.md', 'ZERO ');
+    const theirs = await hubs.more.commitFiles({ 'Notes/n.md': FIVE.replace('five', 'FIVE') });
 
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await expect(page.getByTestId("combine-preview")).toContainText("can be combined without a conflict");
-    await page.getByRole("button", { name: "Combine", exact: true }).click();
+    await expect(page.getByTestId('combine-preview')).toContainText(
+      'can be combined without a conflict',
+    );
+    await page.getByRole('button', { name: 'Combine', exact: true }).click();
 
-    const editor = noteEditor(page, "n.md");
-    await expect(editor).toContainText("ZERO one");
-    await expect(editor).toContainText("FIVE");
-    await expect(page.getByText("There are conflicts to settle")).toHaveCount(0);
+    const editor = noteEditor(page, 'n.md');
+    await expect(editor).toContainText('ZERO one');
+    await expect(editor).toContainText('FIVE');
+    await expect(page.getByText('There are conflicts to settle')).toHaveCount(0);
     expect(await hubs.more.branchHead()).toBe(theirs);
 
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible();
+    await page.getByRole('button', { name: 'Save version' }).click();
+    await expect(page.getByText('Version saved')).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(head, "%P")).toBe(theirs);
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "ZERO one\ntwo\nthree\nfour\nFIVE\n" });
+    expect(await hubs.more.show(head, '%P')).toBe(theirs);
+    expect(await hubs.more.filesAt(head)).toMatchObject({
+      'Notes/n.md': 'ZERO one\ntwo\nthree\nfour\nFIVE\n',
+    });
   } finally {
     await restoreMore();
   }
 });
 
-test("combining edits of the same line keeps both between markers, which the person settles before saving", async ({ page }) => {
+test('combining edits of the same line keeps both between markers, which the person settles before saving', async ({
+  page,
+}) => {
   try {
-    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "a\nsame\nz\n" });
+    const id = await siteWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'a\nsame\nz\n',
+    });
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await noteEditor(page, "n.md").click();
-    await page.keyboard.press("ControlOrMeta+a");
-    await page.keyboard.type("a\nmine\nz\n");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
-    const theirs = await hubs.more.commitFiles({ "Notes/n.md": "a\ntheirs\nz\n" });
+    await noteEditor(page, 'n.md').click();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('a\nmine\nz\n');
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
+    const theirs = await hubs.more.commitFiles({ 'Notes/n.md': 'a\ntheirs\nz\n' });
 
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await page.getByRole("button", { name: "Combine", exact: true }).click();
-    const editor = noteEditor(page, "n.md");
-    await expect(editor).toContainText("<<<<<<< Your changes");
-    await expect(editor).toContainText(">>>>>>> In the repository");
-    await expect(editor).toContainText("mine");
-    await expect(editor).toContainText("theirs");
-    await expect(page.getByText("There are conflicts to settle in this text")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Save version anyway" })).toBeVisible();
+    await page.getByRole('button', { name: 'Combine', exact: true }).click();
+    const editor = noteEditor(page, 'n.md');
+    await expect(editor).toContainText('<<<<<<< Your changes');
+    await expect(editor).toContainText('>>>>>>> In the repository');
+    await expect(editor).toContainText('mine');
+    await expect(editor).toContainText('theirs');
+    await expect(page.getByText('There are conflicts to settle in this text')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Save version anyway' })).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(theirs);
 
     // Settled by hand: the warning goes, and the version is what was decided.
     await editor.click();
-    await page.keyboard.press("ControlOrMeta+a");
-    await page.keyboard.type("a\nmine and theirs\nz\n");
-    await expect(page.getByText("There are conflicts to settle in this text")).toHaveCount(0);
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
-    await page.getByRole("button", { name: "Save version", exact: true }).click();
-    await expect(page.getByText("Version saved")).toBeVisible();
+    await page.keyboard.press('ControlOrMeta+a');
+    await page.keyboard.type('a\nmine and theirs\nz\n');
+    await expect(page.getByText('There are conflicts to settle in this text')).toHaveCount(0);
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
+    await page.getByRole('button', { name: 'Save version', exact: true }).click();
+    await expect(page.getByText('Version saved')).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(head, "%P")).toBe(theirs);
-    expect(await hubs.more.filesAt(head)).toMatchObject({ "Notes/n.md": "a\nmine and theirs\nz\n" });
+    expect(await hubs.more.show(head, '%P')).toBe(theirs);
+    expect(await hubs.more.filesAt(head)).toMatchObject({
+      'Notes/n.md': 'a\nmine and theirs\nz\n',
+    });
   } finally {
     await restoreMore();
   }
 });
 
-test("a note deleted in the repository does not lose the draft: it is shown, and can be thrown away", async ({ page }) => {
+test('a note deleted in the repository does not lose the draft: it is shown, and can be thrown away', async ({
+  page,
+}) => {
   try {
-    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n", "Notes/keep.md": "k" });
-    await typeAtStart(page, id, "n.md", "UNSAVED ");
-    await hubs.more.commitFiles({ "Notes/n.md": null });
+    const id = await siteWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'original\n',
+      'Notes/keep.md': 'k',
+    });
+    await typeAtStart(page, id, 'n.md', 'UNSAVED ');
+    await hubs.more.commitFiles({ 'Notes/n.md': null });
 
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await expect(page.getByText("This note is no longer in the repository")).toBeVisible();
-    await expect(noteEditor(page, "Your unsaved changes to n.md")).toContainText("UNSAVED original");
+    await expect(page.getByText('This note is no longer in the repository')).toBeVisible();
+    await expect(noteEditor(page, 'Your unsaved changes to n.md')).toContainText(
+      'UNSAVED original',
+    );
 
-    await page.getByRole("button", { name: "Discard changes" }).click();
-    await page.getByRole("button", { name: "Yes, discard" }).click();
-    await expect.poll(async () => (await page.request.get(`/repo/${id}/Notes/n.md`)).status()).toBe(404);
+    await page.getByRole('button', { name: 'Discard changes' }).click();
+    await page.getByRole('button', { name: 'Yes, discard' }).click();
+    await expect
+      .poll(async () => (await page.request.get(`/repo/${id}/Notes/n.md`)).status())
+      .toBe(404);
   } finally {
     await restoreMore();
   }
 });
 
-test("who may go on from a changed note: a signed-in person, from this site, about the version they were shown", async ({ page, browser }) => {
+test('who may go on from a changed note: a signed-in person, from this site, about the version they were shown', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "x\n" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'x\n',
+    });
     const url = `/api/connections/${id}/working-copy/resolve`;
-    const post = (data: unknown, origin: string = BASE) => page.request.post(url, { headers: { origin }, data });
-    const theirsText = "y\n";
-    const body = { path: "Notes/n.md", choice: "mine", upstreamBlob: gitBlobId(theirsText) };
+    const post = (data: unknown, origin: string = BASE) =>
+      page.request.post(url, { headers: { origin }, data });
+    const theirsText = 'y\n';
+    const body = { path: 'Notes/n.md', choice: 'mine', upstreamBlob: gitBlobId(theirsText) };
 
-    expect((await post(body, "https://evil.example")).status()).toBe(403);
-    expect((await post({ ...body, choice: "theirs" })).status()).toBe(400);
-    expect((await post({ ...body, upstreamBlob: "main" })).status()).toBe(400);
+    expect((await post(body, 'https://evil.example')).status()).toBe(403);
+    expect((await post({ ...body, choice: 'theirs' })).status()).toBe(400);
+    expect((await post({ ...body, upstreamBlob: 'main' })).status()).toBe(400);
     expect((await page.request.get(url)).status()).toBe(405);
-    expect(((await (await post(body)).json()).error.code)).toBe("no_draft");
+    expect((await (await post(body)).json()).error.code).toBe('no_draft');
 
-    expect((await page.request.put(`/api/connections/${id}/working-copy`, { headers: { origin: BASE }, data: { path: "Notes/n.md", baseBlob: gitBlobId("x\n"), content: "mine\n" } })).status()).toBe(200);
-    expect(((await (await post(body)).json()).error.code)).toBe("up_to_date"); // the file is still the one it is of
+    expect(
+      (
+        await page.request.put(`/api/connections/${id}/working-copy`, {
+          headers: { origin: BASE },
+          data: { path: 'Notes/n.md', baseBlob: gitBlobId('x\n'), content: 'mine\n' },
+        })
+      ).status(),
+    ).toBe(200);
+    expect((await (await post(body)).json()).error.code).toBe('up_to_date'); // the file is still the one it is of
 
-    const head = await hubs.more.commitFiles({ "Notes/n.md": theirsText });
-    const wrong = await post({ ...body, upstreamBlob: gitBlobId("something else\n") });
+    const head = await hubs.more.commitFiles({ 'Notes/n.md': theirsText });
+    const wrong = await post({ ...body, upstreamBlob: gitBlobId('something else\n') });
     expect(wrong.status()).toBe(409);
-    expect((await wrong.json()).error.code).toBe("upstream_moved");
+    expect((await wrong.json()).error.code).toBe('upstream_moved');
 
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.12" } });
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.12' },
+    });
     const other = await stranger.newPage();
-    expect((await other.request.post(url, { headers: { origin: BASE }, data: body })).status()).toBe(401);
+    expect(
+      (await other.request.post(url, { headers: { origin: BASE }, data: body })).status(),
+    ).toBe(401);
     await signUp(other);
-    expect((await other.request.post(url, { headers: { origin: BASE }, data: body })).status()).toBe(404);
+    expect(
+      (await other.request.post(url, { headers: { origin: BASE }, data: body })).status(),
+    ).toBe(404);
     await stranger.close();
 
     // None of that wrote anything to the repository, or moved the draft; the right call moves it, and still writes nothing.
@@ -2128,8 +3314,10 @@ test("who may go on from a changed note: a signed-in person, from this site, abo
     expect((await moved.json()).conflicts).toBe(0);
     expect(await hubs.more.branchHead()).toBe(head);
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await expect(noteEditor(page, "n.md")).toContainText("mine");
-    await expect(page.getByText("This note changed in the repository while you were editing it")).toHaveCount(0);
+    await expect(noteEditor(page, 'n.md')).toContainText('mine');
+    await expect(
+      page.getByText('This note changed in the repository while you were editing it'),
+    ).toHaveCount(0);
   } finally {
     await restoreMore();
   }
@@ -2139,154 +3327,233 @@ test("who may go on from a changed note: a signed-in person, from this site, abo
 
 const ENCRYPTED_MANIFEST = JSON.stringify({
   fjord: 1,
-  id: "01jagc4k7pr9tbm3ykwx6zq2hw",
-  name: "Secret",
-  createdAt: "2026-10-16T09:34:00Z",
-  encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container: "none", armor: false },
-  fileNaming: "plain",
+  id: '01jagc4k7pr9tbm3ykwx6zq2hw',
+  name: 'Secret',
+  createdAt: '2026-10-16T09:34:00Z',
+  encryption: {
+    tool: 'age',
+    recipients: 'recipients.txt',
+    suffix: '.age',
+    container: 'none',
+    armor: false,
+  },
+  fileNaming: 'plain',
 });
-const RECIPIENTS = "age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n";
+const RECIPIENTS = 'age1ql3z7hjy54pw3hyww5ayyfg7zqgvc7w3j2elw8zmrj2kg5sfn9aqmcac8p\n';
 
-test("a note is made from a title: one commit, by the person, named by fjord-core, and it opens in the editor", async ({ page }) => {
+test('a note is made from a title: one commit, by the person, named by fjord-core, and it opens in the editor', async ({
+  page,
+}) => {
   try {
-    const who = { email: `grace-${Date.now()}@example.com`, name: "Grace Hopper" };
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/other.md": "untouched", "Notes/Projects/a.md": "a" }, who);
+    const who = { email: `grace-${Date.now()}@example.com`, name: 'Grace Hopper' };
+    const id = await repositoryWith(
+      page,
+      {
+        'Notes/fjord.vault.json': VAULT_MANIFEST,
+        'Notes/other.md': 'untouched',
+        'Notes/Projects/a.md': 'a',
+      },
+      who,
+    );
     const before = (await hubs.more.branchHead()) as string;
 
     await page.goto(`/repo/${id}/Notes`);
-    await page.getByRole("button", { name: "New document" }).click();
-    await page.getByLabel("Title").fill("Weekly review: what went well?");
-    await page.getByRole("button", { name: "Create document" }).click();
+    await page.getByRole('button', { name: 'New document' }).click();
+    await page.getByLabel('Title').fill('Weekly review: what went well?');
+    await page.getByRole('button', { name: 'Create document' }).click();
 
     // The name is fjord-core's: what a file name cannot hold becomes a space.
     await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
-    await expect(noteEditor(page, "Weekly review what went well.md")).toContainText("Weekly review: what went well?"); // the document editor shows the heading, not its marker
+    await expect(noteEditor(page, 'Weekly review what went well.md')).toContainText(
+      'Weekly review: what went well?',
+    ); // the document editor shows the heading, not its marker
     const head = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(head, "%P")).toBe(before);
-    expect(await hubs.more.show(head, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
-    expect(await hubs.more.show(head, "%B")).toMatch(/^Create “Weekly review what went well”\n\nNotes\/Weekly review what went well\.md\nA new document in Notes, \d+ words to start with\.\nDocument id: [0-9a-hjkmnp-tv-z]{26}$/);
-    expect(await hubs.more.filesAt(head)).toEqual({ ...(await hubs.more.filesAt(before)), "Notes/Weekly review what went well.md": expect.stringMatching(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\n[\s\S]*# Weekly review: what went well\?\n$/) });
+    expect(await hubs.more.show(head, '%P')).toBe(before);
+    expect(await hubs.more.show(head, '%an <%ae>')).toBe(`Grace Hopper <${who.email}>`);
+    expect(await hubs.more.show(head, '%B')).toMatch(
+      /^Create “Weekly review what went well”\n\nNotes\/Weekly review what went well\.md\nA new document in Notes, \d+ words to start with\.\nDocument id: [0-9a-hjkmnp-tv-z]{26}$/,
+    );
+    expect(await hubs.more.filesAt(head)).toEqual({
+      ...(await hubs.more.filesAt(before)),
+      'Notes/Weekly review what went well.md': expect.stringMatching(
+        /^---\nid: [0-9a-hjkmnp-tv-z]{26}\n[\s\S]*# Weekly review: what went well\?\n$/,
+      ),
+    });
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("a document without a title is named after the date and time, which is its title, and a name that is taken is numbered", async ({ page }) => {
+test('a document without a title is named after the date and time, which is its title, and a name that is taken is numbered', async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.md": "p" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.md': 'p',
+    });
     const before = await hubs.more.branchHead();
     await page.goto(`/repo/${id}/Notes`);
-    await page.getByRole("button", { name: "New document" }).click();
-    await page.getByRole("button", { name: "Create document" }).click();
+    await page.getByRole('button', { name: 'New document' }).click();
+    await page.getByRole('button', { name: 'Create document' }).click();
     await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
     const head = (await hubs.more.branchHead()) as string;
-    const [name] = Object.keys(await hubs.more.filesAt(head)).filter((path) => /^Notes\/\d{4}-\d{2}-\d{2} \d{4}\.md$/.test(path));
-    expect((await hubs.more.filesAt(head))[name!]).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: \d{4}-\d{2}-\d{2} \d{4}\n/);
+    const [name] = Object.keys(await hubs.more.filesAt(head)).filter((path) =>
+      /^Notes\/\d{4}-\d{2}-\d{2} \d{4}\.md$/.test(path),
+    );
+    expect((await hubs.more.filesAt(head))[name!]).toMatch(
+      /^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: \d{4}-\d{2}-\d{2} \d{4}\n/,
+    );
 
     await page.goto(`/repo/${id}/Notes`);
-    await page.getByRole("button", { name: "New document" }).click();
-    await page.getByLabel("Title").fill("plan");
-    await page.getByRole("button", { name: "Create document" }).click();
+    await page.getByRole('button', { name: 'New document' }).click();
+    await page.getByLabel('Title').fill('plan');
+    await page.getByRole('button', { name: 'Create document' }).click();
     await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
   } finally {
     await restoreMore();
   }
 });
 
-test("a document is made with a header, in a folder, and is numbered past a file of the same name", async ({ page }) => {
+test('a document is made with a header, in a folder, and is numbered past a file of the same name', async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Projects/Q4 plan.md": "an older file", "Notes/Projects/x.md": "x" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Projects/Q4 plan.md': 'an older file',
+      'Notes/Projects/x.md': 'x',
+    });
     await page.goto(`/repo/${id}/Notes/Projects`);
-    await page.getByRole("button", { name: "New document" }).click();
-    await expect(page.getByRole("button", { name: "Create document" })).toBeVisible();
-    await page.getByLabel("Title").fill("Q4 plan");
-    await page.getByRole("button", { name: "Create document" }).click();
+    await page.getByRole('button', { name: 'New document' }).click();
+    await expect(page.getByRole('button', { name: 'Create document' })).toBeVisible();
+    await page.getByLabel('Title').fill('Q4 plan');
+    await page.getByRole('button', { name: 'Create document' }).click();
 
     await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
     const head = (await hubs.more.branchHead()) as string;
-    const text = (await hubs.more.filesAt(head))["Notes/Projects/Q4 plan 2.md"]!;
-    expect(text).toMatch(/^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\ncreated: "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"\n---\n\n# Q4 plan\n$/);
-    expect(await hubs.more.show(head, "%B")).toMatch(/^Create “Q4 plan 2”\n\nNotes\/Projects\/Q4 plan 2\.md\nA new document in Notes\/Projects, 2 words to start with\.\nDocument id: [0-9a-hjkmnp-tv-z]{26}$/);
+    const text = (await hubs.more.filesAt(head))['Notes/Projects/Q4 plan 2.md']!;
+    expect(text).toMatch(
+      /^---\nid: [0-9a-hjkmnp-tv-z]{26}\ntitle: Q4 plan\ncreated: "\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"\n---\n\n# Q4 plan\n$/,
+    );
+    expect(await hubs.more.show(head, '%B')).toMatch(
+      /^Create “Q4 plan 2”\n\nNotes\/Projects\/Q4 plan 2\.md\nA new document in Notes\/Projects, 2 words to start with\.\nDocument id: [0-9a-hjkmnp-tv-z]{26}$/,
+    );
   } finally {
     await restoreMore();
   }
 });
 
-test("a title with nothing to name a file by is refused, and says so, and nothing is made", async ({ page }) => {
+test('a title with nothing to name a file by is refused, and says so, and nothing is made', async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST });
+    const id = await repositoryWith(page, { 'Notes/fjord.vault.json': VAULT_MANIFEST });
     const head = (await hubs.more.branchHead()) as string;
     await page.goto(`/repo/${id}/Notes`);
-    await page.getByRole("button", { name: "New document" }).click();
-    await page.getByLabel("Title").fill("***");
-    await page.getByRole("button", { name: "Create document" }).click();
-    await expect(page.getByText("A title needs some letters or digits")).toBeVisible();
+    await page.getByRole('button', { name: 'New document' }).click();
+    await page.getByLabel('Title').fill('***');
+    await page.getByRole('button', { name: 'Create document' }).click();
+    await expect(page.getByText('A title needs some letters or digits')).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(head);
-    await page.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByRole("button", { name: "New document" })).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await expect(page.getByRole('button', { name: 'New document' })).toBeVisible();
   } finally {
     await restoreMore();
   }
 });
 
-test("an encrypted vault is offered the encrypted way only, and the plaintext way refuses it if asked", async ({ page }) => {
+test('an encrypted vault is offered the encrypted way only, and the plaintext way refuses it if asked', async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Secret/fjord.vault.json": ENCRYPTED_MANIFEST, "Secret/recipients.txt": RECIPIENTS, "Secret/x.md.age": "age-encryption.org/v1", "Notes/fjord.vault.json": VAULT_MANIFEST });
+    const id = await repositoryWith(page, {
+      'Secret/fjord.vault.json': ENCRYPTED_MANIFEST,
+      'Secret/recipients.txt': RECIPIENTS,
+      'Secret/x.md.age': 'age-encryption.org/v1',
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+    });
     await page.goto(`/repo/${id}/Secret`);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
     // Offered, but it encrypts in the browser: the form says so.
-    await page.getByRole("button", { name: "New document" }).click();
-    await expect(page.getByText("The file is encrypted here, in this browser.")).toBeVisible();
+    await page.getByRole('button', { name: 'New document' }).click();
+    await expect(page.getByText('The file is encrypted here, in this browser.')).toBeVisible();
     await page.goto(`/repo/${id}/Notes`);
-    await expect(page.getByRole("button", { name: "New document" })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'New document' })).toBeVisible();
 
     const head = (await hubs.more.branchHead()) as string;
     const response = await page.request.post(`/api/connections/${id}/files`, {
       headers: { origin: BASE },
-      data: { vault: "Secret", folder: "", title: "leak", localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 } },
+      data: {
+        vault: 'Secret',
+        folder: '',
+        title: 'leak',
+        localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 },
+      },
     });
     expect(response.status()).toBe(422);
-    expect((await response.json()).error.code).toBe("encrypted_vault");
+    expect((await response.json()).error.code).toBe('encrypted_vault');
     expect(await hubs.more.branchHead()).toBe(head);
   } finally {
     await restoreMore();
   }
 });
 
-test("who may make a file: a signed-in person, from this site, in their own repository, in a folder that is there", async ({ page, browser }) => {
+test('who may make a file: a signed-in person, from this site, in their own repository, in a folder that is there', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/a.md": "a" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/a.md': 'a',
+    });
     const url = `/api/connections/${id}/files`;
     const head = (await hubs.more.branchHead()) as string;
     const minute = { year: 2026, month: 10, day: 22, hour: 14, minute: 30 };
-    const good = { vault: "Notes", folder: "", title: "Idea", localMinute: minute };
-    const post = (data: unknown, origin: string = BASE) => page.request.post(url, { headers: { origin }, data });
+    const good = { vault: 'Notes', folder: '', title: 'Idea', localMinute: minute };
+    const post = (data: unknown, origin: string = BASE) =>
+      page.request.post(url, { headers: { origin }, data });
 
-    expect((await post(good, "https://evil.example")).status()).toBe(403);
-    expect((await post({ ...good, vault: "../Other" })).status()).toBe(400);
-    expect((await post({ ...good, folder: "../x" })).status()).toBe(400);
-    expect((await post({ ...good, title: "one\ntwo" })).status()).toBe(400);
+    expect((await post(good, 'https://evil.example')).status()).toBe(403);
+    expect((await post({ ...good, vault: '../Other' })).status()).toBe(400);
+    expect((await post({ ...good, folder: '../x' })).status()).toBe(400);
+    expect((await post({ ...good, title: 'one\ntwo' })).status()).toBe(400);
     expect((await post({ ...good, localMinute: { ...minute, month: 13 } })).status()).toBe(400);
     expect((await page.request.get(url)).status()).toBe(405);
-    expect(((await (await post({ ...good, vault: "Nowhere" })).json()).error.code)).toBe("unknown_vault");
-    const gone = await post({ ...good, folder: "Missing" });
+    expect((await (await post({ ...good, vault: 'Nowhere' })).json()).error.code).toBe(
+      'unknown_vault',
+    );
+    const gone = await post({ ...good, folder: 'Missing' });
     expect(gone.status()).toBe(409);
-    expect((await gone.json()).error.code).toBe("folder_gone");
-    expect(((await (await post({ ...good, kind: "document", title: "---" })).json()).error.code)).toBe("bad_title");
+    expect((await gone.json()).error.code).toBe('folder_gone');
+    expect(
+      (await (await post({ ...good, kind: 'document', title: '---' })).json()).error.code,
+    ).toBe('bad_title');
 
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.13" } });
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.13' },
+    });
     const other = await stranger.newPage();
-    expect((await other.request.post(url, { headers: { origin: BASE }, data: good })).status()).toBe(401);
+    expect(
+      (await other.request.post(url, { headers: { origin: BASE }, data: good })).status(),
+    ).toBe(401);
     await signUp(other);
-    expect((await other.request.post(url, { headers: { origin: BASE }, data: good })).status()).toBe(404);
+    expect(
+      (await other.request.post(url, { headers: { origin: BASE }, data: good })).status(),
+    ).toBe(404);
     await stranger.close();
 
     // None of that wrote anything; the right call writes exactly one file.
     expect(await hubs.more.branchHead()).toBe(head);
     const made = await post(good);
     expect(made.status()).toBe(201);
-    expect(await made.json()).toEqual({ path: "Notes/Idea.md", commit: expect.stringMatching(/^[0-9a-f]{40}$/) });
+    expect(await made.json()).toEqual({
+      path: 'Notes/Idea.md',
+      commit: expect.stringMatching(/^[0-9a-f]{40}$/),
+    });
   } finally {
     await restoreMore();
   }
@@ -2294,218 +3561,320 @@ test("who may make a file: a signed-in person, from this site, in their own repo
 
 // --- Deleting and putting back (ROADMAP 1b.12) ----------------------------------------------------------------
 
-test("a note is deleted after asking, in one commit, and Undo puts back exactly what was there", async ({ page }) => {
+test('a note is deleted after asking, in one commit, and Undo puts back exactly what was there', async ({
+  page,
+}) => {
   try {
-    const who = { email: `grace-${Date.now()}@example.com`, name: "Grace Hopper" };
-    const text = "\ufeff# Weekly\r\n\r\ntrailing  \r\n日本語 💧";
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Weekly review.md": text, "Notes/other.md": "untouched" }, who);
+    const who = { email: `grace-${Date.now()}@example.com`, name: 'Grace Hopper' };
+    const text = '\ufeff# Weekly\r\n\r\ntrailing  \r\n日本語 💧';
+    const id = await repositoryWith(
+      page,
+      {
+        'Notes/fjord.vault.json': VAULT_MANIFEST,
+        'Notes/Weekly review.md': text,
+        'Notes/other.md': 'untouched',
+      },
+      who,
+    );
     const before = (await hubs.more.branchHead()) as string;
 
     await page.goto(`/repo/${id}/Notes/Weekly review.md`);
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
     await expect(page.getByText("It stays in the repository's history")).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(before); // asked, not done
-    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await page.getByRole('button', { name: 'Yes, delete' }).click();
 
     await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
-    await expect(page.getByText("Deleted “Weekly review”")).toBeVisible();
+    await expect(page.getByText('Deleted “Weekly review”')).toBeVisible();
     const deleted = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(deleted, "%P")).toBe(before);
-    expect(await hubs.more.show(deleted, "%an <%ae>")).toBe(`Grace Hopper <${who.email}>`);
-    expect(await hubs.more.show(deleted, "%B")).toBe("Delete “Weekly review”\n\nNotes/Weekly review.md\nKept in this history; Fjord Web can put it back from Recently deleted.");
-    expect(Object.keys(await hubs.more.filesAt(deleted)).sort()).toEqual(["Notes/fjord.vault.json", "Notes/other.md"]);
+    expect(await hubs.more.show(deleted, '%P')).toBe(before);
+    expect(await hubs.more.show(deleted, '%an <%ae>')).toBe(`Grace Hopper <${who.email}>`);
+    expect(await hubs.more.show(deleted, '%B')).toBe(
+      'Delete “Weekly review”\n\nNotes/Weekly review.md\nKept in this history; Fjord Web can put it back from Recently deleted.',
+    );
+    expect(Object.keys(await hubs.more.filesAt(deleted)).sort()).toEqual([
+      'Notes/fjord.vault.json',
+      'Notes/other.md',
+    ]);
 
-    await page.getByRole("button", { name: "Undo" }).click();
-    await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("Weekly review");
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByRole('list', { name: 'Folder contents' })).toContainText(
+      'Weekly review',
+    );
     const restored = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(restored, "%P")).toBe(deleted);
-    expect((await hubs.more.filesAt(restored))["Notes/Weekly review.md"]).toBe(text);
+    expect(await hubs.more.show(restored, '%P')).toBe(deleted);
+    expect((await hubs.more.filesAt(restored))['Notes/Weekly review.md']).toBe(text);
     await hubs.more.fsck();
     // Said once.
     await page.reload();
-    await expect(page.getByText("Deleted “Weekly review”")).toHaveCount(0);
+    await expect(page.getByText('Deleted “Weekly review”')).toHaveCount(0);
   } finally {
     await restoreMore();
   }
 });
 
-test("Recently deleted lists what went, and a file is put back where it was or somewhere else", async ({ page }) => {
+test('Recently deleted lists what went, and a file is put back where it was or somewhere else', async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/a.md": "first", "Notes/b.md": "second", "Notes/Sub/keep.md": "k" });
-    for (const name of ["a", "b"]) {
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/a.md': 'first',
+      'Notes/b.md': 'second',
+      'Notes/Sub/keep.md': 'k',
+    });
+    for (const name of ['a', 'b']) {
       await page.goto(`/repo/${id}/Notes/${name}.md`);
-      await page.getByRole("button", { name: "Delete", exact: true }).click();
-      await page.getByRole("button", { name: "Yes, delete" }).click();
+      await page.getByRole('button', { name: 'Delete', exact: true }).click();
+      await page.getByRole('button', { name: 'Yes, delete' }).click();
       await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
     }
 
     await page.goto(`/deleted/${id}`);
-    const list = page.getByRole("list", { name: "Recently deleted" });
-    await expect(list.getByRole("listitem")).toHaveCount(2);
-    await expect(list.getByRole("listitem").first()).toContainText("Notes/b.md"); // newest first
+    const list = page.getByRole('list', { name: 'Recently deleted' });
+    await expect(list.getByRole('listitem')).toHaveCount(2);
+    await expect(list.getByRole('listitem').first()).toContainText('Notes/b.md'); // newest first
 
     // Where it was.
-    await list.getByRole("listitem").filter({ hasText: "Notes/a.md" }).getByRole("button", { name: "Put back" }).click();
-    await expect(page.getByRole("link", { name: "Notes/a.md" })).toBeVisible();
-    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/a.md"]).toBe("first");
+    await list
+      .getByRole('listitem')
+      .filter({ hasText: 'Notes/a.md' })
+      .getByRole('button', { name: 'Put back' })
+      .click();
+    await expect(page.getByRole('link', { name: 'Notes/a.md' })).toBeVisible();
+    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))['Notes/a.md']).toBe(
+      'first',
+    );
 
     // Somewhere else, in a folder that is there, with the same bytes.
-    const second = list.getByRole("listitem").filter({ hasText: "Notes/b.md" });
-    await second.getByLabel("Put Notes/b.md back at").fill("Notes/Sub/Renamed b.md");
-    await second.getByRole("button", { name: "Put back" }).click();
-    await expect(page.getByRole("link", { name: "Notes/Sub/Renamed b.md" })).toBeVisible();
-    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Sub/Renamed b.md"]).toBe("second");
+    const second = list.getByRole('listitem').filter({ hasText: 'Notes/b.md' });
+    await second.getByLabel('Put Notes/b.md back at').fill('Notes/Sub/Renamed b.md');
+    await second.getByRole('button', { name: 'Put back' }).click();
+    await expect(page.getByRole('link', { name: 'Notes/Sub/Renamed b.md' })).toBeVisible();
+    expect(
+      (await hubs.more.filesAt((await hubs.more.branchHead()) as string))['Notes/Sub/Renamed b.md'],
+    ).toBe('second');
 
     await page.reload();
-    await expect(page.getByText("Nothing was deleted in the last 30 days")).toBeVisible();
+    await expect(page.getByText('Nothing was deleted in the last 30 days')).toBeVisible();
   } finally {
     await restoreMore();
   }
 });
 
-test("a folder is deleted with everything in it after naming how many, and put back together", async ({ page }) => {
+test('a folder is deleted with everything in it after naming how many, and put back together', async ({
+  page,
+}) => {
   try {
-    const files = { "Notes/Projects/a.md": "a", "Notes/Projects/2026/b.md": "b", "Notes/Projects/2026/c.csv": "x,y" };
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, ...files, "Notes/keep.md": "k" });
+    const files = {
+      'Notes/Projects/a.md': 'a',
+      'Notes/Projects/2026/b.md': 'b',
+      'Notes/Projects/2026/c.csv': 'x,y',
+    };
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      ...files,
+      'Notes/keep.md': 'k',
+    });
     await page.goto(`/repo/${id}/Notes/Projects`);
-    await page.getByRole("button", { name: "Delete folder" }).click();
-    await expect(page.getByText("the folder “Projects” and the 3 files in it")).toBeVisible();
-    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await page.getByRole('button', { name: 'Delete folder' }).click();
+    await expect(page.getByText('the folder “Projects” and the 3 files in it')).toBeVisible();
+    await page.getByRole('button', { name: 'Yes, delete' }).click();
 
     await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
     const deleted = (await hubs.more.branchHead()) as string;
-    expect(Object.keys(await hubs.more.filesAt(deleted)).sort()).toEqual(["Notes/fjord.vault.json", "Notes/keep.md"]);
-    expect(await hubs.more.show(deleted, "%B")).toMatch(/^Delete folder “Projects” \(3 files\)\n\nRemoves 3 files from Notes\/Projects:\n- Notes\/Projects\//);
+    expect(Object.keys(await hubs.more.filesAt(deleted)).sort()).toEqual([
+      'Notes/fjord.vault.json',
+      'Notes/keep.md',
+    ]);
+    expect(await hubs.more.show(deleted, '%B')).toMatch(
+      /^Delete folder “Projects” \(3 files\)\n\nRemoves 3 files from Notes\/Projects:\n- Notes\/Projects\//,
+    );
 
     await page.goto(`/deleted/${id}`);
-    const list = page.getByRole("list", { name: "Recently deleted" });
-    await expect(list.getByRole("listitem")).toHaveCount(1);
-    await expect(list).toContainText("3 files");
-    await list.getByRole("button", { name: "Put all back" }).click();
-    await expect(page.getByText("3 files, where they were.")).toBeVisible();
+    const list = page.getByRole('list', { name: 'Recently deleted' });
+    await expect(list.getByRole('listitem')).toHaveCount(1);
+    await expect(list).toContainText('3 files');
+    await list.getByRole('button', { name: 'Put all back' }).click();
+    await expect(page.getByText('3 files, where they were.')).toBeVisible();
     expect(await hubs.more.filesAt((await hubs.more.branchHead()) as string)).toMatchObject(files);
   } finally {
     await restoreMore();
   }
 });
 
-test("only what was confirmed is deleted: a folder that gained a file since is left alone", async ({ page }) => {
+test('only what was confirmed is deleted: a folder that gained a file since is left alone', async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Projects/a.md": "a", "Notes/Projects/b.md": "b" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Projects/a.md': 'a',
+      'Notes/Projects/b.md': 'b',
+    });
     await page.goto(`/repo/${id}/Notes/Projects`);
-    await page.getByRole("button", { name: "Delete folder" }).click();
-    const theirs = await hubs.more.commitFiles({ "Notes/Projects/c.md": "arrived meanwhile" });
-    await page.getByRole("button", { name: "Yes, delete" }).click();
-    await expect(page.getByText("Nothing was deleted", { exact: true })).toBeVisible();
-    await expect(page.getByText("now holds 3 files")).toBeVisible();
+    await page.getByRole('button', { name: 'Delete folder' }).click();
+    const theirs = await hubs.more.commitFiles({ 'Notes/Projects/c.md': 'arrived meanwhile' });
+    await page.getByRole('button', { name: 'Yes, delete' }).click();
+    await expect(page.getByText('Nothing was deleted', { exact: true })).toBeVisible();
+    await expect(page.getByText('now holds 3 files')).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(theirs);
-    await page.getByRole("button", { name: "Look again" }).click();
+    await page.getByRole('button', { name: 'Look again' }).click();
     // The page is read again, with the dialog closed (the question is still in the page, hidden, until it is asked again).
-    await expect(page.getByText("the 3 files in it")).toBeHidden();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await page.getByRole("button", { name: "Delete folder" }).click();
-    await expect(page.getByText("the 3 files in it")).toBeVisible();
+    await expect(page.getByText('the 3 files in it')).toBeHidden();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Delete folder' }).click();
+    await expect(page.getByText('the 3 files in it')).toBeVisible();
   } finally {
     await restoreMore();
   }
 });
 
-test("a note changed in the repository since it was shown is not deleted", async ({ page }) => {
+test('a note changed in the repository since it was shown is not deleted', async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "mine\n" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'mine\n',
+    });
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
-    const theirs = await hubs.more.commitFiles({ "Notes/n.md": "changed elsewhere\n" });
-    await page.getByRole("button", { name: "Yes, delete" }).click();
-    await expect(page.getByText("changed in the repository after you looked at it")).toBeVisible();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    const theirs = await hubs.more.commitFiles({ 'Notes/n.md': 'changed elsewhere\n' });
+    await page.getByRole('button', { name: 'Yes, delete' }).click();
+    await expect(page.getByText('changed in the repository after you looked at it')).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(theirs);
-    expect((await hubs.more.filesAt(theirs))["Notes/n.md"]).toBe("changed elsewhere\n");
+    expect((await hubs.more.filesAt(theirs))['Notes/n.md']).toBe('changed elsewhere\n');
   } finally {
     await restoreMore();
   }
 });
 
-test("unsaved changes are saved as a version before a note is deleted, so putting it back has them", async ({ page }) => {
+test('unsaved changes are saved as a version before a note is deleted, so putting it back has them', async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "original\n" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'original\n',
+    });
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await noteEditor(page, "n.md").click();
-    await page.keyboard.press("ControlOrMeta+End");
-    await page.keyboard.type("typed, never saved");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await noteEditor(page, 'n.md').click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.type('typed, never saved');
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
     const before = (await hubs.more.branchHead()) as string;
 
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
-    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByRole('button', { name: 'Yes, delete' }).click();
     await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
 
     const deleted = (await hubs.more.branchHead()) as string;
-    const version = (await hubs.more.show(deleted, "%P")) as string;
-    expect(await hubs.more.show(version, "%P")).toBe(before);
-    expect((await hubs.more.filesAt(version))["Notes/n.md"]).toBe("originaltyped, never saved\n"); // the document editor (drive) types into the paragraph; and a file with no id gets none (RFC 0002)
-    await page.getByRole("button", { name: "Undo" }).click();
-    await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("n"); // put back, and the page read again
+    const version = (await hubs.more.show(deleted, '%P')) as string;
+    expect(await hubs.more.show(version, '%P')).toBe(before);
+    expect((await hubs.more.filesAt(version))['Notes/n.md']).toBe('originaltyped, never saved\n'); // the document editor (drive) types into the paragraph; and a file with no id gets none (RFC 0002)
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByRole('list', { name: 'Folder contents' })).toContainText('n'); // put back, and the page read again
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await expect(noteEditor(page, "n.md")).toContainText("typed, never saved");
-    await expect(page.getByText("Your changes were kept")).toHaveCount(0); // it is the repository's now, not a draft
+    await expect(noteEditor(page, 'n.md')).toContainText('typed, never saved');
+    await expect(page.getByText('Your changes were kept')).toHaveCount(0); // it is the repository's now, not a draft
   } finally {
     await restoreMore();
   }
 });
 
-test("putting back is never over anything: a path that is taken is named, and what is there stays", async ({ page }) => {
+test('putting back is never over anything: a path that is taken is named, and what is there stays', async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "the deleted one\n" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': 'the deleted one\n',
+    });
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
-    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByRole('button', { name: 'Yes, delete' }).click();
     await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
-    const theirs = await hubs.more.commitFiles({ "Notes/n.md": "made since\n" });
+    const theirs = await hubs.more.commitFiles({ 'Notes/n.md': 'made since\n' });
 
-    await page.getByRole("button", { name: "Undo" }).click();
-    await expect(page.getByText("Something is already at that path")).toBeVisible();
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByText('Something is already at that path')).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(theirs);
-    expect((await hubs.more.filesAt(theirs))["Notes/n.md"]).toBe("made since\n");
+    expect((await hubs.more.filesAt(theirs))['Notes/n.md']).toBe('made since\n');
 
     // Somewhere free it goes.
     await page.goto(`/deleted/${id}`);
-    await page.getByLabel("Put Notes/n.md back at").fill("Notes/n restored.md");
-    await page.getByRole("button", { name: "Put back" }).click();
-    await expect(page.getByRole("link", { name: "Notes/n restored.md" })).toBeVisible();
-    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/n restored.md"]).toBe("the deleted one\n");
+    await page.getByLabel('Put Notes/n.md back at').fill('Notes/n restored.md');
+    await page.getByRole('button', { name: 'Put back' }).click();
+    await expect(page.getByRole('link', { name: 'Notes/n restored.md' })).toBeVisible();
+    expect(
+      (await hubs.more.filesAt((await hubs.more.branchHead()) as string))['Notes/n restored.md'],
+    ).toBe('the deleted one\n');
   } finally {
     await restoreMore();
   }
 });
 
-test("who may delete and put back: a signed-in person, from this site, in their own repository, never a vault's own files", async ({ page, browser }) => {
+test("who may delete and put back: a signed-in person, from this site, in their own repository, never a vault's own files", async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Secret/fjord.vault.json": ENCRYPTED_MANIFEST, "Secret/recipients.txt": RECIPIENTS, "Secret/x.md.age": "age-encryption.org/v1", "Notes/n.md": "x\n" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Secret/fjord.vault.json': ENCRYPTED_MANIFEST,
+      'Secret/recipients.txt': RECIPIENTS,
+      'Secret/x.md.age': 'age-encryption.org/v1',
+      'Notes/n.md': 'x\n',
+    });
     const del = `/api/connections/${id}/files/delete`;
     const res = `/api/connections/${id}/files/restore`;
     const head = (await hubs.more.branchHead()) as string;
-    const blob = gitBlobId("x\n");
-    const file = { vault: "Notes", type: "file", path: "Notes/n.md", blob };
-    const post = (url: string, data: unknown, origin: string = BASE) => page.request.post(url, { headers: { origin }, data });
+    const blob = gitBlobId('x\n');
+    const file = { vault: 'Notes', type: 'file', path: 'Notes/n.md', blob };
+    const post = (url: string, data: unknown, origin: string = BASE) =>
+      page.request.post(url, { headers: { origin }, data });
 
-    expect((await post(del, file, "https://evil.example")).status()).toBe(403);
-    expect((await post(res, { ids: [1] }, "https://evil.example")).status()).toBe(403);
-    expect((await post(del, { ...file, blob: "main" })).status()).toBe(400);
-    expect((await post(del, { ...file, path: "../x.md" })).status()).toBe(400);
+    expect((await post(del, file, 'https://evil.example')).status()).toBe(403);
+    expect((await post(res, { ids: [1] }, 'https://evil.example')).status()).toBe(403);
+    expect((await post(del, { ...file, blob: 'main' })).status()).toBe(400);
+    expect((await post(del, { ...file, path: '../x.md' })).status()).toBe(400);
     expect((await post(res, { ids: [] })).status()).toBe(400);
     expect((await page.request.get(del)).status()).toBe(405);
-    expect(((await (await post(del, { vault: "Notes", type: "file", path: "Notes/fjord.vault.json", blob })).json()).error.code)).toBe("upstream_changed"); // not its blob
-    expect(((await (await post(del, { vault: "Notes", type: "folder", path: "Notes", files: 2 })).json()).error.code)).toBe("protected");
+    expect(
+      (
+        await (
+          await post(del, { vault: 'Notes', type: 'file', path: 'Notes/fjord.vault.json', blob })
+        ).json()
+      ).error.code,
+    ).toBe('upstream_changed'); // not its blob
+    expect(
+      (await (await post(del, { vault: 'Notes', type: 'folder', path: 'Notes', files: 2 })).json())
+        .error.code,
+    ).toBe('protected');
     // An encrypted vault this version writes is deleted from like any other (ROADMAP 2b.5): the blob given is not that file's.
-    expect(((await (await post(del, { vault: "Secret", type: "file", path: "Secret/x.md.age", blob })).json()).error.code)).toBe("upstream_changed");
-    expect(((await (await post(res, { ids: [999] })).json()).error.code)).toBe("not_found");
+    expect(
+      (
+        await (
+          await post(del, { vault: 'Secret', type: 'file', path: 'Secret/x.md.age', blob })
+        ).json()
+      ).error.code,
+    ).toBe('upstream_changed');
+    expect((await (await post(res, { ids: [999] })).json()).error.code).toBe('not_found');
 
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.14" } });
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.14' },
+    });
     const other = await stranger.newPage();
-    expect((await other.request.post(del, { headers: { origin: BASE }, data: file })).status()).toBe(401);
+    expect(
+      (await other.request.post(del, { headers: { origin: BASE }, data: file })).status(),
+    ).toBe(401);
     await signUp(other);
-    expect((await other.request.post(del, { headers: { origin: BASE }, data: file })).status()).toBe(404);
-    expect((await other.request.post(res, { headers: { origin: BASE }, data: { ids: [1] } })).status()).toBe(404);
+    expect(
+      (await other.request.post(del, { headers: { origin: BASE }, data: file })).status(),
+    ).toBe(404);
+    expect(
+      (await other.request.post(res, { headers: { origin: BASE }, data: { ids: [1] } })).status(),
+    ).toBe(404);
     expect((await other.request.get(`/deleted/${id}`)).status()).toBe(404);
     await stranger.close();
 
@@ -2522,13 +3891,15 @@ test("who may delete and put back: a signed-in person, from this site, in their 
   }
 });
 
-test("an encrypted file asks for an identity, and a document opens in its editor", async ({ page }) => {
+test('an encrypted file asks for an identity, and a document opens in its editor', async ({
+  page,
+}) => {
   const id = await connected(page);
   await page.goto(`/repo/${id}/Private/secret.md.age`);
-  await expect(page.getByText("No identity in this browser")).toBeVisible();
-  await expect(page.getByRole("textbox")).toHaveCount(0);
+  await expect(page.getByText('No identity in this browser')).toBeVisible();
+  await expect(page.getByRole('textbox')).toHaveCount(0);
   await page.goto(`/repo/${id}/Public/plan.fj.md`);
-  await expect(noteEditor(page, "plan.fj.md")).toContainText("Plan");
+  await expect(noteEditor(page, 'plan.fj.md')).toContainText('Plan');
 });
 
 // --- The document editor (ROADMAP 1b.3) --------------------------------------------------------------------------
@@ -2538,13 +3909,17 @@ test("an encrypted file asks for an identity, and a document opens in its editor
  * (the visual editor's) the browser decides what they do, and on macOS they scroll the page instead of moving the caret;
  * the caret is placed through the selection, which behaves the same everywhere.
  */
-async function typeAtEndOf(page: import("@playwright/test").Page, element: import("@playwright/test").Locator, text: string) {
+async function typeAtEndOf(
+  page: import('@playwright/test').Page,
+  element: import('@playwright/test').Locator,
+  text: string,
+) {
   await element.click();
   await element.evaluate((node) => {
     const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
     let last: Node | null = null;
     for (let next = walker.nextNode(); next; next = walker.nextNode()) last = next;
-    if (!last) throw new Error("there is no text to put the caret in");
+    if (!last) throw new Error('there is no text to put the caret in');
     const range = document.createRange();
     range.setStart(last, last.textContent?.length ?? 0);
     range.collapse(true);
@@ -2555,205 +3930,277 @@ async function typeAtEndOf(page: import("@playwright/test").Page, element: impor
   await page.keyboard.type(text);
 }
 
-const DOC_HEADER = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\ntitle: Q4 plan\nx-future:\n  - kept\n  - as is\ncreated: 2026-10-16T09:34:00Z\n---\n";
+const DOC_HEADER =
+  '---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\ntitle: Q4 plan\nx-future:\n  - kept\n  - as is\ncreated: 2026-10-16T09:34:00Z\n---\n';
 
-test("a document opens in the visual editor, an edit is kept as a draft, and a version leaves the header as it was", async ({ page }) => {
+test('a document opens in the visual editor, an edit is kept as a draft, and a version leaves the header as it was', async ({
+  page,
+}) => {
   try {
-    const body = "\n# Plan\n\nThe quick brown fox.\n\n- one\n- two\n";
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Q4 plan.fj.md": DOC_HEADER + body });
+    const body = '\n# Plan\n\nThe quick brown fox.\n\n- one\n- two\n';
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Q4 plan.fj.md': DOC_HEADER + body,
+    });
     await page.goto(`/repo/${id}/Notes/Q4 plan.fj.md`);
 
-    const editor = noteEditor(page, "Q4 plan.fj.md");
-    await expect(editor).toContainText("The quick brown fox.");
-    await expect(page.getByRole("toolbar").filter({ hasText: "Block type" })).toBeVisible(); // the formatting toolbar (the comments have their own)
+    const editor = noteEditor(page, 'Q4 plan.fj.md');
+    await expect(editor).toContainText('The quick brown fox.');
+    await expect(page.getByRole('toolbar').filter({ hasText: 'Block type' })).toBeVisible(); // the formatting toolbar (the comments have their own)
     // The header is not in the editor: it is kept by the app, whatever the person types.
-    await expect(editor).not.toContainText("x-future");
-    await expect(page.getByRole("note")).toHaveCount(0);
+    await expect(editor).not.toContainText('x-future');
+    await expect(page.getByRole('note')).toHaveCount(0);
 
-    await typeAtEndOf(page, editor.locator("p", { hasText: "The quick brown fox." }), " Jumps higher.");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await typeAtEndOf(
+      page,
+      editor.locator('p', { hasText: 'The quick brown fox.' }),
+      ' Jumps higher.',
+    );
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
 
-    await saveWithMessage(page, "Extend the fox");
-    await expect(page.getByText("Version saved")).toBeVisible();
+    await saveWithMessage(page, 'Extend the fox');
+    await expect(page.getByText('Version saved')).toBeVisible();
 
-    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Q4 plan.fj.md"]!;
+    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))[
+      'Notes/Q4 plan.fj.md'
+    ]!;
     expect(saved.startsWith(DOC_HEADER)).toBe(true); // byte for byte, unknown key and all
-    expect(saved.slice(DOC_HEADER.length)).toContain("The quick brown fox. Jumps higher.");
-    expect(saved.endsWith("\n")).toBe(true);
-    expect(await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).toMatch(/^Extend the fox\n\n.+\n\d+ lines? added, \d+ removed/);
+    expect(saved.slice(DOC_HEADER.length)).toContain('The quick brown fox. Jumps higher.');
+    expect(saved.endsWith('\n')).toBe(true);
+    expect(await hubs.more.show((await hubs.more.branchHead()) as string, '%B')).toMatch(
+      /^Extend the fox\n\n.+\n\d+ lines? added, \d+ removed/,
+    );
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("the house style: a document written the same way is edited line for line, and one written another way says which lines would change and waits for the person to choose", async ({ page }) => {
+test('the house style: a document written the same way is edited line for line, and one written another way says which lines would change and waits for the person to choose', async ({
+  page,
+}) => {
   try {
-    const styled = "\n# Plan\n\nThe quick brown fox.\n\n- one\n- two\n\n1. first\n1. second\n";
-    const otherHeader = DOC_HEADER.replace("b8j", "b8k"); // its own id: with the same one, its path would lead to the chooser (RFC 0002)
-    const elsewhere = "\nPlan\n====\n\nThe quick brown fox.\n\n* one\n* two\n\n1. first\n2. second\n";
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Styled.fj.md": DOC_HEADER + styled, "Notes/Elsewhere.fj.md": otherHeader + elsewhere });
+    const styled = '\n# Plan\n\nThe quick brown fox.\n\n- one\n- two\n\n1. first\n1. second\n';
+    const otherHeader = DOC_HEADER.replace('b8j', 'b8k'); // its own id: with the same one, its path would lead to the chooser (RFC 0002)
+    const elsewhere =
+      '\nPlan\n====\n\nThe quick brown fox.\n\n* one\n* two\n\n1. first\n2. second\n';
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Styled.fj.md': DOC_HEADER + styled,
+      'Notes/Elsewhere.fj.md': otherHeader + elsewhere,
+    });
 
     // In the house style: nothing is asked, and the version differs from the file in the edited line alone.
     await page.goto(`/repo/${id}/Notes/Styled.fj.md`);
-    const editor = noteEditor(page, "Styled.fj.md");
-    await expect(editor).toContainText("The quick brown fox.");
+    const editor = noteEditor(page, 'Styled.fj.md');
+    await expect(editor).toContainText('The quick brown fox.');
     await page.waitForTimeout(800);
-    await expect(page.getByRole("region", { name: "Reformatting" })).toHaveCount(0);
-    await typeAtEndOf(page, editor.locator("p", { hasText: "The quick brown fox." }), " Jumps higher.");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible();
-    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Styled.fj.md"]).toBe(DOC_HEADER + styled.replace("fox.", "fox. Jumps higher."));
+    await expect(page.getByRole('region', { name: 'Reformatting' })).toHaveCount(0);
+    await typeAtEndOf(
+      page,
+      editor.locator('p', { hasText: 'The quick brown fox.' }),
+      ' Jumps higher.',
+    );
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
+    await page.getByRole('button', { name: 'Save version' }).click();
+    await expect(page.getByText('Version saved')).toBeVisible();
+    expect(
+      (await hubs.more.filesAt((await hubs.more.branchHead()) as string))['Notes/Styled.fj.md'],
+    ).toBe(DOC_HEADER + styled.replace('fox.', 'fox. Jumps higher.'));
 
     // Written another way: the lines are listed, nothing can be typed, and nothing is kept until the person chooses.
     await page.goto(`/repo/${id}/Notes/Elsewhere.fj.md`);
-    const notice = page.getByRole("region", { name: "Reformatting" });
+    const notice = page.getByRole('region', { name: 'Reformatting' });
     await expect(notice).toBeVisible({ timeout: 30_000 });
-    await expect(notice).toContainText("Editing it here will reformat it");
-    await notice.getByText("See what would change").click();
-    const lines = notice.getByLabel("Lines that would change");
-    for (const line of ["- Plan", "- ====", "+ # Plan", "- * one", "+ - one", "- 2. second", "+ 1. second"]) await expect(lines).toContainText(line);
-    await expect(page.getByRole("textbox", { name: "Elsewhere.fj.md", exact: true })).toHaveAttribute("contenteditable", "false");
-    await expect(status(page)).not.toHaveText("Changes kept as a draft.");
+    await expect(notice).toContainText('Editing it here will reformat it');
+    await notice.getByText('See what would change').click();
+    const lines = notice.getByLabel('Lines that would change');
+    for (const line of [
+      '- Plan',
+      '- ====',
+      '+ # Plan',
+      '- * one',
+      '+ - one',
+      '- 2. second',
+      '+ 1. second',
+    ])
+      await expect(lines).toContainText(line);
+    await expect(
+      page.getByRole('textbox', { name: 'Elsewhere.fj.md', exact: true }),
+    ).toHaveAttribute('contenteditable', 'false');
+    await expect(status(page)).not.toHaveText('Changes kept as a draft.');
 
-    await notice.getByRole("button", { name: "Reformat and edit here" }).click();
+    await notice.getByRole('button', { name: 'Reformat and edit here' }).click();
     await expect(notice).toHaveCount(0);
-    const other = noteEditor(page, "Elsewhere.fj.md");
-    await expect(other).toHaveAttribute("contenteditable", "true");
-    await typeAtEndOf(page, other.locator("p", { hasText: "The quick brown fox." }), " Jumps higher.");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible();
-    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Elsewhere.fj.md"]).toBe(otherHeader + styled.replace("fox.", "fox. Jumps higher."));
+    const other = noteEditor(page, 'Elsewhere.fj.md');
+    await expect(other).toHaveAttribute('contenteditable', 'true');
+    await typeAtEndOf(
+      page,
+      other.locator('p', { hasText: 'The quick brown fox.' }),
+      ' Jumps higher.',
+    );
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
+    await page.getByRole('button', { name: 'Save version' }).click();
+    await expect(page.getByText('Version saved')).toBeVisible();
+    expect(
+      (await hubs.more.filesAt((await hubs.more.branchHead()) as string))['Notes/Elsewhere.fj.md'],
+    ).toBe(otherHeader + styled.replace('fox.', 'fox. Jumps higher.'));
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("a document the visual editor cannot keep as written is shown as Markdown, and edited byte for byte", async ({ page }) => {
+test('a document the visual editor cannot keep as written is shown as Markdown, and edited byte for byte', async ({
+  page,
+}) => {
   try {
-    const body = "\nSome text first.\n\n<details>\n<summary>Raw HTML</summary>\n\nInside.\n\n</details>\n\nA footnote[^1] too.\n\n[^1]: The note.\n";
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Raw.fj.md": DOC_HEADER + body });
+    const body =
+      '\nSome text first.\n\n<details>\n<summary>Raw HTML</summary>\n\nInside.\n\n</details>\n\nA footnote[^1] too.\n\n[^1]: The note.\n';
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Raw.fj.md': DOC_HEADER + body,
+    });
     await page.goto(`/repo/${id}/Notes/Raw.fj.md`);
 
-    await expect(page.getByRole("note")).toContainText("shown as Markdown");
+    await expect(page.getByRole('note')).toContainText('shown as Markdown');
     // It says where, so that it can be fixed: the first spot the visual editor could not keep, by line.
-    await expect(page.getByRole("region", { name: "Why it is shown as Markdown" })).toContainText(/Line \d+:/);
-    const editor = noteEditor(page, "Raw.fj.md");
-    await expect(editor).toContainText("<details>");
-    await expect(page.getByRole("toolbar").filter({ hasText: "Block type" })).toHaveCount(0); // no formatting toolbar (the comments have their own)
+    await expect(page.getByRole('region', { name: 'Why it is shown as Markdown' })).toContainText(
+      /Line \d+:/,
+    );
+    const editor = noteEditor(page, 'Raw.fj.md');
+    await expect(editor).toContainText('<details>');
+    await expect(page.getByRole('toolbar').filter({ hasText: 'Block type' })).toHaveCount(0); // no formatting toolbar (the comments have their own)
 
-    await editor.getByText("Some text first.").click();
-    await page.keyboard.press("End");
-    await page.keyboard.type(" Added.");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible();
+    await editor.getByText('Some text first.').click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' Added.');
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
+    await page.getByRole('button', { name: 'Save version' }).click();
+    await expect(page.getByText('Version saved')).toBeVisible();
 
-    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Raw.fj.md"]!;
-    expect(saved).toBe(DOC_HEADER + body.replace("Some text first.", "Some text first. Added."));
+    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))[
+      'Notes/Raw.fj.md'
+    ]!;
+    expect(saved).toBe(DOC_HEADER + body.replace('Some text first.', 'Some text first. Added.'));
   } finally {
     await restoreMore();
   }
 });
 
-test("a document whose header cannot be read is shown whole as Markdown, because the header is not ours to split", async ({ page }) => {
+test('a document whose header cannot be read is shown whole as Markdown, because the header is not ours to split', async ({
+  page,
+}) => {
   try {
-    const text = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\ntitle: never closed\n\n# Body\n\nText.\n";
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Broken.fj.md": text });
+    const text = '---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\ntitle: never closed\n\n# Body\n\nText.\n';
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Broken.fj.md': text,
+    });
     await page.goto(`/repo/${id}/Notes/Broken.fj.md`);
-    const editor = noteEditor(page, "Broken.fj.md");
-    await expect(editor).toContainText("title: never closed"); // the header is in it: it is the file, whole
-    await expect(page.getByRole("toolbar").filter({ hasText: "Block type" })).toHaveCount(0); // no formatting toolbar (the comments have their own)
-    await editor.getByText("Text.").click();
-    await page.keyboard.press("End");
-    await page.keyboard.type(" More.");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible();
-    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Broken.fj.md"]).toBe(text.replace("Text.", "Text. More."));
+    const editor = noteEditor(page, 'Broken.fj.md');
+    await expect(editor).toContainText('title: never closed'); // the header is in it: it is the file, whole
+    await expect(page.getByRole('toolbar').filter({ hasText: 'Block type' })).toHaveCount(0); // no formatting toolbar (the comments have their own)
+    await editor.getByText('Text.').click();
+    await page.keyboard.press('End');
+    await page.keyboard.type(' More.');
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
+    await page.getByRole('button', { name: 'Save version' }).click();
+    await expect(page.getByText('Version saved')).toBeVisible();
+    expect(
+      (await hubs.more.filesAt((await hubs.more.branchHead()) as string))['Notes/Broken.fj.md'],
+    ).toBe(text.replace('Text.', 'Text. More.'));
   } finally {
     await restoreMore();
   }
 });
 
-test("a document made from a title opens ready to edit, and edits in the toolbar's formats are Markdown in the repository", async ({ page }) => {
+test("a document made from a title opens ready to edit, and edits in the toolbar's formats are Markdown in the repository", async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/other.md": "x" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/other.md': 'x',
+    });
     await page.goto(`/repo/${id}/Notes`);
-    await page.getByRole("button", { name: "New document" }).click();
-    await page.getByLabel("Title").fill("Fresh document");
-    await page.getByRole("button", { name: "Create document" }).click();
+    await page.getByRole('button', { name: 'New document' }).click();
+    await page.getByLabel('Title').fill('Fresh document');
+    await page.getByRole('button', { name: 'Create document' }).click();
     await expect(page).toHaveURL(DOC_PLACE, { timeout: 30_000 }); // RFC 0002: a new Doc has its id, so its address is by id
 
-    const editor = noteEditor(page, "Fresh document.md");
-    await expect(editor).toContainText("Fresh document");
-    await typeAtEndOf(page, editor.locator("h1"), "");
-    await page.keyboard.press("Enter");
+    const editor = noteEditor(page, 'Fresh document.md');
+    await expect(editor).toContainText('Fresh document');
+    await typeAtEndOf(page, editor.locator('h1'), '');
+    await page.keyboard.press('Enter');
     // Markdown shortcuts, as the toolbar's formats write them.
-    await page.keyboard.type("- first");
-    await page.keyboard.press("Enter");
-    await page.keyboard.type("second");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible();
+    await page.keyboard.type('- first');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('second');
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
+    await page.getByRole('button', { name: 'Save version' }).click();
+    await expect(page.getByText('Version saved')).toBeVisible();
 
-    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Fresh document.md"]!;
-    expect(saved).toMatch(/^---\nid: [0-9a-z]{26}\ntitle: Fresh document\ncreated: .+\n---\n\n# Fresh document\n\n- first\n- second\n$/);
+    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))[
+      'Notes/Fresh document.md'
+    ]!;
+    expect(saved).toMatch(
+      /^---\nid: [0-9a-z]{26}\ntitle: Fresh document\ncreated: .+\n---\n\n# Fresh document\n\n- first\n- second\n$/,
+    );
   } finally {
     await restoreMore();
   }
 });
 
-test("a note from another tool is shown as it is: line endings and a byte order mark are not rewritten", async ({ page }) => {
+test('a note from another tool is shown as it is: line endings and a byte order mark are not rewritten', async ({
+  page,
+}) => {
   try {
-    const crlf = "# Windows note\r\n\r\n- one\r\n- two\r\n";
-    const mixed = "unix\nwindows\r\nold mac\rend";
+    const crlf = '# Windows note\r\n\r\n- one\r\n- two\r\n';
+    const mixed = 'unix\nwindows\r\nold mac\rend';
     const id = await repositoryWith(page, {
-      "Notes/fjord.vault.json": VAULT_MANIFEST,
-      "Notes/crlf.md": crlf,
-      "Notes/mixed.md": mixed,
-      "Notes/bom.md": "﻿# With a BOM\n",
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/crlf.md': crlf,
+      'Notes/mixed.md': mixed,
+      'Notes/bom.md': '﻿# With a BOM\n',
     });
 
     // Every line break is CRLF: nothing is shown that is not text, and the lines are the lines.
     await page.goto(`/repo/${id}/Notes/crlf.md`);
-    const lines = noteEditor(page, "crlf.md").locator(".cm-line");
+    const lines = noteEditor(page, 'crlf.md').locator('.cm-line');
     await expect(lines).toHaveCount(5);
-    await expect(lines.first()).toHaveText("# Windows note");
-    await expect(page.locator(".cm-specialChar")).toHaveCount(0);
+    await expect(lines.first()).toHaveText('# Windows note');
+    await expect(page.locator('.cm-specialChar')).toHaveCount(0);
 
     // A note that mixes them shows each carriage return as the control character it is: two of them here, in three lines
     // (the lines end at the line feeds; the carriage returns are characters).
     await page.goto(`/repo/${id}/Notes/mixed.md`);
-    await expect(noteEditor(page, "mixed.md").locator(".cm-line")).toHaveCount(3);
-    await expect(page.locator(".cm-specialChar")).toHaveCount(2);
+    await expect(noteEditor(page, 'mixed.md').locator('.cm-line')).toHaveCount(3);
+    await expect(page.locator('.cm-specialChar')).toHaveCount(2);
 
     // A byte order mark is kept, and shown as one.
     await page.goto(`/repo/${id}/Notes/bom.md`);
-    await expect(noteEditor(page, "bom.md")).toContainText("# With a BOM");
-    await expect(page.locator(".cm-specialChar")).toHaveCount(1);
+    await expect(noteEditor(page, 'bom.md')).toContainText('# With a BOM');
+    await expect(page.locator('.cm-specialChar')).toHaveCount(1);
   } finally {
     await restoreMore();
   }
 });
 
-test("a file that is not text, or is too large, is not shown as a note", async ({ page }) => {
+test('a file that is not text, or is too large, is not shown as a note', async ({ page }) => {
   try {
     const id = await repositoryWith(page, {
-      "Notes/fjord.vault.json": VAULT_MANIFEST,
-      "Notes/binary.md": Uint8Array.from([0x68, 0x69, 0xff, 0xfe, 0x0a]),
-      "Notes/huge.md": "x".repeat(1024 * 1024 + 1),
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/binary.md': Uint8Array.from([0x68, 0x69, 0xff, 0xfe, 0x0a]),
+      'Notes/huge.md': 'x'.repeat(1024 * 1024 + 1),
     });
     await page.goto(`/repo/${id}/Notes/binary.md`);
-    await expect(page.getByText("This file is not valid UTF-8 text")).toBeVisible();
-    await expect(page.getByRole("textbox")).toHaveCount(0);
+    await expect(page.getByText('This file is not valid UTF-8 text')).toBeVisible();
+    await expect(page.getByRole('textbox')).toHaveCount(0);
 
     await page.goto(`/repo/${id}/Notes/huge.md`);
-    await expect(page.getByText("This note is larger than 1 MB")).toBeVisible();
-    await expect(page.getByRole("textbox")).toHaveCount(0);
+    await expect(page.getByText('This note is larger than 1 MB')).toBeVisible();
+    await expect(page.getByRole('textbox')).toHaveCount(0);
   } finally {
     await restoreMore();
   }
@@ -2761,25 +4208,33 @@ test("a file that is not text, or is too large, is not shown as a note", async (
 
 test("the editor wears the design system's tokens, in light and in dark", async ({ page }) => {
   try {
-    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/idea.md": "# Idea\n" });
+    const id = await siteWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/idea.md': '# Idea\n',
+    });
     const surfaces = async () =>
       page.evaluate(() => {
-        const editor = document.querySelector(".cm-editor") as HTMLElement;
-        return { editor: getComputedStyle(editor).backgroundColor, page: getComputedStyle(document.body).backgroundColor, text: getComputedStyle(editor).color, font: getComputedStyle(editor.querySelector(".cm-scroller") as HTMLElement).fontFamily };
+        const editor = document.querySelector('.cm-editor') as HTMLElement;
+        return {
+          editor: getComputedStyle(editor).backgroundColor,
+          page: getComputedStyle(document.body).backgroundColor,
+          text: getComputedStyle(editor).color,
+          font: getComputedStyle(editor.querySelector('.cm-scroller') as HTMLElement).fontFamily,
+        };
       });
 
-    await page.emulateMedia({ colorScheme: "light" });
+    await page.emulateMedia({ colorScheme: 'light' });
     await page.goto(`/repo/${id}/Notes/idea.md`);
-    await expect(noteEditor(page, "idea.md")).toBeVisible();
+    await expect(noteEditor(page, 'idea.md')).toBeVisible();
     const light = await surfaces();
     // The editor's surface is the page's: it took the token and not its own default (which is white in both).
     expect(light.editor).toBe(light.page);
     // Its font is the design system's monospace, not the browser's.
     expect(light.font).toMatch(/mono/i);
 
-    await page.emulateMedia({ colorScheme: "dark" });
+    await page.emulateMedia({ colorScheme: 'dark' });
     await page.reload();
-    await expect(noteEditor(page, "idea.md")).toBeVisible();
+    await expect(noteEditor(page, 'idea.md')).toBeVisible();
     const dark = await surfaces();
     expect(dark.editor).toBe(dark.page);
     expect(dark.editor).not.toBe(light.editor);
@@ -2791,35 +4246,43 @@ test("the editor wears the design system's tokens, in light and in dark", async 
 
 // --- Document properties (ROADMAP 1b.5) ----------------------------------------------------------------------------------
 
-test("the properties panel shows the header, keys Fjord does not know included, and a note's body edit leaves the header byte for byte", async ({ page }) => {
+test("the properties panel shows the header, keys Fjord does not know included, and a note's body edit leaves the header byte for byte", async ({
+  page,
+}) => {
   try {
-    const header = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n# a comment the writer left\nzeta: 1\ntitle: Weekly\nx-future:\n  - kept\n  - as is\ncreated: 2026-10-16T09:34:00Z\n---\n";
-    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/weekly.md": `${header}\nThe plan.\n` });
+    const header =
+      '---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n# a comment the writer left\nzeta: 1\ntitle: Weekly\nx-future:\n  - kept\n  - as is\ncreated: 2026-10-16T09:34:00Z\n---\n';
+    const id = await siteWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/weekly.md': `${header}\nThe plan.\n`,
+    });
     await page.goto(`/repo/${id}/Notes/weekly.md`);
 
     // The header is beside the editor and not in it.
-    const editor = noteEditor(page, "weekly.md");
-    await expect(editor).toContainText("The plan.");
-    await expect(editor).not.toContainText("x-future");
-    const panel = page.getByTestId("document-properties");
-    await panel.getByText("Properties", { exact: true }).click();
-    await expect(panel.getByText("01jagc4k7pt8y3wqnmzv5xrb8j", { exact: true })).toBeVisible();
-    await expect(panel.getByText("16 Oct 2026, 09:34 UTC")).toBeVisible();
-    await expect(panel.getByLabel("Title")).toHaveValue("Weekly");
-    await expect(panel.getByTestId("other-property")).toHaveCount(2);
-    await expect(panel.getByTestId("other-property").first()).toContainText("zeta");
-    await expect(panel.getByTestId("other-property").last()).toContainText('["kept","as is"]');
-    await expect(panel.getByText("no header yet")).toHaveCount(0);
+    const editor = noteEditor(page, 'weekly.md');
+    await expect(editor).toContainText('The plan.');
+    await expect(editor).not.toContainText('x-future');
+    const panel = page.getByTestId('document-properties');
+    await panel.getByText('Properties', { exact: true }).click();
+    await expect(panel.getByText('01jagc4k7pt8y3wqnmzv5xrb8j', { exact: true })).toBeVisible();
+    await expect(panel.getByText('16 Oct 2026, 09:34 UTC')).toBeVisible();
+    await expect(panel.getByLabel('Title')).toHaveValue('Weekly');
+    await expect(panel.getByTestId('other-property')).toHaveCount(2);
+    await expect(panel.getByTestId('other-property').first()).toContainText('zeta');
+    await expect(panel.getByTestId('other-property').last()).toContainText('["kept","as is"]');
+    await expect(panel.getByText('no header yet')).toHaveCount(0);
 
     // Opening it changed nothing: there is no draft, and a body edit keeps the header as written, comment and all.
-    await expect(page.getByText("Your changes were kept")).toHaveCount(0);
+    await expect(page.getByText('Your changes were kept')).toHaveCount(0);
     await editor.click();
-    await page.keyboard.press("ControlOrMeta+End");
-    await page.keyboard.type(" More.");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible();
-    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/weekly.md"]!;
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.type(' More.');
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
+    await page.getByRole('button', { name: 'Save version' }).click();
+    await expect(page.getByText('Version saved')).toBeVisible();
+    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))[
+      'Notes/weekly.md'
+    ]!;
     // The header is as written, the comment in it too (only a change to the title has the module write it again); the typing is after the body.
     expect(saved).toBe(`${header}\nThe plan.\n More.`);
     await hubs.more.fsck();
@@ -2828,99 +4291,124 @@ test("the properties panel shows the header, keys Fjord does not know included, 
   }
 });
 
-test("a drive's document is renamed from its properties, which say when it last changed; its header is not touched, and its title is what it says", async ({ page }) => {
+test("a drive's document is renamed from its properties, which say when it last changed; its header is not touched, and its title is what it says", async ({
+  page,
+}) => {
   try {
-    const header = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nzeta: 1\ntitle: Weekly\nx-future:\n  - kept\ncreated: 2026-10-16T09:34:00Z\n---\n";
-    const body = "\nThe plan.\n";
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Weekly.fj.md": header + body });
+    const header =
+      '---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\nzeta: 1\ntitle: Weekly\nx-future:\n  - kept\ncreated: 2026-10-16T09:34:00Z\n---\n';
+    const body = '\nThe plan.\n';
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Weekly.fj.md': header + body,
+    });
     await page.goto(`/repo/${id}/Notes/Weekly.fj.md`);
 
     // The page is headed by what the document says, with its size; the file's name is in the path, without its extension, and in the properties.
-    await expect(page.getByRole("heading", { name: "Weekly", level: 2 })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Path" })).toContainText("Notes / Weekly");
-    await expect(page.getByRole("navigation", { name: "Path" })).not.toContainText(".md");
-    const panel = page.getByTestId("document-properties");
-    await panel.getByText("Properties", { exact: true }).click();
-    await expect(panel.getByLabel("File name")).toHaveValue("Weekly.fj");
+    await expect(page.getByRole('heading', { name: 'Weekly', level: 2 })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Path' })).toContainText('Notes / Weekly');
+    await expect(page.getByRole('navigation', { name: 'Path' })).not.toContainText('.md');
+    const panel = page.getByTestId('document-properties');
+    await panel.getByText('Properties', { exact: true }).click();
+    await expect(panel.getByLabel('File name')).toHaveValue('Weekly.fj');
     // There is no title field and no date: the title is what the document says, and the day it was made is a fact below.
-    await expect(panel.getByLabel("Title")).toHaveCount(0);
-    await expect(panel.getByLabel("Date")).toHaveCount(0);
-    await expect(panel.getByText("16 Oct 2026, 09:34 UTC")).toBeVisible();
-    await expect(panel.getByTestId("last-updated")).toContainText(/\d{1,2} [A-Z][a-z]+ \d{4}, \d\d:\d\d UTC/);
+    await expect(panel.getByLabel('Title')).toHaveCount(0);
+    await expect(panel.getByLabel('Date')).toHaveCount(0);
+    await expect(panel.getByText('16 Oct 2026, 09:34 UTC')).toBeVisible();
+    await expect(panel.getByTestId('last-updated')).toContainText(
+      /\d{1,2} [A-Z][a-z]+ \d{4}, \d\d:\d\d UTC/,
+    );
     // Nothing on the page offers a second way to rename it.
-    await expect(page.getByRole("button", { name: "Rename", exact: true }).first()).toBeVisible(); // the properties' own
-    await expect(page.getByRole("button", { name: "Rename" })).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Rename', exact: true }).first()).toBeVisible(); // the properties' own
+    await expect(page.getByRole('button', { name: 'Rename' })).toHaveCount(1);
 
-    await panel.getByLabel("File name").fill("Roadmap.fj");
-    await panel.getByRole("button", { name: "Rename" }).click();
+    await panel.getByLabel('File name').fill('Roadmap.fj');
+    await panel.getByRole('button', { name: 'Rename' }).click();
     // A document's address is its id's, so the page's address does not say the file moved: the repository does.
-    await headHas("Notes/Roadmap.fj.md");
-    await expect(noteEditor(page, "Roadmap.fj.md")).toBeVisible();
+    await headHas('Notes/Roadmap.fj.md');
+    await expect(noteEditor(page, 'Roadmap.fj.md')).toBeVisible();
     const head = (await hubs.more.branchHead()) as string;
     const files = await hubs.more.filesAt(head);
-    expect(Object.keys(files).filter((path) => path.endsWith(".md"))).toEqual(["Notes/Roadmap.fj.md"]);
-    expect(files["Notes/Roadmap.fj.md"]).toBe(header + body);
+    expect(Object.keys(files).filter((path) => path.endsWith('.md'))).toEqual([
+      'Notes/Roadmap.fj.md',
+    ]);
+    expect(files['Notes/Roadmap.fj.md']).toBe(header + body);
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("a document is headed by its first heading when its header has no title, and by its file's name when it has neither", async ({ page }) => {
+test("a document is headed by its first heading when its header has no title, and by its file's name when it has neither", async ({
+  page,
+}) => {
   try {
     const id = await repositoryWith(page, {
-      "Notes/fjord.vault.json": VAULT_MANIFEST,
-      "Notes/with-heading.md": "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n---\n\n# The real title\n\ntext\n",
-      "Notes/bare.md": "just text\n",
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/with-heading.md':
+        '---\nid: 01jagc4k7pt8y3wqnmzv5xrb8j\n---\n\n# The real title\n\ntext\n',
+      'Notes/bare.md': 'just text\n',
     });
     await page.goto(`/repo/${id}/Notes/with-heading.md`);
-    await expect(page.getByRole("heading", { name: "The real title", level: 2 })).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Path" })).toContainText("with-heading");
+    await expect(page.getByRole('heading', { name: 'The real title', level: 2 })).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Path' })).toContainText('with-heading');
     await page.goto(`/repo/${id}/Notes/bare.md`);
-    await expect(page.getByRole("heading", { name: "bare", level: 2 })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "bare", level: 2 })).toContainText("10 B");
+    await expect(page.getByRole('heading', { name: 'bare', level: 2 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'bare', level: 2 })).toContainText('10 B');
   } finally {
     await restoreMore();
   }
 });
 
-test("a file with no header is edited as it is: opening it, or editing it, adds no header (RFC 0002)", async ({ page }) => {
+test('a file with no header is edited as it is: opening it, or editing it, adds no header (RFC 0002)', async ({
+  page,
+}) => {
   try {
-    const id = await siteWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/plain.md": "# A plain note\n\nText.\n" });
+    const id = await siteWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/plain.md': '# A plain note\n\nText.\n',
+    });
     await page.goto(`/repo/${id}/Notes/plain.md`);
-    const editor = noteEditor(page, "plain.md");
-    const panel = page.getByTestId("document-properties");
-    await panel.getByText("Properties", { exact: true }).click();
+    const editor = noteEditor(page, 'plain.md');
+    const panel = page.getByTestId('document-properties');
+    await panel.getByText('Properties', { exact: true }).click();
     await expect(panel.getByText(/no header, so no identifier/i)).toBeVisible();
-    await expect(panel.getByRole("button", { name: "Set title" })).toBeDisabled();
+    await expect(panel.getByRole('button', { name: 'Set title' })).toBeDisabled();
 
     // Typing and deleting it again: no header, no draft.
     await editor.click();
-    await page.keyboard.press("ControlOrMeta+End");
-    await page.keyboard.type("x");
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.type('x');
     await expect(panel.getByText(/no header, so no identifier/i)).toBeVisible();
-    await page.keyboard.press("Backspace");
+    await page.keyboard.press('Backspace');
 
-    await page.keyboard.type(" And more.");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
-    await page.getByRole("button", { name: "Save version" }).click();
-    await expect(page.getByText("Version saved")).toBeVisible();
+    await page.keyboard.type(' And more.');
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
+    await page.getByRole('button', { name: 'Save version' }).click();
+    await expect(page.getByText('Version saved')).toBeVisible();
 
-    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/plain.md"]!;
-    expect(saved).toBe("# A plain note\n\nText.\n And more.");
+    const saved = (await hubs.more.filesAt((await hubs.more.branchHead()) as string))[
+      'Notes/plain.md'
+    ]!;
+    expect(saved).toBe('# A plain note\n\nText.\n And more.');
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("a note's header that cannot be read is not split or rewritten: it is shown whole, with no properties", async ({ page }) => {
+test("a note's header that cannot be read is not split or rewritten: it is shown whole, with no properties", async ({
+  page,
+}) => {
   try {
-    const text = "---\nid: [\n---\nbody\n";
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/broken.md": text });
+    const text = '---\nid: [\n---\nbody\n';
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/broken.md': text,
+    });
     await page.goto(`/repo/${id}/Notes/broken.md`);
-    await expect(noteEditor(page, "broken.md")).toContainText("id: [");
-    await expect(page.getByTestId("document-properties")).toHaveCount(0);
+    await expect(noteEditor(page, 'broken.md')).toContainText('id: [');
+    await expect(page.getByTestId('document-properties')).toHaveCount(0);
   } finally {
     await restoreMore();
   }
@@ -2928,33 +4416,35 @@ test("a note's header that cannot be read is not split or rewritten: it is shown
 
 // --- Routes by id (ROADMAP 1b.6) -----------------------------------------------------------------------------------------
 
-const ID_DOC = "01jagc4k7pt8y3wqnmzv5xrb8j";
-const ID_NOTE = "01jagc4k7pt8y3wqnmzv5xrb9k";
+const ID_DOC = '01jagc4k7pt8y3wqnmzv5xrb8j';
+const ID_NOTE = '01jagc4k7pt8y3wqnmzv5xrb9k';
 const withId = (id: string, body: string) => `---\nid: ${id}\ntitle: T\n---\n\n${body}\n`;
 
-test("a Doc opens at /d/<id> wherever it is, and /n/<id> sends to it (RFC 0002)", async ({ page }) => {
+test('a Doc opens at /d/<id> wherever it is, and /n/<id> sends to it (RFC 0002)', async ({
+  page,
+}) => {
   try {
     const id = await repositoryWith(page, {
-      "Notes/fjord.vault.json": VAULT_MANIFEST,
-      "Notes/Deep/Plan.fj.md": withId(ID_DOC, "The plan."),
-      "Notes/Deep/idea.md": withId(ID_NOTE, "The idea."),
-      "Notes/plain.md": "# no header\n",
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Deep/Plan.fj.md': withId(ID_DOC, 'The plan.'),
+      'Notes/Deep/idea.md': withId(ID_NOTE, 'The idea.'),
+      'Notes/plain.md': '# no header\n',
     });
 
     // Nothing has been opened, so the first lookup searches; the owner is then sent to the Doc's address inside its repository (workstream 0003).
     expect((await page.goto(`/d/${ID_DOC}`))?.status()).toBe(200);
-    await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan.");
+    await expect(noteEditor(page, 'Plan.fj.md')).toContainText('The plan.');
     await expect(page).toHaveURL(docPlace(ID_DOC));
-    await expect(page.getByRole("heading", { name: "acme/more" })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'acme/more' })).toBeVisible();
 
     await page.goto(`/n/${ID_NOTE}`);
-    await expect(noteEditor(page, "idea.md")).toContainText("The idea.");
+    await expect(noteEditor(page, 'idea.md')).toContainText('The idea.');
     await expect(page).toHaveURL(docPlace(ID_NOTE));
 
     // A note asked for as a document, and a document as a note, are sent to the address that is theirs.
     await page.goto(`/d/${ID_NOTE}`);
     await expect(page).toHaveURL(docPlace(ID_NOTE));
-    await expect(noteEditor(page, "idea.md")).toBeVisible();
+    await expect(noteEditor(page, 'idea.md')).toBeVisible();
     await page.goto(`/n/${ID_DOC}`);
     await expect(page).toHaveURL(docPlace(ID_DOC));
 
@@ -2963,7 +4453,7 @@ test("a Doc opens at /d/<id> wherever it is, and /n/<id> sends to it (RFC 0002)"
     await expect(page).toHaveURL(docPlace(ID_NOTE));
     await page.goto(`/repo/${id}/Notes/plain.md`);
     await expect(page).toHaveURL(FILE_PLACE);
-    await expect(page.getByText("Address by id")).toHaveCount(0);
+    await expect(page.getByText('Address by id')).toHaveCount(0);
   } finally {
     await restoreMore();
   }
@@ -2979,45 +4469,61 @@ const CHECKLIST = `<!doctype html><title>Checklist</title><h1>Packing</h1><ul id
   fetch("/api/connections").then(() => say("network", "network:reached"), () => say("network", "network:blocked"));
 </script>`;
 
-test("an HTML page of a plaintext vault is opened and run in a sandbox: its script runs, and it can reach neither this app's cookies, the page around it, nor the network", async ({ page, browser }) => {
+test("an HTML page of a plaintext vault is opened and run in a sandbox: its script runs, and it can reach neither this app's cookies, the page around it, nor the network", async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/checklist.html": CHECKLIST, "Notes/readme.md": "# Readme\n" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/checklist.html': CHECKLIST,
+      'Notes/readme.md': '# Readme\n',
+    });
     await page.goto(`/repo/${id}`);
-    await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Notes" }).click();
-    const contents = page.getByRole("list", { name: "Folder contents" });
-    await expect(contents.getByRole("listitem").filter({ hasText: "checklist.html" })).toContainText("Page");
-    await contents.getByRole("link", { name: "checklist.html" }).click();
-    await expect(page).toHaveURL(new RegExp(`/${await addressOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hv/html/[0-9a-z]{16}$`));
+    await page.getByRole('list', { name: 'Vaults' }).getByRole('link', { name: 'Notes' }).click();
+    const contents = page.getByRole('list', { name: 'Folder contents' });
+    await expect(
+      contents.getByRole('listitem').filter({ hasText: 'checklist.html' }),
+    ).toContainText('Page');
+    await contents.getByRole('link', { name: 'checklist.html' }).click();
+    await expect(page).toHaveURL(
+      new RegExp(`/${await addressOf(page, id)}/v/01jagc4k7pr9tbm3ykwx6zq2hv/html/[0-9a-z]{16}$`),
+    );
 
     const frame = page.frameLocator('iframe[title="checklist.html"]');
     // The script ran.
-    await expect(frame.getByRole("listitem")).toHaveText(["Passport", "Charger"]);
+    await expect(frame.getByRole('listitem')).toHaveText(['Passport', 'Charger']);
     // And it is boxed in: no cookie, no parent, no storage of this origin, no request to this app.
-    await expect(frame.locator("#cookie")).toHaveText("cookie:blocked");
-    await expect(frame.locator("#parent")).toHaveText("parent:blocked");
-    await expect(frame.locator("#storage")).toHaveText("storage:blocked");
-    await expect(frame.locator("#network")).toHaveText("network:blocked");
+    await expect(frame.locator('#cookie')).toHaveText('cookie:blocked');
+    await expect(frame.locator('#parent')).toHaveText('parent:blocked');
+    await expect(frame.locator('#storage')).toHaveText('storage:blocked');
+    await expect(frame.locator('#network')).toHaveText('network:blocked');
     // This page is the only one that frames anything, and the page policy has no violation to report for it.
-    const src = (await page.locator("iframe").getAttribute("src"))!;
+    const src = (await page.locator('iframe').getAttribute('src'))!;
     expect(src).toMatch(new RegExp(`^/raw/${await repoOf(page, id)}/[0-9a-z]{16}$`));
 
     // The address of the document itself carries the sandbox too, so opening it in a tab does not give it this app's origin.
     const direct = await page.request.get(src);
     expect(direct.status()).toBe(200);
-    expect(direct.headers()["content-security-policy"]).toContain("sandbox allow-scripts");
-    expect(direct.headers()["content-security-policy"]).not.toContain("allow-same-origin");
-    expect(direct.headers()["x-frame-options"]).toBeUndefined();
+    expect(direct.headers()['content-security-policy']).toContain('sandbox allow-scripts');
+    expect(direct.headers()['content-security-policy']).not.toContain('allow-same-origin');
+    expect(direct.headers()['x-frame-options']).toBeUndefined();
     await page.goto(src);
     await expect(page.evaluate(() => document.cookie)).rejects.toThrow(/sandboxed/);
-    expect(await page.evaluate(() => (window as unknown as { origin: string }).origin)).toBe("null");
+    expect(await page.evaluate(() => (window as unknown as { origin: string }).origin)).toBe(
+      'null',
+    );
 
     // Nobody else, and nobody signed out, is served it.
     const signedOut = await browser.newContext({ baseURL: BASE });
     expect((await signedOut.request.get(src)).status()).toBe(404);
     await signedOut.close();
-    const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.12" } });
+    const other = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.12' },
+    });
     const otherPage = await other.newPage();
-    await signUp(otherPage, `visitor-${Date.now()}@example.com`, "Grace Hopper");
+    await signUp(otherPage, `visitor-${Date.now()}@example.com`, 'Grace Hopper');
     expect((await otherPage.request.get(src)).status()).toBe(404);
     await other.close();
     // A page that is not HTML is not served this way.
@@ -3027,20 +4533,36 @@ test("an HTML page of a plaintext vault is opened and run in a sandbox: its scri
   }
 });
 
-test("an id that is not there, is not an id, or is another person's is a 404 that says nothing about which", async ({ page, browser }) => {
+test("an id that is not there, is not an id, or is another person's is a 404 that says nothing about which", async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/idea.md": withId(ID_NOTE, "mine") });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/idea.md': withId(ID_NOTE, 'mine'),
+    });
     await page.goto(`/n/${ID_NOTE}`);
-    await expect(noteEditor(page, "idea.md")).toBeVisible();
+    await expect(noteEditor(page, 'idea.md')).toBeVisible();
 
-    for (const path of ["/n/01jagc4k7pt8y3wqnmzv5xrbzz", "/d/01jagc4k7pt8y3wqnmzv5xrbzz", "/n/not-an-id", `/n/${ID_NOTE.toUpperCase()}`, `/d/${ID_NOTE}%2F..`, `/n/${ID_NOTE}0`]) {
+    for (const path of [
+      '/n/01jagc4k7pt8y3wqnmzv5xrbzz',
+      '/d/01jagc4k7pt8y3wqnmzv5xrbzz',
+      '/n/not-an-id',
+      `/n/${ID_NOTE.toUpperCase()}`,
+      `/d/${ID_NOTE}%2F..`,
+      `/n/${ID_NOTE}0`,
+    ]) {
       expect((await page.goto(path))?.status(), path).toBe(404);
     }
 
     // Someone else, with no repository of their own, is told the same as for an id that was never made.
-    const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.9" } });
+    const other = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.9' },
+    });
     const otherPage = await other.newPage();
-    await signUp(otherPage, `visitor-${Date.now()}@example.com`, "Grace Hopper");
+    await signUp(otherPage, `visitor-${Date.now()}@example.com`, 'Grace Hopper');
     expect((await otherPage.goto(`/n/${ID_NOTE}`))?.status()).toBe(404);
     expect((await otherPage.goto(`/n/01jagc4k7pt8y3wqnmzv5xrbzz`))?.status()).toBe(404);
     await other.close();
@@ -3057,39 +4579,52 @@ test("an id that is not there, is not an id, or is another person's is a 404 tha
   }
 });
 
-test("a file that moves is still found by its id, and one that is deleted is not", async ({ page }) => {
+test('a file that moves is still found by its id, and one that is deleted is not', async ({
+  page,
+}) => {
   try {
-    await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/idea.md": withId(ID_NOTE, "the idea") });
+    await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/idea.md': withId(ID_NOTE, 'the idea'),
+    });
     await page.goto(`/n/${ID_NOTE}`);
-    await expect(noteEditor(page, "idea.md")).toBeVisible();
+    await expect(noteEditor(page, 'idea.md')).toBeVisible();
 
     // Moved and changed from another tool: the index still says the old place, and is not believed.
-    await hubs.more.commitFiles({ "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Archive/old idea.md": withId(ID_NOTE, "the idea, moved") }, { replace: true });
+    await hubs.more.commitFiles(
+      {
+        'Notes/fjord.vault.json': VAULT_MANIFEST,
+        'Notes/Archive/old idea.md': withId(ID_NOTE, 'the idea, moved'),
+      },
+      { replace: true },
+    );
     await page.goto(`/n/${ID_NOTE}`);
-    await expect(noteEditor(page, "old idea.md")).toContainText("the idea, moved");
+    await expect(noteEditor(page, 'old idea.md')).toContainText('the idea, moved');
     await expect(page).toHaveURL(docPlace(ID_NOTE));
 
-    await hubs.more.commitFiles({ "Notes/fjord.vault.json": VAULT_MANIFEST }, { replace: true });
+    await hubs.more.commitFiles({ 'Notes/fjord.vault.json': VAULT_MANIFEST }, { replace: true });
     expect((await page.goto(`/n/${ID_NOTE}`))?.status()).toBe(404);
   } finally {
     await restoreMore();
   }
 });
 
-test("an id that two files have is not guessed at: the person chooses", async ({ page }) => {
+test('an id that two files have is not guessed at: the person chooses', async ({ page }) => {
   try {
     await repositoryWith(page, {
-      "Notes/fjord.vault.json": VAULT_MANIFEST,
-      "Notes/idea.md": withId(ID_NOTE, "the first"),
-      "Notes/copy of idea.md": withId(ID_NOTE, "the second"),
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/idea.md': withId(ID_NOTE, 'the first'),
+      'Notes/copy of idea.md': withId(ID_NOTE, 'the second'),
     });
     await page.goto(`/n/${ID_NOTE}`);
-    await expect(page.getByRole("heading", { name: "More than one file has this id" })).toBeVisible();
-    const choices = page.getByRole("list", { name: "Files with this id" }).getByRole("link");
-    await expect(choices).toHaveText(["Notes/copy of idea.md", "Notes/idea.md"]);
+    await expect(
+      page.getByRole('heading', { name: 'More than one file has this id' }),
+    ).toBeVisible();
+    const choices = page.getByRole('list', { name: 'Files with this id' }).getByRole('link');
+    await expect(choices).toHaveText(['Notes/copy of idea.md', 'Notes/idea.md']);
 
     await choices.last().click();
-    await expect(noteEditor(page, "idea.md")).toContainText("the first");
+    await expect(noteEditor(page, 'idea.md')).toContainText('the first');
     // The one address with a path: an address by id could not say which of the two is meant.
     await expect(page).toHaveURL(/\/Notes\/idea\.md\?pick=1$/);
   } finally {
@@ -3097,14 +4632,26 @@ test("an id that two files have is not guessed at: the person chooses", async ({
   }
 });
 
-test("an id in an encrypted vault is not looked for: nothing of one is read", async ({ page }) => {
+test('an id in an encrypted vault is not looked for: nothing of one is read', async ({ page }) => {
   try {
-    const encrypted = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hw", name: "Secret", createdAt: "2026-10-16T09:34:00Z", encryption: { mode: "none" }, fileNaming: "plain" });
-    await repositoryWith(page, { "Secret/fjord.vault.json": encrypted, "Secret/readme.md": withId(ID_NOTE, "stray plaintext in an encrypted vault") });
+    const encrypted = JSON.stringify({
+      fjord: 1,
+      id: '01jagc4k7pr9tbm3ykwx6zq2hw',
+      name: 'Secret',
+      createdAt: '2026-10-16T09:34:00Z',
+      encryption: { mode: 'none' },
+      fileNaming: 'plain',
+    });
+    await repositoryWith(page, {
+      'Secret/fjord.vault.json': encrypted,
+      'Secret/readme.md': withId(ID_NOTE, 'stray plaintext in an encrypted vault'),
+    });
     hubs.more.requests.length = 0;
     expect((await page.goto(`/n/${ID_NOTE}`))?.status()).toBe(404);
     // Only the vault manifests are ever read, never the stray note in the encrypted vault (a manifest is at most one blob).
-    expect(hubs.more.requests.filter((request) => request.path.includes("/git/blobs/")).length).toBeLessThanOrEqual(1);
+    expect(
+      hubs.more.requests.filter((request) => request.path.includes('/git/blobs/')).length,
+    ).toBeLessThanOrEqual(1);
   } finally {
     await restoreMore();
   }
@@ -3113,177 +4660,247 @@ test("an id in an encrypted vault is not looked for: nothing of one is read", as
 // --- Rename and move (ROADMAP 1b.11) -------------------------------------------------------------------------------------
 
 const MOVE_DOC_HEADER = `---\nid: ${ID_DOC}\ntitle: Plan\nx-future:\n  - kept\n# a comment\n---\n`;
-const MOVE_ENCRYPTED = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hw", name: "Secret", createdAt: "2026-10-16T09:34:00Z", encryption: { mode: "none" }, fileNaming: "plain" });
+const MOVE_ENCRYPTED = JSON.stringify({
+  fjord: 1,
+  id: '01jagc4k7pr9tbm3ykwx6zq2hw',
+  name: 'Secret',
+  createdAt: '2026-10-16T09:34:00Z',
+  encryption: { mode: 'none' },
+  fileNaming: 'plain',
+});
 
-test("a note is renamed in one commit, byte for byte, keeping its extension", async ({ page }) => {
+test('a note is renamed in one commit, byte for byte, keeping its extension', async ({ page }) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/idea.md": "# Idea\r\n\r\nmixed\nendings\r\n", "Notes/other.md": "untouched" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/idea.md': '# Idea\r\n\r\nmixed\nendings\r\n',
+      'Notes/other.md': 'untouched',
+    });
     const before = (await hubs.more.branchHead()) as string;
     await page.goto(`/repo/${id}/Notes/idea.md`);
-    await expect(noteEditor(page, "idea.md")).toBeVisible();
+    await expect(noteEditor(page, 'idea.md')).toBeVisible();
 
     // This text has carriage returns, so it is given no header and has no properties to show: it keeps its rename icon, which asks in a dialog.
-    await expect(page.getByTestId("document-properties")).toHaveCount(0);
-    await page.getByRole("button", { name: "Rename", exact: true }).click();
-    await expect(page.getByText("It stays .md.")).toBeVisible();
-    await page.getByLabel("New name").fill("A better idea");
-    await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
+    await expect(page.getByTestId('document-properties')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Rename', exact: true }).click();
+    await expect(page.getByText('It stays .md.')).toBeVisible();
+    await page.getByLabel('New name').fill('A better idea');
+    await page.getByRole('dialog').getByRole('button', { name: 'Rename', exact: true }).click();
     await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
-    await expect(noteEditor(page, "A better idea.md")).toContainText("Idea");
+    await expect(noteEditor(page, 'A better idea.md')).toContainText('Idea');
 
     const head = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(head, "%P")).toBe(before);
-    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Rename idea to A better idea");
+    expect(await hubs.more.show(head, '%P')).toBe(before);
+    expect((await hubs.more.show(head, '%B')).split('\n')[0]).toBe('Rename idea to A better idea');
     const files = await hubs.more.filesAt(head);
-    expect(files["Notes/A better idea.md"]).toBe("# Idea\r\n\r\nmixed\nendings\r\n"); // every byte, line endings included
-    expect(files["Notes/idea.md"]).toBeUndefined();
-    expect(files["Notes/other.md"]).toBe("untouched");
+    expect(files['Notes/A better idea.md']).toBe('# Idea\r\n\r\nmixed\nendings\r\n'); // every byte, line endings included
+    expect(files['Notes/idea.md']).toBeUndefined();
+    expect(files['Notes/other.md']).toBe('untouched');
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("a document moved to another folder is still found by its id, and its header is untouched", async ({ page }) => {
+test('a document moved to another folder is still found by its id, and its header is untouched', async ({
+  page,
+}) => {
   try {
     const id = await repositoryWith(page, {
-      "Notes/fjord.vault.json": VAULT_MANIFEST,
-      "Other/fjord.vault.json": VAULT_MANIFEST,
-      "Notes/Plan.fj.md": `${MOVE_DOC_HEADER}\n# Plan\n`,
-      "Notes/Archive/old.md": "old",
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Other/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': `${MOVE_DOC_HEADER}\n# Plan\n`,
+      'Notes/Archive/old.md': 'old',
     });
     await page.goto(`/d/${ID_DOC}`);
-    await expect(noteEditor(page, "Plan.fj.md")).toContainText("Plan");
+    await expect(noteEditor(page, 'Plan.fj.md')).toContainText('Plan');
 
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await page.getByRole("button", { name: "Move", exact: true }).click();
-    const place = page.getByLabel("Move to");
+    await page.getByRole('button', { name: 'Move', exact: true }).click();
+    const place = page.getByLabel('Move to');
     // Folders of plaintext vaults, the top of each first, and not where it already is.
-    await expect(place.locator("option")).toHaveText(["Other", "Notes/Archive"]);
-    await place.selectOption("Other");
-    await page.getByRole("dialog").getByRole("button", { name: "Move", exact: true }).click();
+    await expect(place.locator('option')).toHaveText(['Other', 'Notes/Archive']);
+    await place.selectOption('Other');
+    await page.getByRole('dialog').getByRole('button', { name: 'Move', exact: true }).click();
     await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
 
     // The folder page is already at /f/<handle>, so the address cannot say the commit is made.
-    await expect.poll(async () => (await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).split("\n")[0], { timeout: 30_000 }).toMatch(/^(Move|Rename) /);
+    await expect
+      .poll(
+        async () =>
+          (await hubs.more.show((await hubs.more.branchHead()) as string, '%B')).split('\n')[0],
+        { timeout: 30_000 },
+      )
+      .toMatch(/^(Move|Rename) /);
     const head = (await hubs.more.branchHead()) as string;
-    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Move Plan.fj to Other");
-    expect((await hubs.more.filesAt(head))["Other/Plan.fj.md"]).toBe(`${MOVE_DOC_HEADER}\n# Plan\n`);
+    expect((await hubs.more.show(head, '%B')).split('\n')[0]).toBe('Move Plan.fj to Other');
+    expect((await hubs.more.filesAt(head))['Other/Plan.fj.md']).toBe(
+      `${MOVE_DOC_HEADER}\n# Plan\n`,
+    );
 
     // The address by id follows the file: nothing about it said where it was.
     await page.goto(`/d/${ID_DOC}`);
-    await expect(noteEditor(page, "Plan.fj.md")).toContainText("Plan");
-    await page.getByTestId("document-properties").locator("summary").click();
-    await expect(page.getByRole("link", { name: `/d/${ID_DOC}` })).toBeVisible();
+    await expect(noteEditor(page, 'Plan.fj.md')).toContainText('Plan');
+    await page.getByTestId('document-properties').locator('summary').click();
+    await expect(page.getByRole('link', { name: `/d/${ID_DOC}` })).toBeVisible();
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("a folder is renamed with everything in it, in one commit", async ({ page }) => {
+test('a folder is renamed with everything in it, in one commit', async ({ page }) => {
   try {
     const id = await repositoryWith(page, {
-      "Notes/fjord.vault.json": VAULT_MANIFEST,
-      "Notes/Old/a.md": "a",
-      "Notes/Old/Deep/b.fj.md": `${MOVE_DOC_HEADER}\nb\n`,
-      "Notes/keep.md": "k",
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Old/a.md': 'a',
+      'Notes/Old/Deep/b.fj.md': `${MOVE_DOC_HEADER}\nb\n`,
+      'Notes/keep.md': 'k',
     });
     const before = (await hubs.more.branchHead()) as string;
     await page.goto(`/repo/${id}/Notes/Old`);
-    await page.getByRole("button", { name: "Rename folder" }).click();
-    await page.getByLabel("New name").fill("Older");
-    await page.getByRole("dialog").getByRole("button", { name: "Rename", exact: true }).click();
+    await page.getByRole('button', { name: 'Rename folder' }).click();
+    await page.getByLabel('New name').fill('Older');
+    await page.getByRole('dialog').getByRole('button', { name: 'Rename', exact: true }).click();
     await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
-    await expect(page.getByRole("list", { name: "Folder contents" })).toContainText("Deep");
+    await expect(page.getByRole('list', { name: 'Folder contents' })).toContainText('Deep');
 
     // The folder page is already at /f/<handle>, so the address cannot say the commit is made.
-    await expect.poll(async () => (await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).split("\n")[0], { timeout: 30_000 }).toMatch(/^(Move|Rename) /);
+    await expect
+      .poll(
+        async () =>
+          (await hubs.more.show((await hubs.more.branchHead()) as string, '%B')).split('\n')[0],
+        { timeout: 30_000 },
+      )
+      .toMatch(/^(Move|Rename) /);
     const head = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(head, "%P")).toBe(before);
-    expect(await hubs.more.show(head, "%B")).toMatch(/^Rename Old to Older\n\nMoves 2 files:\nNotes\/Old\/.* → Notes\/Older\//);
-    expect(Object.keys(await hubs.more.filesAt(head)).sort()).toEqual(["Notes/Older/Deep/b.fj.md", "Notes/Older/a.md", "Notes/fjord.vault.json", "Notes/keep.md"]);
+    expect(await hubs.more.show(head, '%P')).toBe(before);
+    expect(await hubs.more.show(head, '%B')).toMatch(
+      /^Rename Old to Older\n\nMoves 2 files:\nNotes\/Old\/.* → Notes\/Older\//,
+    );
+    expect(Object.keys(await hubs.more.filesAt(head)).sort()).toEqual([
+      'Notes/Older/Deep/b.fj.md',
+      'Notes/Older/a.md',
+      'Notes/fjord.vault.json',
+      'Notes/keep.md',
+    ]);
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("a name that is taken, or taken but for letter case, is refused and says so, and nothing changes", async ({ page }) => {
+test('a name that is taken, or taken but for letter case, is refused and says so, and nothing changes', async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/a.md": "a", "Notes/Taken.md": "t" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/a.md': 'a',
+      'Notes/Taken.md': 't',
+    });
     const before = (await hubs.more.branchHead()) as string;
     await page.goto(`/repo/${id}/Notes/a.md`);
-    const props = page.getByTestId("document-properties");
-    await props.getByText("Properties", { exact: true }).click();
-    for (const name of ["Taken", "taken", "bad:name", "CON"]) {
-      await props.getByLabel("File name").fill(name);
-      await props.getByRole("button", { name: "Rename", exact: true }).click();
-      await expect(props.getByRole("alert").filter({ hasText: "The file was not renamed" })).toBeVisible();
+    const props = page.getByTestId('document-properties');
+    await props.getByText('Properties', { exact: true }).click();
+    for (const name of ['Taken', 'taken', 'bad:name', 'CON']) {
+      await props.getByLabel('File name').fill(name);
+      await props.getByRole('button', { name: 'Rename', exact: true }).click();
+      await expect(
+        props.getByRole('alert').filter({ hasText: 'The file was not renamed' }),
+      ).toBeVisible();
       await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
     }
-    await expect(props.getByRole("alert").filter({ hasText: "not a name or a place" })).toBeVisible();
+    await expect(
+      props.getByRole('alert').filter({ hasText: 'not a name or a place' }),
+    ).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(before);
   } finally {
     await restoreMore();
   }
 });
 
-test("what is typed and not yet saved is saved as a version first, then moved with the file", async ({ page }) => {
+test('what is typed and not yet saved is saved as a version first, then moved with the file', async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/n.md": "# Title\n" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/n.md': '# Title\n',
+    });
     const before = (await hubs.more.branchHead()) as string;
     await page.goto(`/repo/${id}/Notes/n.md`);
-    await noteEditor(page, "n.md").click();
-    await page.keyboard.press("ControlOrMeta+End");
-    await page.keyboard.type("typed, not saved");
-    await expect(status(page)).toHaveText("Changes kept as a draft.");
+    await noteEditor(page, 'n.md').click();
+    await page.keyboard.press('ControlOrMeta+End');
+    await page.keyboard.type('typed, not saved');
+    await expect(status(page)).toHaveText('Changes kept as a draft.');
 
-    const props = page.getByTestId("document-properties");
-    await props.getByText("Properties", { exact: true }).click();
-    await props.getByLabel("File name").fill("renamed");
-    await props.getByRole("button", { name: "Rename", exact: true }).click();
+    const props = page.getByTestId('document-properties');
+    await props.getByText('Properties', { exact: true }).click();
+    await props.getByLabel('File name').fill('renamed');
+    await props.getByRole('button', { name: 'Rename', exact: true }).click();
     await expect(page).toHaveURL(PLACE, { timeout: 30_000 }); // workstream 0003: the address is made of ids
 
     // The folder page is already at /f/<handle>, so the address cannot say the commit is made.
-    await expect.poll(async () => (await hubs.more.show((await hubs.more.branchHead()) as string, "%B")).split("\n")[0], { timeout: 30_000 }).toMatch(/^(Move|Rename) /);
+    await expect
+      .poll(
+        async () =>
+          (await hubs.more.show((await hubs.more.branchHead()) as string, '%B')).split('\n')[0],
+        { timeout: 30_000 },
+      )
+      .toMatch(/^(Move|Rename) /);
     const head = (await hubs.more.branchHead()) as string;
-    const version = (await hubs.more.show(head, "%P")) as string;
-    expect(await hubs.more.show(version, "%P")).toBe(before);
-    expect((await hubs.more.show(head, "%B")).split("\n")[0]).toBe("Rename n to renamed");
-    expect((await hubs.more.filesAt(head))["Notes/renamed.md"]).toMatch(/typed, not saved\n$/);
+    const version = (await hubs.more.show(head, '%P')) as string;
+    expect(await hubs.more.show(version, '%P')).toBe(before);
+    expect((await hubs.more.show(head, '%B')).split('\n')[0]).toBe('Rename n to renamed');
+    expect((await hubs.more.filesAt(head))['Notes/renamed.md']).toMatch(/typed, not saved\n$/);
     // The draft went with the version; the renamed note opens clean.
-    await expect(page.getByText("Your changes were kept")).toHaveCount(0);
+    await expect(page.getByText('Your changes were kept')).toHaveCount(0);
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("nothing is moved into an encrypted vault, and who may move is the owner, from this site", async ({ page, browser }) => {
+test('nothing is moved into an encrypted vault, and who may move is the owner, from this site', async ({
+  page,
+  browser,
+}) => {
   try {
     const id = await repositoryWith(page, {
-      "Notes/fjord.vault.json": VAULT_MANIFEST,
-      "Secret/fjord.vault.json": MOVE_ENCRYPTED,
-      "Notes/Sub/a.md": "a",
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Secret/fjord.vault.json': MOVE_ENCRYPTED,
+      'Notes/Sub/a.md': 'a',
     });
     // The page offers plaintext vaults only.
     await page.goto(`/repo/${id}/Notes/Sub/a.md`);
-    await page.getByRole("button", { name: "Move", exact: true }).click();
-    await expect(page.getByLabel("Move to").locator("option")).toHaveText(["Notes"]);
+    await page.getByRole('button', { name: 'Move', exact: true }).click();
+    await expect(page.getByLabel('Move to').locator('option')).toHaveText(['Notes']);
 
     // And the server holds to that whatever the page sends.
-    const sent = { vault: "Notes", type: "file", path: "Notes/Sub/a.md", blob: "a".repeat(40), destination: "Secret/a.md" };
+    const sent = {
+      vault: 'Notes',
+      type: 'file',
+      path: 'Notes/Sub/a.md',
+      blob: 'a'.repeat(40),
+      destination: 'Secret/a.md',
+    };
     const move = (context: { post: typeof page.request.post }, origin: string | null = BASE) =>
-      context.post(`/api/connections/${id}/files/move`, { headers: origin === null ? {} : { origin }, data: sent });
+      context.post(`/api/connections/${id}/files/move`, {
+        headers: origin === null ? {} : { origin },
+        data: sent,
+      });
     const refused = await move(page.request);
     expect(refused.status()).toBe(422);
-    expect((await refused.json()).error.code).toBe("encrypted_vault");
-    expect((await move(page.request, "https://evil.example")).status()).toBe(403);
+    expect((await refused.json()).error.code).toBe('encrypted_vault');
+    expect((await move(page.request, 'https://evil.example')).status()).toBe(403);
 
-    const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.17" } });
+    const other = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.17' },
+    });
     const otherPage = await other.newPage();
-    await signUp(otherPage, `visitor-${Date.now()}@example.com`, "Grace Hopper");
+    await signUp(otherPage, `visitor-${Date.now()}@example.com`, 'Grace Hopper');
     expect((await move(otherPage.request)).status()).toBe(404);
     await other.close();
     const anonymous = await browser.newContext({ baseURL: BASE });
@@ -3294,32 +4911,41 @@ test("nothing is moved into an encrypted vault, and who may move is the owner, f
   }
 });
 
-test("a document is not put back while another file has its id, and is once that file is gone", async ({ page }) => {
+test('a document is not put back while another file has its id, and is once that file is gone', async ({
+  page,
+}) => {
   try {
     const original = `---\nid: ${ID_DOC}\ntitle: Plan\n---\n\n# Plan\n`;
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": original });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': original,
+    });
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await page.getByRole("button", { name: "Delete", exact: true }).click();
-    await page.getByRole("button", { name: "Yes, delete" }).click();
+    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await page.getByRole('button', { name: 'Yes, delete' }).click();
     await expect(page.getByText(/^Deleted “/)).toBeVisible({ timeout: 30_000 }); // RFC 0002: the folder is at /f/<handle>, and so is a file with no id
 
     // Meanwhile a copy appears from another tool, with the same id.
-    await hubs.more.commitFiles({ "Notes/Copy of plan.md": `---\nid: ${ID_DOC}\ntitle: Copy\n---\n\ncopy\n` });
+    await hubs.more.commitFiles({
+      'Notes/Copy of plan.md': `---\nid: ${ID_DOC}\ntitle: Copy\n---\n\ncopy\n`,
+    });
     const head = (await hubs.more.branchHead()) as string;
 
     await page.goto(`/deleted/${id}`);
-    await page.getByRole("button", { name: "Put back" }).click();
-    const alert = page.getByRole("alert").filter({ hasText: "Nothing was put back" });
-    await expect(alert).toContainText("already has the id");
-    await expect(alert.getByText("Notes/Copy of plan.md")).toBeVisible();
+    await page.getByRole('button', { name: 'Put back' }).click();
+    const alert = page.getByRole('alert').filter({ hasText: 'Nothing was put back' });
+    await expect(alert).toContainText('already has the id');
+    await expect(alert.getByText('Notes/Copy of plan.md')).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(head);
 
     // With the copy gone it can be.
-    await hubs.more.commitFiles({ "Notes/Copy of plan.md": null });
+    await hubs.more.commitFiles({ 'Notes/Copy of plan.md': null });
     await page.reload();
-    await page.getByRole("button", { name: "Put back" }).click();
-    await expect(page.getByRole("link", { name: "Notes/Plan.fj.md" })).toBeVisible();
-    expect((await hubs.more.filesAt((await hubs.more.branchHead()) as string))["Notes/Plan.fj.md"]).toBe(original);
+    await page.getByRole('button', { name: 'Put back' }).click();
+    await expect(page.getByRole('link', { name: 'Notes/Plan.fj.md' })).toBeVisible();
+    expect(
+      (await hubs.more.filesAt((await hubs.more.branchHead()) as string))['Notes/Plan.fj.md'],
+    ).toBe(original);
     await hubs.more.fsck();
   } finally {
     await restoreMore();
@@ -3330,58 +4956,102 @@ test("a document is not put back while another file has its id, and is once that
 
 const SHARE_DOC = `---\nid: ${ID_DOC}\ntitle: Q4 plan\nx-secret: not for the reader\n---\n\n# Q4 plan\n\nThe plan, for reading.\n`;
 
-test("a document shared with a named account opens for them to read, and for no one else, and stops when the share does", async ({ page, browser }) => {
+test('a document shared with a named account opens for them to read, and for no one else, and stops when the share does', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Deep/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note", "Notes/other.fj.md": withId("01jagc4k7pt8y3wqnmzv5xrbzz", "private") });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Deep/Plan.fj.md': SHARE_DOC,
+      'Notes/idea.md': 'a note',
+      'Notes/other.fj.md': withId('01jagc4k7pt8y3wqnmzv5xrbzz', 'private'),
+    });
     const share = (request: typeof page.request, data: unknown, origin: string | null = BASE) =>
-      request.post(`/api/connections/${id}/shares`, { headers: origin === null ? {} : { origin }, data });
-    const unshare = (request: typeof page.request, data: unknown) => request.delete(`/api/connections/${id}/shares`, { headers: { origin: BASE }, data });
+      request.post(`/api/connections/${id}/shares`, {
+        headers: origin === null ? {} : { origin },
+        data,
+      });
+    const unshare = (request: typeof page.request, data: unknown) =>
+      request.delete(`/api/connections/${id}/shares`, { headers: { origin: BASE }, data });
 
     const graceEmail = `grace-${Date.now()}@example.com`;
-    const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.2.5" } });
+    const other = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.2.5' },
+    });
     const grace = await other.newPage();
-    await signUp(grace, graceEmail, "Grace Hopper");
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.2.6" } });
+    await signUp(grace, graceEmail, 'Grace Hopper');
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.2.6' },
+    });
     const mallory = await stranger.newPage();
-    await signUp(mallory, `mallory-${Date.now()}@example.com`, "Mallory");
+    await signUp(mallory, `mallory-${Date.now()}@example.com`, 'Mallory');
 
     // Nobody has been given anything yet.
     expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(404);
 
     // The owner shares it with an address that has an account, and with one that has none: the same answer, word for word.
-    const known = await share(page.request, { doc: ID_DOC, email: graceEmail, role: "view" });
-    const unknown = await share(page.request, { doc: ID_DOC, email: `nobody-${Date.now()}@example.com`, role: "view" });
+    const known = await share(page.request, { doc: ID_DOC, email: graceEmail, role: 'view' });
+    const unknown = await share(page.request, {
+      doc: ID_DOC,
+      email: `nobody-${Date.now()}@example.com`,
+      role: 'view',
+    });
     expect(known.status()).toBe(200);
     expect(unknown.status()).toBe(200);
     expect(await unknown.text()).toBe(await known.text());
 
     // Grace reads it, at the plain address; the header and the file's place are not shown to her.
     expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(200);
-    await expect(grace.getByRole("heading", { name: "Q4 plan" })).toBeVisible();
-    await expect(grace.getByText("Shared with you by Ada Lovelace")).toBeVisible();
-    await expect(grace.getByText("Can view")).toBeVisible();
-    const editor = grace.getByRole("textbox", { name: "Q4 plan" });
-    await expect(editor).toContainText("The plan, for reading.");
-    await expect(editor).toHaveAttribute("contenteditable", "false");
-    const text = await grace.locator("main").innerText();
+    await expect(grace.getByRole('heading', { name: 'Q4 plan' })).toBeVisible();
+    await expect(grace.getByText('Shared with you by Ada Lovelace')).toBeVisible();
+    await expect(grace.getByText('Can view')).toBeVisible();
+    const editor = grace.getByRole('textbox', { name: 'Q4 plan' });
+    await expect(editor).toContainText('The plan, for reading.');
+    await expect(editor).toHaveAttribute('contenteditable', 'false');
+    const text = await grace.locator('main').innerText();
     expect(text).not.toMatch(/x-secret|not for the reader|Deep|Plan\.fj\.md|acme\/more/);
     await expect(grace).toHaveURL(`${BASE}/d/${ID_DOC}`);
 
     // Nothing else of the owner's is hers: not the repository, not another document, not the note, nor the owner's routes.
-    for (const path of [`/repo/${id}`, `/repo/${id}/Notes/Deep/Plan.fj.md`, `/d/01jagc4k7pt8y3wqnmzv5xrbzz`, `/n/${ID_NOTE}`]) expect((await grace.goto(path))?.status(), path).toBe(404);
-    expect((await share(grace.request, { doc: ID_DOC, email: graceEmail, role: "edit" })).status()).toBe(404);
-    expect((await grace.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)).status()).toBe(404);
+    for (const path of [
+      `/repo/${id}`,
+      `/repo/${id}/Notes/Deep/Plan.fj.md`,
+      `/d/01jagc4k7pt8y3wqnmzv5xrbzz`,
+      `/n/${ID_NOTE}`,
+    ])
+      expect((await grace.goto(path))?.status(), path).toBe(404);
+    expect(
+      (await share(grace.request, { doc: ID_DOC, email: graceEmail, role: 'edit' })).status(),
+    ).toBe(404);
+    expect((await grace.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)).status()).toBe(
+      404,
+    );
     // And not a person with no share.
     expect((await mallory.goto(`/d/${ID_DOC}`))?.status()).toBe(404);
 
     // The owner sees who it is shared with; it follows the file when it is moved; and taking the share away ends it at once.
-    const listed = await (await page.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)).json();
-    expect(listed.shares).toEqual([{ accountId: expect.any(String), name: "Grace Hopper", email: graceEmail, role: "view" }]);
-    await hubs.more.commitFiles({ "Notes/Deep/Plan.fj.md": null, "Notes/Moved/Q4 plan.fj.md": SHARE_DOC });
+    const listed = await (
+      await page.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)
+    ).json();
+    expect(listed.shares).toEqual([
+      { accountId: expect.any(String), name: 'Grace Hopper', email: graceEmail, role: 'view' },
+    ]);
+    await hubs.more.commitFiles({
+      'Notes/Deep/Plan.fj.md': null,
+      'Notes/Moved/Q4 plan.fj.md': SHARE_DOC,
+    });
     expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(200);
-    await expect(grace.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    await expect(grace.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      'The plan, for reading.',
+    );
 
-    const gone = await unshare(page.request, { doc: ID_DOC, accountId: listed.shares[0].accountId });
+    const gone = await unshare(page.request, {
+      doc: ID_DOC,
+      accountId: listed.shares[0].accountId,
+    });
     expect(await gone.json()).toEqual({ removed: true });
     expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(404);
     await other.close();
@@ -3391,16 +5061,34 @@ test("a document shared with a named account opens for them to read, and for no 
   }
 });
 
-test("only a document can be shared, only by its owner, from this site", async ({ page, browser }) => {
+test('only a document can be shared, only by its owner, from this site', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note" });
-    const send = (request: typeof page.request, data: unknown, origin: string | null = BASE) => request.post(`/api/connections/${id}/shares`, { headers: origin === null ? {} : { origin }, data });
-    const good = { doc: ID_DOC, email: "someone@example.com", role: "view" };
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+      'Notes/idea.md': 'a note',
+    });
+    const send = (request: typeof page.request, data: unknown, origin: string | null = BASE) =>
+      request.post(`/api/connections/${id}/shares`, {
+        headers: origin === null ? {} : { origin },
+        data,
+      });
+    const good = { doc: ID_DOC, email: 'someone@example.com', role: 'view' };
 
     expect((await send(page.request, { ...good, doc: ID_NOTE })).status()).toBe(404); // a file with no id is not a Doc to share (RFC 0002: any Doc can be shared, there is no longer a note)
-    expect((await send(page.request, { ...good, doc: "01jagc4k7pt8y3wqnmzv5xrbzz" })).status()).toBe(404); // not there
-    for (const bad of [{ ...good, role: "owner" }, { ...good, email: "no-at-sign" }, { ...good, doc: "nope" }]) expect((await send(page.request, bad)).status(), JSON.stringify(bad)).toBe(400);
-    expect((await send(page.request, good, "https://evil.example")).status()).toBe(403);
+    expect(
+      (await send(page.request, { ...good, doc: '01jagc4k7pt8y3wqnmzv5xrbzz' })).status(),
+    ).toBe(404); // not there
+    for (const bad of [
+      { ...good, role: 'owner' },
+      { ...good, email: 'no-at-sign' },
+      { ...good, doc: 'nope' },
+    ])
+      expect((await send(page.request, bad)).status(), JSON.stringify(bad)).toBe(400);
+    expect((await send(page.request, good, 'https://evil.example')).status()).toBe(403);
     expect((await send(page.request, good, null)).status()).toBe(403);
 
     const anonymous = await browser.newContext({ baseURL: BASE });
@@ -3413,108 +5101,194 @@ test("only a document can be shared, only by its owner, from this site", async (
 
 // --- Share links (ROADMAP 1c.3) --------------------------------------------------------------------------------------------
 
-test("a link opens a document for anyone who has it, until it expires or is revoked, and for no other document", async ({ page, browser }) => {
+test('a link opens a document for anyone who has it, until it expires or is revoked, and for no other document', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Deep/Plan.fj.md": SHARE_DOC, "Notes/Other.fj.md": withId("01jagc4k7pt8y3wqnmzv5xrbzz", "private") });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Deep/Plan.fj.md': SHARE_DOC,
+      'Notes/Other.fj.md': withId('01jagc4k7pt8y3wqnmzv5xrbzz', 'private'),
+    });
     const make = async (data: Record<string, unknown>) => {
-      const response = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, ...data } });
+      const response = await page.request.post(`/api/connections/${id}/links`, {
+        headers: { origin: BASE },
+        data: { doc: ID_DOC, ...data },
+      });
       expect(response.status()).toBe(201);
       return (await response.json()) as { id: number; token: string; url: string };
     };
-    const reader = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.3.4" } });
+    const reader = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.3.4' },
+    });
     const visitor = await reader.newPage();
 
-    const link = await make({ role: "view" });
+    const link = await make({ role: 'view' });
     expect(link.url).toBe(`${BASE}/d/${ID_DOC}?token=${link.token}`);
 
     // Someone with no account and no session reads it: the title and the text, read-only, and nothing of where it is.
     expect((await visitor.goto(link.url))?.status()).toBe(200);
-    await expect(visitor.getByRole("heading", { name: "Q4 plan" }).first()).toBeVisible();
-    await expect(visitor.getByText("Can view")).toBeVisible();
-    const editor = visitor.getByRole("textbox", { name: "Q4 plan" });
-    await expect(editor).toContainText("The plan, for reading.");
-    await expect(editor).toHaveAttribute("contenteditable", "false");
-    expect(await visitor.locator("main").innerText()).not.toMatch(/x-secret|not for the reader|Deep|Plan\.fj\.md|acme\/more|Ada/);
+    await expect(visitor.getByRole('heading', { name: 'Q4 plan' }).first()).toBeVisible();
+    await expect(visitor.getByText('Can view')).toBeVisible();
+    const editor = visitor.getByRole('textbox', { name: 'Q4 plan' });
+    await expect(editor).toContainText('The plan, for reading.');
+    await expect(editor).toHaveAttribute('contenteditable', 'false');
+    expect(await visitor.locator('main').innerText()).not.toMatch(
+      /x-secret|not for the reader|Deep|Plan\.fj\.md|acme\/more|Ada/,
+    );
 
     // It is for that document only; without the token, or with a wrong one, the page is what it is for anyone: the sign-in.
     // (Someone who has not been given the link, so a context with no cookie of its own.)
-    const cold = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.3.5" } });
+    const cold = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.3.5' },
+    });
     const outsider = await cold.newPage();
-    for (const url of [`/d/01jagc4k7pt8y3wqnmzv5xrbzz?token=${link.token}`, `/d/${ID_DOC}`, `/d/${ID_DOC}?token=${"A".repeat(43)}`, `/d/${ID_DOC}?token=short`, `/n/${ID_DOC}`, `/n/${ID_DOC}?token=${"A".repeat(43)}`]) {
+    for (const url of [
+      `/d/01jagc4k7pt8y3wqnmzv5xrbzz?token=${link.token}`,
+      `/d/${ID_DOC}`,
+      `/d/${ID_DOC}?token=${'A'.repeat(43)}`,
+      `/d/${ID_DOC}?token=short`,
+      `/n/${ID_DOC}`,
+      `/n/${ID_DOC}?token=${'A'.repeat(43)}`,
+    ]) {
       await outsider.goto(url);
       await expect(outsider, url).toHaveURL(/\/sign-in/);
-      await expect(outsider.getByRole("heading", { name: "Q4 plan" }), url).toHaveCount(0);
+      await expect(outsider.getByRole('heading', { name: 'Q4 plan' }), url).toHaveCount(0);
     }
     // A link is the same document at its other address, `/n/<id>` (a journal's note, workstream 0003), and enters there with the token gone from the address.
     await outsider.goto(`/n/${ID_DOC}?token=${link.token}`);
     await expect(outsider).toHaveURL(`${BASE}/n/${ID_DOC}`);
-    await expect(outsider.getByRole("heading", { name: "Q4 plan" })).toBeVisible();
+    await expect(outsider.getByRole('heading', { name: 'Q4 plan' })).toBeVisible();
     await cold.close();
 
     // The owner's list says what links there are, with no token; it follows the file when it moves.
-    const listed = await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).json();
-    expect(listed.links).toEqual([{ id: link.id, role: "view", expiresAt: null, revokedAt: null, createdAt: expect.any(Number), status: "active", passwordProtected: false }]);
+    const listed = await (
+      await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)
+    ).json();
+    expect(listed.links).toEqual([
+      {
+        id: link.id,
+        role: 'view',
+        expiresAt: null,
+        revokedAt: null,
+        createdAt: expect.any(Number),
+        status: 'active',
+        passwordProtected: false,
+      },
+    ]);
     expect(JSON.stringify(listed)).not.toContain(link.token);
-    await hubs.more.commitFiles({ "Notes/Deep/Plan.fj.md": null, "Notes/Moved/Q4 plan.fj.md": SHARE_DOC });
+    await hubs.more.commitFiles({
+      'Notes/Deep/Plan.fj.md': null,
+      'Notes/Moved/Q4 plan.fj.md': SHARE_DOC,
+    });
     expect((await visitor.goto(link.url))?.status()).toBe(200);
-    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    await expect(visitor.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      'The plan, for reading.',
+    );
 
     // Several at once, each its own: revoking one ends that one at once and not the other.
-    const second = await make({ role: "comment" });
-    expect((await (await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } })).json())).toEqual({ revoked: true });
+    const second = await make({ role: 'comment' });
+    expect(
+      await (
+        await page.request.delete(`/api/connections/${id}/links`, {
+          headers: { origin: BASE },
+          data: { doc: ID_DOC, linkId: link.id },
+        })
+      ).json(),
+    ).toEqual({ revoked: true });
     await visitor.goto(link.url);
-    await expect(visitor.getByRole("heading", { name: "Q4 plan" })).toHaveCount(0);
+    await expect(visitor.getByRole('heading', { name: 'Q4 plan' })).toHaveCount(0);
     expect((await visitor.goto(second.url))?.status()).toBe(200);
-    await expect(visitor.getByText("Can comment")).toBeVisible();
-    expect((await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).json()).links.map((entry: { status: string }) => entry.status)).toEqual(["active", "revoked"]);
+    await expect(visitor.getByText('Can comment')).toBeVisible();
+    expect(
+      (
+        await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).json()
+      ).links.map((entry: { status: string }) => entry.status),
+    ).toEqual(['active', 'revoked']);
 
     // One with an expiry works until it, and is refused after.
-    const brief = await make({ role: "view", expiresAt: Date.now() + 3000 });
+    const brief = await make({ role: 'view', expiresAt: Date.now() + 3000 });
     expect((await visitor.goto(brief.url))?.status()).toBe(200);
-    await expect(visitor.getByRole("heading", { name: "Q4 plan" }).first()).toBeVisible();
+    await expect(visitor.getByRole('heading', { name: 'Q4 plan' }).first()).toBeVisible();
     await visitor.waitForTimeout(3300);
     await visitor.goto(brief.url);
-    await expect(visitor.getByRole("heading", { name: "Q4 plan" })).toHaveCount(0);
+    await expect(visitor.getByRole('heading', { name: 'Q4 plan' })).toHaveCount(0);
     await reader.close();
   } finally {
     await restoreMore();
   }
 });
 
-test("only the owner makes links, only for a document, from this site, and the token is shown once", async ({ page, browser }) => {
+test('only the owner makes links, only for a document, from this site, and the token is shown once', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note" });
-    const send = (request: typeof page.request, data: unknown, origin: string | null = BASE) => request.post(`/api/connections/${id}/links`, { headers: origin === null ? {} : { origin }, data });
-    const good = { doc: ID_DOC, role: "view" };
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+      'Notes/idea.md': 'a note',
+    });
+    const send = (request: typeof page.request, data: unknown, origin: string | null = BASE) =>
+      request.post(`/api/connections/${id}/links`, {
+        headers: origin === null ? {} : { origin },
+        data,
+      });
+    const good = { doc: ID_DOC, role: 'view' };
 
     expect((await send(page.request, { ...good, doc: ID_NOTE })).status()).toBe(404); // RFC 0002: a file with no id is not there to be shared
-    expect((await send(page.request, { ...good, doc: "01jagc4k7pt8y3wqnmzv5xrbzz" })).status()).toBe(404);
-    for (const bad of [{ ...good, role: "owner" }, { ...good, expiresAt: Date.now() - 1000 }, { ...good, expiresAt: "tomorrow" }, { ...good, doc: "nope" }]) expect((await send(page.request, bad)).status(), JSON.stringify(bad)).toBe(400);
-    expect((await send(page.request, good, "https://evil.example")).status()).toBe(403);
+    expect(
+      (await send(page.request, { ...good, doc: '01jagc4k7pt8y3wqnmzv5xrbzz' })).status(),
+    ).toBe(404);
+    for (const bad of [
+      { ...good, role: 'owner' },
+      { ...good, expiresAt: Date.now() - 1000 },
+      { ...good, expiresAt: 'tomorrow' },
+      { ...good, doc: 'nope' },
+    ])
+      expect((await send(page.request, bad)).status(), JSON.stringify(bad)).toBe(400);
+    expect((await send(page.request, good, 'https://evil.example')).status()).toBe(403);
     expect((await send(page.request, good, null)).status()).toBe(403);
 
     const anonymous = await browser.newContext({ baseURL: BASE });
     expect((await send(anonymous.request, good)).status()).toBe(401);
     await anonymous.close();
-    const other = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.3.9" } });
+    const other = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.3.9' },
+    });
     const stranger = await other.newPage();
-    await signUp(stranger, `visitor-${Date.now()}@example.com`, "Mallory");
+    await signUp(stranger, `visitor-${Date.now()}@example.com`, 'Mallory');
     expect((await send(stranger.request, good)).status()).toBe(404);
-    expect((await stranger.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).status()).toBe(404);
+    expect(
+      (await stranger.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).status(),
+    ).toBe(404);
     await other.close();
 
     // The token is in the answer to making the link and in nothing after it.
     const made = await (await send(page.request, good)).json();
     expect(made.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    expect(await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).text()).not.toContain(made.token);
+    expect(
+      await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).text(),
+    ).not.toContain(made.token);
   } finally {
     await restoreMore();
   }
 });
 
-test("the routes' old names still work: /doc/<id> and /note/<id> go to /d/<id> and /n/<id>, and a link given before the change still opens the document", async ({ page, browser }) => {
+test("the routes' old names still work: /doc/<id> and /note/<id> go to /d/<id> and /n/<id>, and a link given before the change still opens the document", async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": withId(ID_NOTE, "An idea") });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+      'Notes/idea.md': withId(ID_NOTE, 'An idea'),
+    });
     // The owner's bookmarks: the old address is sent on for good, to the short one.
     const old = await page.goto(`/doc/${ID_DOC}`);
     expect(page.url()).toMatch(docPlace(ID_DOC)); // and from the short one, to the Doc's address inside its repository
@@ -3527,10 +5301,16 @@ test("the routes' old names still work: /doc/<id> and /note/<id> go to /d/<id> a
     expect(page.url()).toMatch(docPlace(ID_NOTE));
 
     // A share link as it was given before the routes were shortened: it opens the document, and ends on the short address with the token gone.
-    const made = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "view" } });
+    const made = await page.request.post(`/api/connections/${id}/links`, {
+      headers: { origin: BASE },
+      data: { doc: ID_DOC, role: 'view' },
+    });
     const link = (await made.json()) as { token: string; url: string };
     expect(link.url).toBe(`${BASE}/d/${ID_DOC}?token=${link.token}`);
-    const reader = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.4.9" } });
+    const reader = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.4.9' },
+    });
     const visitor = await reader.newPage();
     const final = await visitor.goto(`${BASE}/doc/${ID_DOC}?token=${link.token}`);
     expect(final?.status()).toBe(200);
@@ -3539,7 +5319,9 @@ test("the routes' old names still work: /doc/<id> and /note/<id> go to /d/<id> a
     const first = (await final!.request().redirectedFrom()!.response())!;
     expect(first.status()).toBe(303);
     expect(JSON.stringify(first.headers())).not.toContain(link.token);
-    const cookie = (await reader.cookies(`${BASE}/d/${ID_DOC}`)).find((candidate) => candidate.name === "fjord_share")!;
+    const cookie = (await reader.cookies(`${BASE}/d/${ID_DOC}`)).find(
+      (candidate) => candidate.name === 'fjord_share',
+    )!;
     expect(cookie).toMatchObject({ value: link.token, httpOnly: true, path: `/d/${ID_DOC}` });
     await reader.close();
   } finally {
@@ -3547,15 +5329,28 @@ test("the routes' old names still work: /doc/<id> and /note/<id> go to /d/<id> a
   }
 });
 
-test("a link's token is swapped for a cookie of that document and gone from the address, and ends when the link does", async ({ page, browser }) => {
+test("a link's token is swapped for a cookie of that document and gone from the address, and ends when the link does", async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/Other.fj.md": withId("01jagc4k7pt8y3wqnmzv5xrbzz", "private") });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+      'Notes/Other.fj.md': withId('01jagc4k7pt8y3wqnmzv5xrbzz', 'private'),
+    });
     const make = async (data: Record<string, unknown>) => {
-      const response = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, ...data } });
+      const response = await page.request.post(`/api/connections/${id}/links`, {
+        headers: { origin: BASE },
+        data: { doc: ID_DOC, ...data },
+      });
       return (await response.json()) as { id: number; token: string; url: string };
     };
-    const link = await make({ role: "view" });
-    const reader = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.4.4" } });
+    const link = await make({ role: 'view' });
+    const reader = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.4.4' },
+    });
     const visitor = await reader.newPage();
 
     // The first request is not a page: it is answered with a redirect to the clean address, and the cookie.
@@ -3566,52 +5361,82 @@ test("a link's token is swapped for a cookie of that document and gone from the 
     const first = final!.request().redirectedFrom()!;
     const redirect = (await first.response())!;
     expect(redirect.status()).toBe(303);
-    expect(redirect.headers()["location"]).toBe(`/d/${ID_DOC}`);
+    expect(redirect.headers()['location']).toBe(`/d/${ID_DOC}`);
     expect(JSON.stringify(redirect.headers())).not.toContain(link.token); // not in a header either: Next puts a rewrite there
-    expect(redirect.headers()["referrer-policy"]).toBe("no-referrer");
-    expect(final?.headers()["referrer-policy"]).toBe("no-referrer");
-    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    expect(redirect.headers()['referrer-policy']).toBe('no-referrer');
+    expect(final?.headers()['referrer-policy']).toBe('no-referrer');
+    await expect(visitor.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      'The plan, for reading.',
+    );
     // Nothing of the token is left in the page that is shown, nor in the history that was made.
     expect(await visitor.content()).not.toContain(link.token);
-    expect(await visitor.evaluate(() => performance.getEntriesByType("navigation").map((entry) => entry.name).join(" "))).not.toContain("token=");
+    expect(
+      await visitor.evaluate(() =>
+        performance
+          .getEntriesByType('navigation')
+          .map((entry) => entry.name)
+          .join(' '),
+      ),
+    ).not.toContain('token=');
 
     // The cookie: that document's path only, out of reach of the page's script, short-lived, and the only place the token is.
     const cookies = await reader.cookies(`${BASE}/d/${ID_DOC}`);
-    const share = cookies.find((cookie) => cookie.name === "fjord_share")!;
-    expect(share).toMatchObject({ value: link.token, httpOnly: true, sameSite: "Lax", path: `/d/${ID_DOC}` });
+    const share = cookies.find((cookie) => cookie.name === 'fjord_share')!;
+    expect(share).toMatchObject({
+      value: link.token,
+      httpOnly: true,
+      sameSite: 'Lax',
+      path: `/d/${ID_DOC}`,
+    });
     expect(share.expires - Date.now() / 1000).toBeGreaterThan(3500);
     expect(share.expires - Date.now() / 1000).toBeLessThanOrEqual(3600);
-    expect(await visitor.evaluate(() => document.cookie)).not.toContain("fjord_share");
-    expect((await reader.cookies(`${BASE}/d/01jagc4k7pt8y3wqnmzv5xrbzz`)).some((cookie) => cookie.name === "fjord_share")).toBe(false);
-    expect((await reader.cookies(`${BASE}/repo/${id}`)).some((cookie) => cookie.name === "fjord_share")).toBe(false);
+    expect(await visitor.evaluate(() => document.cookie)).not.toContain('fjord_share');
+    expect(
+      (await reader.cookies(`${BASE}/d/01jagc4k7pt8y3wqnmzv5xrbzz`)).some(
+        (cookie) => cookie.name === 'fjord_share',
+      ),
+    ).toBe(false);
+    expect(
+      (await reader.cookies(`${BASE}/repo/${id}`)).some((cookie) => cookie.name === 'fjord_share'),
+    ).toBe(false);
 
     // It goes on working at the clean address, with the cookie, and for that document only.
     await visitor.reload();
-    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    await expect(visitor.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      'The plan, for reading.',
+    );
     expect((await visitor.goto(`/d/01jagc4k7pt8y3wqnmzv5xrbzz`))?.status()).toBe(200);
     await expect(visitor).toHaveURL(/\/sign-in/);
 
     // Taking the link away ends it for the holder of the cookie on their next request.
     await visitor.goto(`/d/${ID_DOC}`);
-    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toBeVisible();
-    await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } });
+    await expect(visitor.getByRole('textbox', { name: 'Q4 plan' })).toBeVisible();
+    await page.request.delete(`/api/connections/${id}/links`, {
+      headers: { origin: BASE },
+      data: { doc: ID_DOC, linkId: link.id },
+    });
     await visitor.reload();
     await expect(visitor).toHaveURL(/\/sign-in/);
 
     // A link that ends in a minute gives a cookie that ends with it.
-    const brief = await make({ role: "view", expiresAt: Date.now() + 60_000 });
+    const brief = await make({ role: 'view', expiresAt: Date.now() + 60_000 });
     await visitor.goto(brief.url);
     await expect(visitor).toHaveURL(`${BASE}/d/${ID_DOC}`);
-    const short = (await reader.cookies(`${BASE}/d/${ID_DOC}`)).find((cookie) => cookie.name === "fjord_share")!;
+    const short = (await reader.cookies(`${BASE}/d/${ID_DOC}`)).find(
+      (cookie) => cookie.name === 'fjord_share',
+    )!;
     expect(short.value).toBe(brief.token);
     expect(short.expires - Date.now() / 1000).toBeLessThanOrEqual(60);
 
     // A link that does not work gets the same redirect, and no cookie.
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.4.5" } });
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.4.5' },
+    });
     const other = await stranger.newPage();
     await other.goto(`/d/${ID_DOC}?token=${link.token}`); // the revoked one
     await expect(other).toHaveURL(/\/sign-in/);
-    expect((await stranger.cookies()).some((cookie) => cookie.name === "fjord_share")).toBe(false);
+    expect((await stranger.cookies()).some((cookie) => cookie.name === 'fjord_share')).toBe(false);
     await stranger.close();
     await reader.close();
   } finally {
@@ -3619,28 +5444,48 @@ test("a link's token is swapped for a cookie of that document and gone from the 
   }
 });
 
-test("every page says where a link followed from it came from: nowhere", async ({ request }) => {
-  for (const path of ["/", "/sign-in", "/sign-up", "/api/health"]) expect((await request.get(path)).headers()["referrer-policy"], path).toBe("no-referrer");
+test('every page says where a link followed from it came from: nowhere', async ({ request }) => {
+  for (const path of ['/', '/sign-in', '/sign-up', '/api/health'])
+    expect((await request.get(path)).headers()['referrer-policy'], path).toBe('no-referrer');
 });
 
 // --- Password links (ROADMAP 1c.5) ---------------------------------------------------------------------------------------------
 
-test("a link with a password lets nobody in with the token alone, slows wrong tries, and opens for the right one", async ({ page, browser }) => {
+test('a link with a password lets nobody in with the token alone, slows wrong tries, and opens for the right one', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
-    const PASSWORD = "correct horse battery staple";
-    const made = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "view", password: PASSWORD } });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+    });
+    const PASSWORD = 'correct horse battery staple';
+    const made = await page.request.post(`/api/connections/${id}/links`, {
+      headers: { origin: BASE },
+      data: { doc: ID_DOC, role: 'view', password: PASSWORD },
+    });
     expect(made.status()).toBe(201);
-    const link = (await made.json()) as { id: number; token: string; url: string; passwordProtected: boolean };
+    const link = (await made.json()) as {
+      id: number;
+      token: string;
+      url: string;
+      passwordProtected: boolean;
+    };
     expect(link.passwordProtected).toBe(true);
     expect(JSON.stringify(link)).not.toContain(PASSWORD);
 
     // The owner's list says it has a password, and shows neither it nor its hash.
-    const listed = await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).text();
+    const listed = await (
+      await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)
+    ).text();
     expect(JSON.parse(listed).links[0]).toMatchObject({ id: link.id, passwordProtected: true });
     expect(listed).not.toMatch(/argon|hash|correct horse|failures|lockedUntil/i);
 
-    const reader = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.5.5" } });
+    const reader = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.5.5' },
+    });
     const visitor = await reader.newPage();
     const open = async () => {
       await visitor.goto(link.url);
@@ -3649,50 +5494,74 @@ test("a link with a password lets nobody in with the token alone, slows wrong tr
 
     // The token alone shows a question, not the document; and the cookie it left opens nothing.
     await open();
-    await expect(visitor.getByRole("heading", { name: "This document needs a password" })).toBeVisible();
-    await expect(visitor.getByText("The plan, for reading.")).toHaveCount(0);
-    const names = async () => (await reader.cookies(`${BASE}/d/${ID_DOC}`)).map((cookie) => cookie.name);
-    expect(await names()).toContain("fjord_share_pending");
-    expect(await names()).not.toContain("fjord_share");
+    await expect(
+      visitor.getByRole('heading', { name: 'This document needs a password' }),
+    ).toBeVisible();
+    await expect(visitor.getByText('The plan, for reading.')).toHaveCount(0);
+    const names = async () =>
+      (await reader.cookies(`${BASE}/d/${ID_DOC}`)).map((cookie) => cookie.name);
+    expect(await names()).toContain('fjord_share_pending');
+    expect(await names()).not.toContain('fjord_share');
     expect(await visitor.content()).not.toContain(link.token);
 
     // A wrong password is said to be wrong; one straight after, even the right one, is "too soon" and is not checked.
     const give = async (password: string) => {
-      await visitor.getByLabel("Password").fill(password);
-      await visitor.getByRole("button", { name: "Open" }).click();
+      await visitor.getByLabel('Password').fill(password);
+      await visitor.getByRole('button', { name: 'Open' }).click();
     };
-    await give("not the password at all");
-    await expect(visitor.getByText("That was not the password")).toBeVisible();
-    expect(visitor.url()).not.toContain("not the password");
+    await give('not the password at all');
+    await expect(visitor.getByText('That was not the password')).toBeVisible();
+    expect(visitor.url()).not.toContain('not the password');
     await give(PASSWORD);
-    await expect(visitor.getByText("Too soon")).toBeVisible();
-    await expect(visitor.getByText("The plan, for reading.")).toHaveCount(0);
+    await expect(visitor.getByText('Too soon')).toBeVisible();
+    await expect(visitor.getByText('The plan, for reading.')).toHaveCount(0);
 
     // After the wait, the right one opens it: the cookie that opens carries the proof as well as the token, and the pending one is gone.
     await visitor.waitForTimeout(1300);
     await give(PASSWORD);
-    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    await expect(visitor.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      'The plan, for reading.',
+    );
     await expect(visitor).toHaveURL(`${BASE}/d/${ID_DOC}`);
-    const share = (await reader.cookies(`${BASE}/d/${ID_DOC}`)).find((cookie) => cookie.name === "fjord_share")!;
+    const share = (await reader.cookies(`${BASE}/d/${ID_DOC}`)).find(
+      (cookie) => cookie.name === 'fjord_share',
+    )!;
     expect(share.value.startsWith(`${link.token}.`)).toBe(true);
-    expect(share).toMatchObject({ httpOnly: true, sameSite: "Lax", path: `/d/${ID_DOC}` });
-    expect(await names()).not.toContain("fjord_share_pending");
+    expect(share).toMatchObject({ httpOnly: true, sameSite: 'Lax', path: `/d/${ID_DOC}` });
+    expect(await names()).not.toContain('fjord_share_pending');
     await visitor.reload();
-    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    await expect(visitor.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      'The plan, for reading.',
+    );
 
     // Revoking ends it for the holder of the cookie on the next request.
-    await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } });
+    await page.request.delete(`/api/connections/${id}/links`, {
+      headers: { origin: BASE },
+      data: { doc: ID_DOC, linkId: link.id },
+    });
     await visitor.reload();
     await expect(visitor).toHaveURL(/\/sign-in/);
 
     // Someone who has the link and sets the cookie for themselves, with the token and no proof, is not let in.
-    const live = await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "view", password: PASSWORD } })).json();
-    const forger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.5.6" } });
-    await forger.addCookies([{ name: "fjord_share", value: live.token, url: `${BASE}/d/${ID_DOC}` }]);
+    const live = await (
+      await page.request.post(`/api/connections/${id}/links`, {
+        headers: { origin: BASE },
+        data: { doc: ID_DOC, role: 'view', password: PASSWORD },
+      })
+    ).json();
+    const forger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.5.6' },
+    });
+    await forger.addCookies([
+      { name: 'fjord_share', value: live.token, url: `${BASE}/d/${ID_DOC}` },
+    ]);
     const forged = await forger.newPage();
     await forged.goto(`/d/${ID_DOC}`);
     await expect(forged).toHaveURL(/\/sign-in/);
-    await forger.addCookies([{ name: "fjord_share", value: `${live.token}.${"A".repeat(43)}`, url: `${BASE}/d/${ID_DOC}` }]);
+    await forger.addCookies([
+      { name: 'fjord_share', value: `${live.token}.${'A'.repeat(43)}`, url: `${BASE}/d/${ID_DOC}` },
+    ]);
     await forged.goto(`/d/${ID_DOC}`);
     await expect(forged).toHaveURL(/\/sign-in/);
     await forger.close();
@@ -3702,14 +5571,26 @@ test("a link with a password lets nobody in with the token alone, slows wrong tr
   }
 });
 
-test("a link's password is checked when the link is made: text of a fit length, or none", async ({ page }) => {
+test("a link's password is checked when the link is made: text of a fit length, or none", async ({
+  page,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
-    const send = (data: unknown) => page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "view", ...(data as object) } });
-    for (const password of ["short", "x".repeat(201), 12345678, ["abcdefgh"]]) expect((await send({ password })).status(), JSON.stringify(password)).toBe(400);
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+    });
+    const send = (data: unknown) =>
+      page.request.post(`/api/connections/${id}/links`, {
+        headers: { origin: BASE },
+        data: { doc: ID_DOC, role: 'view', ...(data as object) },
+      });
+    for (const password of ['short', 'x'.repeat(201), 12345678, ['abcdefgh']])
+      expect((await send({ password })).status(), JSON.stringify(password)).toBe(400);
     expect((await send({ password: null })).status()).toBe(201);
     expect((await send({})).status()).toBe(201);
-    expect((await (await send({ password: "long enough password" })).json()).passwordProtected).toBe(true);
+    expect(
+      (await (await send({ password: 'long enough password' })).json()).passwordProtected,
+    ).toBe(true);
   } finally {
     await restoreMore();
   }
@@ -3717,53 +5598,75 @@ test("a link's password is checked when the link is made: text of a fit length, 
 
 // --- Editing through a link (ROADMAP 1c.6) -------------------------------------------------------------------------------------
 
-test("someone with an edit link gives a name, edits the working copy, and the owner's next version credits them", async ({ page, browser }) => {
+test("someone with an edit link gives a name, edits the working copy, and the owner's next version credits them", async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
-    const made = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "edit" } });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+    });
+    const made = await page.request.post(`/api/connections/${id}/links`, {
+      headers: { origin: BASE },
+      data: { doc: ID_DOC, role: 'edit' },
+    });
     const link = (await made.json()) as { id: number; token: string; url: string };
     const before = (await hubs.more.branchHead()) as string;
 
-    const guest = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.6.6" } });
+    const guest = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.6.6' },
+    });
     const visitor = await guest.newPage();
     await visitor.goto(link.url);
     await expect(visitor).toHaveURL(`${BASE}/d/${ID_DOC}`);
-    await expect(visitor.getByText("Can edit")).toBeVisible();
+    await expect(visitor.getByText('Can edit')).toBeVisible();
 
     // A name comes first: until it is given the document can only be read.
-    const editor = visitor.getByRole("textbox", { name: "Q4 plan" });
-    await expect(editor).toContainText("The plan, for reading.");
-    await expect(editor).toHaveAttribute("contenteditable", "false");
-    await expect(visitor.getByLabel("Your name")).toBeVisible();
-    await expect(visitor.getByRole("button", { name: "Start editing" })).toBeDisabled();
-    await visitor.getByLabel("Your name").fill("Grace   Hopper");
-    await visitor.getByRole("button", { name: "Start editing" }).click();
-    await expect(visitor.getByTestId("guest-name")).toHaveText("Grace Hopper");
-    await expect(editor).toHaveAttribute("contenteditable", "true");
+    const editor = visitor.getByRole('textbox', { name: 'Q4 plan' });
+    await expect(editor).toContainText('The plan, for reading.');
+    await expect(editor).toHaveAttribute('contenteditable', 'false');
+    await expect(visitor.getByLabel('Your name')).toBeVisible();
+    await expect(visitor.getByRole('button', { name: 'Start editing' })).toBeDisabled();
+    await visitor.getByLabel('Your name').fill('Grace   Hopper');
+    await visitor.getByRole('button', { name: 'Start editing' }).click();
+    await expect(visitor.getByTestId('guest-name')).toHaveText('Grace Hopper');
+    await expect(editor).toHaveAttribute('contenteditable', 'true');
 
     // What is typed is kept as the document's working copy, and nothing is committed.
-    await typeAtEndOf(visitor, editor.locator("p", { hasText: "The plan, for reading." }), " A guest's line.");
-    await expect(visitor.getByTestId("guest-status")).toHaveText("Changes kept for the owner to save.");
+    await typeAtEndOf(
+      visitor,
+      editor.locator('p', { hasText: 'The plan, for reading.' }),
+      " A guest's line.",
+    );
+    await expect(visitor.getByTestId('guest-status')).toHaveText(
+      'Changes kept for the owner to save.',
+    );
     expect(await hubs.more.branchHead()).toBe(before);
 
     // They find it again, under the same name, without being asked.
     await visitor.reload();
-    await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toContainText("A guest's line.");
-    await expect(visitor.getByTestId("guest-name")).toHaveText("Grace Hopper");
+    await expect(visitor.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      "A guest's line.",
+    );
+    await expect(visitor.getByTestId('guest-name')).toHaveText('Grace Hopper');
 
     // The owner sees it in the draft, who made it, and saves a version that credits them.
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
     await expect(page.getByText(/Grace Hopper made them through a link/)).toBeVisible();
-    await expect(noteEditor(page, "Plan.fj.md")).toContainText("A guest's line.");
+    await expect(noteEditor(page, 'Plan.fj.md')).toContainText("A guest's line.");
     await saveWithMessage(page, "Take the guest's line");
-    await expect(page.getByText("Version saved")).toBeVisible();
+    await expect(page.getByText('Version saved')).toBeVisible();
 
     const head = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(head, "%P")).toBe(before);
-    expect(await hubs.more.show(head, "%an <%ae>")).toMatch(/^Ada Lovelace </);
-    expect(await hubs.more.show(head, "%(trailers:key=Co-authored-by,valueonly)")).toMatch(new RegExp(`^Grace Hopper <link-${link.id}-[0-9a-f]{8}@users\\.noreply\\.fjord\\.invalid>`));
-    const saved = (await hubs.more.filesAt(head))["Notes/Plan.fj.md"]!;
-    expect(saved.startsWith(SHARE_DOC.slice(0, SHARE_DOC.indexOf("---\n\n") + 4))).toBe(true); // the header, byte for byte, with what a guest cannot touch
+    expect(await hubs.more.show(head, '%P')).toBe(before);
+    expect(await hubs.more.show(head, '%an <%ae>')).toMatch(/^Ada Lovelace </);
+    expect(await hubs.more.show(head, '%(trailers:key=Co-authored-by,valueonly)')).toMatch(
+      new RegExp(`^Grace Hopper <link-${link.id}-[0-9a-f]{8}@users\\.noreply\\.fjord\\.invalid>`),
+    );
+    const saved = (await hubs.more.filesAt(head))['Notes/Plan.fj.md']!;
+    expect(saved.startsWith(SHARE_DOC.slice(0, SHARE_DOC.indexOf('---\n\n') + 4))).toBe(true); // the header, byte for byte, with what a guest cannot touch
     expect(saved).toContain("A guest's line.");
     await hubs.more.fsck();
     await guest.close();
@@ -3772,48 +5675,90 @@ test("someone with an edit link gives a name, edits the working copy, and the ow
   }
 });
 
-test("a view link or a comment link cannot edit, and an edit link that is revoked stops at once", async ({ page, browser }) => {
+test('a view link or a comment link cannot edit, and an edit link that is revoked stops at once', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
-    const make = async (role: string) => (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role } })).json()) as { id: number; token: string; url: string };
-    const put = (request: import("@playwright/test").APIRequestContext, data: unknown, origin: string | null = BASE) =>
-      request.put(`/d/${ID_DOC}/draft`, { headers: origin === null ? {} : { origin }, data });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+    });
+    const make = async (role: string) =>
+      (await (
+        await page.request.post(`/api/connections/${id}/links`, {
+          headers: { origin: BASE },
+          data: { doc: ID_DOC, role },
+        })
+      ).json()) as { id: number; token: string; url: string };
+    const put = (
+      request: import('@playwright/test').APIRequestContext,
+      data: unknown,
+      origin: string | null = BASE,
+    ) => request.put(`/d/${ID_DOC}/draft`, { headers: origin === null ? {} : { origin }, data });
     const before = (await hubs.more.branchHead()) as string;
 
-    for (const role of ["view", "comment"]) {
+    for (const role of ['view', 'comment']) {
       const link = await make(role);
-      const reader = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": `10.99.6.${role === "view" ? 7 : 8}` } });
+      const reader = await browser.newContext({
+        baseURL: BASE,
+        extraHTTPHeaders: { 'x-forwarded-for': `10.99.6.${role === 'view' ? 7 : 8}` },
+      });
       const visitor = await reader.newPage();
       await visitor.goto(link.url);
-      await expect(visitor.getByRole("textbox", { name: "Q4 plan" })).toHaveAttribute("contenteditable", "false");
-      await expect(visitor.getByLabel("Your name")).toHaveCount(0);
-      const refused = await put(reader.request, { name: "Grace", body: "\nvandalised\n" });
+      await expect(visitor.getByRole('textbox', { name: 'Q4 plan' })).toHaveAttribute(
+        'contenteditable',
+        'false',
+      );
+      await expect(visitor.getByLabel('Your name')).toHaveCount(0);
+      const refused = await put(reader.request, { name: 'Grace', body: '\nvandalised\n' });
       expect(refused.status(), role).toBe(403);
-      expect((await refused.json()).error.code).toBe("read_only");
+      expect((await refused.json()).error.code).toBe('read_only');
       await reader.close();
     }
 
     // An edit link: from this site only, with a name, and not without the cookie.
-    const link = await make("edit");
-    const guest = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.6.9" } });
+    const link = await make('edit');
+    const guest = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.6.9' },
+    });
     const visitor = await guest.newPage();
     await visitor.goto(link.url);
-    await expect(visitor.getByLabel("Your name")).toBeVisible();
-    expect((await put(guest.request, { name: "Grace", body: "\nx\n" }, "https://evil.example")).status()).toBe(403);
-    expect((await put(guest.request, { name: "", body: "\nx\n" })).status()).toBe(400);
-    expect((await put(guest.request, { name: "Grace <b>", body: "\nx\n" })).status()).toBe(400);
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.6.10" } });
-    expect((await put(stranger.request, { name: "Grace", body: "\nx\n" })).status()).toBe(404);
+    await expect(visitor.getByLabel('Your name')).toBeVisible();
+    expect(
+      (await put(guest.request, { name: 'Grace', body: '\nx\n' }, 'https://evil.example')).status(),
+    ).toBe(403);
+    expect((await put(guest.request, { name: '', body: '\nx\n' })).status()).toBe(400);
+    expect((await put(guest.request, { name: 'Grace <b>', body: '\nx\n' })).status()).toBe(400);
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.6.10' },
+    });
+    expect((await put(stranger.request, { name: 'Grace', body: '\nx\n' })).status()).toBe(404);
     await stranger.close();
-    expect((await put(guest.request, { name: "Grace", body: "\nfrom the api\n" })).status()).toBe(200);
+    expect((await put(guest.request, { name: 'Grace', body: '\nfrom the api\n' })).status()).toBe(
+      200,
+    );
 
     // Revoked: the next save is refused and the page says its changes are not being kept.
-    await visitor.getByLabel("Your name").fill("Grace");
-    await visitor.getByRole("button", { name: "Start editing" }).click();
-    await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } });
-    expect((await put(guest.request, { name: "Grace", body: "\nafter the revoke\n" })).status()).toBe(404);
-    await typeAtEndOf(visitor, visitor.getByRole("textbox", { name: "Q4 plan" }).locator("p").last(), " more");
-    await expect(visitor.getByText("Your changes are not being kept")).toBeVisible({ timeout: 15_000 });
+    await visitor.getByLabel('Your name').fill('Grace');
+    await visitor.getByRole('button', { name: 'Start editing' }).click();
+    await page.request.delete(`/api/connections/${id}/links`, {
+      headers: { origin: BASE },
+      data: { doc: ID_DOC, linkId: link.id },
+    });
+    expect(
+      (await put(guest.request, { name: 'Grace', body: '\nafter the revoke\n' })).status(),
+    ).toBe(404);
+    await typeAtEndOf(
+      visitor,
+      visitor.getByRole('textbox', { name: 'Q4 plan' }).locator('p').last(),
+      ' more',
+    );
+    await expect(visitor.getByText('Your changes are not being kept')).toBeVisible({
+      timeout: 15_000,
+    });
     await guest.close();
     expect(await hubs.more.branchHead()).toBe(before);
   } finally {
@@ -3823,113 +5768,151 @@ test("a view link or a comment link cannot edit, and an edit link that is revoke
 
 // --- Managing shares (ROADMAP 1c.7) ----------------------------------------------------------------------------------------------
 
-test("the owner sees and controls every share of a document from its page: people, roles, links, copy, change, revoke", async ({ page, browser }) => {
+test('the owner sees and controls every share of a document from its page: people, roles, links, copy, change, revoke', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note" });
-    await page.context().grantPermissions(["clipboard-read", "clipboard-write"], { origin: BASE });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+      'Notes/idea.md': 'a note',
+    });
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: BASE });
 
     const graceEmail = `grace-${Date.now()}@example.com`;
-    const graceContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.7.7" } });
+    const graceContext = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.7.7' },
+    });
     const grace = await graceContext.newPage();
-    await signUp(grace, graceEmail, "Grace Hopper");
+    await signUp(grace, graceEmail, 'Grace Hopper');
 
     // A file with no id has the offer to add one (and nothing is shared before that); a Doc has the panel, closed, with nothing shared.
     // Sharing is an icon at the end of the title, which opens a dialog.
     await page.goto(`/repo/${id}/Notes/idea.md`);
-    await expect(page.getByTestId("share-panel")).toHaveCount(0);
-    await page.getByRole("button", { name: "Share", exact: true }).click();
-    const sharing = page.getByRole("dialog", { name: "Sharing" });
-    await expect(sharing.getByTestId("identify-panel")).toBeVisible();
+    await expect(page.getByTestId('share-panel')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Share', exact: true }).click();
+    const sharing = page.getByRole('dialog', { name: 'Sharing' });
+    await expect(sharing.getByTestId('identify-panel')).toBeVisible();
     // One step, in the same dialog: agreeing adds the identifier, and the dialog stays open and goes on to the sharing controls (the page moves to the file's address by identifier behind it).
-    await sharing.getByRole("button", { name: "Add the identifier and continue" }).click();
-    await expect(sharing.getByText("The file has an identifier")).toBeVisible({ timeout: 30_000 });
-    await expect(sharing.getByTestId("share-panel").getByText("Not shared with anyone.")).toBeVisible();
-    await expect(sharing.getByRole("tab", { name: "People" })).toBeVisible();
+    await sharing.getByRole('button', { name: 'Add the identifier and continue' }).click();
+    await expect(sharing.getByText('The file has an identifier')).toBeVisible({ timeout: 30_000 });
+    await expect(
+      sharing.getByTestId('share-panel').getByText('Not shared with anyone.'),
+    ).toBeVisible();
+    await expect(sharing.getByRole('tab', { name: 'People' })).toBeVisible();
     await expect(page).toHaveURL(/\/d\/[0-9a-z]{26}$/); // the page is at the file's address by identifier now, and the dialog is still the one
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await page.getByRole("button", { name: "Share", exact: true }).click();
-    const panel = page.getByTestId("share-panel");
-    await expect(panel.getByText("Not shared with anyone.")).toBeVisible();
+    await page.getByRole('button', { name: 'Share', exact: true }).click();
+    const panel = page.getByTestId('share-panel');
+    await expect(panel.getByText('Not shared with anyone.')).toBeVisible();
     // Links are not made any more: there is no tab for them (and no way to make one) until the document has one from before.
-    await expect(page.getByRole("tab", { name: /Links/ })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Make a link" })).toHaveCount(0);
-    await expect(page.getByRole("tab", { name: "Publish" })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Links/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Make a link' })).toHaveCount(0);
+    await expect(page.getByRole('tab', { name: 'Publish' })).toBeVisible();
 
     // People: an address with an account and one with none are told the same, and only the account is listed.
-    await panel.getByLabel("Share with").fill(graceEmail);
-    await panel.getByRole("button", { name: "Share", exact: true }).click();
+    await panel.getByLabel('Share with').fill(graceEmail);
+    await panel.getByRole('button', { name: 'Share', exact: true }).click();
     const known = await panel.getByText(/If that address has an account here/).textContent();
-    const row = panel.getByRole("list", { name: "People with access" }).getByRole("listitem");
+    const row = panel.getByRole('list', { name: 'People with access' }).getByRole('listitem');
     await expect(row).toHaveCount(1);
-    await expect(row).toContainText("Grace Hopper");
+    await expect(row).toContainText('Grace Hopper');
     await expect(row).toContainText(graceEmail);
-    await panel.getByLabel("Share with").fill(`nobody-${Date.now()}@example.com`);
-    await panel.getByRole("button", { name: "Share", exact: true }).click();
+    await panel.getByLabel('Share with').fill(`nobody-${Date.now()}@example.com`);
+    await panel.getByRole('button', { name: 'Share', exact: true }).click();
     await expect(panel.getByText(/If that address has an account here/)).toHaveText(known!);
     await expect(row).toHaveCount(1);
 
     // She reads it; the owner makes it comment, and she is told; then stops sharing, and she is not.
     expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(200);
-    await expect(grace.getByText("Can view")).toBeVisible();
-    await panel.getByLabel("Role of Grace Hopper").selectOption("comment");
-    await expect.poll(async () => (await page.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`).then((r) => r.json())).shares[0].role).toBe("comment");
+    await expect(grace.getByText('Can view')).toBeVisible();
+    await panel.getByLabel('Role of Grace Hopper').selectOption('comment');
+    await expect
+      .poll(
+        async () =>
+          (
+            await page.request
+              .get(`/api/connections/${id}/shares?doc=${ID_DOC}`)
+              .then((r) => r.json())
+          ).shares[0].role,
+      )
+      .toBe('comment');
     await grace.reload();
-    await expect(grace.getByText("Can comment")).toBeVisible();
+    await expect(grace.getByText('Can comment')).toBeVisible();
     await page.reload();
-    await page.getByRole("button", { name: "Share", exact: true }).click();
-    await expect(page.getByTestId("share-panel").getByLabel("Role of Grace Hopper")).toHaveValue("comment"); // what the page shows is what is kept
-    await page.getByTestId("share-panel").getByRole("button", { name: "Stop sharing" }).click();
-    await expect(page.getByTestId("share-panel").getByText("Not shared with anyone.")).toBeVisible();
+    await page.getByRole('button', { name: 'Share', exact: true }).click();
+    await expect(page.getByTestId('share-panel').getByLabel('Role of Grace Hopper')).toHaveValue(
+      'comment',
+    ); // what the page shows is what is kept
+    await page.getByTestId('share-panel').getByRole('button', { name: 'Stop sharing' }).click();
+    await expect(
+      page.getByTestId('share-panel').getByText('Not shared with anyone.'),
+    ).toBeVisible();
     expect((await grace.goto(`/d/${ID_DOC}`))?.status()).toBe(404);
 
     // A link from before: shown in a tab that is there while there is one, to be changed or revoked. (It is made through the API here: the dialog no longer makes them.)
-    const madeLink = await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "edit", password: "correct horse battery staple" } });
+    const madeLink = await page.request.post(`/api/connections/${id}/links`, {
+      headers: { origin: BASE },
+      data: { doc: ID_DOC, role: 'edit', password: 'correct horse battery staple' },
+    });
     expect(madeLink.status()).toBe(201);
     const address = ((await madeLink.json()) as { url: string }).url;
     expect(address).toMatch(new RegExp(`^${BASE}/d/${ID_DOC}\\?token=[A-Za-z0-9_-]{43}$`));
-    await page.keyboard.press("Escape");
+    await page.keyboard.press('Escape');
     await page.reload();
-    await page.getByRole("button", { name: "Share", exact: true }).click();
-    await page.getByRole("tab", { name: /Links/ }).click();
-    const links = page.getByTestId("share-panel");
-    await expect(links.getByRole("button", { name: "Make a link" })).toHaveCount(0);
-    const linkRow = links.getByTestId("link-row");
+    await page.getByRole('button', { name: 'Share', exact: true }).click();
+    await page.getByRole('tab', { name: /Links/ }).click();
+    const links = page.getByTestId('share-panel');
+    await expect(links.getByRole('button', { name: 'Make a link' })).toHaveCount(0);
+    const linkRow = links.getByTestId('link-row');
     await expect(linkRow).toHaveCount(1);
-    await expect(linkRow).toContainText("Can edit");
-    await expect(linkRow).toContainText("Active");
-    await expect(linkRow).toContainText("Password");
-    await expect(linkRow).toContainText("Does not expire");
+    await expect(linkRow).toContainText('Can edit');
+    await expect(linkRow).toContainText('Active');
+    await expect(linkRow).toContainText('Password');
+    await expect(linkRow).toContainText('Does not expire');
 
-    const visitorContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.7.8" } });
+    const visitorContext = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.7.8' },
+    });
     const visitor = await visitorContext.newPage();
     await visitor.goto(address);
-    await expect(visitor.getByRole("heading", { name: "This document needs a password" })).toBeVisible();
+    await expect(
+      visitor.getByRole('heading', { name: 'This document needs a password' }),
+    ).toBeVisible();
 
     // Changing it: a past expiry is refused in words; a role and no password take effect for a new visitor at once.
-    await linkRow.getByRole("button", { name: "Change" }).click();
-    await linkRow.getByLabel("Expires").fill("2020-01-01T10:00");
-    await linkRow.getByRole("button", { name: "Save" }).click();
+    await linkRow.getByRole('button', { name: 'Change' }).click();
+    await linkRow.getByLabel('Expires').fill('2020-01-01T10:00');
+    await linkRow.getByRole('button', { name: 'Save' }).click();
     await expect(linkRow.getByText(/time in the future/)).toBeVisible();
-    await linkRow.getByLabel("Expires").fill("");
-    await linkRow.getByLabel("What the link allows").selectOption("view");
-    await linkRow.getByLabel("Remove the password").check();
-    await linkRow.getByRole("button", { name: "Save" }).click();
-    await expect(linkRow).toContainText("Can view");
-    await expect(linkRow).not.toContainText("Password");
-    const open = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.7.9" } });
+    await linkRow.getByLabel('Expires').fill('');
+    await linkRow.getByLabel('What the link allows').selectOption('view');
+    await linkRow.getByLabel('Remove the password').check();
+    await linkRow.getByRole('button', { name: 'Save' }).click();
+    await expect(linkRow).toContainText('Can view');
+    await expect(linkRow).not.toContainText('Password');
+    const open = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.7.9' },
+    });
     const reader = await open.newPage();
     await reader.goto(address);
-    await expect(reader.getByText("Can view")).toBeVisible();
-    await expect(reader.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    await expect(reader.getByText('Can view')).toBeVisible();
+    await expect(reader.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      'The plan, for reading.',
+    );
 
     // Revoking asks first, then ends it at once, and the list says so.
-    await linkRow.getByRole("button", { name: "Revoke" }).click();
-    await linkRow.getByRole("button", { name: "Keep" }).click();
-    await expect(linkRow).toHaveAttribute("data-status", "active");
-    await linkRow.getByRole("button", { name: "Revoke" }).click();
-    await linkRow.getByRole("button", { name: "Yes, revoke" }).click();
-    await expect(linkRow).toHaveAttribute("data-status", "revoked");
-    await expect(linkRow.getByRole("button", { name: "Change" })).toHaveCount(0);
+    await linkRow.getByRole('button', { name: 'Revoke' }).click();
+    await linkRow.getByRole('button', { name: 'Keep' }).click();
+    await expect(linkRow).toHaveAttribute('data-status', 'active');
+    await linkRow.getByRole('button', { name: 'Revoke' }).click();
+    await linkRow.getByRole('button', { name: 'Yes, revoke' }).click();
+    await expect(linkRow).toHaveAttribute('data-status', 'revoked');
+    await expect(linkRow.getByRole('button', { name: 'Change' })).toHaveCount(0);
     await reader.reload();
     await expect(reader).toHaveURL(/\/sign-in/);
 
@@ -3941,71 +5924,80 @@ test("the owner sees and controls every share of a document from its page: peopl
 
 // --- Publishing and Shared with you ----------------------------------------------------------------------------------------------
 
-test("a page is published with an optional password, says who made it and when, and a changed or removed password takes effect at once", async ({ page, browser }) => {
+test('a page is published with an optional password, says who made it and when, and a changed or removed password takes effect at once', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC.replace("---\n\n#", "created: 2026-09-20T08:00:00Z\n---\n\n#") });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC.replace('---\n\n#', 'created: 2026-09-20T08:00:00Z\n---\n\n#'),
+    });
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await page.getByRole("button", { name: "Share", exact: true }).click();
-    await page.getByRole("tab", { name: "Publish" }).click();
-    const panel = page.getByTestId("publish-panel");
+    await page.getByRole('button', { name: 'Share', exact: true }).click();
+    await page.getByRole('tab', { name: 'Publish' }).click();
+    const panel = page.getByTestId('publish-panel');
     // Who may comment is chosen now and built later: only Off can be chosen.
-    await expect(panel.getByRole("option", { name: /Anyone with the address/ })).toBeDisabled();
-    await expect(panel.getByRole("option", { name: /People with an account here/ })).toBeDisabled();
-    await panel.getByLabel("Password", { exact: true }).fill("short");
-    await panel.getByRole("button", { name: "Publish", exact: true }).click();
-    await expect(panel.getByText("A password is eight characters or more.")).toBeVisible();
-    await panel.getByLabel("Password", { exact: true }).fill("correct horse battery");
-    await panel.getByRole("button", { name: "Publish", exact: true }).click();
-    const address = (await panel.getByTestId("page-address").textContent())!;
+    await expect(panel.getByRole('option', { name: /Anyone with the address/ })).toBeDisabled();
+    await expect(panel.getByRole('option', { name: /People with an account here/ })).toBeDisabled();
+    await panel.getByLabel('Password', { exact: true }).fill('short');
+    await panel.getByRole('button', { name: 'Publish', exact: true }).click();
+    await expect(panel.getByText('A password is eight characters or more.')).toBeVisible();
+    await panel.getByLabel('Password', { exact: true }).fill('correct horse battery');
+    await panel.getByRole('button', { name: 'Publish', exact: true }).click();
+    const address = (await panel.getByTestId('page-address').textContent())!;
     expect(address).toMatch(new RegExp(`^${BASE}/p/[A-Za-z0-9_-]{43}$`));
 
     // The address stays inside the dialog (it is long, and wraps), and is there again when the dialog is closed and opened.
-    const dialogBox = (await page.getByRole("dialog", { name: "Sharing" }).boundingBox())!;
-    const addressBox = (await panel.getByTestId("page-address").boundingBox())!;
+    const dialogBox = (await page.getByRole('dialog', { name: 'Sharing' }).boundingBox())!;
+    const addressBox = (await panel.getByTestId('page-address').boundingBox())!;
     expect(addressBox.x + addressBox.width).toBeLessThanOrEqual(dialogBox.x + dialogBox.width);
     await page.reload();
-    await page.getByRole("button", { name: "Share", exact: true }).click();
-    await page.getByRole("tab", { name: "Publish" }).click();
-    await expect(panel.getByTestId("page-address")).toHaveText(address);
+    await page.getByRole('button', { name: 'Share', exact: true }).click();
+    await page.getByRole('tab', { name: 'Publish' }).click();
+    await expect(panel.getByTestId('page-address')).toHaveText(address);
 
     // Anyone who opens it, signed in or not, is asked, and is shown nothing of the document (not its title) until the password is given.
-    const readerContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.9.1" } });
+    const readerContext = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.9.1' },
+    });
     const reader = await readerContext.newPage();
     await reader.goto(address);
-    await expect(reader.getByRole("heading", { name: "This page needs a password" })).toBeVisible();
+    await expect(reader.getByRole('heading', { name: 'This page needs a password' })).toBeVisible();
     expect(await reader.content()).not.toMatch(/Q4 plan|The plan, for reading/);
     const give = async (password: string) => {
-      await reader.getByLabel("Password").fill(password);
-      await reader.getByRole("button", { name: "Open" }).click();
+      await reader.getByLabel('Password').fill(password);
+      await reader.getByRole('button', { name: 'Open' }).click();
     };
-    await give("not the password at all");
-    await expect(reader.getByText("That was not the password")).toBeVisible();
+    await give('not the password at all');
+    await expect(reader.getByText('That was not the password')).toBeVisible();
     await reader.waitForTimeout(1300);
-    await give("correct horse battery");
-    await expect(reader.getByText("The plan, for reading.")).toBeVisible();
+    await give('correct horse battery');
+    await expect(reader.getByText('The plan, for reading.')).toBeVisible();
     // The page's own heading is not put twice, and who made it and when come with it.
-    await expect(reader.getByRole("heading", { name: "Q4 plan" })).toHaveCount(1);
-    await expect(reader.getByTestId("page-facts")).toContainText("By Ada Lovelace");
-    await expect(reader.getByTestId("page-facts")).toContainText("Created 20 Sept 2026, 08:00 UTC");
+    await expect(reader.getByRole('heading', { name: 'Q4 plan' })).toHaveCount(1);
+    await expect(reader.getByTestId('page-facts')).toContainText('By Ada Lovelace');
+    await expect(reader.getByTestId('page-facts')).toContainText('Created 20 Sept 2026, 08:00 UTC');
     await reader.reload();
-    await expect(reader.getByText("The plan, for reading.")).toBeVisible();
+    await expect(reader.getByText('The plan, for reading.')).toBeVisible();
 
     // A new password ends what the old one opened; taking it off opens the page to anyone.
-    await panel.getByLabel("New password").fill("another password here");
-    await panel.getByRole("button", { name: "Save settings" }).click();
-    await expect(panel.getByText("Saved.")).toBeVisible();
+    await panel.getByLabel('New password').fill('another password here');
+    await panel.getByRole('button', { name: 'Save settings' }).click();
+    await expect(panel.getByText('Saved.')).toBeVisible();
     await reader.reload();
-    await expect(reader.getByRole("heading", { name: "This page needs a password" })).toBeVisible();
-    await panel.getByLabel("Remove the password").check();
-    await panel.getByRole("button", { name: "Save settings" }).click();
-    await expect(panel.getByText("Saved.")).toBeVisible();
+    await expect(reader.getByRole('heading', { name: 'This page needs a password' })).toBeVisible();
+    await panel.getByLabel('Remove the password').check();
+    await panel.getByRole('button', { name: 'Save settings' }).click();
+    await expect(panel.getByText('Saved.')).toBeVisible();
     await reader.reload();
-    await expect(reader.getByText("The plan, for reading.")).toBeVisible();
-    await expect(panel.getByRole("button", { name: "Unpublish" })).toBeVisible();
+    await expect(reader.getByText('The plan, for reading.')).toBeVisible();
+    await expect(panel.getByRole('button', { name: 'Unpublish' })).toBeVisible();
 
     // Unpublished, the address is nothing.
-    await panel.getByRole("button", { name: "Unpublish" }).click();
-    await expect(panel.getByRole("button", { name: "Publish", exact: true })).toBeVisible();
+    await panel.getByRole('button', { name: 'Unpublish' }).click();
+    await expect(panel.getByRole('button', { name: 'Publish', exact: true })).toBeVisible();
     expect((await reader.goto(address))?.status()).toBe(404);
     await readerContext.close();
   } finally {
@@ -4013,86 +6005,129 @@ test("a page is published with an optional password, says who made it and when, 
   }
 });
 
-test("a document with no heading of its own is published under its title", async ({ page, browser }) => {
+test('a document with no heading of its own is published under its title', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": `---\nid: ${ID_DOC}\ntitle: Quarterly plan\n---\n\nJust a paragraph.\n` });
-    const made = await page.request.post(`/api/connections/${id}/publication`, { headers: { origin: BASE }, data: { doc: ID_DOC } });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': `---\nid: ${ID_DOC}\ntitle: Quarterly plan\n---\n\nJust a paragraph.\n`,
+    });
+    const made = await page.request.post(`/api/connections/${id}/publication`, {
+      headers: { origin: BASE },
+      data: { doc: ID_DOC },
+    });
     expect(made.status()).toBe(201);
-    const context = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.9.2" } });
+    const context = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.9.2' },
+    });
     const reader = await context.newPage();
     await reader.goto(((await made.json()) as { url: string }).url);
-    await expect(reader.getByRole("heading", { name: "Quarterly plan" })).toHaveCount(1);
-    await expect(reader.getByText("Just a paragraph.")).toBeVisible();
+    await expect(reader.getByRole('heading', { name: 'Quarterly plan' })).toHaveCount(1);
+    await expect(reader.getByText('Just a paragraph.')).toBeVisible();
     await context.close();
   } finally {
     await restoreMore();
   }
 });
 
-test("what is shared with an account is in Shared with you; at the edit role its changes are kept for the owner to review, and are credited when the owner saves them", async ({ page, browser }) => {
+test('what is shared with an account is in Shared with you; at the edit role its changes are kept for the owner to review, and are credited when the owner saves them', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+    });
     const graceEmail = `grace-${Date.now()}@example.com`;
-    const graceContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.9.3" } });
+    const graceContext = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.9.3' },
+    });
     const grace = await graceContext.newPage();
-    await signUp(grace, graceEmail, "Grace Hopper");
-    await expect(grace.getByRole("link", { name: "Shared with you" })).toHaveCount(0); // nothing yet: no place for it in the rail
+    await signUp(grace, graceEmail, 'Grace Hopper');
+    await expect(grace.getByRole('link', { name: 'Shared with you' })).toHaveCount(0); // nothing yet: no place for it in the rail
 
     // The owner shares it, at the edit role, from the dialog.
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await page.getByRole("button", { name: "Share", exact: true }).click();
-    const panel = page.getByTestId("share-panel");
-    await panel.getByLabel("Share with").fill(graceEmail);
-    await panel.getByLabel("Role for the new person").selectOption("edit");
-    await panel.getByRole("button", { name: "Share", exact: true }).click();
-    await expect(panel.getByRole("list", { name: "People with access" }).getByRole("listitem")).toHaveCount(1);
+    await page.getByRole('button', { name: 'Share', exact: true }).click();
+    const panel = page.getByTestId('share-panel');
+    await panel.getByLabel('Share with').fill(graceEmail);
+    await panel.getByLabel('Role for the new person').selectOption('edit');
+    await panel.getByRole('button', { name: 'Share', exact: true }).click();
+    await expect(
+      panel.getByRole('list', { name: 'People with access' }).getByRole('listitem'),
+    ).toHaveCount(1);
 
     // Hers is a place of its own: the rail has it, and it lists the document with who shared it and what she may do.
-    await grace.goto("/");
-    await grace.getByRole("link", { name: "Shared with you" }).click();
+    await grace.goto('/');
+    await grace.getByRole('link', { name: 'Shared with you' }).click();
     await expect(grace).toHaveURL(`${BASE}/shared`);
-    const row = grace.getByRole("list", { name: "Documents shared with you" }).getByRole("listitem");
+    const row = grace
+      .getByRole('list', { name: 'Documents shared with you' })
+      .getByRole('listitem');
     await expect(row).toHaveCount(1);
-    await expect(row).toContainText("Q4 plan");
-    await expect(row).toContainText("Shared by Ada Lovelace");
-    await expect(row).toContainText("Can edit");
-    await row.getByRole("link").click();
+    await expect(row).toContainText('Q4 plan');
+    await expect(row).toContainText('Shared by Ada Lovelace');
+    await expect(row).toContainText('Can edit');
+    await row.getByRole('link').click();
     await expect(grace).toHaveURL(`${BASE}/d/${ID_DOC}`);
-    const editor = grace.getByRole("textbox", { name: "Q4 plan" });
-    await expect(editor).toHaveAttribute("contenteditable", "true");
-    await expect(grace.getByText("Your changes are kept for its owner to review.")).toBeVisible();
+    const editor = grace.getByRole('textbox', { name: 'Q4 plan' });
+    await expect(editor).toHaveAttribute('contenteditable', 'true');
+    await expect(grace.getByText('Your changes are kept for its owner to review.')).toBeVisible();
 
     // She types; it is kept on the server for the owner, and is what she is shown when she comes back. The repository is not touched.
     const before = (await hubs.more.branchHead()) as string;
     await editor.click();
-    await grace.keyboard.press("ControlOrMeta+End");
+    await grace.keyboard.press('ControlOrMeta+End');
     await grace.keyboard.type(" Grace's addition.");
-    await expect(grace.getByTestId("guest-status")).toHaveText("Changes kept for the owner to review.", { timeout: 30_000 });
+    await expect(grace.getByTestId('guest-status')).toHaveText(
+      'Changes kept for the owner to review.',
+      { timeout: 30_000 },
+    );
     expect(await hubs.more.branchHead()).toBe(before);
     await grace.reload();
-    await expect(grace.getByRole("textbox", { name: "Q4 plan" })).toContainText("Grace's addition.");
+    await expect(grace.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      "Grace's addition.",
+    );
 
     // The owner is told, by name, that changes are waiting; sees them in the editor; and saving a version accepts them, crediting her without writing her address.
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await expect(page.getByText("Changes are waiting for your review")).toBeVisible();
+    await expect(page.getByText('Changes are waiting for your review')).toBeVisible();
     await expect(page.getByText(/Grace Hopper made them/)).toBeVisible();
-    await expect(noteEditor(page, "Plan.fj.md")).toContainText("Grace's addition.");
-    await page.getByRole("button", { name: "Save version", exact: true }).click();
-    await expect(page.getByText("Version saved")).toBeVisible({ timeout: 30_000 });
+    await expect(noteEditor(page, 'Plan.fj.md')).toContainText("Grace's addition.");
+    await page.getByRole('button', { name: 'Save version', exact: true }).click();
+    await expect(page.getByText('Version saved')).toBeVisible({ timeout: 30_000 });
     const head = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(head, "%P")).toBe(before);
-    expect(await hubs.more.show(head, "%an")).toBe("Ada Lovelace");
-    expect(await hubs.more.show(head, "%(trailers:key=Co-authored-by,valueonly)")).toMatch(/^Grace Hopper <account-[0-9a-f]{8}@users\.noreply\.fjord\.invalid>/);
-    expect(JSON.stringify(await hubs.more.show(head, "%B"))).not.toContain(graceEmail);
-    expect((await hubs.more.filesAt(head))["Notes/Plan.fj.md"]).toContain("Grace's addition.");
+    expect(await hubs.more.show(head, '%P')).toBe(before);
+    expect(await hubs.more.show(head, '%an')).toBe('Ada Lovelace');
+    expect(await hubs.more.show(head, '%(trailers:key=Co-authored-by,valueonly)')).toMatch(
+      /^Grace Hopper <account-[0-9a-f]{8}@users\.noreply\.fjord\.invalid>/,
+    );
+    expect(JSON.stringify(await hubs.more.show(head, '%B'))).not.toContain(graceEmail);
+    expect((await hubs.more.filesAt(head))['Notes/Plan.fj.md']).toContain("Grace's addition.");
 
     // A view-only share cannot edit: the editor is for reading, and the draft route says so.
-    const listed = await (await page.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)).json();
-    await page.request.post(`/api/connections/${id}/shares`, { headers: { origin: BASE }, data: { doc: ID_DOC, email: graceEmail, role: "view" } });
+    const listed = await (
+      await page.request.get(`/api/connections/${id}/shares?doc=${ID_DOC}`)
+    ).json();
+    await page.request.post(`/api/connections/${id}/shares`, {
+      headers: { origin: BASE },
+      data: { doc: ID_DOC, email: graceEmail, role: 'view' },
+    });
     expect(listed.shares).toHaveLength(1);
     await grace.goto(`/d/${ID_DOC}`);
-    await expect(grace.getByRole("textbox", { name: "Q4 plan" })).toHaveAttribute("contenteditable", "false");
-    const refused = await grace.request.put(`/api/shared/${ID_DOC}/draft`, { headers: { origin: BASE }, data: { body: "\nSneaky.\n" } });
+    await expect(grace.getByRole('textbox', { name: 'Q4 plan' })).toHaveAttribute(
+      'contenteditable',
+      'false',
+    );
+    const refused = await grace.request.put(`/api/shared/${ID_DOC}/draft`, {
+      headers: { origin: BASE },
+      data: { body: '\nSneaky.\n' },
+    });
     expect(refused.status()).toBe(403);
     await hubs.more.fsck();
     await graceContext.close();
@@ -4104,7 +6139,7 @@ test("what is shared with an account is in Shared with you; at the edit role its
 // --- Comments (ROADMAP 1d.1) -------------------------------------------------------------------------------------------------
 
 /** Select `text` where it is in the page, as a person dragging across it would. */
-async function selectText(page: import("@playwright/test").Page, text: string) {
+async function selectText(page: import('@playwright/test').Page, text: string) {
   await page.evaluate((wanted) => {
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     for (let node = walker.nextNode(); node; node = walker.nextNode()) {
@@ -4116,7 +6151,7 @@ async function selectText(page: import("@playwright/test").Page, text: string) {
       const selection = document.getSelection()!;
       selection.removeAllRanges();
       selection.addRange(range);
-      document.dispatchEvent(new Event("selectionchange"));
+      document.dispatchEvent(new Event('selectionchange'));
       return;
     }
     throw new Error(`no text ${wanted}`);
@@ -4124,119 +6159,170 @@ async function selectText(page: import("@playwright/test").Page, text: string) {
 }
 
 /** What the page has drawn as marks, by name, as the text each covers. */
-const marks = (page: import("@playwright/test").Page) =>
+const marks = (page: import('@playwright/test').Page) =>
   page.evaluate(() => {
     const out: Record<string, string[]> = {};
-    for (const name of ["fe-thread", "fe-thread-resolved", "fe-thread-active"]) {
-      const highlight = (CSS as unknown as { highlights: Map<string, Set<Range>> }).highlights.get(name);
+    for (const name of ['fe-thread', 'fe-thread-resolved', 'fe-thread-active']) {
+      const highlight = (CSS as unknown as { highlights: Map<string, Set<Range>> }).highlights.get(
+        name,
+      );
       if (highlight) out[name] = [...highlight].map((range) => range.toString());
     }
     return out;
   });
 
-test("threads, replies, resolving, editing and deleting, by role, in the editor and in view mode, with the owner's moderation", async ({ page, browser }) => {
+test("threads, replies, resolving, editing and deleting, by role, in the editor and in view mode, with the owner's moderation", async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
-    const make = async (role: string) => (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role } })).json()) as { id: number; url: string };
-    const comment = await make("comment");
-    const viewing = await make("view");
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+    });
+    const make = async (role: string) =>
+      (await (
+        await page.request.post(`/api/connections/${id}/links`, {
+          headers: { origin: BASE },
+          data: { doc: ID_DOC, role },
+        })
+      ).json()) as { id: number; url: string };
+    const comment = await make('comment');
+    const viewing = await make('view');
 
     // The owner comments on a selection, in the editor: the thread is in the panel and marked in the text.
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    const panel = page.getByTestId("comments-panel");
-    await expect(panel.getByText("No comments yet.")).toBeVisible();
-    await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan, for reading.");
-    await selectText(page, "plan, for");
-    await page.getByRole("button", { name: "Comment on selection" }).click();
-    await panel.getByLabel("New comment").fill("Is this the plan we agreed?");
-    await panel.getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(panel.getByTestId("comment-thread")).toHaveCount(1);
-    await expect(panel.getByTestId("comment-count")).toHaveText("1 open");
-    await expect.poll(() => marks(page)).toMatchObject({ "fe-thread": ["plan, for"] });
+    const panel = page.getByTestId('comments-panel');
+    await expect(panel.getByText('No comments yet.')).toBeVisible();
+    await expect(noteEditor(page, 'Plan.fj.md')).toContainText('The plan, for reading.');
+    await selectText(page, 'plan, for');
+    await page.getByRole('button', { name: 'Comment on selection' }).click();
+    await panel.getByLabel('New comment').fill('Is this the plan we agreed?');
+    await panel.getByRole('button', { name: 'Comment', exact: true }).click();
+    await expect(panel.getByTestId('comment-thread')).toHaveCount(1);
+    await expect(panel.getByTestId('comment-count')).toHaveText('1 open');
+    await expect.poll(() => marks(page)).toMatchObject({ 'fe-thread': ['plan, for'] });
 
     // Someone with a comment link sees the thread, marked, in a document they cannot change; they are asked for a name once.
-    const guestContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.1" } });
+    const guestContext = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.1' },
+    });
     const guest = await guestContext.newPage();
     await guest.goto(comment.url);
-    const guestPanel = guest.getByTestId("comments-panel");
-    await expect(guestPanel.getByTestId("comment-thread")).toHaveCount(1);
-    await expect(guestPanel.getByText("Is this the plan we agreed?")).toBeVisible();
-    await expect(guest.getByRole("textbox", { name: "Q4 plan" })).toHaveAttribute("contenteditable", "false");
-    await expect.poll(() => marks(guest)).toMatchObject({ "fe-thread": ["plan, for"] });
-    await guestPanel.getByRole("button", { name: "Reply" }).click();
-    await guestPanel.getByLabel("Reply").fill("Yes, I think so.");
-    await guestPanel.getByRole("button", { name: "Reply", exact: true }).last().click();
-    await expect(guestPanel.getByLabel("Your name")).toBeVisible();
-    await guestPanel.getByLabel("Your name").fill("Grace Hopper");
-    await guestPanel.getByRole("button", { name: "Continue" }).click();
-    await expect(guestPanel.getByTestId("comment-reply")).toHaveCount(1);
-    await expect(guestPanel.getByTestId("comment-reply")).toContainText("Grace Hopper");
-    await expect(guestPanel.getByTestId("comment-reply")).toContainText("Guest");
+    const guestPanel = guest.getByTestId('comments-panel');
+    await expect(guestPanel.getByTestId('comment-thread')).toHaveCount(1);
+    await expect(guestPanel.getByText('Is this the plan we agreed?')).toBeVisible();
+    await expect(guest.getByRole('textbox', { name: 'Q4 plan' })).toHaveAttribute(
+      'contenteditable',
+      'false',
+    );
+    await expect.poll(() => marks(guest)).toMatchObject({ 'fe-thread': ['plan, for'] });
+    await guestPanel.getByRole('button', { name: 'Reply' }).click();
+    await guestPanel.getByLabel('Reply').fill('Yes, I think so.');
+    await guestPanel.getByRole('button', { name: 'Reply', exact: true }).last().click();
+    await expect(guestPanel.getByLabel('Your name')).toBeVisible();
+    await guestPanel.getByLabel('Your name').fill('Grace Hopper');
+    await guestPanel.getByRole('button', { name: 'Continue' }).click();
+    await expect(guestPanel.getByTestId('comment-reply')).toHaveCount(1);
+    await expect(guestPanel.getByTestId('comment-reply')).toContainText('Grace Hopper');
+    await expect(guestPanel.getByTestId('comment-reply')).toContainText('Guest');
 
     // She starts a thread of her own on other text, without being asked her name again, and resolves the owner's thread.
-    await selectText(guest, "reading");
-    await guest.getByRole("button", { name: "Comment on selection" }).click();
-    await guestPanel.getByLabel("New comment").fill("Reading what, exactly?");
-    await guestPanel.getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(guestPanel.getByTestId("comment-thread")).toHaveCount(2);
-    await expect(guestPanel.getByLabel("Your name")).toHaveCount(0);
-    await guestPanel.getByTestId("comment-thread").first().getByRole("button", { name: "Resolve" }).click();
-    await expect(guestPanel.getByTestId("comment-thread").first()).toContainText("Resolved by Grace Hopper");
-    await expect.poll(() => marks(guest)).toMatchObject({ "fe-thread-resolved": ["plan, for"], "fe-thread": ["reading"] });
+    await selectText(guest, 'reading');
+    await guest.getByRole('button', { name: 'Comment on selection' }).click();
+    await guestPanel.getByLabel('New comment').fill('Reading what, exactly?');
+    await guestPanel.getByRole('button', { name: 'Comment', exact: true }).click();
+    await expect(guestPanel.getByTestId('comment-thread')).toHaveCount(2);
+    await expect(guestPanel.getByLabel('Your name')).toHaveCount(0);
+    await guestPanel
+      .getByTestId('comment-thread')
+      .first()
+      .getByRole('button', { name: 'Resolve' })
+      .click();
+    await expect(guestPanel.getByTestId('comment-thread').first()).toContainText(
+      'Resolved by Grace Hopper',
+    );
+    await expect
+      .poll(() => marks(guest))
+      .toMatchObject({ 'fe-thread-resolved': ['plan, for'], 'fe-thread': ['reading'] });
 
     // Choosing a mark in the text finds its thread.
     const box = await guest.evaluate(() => {
-      const range = [...(CSS as unknown as { highlights: Map<string, Set<Range>> }).highlights.get("fe-thread")!][0]!;
+      const range = [
+        ...(CSS as unknown as { highlights: Map<string, Set<Range>> }).highlights.get('fe-thread')!,
+      ][0]!;
       // The page has scrolled by now (what was done above made the panel longer): the mark is brought into view, then measured, as a person's pointer would find it.
-      range.startContainer.parentElement?.scrollIntoView({ block: "center", behavior: "instant" });
+      range.startContainer.parentElement?.scrollIntoView({ block: 'center', behavior: 'instant' });
       const rect = range.getBoundingClientRect();
       return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
     });
     await guest.mouse.click(box.x, box.y);
-    await expect(guestPanel.getByTestId("comment-thread").nth(1)).toHaveAttribute("data-active", "true");
+    await expect(guestPanel.getByTestId('comment-thread').nth(1)).toHaveAttribute(
+      'data-active',
+      'true',
+    );
 
     // Someone with a view link reads the comments and can do nothing to them.
-    const viewContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.2" } });
+    const viewContext = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.2' },
+    });
     const viewer = await viewContext.newPage();
     await viewer.goto(viewing.url);
-    const viewPanel = viewer.getByTestId("comments-panel");
-    await expect(viewPanel.getByTestId("comment-thread")).toHaveCount(2);
-    await expect(viewPanel.getByRole("button", { name: /Reply|Resolve|Reopen|Edit|Delete/ })).toHaveCount(0);
-    await expect(viewer.getByRole("button", { name: "Comment on selection" })).toHaveCount(0);
-    await expect.poll(() => marks(viewer)).toMatchObject({ "fe-thread": ["reading"] });
+    const viewPanel = viewer.getByTestId('comments-panel');
+    await expect(viewPanel.getByTestId('comment-thread')).toHaveCount(2);
+    await expect(
+      viewPanel.getByRole('button', { name: /Reply|Resolve|Reopen|Edit|Delete/ }),
+    ).toHaveCount(0);
+    await expect(viewer.getByRole('button', { name: 'Comment on selection' })).toHaveCount(0);
+    await expect.poll(() => marks(viewer)).toMatchObject({ 'fe-thread': ['reading'] });
 
     // Her own comments she may edit and delete, and the owner's she may not.
     await guest.reload();
-    const mine = guestPanel.getByTestId("comment-thread").nth(1);
-    await expect(mine.getByRole("button", { name: "Edit" })).toBeVisible();
-    const owners = guestPanel.getByTestId("comment-thread").first();
-    await expect(owners.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
-    await expect(owners.getByRole("button", { name: /^Delete .*comment/ })).toHaveCount(0);
-    await expect(owners.getByRole("button", { name: "Delete your reply" })).toHaveCount(1); // her own reply in it, though
-    await mine.getByRole("button", { name: "Edit" }).click();
-    await mine.getByLabel("Edit comment").fill("Reading what, exactly? The whole thing?");
-    await mine.getByRole("button", { name: "Save" }).click();
-    await expect(mine).toContainText("The whole thing?");
-    await expect(mine).toContainText("edited");
+    const mine = guestPanel.getByTestId('comment-thread').nth(1);
+    await expect(mine.getByRole('button', { name: 'Edit' })).toBeVisible();
+    const owners = guestPanel.getByTestId('comment-thread').first();
+    await expect(owners.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
+    await expect(owners.getByRole('button', { name: /^Delete .*comment/ })).toHaveCount(0);
+    await expect(owners.getByRole('button', { name: 'Delete your reply' })).toHaveCount(1); // her own reply in it, though
+    await mine.getByRole('button', { name: 'Edit' }).click();
+    await mine.getByLabel('Edit comment').fill('Reading what, exactly? The whole thing?');
+    await mine.getByRole('button', { name: 'Save' }).click();
+    await expect(mine).toContainText('The whole thing?');
+    await expect(mine).toContainText('edited');
 
     // The owner sees all of it, may delete anyone's, and closes the comments.
     await page.reload();
-    await expect(panel.getByTestId("comment-thread")).toHaveCount(2);
-    await expect(panel.getByText("Resolved by Grace Hopper")).toBeVisible();
-    const hers = panel.getByTestId("comment-thread").nth(1);
-    await hers.getByRole("button", { name: /Delete Grace Hopper's comment/ }).click();
-    await hers.getByRole("button", { name: "Yes, delete" }).click();
-    await expect(panel.getByTestId("comment-thread")).toHaveCount(1);
-    await panel.getByRole("button", { name: "Close comments" }).click();
-    await expect(panel.getByText("Comments are closed")).toBeVisible();
+    await expect(panel.getByTestId('comment-thread')).toHaveCount(2);
+    await expect(panel.getByText('Resolved by Grace Hopper')).toBeVisible();
+    const hers = panel.getByTestId('comment-thread').nth(1);
+    await hers.getByRole('button', { name: /Delete Grace Hopper's comment/ }).click();
+    await hers.getByRole('button', { name: 'Yes, delete' }).click();
+    await expect(panel.getByTestId('comment-thread')).toHaveCount(1);
+    await panel.getByRole('button', { name: 'Close comments' }).click();
+    await expect(panel.getByText('Comments are closed')).toBeVisible();
     await guest.reload();
-    await expect(guestPanel.getByText("Comments are closed")).toBeVisible();
-    await expect(guestPanel.getByRole("button", { name: /Reply|Resolve|Reopen/ })).toHaveCount(0);
-    const threadId = ((await (await guestContext.request.get(`/d/${ID_DOC}/comments`)).json()) as { threads: { id: number }[] }).threads[0]!.id;
-    const refused = await guestContext.request.post(`/d/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "reply", thread: threadId, body: "late", name: "Grace Hopper", clientId: "abcdefgh12345" } });
+    await expect(guestPanel.getByText('Comments are closed')).toBeVisible();
+    await expect(guestPanel.getByRole('button', { name: /Reply|Resolve|Reopen/ })).toHaveCount(0);
+    const threadId = (
+      (await (await guestContext.request.get(`/d/${ID_DOC}/comments`)).json()) as {
+        threads: { id: number }[];
+      }
+    ).threads[0]!.id;
+    const refused = await guestContext.request.post(`/d/${ID_DOC}/comments`, {
+      headers: { origin: BASE },
+      data: {
+        op: 'reply',
+        thread: threadId,
+        body: 'late',
+        name: 'Grace Hopper',
+        clientId: 'abcdefgh12345',
+      },
+    });
     expect(refused.status()).toBe(409);
-    await panel.getByRole("button", { name: "Open comments" }).click();
-    await expect(panel.getByText("Comments are closed")).toHaveCount(0);
+    await panel.getByRole('button', { name: 'Open comments' }).click();
+    await expect(panel.getByText('Comments are closed')).toHaveCount(0);
 
     for (const context of [guestContext, viewContext]) await context.close();
   } finally {
@@ -4244,46 +6330,91 @@ test("threads, replies, resolving, editing and deleting, by role, in the editor 
   }
 });
 
-test("a named account it is shared with comments as itself, and a revoked link stops commenting", async ({ page, browser }) => {
+test('a named account it is shared with comments as itself, and a revoked link stops commenting', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+      'Notes/idea.md': 'a note',
+    });
     const graceEmail = `grace-${Date.now()}@example.com`;
-    const graceContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.3" } });
+    const graceContext = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.3' },
+    });
     const grace = await graceContext.newPage();
-    await signUp(grace, graceEmail, "Grace Hopper");
-    await page.request.post(`/api/connections/${id}/shares`, { headers: { origin: BASE }, data: { doc: ID_DOC, email: graceEmail, role: "comment" } });
+    await signUp(grace, graceEmail, 'Grace Hopper');
+    await page.request.post(`/api/connections/${id}/shares`, {
+      headers: { origin: BASE },
+      data: { doc: ID_DOC, email: graceEmail, role: 'comment' },
+    });
 
     // She is signed in, so she is herself: no name is asked, and nothing says guest.
     await grace.goto(`/d/${ID_DOC}`);
-    const panel = grace.getByTestId("comments-panel");
-    await expect(grace.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
-    await selectText(grace, "plan, for");
-    await grace.getByRole("button", { name: "Comment on selection" }).click();
-    await panel.getByLabel("New comment").fill("As myself.");
-    await panel.getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(panel.getByTestId("comment-thread")).toHaveCount(1);
-    await expect(panel.getByLabel("Your name")).toHaveCount(0);
-    await expect(panel.getByTestId("comment-thread")).toContainText("Grace Hopper");
-    await expect(panel.getByTestId("comment-thread")).not.toContainText("Guest");
+    const panel = grace.getByTestId('comments-panel');
+    await expect(grace.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      'The plan, for reading.',
+    );
+    await selectText(grace, 'plan, for');
+    await grace.getByRole('button', { name: 'Comment on selection' }).click();
+    await panel.getByLabel('New comment').fill('As myself.');
+    await panel.getByRole('button', { name: 'Comment', exact: true }).click();
+    await expect(panel.getByTestId('comment-thread')).toHaveCount(1);
+    await expect(panel.getByLabel('Your name')).toHaveCount(0);
+    await expect(panel.getByTestId('comment-thread')).toContainText('Grace Hopper');
+    await expect(panel.getByTestId('comment-thread')).not.toContainText('Guest');
 
     // The owner sees it as hers, and a comment cannot be made without access or from elsewhere.
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await expect(page.getByTestId("comments-panel").getByText("As myself.")).toBeVisible();
-    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "comment" } })).json()) as { id: number; url: string };
-    const stranger = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.4" } });
-    const threadId = ((await (await page.request.get(`/d/${ID_DOC}/comments`)).json()) as { threads: { id: number }[] }).threads[0]!.id;
-    const post = (request: import("@playwright/test").APIRequestContext, origin: string | null = BASE) =>
-      request.post(`/d/${ID_DOC}/comments`, { headers: origin === null ? {} : { origin }, data: { op: "reply", thread: threadId, body: "x", name: "Mallory", clientId: "abcdefgh12345" } });
+    await expect(page.getByTestId('comments-panel').getByText('As myself.')).toBeVisible();
+    const link = (await (
+      await page.request.post(`/api/connections/${id}/links`, {
+        headers: { origin: BASE },
+        data: { doc: ID_DOC, role: 'comment' },
+      })
+    ).json()) as { id: number; url: string };
+    const stranger = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.4' },
+    });
+    const threadId = (
+      (await (await page.request.get(`/d/${ID_DOC}/comments`)).json()) as {
+        threads: { id: number }[];
+      }
+    ).threads[0]!.id;
+    const post = (
+      request: import('@playwright/test').APIRequestContext,
+      origin: string | null = BASE,
+    ) =>
+      request.post(`/d/${ID_DOC}/comments`, {
+        headers: origin === null ? {} : { origin },
+        data: {
+          op: 'reply',
+          thread: threadId,
+          body: 'x',
+          name: 'Mallory',
+          clientId: 'abcdefgh12345',
+        },
+      });
     expect((await post(stranger.request)).status()).toBe(404);
     expect((await stranger.request.get(`/d/${ID_DOC}/comments`)).status()).toBe(404);
-    expect((await post(graceContext.request, "https://evil.example")).status()).toBe(403);
+    expect((await post(graceContext.request, 'https://evil.example')).status()).toBe(403);
 
-    const guestContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.5" } });
+    const guestContext = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.5' },
+    });
     const guest = await guestContext.newPage();
     await guest.goto(link.url);
-    await expect(guest.getByTestId("comments-panel").getByTestId("comment-thread")).toHaveCount(1);
+    await expect(guest.getByTestId('comments-panel').getByTestId('comment-thread')).toHaveCount(1);
     expect((await post(guestContext.request)).status()).toBe(201);
-    await page.request.delete(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, linkId: link.id } });
+    await page.request.delete(`/api/connections/${id}/links`, {
+      headers: { origin: BASE },
+      data: { doc: ID_DOC, linkId: link.id },
+    });
     expect((await post(guestContext.request)).status()).toBe(404);
     expect((await guestContext.request.get(`/d/${ID_DOC}/comments`)).status()).toBe(404);
 
@@ -4298,71 +6429,107 @@ test("a named account it is shared with comments as itself, and a revoked link s
 
 // --- Anchors (ROADMAP 1d.2) --------------------------------------------------------------------------------------------------
 
-const ANCHOR_DOC = (body: string) => `---\nid: ${ID_DOC}\ntitle: Q4 plan\n---\n\n# Q4 plan\n\n${body}\n`;
+const ANCHOR_DOC = (body: string) =>
+  `---\nid: ${ID_DOC}\ntitle: Q4 plan\n---\n\n# Q4 plan\n\n${body}\n`;
 
-test("when a document is changed elsewhere, a thread follows the words around which, or in which, it was changed, and one whose words are gone is kept and said to be outdated", async ({ page }) => {
+test('when a document is changed elsewhere, a thread follows the words around which, or in which, it was changed, and one whose words are gone is kept and said to be outdated', async ({
+  page,
+}) => {
   try {
     const id = await repositoryWith(page, {
-      "Notes/fjord.vault.json": VAULT_MANIFEST,
-      "Notes/Plan.fj.md": ANCHOR_DOC("The plan covers the first quarter of the year in some detail.\n\nWe will hire two engineers before the summer starts, if the budget allows it.\n\nNothing in this paragraph is expected to change at all, ever."),
-    });
-    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    const panel = page.getByTestId("comments-panel");
-    await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan covers");
-    const comment = async (text: string, said: string) => {
-      await selectText(page, text);
-      await page.getByRole("button", { name: "Comment on selection" }).click();
-      await panel.getByLabel("New comment").fill(said);
-      await panel.getByRole("button", { name: "Comment", exact: true }).click();
-      await expect(panel.getByText(said)).toBeVisible();
-    };
-    await comment("the first quarter of the year", "Around: text is added before and after this");
-    await comment("hire two engineers before the summer", "Inside: a word of this is changed");
-    await comment("Nothing in this paragraph is expected to change", "Over: this is rewritten altogether");
-    await expect(panel.getByTestId("comment-thread")).toHaveCount(3);
-    await expect(panel.getByTestId("comment-outdated")).toHaveCount(0);
-
-    // Somebody else changes the document in the repository: new text before and after the first, a word of the second, all of the third.
-    await hubs.more.commitFiles({
-      "Notes/Plan.fj.md": ANCHOR_DOC(
-        "A new opening paragraph, added by somebody else.\n\nThe plan covers the first quarter of the year in some detail. It has a closing sentence now.\n\nWe will hire three engineers before the summer starts, if the budget allows it.\n\nThis paragraph was rewritten completely: hiring and offices are discussed in another document.",
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': ANCHOR_DOC(
+        'The plan covers the first quarter of the year in some detail.\n\nWe will hire two engineers before the summer starts, if the budget allows it.\n\nNothing in this paragraph is expected to change at all, ever.',
       ),
     });
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await expect(noteEditor(page, "Plan.fj.md")).toContainText("A new opening paragraph");
+    const panel = page.getByTestId('comments-panel');
+    await expect(noteEditor(page, 'Plan.fj.md')).toContainText('The plan covers');
+    const comment = async (text: string, said: string) => {
+      await selectText(page, text);
+      await page.getByRole('button', { name: 'Comment on selection' }).click();
+      await panel.getByLabel('New comment').fill(said);
+      await panel.getByRole('button', { name: 'Comment', exact: true }).click();
+      await expect(panel.getByText(said)).toBeVisible();
+    };
+    await comment('the first quarter of the year', 'Around: text is added before and after this');
+    await comment('hire two engineers before the summer', 'Inside: a word of this is changed');
+    await comment(
+      'Nothing in this paragraph is expected to change',
+      'Over: this is rewritten altogether',
+    );
+    await expect(panel.getByTestId('comment-thread')).toHaveCount(3);
+    await expect(panel.getByTestId('comment-outdated')).toHaveCount(0);
+
+    // Somebody else changes the document in the repository: new text before and after the first, a word of the second, all of the third.
+    await hubs.more.commitFiles({
+      'Notes/Plan.fj.md': ANCHOR_DOC(
+        'A new opening paragraph, added by somebody else.\n\nThe plan covers the first quarter of the year in some detail. It has a closing sentence now.\n\nWe will hire three engineers before the summer starts, if the budget allows it.\n\nThis paragraph was rewritten completely: hiring and offices are discussed in another document.',
+      ),
+    });
+    await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
+    await expect(noteEditor(page, 'Plan.fj.md')).toContainText('A new opening paragraph');
 
     // The first is where it was in its words; the second is on the words as they read now; the third is not marked, and is kept, said to be outdated.
-    await expect.poll(() => marks(page)).toEqual({ "fe-thread": ["the first quarter of the year", "hire three engineers before the summer"] });
-    await expect(panel.getByTestId("comment-thread")).toHaveCount(3);
-    await expect(panel.getByTestId("comment-outdated")).toHaveCount(1);
-    await expect(panel.getByTestId("comment-thread").nth(2)).toContainText("Over: this is rewritten altogether");
-    await expect(panel.getByTestId("comment-thread").nth(2).getByTestId("comment-outdated")).toBeVisible();
-    await expect(panel.getByTestId("comment-thread").nth(1).getByTestId("comment-outdated")).toHaveCount(0);
+    await expect
+      .poll(() => marks(page))
+      .toEqual({
+        'fe-thread': ['the first quarter of the year', 'hire three engineers before the summer'],
+      });
+    await expect(panel.getByTestId('comment-thread')).toHaveCount(3);
+    await expect(panel.getByTestId('comment-outdated')).toHaveCount(1);
+    await expect(panel.getByTestId('comment-thread').nth(2)).toContainText(
+      'Over: this is rewritten altogether',
+    );
+    await expect(
+      panel.getByTestId('comment-thread').nth(2).getByTestId('comment-outdated'),
+    ).toBeVisible();
+    await expect(
+      panel.getByTestId('comment-thread').nth(1).getByTestId('comment-outdated'),
+    ).toHaveCount(0);
 
     // The server keeps the words the second thread is on now, so that the next change is compared with those.
     const stored = async () => {
-      const listing = (await (await page.request.get(`/d/${ID_DOC}/comments`)).json()) as { threads: { body: string; anchor: { quote: string } }[] };
-      return Object.fromEntries(listing.threads.map((thread) => [thread.body.split(":")[0], thread.anchor.quote]));
+      const listing = (await (await page.request.get(`/d/${ID_DOC}/comments`)).json()) as {
+        threads: { body: string; anchor: { quote: string } }[];
+      };
+      return Object.fromEntries(
+        listing.threads.map((thread) => [thread.body.split(':')[0], thread.anchor.quote]),
+      );
     };
     await expect.poll(stored, { timeout: 10_000 }).toEqual({
-      Around: "the first quarter of the year",
-      Inside: "hire three engineers before the summer",
-      Over: "Nothing in this paragraph is expected to change",
+      Around: 'the first quarter of the year',
+      Inside: 'hire three engineers before the summer',
+      Over: 'Nothing in this paragraph is expected to change',
     });
 
     // And it holds: the page read again finds all that the same way, and the outdated thread is still there.
     await page.reload();
-    await expect(noteEditor(page, "Plan.fj.md")).toContainText("A new opening paragraph");
-    await expect.poll(() => marks(page)).toEqual({ "fe-thread": ["the first quarter of the year", "hire three engineers before the summer"] });
-    await expect(panel.getByTestId("comment-outdated")).toHaveCount(1);
+    await expect(noteEditor(page, 'Plan.fj.md')).toContainText('A new opening paragraph');
+    await expect
+      .poll(() => marks(page))
+      .toEqual({
+        'fe-thread': ['the first quarter of the year', 'hire three engineers before the summer'],
+      });
+    await expect(panel.getByTestId('comment-outdated')).toHaveCount(1);
 
     // The words come back (the change is undone elsewhere): the thread that was outdated is marked again, from the anchor it always had.
     await hubs.more.commitFiles({
-      "Notes/Plan.fj.md": ANCHOR_DOC("The plan covers the first quarter of the year in some detail.\n\nWe will hire three engineers before the summer starts, if the budget allows it.\n\nNothing in this paragraph is expected to change at all, ever."),
+      'Notes/Plan.fj.md': ANCHOR_DOC(
+        'The plan covers the first quarter of the year in some detail.\n\nWe will hire three engineers before the summer starts, if the budget allows it.\n\nNothing in this paragraph is expected to change at all, ever.',
+      ),
     });
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await expect.poll(() => marks(page)).toEqual({ "fe-thread": ["the first quarter of the year", "hire three engineers before the summer", "Nothing in this paragraph is expected to change"] });
-    await expect(panel.getByTestId("comment-outdated")).toHaveCount(0);
+    await expect
+      .poll(() => marks(page))
+      .toEqual({
+        'fe-thread': [
+          'the first quarter of the year',
+          'hire three engineers before the summer',
+          'Nothing in this paragraph is expected to change',
+        ],
+      });
+    await expect(panel.getByTestId('comment-outdated')).toHaveCount(0);
   } finally {
     await restoreMore();
   }
@@ -4370,57 +6537,79 @@ test("when a document is changed elsewhere, a thread follows the words around wh
 
 // --- Live updates (ROADMAP 1d.3) ---------------------------------------------------------------------------------------------
 
-test("comments, replies, resolving and closing reach another browser without it reloading", async ({ page, browser }) => {
+test('comments, replies, resolving and closing reach another browser without it reloading', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
-    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "comment" } })).json()) as { id: number; url: string };
-    const ownerPanel = page.getByTestId("comments-panel");
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+    });
+    const link = (await (
+      await page.request.post(`/api/connections/${id}/links`, {
+        headers: { origin: BASE },
+        data: { doc: ID_DOC, role: 'comment' },
+      })
+    ).json()) as { id: number; url: string };
+    const ownerPanel = page.getByTestId('comments-panel');
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await expect(ownerPanel.getByText("No comments yet.")).toBeVisible();
-    await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan, for reading.");
+    await expect(ownerPanel.getByText('No comments yet.')).toBeVisible();
+    await expect(noteEditor(page, 'Plan.fj.md')).toContainText('The plan, for reading.');
 
-    const guestContext = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.31" } });
+    const guestContext = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.31' },
+    });
     const guest = await guestContext.newPage();
     await guest.goto(link.url);
-    const guestPanel = guest.getByTestId("comments-panel");
-    await expect(guestPanel.getByText("No comments yet.")).toBeVisible();
-    await expect(guest.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
+    const guestPanel = guest.getByTestId('comments-panel');
+    await expect(guestPanel.getByText('No comments yet.')).toBeVisible();
+    await expect(guest.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      'The plan, for reading.',
+    );
     // Neither page is loaded again from here on: whatever arrives, arrives through the stream.
-    const loads = (target: typeof page) => target.evaluate(() => performance.getEntriesByType("navigation").length + (window as unknown as { __loaded?: number }).__loaded!);
-    for (const target of [page, guest]) await target.evaluate(() => void ((window as unknown as { __loaded: number }).__loaded = 1));
+    const loads = (target: typeof page) =>
+      target.evaluate(
+        () =>
+          performance.getEntriesByType('navigation').length +
+          (window as unknown as { __loaded?: number }).__loaded!,
+      );
+    for (const target of [page, guest])
+      await target.evaluate(() => void ((window as unknown as { __loaded: number }).__loaded = 1));
     const before = [await loads(page), await loads(guest)];
 
     // The guest starts a thread (giving a name): it appears for the owner, in the panel and as a mark in the text.
-    await selectText(guest, "plan, for");
-    await guest.getByRole("button", { name: "Comment on selection" }).click();
-    await guestPanel.getByLabel("Your name").fill("Grace Hopper");
-    await guestPanel.getByRole("button", { name: "Continue" }).click();
-    await guestPanel.getByLabel("New comment").fill("Is this the plan we agreed?");
-    await guestPanel.getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(guestPanel.getByTestId("comment-thread")).toHaveCount(1);
-    await expect(ownerPanel.getByTestId("comment-thread")).toHaveCount(1);
-    await expect(ownerPanel.getByText("Is this the plan we agreed?")).toBeVisible();
-    await expect(ownerPanel.getByTestId("comment-count")).toHaveText("1 open");
-    await expect.poll(() => marks(page)).toMatchObject({ "fe-thread": ["plan, for"] });
+    await selectText(guest, 'plan, for');
+    await guest.getByRole('button', { name: 'Comment on selection' }).click();
+    await guestPanel.getByLabel('Your name').fill('Grace Hopper');
+    await guestPanel.getByRole('button', { name: 'Continue' }).click();
+    await guestPanel.getByLabel('New comment').fill('Is this the plan we agreed?');
+    await guestPanel.getByRole('button', { name: 'Comment', exact: true }).click();
+    await expect(guestPanel.getByTestId('comment-thread')).toHaveCount(1);
+    await expect(ownerPanel.getByTestId('comment-thread')).toHaveCount(1);
+    await expect(ownerPanel.getByText('Is this the plan we agreed?')).toBeVisible();
+    await expect(ownerPanel.getByTestId('comment-count')).toHaveText('1 open');
+    await expect.poll(() => marks(page)).toMatchObject({ 'fe-thread': ['plan, for'] });
 
     // The owner replies, and the guest sees it; the owner resolves it, and the guest sees that, and the mark is drawn as a resolved one.
-    await ownerPanel.getByRole("button", { name: "Reply" }).click();
-    await ownerPanel.getByLabel("Reply").fill("Yes, it is.");
-    await ownerPanel.getByRole("button", { name: "Reply", exact: true }).last().click();
-    await expect(guestPanel.getByTestId("comment-reply")).toHaveCount(1);
-    await expect(guestPanel.getByTestId("comment-reply")).toContainText("Yes, it is.");
-    await ownerPanel.getByRole("button", { name: "Resolve" }).click();
-    await expect(guestPanel.getByTestId("comment-thread")).toHaveAttribute("data-resolved", "true");
-    await expect.poll(() => marks(guest)).toMatchObject({ "fe-thread-resolved": ["plan, for"] });
+    await ownerPanel.getByRole('button', { name: 'Reply' }).click();
+    await ownerPanel.getByLabel('Reply').fill('Yes, it is.');
+    await ownerPanel.getByRole('button', { name: 'Reply', exact: true }).last().click();
+    await expect(guestPanel.getByTestId('comment-reply')).toHaveCount(1);
+    await expect(guestPanel.getByTestId('comment-reply')).toContainText('Yes, it is.');
+    await ownerPanel.getByRole('button', { name: 'Resolve' }).click();
+    await expect(guestPanel.getByTestId('comment-thread')).toHaveAttribute('data-resolved', 'true');
+    await expect.poll(() => marks(guest)).toMatchObject({ 'fe-thread-resolved': ['plan, for'] });
 
     // The owner closes the comments: the guest is told so. And deletes the thread: it goes from the guest's panel and text.
-    await ownerPanel.getByRole("button", { name: "Close comments" }).click();
-    await expect(guestPanel.getByText("Comments are closed")).toBeVisible();
-    await ownerPanel.getByRole("button", { name: "Open comments" }).click();
-    await expect(guestPanel.getByText("Comments are closed")).toHaveCount(0);
-    await ownerPanel.getByRole("button", { name: /Delete Grace Hopper's comment/ }).click();
-    await ownerPanel.getByRole("button", { name: "Yes, delete" }).click();
-    await expect(guestPanel.getByTestId("comment-thread")).toHaveCount(0);
+    await ownerPanel.getByRole('button', { name: 'Close comments' }).click();
+    await expect(guestPanel.getByText('Comments are closed')).toBeVisible();
+    await ownerPanel.getByRole('button', { name: 'Open comments' }).click();
+    await expect(guestPanel.getByText('Comments are closed')).toHaveCount(0);
+    await ownerPanel.getByRole('button', { name: /Delete Grace Hopper's comment/ }).click();
+    await ownerPanel.getByRole('button', { name: 'Yes, delete' }).click();
+    await expect(guestPanel.getByTestId('comment-thread')).toHaveCount(0);
     await expect.poll(() => marks(guest)).toEqual({});
 
     expect([await loads(page), await loads(guest)]).toEqual(before);
@@ -4432,37 +6621,74 @@ test("comments, replies, resolving and closing reach another browser without it 
 
 // --- Limits and abuse (ROADMAP 1d.4) -----------------------------------------------------------------------------------------
 
-test("comments are written only so fast by a browser and by a link, whatever names its guests give, and the owner is not held back by a link's guests", async ({ page, browser }) => {
+test("comments are written only so fast by a browser and by a link, whatever names its guests give, and the owner is not held back by a link's guests", async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
-    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "comment" } })).json()) as { id: number; url: string };
-    const context = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.41" } });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+    });
+    const link = (await (
+      await page.request.post(`/api/connections/${id}/links`, {
+        headers: { origin: BASE },
+        data: { doc: ID_DOC, role: 'comment' },
+      })
+    ).json()) as { id: number; url: string };
+    const context = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.41' },
+    });
     const guest = await context.newPage();
     await guest.goto(link.url);
-    await expect(guest.getByTestId("comments-panel")).toBeVisible();
-    const anchor = { type: "text-quote", quote: "plan", prefix: "The ", suffix: ", for reading.", position: 4 };
+    await expect(guest.getByTestId('comments-panel')).toBeVisible();
+    const anchor = {
+      type: 'text-quote',
+      quote: 'plan',
+      prefix: 'The ',
+      suffix: ', for reading.',
+      position: 4,
+    };
     const write = (browserId: string, n: number) =>
-      context.request.post(`/d/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor, body: `thread ${browserId} ${n}`, name: "Someone", clientId: browserId } });
+      context.request.post(`/d/${ID_DOC}/comments`, {
+        headers: { origin: BASE },
+        data: {
+          op: 'thread',
+          anchor,
+          body: `thread ${browserId} ${n}`,
+          name: 'Someone',
+          clientId: browserId,
+        },
+      });
 
     // One browser: twenty a minute, then it is told to wait, and how long.
-    for (let n = 0; n < 20; n++) expect((await write("browser-aaaaaaaa", n)).status(), `write ${n}`).toBe(201);
-    const slow = await write("browser-aaaaaaaa", 20);
+    for (let n = 0; n < 20; n++)
+      expect((await write('browser-aaaaaaaa', n)).status(), `write ${n}`).toBe(201);
+    const slow = await write('browser-aaaaaaaa', 20);
     expect(slow.status()).toBe(429);
-    expect(Number(slow.headers()["retry-after"])).toBeGreaterThan(0);
-    expect((await slow.json()).error.code).toBe("rate_limited");
+    expect(Number(slow.headers()['retry-after'])).toBeGreaterThan(0);
+    expect((await slow.json()).error.code).toBe('rate_limited');
 
     // Another browser id on the same link has its own twenty, but the link has sixty for all of its guests together, so a new name is no way round.
-    for (let n = 0; n < 20; n++) expect((await write("browser-bbbbbbbb", n)).status()).toBe(201);
-    for (let n = 0; n < 20; n++) expect((await write("browser-cccccccc", n)).status()).toBe(201);
-    expect((await write("browser-dddddddd", 0)).status()).toBe(429);
+    for (let n = 0; n < 20; n++) expect((await write('browser-bbbbbbbb', n)).status()).toBe(201);
+    for (let n = 0; n < 20; n++) expect((await write('browser-cccccccc', n)).status()).toBe(201);
+    expect((await write('browser-dddddddd', 0)).status()).toBe(429);
 
     // What was refused was not written; what was let through was.
-    const listing = (await (await context.request.get(`/d/${ID_DOC}/comments`)).json()) as { threads: { body: string }[] };
+    const listing = (await (await context.request.get(`/d/${ID_DOC}/comments`)).json()) as {
+      threads: { body: string }[];
+    };
     expect(listing.threads).toHaveLength(60);
-    expect(listing.threads.some((thread) => thread.body === "thread browser-aaaaaaaa 20")).toBe(false);
+    expect(listing.threads.some((thread) => thread.body === 'thread browser-aaaaaaaa 20')).toBe(
+      false,
+    );
 
     // The owner has an account's own count, and comments as itself, whatever the link's guests have used.
-    const mine = await page.request.post(`/d/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor, body: "from the owner" } });
+    const mine = await page.request.post(`/d/${ID_DOC}/comments`, {
+      headers: { origin: BASE },
+      data: { op: 'thread', anchor, body: 'from the owner' },
+    });
     expect(mine.status()).toBe(201);
     // Reading is not held back.
     expect((await context.request.get(`/d/${ID_DOC}/comments`)).status()).toBe(200);
@@ -4475,85 +6701,115 @@ test("comments are written only so fast by a browser and by a link, whatever nam
 // --- Security (ROADMAP 1d.5) -------------------------------------------------------------------------------------------------
 
 /** Every Content-Security-Policy violation a page reports, across its navigations: the browser says each in its console. */
-const watchViolations = (page: import("@playwright/test").Page): string[] => {
+const watchViolations = (page: import('@playwright/test').Page): string[] => {
   const seen: string[] = [];
-  page.on("console", (message) => {
+  page.on('console', (message) => {
     if (/Content Security Policy/i.test(message.text())) seen.push(message.text());
   });
   return seen;
 };
 
-test("every page is sent with a Content-Security-Policy with a nonce of its own, and the app runs under it without a violation, while a script put in is not run", async ({ page, browser }) => {
+test('every page is sent with a Content-Security-Policy with a nonce of its own, and the app runs under it without a violation, while a script put in is not run', async ({
+  page,
+  browser,
+}) => {
   try {
     const owners = watchViolations(page);
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note\n" });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+      'Notes/idea.md': 'a note\n',
+    });
 
     // The policy, and the other headers, on a page and on an API's answer; a new nonce for each page.
-    const first = await page.request.get("/sign-in");
-    const second = await page.request.get("/sign-in");
-    const policy = first.headers()["content-security-policy"]!;
+    const first = await page.request.get('/sign-in');
+    const second = await page.request.get('/sign-in');
+    const policy = first.headers()['content-security-policy']!;
     expect(policy).toContain("default-src 'self'");
     expect(policy).toContain("frame-ancestors 'none'");
-    expect(policy).not.toContain("upgrade-insecure-requests"); // this instance is http
+    expect(policy).not.toContain('upgrade-insecure-requests'); // this instance is http
     expect(policy).not.toMatch(/script-src[^;]*unsafe-inline/);
     const nonceOf = (text: string) => /'nonce-([^']+)'/.exec(text)![1]!;
-    expect(nonceOf(policy)).not.toBe(nonceOf(second.headers()["content-security-policy"]!));
+    expect(nonceOf(policy)).not.toBe(nonceOf(second.headers()['content-security-policy']!));
     // Every script of the page carries that page's nonce, and the nonce is not in the page's address or a header the app sends on.
     const html = await first.text();
-    for (const tag of html.match(/<script\b[^>]*>/g) ?? []) expect(tag, tag).toContain(`nonce="${nonceOf(policy)}"`);
-    for (const response of [first, await page.request.get("/api/health")]) {
+    for (const tag of html.match(/<script\b[^>]*>/g) ?? [])
+      expect(tag, tag).toContain(`nonce="${nonceOf(policy)}"`);
+    for (const response of [first, await page.request.get('/api/health')]) {
       const headers = response.headers();
-      expect(headers["x-content-type-options"]).toBe("nosniff");
-      expect(headers["x-frame-options"]).toBe("DENY");
-      expect(headers["referrer-policy"]).toBe("no-referrer");
-      expect(headers["permissions-policy"]).toContain("camera=()");
-      expect(headers["cross-origin-opener-policy"]).toBe("same-origin");
-      expect(headers["strict-transport-security"]).toBeUndefined(); // only over https
+      expect(headers['x-content-type-options']).toBe('nosniff');
+      expect(headers['x-frame-options']).toBe('DENY');
+      expect(headers['referrer-policy']).toBe('no-referrer');
+      expect(headers['permissions-policy']).toContain('camera=()');
+      expect(headers['cross-origin-opener-policy']).toBe('same-origin');
+      expect(headers['strict-transport-security']).toBeUndefined(); // only over https
     }
-    expect((await page.request.get("/api/health")).headers()["content-security-policy"]).toBeUndefined();
+    expect(
+      (await page.request.get('/api/health')).headers()['content-security-policy'],
+    ).toBeUndefined();
 
     // The pages a person uses, with their editors, menus and panels: nothing is blocked.
-    await page.goto("/home");
+    await page.goto('/home');
     await page.goto(`/repo/${id}/Notes/idea.md`);
-    await expect(noteEditor(page, "idea.md")).toBeVisible();
-    await noteEditor(page, "idea.md").click();
-    await page.keyboard.type(" and more");
+    await expect(noteEditor(page, 'idea.md')).toBeVisible();
+    await noteEditor(page, 'idea.md').click();
+    await page.keyboard.type(' and more');
     await page.goto(`/repo/${id}/Notes/Plan.fj.md`);
-    await expect(noteEditor(page, "Plan.fj.md")).toContainText("The plan, for reading.");
+    await expect(noteEditor(page, 'Plan.fj.md')).toContainText('The plan, for reading.');
     // The editor's own menus and dialogs: the block type list, a link's dialog, a table's.
-    await page.getByRole("combobox", { name: "Block type" }).click();
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("Enter");
-    await page.keyboard.press("ControlOrMeta+z");
-    await page.getByRole("button", { name: "Create link" }).click();
-    await page.keyboard.press("Escape");
-    await page.getByRole("button", { name: "Insert Table" }).click();
-    await page.keyboard.press("Escape");
-    await selectText(page, "plan, for");
-    await page.getByRole("button", { name: "Comment on selection" }).click();
-    await page.getByTestId("comments-panel").getByLabel("New comment").fill("A comment under the policy");
-    await page.getByTestId("comments-panel").getByRole("button", { name: "Comment", exact: true }).click();
-    await expect(page.getByTestId("comment-thread")).toHaveCount(1);
-    await expect.poll(() => marks(page)).toMatchObject({ "fe-thread": ["plan, for"] });
-    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "comment" } })).json()) as { url: string };
+    await page.getByRole('combobox', { name: 'Block type' }).click();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('ControlOrMeta+z');
+    await page.getByRole('button', { name: 'Create link' }).click();
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Insert Table' }).click();
+    await page.keyboard.press('Escape');
+    await selectText(page, 'plan, for');
+    await page.getByRole('button', { name: 'Comment on selection' }).click();
+    await page
+      .getByTestId('comments-panel')
+      .getByLabel('New comment')
+      .fill('A comment under the policy');
+    await page
+      .getByTestId('comments-panel')
+      .getByRole('button', { name: 'Comment', exact: true })
+      .click();
+    await expect(page.getByTestId('comment-thread')).toHaveCount(1);
+    await expect.poll(() => marks(page)).toMatchObject({ 'fe-thread': ['plan, for'] });
+    const link = (await (
+      await page.request.post(`/api/connections/${id}/links`, {
+        headers: { origin: BASE },
+        data: { doc: ID_DOC, role: 'comment' },
+      })
+    ).json()) as { url: string };
     await page.reload();
     expect(owners, "the owner's pages").toEqual([]);
 
-    const visitor = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.51" } });
+    const visitor = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.51' },
+    });
     const guest = await visitor.newPage();
     const guests = watchViolations(guest);
-    await guest.goto("/");
+    await guest.goto('/');
     await guest.goto(link.url);
-    await expect(guest.getByTestId("comment-thread")).toHaveCount(1);
-    await expect.poll(() => marks(guest)).toMatchObject({ "fe-thread": ["plan, for"] });
+    await expect(guest.getByTestId('comment-thread')).toHaveCount(1);
+    await expect.poll(() => marks(guest)).toMatchObject({ 'fe-thread': ['plan, for'] });
     expect(guests, "a guest's pages and the live stream").toEqual([]);
 
     // Markup that is put in, which is how a script reaches a page through a comment, a name or a document, does not run: an inline handler and a javascript:
     // address have no nonce. (A script element made by a script that has the nonce is trusted by `strict-dynamic`; that is the page's own code, not content.)
     const ran = await guest.evaluate(async () => {
-      document.body.insertAdjacentHTML("beforeend", '<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" onload="window.__injected = true" onerror="window.__injected = true">');
-      document.body.insertAdjacentHTML("beforeend", '<a id="evil" href="javascript:window.__injected = true">x</a>');
-      (document.getElementById("evil") as HTMLAnchorElement).click();
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        '<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" onload="window.__injected = true" onerror="window.__injected = true">',
+      );
+      document.body.insertAdjacentHTML(
+        'beforeend',
+        '<a id="evil" href="javascript:window.__injected = true">x</a>',
+      );
+      (document.getElementById('evil') as HTMLAnchorElement).click();
       await new Promise((resolve) => setTimeout(resolve, 300));
       return (window as unknown as { __injected?: boolean }).__injected === true;
     });
@@ -4568,35 +6824,107 @@ test("every page is sent with a Content-Security-Policy with a nonce of its own,
 
 const HOSTILE_DOC = `---\nid: ${ID_DOC}\ntitle: Hostile\n---\n\n# Hostile\n\n<script>window.__pwned = 1</script>\n\n<img src="https://evil.example/pixel.png" onerror="window.__pwned = 1">\n\n[click me](javascript:window.__pwned=1)\n\n![tracker](https://evil.example/tracker.png)\n\n<iframe src="https://evil.example/frame"></iframe>\n\nPlain text after.\n`;
 
-test("what other people wrote, in a document, a comment or a name, is shown as text and does nothing: no script, no handler, no request to another site", async ({ page, browser }) => {
+test('what other people wrote, in a document, a comment or a name, is shown as text and does nothing: no script, no handler, no request to another site', async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": HOSTILE_DOC });
-    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "comment" } })).json()) as { url: string };
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': HOSTILE_DOC,
+    });
+    const link = (await (
+      await page.request.post(`/api/connections/${id}/links`, {
+        headers: { origin: BASE },
+        data: { doc: ID_DOC, role: 'comment' },
+      })
+    ).json()) as { url: string };
     const payload = `<img src="https://evil.example/c.png" onerror="window.__pwned = 1"><script>window.__pwned = 1</script> [x](javascript:window.__pwned=1)`;
 
-    const visitor = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.61" } });
+    const visitor = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.61' },
+    });
     const guest = await visitor.newPage();
     const requested: string[] = [];
-    for (const target of [page, guest]) target.on("request", (request) => void (new URL(request.url()).origin !== BASE && requested.push(request.url())));
+    for (const target of [page, guest])
+      target.on(
+        'request',
+        (request) => void (new URL(request.url()).origin !== BASE && requested.push(request.url())),
+      );
 
     // A guest writes the payload as a comment (a name with markup in it is refused), and the owner reads it, as text.
     await guest.goto(link.url);
-    expect((await guest.context().request.post(`/d/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor: { type: "text-quote", quote: "Plain text", prefix: "", suffix: "", position: 0 }, body: payload, name: "<img src=x onerror=alert(1)>", clientId: "browser-hostile1" } })).status()).toBe(400);
-    expect((await guest.context().request.post(`/d/${ID_DOC}/comments`, { headers: { origin: BASE }, data: { op: "thread", anchor: { type: "text-quote", quote: "Plain text", prefix: "", suffix: "", position: 0 }, body: payload, name: "Mallory", clientId: "browser-hostile1" } })).status()).toBe(201);
+    expect(
+      (
+        await guest.context().request.post(`/d/${ID_DOC}/comments`, {
+          headers: { origin: BASE },
+          data: {
+            op: 'thread',
+            anchor: {
+              type: 'text-quote',
+              quote: 'Plain text',
+              prefix: '',
+              suffix: '',
+              position: 0,
+            },
+            body: payload,
+            name: '<img src=x onerror=alert(1)>',
+            clientId: 'browser-hostile1',
+          },
+        })
+      ).status(),
+    ).toBe(400);
+    expect(
+      (
+        await guest.context().request.post(`/d/${ID_DOC}/comments`, {
+          headers: { origin: BASE },
+          data: {
+            op: 'thread',
+            anchor: {
+              type: 'text-quote',
+              quote: 'Plain text',
+              prefix: '',
+              suffix: '',
+              position: 0,
+            },
+            body: payload,
+            name: 'Mallory',
+            clientId: 'browser-hostile1',
+          },
+        })
+      ).status(),
+    ).toBe(201);
 
-    for (const [who, target, address] of [["the owner", page, `/repo/${id}/Notes/Plan.fj.md`], ["a guest", guest, link.url]] as const) {
+    for (const [who, target, address] of [
+      ['the owner', page, `/repo/${id}/Notes/Plan.fj.md`],
+      ['a guest', guest, link.url],
+    ] as const) {
       await target.goto(address);
-      await expect(target.getByTestId("comments-panel").getByTestId("comment-thread")).toHaveCount(1);
+      await expect(target.getByTestId('comments-panel').getByTestId('comment-thread')).toHaveCount(
+        1,
+      );
       // The comment is its own words, character for character, and made no element.
-      await expect(target.getByTestId("comments-panel").getByTestId("comment-thread")).toContainText(payload);
-      await expect(target.locator("main img[onerror], main script, main iframe, main a[href^='javascript']"), `${who}: nothing in the page that runs`).toHaveCount(0);
+      await expect(
+        target.getByTestId('comments-panel').getByTestId('comment-thread'),
+      ).toContainText(payload);
+      await expect(
+        target.locator("main img[onerror], main script, main iframe, main a[href^='javascript']"),
+        `${who}: nothing in the page that runs`,
+      ).toHaveCount(0);
       // The document says what it says, as text in the editor, and none of it ran or loaded.
-      await expect(target.locator("main")).toContainText("Plain text after.");
-      await expect(target.locator("main img[src*='evil'], main iframe, main script:not([nonce])"), `${who}: the document's markup`).toHaveCount(0);
+      await expect(target.locator('main')).toContainText('Plain text after.');
+      await expect(
+        target.locator("main img[src*='evil'], main iframe, main script:not([nonce])"),
+        `${who}: the document's markup`,
+      ).toHaveCount(0);
       await expect(target.locator("main a[href^='javascript']")).toHaveCount(0);
-      expect(await target.evaluate(() => (window as unknown as { __pwned?: number }).__pwned), `${who}: nothing ran`).toBeUndefined();
+      expect(
+        await target.evaluate(() => (window as unknown as { __pwned?: number }).__pwned),
+        `${who}: nothing ran`,
+      ).toBeUndefined();
     }
-    expect(requested, "nothing was asked of another site").toEqual([]);
+    expect(requested, 'nothing was asked of another site').toEqual([]);
     await visitor.close();
   } finally {
     await restoreMore();
@@ -4611,44 +6939,91 @@ test("what other people wrote, in a document, a comment or a name, is shown as t
  * Sovereign sign-in, as this one does not (`src/sovereign/http.test.ts`, and the Sovereign instance's tests in `signin.sovereign.spec.ts`).
  */
 const NOT_IN_THE_MATRIX = new Set([
-  "/api/auth/[...all]",
-  "/api/health",
-  "/api/links/enter",
-  "/api/github-app/install",
-  "/api/github-app/callback",
-  "/api/webhooks/github",
-  "/api/sovereign/backchannel-logout",
-  "/api/sovereign/account-deleted",
+  '/api/auth/[...all]',
+  '/api/health',
+  '/api/links/enter',
+  '/api/github-app/install',
+  '/api/github-app/callback',
+  '/api/webhooks/github',
+  '/api/sovereign/backchannel-logout',
+  '/api/sovereign/account-deleted',
 ]);
 
-test("on an instance with no GitHub App, its routes are not there for anyone, and the page offers no way in", async ({ page, browser }) => {
-  const nobody = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.73" } });
+test('on an instance with no GitHub App, its routes are not there for anyone, and the page offers no way in', async ({
+  page,
+  browser,
+}) => {
+  const nobody = await browser.newContext({
+    baseURL: BASE,
+    extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.73' },
+  });
   try {
-    for (const [method, path] of [["GET", "/api/github-app/install"], ["GET", "/api/github-app/callback?code=c&installation_id=1&state=s"], ["POST", "/api/webhooks/github"]] as const) {
+    for (const [method, path] of [
+      ['GET', '/api/github-app/install'],
+      ['GET', '/api/github-app/callback?code=c&installation_id=1&state=s'],
+      ['POST', '/api/webhooks/github'],
+    ] as const) {
       for (const request of [page.request, nobody.request]) {
-        const response = await request.fetch(path, { method, maxRedirects: 0, failOnStatusCode: false, ...(method === "POST" ? { data: "{}", headers: { "x-github-event": "push", "x-hub-signature-256": "sha256=00" } } : {}) });
+        const response = await request.fetch(path, {
+          method,
+          maxRedirects: 0,
+          failOnStatusCode: false,
+          ...(method === 'POST'
+            ? {
+                data: '{}',
+                headers: { 'x-github-event': 'push', 'x-hub-signature-256': 'sha256=00' },
+              }
+            : {}),
+        });
         expect(response.status(), `${method} ${path}`).toBe(404);
       }
     }
-    await page.goto("/repositories");
-    await expect(page.getByRole("button", { name: "Install on GitHub" })).toHaveCount(0);
+    await page.goto('/repositories');
+    await expect(page.getByRole('button', { name: 'Install on GitHub' })).toHaveCount(0);
   } finally {
     await nobody.close();
   }
 });
 
-test("every route that changes something refuses another site's request, even from its owner, and every route refuses callers it has no business with, and nothing is changed by trying", async ({ page, browser }) => {
+test("every route that changes something refuses another site's request, even from its owner, and every route refuses callers it has no business with, and nothing is changed by trying", async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC });
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+    });
     const before = await hubs.more.branchHead();
-    const strangers = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.71" } });
+    const strangers = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.71' },
+    });
     const mallory = await strangers.newPage();
-    await signUp(mallory, `mallory-${Date.now()}@example.com`, "Mallory");
-    const nobody = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.72" } });
+    await signUp(mallory, `mallory-${Date.now()}@example.com`, 'Mallory');
+    const nobody = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.72' },
+    });
 
-    const address = (route: string) => route.replace("/api/connections/[id]", `/api/connections/${id}`).replace("/d/[id]", `/d/${ID_DOC}`).replace("/n/[id]", `/n/${ID_DOC}`);
-    const sent = async (request: import("@playwright/test").APIRequestContext, method: string, route: string, origin: string | null) => {
-      const response = await request.fetch(address(route), { method, ...(origin === null ? {} : { headers: { origin, "content-type": "application/json" } }), ...(method === "GET" ? {} : { data: {} }), maxRedirects: 0, failOnStatusCode: false });
+    const address = (route: string) =>
+      route
+        .replace('/api/connections/[id]', `/api/connections/${id}`)
+        .replace('/d/[id]', `/d/${ID_DOC}`)
+        .replace('/n/[id]', `/n/${ID_DOC}`);
+    const sent = async (
+      request: import('@playwright/test').APIRequestContext,
+      method: string,
+      route: string,
+      origin: string | null,
+    ) => {
+      const response = await request.fetch(address(route), {
+        method,
+        ...(origin === null ? {} : { headers: { origin, 'content-type': 'application/json' } }),
+        ...(method === 'GET' ? {} : { data: {} }),
+        maxRedirects: 0,
+        failOnStatusCode: false,
+      });
       return response.status();
     };
     const tried: string[] = [];
@@ -4661,26 +7036,37 @@ test("every route that changes something refuses another site's request, even fr
         // Someone with no account, and another account that owns nothing here: told no (not signed in, not allowed, not found, or that what was sent is not
         // a request; the body here is empty, and a route may look at it first, which tells a stranger nothing about what is there), never let in and never an
         // error. An account's own list is the one thing an account may ask for, and a stranger's is empty.
-        for (const [who, request] of [["nobody", nobody.request], ["a stranger", mallory.request]] as const) {
+        for (const [who, request] of [
+          ['nobody', nobody.request],
+          ['a stranger', mallory.request],
+        ] as const) {
           const status = await sent(request, method, rule.route, BASE);
-          if (access.kind === "account" && method === "GET" && who === "a stranger") {
-            if (status !== 200 || JSON.stringify(await (await request.get(address(rule.route))).json()).includes("acme")) wrong.push(`${name} by ${who}: ${status}`);
-          } else if (![400, 401, 403, 404].includes(status)) wrong.push(`${name} by ${who}: ${status}`);
+          if (access.kind === 'account' && method === 'GET' && who === 'a stranger') {
+            if (
+              status !== 200 ||
+              JSON.stringify(await (await request.get(address(rule.route))).json()).includes('acme')
+            )
+              wrong.push(`${name} by ${who}: ${status}`);
+          } else if (![400, 401, 403, 404].includes(status))
+            wrong.push(`${name} by ${who}: ${status}`);
         }
         // The owner, from another site or with no origin at all: a request that changes something is refused.
-        if (method !== "GET") {
-          for (const origin of ["https://evil.example", "null", null]) {
+        if (method !== 'GET') {
+          for (const origin of ['https://evil.example', 'null', null]) {
             const status = await sent(page.request, method, rule.route, origin);
-            if (status !== 403) wrong.push(`${name} by the owner from ${origin ?? "no origin"}: ${status}`);
+            if (status !== 403)
+              wrong.push(`${name} by the owner from ${origin ?? 'no origin'}: ${status}`);
           }
         }
       }
     }
     expect(wrong).toEqual([]);
-    expect(tried.length, "the registry was walked").toBeGreaterThan(20);
+    expect(tried.length, 'the registry was walked').toBeGreaterThan(20);
     // Nothing was changed by any of it.
     expect(await hubs.more.branchHead()).toBe(before);
-    const listing = (await (await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)).json()) as { links?: unknown[] };
+    const listing = (await (
+      await page.request.get(`/api/connections/${id}/links?doc=${ID_DOC}`)
+    ).json()) as { links?: unknown[] };
     expect(listing.links ?? []).toEqual([]);
     await strangers.close();
     await nobody.close();
@@ -4689,51 +7075,99 @@ test("every route that changes something refuses another site's request, even fr
   }
 });
 
-test("the git host's token and the instance's secrets are in nothing that reaches a browser: no page, answer, script, cookie or storage, the owner's or a guest's", async ({ page, browser }) => {
+test("the git host's token and the instance's secrets are in nothing that reaches a browser: no page, answer, script, cookie or storage, the owner's or a guest's", async ({
+  page,
+  browser,
+}) => {
   try {
-    const id = await repositoryWith(page, { "Notes/fjord.vault.json": VAULT_MANIFEST, "Notes/Plan.fj.md": SHARE_DOC, "Notes/idea.md": "a note\n" });
-    const secrets = [GOOD, "ZTJlLW9ubHkta2V5LW5vdC1mb3ItYW55dGhpbmchISE=", "e2e-only-secret-not-for-anything-real-0123456789", Buffer.from("ZTJlLW9ubHkta2V5LW5vdC1mb3ItYW55dGhpbmchISE=", "base64").toString()];
+    const id = await repositoryWith(page, {
+      'Notes/fjord.vault.json': VAULT_MANIFEST,
+      'Notes/Plan.fj.md': SHARE_DOC,
+      'Notes/idea.md': 'a note\n',
+    });
+    const secrets = [
+      GOOD,
+      'ZTJlLW9ubHkta2V5LW5vdC1mb3ItYW55dGhpbmchISE=',
+      'e2e-only-secret-not-for-anything-real-0123456789',
+      Buffer.from('ZTJlLW9ubHkta2V5LW5vdC1mb3ItYW55dGhpbmchISE=', 'base64').toString(),
+    ];
     const leaks: string[] = [];
     let inspected = 0;
-    const watch = (target: import("@playwright/test").Page, who: string) =>
-      target.on("response", async (response) => {
+    const watch = (target: import('@playwright/test').Page, who: string) =>
+      target.on('response', async (response) => {
         if (new URL(response.url()).origin !== BASE) return;
-        const text = await response.text().catch(() => "");
-        if (text !== "") inspected++;
+        const text = await response.text().catch(() => '');
+        if (text !== '') inspected++;
         const headers = JSON.stringify(response.headers());
-        for (const secret of secrets) if (text.includes(secret) || headers.includes(secret)) leaks.push(`${who}: ${response.url()}`);
+        for (const secret of secrets)
+          if (text.includes(secret) || headers.includes(secret))
+            leaks.push(`${who}: ${response.url()}`);
       });
-    watch(page, "owner");
+    watch(page, 'owner');
 
-    const link = (await (await page.request.post(`/api/connections/${id}/links`, { headers: { origin: BASE }, data: { doc: ID_DOC, role: "edit" } })).json()) as { url: string };
-    for (const address of ["/", "/home", "/repositories", "/account/security", `/repo/${id}`, `/repo/${id}/Notes`, `/repo/${id}/Notes/idea.md`, `/repo/${id}/Notes/Plan.fj.md`, `/d/${ID_DOC}`, `/deleted/${id}`]) {
+    const link = (await (
+      await page.request.post(`/api/connections/${id}/links`, {
+        headers: { origin: BASE },
+        data: { doc: ID_DOC, role: 'edit' },
+      })
+    ).json()) as { url: string };
+    for (const address of [
+      '/',
+      '/home',
+      '/repositories',
+      '/account/security',
+      `/repo/${id}`,
+      `/repo/${id}/Notes`,
+      `/repo/${id}/Notes/idea.md`,
+      `/repo/${id}/Notes/Plan.fj.md`,
+      `/d/${ID_DOC}`,
+      `/deleted/${id}`,
+    ]) {
       await page.goto(address);
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState('networkidle');
     }
-    for (const address of ["/api/connections", `/api/connections/${id}/links?doc=${ID_DOC}`, `/api/connections/${id}/shares?doc=${ID_DOC}`, `/d/${ID_DOC}/comments`, "/api/health"]) {
+    for (const address of [
+      '/api/connections',
+      `/api/connections/${id}/links?doc=${ID_DOC}`,
+      `/api/connections/${id}/shares?doc=${ID_DOC}`,
+      `/d/${ID_DOC}/comments`,
+      '/api/health',
+    ]) {
       const response = await page.request.get(address);
       const body = await response.text();
       const headers = JSON.stringify(response.headers());
-      for (const secret of secrets) if (body.includes(secret) || headers.includes(secret)) leaks.push(`owner: ${address}`);
+      for (const secret of secrets)
+        if (body.includes(secret) || headers.includes(secret)) leaks.push(`owner: ${address}`);
     }
     // What the page keeps in the browser.
-    const kept = await page.evaluate(() => JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage), document.cookie]));
+    const kept = await page.evaluate(() =>
+      JSON.stringify([
+        Object.entries(localStorage),
+        Object.entries(sessionStorage),
+        document.cookie,
+      ]),
+    );
     const cookies = JSON.stringify(await page.context().cookies());
     for (const secret of secrets) {
-      expect(kept.includes(secret), "storage").toBe(false);
-      expect(cookies.includes(secret), "cookies").toBe(false);
+      expect(kept.includes(secret), 'storage').toBe(false);
+      expect(cookies.includes(secret), 'cookies').toBe(false);
     }
 
-    const visitor = await browser.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.8.81" } });
+    const visitor = await browser.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { 'x-forwarded-for': '10.99.8.81' },
+    });
     const guest = await visitor.newPage();
-    watch(guest, "guest");
+    watch(guest, 'guest');
     await guest.goto(link.url);
-    await expect(guest.getByRole("textbox", { name: "Q4 plan" })).toContainText("The plan, for reading.");
-    await guest.waitForLoadState("networkidle");
+    await expect(guest.getByRole('textbox', { name: 'Q4 plan' })).toContainText(
+      'The plan, for reading.',
+    );
+    await guest.waitForLoadState('networkidle');
     expect(JSON.stringify(await visitor.cookies()).includes(GOOD)).toBe(false);
     await visitor.close();
 
-    expect(inspected, "pages, scripts and answers were looked through").toBeGreaterThan(40);
+    expect(inspected, 'pages, scripts and answers were looked through').toBeGreaterThan(40);
     expect(leaks).toEqual([]);
   } finally {
     await restoreMore();
@@ -4743,7 +7177,9 @@ test("the git host's token and the instance's secrets are in nothing that reache
 // --- Encrypted files, opened in the browser (ROADMAP 2b.2) ---
 
 /** The format module as Node loads it, to make the files the CLI would: encrypted to an identity, in both namings. */
-const wasm = createRequire(join(process.cwd(), "package.json"))(join(wasmDirectory(), "fjord_wasm.js")) as {
+const wasm = createRequire(join(process.cwd(), 'package.json'))(
+  join(wasmDirectory(), 'fjord_wasm.js'),
+) as {
   generateIdentity(): Uint8Array;
   identityRecipient(identity: Uint8Array): string;
   encrypt(plaintext: Uint8Array, recipients: string, armor: boolean): Uint8Array;
@@ -4754,316 +7190,538 @@ const wasm = createRequire(join(process.cwd(), "package.json"))(join(wasmDirecto
 };
 const bytes = (text: string) => new TextEncoder().encode(text);
 
-test("an encrypted file is decrypted in the browser, in both namings, and nothing readable or secret passes the server", async ({ page }) => {
+test('an encrypted file is decrypted in the browser, in both namings, and nothing readable or secret passes the server', async ({
+  page,
+}) => {
   // Each page load is locked, and unlocking is scrypt (about two seconds here): this opens four files across loads.
   test.setTimeout(240_000);
   const secret = wasm.generateIdentity();
   const recipient = wasm.identityRecipient(secret);
   const stranger = wasm.identityRecipient(wasm.generateIdentity());
-  const sealedName = "01jagc4k7pr9tbm3ykwx6zq2hz";
-  const PLAIN = "# Plain-named secret\n\nonly ever readable in the browser";
-  const SEALED = "# Id-named secret\n\nits real name is inside the container";
+  const sealedName = '01jagc4k7pr9tbm3ykwx6zq2hz';
+  const PLAIN = '# Plain-named secret\n\nonly ever readable in the browser';
+  const SEALED = '# Id-named secret\n\nits real name is inside the container';
   const vault = (id: string, naming: string, container: string) =>
-    JSON.stringify({ fjord: 1, id, name: id, createdAt: "2026-10-16T09:34:00Z", encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container, armor: false }, fileNaming: naming });
+    JSON.stringify({
+      fjord: 1,
+      id,
+      name: id,
+      createdAt: '2026-10-16T09:34:00Z',
+      encryption: {
+        tool: 'age',
+        recipients: 'recipients.txt',
+        suffix: '.age',
+        container,
+        armor: false,
+      },
+      fileNaming: naming,
+    });
   const id = await repositoryWith(page, {
-    "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3me", name: "Secrets", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Open", id: "01jagc4k7pr9tbm3ykwx6zq2hx" }, { path: "Sealed", id: "01jagc4k7pr9tbm3ykwx6zq2hy" }] }),
-    "Open/fjord.vault.json": vault("01jagc4k7pr9tbm3ykwx6zq2hx", "plain", "none"),
-    "Open/recipients.txt": `${recipient}\n`,
-    "Open/note.md.age": wasm.encrypt(bytes(PLAIN), recipient, false),
-    "Open/not-yours.md.age": wasm.encrypt(bytes("not for this identity"), stranger, false),
-    "Sealed/fjord.vault.json": vault("01jagc4k7pr9tbm3ykwx6zq2hy", "id", "tar"),
-    "Sealed/recipients.txt": `${recipient}\n`,
-    [`Sealed/${sealedName}.age`]: wasm.encrypt(wasm.wrapContainer("Plan.md", bytes(SEALED)), recipient, false),
+    'fjord.json': JSON.stringify({
+      fjord: 1,
+      id: '01jagc4k7pqw2xn8rvty5zb3me',
+      name: 'Secrets',
+      createdAt: '2026-10-16T09:34:00Z',
+      vaults: [
+        { path: 'Open', id: '01jagc4k7pr9tbm3ykwx6zq2hx' },
+        { path: 'Sealed', id: '01jagc4k7pr9tbm3ykwx6zq2hy' },
+      ],
+    }),
+    'Open/fjord.vault.json': vault('01jagc4k7pr9tbm3ykwx6zq2hx', 'plain', 'none'),
+    'Open/recipients.txt': `${recipient}\n`,
+    'Open/note.md.age': wasm.encrypt(bytes(PLAIN), recipient, false),
+    'Open/not-yours.md.age': wasm.encrypt(bytes('not for this identity'), stranger, false),
+    'Sealed/fjord.vault.json': vault('01jagc4k7pr9tbm3ykwx6zq2hy', 'id', 'tar'),
+    'Sealed/recipients.txt': `${recipient}\n`,
+    [`Sealed/${sealedName}.age`]: wasm.encrypt(
+      wasm.wrapContainer('Plan.md', bytes(SEALED)),
+      recipient,
+      false,
+    ),
   });
 
   await page.addInitScript(() => {
     (window as unknown as { __violations: string[] }).__violations = [];
-    document.addEventListener("securitypolicyviolation", (event) => (window as unknown as { __violations: string[] }).__violations.push(`${event.violatedDirective} ${event.blockedURI}`));
+    document.addEventListener('securitypolicyviolation', (event) =>
+      (window as unknown as { __violations: string[] }).__violations.push(
+        `${event.violatedDirective} ${event.blockedURI}`,
+      ),
+    );
   });
   const answers: string[] = [];
   const sent: string[] = [];
-  page.on("request", (request) => sent.push(`${request.method()} ${request.url()} ${request.postData() ?? ""}`));
-  page.on("response", async (response) => {
-    if (response.url().includes("/api/")) answers.push(`${response.url()} ${(await response.body().catch(() => Buffer.alloc(0))).toString("latin1")}`);
+  page.on('request', (request) =>
+    sent.push(`${request.method()} ${request.url()} ${request.postData() ?? ''}`),
+  );
+  page.on('response', async (response) => {
+    if (response.url().includes('/api/'))
+      answers.push(
+        `${response.url()} ${(await response.body().catch(() => Buffer.alloc(0))).toString('latin1')}`,
+      );
   });
 
   // Without an identity the page says what to do, and shows nothing.
   await page.goto(`/repo/${id}/Open/note.md.age`);
-  await expect(page.getByText("No identity in this browser")).toBeVisible();
-  await expect(page.getByRole("textbox", { name: "note.md" })).toHaveCount(0);
+  await expect(page.getByText('No identity in this browser')).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'note.md' })).toHaveCount(0);
 
   // Bring the identity (a file's text), sealed with a passphrase.
-  const PASSPHRASE = "a passphrase of some length";
-  await page.goto("/account/keys");
-  await page.getByRole("button", { name: "I already have one" }).click();
-  await page.getByLabel("Your secret key").fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
-  await page.getByLabel("Passphrase").fill(PASSPHRASE);
-  await page.getByRole("button", { name: "Keep this identity" }).click();
-  await expect(page.getByTestId("recipient")).toHaveText(recipient, { timeout: 60_000 });
+  const PASSPHRASE = 'a passphrase of some length';
+  await page.goto('/account/keys');
+  await page.getByRole('button', { name: 'I already have one' }).click();
+  await page
+    .getByLabel('Your secret key')
+    .fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
+  await page.getByLabel('Passphrase').fill(PASSPHRASE);
+  await page.getByRole('button', { name: 'Keep this identity' }).click();
+  await expect(page.getByTestId('recipient')).toHaveText(recipient, { timeout: 60_000 });
 
   // A new page load is locked: the file asks for the passphrase, then opens.
   await page.goto(`/repo/${id}/Open/note.md.age`);
-  await page.getByLabel("Passphrase").fill("not the passphrase");
-  await page.getByRole("button", { name: "Unlock and open" }).click();
-  await expect(page.getByText("That passphrase does not open the identity.")).toBeVisible({ timeout: 60_000 });
-  await page.getByLabel("Passphrase").fill(PASSPHRASE);
-  await page.getByRole("button", { name: "Unlock and open" }).click();
-  const plain = page.getByRole("textbox", { name: "note.md", exact: true });
-  await expect(plain).toContainText("Plain-named secret", { timeout: 60_000 });
-  await expect(plain).toHaveAttribute("contenteditable", "true");
+  await page.getByLabel('Passphrase').fill('not the passphrase');
+  await page.getByRole('button', { name: 'Unlock and open' }).click();
+  await expect(page.getByText('That passphrase does not open the identity.')).toBeVisible({
+    timeout: 60_000,
+  });
+  await page.getByLabel('Passphrase').fill(PASSPHRASE);
+  await page.getByRole('button', { name: 'Unlock and open' }).click();
+  const plain = page.getByRole('textbox', { name: 'note.md', exact: true });
+  await expect(plain).toContainText('Plain-named secret', { timeout: 60_000 });
+  await expect(plain).toHaveAttribute('contenteditable', 'true');
 
   // Hidden on request, and opened again.
-  await page.getByRole("button", { name: "Hide" }).click();
+  await page.getByRole('button', { name: 'Hide' }).click();
   await expect(plain).toHaveCount(0);
-  await page.getByRole("button", { name: "Open" }).click();
-  await expect(page.getByRole("textbox", { name: "note.md", exact: true })).toContainText("only ever readable in the browser");
+  await page.getByRole('button', { name: 'Open' }).click();
+  await expect(page.getByRole('textbox', { name: 'note.md', exact: true })).toContainText(
+    'only ever readable in the browser',
+  );
 
   // The id-named vault: the real name is inside the container and is what the page shows.
   await page.goto(`/repo/${id}/Sealed`);
-  await expect(page.getByRole("list", { name: "Folder contents" })).toContainText(sealedName);
-  await page.getByRole("link", { name: sealedName }).click();
+  await expect(page.getByRole('list', { name: 'Folder contents' })).toContainText(sealedName);
+  await page.getByRole('link', { name: sealedName }).click();
   // The link is a navigation inside the same page load, which is locked (the load before it was the vault's list): unlocked here, it stays so for the next.
-  await page.getByLabel("Passphrase").fill(PASSPHRASE);
-  await page.getByRole("button", { name: "Unlock and open" }).click();
-  await expect(page.getByRole("textbox", { name: "Plan.md", exact: true })).toContainText("its real name is inside the container", { timeout: 60_000 });
+  await page.getByLabel('Passphrase').fill(PASSPHRASE);
+  await page.getByRole('button', { name: 'Unlock and open' }).click();
+  await expect(page.getByRole('textbox', { name: 'Plan.md', exact: true })).toContainText(
+    'its real name is inside the container',
+    { timeout: 60_000 },
+  );
 
   // A file for someone else's key is refused in words, and shows nothing.
   await page.goto(`/repo/${id}/Open/not-yours.md.age`);
-  await page.getByLabel("Passphrase").fill(PASSPHRASE);
-  await page.getByRole("button", { name: "Unlock and open" }).click();
-  await expect(page.getByText("This identity cannot open the file")).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText("not for this identity")).toHaveCount(0);
+  await page.getByLabel('Passphrase').fill(PASSPHRASE);
+  await page.getByRole('button', { name: 'Unlock and open' }).click();
+  await expect(page.getByText('This identity cannot open the file')).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByText('not for this identity')).toHaveCount(0);
 
   // Nothing the server saw or said holds a plaintext, the passphrase or the key; the policy was kept.
   // (The check looks at what was said: the ciphertext itself was among it, so an empty record would not pass.)
-  expect(answers.filter((answer) => answer.includes("/ciphertext?") && answer.includes("age-encryption.org/v1")).length).toBeGreaterThanOrEqual(3);
-  const everything = [...sent, ...answers].join("\n");
-  for (const forbidden of [PLAIN.slice(2, 20), SEALED.slice(2, 18), "Plan.md", "not for this identity", PASSPHRASE, new TextDecoder().decode(secret).slice(0, 24)]) {
+  expect(
+    answers.filter(
+      (answer) => answer.includes('/ciphertext?') && answer.includes('age-encryption.org/v1'),
+    ).length,
+  ).toBeGreaterThanOrEqual(3);
+  const everything = [...sent, ...answers].join('\n');
+  for (const forbidden of [
+    PLAIN.slice(2, 20),
+    SEALED.slice(2, 18),
+    'Plan.md',
+    'not for this identity',
+    PASSPHRASE,
+    new TextDecoder().decode(secret).slice(0, 24),
+  ]) {
     expect(everything, forbidden).not.toContain(forbidden);
   }
-  expect(await page.evaluate(() => (window as unknown as { __violations: string[] }).__violations)).toEqual([]);
+  expect(
+    await page.evaluate(() => (window as unknown as { __violations: string[] }).__violations),
+  ).toEqual([]);
 
   // Only the signed-in owner is handed the bytes.
   const anonymous = await page.context().browser()!.newContext({ baseURL: BASE });
-  expect((await anonymous.request.get(`/api/connections/${id}/ciphertext?path=Open/note.md.age`, { failOnStatusCode: false })).status()).toBe(401);
+  expect(
+    (
+      await anonymous.request.get(`/api/connections/${id}/ciphertext?path=Open/note.md.age`, {
+        failOnStatusCode: false,
+      })
+    ).status(),
+  ).toBe(401);
   await anonymous.close();
-  expect((await page.request.get(`/api/connections/${id}/ciphertext?path=Open/recipients.txt`, { failOnStatusCode: false })).status()).toBe(404);
-  expect((await page.request.get(`/api/connections/${id}/ciphertext?path=Open/note.md.age`)).status()).toBe(200);
+  expect(
+    (
+      await page.request.get(`/api/connections/${id}/ciphertext?path=Open/recipients.txt`, {
+        failOnStatusCode: false,
+      })
+    ).status(),
+  ).toBe(404);
+  expect(
+    (await page.request.get(`/api/connections/${id}/ciphertext?path=Open/note.md.age`)).status(),
+  ).toBe(200);
 });
 
 // --- A whole vault made encrypted, and plaintext again (RFC 0003) ----------------------------------------------------------
 
-test("a vault is made encrypted in one commit from the browser, checked to open, and made plaintext again", async ({ page }) => {
+test('a vault is made encrypted in one commit from the browser, checked to open, and made plaintext again', async ({
+  page,
+}) => {
   test.setTimeout(300_000);
   try {
-    const PLAIN_MANIFEST = JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hq", name: "Plain", "x-future": 1, createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" });
+    const PLAIN_MANIFEST = JSON.stringify({
+      fjord: 1,
+      id: '01jagc4k7pr9tbm3ykwx6zq2hq',
+      name: 'Plain',
+      'x-future': 1,
+      createdAt: '2026-10-16T09:34:00Z',
+      encryption: null,
+      fileNaming: 'plain',
+    });
     const { id, secret, recipient } = await encryptedWorkbench(page, () => ({
-      "Plain/fjord.vault.json": PLAIN_MANIFEST,
-      "Plain/a.md": "SECRET PLAINTEXT a",
-      "Plain/Sub/b.md": "SECRET PLAINTEXT b",
-      "Plain/pic.png": new Uint8Array([137, 80, 78, 71, 0, 255]),
+      'Plain/fjord.vault.json': PLAIN_MANIFEST,
+      'Plain/a.md': 'SECRET PLAINTEXT a',
+      'Plain/Sub/b.md': 'SECRET PLAINTEXT b',
+      'Plain/pic.png': new Uint8Array([137, 80, 78, 71, 0, 255]),
     }));
     const before = (await hubs.more.branchHead()) as string;
 
     // Encrypt: the key must be unlocked (it proves each file opens), then the question that says what stays in the history.
     await page.goto(`/repo/${id}/Plain`);
-    await page.getByRole("button", { name: "Encrypt this vault…" }).click();
-    await page.getByLabel("Passphrase").fill(PASSPHRASE);
-    await page.getByRole("button", { name: "Unlock", exact: true }).click();
-    await page.getByRole("button", { name: "Encrypt this vault", exact: true }).click();
-    await expect(page.getByText("The plain text stays in the history")).toBeVisible();
+    await page.getByRole('button', { name: 'Encrypt this vault…' }).click();
+    await page.getByLabel('Passphrase').fill(PASSPHRASE);
+    await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+    await page.getByRole('button', { name: 'Encrypt this vault', exact: true }).click();
+    await expect(page.getByText('The plain text stays in the history')).toBeVisible();
     expect(await hubs.more.branchHead()).toBe(before); // asking is not doing
-    await page.getByRole("button", { name: "Yes, encrypt it" }).click();
-    await headSays("Encrypt vault Plain");
+    await page.getByRole('button', { name: 'Yes, encrypt it' }).click();
+    await headSays('Encrypt vault Plain');
 
     const head = (await hubs.more.branchHead()) as string;
-    expect(await hubs.more.show(head, "%P")).toBe(before);
+    expect(await hubs.more.show(head, '%P')).toBe(before);
     const encrypted = await hubs.more.filesAt(head);
-    expect(Object.keys(encrypted).filter((path) => path.startsWith("Plain/")).sort()).toEqual(["Plain/.gitignore", "Plain/Sub/b.md.age", "Plain/a.md.age", "Plain/fjord.vault.json", "Plain/pic.png.age", "Plain/recipients.txt"]);
-    expect(encrypted["Plain/recipients.txt"]).toContain(recipient);
-    expect(JSON.parse(encrypted["Plain/fjord.vault.json"] as string)).toMatchObject({ id: "01jagc4k7pr9tbm3ykwx6zq2hq", "x-future": 1, encryption: { tool: "age" } });
-    expect(textOf(decryptedAt(secret, await hubs.more.fileBytesAt(head, "Plain/Sub/b.md.age")))).toBe("SECRET PLAINTEXT b");
-    expect([...decryptedAt(secret, await hubs.more.fileBytesAt(head, "Plain/pic.png.age"))]).toEqual([137, 80, 78, 71, 0, 255]);
-    for (const [path, text] of Object.entries(encrypted)) if (path.startsWith("Plain/")) expect(text, path).not.toContain("SECRET PLAINTEXT");
+    expect(
+      Object.keys(encrypted)
+        .filter((path) => path.startsWith('Plain/'))
+        .sort(),
+    ).toEqual([
+      'Plain/.gitignore',
+      'Plain/Sub/b.md.age',
+      'Plain/a.md.age',
+      'Plain/fjord.vault.json',
+      'Plain/pic.png.age',
+      'Plain/recipients.txt',
+    ]);
+    expect(encrypted['Plain/recipients.txt']).toContain(recipient);
+    expect(JSON.parse(encrypted['Plain/fjord.vault.json'] as string)).toMatchObject({
+      id: '01jagc4k7pr9tbm3ykwx6zq2hq',
+      'x-future': 1,
+      encryption: { tool: 'age' },
+    });
+    expect(
+      textOf(decryptedAt(secret, await hubs.more.fileBytesAt(head, 'Plain/Sub/b.md.age'))),
+    ).toBe('SECRET PLAINTEXT b');
+    expect([
+      ...decryptedAt(secret, await hubs.more.fileBytesAt(head, 'Plain/pic.png.age')),
+    ]).toEqual([137, 80, 78, 71, 0, 255]);
+    for (const [path, text] of Object.entries(encrypted))
+      if (path.startsWith('Plain/')) expect(text, path).not.toContain('SECRET PLAINTEXT');
     await hubs.more.fsck();
 
     // And back: it is a plaintext vault again, with the files as they were.
     await page.goto(`/repo/${id}/Plain`);
-    await page.getByRole("button", { name: "Make this vault plaintext…" }).click();
-    await page.getByLabel("Passphrase").fill(PASSPHRASE);
-    await page.getByRole("button", { name: "Unlock", exact: true }).click();
-    await page.getByRole("button", { name: "Make this vault plaintext", exact: true }).click();
-    await expect(page.getByText("This puts the plain text of every file in the repository")).toBeVisible();
-    await page.getByRole("button", { name: "Yes, make it plaintext" }).click();
-    await headSays("Decrypt vault Plain");
+    await page.getByRole('button', { name: 'Make this vault plaintext…' }).click();
+    await page.getByLabel('Passphrase').fill(PASSPHRASE);
+    await page.getByRole('button', { name: 'Unlock', exact: true }).click();
+    await page.getByRole('button', { name: 'Make this vault plaintext', exact: true }).click();
+    await expect(
+      page.getByText('This puts the plain text of every file in the repository'),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Yes, make it plaintext' }).click();
+    await headSays('Decrypt vault Plain');
 
     const after = (await hubs.more.branchHead()) as string;
     const plain = await hubs.more.filesAt(after);
-    expect(Object.keys(plain).filter((path) => path.startsWith("Plain/")).sort()).toEqual(["Plain/Sub/b.md", "Plain/a.md", "Plain/fjord.vault.json", "Plain/pic.png"]);
-    expect(plain["Plain/a.md"]).toBe("SECRET PLAINTEXT a");
-    expect(JSON.parse(plain["Plain/fjord.vault.json"] as string).encryption).toBeNull();
+    expect(
+      Object.keys(plain)
+        .filter((path) => path.startsWith('Plain/'))
+        .sort(),
+    ).toEqual(['Plain/Sub/b.md', 'Plain/a.md', 'Plain/fjord.vault.json', 'Plain/pic.png']);
+    expect(plain['Plain/a.md']).toBe('SECRET PLAINTEXT a');
+    expect(JSON.parse(plain['Plain/fjord.vault.json'] as string).encryption).toBeNull();
     await hubs.more.fsck();
   } finally {
     await restoreMore();
   }
 });
 
-test("a file that is not a document has a page, a picture is shown, and it is saved as a file", async ({ page }) => {
+test('a file that is not a document has a page, a picture is shown, and it is saved as a file', async ({
+  page,
+}) => {
   await hubs.notes.commitFiles(
     {
-      "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3md", name: "Notes", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Public", id: "01jagc4k7pr9tbm3ykwx6zq2hv" }] }),
-      "Public/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hv", name: "Public notes", createdAt: "2026-10-16T09:34:00Z", encryption: null, fileNaming: "plain" }),
-      "Public/photo.png": "png",
+      'fjord.json': JSON.stringify({
+        fjord: 1,
+        id: '01jagc4k7pqw2xn8rvty5zb3md',
+        name: 'Notes',
+        createdAt: '2026-10-16T09:34:00Z',
+        vaults: [{ path: 'Public', id: '01jagc4k7pr9tbm3ykwx6zq2hv' }],
+      }),
+      'Public/fjord.vault.json': JSON.stringify({
+        fjord: 1,
+        id: '01jagc4k7pr9tbm3ykwx6zq2hv',
+        name: 'Public notes',
+        createdAt: '2026-10-16T09:34:00Z',
+        encryption: null,
+        fileNaming: 'plain',
+      }),
+      'Public/photo.png': 'png',
     },
     { replace: true },
   );
   await signUp(page);
-  await page.goto("/repositories");
-  await connect(page, "acme/notes");
-  await expect(page.getByRole("list", { name: "Connected repositories" })).toContainText("acme/notes");
+  await page.goto('/repositories');
+  await connect(page, 'acme/notes');
+  await expect(page.getByRole('list', { name: 'Connected repositories' })).toContainText(
+    'acme/notes',
+  );
   await openRepository(page);
-  await page.getByRole("list", { name: "Vaults" }).getByRole("link", { name: "Public notes" }).click();
-  await page.getByRole("link", { name: "photo.png" }).click();
-  await expect(page.getByRole("img", { name: "photo.png" })).toHaveCount(1);
-  const download = await page.getByRole("link", { name: "Download" }).getAttribute("href");
+  await page
+    .getByRole('list', { name: 'Vaults' })
+    .getByRole('link', { name: 'Public notes' })
+    .click();
+  await page.getByRole('link', { name: 'photo.png' }).click();
+  await expect(page.getByRole('img', { name: 'photo.png' })).toHaveCount(1);
+  const download = await page.getByRole('link', { name: 'Download' }).getAttribute('href');
   const saved = await page.request.get(download!);
   expect(saved.status()).toBe(200);
-  expect(saved.headers()["content-disposition"]).toMatch(/^attachment; filename="photo\.png"/);
-  expect(saved.headers()["x-content-type-options"]).toBe("nosniff");
-  expect(saved.headers()["content-security-policy"]).toContain("sandbox");
+  expect(saved.headers()['content-disposition']).toMatch(/^attachment; filename="photo\.png"/);
+  expect(saved.headers()['x-content-type-options']).toBe('nosniff');
+  expect(saved.headers()['content-security-policy']).toContain('sandbox');
 
   // Someone else is told nothing of it.
-  const other = await page.context().browser()!.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": "10.99.1.9" } });
+  const other = await page
+    .context()
+    .browser()!
+    .newContext({ baseURL: BASE, extraHTTPHeaders: { 'x-forwarded-for': '10.99.1.9' } });
   const otherPage = await other.newPage();
-  await signUp(otherPage, `other-${Date.now()}@example.com`, "Grace Hopper");
+  await signUp(otherPage, `other-${Date.now()}@example.com`, 'Grace Hopper');
   expect((await otherPage.request.get(download!)).status()).toBe(404);
   await other.close();
 });
 
-test("an encrypted document has the visual editor and its properties, and a change to either leaves as ciphertext", async ({ page }) => {
+test('an encrypted document has the visual editor and its properties, and a change to either leaves as ciphertext', async ({
+  page,
+}) => {
   test.setTimeout(240_000);
   const secret = wasm.generateIdentity();
   const recipient = wasm.identityRecipient(secret);
   const TEXT = `---\nid: 01jagc4k7pt8y3wqnmzv5xrb9z\ntitle: Hidden title\ncreated: "2026-10-16T09:34:00Z"\nkept: as it is\n---\n\n# Hidden heading\n\nHidden words.\n`;
   const id = await repositoryWith(page, {
-    "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3me", name: "Secrets", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Open", id: "01jagc4k7pr9tbm3ykwx6zq2hx" }] }),
-    "Open/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hx", name: "Open", createdAt: "2026-10-16T09:34:00Z", encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container: "none", armor: false }, fileNaming: "plain" }),
-    "Open/recipients.txt": `${recipient}\n`,
-    "Open/note.md.age": wasm.encrypt(bytes(TEXT), recipient, false),
+    'fjord.json': JSON.stringify({
+      fjord: 1,
+      id: '01jagc4k7pqw2xn8rvty5zb3me',
+      name: 'Secrets',
+      createdAt: '2026-10-16T09:34:00Z',
+      vaults: [{ path: 'Open', id: '01jagc4k7pr9tbm3ykwx6zq2hx' }],
+    }),
+    'Open/fjord.vault.json': JSON.stringify({
+      fjord: 1,
+      id: '01jagc4k7pr9tbm3ykwx6zq2hx',
+      name: 'Open',
+      createdAt: '2026-10-16T09:34:00Z',
+      encryption: {
+        tool: 'age',
+        recipients: 'recipients.txt',
+        suffix: '.age',
+        container: 'none',
+        armor: false,
+      },
+      fileNaming: 'plain',
+    }),
+    'Open/recipients.txt': `${recipient}\n`,
+    'Open/note.md.age': wasm.encrypt(bytes(TEXT), recipient, false),
   });
-  const PASSPHRASE = "a passphrase of some length";
-  await page.goto("/account/keys");
-  await page.getByRole("button", { name: "I already have one" }).click();
-  await page.getByLabel("Your secret key").fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
-  await page.getByLabel("Passphrase").fill(PASSPHRASE);
-  await page.getByRole("button", { name: "Keep this identity" }).click();
-  await expect(page.getByTestId("recipient")).toHaveText(recipient, { timeout: 60_000 });
+  const PASSPHRASE = 'a passphrase of some length';
+  await page.goto('/account/keys');
+  await page.getByRole('button', { name: 'I already have one' }).click();
+  await page
+    .getByLabel('Your secret key')
+    .fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
+  await page.getByLabel('Passphrase').fill(PASSPHRASE);
+  await page.getByRole('button', { name: 'Keep this identity' }).click();
+  await expect(page.getByTestId('recipient')).toHaveText(recipient, { timeout: 60_000 });
 
   await page.goto(`/repo/${id}/Open/note.md.age`);
-  await page.getByLabel("Passphrase").fill(PASSPHRASE);
-  await page.getByRole("button", { name: "Unlock and open" }).click();
+  await page.getByLabel('Passphrase').fill(PASSPHRASE);
+  await page.getByRole('button', { name: 'Unlock and open' }).click();
   // The body in the visual editor, with no header in it and no Markdown marks; the header in the properties.
-  const editor = page.getByRole("textbox", { name: "note.md", exact: true });
-  await expect(editor).toContainText("Hidden heading", { timeout: 60_000 });
-  await expect(editor).not.toContainText("#");
-  await expect(editor).not.toContainText("created:");
+  const editor = page.getByRole('textbox', { name: 'note.md', exact: true });
+  await expect(editor).toContainText('Hidden heading', { timeout: 60_000 });
+  await expect(editor).not.toContainText('#');
+  await expect(editor).not.toContainText('created:');
 
   const sent: string[] = [];
-  page.on("request", (request) => sent.push(`${request.method()} ${request.url()} ${request.postData() ?? ""}`));
-  const panel = page.getByTestId("document-properties");
-  await panel.locator("summary").click();
-  await panel.getByRole("textbox", { name: "Title" }).fill("Newly hidden");
-  await panel.getByRole("button", { name: "Set title" }).click();
-  await panel.getByRole("textbox", { name: "Tags" }).fill("hidden-tag");
-  await panel.getByRole("button", { name: "Set tags" }).click();
+  page.on('request', (request) =>
+    sent.push(`${request.method()} ${request.url()} ${request.postData() ?? ''}`),
+  );
+  const panel = page.getByTestId('document-properties');
+  await panel.locator('summary').click();
+  await panel.getByRole('textbox', { name: 'Title' }).fill('Newly hidden');
+  await panel.getByRole('button', { name: 'Set title' }).click();
+  await panel.getByRole('textbox', { name: 'Tags' }).fill('hidden-tag');
+  await panel.getByRole('button', { name: 'Set tags' }).click();
   await editor.click();
-  await page.keyboard.press("End");
-  await page.keyboard.type(" Typed.");
-  await expect(page.getByTestId("draft-status")).toContainText("kept as an encrypted draft", { timeout: 30_000 });
-  await page.getByRole("button", { name: "Save version" }).click();
-  await expect(page.getByText("Your changes are now in the repository, encrypted")).toBeVisible({ timeout: 30_000 });
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Typed.');
+  await expect(page.getByTestId('draft-status')).toContainText('kept as an encrypted draft', {
+    timeout: 30_000,
+  });
+  await page.getByRole('button', { name: 'Save version' }).click();
+  await expect(page.getByText('Your changes are now in the repository, encrypted')).toBeVisible({
+    timeout: 30_000,
+  });
 
   // Still unlocked, after a save.
-  await expect(page.getByRole("button", { name: "Unlock and open" })).toHaveCount(0);
-  for (const word of ["Newly hidden", "hidden-tag", "Typed", "Hidden words", "kept: as it is"]) expect(sent.join("\n"), word).not.toContain(word);
+  await expect(page.getByRole('button', { name: 'Unlock and open' })).toHaveCount(0);
+  for (const word of ['Newly hidden', 'hidden-tag', 'Typed', 'Hidden words', 'kept: as it is'])
+    expect(sent.join('\n'), word).not.toContain(word);
 
   // And what is in the repository is that, opened by nothing but the key.
-  const stored = (await hubs.more.filesAt((await hubs.more.branchHead())!))["Open/note.md.age"] as string;
-  expect(stored).not.toContain("Newly hidden");
+  const stored = (await hubs.more.filesAt((await hubs.more.branchHead())!))[
+    'Open/note.md.age'
+  ] as string;
+  expect(stored).not.toContain('Newly hidden');
 });
 
-test("a document's history lists its versions, shows any of them, and puts one back as a draft, leaving the history whole", async ({ page }) => {
-  const HEAD = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb8p\n---\n";
-  const id = await repositoryWith(page, { "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3md", name: "Notes", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Public", id: "01jagc4k7pr9tbm3ykwx6zq2hv" }] }), "Public/fjord.vault.json": VAULT_MANIFEST, "Public/doc.md": `${HEAD}\nThe first words.\n` });
-  await hubs.more.commitFiles({ "Public/doc.md": `${HEAD}\nThe second words.\n` });
+test("a document's history lists its versions, shows any of them, and puts one back as a draft, leaving the history whole", async ({
+  page,
+}) => {
+  const HEAD = '---\nid: 01jagc4k7pt8y3wqnmzv5xrb8p\n---\n';
+  const id = await repositoryWith(page, {
+    'fjord.json': JSON.stringify({
+      fjord: 1,
+      id: '01jagc4k7pqw2xn8rvty5zb3md',
+      name: 'Notes',
+      createdAt: '2026-10-16T09:34:00Z',
+      vaults: [{ path: 'Public', id: '01jagc4k7pr9tbm3ykwx6zq2hv' }],
+    }),
+    'Public/fjord.vault.json': VAULT_MANIFEST,
+    'Public/doc.md': `${HEAD}\nThe first words.\n`,
+  });
+  await hubs.more.commitFiles({ 'Public/doc.md': `${HEAD}\nThe second words.\n` });
   const before = await hubs.more.branchHead();
 
   await page.goto(`/repo/${id}/Public/doc.md`);
-  await expect(page.getByRole("textbox", { name: "doc.md", exact: true })).toContainText("The second words");
-  await page.getByRole("button", { name: "History" }).click();
-  const dialog = page.getByRole("dialog", { name: "History" });
-  const versions = dialog.getByRole("list", { name: "Versions" }).getByRole("listitem");
+  await expect(page.getByRole('textbox', { name: 'doc.md', exact: true })).toContainText(
+    'The second words',
+  );
+  await page.getByRole('button', { name: 'History' }).click();
+  const dialog = page.getByRole('dialog', { name: 'History' });
+  const versions = dialog.getByRole('list', { name: 'Versions' }).getByRole('listitem');
   await expect(versions).toHaveCount(2);
-  await expect(versions.first()).toContainText("the one saved now");
-  await expect(versions.first().getByRole("button", { name: "Put back" })).toHaveCount(0);
+  await expect(versions.first()).toContainText('the one saved now');
+  await expect(versions.first().getByRole('button', { name: 'Put back' })).toHaveCount(0);
 
-  await versions.last().getByRole("button", { name: "View" }).click();
-  await expect(dialog.getByTestId("history-version")).toContainText("The first words");
-  await dialog.getByRole("button", { name: "Put this version back" }).click();
-  await page.getByRole("button", { name: "Put it back", exact: true }).click();
+  await versions.last().getByRole('button', { name: 'View' }).click();
+  await expect(dialog.getByTestId('history-version')).toContainText('The first words');
+  await dialog.getByRole('button', { name: 'Put this version back' }).click();
+  await page.getByRole('button', { name: 'Put it back', exact: true }).click();
 
   // A draft of the old text, and nothing in the repository until it is saved.
-  await expect(page.getByRole("textbox", { name: "doc.md", exact: true })).toContainText("The first words", { timeout: 30_000 });
-  await expect(page.getByText("Your changes were kept")).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'doc.md', exact: true })).toContainText(
+    'The first words',
+    { timeout: 30_000 },
+  );
+  await expect(page.getByText('Your changes were kept')).toBeVisible();
   expect(await hubs.more.branchHead()).toBe(before);
-  await page.getByRole("button", { name: "Save version" }).click();
-  await expect(page.getByText("Your changes are now in the repository")).toBeVisible({ timeout: 30_000 });
-  expect((await hubs.more.filesAt((await hubs.more.branchHead())!))["Public/doc.md"]).toBe(`${HEAD}\nThe first words.\n`);
+  await page.getByRole('button', { name: 'Save version' }).click();
+  await expect(page.getByText('Your changes are now in the repository')).toBeVisible({
+    timeout: 30_000,
+  });
+  expect((await hubs.more.filesAt((await hubs.more.branchHead())!))['Public/doc.md']).toBe(
+    `${HEAD}\nThe first words.\n`,
+  );
 
-  await page.getByRole("button", { name: "History" }).click();
-  await expect(page.getByRole("dialog", { name: "History" }).getByRole("list", { name: "Versions" }).getByRole("listitem")).toHaveCount(3);
+  await page.getByRole('button', { name: 'History' }).click();
+  await expect(
+    page
+      .getByRole('dialog', { name: 'History' })
+      .getByRole('list', { name: 'Versions' })
+      .getByRole('listitem'),
+  ).toHaveCount(3);
 });
 
-test("an encrypted document's history is opened in the browser, and a version put back is a draft of ciphertext", async ({ page }) => {
+test("an encrypted document's history is opened in the browser, and a version put back is a draft of ciphertext", async ({
+  page,
+}) => {
   test.setTimeout(240_000);
   const secret = wasm.generateIdentity();
   const recipient = wasm.identityRecipient(secret);
-  const HEAD = "---\nid: 01jagc4k7pt8y3wqnmzv5xrb9y\ntitle: Hidden\n---\n";
+  const HEAD = '---\nid: 01jagc4k7pt8y3wqnmzv5xrb9y\ntitle: Hidden\n---\n';
   const id = await repositoryWith(page, {
-    "fjord.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pqw2xn8rvty5zb3me", name: "Secrets", createdAt: "2026-10-16T09:34:00Z", vaults: [{ path: "Open", id: "01jagc4k7pr9tbm3ykwx6zq2hx" }] }),
-    "Open/fjord.vault.json": JSON.stringify({ fjord: 1, id: "01jagc4k7pr9tbm3ykwx6zq2hx", name: "Open", createdAt: "2026-10-16T09:34:00Z", encryption: { tool: "age", recipients: "recipients.txt", suffix: ".age", container: "none", armor: false }, fileNaming: "plain" }),
-    "Open/recipients.txt": `${recipient}\n`,
-    "Open/note.md.age": wasm.encrypt(bytes(`${HEAD}\nOld hidden words.\n`), recipient, false),
+    'fjord.json': JSON.stringify({
+      fjord: 1,
+      id: '01jagc4k7pqw2xn8rvty5zb3me',
+      name: 'Secrets',
+      createdAt: '2026-10-16T09:34:00Z',
+      vaults: [{ path: 'Open', id: '01jagc4k7pr9tbm3ykwx6zq2hx' }],
+    }),
+    'Open/fjord.vault.json': JSON.stringify({
+      fjord: 1,
+      id: '01jagc4k7pr9tbm3ykwx6zq2hx',
+      name: 'Open',
+      createdAt: '2026-10-16T09:34:00Z',
+      encryption: {
+        tool: 'age',
+        recipients: 'recipients.txt',
+        suffix: '.age',
+        container: 'none',
+        armor: false,
+      },
+      fileNaming: 'plain',
+    }),
+    'Open/recipients.txt': `${recipient}\n`,
+    'Open/note.md.age': wasm.encrypt(bytes(`${HEAD}\nOld hidden words.\n`), recipient, false),
   });
-  await hubs.more.commitFiles({ "Open/note.md.age": wasm.encrypt(bytes(`${HEAD}\nNew hidden words.\n`), recipient, false) });
-  const PASSPHRASE = "a passphrase of some length";
-  await page.goto("/account/keys");
-  await page.getByRole("button", { name: "I already have one" }).click();
-  await page.getByLabel("Your secret key").fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
-  await page.getByLabel("Passphrase").fill(PASSPHRASE);
-  await page.getByRole("button", { name: "Keep this identity" }).click();
-  await expect(page.getByTestId("recipient")).toHaveText(recipient, { timeout: 60_000 });
+  await hubs.more.commitFiles({
+    'Open/note.md.age': wasm.encrypt(bytes(`${HEAD}\nNew hidden words.\n`), recipient, false),
+  });
+  const PASSPHRASE = 'a passphrase of some length';
+  await page.goto('/account/keys');
+  await page.getByRole('button', { name: 'I already have one' }).click();
+  await page
+    .getByLabel('Your secret key')
+    .fill(`# an identity file\n${new TextDecoder().decode(secret)}\n`);
+  await page.getByLabel('Passphrase').fill(PASSPHRASE);
+  await page.getByRole('button', { name: 'Keep this identity' }).click();
+  await expect(page.getByTestId('recipient')).toHaveText(recipient, { timeout: 60_000 });
 
   await page.goto(`/repo/${id}/Open/note.md.age`);
-  await page.getByLabel("Passphrase").fill(PASSPHRASE);
-  await page.getByRole("button", { name: "Unlock and open" }).click();
-  const editor = page.getByRole("textbox", { name: "note.md", exact: true });
-  await expect(editor).toContainText("New hidden words", { timeout: 60_000 });
+  await page.getByLabel('Passphrase').fill(PASSPHRASE);
+  await page.getByRole('button', { name: 'Unlock and open' }).click();
+  const editor = page.getByRole('textbox', { name: 'note.md', exact: true });
+  await expect(editor).toContainText('New hidden words', { timeout: 60_000 });
 
   const sent: string[] = [];
-  page.on("request", (request) => sent.push(`${request.method()} ${request.url()} ${request.postData() ?? ""}`));
-  await page.getByRole("button", { name: "History" }).click();
-  const dialog = page.getByRole("dialog", { name: "History" });
-  const versions = dialog.getByRole("list", { name: "Versions" }).getByRole("listitem");
+  page.on('request', (request) =>
+    sent.push(`${request.method()} ${request.url()} ${request.postData() ?? ''}`),
+  );
+  await page.getByRole('button', { name: 'History' }).click();
+  const dialog = page.getByRole('dialog', { name: 'History' });
+  const versions = dialog.getByRole('list', { name: 'Versions' }).getByRole('listitem');
   // The one before the newest: this fake's git history outlives a test, and this path has been used by others.
-  await expect(versions.first()).toContainText("the one saved now");
-  await versions.nth(1).getByRole("button", { name: "View" }).click();
-  await expect(dialog.getByTestId("history-version")).toContainText("Old hidden words", { timeout: 30_000 });
-  await dialog.getByRole("button", { name: "Put this version back" }).click();
-  await page.getByRole("button", { name: "Put it back", exact: true }).click();
+  await expect(versions.first()).toContainText('the one saved now');
+  await versions.nth(1).getByRole('button', { name: 'View' }).click();
+  await expect(dialog.getByTestId('history-version')).toContainText('Old hidden words', {
+    timeout: 30_000,
+  });
+  await dialog.getByRole('button', { name: 'Put this version back' }).click();
+  await page.getByRole('button', { name: 'Put it back', exact: true }).click();
 
-  await expect(editor).toContainText("Old hidden words", { timeout: 30_000 });
+  await expect(editor).toContainText('Old hidden words', { timeout: 30_000 });
   // Without asking for the passphrase, and with nothing readable sent.
-  await expect(page.getByRole("button", { name: "Unlock and open" })).toHaveCount(0);
-  for (const word of ["Old hidden words", "New hidden words", "title: Hidden"]) expect(sent.join("\n"), word).not.toContain(word);
+  await expect(page.getByRole('button', { name: 'Unlock and open' })).toHaveCount(0);
+  for (const word of ['Old hidden words', 'New hidden words', 'title: Hidden'])
+    expect(sent.join('\n'), word).not.toContain(word);
 });

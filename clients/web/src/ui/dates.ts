@@ -3,10 +3,16 @@
  * What the server draws is in UTC and says so, because the server does not know where the reader is and the browser must draw the same text when it takes over; what only a
  * browser draws (`localMomentText`) is in the reader's own time.
  */
-const day = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "UTC" });
-const moment = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
-const local = new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" });
+const day = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeZone: 'UTC' });
+const moment = new Intl.DateTimeFormat('en-GB', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'UTC',
+});
+const local = new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
 
 export const dayText = (time: number | Date | string): string => day.format(new Date(time));
-export const momentText = (time: number | Date | string): string => `${moment.format(new Date(time))} UTC`;
-export const localMomentText = (time: number | Date | string): string => local.format(new Date(time));
+export const momentText = (time: number | Date | string): string =>
+  `${moment.format(new Date(time))} UTC`;
+export const localMomentText = (time: number | Date | string): string =>
+  local.format(new Date(time));

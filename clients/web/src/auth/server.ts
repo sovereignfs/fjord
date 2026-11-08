@@ -1,11 +1,16 @@
-import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
-import { getAuthDatabase } from "../db/boot";
-import { createSmtpMailer } from "../mail/mailer";
-import { type Auth, createAuth } from "./auth";
-import { type AuthConfig, type LocalAuthConfig, type SovereignSettings, resolveAuthConfig } from "./config";
-import { PATH_HEADER, signInAddress } from "./next";
-import { countUsers } from "./users";
+import { headers } from 'next/headers';
+import { notFound, redirect } from 'next/navigation';
+import { getAuthDatabase } from '../db/boot';
+import { createSmtpMailer } from '../mail/mailer';
+import { type Auth, createAuth } from './auth';
+import {
+  type AuthConfig,
+  type LocalAuthConfig,
+  type SovereignSettings,
+  resolveAuthConfig,
+} from './config';
+import { PATH_HEADER, signInAddress } from './next';
+import { countUsers } from './users';
 
 /**
  * The server's view of sign-in: the configuration, the better-auth instance, and the session
@@ -14,7 +19,7 @@ import { countUsers } from "./users";
  * `getAuth()` is null and everything that needs it answers 404: there is no sign-in, not a
  * disabled one.
  */
-const KEY = Symbol.for("fjord.auth");
+const KEY = Symbol.for('fjord.auth');
 type Holder = { [KEY]?: { config: AuthConfig; auth?: Promise<Auth> } };
 
 function holder(): NonNullable<Holder[typeof KEY]> {
@@ -53,7 +58,7 @@ export function getAuth(): Promise<Auth | null> {
   return state.auth;
 }
 
-export type Session = NonNullable<Awaited<ReturnType<Auth["api"]["getSession"]>>>;
+export type Session = NonNullable<Awaited<ReturnType<Auth['api']['getSession']>>>;
 
 /** A way of signing in that an account has: better-auth keeps one `account` per way. Nothing secret. */
 export interface LinkedAccount {
@@ -93,7 +98,7 @@ export async function requireSession(): Promise<Session> {
 export async function signUpAvailable(): Promise<boolean> {
   const config = localAuthConfig();
   if (!config) return false;
-  if (config.signUp === "open") return true;
+  if (config.signUp === 'open') return true;
   const auth = await getAuth();
   if (!auth) return false;
   return (await countUsers(await getAuthDatabase())) === 0;

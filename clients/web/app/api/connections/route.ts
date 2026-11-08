@@ -1,8 +1,8 @@
-import { handleConnections } from "../../../src/connections/http";
-import { connectionContext } from "../../../src/connections/context";
+import { handleConnections } from '../../../src/connections/http';
+import { connectionContext } from '../../../src/connections/context';
 
 // Who is asking is decided per request, from their cookies.
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 const notFound = () => new Response(null, { status: 404 });
 

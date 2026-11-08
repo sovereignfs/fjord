@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
-import { databaseEnv } from "../env-renames";
-import { type ReadFile, resolveSecret } from "../secret-env";
+import { readFileSync } from 'node:fs';
+import { databaseEnv } from '../env-renames';
+import { type ReadFile, resolveSecret } from '../secret-env';
 
 /**
  * Which database Fjord Web runs on, read from the environment in one place
@@ -22,30 +22,30 @@ import { type ReadFile, resolveSecret } from "../secret-env";
  */
 
 /** The two logical databases: the app's tables and better-auth's. */
-export const APP_STORE = "fjord";
-export const AUTH_STORE = "fjord_auth";
+export const APP_STORE = 'fjord';
+export const AUTH_STORE = 'fjord_auth';
 
 /** Which of the two a handle is for. */
-export type Store = "app" | "auth";
+export type Store = 'app' | 'auth';
 
-const DEFAULT_SQLD_URL = "http://sqld:8080";
-const DEFAULT_SQLD_ADMIN_URL = "http://sqld:8081";
+const DEFAULT_SQLD_URL = 'http://sqld:8080';
+const DEFAULT_SQLD_ADMIN_URL = 'http://sqld:8081';
 const DEFAULT_POOL_MAX = 5;
 
 export type DatabaseConfig = SqldConfig | FileConfig | PostgresConfig;
 
 /** SQLite through an sqld service: one namespace per store. */
 export interface SqldConfig {
-  dialect: "sqlite";
-  form: "sqld";
+  dialect: 'sqlite';
+  form: 'sqld';
   url: string;
   adminUrl: string;
 }
 
 /** SQLite in a plain file, with the auth store beside it as `fjord_auth.db`. */
 export interface FileConfig {
-  dialect: "sqlite";
-  form: "file";
+  dialect: 'sqlite';
+  form: 'file';
   /** The app database's file path. */
   path: string;
   /** The auth database's file path, in the same directory. */
@@ -54,7 +54,7 @@ export interface FileConfig {
 
 /** PostgreSQL: one schema per store. */
 export interface PostgresConfig {
-  dialect: "postgres";
+  dialect: 'postgres';
   url: string;
   poolMax: number;
   /** Contents of the CA file named by PGSSLROOTCERT, read by the client. */
@@ -63,77 +63,106 @@ export interface PostgresConfig {
 
 /** A setting that is wrong; the message names the variable and what it should be. */
 export class ConfigError extends Error {
-  override name = "ConfigError";
+  override name = 'ConfigError';
 }
 
 /** What `process.env` is, and what a test can pass instead. */
 export type Env = Record<string, string | undefined>;
 
-export function resolveDatabaseConfig(env: Env = process.env, readSecretFile: ReadFile = (path) => readFileSync(path, "utf8")): DatabaseConfig {
+export function resolveDatabaseConfig(
+  env: Env = process.env,
+  readSecretFile: ReadFile = (path) => readFileSync(path, 'utf8'),
+): DatabaseConfig {
   const named = databaseEnv(env);
   const raw = named.FJORD_DB_DIALECT?.trim().toLowerCase();
-  const dialect = raw === undefined || raw === "" ? "sqld" : raw;
+  const dialect = raw === undefined || raw === '' ? 'sqld' : raw;
 
-  if (dialect === "postgres") return resolvePostgres(named, readSecretFile);
-  if (dialect === "sqld") return resolveSqld(named);
-  if (dialect === "sqlite") return resolveFile(named);
+  if (dialect === 'postgres') return resolvePostgres(named, readSecretFile);
+  if (dialect === 'sqld') return resolveSqld(named);
+  if (dialect === 'sqlite') return resolveFile(named);
   throw new ConfigError(`FJORD_DB_DIALECT must be "sqld", "sqlite" or "postgres" (got "${raw}").`);
 }
 
 function resolveSqld(env: Env): SqldConfig {
-  const url = (env.FJORD_SQLD_URL ?? "").trim() || DEFAULT_SQLD_URL;
-  const parsed = parseUrl("FJORD_SQLD_URL", url);
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    const hint = parsed.protocol === "file:" ? "; a database file is FJORD_DB_DIALECT=sqlite with FJORD_SQLITE_URL" : "";
-    throw new ConfigError(`FJORD_SQLD_URL must be http(s)://host:port for an sqld service (got "${parsed.protocol}//…")${hint}.`);
+  const url = (env.FJORD_SQLD_URL ?? '').trim() || DEFAULT_SQLD_URL;
+  const parsed = parseUrl('FJORD_SQLD_URL', url);
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    const hint =
+      parsed.protocol === 'file:'
+        ? '; a database file is FJORD_DB_DIALECT=sqlite with FJORD_SQLITE_URL'
+        : '';
+    throw new ConfigError(
+      `FJORD_SQLD_URL must be http(s)://host:port for an sqld service (got "${parsed.protocol}//…")${hint}.`,
+    );
   }
-  const adminUrl = (env.FJORD_SQLD_ADMIN_URL ?? "").trim() || DEFAULT_SQLD_ADMIN_URL;
-  const admin = parseUrl("FJORD_SQLD_ADMIN_URL", adminUrl);
-  if (admin.protocol !== "http:" && admin.protocol !== "https:") {
-    throw new ConfigError(`FJORD_SQLD_ADMIN_URL must be an http(s) URL (got "${admin.protocol}//…").`);
+  const adminUrl = (env.FJORD_SQLD_ADMIN_URL ?? '').trim() || DEFAULT_SQLD_ADMIN_URL;
+  const admin = parseUrl('FJORD_SQLD_ADMIN_URL', adminUrl);
+  if (admin.protocol !== 'http:' && admin.protocol !== 'https:') {
+    throw new ConfigError(
+      `FJORD_SQLD_ADMIN_URL must be an http(s) URL (got "${admin.protocol}//…").`,
+    );
   }
-  return { dialect: "sqlite", form: "sqld", url: stripTrailingSlash(url), adminUrl: stripTrailingSlash(adminUrl) };
+  return {
+    dialect: 'sqlite',
+    form: 'sqld',
+    url: stripTrailingSlash(url),
+    adminUrl: stripTrailingSlash(adminUrl),
+  };
 }
 
 function resolveFile(env: Env): FileConfig {
-  const url = (env.FJORD_SQLITE_URL ?? "").trim();
-  if (url === "") throw new ConfigError("FJORD_DB_DIALECT=sqlite requires FJORD_SQLITE_URL, the database file (file:/data/fjord.db).");
-  if (!url.startsWith("file:")) {
-    throw new ConfigError("FJORD_SQLITE_URL must be file:/path to a database file; an sqld service is FJORD_DB_DIALECT=sqld with FJORD_SQLD_URL.");
+  const url = (env.FJORD_SQLITE_URL ?? '').trim();
+  if (url === '')
+    throw new ConfigError(
+      'FJORD_DB_DIALECT=sqlite requires FJORD_SQLITE_URL, the database file (file:/data/fjord.db).',
+    );
+  if (!url.startsWith('file:')) {
+    throw new ConfigError(
+      'FJORD_SQLITE_URL must be file:/path to a database file; an sqld service is FJORD_DB_DIALECT=sqld with FJORD_SQLD_URL.',
+    );
   }
   // `file:/abs/path`, `file:///abs/path` and `file:relative/path` all name a path.
-  let path = url.slice("file:".length);
-  if (path.startsWith("//")) path = path.slice(2);
-  if (path === "" || path === ":memory:" || path.startsWith(":memory:")) {
-    throw new ConfigError('FJORD_SQLITE_URL "file:" needs a path to a database file; an in-memory database is not allowed.');
+  let path = url.slice('file:'.length);
+  if (path.startsWith('//')) path = path.slice(2);
+  if (path === '' || path === ':memory:' || path.startsWith(':memory:')) {
+    throw new ConfigError(
+      'FJORD_SQLITE_URL "file:" needs a path to a database file; an in-memory database is not allowed.',
+    );
   }
-  if (path.endsWith("/")) {
-    throw new ConfigError(`FJORD_SQLITE_URL "${url}" names a directory; it must name the database file.`);
+  if (path.endsWith('/')) {
+    throw new ConfigError(
+      `FJORD_SQLITE_URL "${url}" names a directory; it must name the database file.`,
+    );
   }
-  const slash = path.lastIndexOf("/");
-  const directory = slash === -1 ? "" : path.slice(0, slash + 1);
-  return { dialect: "sqlite", form: "file", path, authPath: `${directory}${AUTH_STORE}.db` };
+  const slash = path.lastIndexOf('/');
+  const directory = slash === -1 ? '' : path.slice(0, slash + 1);
+  return { dialect: 'sqlite', form: 'file', path, authPath: `${directory}${AUTH_STORE}.db` };
 }
 
 function resolvePostgres(env: Env, readSecretFile: ReadFile): PostgresConfig {
-  const url = (resolveSecret("FJORD_POSTGRES_URL", env, readSecretFile) ?? "").trim();
-  if (url === "") throw new ConfigError("FJORD_DB_DIALECT=postgres requires FJORD_POSTGRES_URL (or FJORD_POSTGRES_URL_FILE).");
+  const url = (resolveSecret('FJORD_POSTGRES_URL', env, readSecretFile) ?? '').trim();
+  if (url === '')
+    throw new ConfigError(
+      'FJORD_DB_DIALECT=postgres requires FJORD_POSTGRES_URL (or FJORD_POSTGRES_URL_FILE).',
+    );
   // Not the value in a message: it can carry a password.
   let parsed: URL;
   try {
     parsed = new URL(url);
   } catch {
-    throw new ConfigError("FJORD_POSTGRES_URL is not a valid URL.");
+    throw new ConfigError('FJORD_POSTGRES_URL is not a valid URL.');
   }
-  if (parsed.protocol !== "postgres:" && parsed.protocol !== "postgresql:") {
-    throw new ConfigError(`FJORD_POSTGRES_URL must be a postgres:// URL (got "${parsed.protocol}//…").`);
+  if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') {
+    throw new ConfigError(
+      `FJORD_POSTGRES_URL must be a postgres:// URL (got "${parsed.protocol}//…").`,
+    );
   }
-  const rootCert = (env.PGSSLROOTCERT ?? "").trim();
+  const rootCert = (env.PGSSLROOTCERT ?? '').trim();
   return {
-    dialect: "postgres",
+    dialect: 'postgres',
     url,
     poolMax: poolMax(env.FJORD_POSTGRES_POOL_MAX),
-    ...(rootCert === "" ? {} : { sslRootCertPath: rootCert }),
+    ...(rootCert === '' ? {} : { sslRootCertPath: rootCert }),
   };
 }
 
@@ -152,14 +181,16 @@ function parseUrl(variable: string, value: string): URL {
 }
 
 function stripTrailingSlash(url: string): string {
-  return url.replace(/\/+$/, "");
+  return url.replace(/\/+$/, '');
 }
 
 /** What is safe to print about a configuration: no password, no token. */
 export function describeConfig(config: DatabaseConfig): string {
-  if (config.dialect === "postgres") {
+  if (config.dialect === 'postgres') {
     const url = new URL(config.url);
-    return `postgres ${url.hostname}${url.port ? `:${url.port}` : ""}${url.pathname}`;
+    return `postgres ${url.hostname}${url.port ? `:${url.port}` : ''}${url.pathname}`;
   }
-  return config.form === "sqld" ? `sqlite via sqld at ${new URL(config.url).origin}` : `sqlite file ${config.path}`;
+  return config.form === 'sqld'
+    ? `sqlite via sqld at ${new URL(config.url).origin}`
+    : `sqlite file ${config.path}`;
 }

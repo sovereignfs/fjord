@@ -1,5 +1,5 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { epochMs, id64, ref64 } from "./columns";
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { epochMs, id64, ref64 } from './columns';
 
 /**
  * Notices from the worker to the web processes (DESIGN.md §14): an upstream change
@@ -9,14 +9,14 @@ import { epochMs, id64, ref64 } from "./columns";
  * several replicas.
  */
 export const event = sqliteTable(
-  "event",
+  'event',
   {
-    id: id64("id"),
-    kind: text("kind").notNull(),
-    subject: text("subject").notNull(),
-    createdAt: epochMs("created_at").notNull(),
+    id: id64('id'),
+    kind: text('kind').notNull(),
+    subject: text('subject').notNull(),
+    createdAt: epochMs('created_at').notNull(),
   },
-  (table) => [index("event_created_at_idx").on(table.createdAt)],
+  (table) => [index('event_created_at_idx').on(table.createdAt)],
 );
 
 /**
@@ -26,19 +26,19 @@ export const event = sqliteTable(
  * id is random, not a counter, because the encryption is bound to it before the row exists.
  */
 export const credential = sqliteTable(
-  "credential",
+  'credential',
   {
-    id: text("id").primaryKey(),
+    id: text('id').primaryKey(),
     /** What it is for, e.g. `github-pat`. Bound into the encryption, so it cannot be moved to another use. */
-    purpose: text("purpose").notNull(),
-    kekId: text("kek_id").notNull(),
-    wrappedKey: text("wrapped_key").notNull(),
-    ciphertext: text("ciphertext").notNull(),
-    createdAt: epochMs("created_at").notNull(),
+    purpose: text('purpose').notNull(),
+    kekId: text('kek_id').notNull(),
+    wrappedKey: text('wrapped_key').notNull(),
+    ciphertext: text('ciphertext').notNull(),
+    createdAt: epochMs('created_at').notNull(),
     /** When the data key was last wrapped under a newer instance key, if it has been. */
-    rewrappedAt: epochMs("rewrapped_at"),
+    rewrappedAt: epochMs('rewrapped_at'),
   },
-  (table) => [index("credential_kek_id_idx").on(table.kekId)],
+  (table) => [index('credential_kek_id_idx').on(table.kekId)],
 );
 
 /**
@@ -49,27 +49,32 @@ export const credential = sqliteTable(
  * Fjord works on, the default branch when it was connected (DESIGN.md §19 #6).
  */
 export const connection = sqliteTable(
-  "connection",
+  'connection',
   {
-    id: id64("id"),
-    accountId: text("account_id").notNull(),
-    provider: text("provider").notNull(),
-    kind: text("kind").notNull(),
-    owner: text("owner").notNull(),
-    name: text("name").notNull(),
-    branch: text("branch").notNull(),
-    credentialId: text("credential_id").notNull(),
-    createdAt: epochMs("created_at").notNull(),
+    id: id64('id'),
+    accountId: text('account_id').notNull(),
+    provider: text('provider').notNull(),
+    kind: text('kind').notNull(),
+    owner: text('owner').notNull(),
+    name: text('name').notNull(),
+    branch: text('branch').notNull(),
+    credentialId: text('credential_id').notNull(),
+    createdAt: epochMs('created_at').notNull(),
     /** The vault (its directory) that opens first, when the account has chosen one; null until then (DESIGN.md §7). */
-    defaultVault: text("default_vault"),
+    defaultVault: text('default_vault'),
     /** What kind the repository was when it was last read (`drive`, `journal`, `ssg`), for the icon of a repository that is not open; null until it is read. A hint only: what a repository is, is its manifest's to say (`kindFor`). */
-    repoKind: text("repo_kind"),
+    repoKind: text('repo_kind'),
     /** What the repository is called in an address: a short, lower-case, generated name (`/repo/k3x9m2qa`), so that no address shows how many repositories there are or in what order they were connected. Null only for a row made before it existed, which is given one when it is next listed. */
-    publicId: text("public_id"),
+    publicId: text('public_id'),
   },
   (table) => [
-    uniqueIndex("connection_account_repository_idx").on(table.accountId, table.provider, table.owner, table.name),
-    uniqueIndex("connection_public_id_idx").on(table.publicId),
+    uniqueIndex('connection_account_repository_idx').on(
+      table.accountId,
+      table.provider,
+      table.owner,
+      table.name,
+    ),
+    uniqueIndex('connection_public_id_idx').on(table.publicId),
   ],
 );
 
@@ -79,10 +84,10 @@ export const connection = sqliteTable(
  * default; with no row, or a row whose connection is gone, the first one it has is (`src/connections`).
  * `account_id` is better-auth's user id, in the other store, so it is not a foreign key.
  */
-export const accountDefault = sqliteTable("account_default", {
-  accountId: text("account_id").primaryKey(),
-  connectionId: ref64("connection_id").notNull(),
-  updatedAt: epochMs("updated_at").notNull(),
+export const accountDefault = sqliteTable('account_default', {
+  accountId: text('account_id').primaryKey(),
+  connectionId: ref64('connection_id').notNull(),
+  updatedAt: epochMs('updated_at').notNull(),
 });
 
 /**
@@ -92,14 +97,16 @@ export const accountDefault = sqliteTable("account_default", {
  * size). Only the latest few commits of a connection are kept, and a disconnected repository's go with it.
  */
 export const treeCache = sqliteTable(
-  "tree_cache",
+  'tree_cache',
   {
-    connectionId: ref64("connection_id").notNull(),
-    commitId: text("commit_id").notNull(),
-    listing: text("listing").notNull(),
-    createdAt: epochMs("created_at").notNull(),
+    connectionId: ref64('connection_id').notNull(),
+    commitId: text('commit_id').notNull(),
+    listing: text('listing').notNull(),
+    createdAt: epochMs('created_at').notNull(),
   },
-  (table) => [uniqueIndex("tree_cache_connection_commit_idx").on(table.connectionId, table.commitId)],
+  (table) => [
+    uniqueIndex('tree_cache_connection_commit_idx').on(table.connectionId, table.commitId),
+  ],
 );
 
 /**
@@ -113,24 +120,24 @@ export const treeCache = sqliteTable(
  * draft per file, and a disconnected repository's go with it.
  */
 export const workingCopy = sqliteTable(
-  "working_copy",
+  'working_copy',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
     /** Repository-relative, with forward slashes. */
-    path: text("path").notNull(),
-    baseBlob: text("base_blob").notNull(),
-    content: text("content").notNull(),
+    path: text('path').notNull(),
+    baseBlob: text('base_blob').notNull(),
+    content: text('content').notNull(),
     /**
      * 1 when `content` is not the text but the file's **ciphertext** as base64, made in the browser (ROADMAP 2b.3): the draft of a file
      * in an encrypted vault, kept encrypted to the vault's recipients so that the server holds no plaintext of it, ever.
      */
-    encrypted: integer("encrypted").notNull().default(0),
-    editors: text("editors").notNull(),
-    createdAt: epochMs("created_at").notNull(),
-    lastEdit: epochMs("last_edit").notNull(),
+    encrypted: integer('encrypted').notNull().default(0),
+    editors: text('editors').notNull(),
+    createdAt: epochMs('created_at').notNull(),
+    lastEdit: epochMs('last_edit').notNull(),
   },
-  (table) => [uniqueIndex("working_copy_connection_path_idx").on(table.connectionId, table.path)],
+  (table) => [uniqueIndex('working_copy_connection_path_idx').on(table.connectionId, table.path)],
 );
 
 /**
@@ -139,27 +146,27 @@ export const workingCopy = sqliteTable(
  * how long it offers it (a restore window). A folder's deletion is its files' rows, with the one deleting commit.
  */
 export const deletion = sqliteTable(
-  "deletion",
+  'deletion',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
     /** Where it was, repository-relative with forward slashes. */
-    path: text("path").notNull(),
+    path: text('path').notNull(),
     /** The Doc's `id` (spec §8.3), when it was read: a single document or note with a header. Null otherwise. */
-    docId: text("doc_id"),
+    docId: text('doc_id'),
     /** `note`, `document` or `other`: what its name made it. */
-    kind: text("kind").notNull(),
+    kind: text('kind').notNull(),
     /** Its last blob: what a restore commits back. */
-    blob: text("blob").notNull(),
+    blob: text('blob').notNull(),
     /** The commit that deleted it. */
-    deletingCommit: text("deleting_commit").notNull(),
+    deletingCommit: text('deleting_commit').notNull(),
     /** The account that did it. */
-    deletedBy: text("deleted_by").notNull(),
-    deletedAt: epochMs("deleted_at").notNull(),
+    deletedBy: text('deleted_by').notNull(),
+    deletedAt: epochMs('deleted_at').notNull(),
     /** When it was put back; null while it is not. */
-    restoredAt: epochMs("restored_at"),
+    restoredAt: epochMs('restored_at'),
   },
-  (table) => [index("deletion_connection_idx").on(table.connectionId, table.deletedAt)],
+  (table) => [index('deletion_connection_idx').on(table.connectionId, table.deletedAt)],
 );
 
 /**
@@ -172,20 +179,23 @@ export const deletion = sqliteTable(
  * several. A disconnected repository's rows go with it.
  */
 export const docIndex = sqliteTable(
-  "doc_index",
+  'doc_index',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
     /** Repository-relative, with forward slashes. */
-    path: text("path").notNull(),
+    path: text('path').notNull(),
     /** The Doc's `id`; null for a file with no header or no valid `id`. */
-    docId: text("doc_id"),
+    docId: text('doc_id'),
     /** `note` or `document`: what its name made it. */
-    kind: text("kind").notNull(),
-    blob: text("blob").notNull(),
-    indexedAt: epochMs("indexed_at").notNull(),
+    kind: text('kind').notNull(),
+    blob: text('blob').notNull(),
+    indexedAt: epochMs('indexed_at').notNull(),
   },
-  (table) => [uniqueIndex("doc_index_connection_path_idx").on(table.connectionId, table.path), index("doc_index_doc_id_idx").on(table.docId)],
+  (table) => [
+    uniqueIndex('doc_index_connection_path_idx').on(table.connectionId, table.path),
+    index('doc_index_doc_id_idx').on(table.docId),
+  ],
 );
 
 /**
@@ -195,39 +205,42 @@ export const docIndex = sqliteTable(
  * A Doc is its connection and its `id`; a disconnected repository's rows go with it.
  */
 export const publication = sqliteTable(
-  "publication",
+  'publication',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
     /** The Doc's `id` (spec §8.3). */
-    docId: text("doc_id").notNull(),
+    docId: text('doc_id').notNull(),
     /** The SHA-256 of the token in the address; the token itself is never kept. */
-    tokenHash: text("token_hash").notNull(),
+    tokenHash: text('token_hash').notNull(),
     /** The account that published it. */
-    createdBy: text("created_by").notNull(),
-    createdAt: epochMs("created_at").notNull(),
+    createdBy: text('created_by').notNull(),
+    createdAt: epochMs('created_at').notNull(),
     /**
      * For a page published from an **encrypted** vault (ROADMAP 3h.2): the copy the owner's browser decrypted and handed over, with the owner's agreement that
      * it is readable by anyone with the address. `doc_id` is then `file:<path>`, since the server cannot read the file's `id`. Null for a Doc of a plaintext vault,
      * which is read from the repository each time.
      */
-    title: text("title"),
-    body: text("body"),
+    title: text('title'),
+    body: text('body'),
     /** An optional password (the page asks for it, of anyone, signed in or not): its Argon2id hash as a PHC string, never the password. Null for a page with none. */
-    passwordHash: text("password_hash"),
+    passwordHash: text('password_hash'),
     /** Wrong passwords since the last right one: how long to make the next try wait (`sharing/password.ts`). */
-    failures: integer("failures").notNull().default(0),
+    failures: integer('failures').notNull().default(0),
     /** No try at the password is taken before this; it is moved on by each try, so tries are one at a time and slow down. */
-    lockedUntil: epochMs("locked_until"),
+    lockedUntil: epochMs('locked_until'),
     /** Who may comment on the page: `off`, `anyone` or `users` (a signed-in account here). Only `off` is built; the setting is kept so that the page's comments can be added without a migration. */
-    comments: text("comments").notNull().default("off"),
+    comments: text('comments').notNull().default('off'),
     /**
      * The id of the credential (`credential` table, sealed under the instance key: `src/crypto/`) that holds the page's address, so that its owner can be shown it again. Only the owner is ever given it, and only from their own
      * session. Null for a page made before the address was kept, and for an instance with no key: the address is then shown once, when it is made.
      */
-    tokenCredential: text("token_credential"),
+    tokenCredential: text('token_credential'),
   },
-  (table) => [uniqueIndex("publication_connection_doc_idx").on(table.connectionId, table.docId), uniqueIndex("publication_token_idx").on(table.tokenHash)],
+  (table) => [
+    uniqueIndex('publication_connection_doc_idx').on(table.connectionId, table.docId),
+    uniqueIndex('publication_token_idx').on(table.tokenHash),
+  ],
 );
 
 /**
@@ -237,17 +250,20 @@ export const publication = sqliteTable(
  * there, which says "moved or gone" and never shows another file. A disconnected repository's rows go with it.
  */
 export const fileHandle = sqliteTable(
-  "file_handle",
+  'file_handle',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
     /** Repository-relative, with forward slashes: a file, or a folder (a vault is a folder). */
-    path: text("path").notNull(),
+    path: text('path').notNull(),
     /** The opaque name in `/f/<handle>`. */
-    handle: text("handle").notNull(),
-    createdAt: epochMs("created_at").notNull(),
+    handle: text('handle').notNull(),
+    createdAt: epochMs('created_at').notNull(),
   },
-  (table) => [uniqueIndex("file_handle_connection_path_idx").on(table.connectionId, table.path), uniqueIndex("file_handle_handle_idx").on(table.handle)],
+  (table) => [
+    uniqueIndex('file_handle_connection_path_idx').on(table.connectionId, table.path),
+    uniqueIndex('file_handle_handle_idx').on(table.handle),
+  ],
 );
 
 /**
@@ -257,18 +273,24 @@ export const fileHandle = sqliteTable(
  * head is not shown. Never written for an encrypted journal, whose entries the server cannot read. A disconnected repository's rows go with it.
  */
 export const journalEntry = sqliteTable(
-  "journal_entry",
+  'journal_entry',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
     /** Repository-relative, with forward slashes. */
-    path: text("path").notNull(),
-    blob: text("blob").notNull(),
+    path: text('path').notNull(),
+    blob: text('blob').notNull(),
     /** `fjord-core`'s `journal::summary`, as the module answers it (JSON). */
-    summary: text("summary").notNull(),
-    indexedAt: epochMs("indexed_at").notNull(),
+    summary: text('summary').notNull(),
+    indexedAt: epochMs('indexed_at').notNull(),
   },
-  (table) => [uniqueIndex("journal_entry_connection_blob_path_idx").on(table.connectionId, table.blob, table.path)],
+  (table) => [
+    uniqueIndex('journal_entry_connection_blob_path_idx').on(
+      table.connectionId,
+      table.blob,
+      table.path,
+    ),
+  ],
 );
 
 /**
@@ -279,20 +301,24 @@ export const journalEntry = sqliteTable(
  * disconnected repository's shares go with it.
  */
 export const shareUser = sqliteTable(
-  "share_user",
+  'share_user',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
     /** The Doc's `id`. */
-    docId: text("doc_id").notNull(),
-    accountId: text("account_id").notNull(),
-    role: text("role").notNull(),
-    createdBy: text("created_by").notNull(),
-    createdAt: epochMs("created_at").notNull(),
+    docId: text('doc_id').notNull(),
+    accountId: text('account_id').notNull(),
+    role: text('role').notNull(),
+    createdBy: text('created_by').notNull(),
+    createdAt: epochMs('created_at').notNull(),
   },
   (table) => [
-    uniqueIndex("share_user_document_account_idx").on(table.connectionId, table.docId, table.accountId),
-    index("share_user_account_idx").on(table.accountId),
+    uniqueIndex('share_user_document_account_idx').on(
+      table.connectionId,
+      table.docId,
+      table.accountId,
+    ),
+    index('share_user_account_idx').on(table.accountId),
   ],
 );
 
@@ -305,29 +331,29 @@ export const shareUser = sqliteTable(
  * with it.
  */
 export const shareLink = sqliteTable(
-  "share_link",
+  'share_link',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
     /** The Doc's `id`. */
-    docId: text("doc_id").notNull(),
-    tokenHash: text("token_hash").notNull(),
-    role: text("role").notNull(),
+    docId: text('doc_id').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    role: text('role').notNull(),
     /** When it stops working, if it does. */
-    expiresAt: epochMs("expires_at"),
-    revokedAt: epochMs("revoked_at"),
+    expiresAt: epochMs('expires_at'),
+    revokedAt: epochMs('revoked_at'),
     /** For a link with a password (ROADMAP 1c.5): its Argon2id hash as a PHC string, never the password. Null for a link with none. */
-    passwordHash: text("password_hash"),
+    passwordHash: text('password_hash'),
     /** Wrong passwords since the last right one: how long to make the next try wait (`sharing/password.ts`). */
-    failures: integer("failures").notNull().default(0),
+    failures: integer('failures').notNull().default(0),
     /** No try at the password is taken before this; it is moved on by each try, so tries are one at a time and slow down. */
-    lockedUntil: epochMs("locked_until"),
-    createdBy: text("created_by").notNull(),
-    createdAt: epochMs("created_at").notNull(),
+    lockedUntil: epochMs('locked_until'),
+    createdBy: text('created_by').notNull(),
+    createdAt: epochMs('created_at').notNull(),
   },
   (table) => [
-    uniqueIndex("share_link_token_hash_idx").on(table.tokenHash),
-    index("share_link_document_idx").on(table.connectionId, table.docId),
+    uniqueIndex('share_link_token_hash_idx').on(table.tokenHash),
+    index('share_link_document_idx').on(table.connectionId, table.docId),
   ],
 );
 
@@ -339,68 +365,71 @@ export const shareLink = sqliteTable(
  * they gave. Comments are on the server, not in the repository. A thread's replies go with it, and a disconnected repository's go with it.
  */
 export const commentThread = sqliteTable(
-  "comment_thread",
+  'comment_thread',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
-    docId: text("doc_id").notNull(),
-    anchor: text("anchor").notNull(),
-    body: text("body").notNull(),
-    authorKind: text("author_kind").notNull(),
-    authorId: text("author_id").notNull(),
-    authorName: text("author_name").notNull(),
-    createdAt: epochMs("created_at").notNull(),
-    editedAt: epochMs("edited_at"),
-    resolvedAt: epochMs("resolved_at"),
-    resolvedBy: text("resolved_by"),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
+    docId: text('doc_id').notNull(),
+    anchor: text('anchor').notNull(),
+    body: text('body').notNull(),
+    authorKind: text('author_kind').notNull(),
+    authorId: text('author_id').notNull(),
+    authorName: text('author_name').notNull(),
+    createdAt: epochMs('created_at').notNull(),
+    editedAt: epochMs('edited_at'),
+    resolvedAt: epochMs('resolved_at'),
+    resolvedBy: text('resolved_by'),
   },
-  (table) => [index("comment_thread_document_idx").on(table.connectionId, table.docId)],
+  (table) => [index('comment_thread_document_idx').on(table.connectionId, table.docId)],
 );
 
 /** A reply in a thread (DESIGN.md §13). */
 export const commentReply = sqliteTable(
-  "comment_reply",
+  'comment_reply',
   {
-    id: id64("id"),
-    threadId: ref64("thread_id").notNull(),
-    connectionId: ref64("connection_id").notNull(),
-    docId: text("doc_id").notNull(),
-    body: text("body").notNull(),
-    authorKind: text("author_kind").notNull(),
-    authorId: text("author_id").notNull(),
-    authorName: text("author_name").notNull(),
-    createdAt: epochMs("created_at").notNull(),
-    editedAt: epochMs("edited_at"),
+    id: id64('id'),
+    threadId: ref64('thread_id').notNull(),
+    connectionId: ref64('connection_id').notNull(),
+    docId: text('doc_id').notNull(),
+    body: text('body').notNull(),
+    authorKind: text('author_kind').notNull(),
+    authorId: text('author_id').notNull(),
+    authorName: text('author_name').notNull(),
+    createdAt: epochMs('created_at').notNull(),
+    editedAt: epochMs('edited_at'),
   },
-  (table) => [index("comment_reply_thread_idx").on(table.threadId), index("comment_reply_document_idx").on(table.connectionId, table.docId)],
+  (table) => [
+    index('comment_reply_thread_idx').on(table.threadId),
+    index('comment_reply_document_idx').on(table.connectionId, table.docId),
+  ],
 );
 
 /** What happened to a document's comments, kept as a log (DESIGN.md §13): who did what, and when. */
 export const commentActivity = sqliteTable(
-  "comment_activity",
+  'comment_activity',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
-    docId: text("doc_id").notNull(),
-    threadId: ref64("thread_id"),
-    actorKind: text("actor_kind").notNull(),
-    actorName: text("actor_name").notNull(),
-    event: text("event").notNull(),
-    at: epochMs("at").notNull(),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
+    docId: text('doc_id').notNull(),
+    threadId: ref64('thread_id'),
+    actorKind: text('actor_kind').notNull(),
+    actorName: text('actor_name').notNull(),
+    event: text('event').notNull(),
+    at: epochMs('at').notNull(),
   },
-  (table) => [index("comment_activity_document_idx").on(table.connectionId, table.docId, table.at)],
+  (table) => [index('comment_activity_document_idx').on(table.connectionId, table.docId, table.at)],
 );
 
 /** A document whose comments the owner closed (DESIGN.md §13): there is a row for as long as they are closed. */
 export const commentClosed = sqliteTable(
-  "comment_closed",
+  'comment_closed',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
-    docId: text("doc_id").notNull(),
-    closedAt: epochMs("closed_at").notNull(),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
+    docId: text('doc_id').notNull(),
+    closedAt: epochMs('closed_at').notNull(),
   },
-  (table) => [uniqueIndex("comment_closed_document_idx").on(table.connectionId, table.docId)],
+  (table) => [uniqueIndex('comment_closed_document_idx').on(table.connectionId, table.docId)],
 );
 
 /**
@@ -408,14 +437,17 @@ export const commentClosed = sqliteTable(
  * limit and holder, counted in the database so that the limit holds across every process; a row is reset when its window has passed, and old ones are swept.
  */
 export const rateBucket = sqliteTable(
-  "rate_bucket",
+  'rate_bucket',
   {
-    id: id64("id"),
-    key: text("key").notNull(),
-    windowStart: epochMs("window_start").notNull(),
-    count: integer("count", { mode: "number" }).notNull(),
+    id: id64('id'),
+    key: text('key').notNull(),
+    windowStart: epochMs('window_start').notNull(),
+    count: integer('count', { mode: 'number' }).notNull(),
   },
-  (table) => [uniqueIndex("rate_bucket_key_idx").on(table.key), index("rate_bucket_window_idx").on(table.windowStart)],
+  (table) => [
+    uniqueIndex('rate_bucket_key_idx').on(table.key),
+    index('rate_bucket_window_idx').on(table.windowStart),
+  ],
 );
 
 /**
@@ -426,20 +458,23 @@ export const rateBucket = sqliteTable(
  * gone and not merely hidden. A disconnected repository's go with it.
  */
 export const sealedShare = sqliteTable(
-  "sealed_share",
+  'sealed_share',
   {
-    id: id64("id"),
-    connectionId: ref64("connection_id").notNull(),
+    id: id64('id'),
+    connectionId: ref64('connection_id').notNull(),
     /** The file it is a copy of, repository-relative, as it was when the copy was made. */
-    path: text("path").notNull(),
-    tokenHash: text("token_hash").notNull(),
+    path: text('path').notNull(),
+    tokenHash: text('token_hash').notNull(),
     /** `key`: the key is in the link's fragment. `password`: the copy is sealed to a password. */
-    mode: text("mode").notNull(),
-    ciphertext: text("ciphertext").notNull(),
-    createdBy: text("created_by").notNull(),
-    createdAt: epochMs("created_at").notNull(),
+    mode: text('mode').notNull(),
+    ciphertext: text('ciphertext').notNull(),
+    createdBy: text('created_by').notNull(),
+    createdAt: epochMs('created_at').notNull(),
   },
-  (table) => [uniqueIndex("sealed_share_token_hash_idx").on(table.tokenHash), index("sealed_share_file_idx").on(table.connectionId, table.path)],
+  (table) => [
+    uniqueIndex('sealed_share_token_hash_idx').on(table.tokenHash),
+    index('sealed_share_file_idx').on(table.connectionId, table.path),
+  ],
 );
 
 /**
@@ -451,30 +486,30 @@ export const sealedShare = sqliteTable(
  * `owner = 'local'` and the same name.
  */
 export const localRepository = sqliteTable(
-  "local_repository",
+  'local_repository',
   {
-    id: id64("id"),
-    accountId: text("account_id").notNull(),
+    id: id64('id'),
+    accountId: text('account_id').notNull(),
     /** What the person called it; the connection's `name`. */
-    name: text("name").notNull(),
-    defaultBranch: text("default_branch").notNull(),
-    fileCount: integer("file_count", { mode: "number" }).notNull(),
-    liveBytes: ref64("live_bytes").notNull(),
-    retiredBytes: ref64("retired_bytes").notNull(),
-    createdAt: epochMs("created_at").notNull(),
+    name: text('name').notNull(),
+    defaultBranch: text('default_branch').notNull(),
+    fileCount: integer('file_count', { mode: 'number' }).notNull(),
+    liveBytes: ref64('live_bytes').notNull(),
+    retiredBytes: ref64('retired_bytes').notNull(),
+    createdAt: epochMs('created_at').notNull(),
   },
-  (table) => [uniqueIndex("local_repository_account_name_idx").on(table.accountId, table.name)],
+  (table) => [uniqueIndex('local_repository_account_name_idx').on(table.accountId, table.name)],
 );
 
 /** A branch of a server-side repository and the commit it is at. */
 export const localBranch = sqliteTable(
-  "local_branch",
+  'local_branch',
   {
-    repositoryId: ref64("repository_id").notNull(),
-    name: text("name").notNull(),
-    commitId: text("commit_id").notNull(),
+    repositoryId: ref64('repository_id').notNull(),
+    name: text('name').notNull(),
+    commitId: text('commit_id').notNull(),
   },
-  (table) => [uniqueIndex("local_branch_repository_name_idx").on(table.repositoryId, table.name)],
+  (table) => [uniqueIndex('local_branch_repository_name_idx').on(table.repositoryId, table.name)],
 );
 
 /**
@@ -482,18 +517,18 @@ export const localBranch = sqliteTable(
  * and never reconstructed. Only the branches' heads and the latest few are kept (`src/local/provider.ts`).
  */
 export const localCommit = sqliteTable(
-  "local_commit",
+  'local_commit',
   {
-    repositoryId: ref64("repository_id").notNull(),
-    id: text("id").notNull(),
-    parentId: text("parent_id"),
-    message: text("message").notNull(),
-    authorName: text("author_name"),
-    authorEmail: text("author_email"),
-    tree: text("tree").notNull(),
-    createdAt: epochMs("created_at").notNull(),
+    repositoryId: ref64('repository_id').notNull(),
+    id: text('id').notNull(),
+    parentId: text('parent_id'),
+    message: text('message').notNull(),
+    authorName: text('author_name'),
+    authorEmail: text('author_email'),
+    tree: text('tree').notNull(),
+    createdAt: epochMs('created_at').notNull(),
   },
-  (table) => [uniqueIndex("local_commit_repository_id_idx").on(table.repositoryId, table.id)],
+  (table) => [uniqueIndex('local_commit_repository_id_idx').on(table.repositoryId, table.id)],
 );
 
 /**
@@ -502,13 +537,16 @@ export const localCommit = sqliteTable(
  * otherwise: a retired blob is kept for the restore window, and no longer than the byte limit allows, so that undoing a deletion works.
  */
 export const localBlob = sqliteTable(
-  "local_blob",
+  'local_blob',
   {
-    repositoryId: ref64("repository_id").notNull(),
-    id: text("id").notNull(),
-    size: ref64("size").notNull(),
-    content: text("content").notNull(),
-    retiredAt: epochMs("retired_at"),
+    repositoryId: ref64('repository_id').notNull(),
+    id: text('id').notNull(),
+    size: ref64('size').notNull(),
+    content: text('content').notNull(),
+    retiredAt: epochMs('retired_at'),
   },
-  (table) => [uniqueIndex("local_blob_repository_id_idx").on(table.repositoryId, table.id), index("local_blob_retired_idx").on(table.repositoryId, table.retiredAt)],
+  (table) => [
+    uniqueIndex('local_blob_repository_id_idx').on(table.repositoryId, table.id),
+    index('local_blob_retired_idx').on(table.repositoryId, table.retiredAt),
+  ],
 );

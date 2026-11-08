@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { Alert, Badge, Button, FormField, Input, Select } from "../ui";
-import styles from "../sharing/Sharing.module.css";
-import { type CommentSetting, getStatus, publish, unpublish, updatePublication } from "./client";
-import { PageAddress } from "./PageAddress";
+import { useEffect, useState } from 'react';
+import { Alert, Badge, Button, FormField, Input, Select } from '../ui';
+import styles from '../sharing/Sharing.module.css';
+import { type CommentSetting, getStatus, publish, unpublish, updatePublication } from './client';
+import { PageAddress } from './PageAddress';
 
 /**
  * "Publish as a page" (the *Publish* tab of the sharing dialog; DESIGN.md §12, ROADMAP 3h.1): the Doc as a read-only page at an address anyone can open, no account needed. It is the owner's choice,
@@ -16,7 +16,7 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
   const [loaded, setLoaded] = useState(false);
   const [published, setPublished] = useState(false);
   const [protectedNow, setProtectedNow] = useState(false);
-  const [comments, setComments] = useState<CommentSetting>("off");
+  const [comments, setComments] = useState<CommentSetting>('off');
   const [url, setUrl] = useState<string | null>(null);
   const [justMade, setJustMade] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -24,7 +24,7 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
   const [problem, setProblem] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   // What is being typed: a password for a new page or a new one for a page that has one, and whether to take the one it has off.
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState('');
   const [removePassword, setRemovePassword] = useState(false);
 
   useEffect(() => {
@@ -47,14 +47,17 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
     setBusy(true);
     setProblem(null);
     setSaved(false);
-    const made = await publish(connectionId, docId, { ...(password !== "" ? { password } : {}), comments });
+    const made = await publish(connectionId, docId, {
+      ...(password !== '' ? { password } : {}),
+      comments,
+    });
     setBusy(false);
     if (made.ok) {
       setUrl(new URL(made.url, window.location.origin).href);
       setJustMade(true);
       setPublished(true);
-      setProtectedNow(password !== "");
-      setPassword("");
+      setProtectedNow(password !== '');
+      setPassword('');
       setAsking(false);
     } else setProblem(made.message);
   }
@@ -63,12 +66,15 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
     setBusy(true);
     setProblem(null);
     setSaved(false);
-    const changed = await updatePublication(connectionId, docId, { ...(removePassword ? { password: null } : password !== "" ? { password } : {}), comments });
+    const changed = await updatePublication(connectionId, docId, {
+      ...(removePassword ? { password: null } : password !== '' ? { password } : {}),
+      comments,
+    });
     setBusy(false);
     if (!changed.ok) return setProblem(changed.message);
     if (removePassword) setProtectedNow(false);
-    else if (password !== "") setProtectedNow(true);
-    setPassword("");
+    else if (password !== '') setProtectedNow(true);
+    setPassword('');
     setRemovePassword(false);
     setSaved(true);
   }
@@ -88,9 +94,17 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
   }
 
   const commentsField = (
-    <FormField label="Comments" hint="Comments on a published page are coming later. When they are, you will choose here who may leave them.">
+    <FormField
+      label="Comments"
+      hint="Comments on a published page are coming later. When they are, you will choose here who may leave them."
+    >
       {(field) => (
-        <Select {...field} value={comments} onChange={(event) => setComments(event.target.value as CommentSetting)} disabled={busy}>
+        <Select
+          {...field}
+          value={comments}
+          onChange={(event) => setComments(event.target.value as CommentSetting)}
+          disabled={busy}
+        >
           <option value="off">Off</option>
           <option value="anyone" disabled>
             Anyone with the address (coming later)
@@ -112,14 +126,14 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
       ) : null}
       {justMade ? (
         <Alert variant="success" heading="Published">
-          Anyone with the address below can read the page{protectedNow ? ", once they give its password" : ""}.
+          Anyone with the address below can read the page
+          {protectedNow ? ', once they give its password' : ''}.
         </Alert>
       ) : null}
       {published ? (
         <div className={styles.card}>
           <h3 className={styles.heading}>
-            Published as a page{" "}
-            {protectedNow ? <Badge>Password</Badge> : null}
+            Published as a page {protectedNow ? <Badge>Password</Badge> : null}
           </h3>
           {url ? (
             <>
@@ -127,7 +141,10 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
               <PageAddress url={url} />
             </>
           ) : (
-            <p className={styles.muted}>This page was published before its address was kept, so it cannot be shown. Publish again for a new address, which ends the old one.</p>
+            <p className={styles.muted}>
+              This page was published before its address was kept, so it cannot be shown. Publish
+              again for a new address, which ends the old one.
+            </p>
           )}
           <form
             className={styles.form}
@@ -136,12 +153,35 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
               void save();
             }}
           >
-            <FormField label={protectedNow ? "New password" : "Password"} hint={protectedNow ? "Leave empty to keep the password it has. A new one ends what the old one opened." : "Optional. Eight characters or more; asked of everyone who opens the page."}>
-              {(field) => <Input {...field} type="password" name="page-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy || removePassword} />}
+            <FormField
+              label={protectedNow ? 'New password' : 'Password'}
+              hint={
+                protectedNow
+                  ? 'Leave empty to keep the password it has. A new one ends what the old one opened.'
+                  : 'Optional. Eight characters or more; asked of everyone who opens the page.'
+              }
+            >
+              {(field) => (
+                <Input
+                  {...field}
+                  type="password"
+                  name="page-password"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={busy || removePassword}
+                />
+              )}
             </FormField>
             {protectedNow ? (
               <label className={styles.checkbox}>
-                <input type="checkbox" checked={removePassword} onChange={(e) => setRemovePassword(e.target.checked)} disabled={busy} /> Remove the password
+                <input
+                  type="checkbox"
+                  checked={removePassword}
+                  onChange={(e) => setRemovePassword(e.target.checked)}
+                  disabled={busy}
+                />{' '}
+                Remove the password
               </label>
             ) : null}
             {commentsField}
@@ -156,7 +196,12 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
             <Button type="button" variant="secondary" loading={busy} onClick={() => void end()}>
               Unpublish
             </Button>
-            <Button type="button" variant="secondary" disabled={busy} onClick={() => setAsking(true)}>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={busy}
+              onClick={() => setAsking(true)}
+            >
               Publish again
             </Button>
           </div>
@@ -170,21 +215,42 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
             void make();
           }}
         >
-          <h3 className={styles.heading}>{published ? "Publish with a new address" : "Publish as a page"}</h3>
+          <h3 className={styles.heading}>
+            {published ? 'Publish with a new address' : 'Publish as a page'}
+          </h3>
           <p className={styles.muted}>
-            A published page shows this document&apos;s saved version, read-only, to anyone with its address, with no account. Raw HTML in it is shown as text, and pictures and
-            scripts are not loaded. A change shows on the page after you save a version.
+            A published page shows this document&apos;s saved version, read-only, to anyone with its
+            address, with no account. Raw HTML in it is shown as text, and pictures and scripts are
+            not loaded. A change shows on the page after you save a version.
           </p>
-          <FormField label="Password" hint="Optional. Eight characters or more; asked of everyone who opens the page, signed in or not.">
-            {(field) => <Input {...field} type="password" name="publish-password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />}
+          <FormField
+            label="Password"
+            hint="Optional. Eight characters or more; asked of everyone who opens the page, signed in or not."
+          >
+            {(field) => (
+              <Input
+                {...field}
+                type="password"
+                name="publish-password"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={busy}
+              />
+            )}
           </FormField>
           {commentsField}
           <div className={styles.actions}>
             <Button type="submit" loading={busy}>
-              {published ? "Publish with a new address" : "Publish"}
+              {published ? 'Publish with a new address' : 'Publish'}
             </Button>
             {asking ? (
-              <Button type="button" variant="secondary" disabled={busy} onClick={() => setAsking(false)}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={busy}
+                onClick={() => setAsking(false)}
+              >
                 Cancel
               </Button>
             ) : null}

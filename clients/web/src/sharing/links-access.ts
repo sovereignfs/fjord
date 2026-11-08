@@ -1,7 +1,7 @@
-import { type Grant, decide } from "../access/policy";
-import type { Deps, LinkSummary } from "./links-http";
-import type { LinkService } from "./links";
-import { hashPassword } from "./password";
+import { type Grant, decide } from '../access/policy';
+import type { Deps, LinkSummary } from './links-http';
+import type { LinkService } from './links';
+import { hashPassword } from './password';
 
 /**
  * Whose, and what has a link (ROADMAP 1c.3). `links-http.ts` has the request's rules; this has the repository's:
@@ -13,26 +13,40 @@ import { hashPassword } from "./password";
 export interface AccessDeps {
   owns: (accountId: string, id: number) => Promise<boolean>;
   /** What the Doc `id` is in the connection's repository now. */
-  documentIn: (accountId: string, id: number, docId: string) => Promise<"document" | "gone" | "unavailable">;
-  links: Pick<LinkService, "create" | "list" | "revoke" | "update">;
+  documentIn: (
+    accountId: string,
+    id: number,
+    docId: string,
+  ) => Promise<'document' | 'gone' | 'unavailable'>;
+  links: Pick<LinkService, 'create' | 'list' | 'revoke' | 'update'>;
   now?: () => number;
 }
 
-export function linksAccess(deps: AccessDeps): Pick<Deps, "create" | "list" | "revoke" | "update"> {
+export function linksAccess(deps: AccessDeps): Pick<Deps, 'create' | 'list' | 'revoke' | 'update'> {
   const now = () => deps.now?.() ?? Date.now();
   const mayShare = async (accountId: string, id: number): Promise<boolean> => {
-    const grants: Grant[] = (await deps.owns(accountId, id)) ? [{ kind: "owner" }] : [];
-    return decide(grants, "manage_shares", { kind: "document" }, now()) === "allow";
+    const grants: Grant[] = (await deps.owns(accountId, id)) ? [{ kind: 'owner' }] : [];
+    return decide(grants, 'manage_shares', { kind: 'document' }, now()) === 'allow';
   };
 
   return {
     async create(accountId, id, input) {
       if (!(await mayShare(accountId, id))) return { found: false };
       const kind = await deps.documentIn(accountId, id, input.docId);
-      if (kind !== "document") return { found: true, result: { ok: false, reason: kind } };
+      if (kind !== 'document') return { found: true, result: { ok: false, reason: kind } };
       // The password is hashed here and goes no further than this: the store is given the hash, and the answer carries neither.
       const hash = input.password === null ? null : await hashPassword(input.password);
-      return { found: true, result: await deps.links.create(id, input.docId, input.role, input.expiresAt, accountId, hash) };
+      return {
+        found: true,
+        result: await deps.links.create(
+          id,
+          input.docId,
+          input.role,
+          input.expiresAt,
+          accountId,
+          hash,
+        ),
+      };
     },
 
     async list(accountId, id, docId) {
@@ -45,7 +59,12 @@ export function linksAccess(deps: AccessDeps): Pick<Deps, "create" | "list" | "r
         revokedAt: link.revokedAt,
         createdAt: link.createdAt,
         passwordProtected: link.hasPassword,
-        status: link.revokedAt !== null ? "revoked" : link.expiresAt !== null && link.expiresAt <= at ? "expired" : "active",
+        status:
+          link.revokedAt !== null
+            ? 'revoked'
+            : link.expiresAt !== null && link.expiresAt <= at
+              ? 'expired'
+              : 'active',
       }));
       return { found: true, links };
     },
@@ -53,7 +72,12 @@ export function linksAccess(deps: AccessDeps): Pick<Deps, "create" | "list" | "r
     async update(accountId, id, input) {
       if (!(await mayShare(accountId, id))) return { found: false };
       // A new password is hashed here and goes no further: the store is given the hash, or null to take the password away.
-      const passwordHash = input.password === undefined ? undefined : input.password === null ? null : await hashPassword(input.password);
+      const passwordHash =
+        input.password === undefined
+          ? undefined
+          : input.password === null
+            ? null
+            : await hashPassword(input.password);
       return {
         found: true,
         updated: await deps.links.update(id, input.docId, input.linkId, {

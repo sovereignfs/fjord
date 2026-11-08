@@ -1,13 +1,17 @@
-import { notFound } from "next/navigation";
-import { AuthShell } from "../../src/auth/screens/AuthShell";
-import { ResetPasswordForm } from "../../src/auth/screens/ResetForms";
-import { AuthLink } from "../../src/ui";
-import { localAuthConfig } from "../../src/auth/server";
+import { notFound } from 'next/navigation';
+import { AuthShell } from '../../src/auth/screens/AuthShell';
+import { ResetPasswordForm } from '../../src/auth/screens/ResetForms';
+import { AuthLink } from '../../src/ui';
+import { localAuthConfig } from '../../src/auth/server';
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Choose a new password" };
+export const dynamic = 'force-dynamic';
+export const metadata = { title: 'Choose a new password' };
 
-export default async function ResetPasswordPage({ searchParams }: { searchParams: Promise<{ token?: string; error?: string }> }) {
+export default async function ResetPasswordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ token?: string; error?: string }>;
+}) {
   const config = localAuthConfig();
   if (!config?.smtp) notFound();
   const { token, error } = await searchParams;
@@ -33,7 +37,11 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
   }
 
   return (
-    <AuthShell title="Choose a new password" name={config.name} footer={<AuthLink href="/sign-in">Back to sign in</AuthLink>}>
+    <AuthShell
+      title="Choose a new password"
+      name={config.name}
+      footer={<AuthLink href="/sign-in">Back to sign in</AuthLink>}
+    >
       <ResetPasswordForm token={token} minLength={config.passwordMinLength} />
     </AuthShell>
   );

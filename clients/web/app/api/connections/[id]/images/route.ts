@@ -1,7 +1,7 @@
-import { handleImages } from "../../../../../src/site/images-http";
-import { imagesContext } from "../../../../../src/site/images-server";
+import { handleImages } from '../../../../../src/site/images-http';
+import { imagesContext } from '../../../../../src/site/images-server';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 

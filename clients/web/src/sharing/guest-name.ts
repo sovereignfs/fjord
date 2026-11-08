@@ -6,8 +6,9 @@
 export const MAX_NAME_CHARS = 40;
 
 export function cleanGuestName(value: unknown): string | undefined {
-  if (typeof value !== "string" || !value.isWellFormed()) return undefined;
-  const name = value.replace(/\s+/g, " ").trim();
-  if (name === "" || [...name].length > MAX_NAME_CHARS || /[\u0000-\u001f\u007f<>]/.test(name)) return undefined;
+  if (typeof value !== 'string' || !value.isWellFormed()) return undefined;
+  const name = value.replace(/\s+/g, ' ').trim();
+  if (name === '' || [...name].length > MAX_NAME_CHARS || /[\u0000-\u001f\u007f<>]/.test(name))
+    return undefined;
   return name;
 }

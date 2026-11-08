@@ -1,9 +1,9 @@
-import { AuthShell } from "../../../src/auth/screens/AuthShell";
-import { SealedView } from "../../../src/sealed/SealedView";
+import { AuthShell } from '../../../src/auth/screens/AuthShell';
+import { SealedView } from '../../../src/sealed/SealedView';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 // A shared copy is for whoever has the link: not for a search engine to keep.
-export const metadata = { title: "Shared document", robots: { index: false, follow: false } };
+export const metadata = { title: 'Shared document', robots: { index: false, follow: false } };
 
 /**
  * A sealed copy of an encrypted document, opened by its link (ROADMAP 2c.1). The token in the path finds the copy; the key that opens it is in the address's fragment, which

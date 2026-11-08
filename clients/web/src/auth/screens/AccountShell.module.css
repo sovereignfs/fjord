@@ -42,7 +42,7 @@
   }
 }
 
-.nav button[aria-current="page"] {
+.nav button[aria-current='page'] {
   background-color: var(--sv-color-surface-sunken);
   color: var(--sv-color-text-primary);
 }

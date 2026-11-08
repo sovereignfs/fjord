@@ -17,35 +17,44 @@
  */
 export async function registerNode(): Promise<void> {
   // Before anything can print: a share token in an address is never in a log line (ROADMAP 1c.4).
-  const { installLogRedaction } = await import("./src/sharing/redact");
+  const { installLogRedaction } = await import('./src/sharing/redact');
   installLogRedaction();
-  if (process.env.FJORD_SKIP_DATABASE === "1") return;
+  if (process.env.FJORD_SKIP_DATABASE === '1') return;
   try {
-    const { oldNamesInUse } = await import("./src/env-renames");
-    for (const name of oldNamesInUse(process.env)) console.warn(`[fjord] setting: ${name} is an old name, and still works; use the new one`);
-    const { describeAuth } = await import("./src/auth/config");
-    const { authConfig } = await import("./src/auth/server");
+    const { oldNamesInUse } = await import('./src/env-renames');
+    for (const name of oldNamesInUse(process.env))
+      console.warn(`[fjord] setting: ${name} is an old name, and still works; use the new one`);
+    const { describeAuth } = await import('./src/auth/config');
+    const { authConfig } = await import('./src/auth/server');
     console.info(`[fjord] auth: ${describeAuth(authConfig())}`);
-    const { resolveGitHubApiUrl } = await import("./src/connections/config");
+    const { resolveGitHubApiUrl } = await import('./src/connections/config');
     resolveGitHubApiUrl(process.env);
-    const { githubAppConfig } = await import("./src/github-app/config");
+    const { githubAppConfig } = await import('./src/github-app/config');
     const app = githubAppConfig();
-    console.info(`[fjord] github app: ${app ? `${app.slug} (id ${app.appId})` : "not set up; repositories are connected with a token"}`);
-    const { describeEncryption } = await import("./src/crypto/config");
-    const { encryptionKeyring } = await import("./src/crypto/server");
-    const { prepareCredentials } = await import("./src/crypto/store");
+    console.info(
+      `[fjord] github app: ${app ? `${app.slug} (id ${app.appId})` : 'not set up; repositories are connected with a token'}`,
+    );
+    const { describeEncryption } = await import('./src/crypto/config');
+    const { encryptionKeyring } = await import('./src/crypto/server');
+    const { prepareCredentials } = await import('./src/crypto/store');
     const keyring = encryptionKeyring();
     console.info(`[fjord] credentials: ${describeEncryption(keyring)}`);
-    const { getDatabase } = await import("./src/db/boot");
+    const { getDatabase } = await import('./src/db/boot');
     const database = await getDatabase();
     const status = await prepareCredentials(database, keyring);
-    if (status.rewrapped > 0) console.info(`[fjord] credentials: wrapped ${status.rewrapped} under the current key; the previous key can now be removed`);
-    else if (keyring && keyring.previousIds.length > 0) console.info("[fjord] credentials: nothing is under a previous key any more; FJORD_ENCRYPTION_KEY_PREVIOUS can be removed");
+    if (status.rewrapped > 0)
+      console.info(
+        `[fjord] credentials: wrapped ${status.rewrapped} under the current key; the previous key can now be removed`,
+      );
+    else if (keyring && keyring.previousIds.length > 0)
+      console.info(
+        '[fjord] credentials: nothing is under a previous key any more; FJORD_ENCRYPTION_KEY_PREVIOUS can be removed',
+      );
     // Only with a key: without one no repository can be connected, so there is no token to make a version with.
-    if (keyring) (await import("./src/worker/server")).startWorker();
+    if (keyring) (await import('./src/worker/server')).startWorker();
   } catch (error) {
-    if (process.env.NODE_ENV !== "production") throw error;
-    console.error("[fjord] cannot start:", error instanceof Error ? error.message : error);
+    if (process.env.NODE_ENV !== 'production') throw error;
+    console.error('[fjord] cannot start:', error instanceof Error ? error.message : error);
     process.exit(1);
   }
 }

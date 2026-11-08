@@ -1,12 +1,12 @@
-import { isProviderError } from "../providers/errors";
-import { assertWritablePath } from "../providers/validate";
-import type { Fjord } from "../format/wasm";
-import type { Change, Identity, Provider, RepositoryRef, TreeEntry } from "../providers/types";
-import type { WorkingCopyService } from "../working/service";
-import { type VersionResult, formatIdentity } from "../working/version";
-import { type DeleteTarget, deletedName, fileAt, filesUnder } from "./delete";
-import { movedLines } from "./messages";
-import { suffix, takenPaths } from "./restore";
+import { isProviderError } from '../providers/errors';
+import { assertWritablePath } from '../providers/validate';
+import type { Fjord } from '../format/wasm';
+import type { Change, Identity, Provider, RepositoryRef, TreeEntry } from '../providers/types';
+import type { WorkingCopyService } from '../working/service';
+import { type VersionResult, formatIdentity } from '../working/version';
+import { type DeleteTarget, deletedName, fileAt, filesUnder } from './delete';
+import { movedLines } from './messages';
+import { suffix, takenPaths } from './restore';
 
 /**
  * Renaming and moving a note, a document or a folder of a plaintext vault (DESIGN.md §8, ROADMAP 1b.11): one commit through
@@ -31,8 +31,8 @@ export interface MoveDeps {
   provider: Provider;
   ref: RepositoryRef;
   branch: string;
-  format: Pick<Fjord, "checkName" | "caseCollisions">;
-  drafts: Pick<WorkingCopyService, "paths">;
+  format: Pick<Fjord, 'checkName' | 'caseCollisions'>;
+  drafts: Pick<WorkingCopyService, 'paths'>;
   /** Make a version of the draft of this file, so that it is not lost in the move. */
   saveDraft: (path: string) => Promise<VersionResult>;
   /** For tests: the most files one move takes. */
@@ -44,35 +44,35 @@ export type MoveResult =
   | {
       ok: false;
       reason:
-        | "gone"
-        | "upstream_changed"
-        | "folder_changed"
-        | "too_many"
-        | "has_drafts"
-        | "draft_not_saved"
-        | "protected"
-        | "bad_path"
-        | "extension_changed"
-        | "id_named"
-        | "other_vault"
-        | "into_itself"
-        | "unchanged"
-        | "path_taken"
-        | "head_moved"
-        | "read_only"
-        | "bad_token"
-        | "unavailable";
+        | 'gone'
+        | 'upstream_changed'
+        | 'folder_changed'
+        | 'too_many'
+        | 'has_drafts'
+        | 'draft_not_saved'
+        | 'protected'
+        | 'bad_path'
+        | 'extension_changed'
+        | 'id_named'
+        | 'other_vault'
+        | 'into_itself'
+        | 'unchanged'
+        | 'path_taken'
+        | 'head_moved'
+        | 'read_only'
+        | 'bad_token'
+        | 'unavailable';
       /** For `has_drafts`: how many files. For `draft_not_saved`: why. */
       detail?: number | string;
       /** For `path_taken`: the paths that are. */
       taken?: string[];
     };
 
-export { MAX_FILES_PER_DELETE as MAX_FILES_PER_MOVE } from "./delete";
+export { MAX_FILES_PER_DELETE as MAX_FILES_PER_MOVE } from './delete';
 const ATTEMPTS = 2;
-const MACHINERY = new Set(["fjord.vault.json", "fjord.json"]);
-const leaf = (path: string) => path.slice(path.lastIndexOf("/") + 1);
-const parent = (path: string) => (path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "");
+const MACHINERY = new Set(['fjord.vault.json', 'fjord.json']);
+const leaf = (path: string) => path.slice(path.lastIndexOf('/') + 1);
+const parent = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 
 function writable(path: string): boolean {
   try {
@@ -84,7 +84,13 @@ function writable(path: string): boolean {
 }
 
 /** The message of the commit: a rename keeps the folder, a move changes it. */
-export function moveMessage(source: string, destination: string, files: number, folder: boolean, moved: { from: string; to: string }[] = []): string {
+export function moveMessage(
+  source: string,
+  destination: string,
+  files: number,
+  folder: boolean,
+  moved: { from: string; to: string }[] = [],
+): string {
   const name = (path: string) => (folder ? leaf(path) : deletedName(path));
   const title =
     parent(source) === parent(destination)
@@ -93,96 +99,145 @@ export function moveMessage(source: string, destination: string, files: number, 
         ? `Move ${name(source)} to ${parent(destination)}`
         : `Move ${source} to ${destination}`;
   const body = [...(files > 1 ? [`Moves ${files} files:`] : []), ...movedLines(moved)];
-  return body.length > 0 ? `${title}\n\n${body.join("\n")}` : title;
+  return body.length > 0 ? `${title}\n\n${body.join('\n')}` : title;
 }
 
 export async function movePath(
   deps: MoveDeps,
-  input: { connectionId: number; vault: string; target: DeleteTarget; destination: string; author: Identity; encrypted?: { idNamed: boolean } },
+  input: {
+    connectionId: number;
+    vault: string;
+    target: DeleteTarget;
+    destination: string;
+    author: Identity;
+    encrypted?: { idNamed: boolean };
+  },
 ): Promise<MoveResult> {
   const { target, destination } = input;
   const source = target.path;
   // Inside the vault and not the vault itself; the new place is inside a vault too, under a name of its own.
-  if (!source.startsWith(`${input.vault}/`) || source.length === input.vault.length + 1) return { ok: false, reason: "protected" };
-  const segments = destination.split("/");
-  if (segments.length < 2 || !writable(destination)) return { ok: false, reason: "bad_path" };
-  if (segments.some((segment) => deps.format.checkName(segment).length > 0)) return { ok: false, reason: "bad_path" };
-  if (MACHINERY.has(leaf(destination))) return { ok: false, reason: "protected" };
-  if (destination === source) return { ok: false, reason: "unchanged" };
-  if (destination.startsWith(`${source}/`)) return { ok: false, reason: "into_itself" };
-  if (target.type === "file" && suffix(destination) !== suffix(source)) return { ok: false, reason: "extension_changed" };
+  if (!source.startsWith(`${input.vault}/`) || source.length === input.vault.length + 1)
+    return { ok: false, reason: 'protected' };
+  const segments = destination.split('/');
+  if (segments.length < 2 || !writable(destination)) return { ok: false, reason: 'bad_path' };
+  if (segments.some((segment) => deps.format.checkName(segment).length > 0))
+    return { ok: false, reason: 'bad_path' };
+  if (MACHINERY.has(leaf(destination))) return { ok: false, reason: 'protected' };
+  if (destination === source) return { ok: false, reason: 'unchanged' };
+  if (destination.startsWith(`${source}/`)) return { ok: false, reason: 'into_itself' };
+  if (target.type === 'file' && suffix(destination) !== suffix(source))
+    return { ok: false, reason: 'extension_changed' };
   // A file of an id-named vault is called by its identifier, which never changes (spec §7.2): it can go to another folder, not be renamed.
-  if (input.encrypted?.idNamed && target.type === "file" && leaf(destination) !== leaf(source)) return { ok: false, reason: "id_named" };
+  if (input.encrypted?.idNamed && target.type === 'file' && leaf(destination) !== leaf(source))
+    return { ok: false, reason: 'id_named' };
   // Between vaults, one of them encrypted, would be plaintext in an encrypted vault or ciphertext in a plain one; the browser alone could do that (ROADMAP 2b.6).
-  if (!(destination === input.vault || destination.startsWith(`${input.vault}/`)) && input.encrypted) return { ok: false, reason: "other_vault" };
+  if (
+    !(destination === input.vault || destination.startsWith(`${input.vault}/`)) &&
+    input.encrypted
+  )
+    return { ok: false, reason: 'other_vault' };
 
   // Unsaved changes first: they become a version, which changes the file, so what the page showed no longer applies.
-  let expectedBlob: string | undefined = target.type === "file" ? target.blob : undefined;
+  let expectedBlob: string | undefined = target.type === 'file' ? target.blob : undefined;
   const drafts = await deps.drafts.paths(input.connectionId);
-  if (drafts.some((path) => path === destination || path.startsWith(`${destination}/`))) return { ok: false, reason: "path_taken", taken: [destination] };
-  if (target.type === "file" && drafts.includes(source)) {
+  if (drafts.some((path) => path === destination || path.startsWith(`${destination}/`)))
+    return { ok: false, reason: 'path_taken', taken: [destination] };
+  if (target.type === 'file' && drafts.includes(source)) {
     const saved = await deps.saveDraft(source);
-    if (!saved.ok) return { ok: false, reason: "draft_not_saved", detail: saved.reason };
+    if (!saved.ok) return { ok: false, reason: 'draft_not_saved', detail: saved.reason };
     expectedBlob = undefined;
   }
-  if (target.type === "folder") {
+  if (target.type === 'folder') {
     const inside = drafts.filter((path) => path.startsWith(`${source}/`));
-    if (inside.length > 0) return { ok: false, reason: "has_drafts", detail: inside.length };
+    if (inside.length > 0) return { ok: false, reason: 'has_drafts', detail: inside.length };
   }
 
   try {
     for (let attempt = 1; ; attempt++) {
       const head = await deps.provider.getHead(deps.ref, deps.branch);
-      if (!head.changed) throw new Error("the host answered a head request with no etag as unchanged");
+      if (!head.changed)
+        throw new Error('the host answered a head request with no etag as unchanged');
       const expectedHead = head.head.commit;
 
       let files: TreeEntry[];
-      if (target.type === "file") {
+      if (target.type === 'file') {
         const entry = await fileAt(deps.provider, deps.ref, expectedHead, source);
-        if (!entry) return { ok: false, reason: "gone" };
+        if (!entry) return { ok: false, reason: 'gone' };
         expectedBlob ??= entry.id;
-        if (entry.id !== expectedBlob) return { ok: false, reason: "upstream_changed" };
+        if (entry.id !== expectedBlob) return { ok: false, reason: 'upstream_changed' };
         files = [entry];
       } else {
-        const found = await filesUnder(deps.provider, deps.ref, expectedHead, source, deps.maxFiles ?? MAX_FILES);
-        if (found === "too_many") return { ok: false, reason: "too_many" };
-        if (found.length === 0) return { ok: false, reason: "gone" };
-        if (found.length !== target.files) return { ok: false, reason: "folder_changed", detail: found.length };
+        const found = await filesUnder(
+          deps.provider,
+          deps.ref,
+          expectedHead,
+          source,
+          deps.maxFiles ?? MAX_FILES,
+        );
+        if (found === 'too_many') return { ok: false, reason: 'too_many' };
+        if (found.length === 0) return { ok: false, reason: 'gone' };
+        if (found.length !== target.files)
+          return { ok: false, reason: 'folder_changed', detail: found.length };
         files = found;
       }
-      if (files.some((file) => MACHINERY.has(leaf(file.path)) || file.kind !== "file")) return { ok: false, reason: "protected" };
+      if (files.some((file) => MACHINERY.has(leaf(file.path)) || file.kind !== 'file'))
+        return { ok: false, reason: 'protected' };
 
       // The new place is free, apart from what this commit takes away; a folder's files go to the same names in a new folder,
       // which must not be there already (that would be a merge, and nothing here merges).
       const taken = await takenPaths(deps, expectedHead, [destination], new Set([source]));
-      if (taken.length > 0) return { ok: false, reason: "path_taken", taken };
+      if (taken.length > 0) return { ok: false, reason: 'path_taken', taken };
 
-      const moved = files.map((file) => ({ from: file.path, to: `${destination}${file.path.slice(source.length)}`, file }));
+      const moved = files.map((file) => ({
+        from: file.path,
+        to: `${destination}${file.path.slice(source.length)}`,
+        file,
+      }));
       const changes: Change[] = [
         ...moved.map(({ from }) => ({ path: from, delete: true as const })),
-        ...moved.map(({ to, file }) => ({ path: to, blob: file.id, ...(file.executable ? { executable: true } : {}) })),
+        ...moved.map(({ to, file }) => ({
+          path: to,
+          blob: file.id,
+          ...(file.executable ? { executable: true } : {}),
+        })),
       ];
       try {
         const made = await deps.provider.commit(deps.ref, {
           branch: deps.branch,
           expectedHead,
-          message: moveMessage(source, destination, files.length, target.type === "folder", moved.map(({ from, to }) => ({ from, to }))),
+          message: moveMessage(
+            source,
+            destination,
+            files.length,
+            target.type === 'folder',
+            moved.map(({ from, to }) => ({ from, to })),
+          ),
           author: formatIdentity(input.author),
           changes,
         });
-        return { ok: true, commit: made.commit, files: files.length, moved: moved.map(({ from, to }) => ({ from, to })) };
+        return {
+          ok: true,
+          commit: made.commit,
+          files: files.length,
+          moved: moved.map(({ from, to }) => ({ from, to })),
+        };
       } catch (error) {
-        if (isProviderError(error, "head_moved")) {
+        if (isProviderError(error, 'head_moved')) {
           if (attempt < ATTEMPTS) continue;
-          return { ok: false, reason: "head_moved" };
+          return { ok: false, reason: 'head_moved' };
         }
         throw error;
       }
     }
   } catch (error) {
-    if (isProviderError(error, "forbidden")) return { ok: false, reason: "read_only" };
-    if (isProviderError(error, "unauthorized")) return { ok: false, reason: "bad_token" };
-    if (isProviderError(error, "not_found") || isProviderError(error, "unavailable") || isProviderError(error, "rate_limited")) return { ok: false, reason: "unavailable" };
+    if (isProviderError(error, 'forbidden')) return { ok: false, reason: 'read_only' };
+    if (isProviderError(error, 'unauthorized')) return { ok: false, reason: 'bad_token' };
+    if (
+      isProviderError(error, 'not_found') ||
+      isProviderError(error, 'unavailable') ||
+      isProviderError(error, 'rate_limited')
+    )
+      return { ok: false, reason: 'unavailable' };
     throw error;
   }
 }

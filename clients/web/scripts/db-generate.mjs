@@ -6,20 +6,24 @@
 // Generating is the only way a migration is made: `drizzle-kit push` is never used
 // (DESIGN.md §14). CI runs this with the committed schemas and fails if it would
 // write anything, so a schema change without its migration cannot merge.
-import { spawnSync } from "node:child_process";
+import { spawnSync } from 'node:child_process';
 
 const name = process.argv[2];
 if (!name || !/^[a-z][a-z0-9_]*$/.test(name)) {
-  console.error("usage: pnpm db:generate <name>   (lowercase letters, digits and underscores)");
+  console.error('usage: pnpm db:generate <name>   (lowercase letters, digits and underscores)');
   process.exit(2);
 }
 
 // The app's store and the auth store are separate databases with separate migrations, so
 // each is generated on its own; one with no change writes nothing.
-const configs = ["sqlite", "postgres", "auth.sqlite", "auth.postgres"];
+const configs = ['sqlite', 'postgres', 'auth.sqlite', 'auth.postgres'];
 for (const config of configs) {
-  const result = spawnSync("pnpm", ["exec", "drizzle-kit", "generate", `--config=drizzle.${config}.config.ts`, `--name=${name}`], {
-    stdio: "inherit",
-  });
+  const result = spawnSync(
+    'pnpm',
+    ['exec', 'drizzle-kit', 'generate', `--config=drizzle.${config}.config.ts`, `--name=${name}`],
+    {
+      stdio: 'inherit',
+    },
+  );
   if (result.status !== 0) process.exit(result.status ?? 1);
 }

@@ -18,7 +18,15 @@ export interface CryptoModule {
   wrapContainer(name: string, contents: Uint8Array): Uint8Array;
   unwrapContainer(archive: Uint8Array): { name: string; contents: Uint8Array };
   // The format's own naming and headers (the same module the server uses), for writing a new file here where the text is not the server's to see.
-  quickNoteName(text: string, existingJson: string, year: number, month: number, day: number, hour: number, minute: number): string;
+  quickNoteName(
+    text: string,
+    existingJson: string,
+    year: number,
+    month: number,
+    day: number,
+    hour: number,
+    minute: number,
+  ): string;
   titleFromText(text: string): string | undefined;
   freeName(stem: string, extension: string, existingJson: string): string;
   newDocument(id: string, title: string, created: string): string;
@@ -49,11 +57,13 @@ export function loadModule(): Promise<CryptoModule> {
   loading ??= (async () => {
     // A file of this origin, not part of the bundle: the bundler must leave both the address and the load to the browser. (The address is
     // in a variable so that TypeScript does not look for a module of that name.)
-    const address: string = "/fjord-wasm/fjord_wasm.js";
-    const loaded = (await import(/* webpackIgnore: true */ /* turbopackIgnore: true */ address)) as unknown as CryptoModule & {
+    const address: string = '/fjord-wasm/fjord_wasm.js';
+    const loaded = (await import(
+      /* webpackIgnore: true */ /* turbopackIgnore: true */ address
+    )) as unknown as CryptoModule & {
       default: (input: { module_or_path: string }) => Promise<unknown>;
     };
-    await loaded.default({ module_or_path: "/fjord-wasm/fjord_wasm_bg.wasm" });
+    await loaded.default({ module_or_path: '/fjord-wasm/fjord_wasm_bg.wasm' });
     return loaded;
   })().catch((error: unknown) => {
     loading = undefined;

@@ -4,7 +4,11 @@
  * how many requests may be open) and not one after another (that is slow). The first failure
  * rejects, and no new item is started after it.
  */
-export async function mapLimit<T, R>(items: T[], limit: number, work: (item: T) => Promise<R>): Promise<R[]> {
+export async function mapLimit<T, R>(
+  items: T[],
+  limit: number,
+  work: (item: T) => Promise<R>,
+): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let next = 0;
   let failed = false;

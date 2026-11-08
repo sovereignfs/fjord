@@ -1,8 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { isProviderError } from "../errors";
-import { type FakeGitHub } from "../testing/fake-github";
-import { githubHarness } from "../testing/harnesses";
-import { GitHubProvider } from "./provider";
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { isProviderError } from '../errors';
+import { type FakeGitHub } from '../testing/fake-github';
+import { githubHarness } from '../testing/harnesses';
+import { GitHubProvider } from './provider';
 
 /**
  * What is particular to GitHub, beyond the contract every provider meets: the requests it makes,
@@ -17,16 +17,16 @@ beforeEach(async () => {
 afterEach(async () => h.close());
 
 const encode = (text: string) => new TextEncoder().encode(text);
-const writes = () => fake.requests.filter((r) => r.method !== "GET");
+const writes = () => fake.requests.filter((r) => r.method !== 'GET');
 const head = async () => {
-  const result = await h.provider.getHead(h.repo, "main");
-  if (!result.changed) throw new Error("no head");
+  const result = await h.provider.getHead(h.repo, 'main');
+  if (!result.changed) throw new Error('no head');
   return result.head;
 };
 
-describe("reading", () => {
-  it("lists a whole tree in one request, using the commit id where a tree id is expected", async () => {
-    const commit = await h.seed({ "a.md": "a", "Folder/b.md": "b" });
+describe('reading', () => {
+  it('lists a whole tree in one request, using the commit id where a tree id is expected', async () => {
+    const commit = await h.seed({ 'a.md': 'a', 'Folder/b.md': 'b' });
     fake.requests.length = 0;
     await h.provider.getTree(h.repo, commit);
     expect(fake.requests).toHaveLength(1);
@@ -34,277 +34,426 @@ describe("reading", () => {
   });
 
   it("asks for a blob's raw bytes, not base64 inside JSON", async () => {
-    const commit = await h.seed({ "a.md": "a" });
+    const commit = await h.seed({ 'a.md': 'a' });
     const [entry] = (await h.provider.getTree(h.repo, commit)).entries;
     fake.requests.length = 0;
     await h.provider.readBlob(h.repo, entry!.id);
-    expect(fake.requests[0]!.headers.accept).toBe("application/vnd.github.raw+json");
+    expect(fake.requests[0]!.headers.accept).toBe('application/vnd.github.raw+json');
   });
 
   it("polls a head with its etag, and a 'not modified' costs one request and no body", async () => {
-    await h.seed({ "a.md": "a" });
+    await h.seed({ 'a.md': 'a' });
     const first = await head();
     fake.requests.length = 0;
-    expect(await h.provider.getHead(h.repo, "main", { etag: first.etag })).toEqual({ changed: false });
+    expect(await h.provider.getHead(h.repo, 'main', { etag: first.etag })).toEqual({
+      changed: false,
+    });
     expect(fake.requests).toHaveLength(1);
-    expect(fake.requests[0]!.headers["if-none-match"]).toBe(first.etag);
+    expect(fake.requests[0]!.headers['if-none-match']).toBe(first.etag);
   });
 
-  it("walks to a nested directory with one request per level, and lists the root with one", async () => {
-    const commit = await h.seed({ "A/B/C/d.md": "d" });
+  it('walks to a nested directory with one request per level, and lists the root with one', async () => {
+    const commit = await h.seed({ 'A/B/C/d.md': 'd' });
     fake.requests.length = 0;
-    await h.provider.listDirectory(h.repo, commit, "");
+    await h.provider.listDirectory(h.repo, commit, '');
     expect(fake.requests).toHaveLength(1);
     fake.requests.length = 0;
-    await h.provider.listDirectory(h.repo, commit, "A/B/C");
+    await h.provider.listDirectory(h.repo, commit, 'A/B/C');
     expect(fake.requests).toHaveLength(4);
   });
 
   it("lists the repositories an installation can reach from the installation endpoint, and a user's from the user endpoint", async () => {
-    const installation = new GitHubProvider({ apiUrl: fake.url, token: async () => "test-token", scope: "installation" });
+    const installation = new GitHubProvider({
+      apiUrl: fake.url,
+      token: async () => 'test-token',
+      scope: 'installation',
+    });
     expect((await installation.listRepositories()).map((r) => r.ref)).toEqual([h.repo]);
     expect(fake.requests.at(-1)!.path).toMatch(/^\/installation\/repositories/);
     await h.provider.listRepositories();
     expect(fake.requests.at(-1)!.path).toMatch(/^\/user\/repos/);
   });
 
-  it("reports whether the credential can write, when GitHub says", async () => {
+  it('reports whether the credential can write, when GitHub says', async () => {
     expect((await h.provider.getRepository(h.repo)).canPush).toBe(true);
     expect((await h.readOnly!().getRepository(h.repo)).canPush).toBe(false);
   });
 });
 
-describe("finding out whether it can write", () => {
+describe('finding out whether it can write', () => {
   beforeEach(async () => {
-    await h.seed({ "a.md": "a" });
+    await h.seed({ 'a.md': 'a' });
   });
 
-  it("looks at the head, then points the branch at where it already is, never forced: two requests, nothing changed", async () => {
+  it('looks at the head, then points the branch at where it already is, never forced: two requests, nothing changed', async () => {
     const before = await head();
     fake.requests.length = 0;
-    expect(await h.provider.canWrite(h.repo, "main")).toBe(true);
-    expect(fake.requests.map((r) => `${r.method} ${r.path}`)).toEqual(["GET /repos/acme/notes/git/ref/heads/main", "PATCH /repos/acme/notes/git/refs/heads/main"]);
+    expect(await h.provider.canWrite(h.repo, 'main')).toBe(true);
+    expect(fake.requests.map((r) => `${r.method} ${r.path}`)).toEqual([
+      'GET /repos/acme/notes/git/ref/heads/main',
+      'PATCH /repos/acme/notes/git/refs/heads/main',
+    ]);
     expect(fake.requests[1]!.body).toEqual({ sha: before.commit, force: false });
     expect((await head()).commit).toBe(before.commit);
     await fake.fsck();
   });
 
-  it("says no when GitHub refuses the update, without a second try", async () => {
+  it('says no when GitHub refuses the update, without a second try', async () => {
     fake.requests.length = 0;
-    expect(await h.readOnly!().canWrite(h.repo, "main")).toBe(false);
-    expect(fake.requests.filter((r) => r.method === "PATCH")).toHaveLength(1);
+    expect(await h.readOnly!().canWrite(h.repo, 'main')).toBe(false);
+    expect(fake.requests.filter((r) => r.method === 'PATCH')).toHaveLength(1);
   });
 
-  it("does not take a rate limit for a no", async () => {
-    fake.fail(/git\/refs\/heads/, { status: 403, method: "PATCH", headers: { "x-ratelimit-remaining": "0", "x-ratelimit-reset": String(Math.floor(Date.now() / 1000) + 60) }, body: { message: "API rate limit exceeded" } });
-    await expect(h.provider.canWrite(h.repo, "main")).rejects.toSatisfy((e) => isProviderError(e, "rate_limited"));
+  it('does not take a rate limit for a no', async () => {
+    fake.fail(/git\/refs\/heads/, {
+      status: 403,
+      method: 'PATCH',
+      headers: {
+        'x-ratelimit-remaining': '0',
+        'x-ratelimit-reset': String(Math.floor(Date.now() / 1000) + 60),
+      },
+      body: { message: 'API rate limit exceeded' },
+    });
+    await expect(h.provider.canWrite(h.repo, 'main')).rejects.toSatisfy((e) =>
+      isProviderError(e, 'rate_limited'),
+    );
   });
 });
 
-describe("a commit, as git sees it", () => {
+describe('a commit, as git sees it', () => {
   beforeEach(async () => {
-    await h.seed({ "a.md": "a" });
+    await h.seed({ 'a.md': 'a' });
   });
 
   it("is a real git commit on top of the head it was built on, in a repository that passes git's own consistency check", async () => {
     const before = await head();
-    const result = await h.provider.commit(h.repo, { branch: "main", expectedHead: before.commit, message: "Edit a", changes: [{ path: "a.md", content: encode("changed") }] });
+    const result = await h.provider.commit(h.repo, {
+      branch: 'main',
+      expectedHead: before.commit,
+      message: 'Edit a',
+      changes: [{ path: 'a.md', content: encode('changed') }],
+    });
 
-    expect(await fake.show(result.commit, "%P")).toBe(before.commit);
+    expect(await fake.show(result.commit, '%P')).toBe(before.commit);
     expect(await fake.branchHead()).toBe(result.commit);
-    expect(await fake.filesAt(result.commit)).toEqual({ "a.md": "changed" });
+    expect(await fake.filesAt(result.commit)).toEqual({ 'a.md': 'changed' });
     await fake.fsck();
   });
 
-  it("records the author and the message exactly, a multi-line one with trailers and unicode included", async () => {
-    const message = "Edit Q4 plan\n\nMoved the editor to the top.\n\nCo-authored-by: Grace Hopper <grace@example.com>\nCo-authored-by: Søren <soren@example.com>";
+  it('records the author and the message exactly, a multi-line one with trailers and unicode included', async () => {
+    const message =
+      'Edit Q4 plan\n\nMoved the editor to the top.\n\nCo-authored-by: Grace Hopper <grace@example.com>\nCo-authored-by: Søren <soren@example.com>';
     const result = await h.provider.commit(h.repo, {
-      branch: "main",
+      branch: 'main',
       expectedHead: (await head()).commit,
       message,
-      author: { name: "Ada Lovelace", email: "ada@example.com" },
-      changes: [{ path: "a.md", content: encode("x") }],
+      author: { name: 'Ada Lovelace', email: 'ada@example.com' },
+      changes: [{ path: 'a.md', content: encode('x') }],
     });
-    expect(await fake.show(result.commit, "%an <%ae>")).toBe("Ada Lovelace <ada@example.com>");
-    expect(await fake.show(result.commit, "%B")).toBe(message);
+    expect(await fake.show(result.commit, '%an <%ae>')).toBe('Ada Lovelace <ada@example.com>');
+    expect(await fake.show(result.commit, '%B')).toBe(message);
     // The host's own identity commits it; the person is the author.
-    expect(await fake.show(result.commit, "%cn")).toBe("Fake GitHub");
+    expect(await fake.show(result.commit, '%cn')).toBe('Fake GitHub');
   });
 
-  it("uploads each new file once, and a move uploads nothing", async () => {
+  it('uploads each new file once, and a move uploads nothing', async () => {
     const tree = await h.provider.getTree(h.repo, (await head()).commit);
     fake.requests.length = 0;
     await h.provider.commit(h.repo, {
-      branch: "main",
+      branch: 'main',
       expectedHead: (await head()).commit,
-      message: "m",
+      message: 'm',
       changes: [
-        { path: "one.md", content: encode("1") },
-        { path: "two.md", content: encode("2") },
-        { path: "three.md", content: encode("3") },
-        { path: "moved.md", blob: tree.entries[0]!.id },
-        { path: "a.md", delete: true },
+        { path: 'one.md', content: encode('1') },
+        { path: 'two.md', content: encode('2') },
+        { path: 'three.md', content: encode('3') },
+        { path: 'moved.md', blob: tree.entries[0]!.id },
+        { path: 'a.md', delete: true },
       ],
     });
-    expect(writes().filter((r) => r.path.endsWith("/git/blobs"))).toHaveLength(3);
+    expect(writes().filter((r) => r.path.endsWith('/git/blobs'))).toHaveLength(3);
     // blobs, one tree, one commit, one ref update
-    expect(writes().map((r) => r.method + " " + r.path.replace("/repos/acme/notes", "").split("?")[0]).filter((x) => !x.endsWith("/git/blobs"))).toEqual(["POST /git/trees", "POST /git/commits", "PATCH /git/refs/heads/main"]);
+    expect(
+      writes()
+        .map((r) => r.method + ' ' + r.path.replace('/repos/acme/notes', '').split('?')[0])
+        .filter((x) => !x.endsWith('/git/blobs')),
+    ).toEqual(['POST /git/trees', 'POST /git/commits', 'PATCH /git/refs/heads/main']);
   });
 
-  it("sends binary files as base64 and the branch update without force", async () => {
-    await h.provider.commit(h.repo, { branch: "main", expectedHead: (await head()).commit, message: "m", changes: [{ path: "b.bin", content: new Uint8Array([0, 255, 128]) }] });
-    const blob = writes().find((r) => r.path.endsWith("/git/blobs"))!;
-    expect(blob.body).toEqual({ content: Buffer.from([0, 255, 128]).toString("base64"), encoding: "base64" });
-    expect(writes().find((r) => r.method === "PATCH")!.body).toMatchObject({ force: false });
+  it('sends binary files as base64 and the branch update without force', async () => {
+    await h.provider.commit(h.repo, {
+      branch: 'main',
+      expectedHead: (await head()).commit,
+      message: 'm',
+      changes: [{ path: 'b.bin', content: new Uint8Array([0, 255, 128]) }],
+    });
+    const blob = writes().find((r) => r.path.endsWith('/git/blobs'))!;
+    expect(blob.body).toEqual({
+      content: Buffer.from([0, 255, 128]).toString('base64'),
+      encoding: 'base64',
+    });
+    expect(writes().find((r) => r.method === 'PATCH')!.body).toMatchObject({ force: false });
   });
 
-  it("looks before it uploads: a head that has moved costs one request and writes nothing", async () => {
+  it('looks before it uploads: a head that has moved costs one request and writes nothing', async () => {
     const stale = (await head()).commit;
-    await h.pushElsewhere({ "theirs.md": "t" });
+    await h.pushElsewhere({ 'theirs.md': 't' });
     fake.requests.length = 0;
     await expect(
-      h.provider.commit(h.repo, { branch: "main", expectedHead: stale, message: "m", changes: [{ path: "mine.md", content: encode("m") }] }),
-    ).rejects.toSatisfy((e) => isProviderError(e, "head_moved"));
+      h.provider.commit(h.repo, {
+        branch: 'main',
+        expectedHead: stale,
+        message: 'm',
+        changes: [{ path: 'mine.md', content: encode('m') }],
+      }),
+    ).rejects.toSatisfy((e) => isProviderError(e, 'head_moved'));
     expect(fake.requests).toHaveLength(1);
     expect(writes()).toHaveLength(0);
   });
 
-  it("works on a branch whose name has slashes", async () => {
-    await fake.commitFiles({ "a.md": "feature" }, { branch: "feature/one", replace: true });
-    const feature = await h.provider.getHead(h.repo, "feature/one");
-    if (!feature.changed) throw new Error("no head");
-    const result = await h.provider.commit(h.repo, { branch: "feature/one", expectedHead: feature.head.commit, message: "m", changes: [{ path: "b.md", content: encode("b") }] });
-    expect(await fake.branchHead("feature/one")).toBe(result.commit);
-    expect(await fake.branchHead("main")).not.toBe(result.commit);
+  it('works on a branch whose name has slashes', async () => {
+    await fake.commitFiles({ 'a.md': 'feature' }, { branch: 'feature/one', replace: true });
+    const feature = await h.provider.getHead(h.repo, 'feature/one');
+    if (!feature.changed) throw new Error('no head');
+    const result = await h.provider.commit(h.repo, {
+      branch: 'feature/one',
+      expectedHead: feature.head.commit,
+      message: 'm',
+      changes: [{ path: 'b.md', content: encode('b') }],
+    });
+    expect(await fake.branchHead('feature/one')).toBe(result.commit);
+    expect(await fake.branchHead('main')).not.toBe(result.commit);
   });
 });
 
-describe("when GitHub misbehaves", () => {
+describe('when GitHub misbehaves', () => {
   beforeEach(async () => {
-    await h.seed({ "a.md": "a" });
+    await h.seed({ 'a.md': 'a' });
   });
 
-  it("gets through a gateway error on a read, by trying again", async () => {
-    fake.fail(/git\/ref\/heads/, { status: 502, body: { message: "Bad Gateway" }, times: 1 });
-    expect((await h.provider.getHead(h.repo, "main")).changed).toBe(true);
-    expect(fake.requests.filter((r) => r.path.includes("/git/ref/"))).toHaveLength(2);
+  it('gets through a gateway error on a read, by trying again', async () => {
+    fake.fail(/git\/ref\/heads/, { status: 502, body: { message: 'Bad Gateway' }, times: 1 });
+    expect((await h.provider.getHead(h.repo, 'main')).changed).toBe(true);
+    expect(fake.requests.filter((r) => r.path.includes('/git/ref/'))).toHaveLength(2);
   });
 
-  it("does not try a write again: a failed tree creation is reported once and the branch is untouched", async () => {
+  it('does not try a write again: a failed tree creation is reported once and the branch is untouched', async () => {
     const before = await head();
-    fake.fail(/git\/trees/, { status: 502, method: "POST", body: { message: "Bad Gateway" }, times: 5 });
+    fake.fail(/git\/trees/, {
+      status: 502,
+      method: 'POST',
+      body: { message: 'Bad Gateway' },
+      times: 5,
+    });
     await expect(
-      h.provider.commit(h.repo, { branch: "main", expectedHead: before.commit, message: "m", changes: [{ path: "x.md", content: encode("x") }] }),
-    ).rejects.toSatisfy((e) => isProviderError(e, "unavailable"));
-    expect(fake.requests.filter((r) => r.method === "POST" && r.path.endsWith("/git/trees"))).toHaveLength(1);
+      h.provider.commit(h.repo, {
+        branch: 'main',
+        expectedHead: before.commit,
+        message: 'm',
+        changes: [{ path: 'x.md', content: encode('x') }],
+      }),
+    ).rejects.toSatisfy((e) => isProviderError(e, 'unavailable'));
+    expect(
+      fake.requests.filter((r) => r.method === 'POST' && r.path.endsWith('/git/trees')),
+    ).toHaveLength(1);
     expect((await head()).commit).toBe(before.commit);
   });
 
-  it("is told it is unavailable when it cannot connect at all, without the credential in the message", async () => {
+  it('is told it is unavailable when it cannot connect at all, without the credential in the message', async () => {
     await h.close();
-    const error = await h.provider.getHead(h.repo, "main").catch((e: unknown) => e);
-    expect(isProviderError(error, "unavailable")).toBe(true);
-    expect((error as Error).message).not.toContain("test-token");
+    const error = await h.provider.getHead(h.repo, 'main').catch((e: unknown) => e);
+    expect(isProviderError(error, 'unavailable')).toBe(true);
+    expect((error as Error).message).not.toContain('test-token');
     // `afterEach` closes it again: make that harmless.
     h = await githubHarness();
     fake = h.fake;
   });
 
-  it("reports a lost race at the last step: someone pushes after the early look, and GitHub itself refuses the update", async () => {
+  it('reports a lost race at the last step: someone pushes after the early look, and GitHub itself refuses the update', async () => {
     const before = await head();
     // The early look will see the head unmoved; the push lands as the commit object is being made.
-    let theirs = "";
-    fake.before(/git\/commits$/, async () => void (theirs = await h.pushElsewhere({ "late.md": "late" })), "POST");
+    let theirs = '';
+    fake.before(
+      /git\/commits$/,
+      async () => void (theirs = await h.pushElsewhere({ 'late.md': 'late' })),
+      'POST',
+    );
 
     await expect(
-      h.provider.commit(h.repo, { branch: "main", expectedHead: before.commit, message: "m", changes: [{ path: "x.md", content: encode("x") }] }),
-    ).rejects.toSatisfy((e) => isProviderError(e, "head_moved"));
+      h.provider.commit(h.repo, {
+        branch: 'main',
+        expectedHead: before.commit,
+        message: 'm',
+        changes: [{ path: 'x.md', content: encode('x') }],
+      }),
+    ).rejects.toSatisfy((e) => isProviderError(e, 'head_moved'));
 
     // The ref update was attempted (the early look did not catch it), and refused: theirs is still the head.
-    expect(writes().some((r) => r.method === "PATCH")).toBe(true);
+    expect(writes().some((r) => r.method === 'PATCH')).toBe(true);
     expect(await fake.branchHead()).toBe(theirs);
-    expect(await fake.filesAt(theirs)).toEqual({ "a.md": "a", "late.md": "late" });
+    expect(await fake.filesAt(theirs)).toEqual({ 'a.md': 'a', 'late.md': 'late' });
   });
 });
 
 describe("a commit's build (ROADMAP 3c.3)", () => {
   it("reads check runs, commit statuses and deployments, and reads the statuses and not GitHub's combined state, which is pending when nothing posted one", async () => {
-    const commit = await h.seed({ "a.md": "a" });
-    expect((await h.provider.getBuildStatus(h.repo, commit)).state, "no integration at all").toBe("none");
-    fake.reportBuild(commit, { statuses: [{ context: "netlify/site/deploy-preview", state: "success", target_url: "https://app.netlify.example/d/1" }] });
+    const commit = await h.seed({ 'a.md': 'a' });
+    expect((await h.provider.getBuildStatus(h.repo, commit)).state, 'no integration at all').toBe(
+      'none',
+    );
+    fake.reportBuild(commit, {
+      statuses: [
+        {
+          context: 'netlify/site/deploy-preview',
+          state: 'success',
+          target_url: 'https://app.netlify.example/d/1',
+        },
+      ],
+    });
     const status = await h.provider.getBuildStatus(h.repo, commit);
-    expect(status).toMatchObject({ state: "success", checks: [{ name: "netlify/site/deploy-preview", state: "success", url: "https://app.netlify.example/d/1" }] });
+    expect(status).toMatchObject({
+      state: 'success',
+      checks: [
+        {
+          name: 'netlify/site/deploy-preview',
+          state: 'success',
+          url: 'https://app.netlify.example/d/1',
+        },
+      ],
+    });
   });
 
   it("reads a check run's conclusion: skipped and neutral are not failures, and nothing completed is pending", async () => {
-    const commit = await h.seed({ "a.md": "a" });
+    const commit = await h.seed({ 'a.md': 'a' });
     fake.reportBuild(commit, {
       checkRuns: [
-        { name: "a", status: "completed", conclusion: "success" },
-        { name: "b", status: "completed", conclusion: "skipped" },
-        { name: "c", status: "completed", conclusion: "neutral" },
-        { name: "d", status: "queued", conclusion: null },
-        { name: "e", status: "completed", conclusion: "timed_out" },
-        { name: "f", status: "completed", conclusion: "cancelled" },
+        { name: 'a', status: 'completed', conclusion: 'success' },
+        { name: 'b', status: 'completed', conclusion: 'skipped' },
+        { name: 'c', status: 'completed', conclusion: 'neutral' },
+        { name: 'd', status: 'queued', conclusion: null },
+        { name: 'e', status: 'completed', conclusion: 'timed_out' },
+        { name: 'f', status: 'completed', conclusion: 'cancelled' },
       ],
     });
-    const byName = Object.fromEntries((await h.provider.getBuildStatus(h.repo, commit)).checks.map((c) => [c.name, c.state]));
-    expect(byName).toEqual({ a: "success", b: "success", c: "success", d: "pending", e: "failure", f: "failure" });
+    const byName = Object.fromEntries(
+      (await h.provider.getBuildStatus(h.repo, commit)).checks.map((c) => [c.name, c.state]),
+    );
+    expect(byName).toEqual({
+      a: 'success',
+      b: 'success',
+      c: 'success',
+      d: 'pending',
+      e: 'failure',
+      f: 'failure',
+    });
   });
 
   it("takes a deployment's newest status, and leaves out one that a later deployment replaced", async () => {
-    const commit = await h.seed({ "a.md": "a" });
+    const commit = await h.seed({ 'a.md': 'a' });
     fake.reportBuild(commit, {
       deployments: [
-        { id: 1, environment: "preview", statuses: [{ state: "in_progress" }, { state: "success", environment_url: "https://one.example" }, { state: "inactive" }] },
-        { id: 2, environment: "preview", statuses: [{ state: "queued" }, { state: "success", environment_url: "https://two.example" }] },
-        { id: 3, environment: "production", statuses: [{ state: "error", target_url: "https://logs.example/3" }] },
+        {
+          id: 1,
+          environment: 'preview',
+          statuses: [
+            { state: 'in_progress' },
+            { state: 'success', environment_url: 'https://one.example' },
+            { state: 'inactive' },
+          ],
+        },
+        {
+          id: 2,
+          environment: 'preview',
+          statuses: [
+            { state: 'queued' },
+            { state: 'success', environment_url: 'https://two.example' },
+          ],
+        },
+        {
+          id: 3,
+          environment: 'production',
+          statuses: [{ state: 'error', target_url: 'https://logs.example/3' }],
+        },
       ],
     });
     const status = await h.provider.getBuildStatus(h.repo, commit);
-    expect(status.siteUrl).toBe("https://two.example");
+    expect(status.siteUrl).toBe('https://two.example');
     expect(status.checks.map((c) => [c.name, c.state])).toEqual([
-      ["deployment: preview", "success"],
-      ["deployment: production", "failure"],
+      ['deployment: preview', 'success'],
+      ['deployment: production', 'failure'],
     ]);
-    expect(status.state).toBe("failure");
+    expect(status.state).toBe('failure');
   });
 
   it("shows only an http or https address as a link: a host's report is not trusted to be one", async () => {
-    const commit = await h.seed({ "a.md": "a" });
+    const commit = await h.seed({ 'a.md': 'a' });
     fake.reportBuild(commit, {
       checkRuns: [
-        { name: "evil", status: "completed", conclusion: "success", html_url: "javascript:alert(1)" },
-        { name: "data", status: "completed", conclusion: "success", html_url: "data:text/html,<script>1</script>" },
-        { name: "fine", status: "completed", conclusion: "success", html_url: "https://ci.example/runs/9" },
+        {
+          name: 'evil',
+          status: 'completed',
+          conclusion: 'success',
+          html_url: 'javascript:alert(1)',
+        },
+        {
+          name: 'data',
+          status: 'completed',
+          conclusion: 'success',
+          html_url: 'data:text/html,<script>1</script>',
+        },
+        {
+          name: 'fine',
+          status: 'completed',
+          conclusion: 'success',
+          html_url: 'https://ci.example/runs/9',
+        },
       ],
-      deployments: [{ id: 5, environment: "preview", statuses: [{ state: "success", environment_url: "javascript:alert(2)" }] }],
+      deployments: [
+        {
+          id: 5,
+          environment: 'preview',
+          statuses: [{ state: 'success', environment_url: 'javascript:alert(2)' }],
+        },
+      ],
     });
     const status = await h.provider.getBuildStatus(h.repo, commit);
-    expect(Object.fromEntries(status.checks.map((c) => [c.name, c.url]))).toEqual({ evil: undefined, data: undefined, fine: "https://ci.example/runs/9", "deployment: preview": undefined });
+    expect(Object.fromEntries(status.checks.map((c) => [c.name, c.url]))).toEqual({
+      evil: undefined,
+      data: undefined,
+      fine: 'https://ci.example/runs/9',
+      'deployment: preview': undefined,
+    });
     expect(status.siteUrl).toBeUndefined();
   });
 
-  it("says a credential that may not read them is forbidden, and not that nothing was built", async () => {
-    const commit = await h.seed({ "a.md": "a" });
+  it('says a credential that may not read them is forbidden, and not that nothing was built', async () => {
+    const commit = await h.seed({ 'a.md': 'a' });
     fake.forbidBuildReads = true;
     const error = await h.provider.getBuildStatus(h.repo, commit).then(
       () => undefined,
       (e: unknown) => e,
     );
-    expect(isProviderError(error, "forbidden")).toBe(true);
+    expect(isProviderError(error, 'forbidden')).toBe(true);
   });
 
-  it("makes its requests in the one pass: check runs, statuses and deployments, and a status per deployment", async () => {
-    const commit = await h.seed({ "a.md": "a" });
-    fake.reportBuild(commit, { deployments: [{ id: 7, environment: "preview", statuses: [{ state: "success", environment_url: "https://x.example" }] }] });
+  it('makes its requests in the one pass: check runs, statuses and deployments, and a status per deployment', async () => {
+    const commit = await h.seed({ 'a.md': 'a' });
+    fake.reportBuild(commit, {
+      deployments: [
+        {
+          id: 7,
+          environment: 'preview',
+          statuses: [{ state: 'success', environment_url: 'https://x.example' }],
+        },
+      ],
+    });
     fake.requests.length = 0;
     await h.provider.getBuildStatus(h.repo, commit);
-    expect(fake.requests.map((r) => r.path.replace(commit, "<sha>")).sort()).toEqual([
-      "/repos/acme/notes/commits/<sha>/check-runs?per_page=100",
-      "/repos/acme/notes/commits/<sha>/status?per_page=100",
-      "/repos/acme/notes/deployments/7/statuses?per_page=1",
-      `/repos/acme/notes/deployments?sha=${commit}&per_page=10`.replace(commit, "<sha>"),
+    expect(fake.requests.map((r) => r.path.replace(commit, '<sha>')).sort()).toEqual([
+      '/repos/acme/notes/commits/<sha>/check-runs?per_page=100',
+      '/repos/acme/notes/commits/<sha>/status?per_page=100',
+      '/repos/acme/notes/deployments/7/statuses?per_page=1',
+      `/repos/acme/notes/deployments?sha=${commit}&per_page=10`.replace(commit, '<sha>'),
     ]);
   });
 });

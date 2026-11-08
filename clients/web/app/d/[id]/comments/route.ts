@@ -1,10 +1,13 @@
-import { commentsContext } from "../../../../src/comments/server";
-import { handleComments } from "../../../../src/comments/http";
+import { commentsContext } from '../../../../src/comments/server';
+import { handleComments } from '../../../../src/comments/http';
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 /** A document's comments (ROADMAP 1d.1). Under `/d/<id>` because that is where a link's cookie is sent; a session works anywhere. */
-async function handle(request: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
+async function handle(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+): Promise<Response> {
   const context = await commentsContext();
   if (!context) return new Response(null, { status: 404 });
   return handleComments(request, context.caller, context.deps, (await params).id);

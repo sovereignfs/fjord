@@ -21,7 +21,7 @@ What it must not give up, whatever the convenience:
 - **The files stay plain.** A document edited in Fjord Web is a Markdown file in the
   user's repository that GitHub renders, Obsidian opens and `git diff` reads.
 - **Git is the storage.** Fjord Web never keeps the authoritative copy of a
-  document; the repository does. What the server keeps is state *about* files:
+  document; the repository does. What the server keeps is state _about_ files:
   connections, shares, comments, and drafts not yet committed.
 - **Encrypted means the operator cannot read it.** When encrypted files arrive
   (phase 2), they are decrypted in the browser. The age identity never reaches the
@@ -32,13 +32,13 @@ What it must not give up, whatever the convenience:
 
 ## 2. Phases
 
-| Phase | What it delivers |
-| --- | --- |
-| **1** | Accounts, GitHub repositories, a file browser, editors for **plaintext** documents and notes, renaming, moving and deleting them, versions as commits, sharing, and collaborative **comments**. |
-| **2** | Encrypted files: browse, open and edit documents in encrypted vaults, decrypted in the browser; sealed shares of encrypted documents. |
-| **3** | Repository **kinds**: a repository opens as a drive, a journal (a timeline, tags) or a static site (a content editor, then previews through the host). Proposed in [RFC 0001](../../docs/rfcs/0001-repository-kinds.md); see §8, *Repository kinds*. |
-| **4** | Collaborative **editing** in real time. |
-| Later | Other git hosts (GitLab, Forgejo/Gitea, any git server), Sheets, search, notifications, the desktop and mobile clients and editor plugins reusing the editor package. |
+| Phase | What it delivers                                                                                                                                                                                                                                     |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | Accounts, GitHub repositories, a file browser, editors for **plaintext** documents and notes, renaming, moving and deleting them, versions as commits, sharing, and collaborative **comments**.                                                      |
+| **2** | Encrypted files: browse, open and edit documents in encrypted vaults, decrypted in the browser; sealed shares of encrypted documents.                                                                                                                |
+| **3** | Repository **kinds**: a repository opens as a drive, a journal (a timeline, tags) or a static site (a content editor, then previews through the host). Proposed in [RFC 0001](../../docs/rfcs/0001-repository-kinds.md); see §8, _Repository kinds_. |
+| **4** | Collaborative **editing** in real time.                                                                                                                                                                                                              |
+| Later | Other git hosts (GitLab, Forgejo/Gitea, any git server), Sheets, search, notifications, the desktop and mobile clients and editor plugins reusing the editor package.                                                                                |
 
 Phase 1 ships in slices (§16), each usable on its own.
 
@@ -60,7 +60,7 @@ Phase 1 ships in slices (§16), each usable on its own.
    Encrypted vaults show a lock; a file in one opens and is edited in the browser with the person's own age identity, and new files are made there (phase 2).
 6. **Opening** a document (`name.fj.md`) goes to `/d/<id>` and the document editor;
    opening a note (any other `.md`) goes to `/n/<id>` and the note editor (§9, §10).
-   *Planned ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.1):* there is one kind of Doc, every Doc opens at
+   _Planned ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.1):_ there is one kind of Doc, every Doc opens at
    `/d/<id>` in the editor its repository's kind chooses, and anything else at
    `/f/<handle>`; no address shows a path.
 7. **Editing** saves continuously to a working copy on the server; a version (a git
@@ -68,8 +68,8 @@ Phase 1 ships in slices (§16), each usable on its own.
    **Renaming, moving and deleting** a document, note or folder is one commit each;
    a deletion can be undone or restored later (§8).
 8. **Sharing** a document: publicly by link, by link with a password, or with named
-   users of the instance; each as view, comment or edit (§12). *Planned (RFC 0002,
-   3e.3, 3h):* any Doc in a drive, and **publishing** one as a read-only page.
+   users of the instance; each as view, comment or edit (§12). _Planned (RFC 0002,
+   3e.3, 3h):_ any Doc in a drive, and **publishing** one as a read-only page.
 9. **Comments**: anyone with comment or edit access can select text, comment, reply
    and resolve, and sees others' comments as they arrive (§13).
 10. **Someone opening a shared link** sees the document; if the link allows editing
@@ -78,19 +78,19 @@ Phase 1 ships in slices (§16), each usable on its own.
 
 ## 4. Terminology
 
-| Term | Meaning |
-| --- | --- |
-| **Instance** | One deployment of Fjord Web, such as `fjord.sovereign.fs`. |
-| **Account** | A user of an instance. |
-| **Connection** | An account's link to one repository through a provider (§7). |
-| **Default repository / vault** | Where `/` lands, per account; and which vault opens first, per connection. |
-| **Document** | A file named `*.fj.md`: a long-form Fjord Doc, edited in the document editor. *Withdrawn by [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md) (spec §8.4): every Doc is one kind, and the repository's kind chooses its editor.* |
-| **Note** | Any other `.md` file in a vault: a short text, edited in the note editor. *Withdrawn with Document.* |
-| **Handle** | *Planned (RFC 0002).* The opaque identifier in `/f/<handle>` of a file or folder that has no Doc `id`, kept in the instance's database and never committed. |
-| **Working copy** | The server-side draft of a file being edited, not yet committed. |
-| **Version** | A commit that changed the file. |
-| **Share** | Access to one document granted by its owner: to named users, or by link. |
-| **Owner** | The account whose connection the document is reached through. |
+| Term                           | Meaning                                                                                                                                                                                                                              |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Instance**                   | One deployment of Fjord Web, such as `fjord.sovereign.fs`.                                                                                                                                                                           |
+| **Account**                    | A user of an instance.                                                                                                                                                                                                               |
+| **Connection**                 | An account's link to one repository through a provider (§7).                                                                                                                                                                         |
+| **Default repository / vault** | Where `/` lands, per account; and which vault opens first, per connection.                                                                                                                                                           |
+| **Document**                   | A file named `*.fj.md`: a long-form Fjord Doc, edited in the document editor. _Withdrawn by [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md) (spec §8.4): every Doc is one kind, and the repository's kind chooses its editor._ |
+| **Note**                       | Any other `.md` file in a vault: a short text, edited in the note editor. _Withdrawn with Document._                                                                                                                                 |
+| **Handle**                     | _Planned (RFC 0002)._ The opaque identifier in `/f/<handle>` of a file or folder that has no Doc `id`, kept in the instance's database and never committed.                                                                          |
+| **Working copy**               | The server-side draft of a file being edited, not yet committed.                                                                                                                                                                     |
+| **Version**                    | A commit that changed the file.                                                                                                                                                                                                      |
+| **Share**                      | Access to one document granted by its owner: to named users, or by link.                                                                                                                                                             |
+| **Owner**                      | The account whose connection the document is reached through.                                                                                                                                                                        |
 
 ## 5. Architecture
 
@@ -124,14 +124,14 @@ Phase 1 ships in slices (§16), each usable on its own.
 
 ### What runs where
 
-| Concern | Browser | Server |
-| --- | --- | --- |
-| Rendering, editing, comment UI | ✓ | |
-| Frontmatter parse and preserve | | ✓ (`fjord-core`) |
-| Talking to GitHub, holding its credentials | | ✓ |
-| Working copies, commits, conflict detection | | ✓ |
-| Shares, permissions, comments | | ✓ |
-| Decryption and encryption (phase 2) | ✓ (`fjord-core`) | never |
+| Concern                                     | Browser          | Server           |
+| ------------------------------------------- | ---------------- | ---------------- |
+| Rendering, editing, comment UI              | ✓                |                  |
+| Frontmatter parse and preserve              |                  | ✓ (`fjord-core`) |
+| Talking to GitHub, holding its credentials  |                  | ✓                |
+| Working copies, commits, conflict detection |                  | ✓                |
+| Shares, permissions, comments               |                  | ✓                |
+| Decryption and encryption (phase 2)         | ✓ (`fjord-core`) | never            |
 
 ## 6. Authentication
 
@@ -139,15 +139,16 @@ Built on **better-auth**, the library Sovereign's own auth server uses, with the
 same plugins. Which methods are offered is set by environment variables, so an
 instance can run either or both:
 
-| Method | Enabled by | Notes |
-| --- | --- | --- |
-| **Local**: email and password, plus passkeys and TOTP | `FJORD_AUTH_LOCAL=1` | better-auth email/password, `@better-auth/passkey`, `twoFactor` (authenticator app and backup codes). |
-| **Sovereign** | `FJORD_CORE_URL`, `FJORD_CORE_CLIENT_ID`, `FJORD_CORE_CLIENT_SECRET` (the names a Sovereign instance gives an app it hosts) | OIDC against a Sovereign instance's external OAuth/OIDC provider (Sovereign RFC 0072): authorization code flow, the client registered by that instance's admin with an exact redirect URI. Claims used: `sub`, `email`, `name`. |
+| Method                                                | Enabled by                                                                                                                  | Notes                                                                                                                                                                                                                           |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Local**: email and password, plus passkeys and TOTP | `FJORD_AUTH_LOCAL=1`                                                                                                        | better-auth email/password, `@better-auth/passkey`, `twoFactor` (authenticator app and backup codes).                                                                                                                           |
+| **Sovereign**                                         | `FJORD_CORE_URL`, `FJORD_CORE_CLIENT_ID`, `FJORD_CORE_CLIENT_SECRET` (the names a Sovereign instance gives an app it hosts) | OIDC against a Sovereign instance's external OAuth/OIDC provider (Sovereign RFC 0072): authorization code flow, the client registered by that instance's admin with an exact redirect URI. Claims used: `sub`, `email`, `name`. |
 
-- **Reuse from Sovereign.** The shared logic *is* better-auth, so Fjord Web uses it
+- **Reuse from Sovereign.** The shared logic _is_ better-auth, so Fjord Web uses it
   directly rather than calling into Sovereign's code. The sign-in, sign-up and
   enrolment screens are copied from Sovereign first, and extracted into a shared
   package once both apps use them and they have stopped changing.
+
 ### Local sign-in, as built (ROADMAP 1a.2)
 
 - **better-auth 1.7**, through its Drizzle adapter, in the auth store (`fjord_auth`, §14), with
@@ -190,7 +191,7 @@ instance can run either or both:
 
 - **Registered by the Sovereign instance's admin** (Console, External clients; no dynamic
   registration): redirect URI exactly `<FJORD_URL>/api/auth/callback/sovereign`, scopes `openid
-  profile email`. Fjord Web holds the core's address, which is the issuer and has no path, and the
+profile email`. Fjord Web holds the core's address, which is the issuer and has no path, and the
   client id and secret (`FJORD_CORE_*`, the secret from a file if wanted); all three or none, and a partial set stops the server at start-up.
 - **better-auth's `genericOAuth`** with the issuer's discovery document: authorization code with
   PKCE S256, the secret sent by basic auth, a `nonce` bound to the request. The ID token (EdDSA
@@ -207,7 +208,7 @@ instance can run either or both:
   person has no password, two-factor or passkeys, so those settings (the Security section of `/account`, its General part; `/security`, `/account/security` and `/account/keys` still arrive there) answer
   404 on an instance with only Sovereign on.
 - **Linking (ROADMAP 1a.4), when both methods are on.** In the Security section of the account (`/account?section=security`) a signed-in person can
-  *Link Sovereign*: they go to Sovereign and back, and Sovereign's `sub` is attached to **this**
+  _Link Sovereign_: they go to Sovereign and back, and Sovereign's `sub` is attached to **this**
   account. The rules are the server's, and each is tested:
   - **Only from a signed-in session**, so linking is something a person who has shown they control the
     account does. Nothing links by email at sign-in; an unlinked Sovereign login whose address is a
@@ -230,7 +231,7 @@ instance can run either or both:
     Sovereign as a first factor only; not done.)
   - **The page for an account that came in through Sovereign** has no password, two-factor or passkey
     sections (they would not work: two-factor asks for the password) and says so; the Sovereign section
-    shows it linked, with *Unlink* disabled. Adding a password to such an account is later work.
+    shows it linked, with _Unlink_ disabled. Adding a password to such an account is later work.
 - **Sign-up policy is one policy.** `FJORD_AUTH_SIGNUP=closed` refuses a second Sovereign person
   as it refuses a second local one, in the server's user-creation hook; the refusal carries a
   code (`SIGNUP_CLOSED`) so that the person is sent back to the sign-in page with the reason and
@@ -257,17 +258,17 @@ assumption:
 - commit several file changes atomically on top of a known head;
 - receive change notifications (webhooks), or poll where a host has none.
 
-**Adding a vault** (ROADMAP 2d.1). A Fjord repository's page offers *Add a vault*: a name, plaintext or encrypted, and for an encrypted one the naming (by name or by id) and its public keys, the browser's own filled in. The browser sends only those choices; the server reads `fjord.json` strictly, the root listing and (for an encrypted vault) `.gitattributes`, asks `fjord-core`'s `plan_vault` what to write (the planner `fjord vault add` writes from, so the two make the same bytes), and commits it once on the head it read, never forced. An encrypted vault is added only with a key, so that it can be written to at once.
+**Adding a vault** (ROADMAP 2d.1). A Fjord repository's page offers _Add a vault_: a name, plaintext or encrypted, and for an encrypted one the naming (by name or by id) and its public keys, the browser's own filled in. The browser sends only those choices; the server reads `fjord.json` strictly, the root listing and (for an encrypted vault) `.gitattributes`, asks `fjord-core`'s `plan_vault` what to write (the planner `fjord vault add` writes from, so the two make the same bytes), and commits it once on the head it read, never forced. An encrypted vault is added only with a key, so that it can be written to at once.
 
 **GitHub, two ways in:**
 
 1. **The GitHub App** (preferred). The user installs it and picks repositories;
-   the App asks for *Contents: read and write* and *Metadata: read* only. Fjord Web
+   the App asks for _Contents: read and write_ and _Metadata: read_ only. Fjord Web
    uses short-lived tokens, and receives `push` webhooks. A GitHub App is used
    rather than "Sign in with GitHub" OAuth because an OAuth App's `repo` scope
    reaches every private repository the user has.
 2. **A repository URL and a fine-grained personal access token**, limited to that
-   repository with *Contents: read and write*. Its permissions are checked when it
+   repository with _Contents: read and write_. Its permissions are checked when it
    is added.
 
 ### The provider interface, as built (ROADMAP 1a.5)
@@ -323,14 +324,14 @@ browser.
 
 - **What a person does:** on `/repositories`, gives the repository's address (`https://github.com/o/r`,
   with or without `.git`, `git@github.com:o/r`, or `o/r`) and a fine-grained personal access token
-  limited to that repository with *Contents: Read and write*. Only GitHub so far, and the address is
+  limited to that repository with _Contents: Read and write_. Only GitHub so far, and the address is
   refused with a reason if it is another host, a page inside a repository, or has a password in it.
 - **Checked before anything is kept** (`src/connections/service.ts`), in the order a person would fix
   things: GitHub accepts the token; it can see the repository (the repository's own spelling is what is
   kept); the default branch has something in it (a branch that is not there is an empty repository, and
   is said to be: there is nothing to work on yet); it is not connected already; and the token can
   **write**, by `canWrite`. Each refusal is a message of ours saying what to do (“create the token with
-  *Contents: Read and write*”), never GitHub's text, never the token. A token that fails leaves nothing
+  _Contents: Read and write_”), never GitHub's text, never the token. A token that fails leaves nothing
   behind, and neither does one whose connection could not be recorded.
 - **A token that reaches more than it needs to** is accepted with a warning naming how many other
   repositories it can reach: the design's advice is a token for one repository, but a person's choice
@@ -362,7 +363,7 @@ browser.
 - **What a person does:** on `/repositories`, **Install on GitHub**; on GitHub they install the App and **choose the repositories**; they are sent back and find those connected. Doing it again connects the ones added since.
 - **The way back is checked twice** (`src/github-app/install.ts`, `http.ts`), because an installation's number in an address proves nothing:
   1. **`state`**: a random value set in an `HttpOnly`, `SameSite=Lax` cookie when they leave and compared when they return. A link someone else made, or a browser that did not start the trip, connects nothing.
-  2. **Whose installation it is**: the App asks for the person's authorisation as they install, and the `code` GitHub returns is traded for a token **of that person**, used once to ask which repositories of *that installation* **they** can reach (`/user/installations/<id>/repositories`). Only those are connected. An installation that is not theirs is a 404 to them, and nothing is connected; a member of an organisation reaches through the App only what GitHub lets them reach themselves. Their token is never stored, and the client secret is used only for that exchange.
+  2. **Whose installation it is**: the App asks for the person's authorisation as they install, and the `code` GitHub returns is traded for a token **of that person**, used once to ask which repositories of _that installation_ **they** can reach (`/user/installations/<id>/repositories`). Only those are connected. An installation that is not theirs is a 404 to them, and nothing is connected; a member of an organisation reaches through the App only what GitHub lets them reach themselves. Their token is never stored, and the client secret is used only for that exchange.
 - **No token is kept.** A connection has `kind = app`, and the credential store holds only **which installation** it came through (encrypted, with the connection's lifetime; no migration was needed). `InstallationTokens` (`tokens.ts`) signs a JWT with the App's key (RS256, issued a minute ago, nine minutes long) and asks GitHub for a token for the installation, which lasts an hour; it is kept in memory until five minutes before it expires, asked for once when many requests need it at once, and in no log or error. A removed or suspended installation is `unauthorized` or `forbidden` to the app, which is what a revoked token is.
 - **Each repository is checked as a token's is** (`ConnectionService.addFromInstallation`): it has something in it, and the App can write to it (by trying, `canWrite`). One that fails is left out and counted, and the rest go on; one already connected is counted, and never twice. At most 100 at a time.
 - **The webhook** (`POST /api/webhooks/github`, `webhook.ts`) is let in by its signature alone (`X-Hub-Signature-256`, constant-time, over the exact bytes), refused before it is read otherwise, capped at 5 MB, and never says what failed inside. A `push` forgets the cached trees of every connection that follows that branch of that repository (`ConnectionService.pushed`). Since a tree is cached by commit and never stale, this is hygiene, not correctness; **the head check at every view is made free another way**: views send the last `ETag` and a `304` costs no rate limit (§8), so nothing depends on a webhook being delivered, and the webhook is not trusted to say a branch has not moved.
@@ -403,7 +404,7 @@ browser.
 
 **Defaults.** The first repository connected is the default; with two or more the
 user can change it. Each connection has a default vault: the first vault listed in
-`fjord.json` until the user picks another (see *The default vault*, below).
+`fjord.json` until the user picks another (see _The default vault_, below).
 
 ### First run and defaults, as built (ROADMAP 1a.9)
 
@@ -417,11 +418,11 @@ user can change it. Each connection has a default vault: the first vault listed 
   names a connection that is gone any other way is ignored on reading, so `/open` never lands on a
   repository that is not there.
 - **A repository is called in an address by its public id** (`connection.public_id`, `src/connections/public-id.ts`): eight lower-case characters of Crockford's base32 (40 random bits), generated when it is connected, given to a row that predates it the first time it is listed, and unique across the instance. It is a name and not a secret (reaching the repository takes the account that connected it); it is chosen so that an address does not say how many repositories there are, or in what order they were connected. Every `<repo>` in this document is it. The database's own number is what its tables and `/api/connections/<id>` use, and `/repo/<number>` (at most seven digits, so never mistaken for a public id) and `/deleted/<number>` still arrive and are sent on.
-- **A repository's addresses begin with its kind** (`/drive/<repo>`, `/journal/<repo>`, `/ssg/<repo>`; `ConnectionInfo.address`), by what the manifest says it is now: an address of another kind, and the older `/repo/<repo>`, are sent to the right one. **A document's page** is headed by what the document says (its header's title, else its first `# heading`, else its file's name) with its size; the actions on it are icons at the end of that line (share, in a dialog; move; move to another vault; delete), and rename is the *File name* of its properties, which also say when it last changed (the repository's history for that file, asked once, `Provider.lastModified`).
-- **A repository's page is its vaults as folders, and its settings are a dialog** (the owner's request after workstream 0003). The vaults are drawn as the directories they are, a folder for a plaintext vault and `folder-lock` for an encrypted one, as rows or as tiles with a toggle at the top right (`browse/screens/Listing.tsx`; the choice is kept in this browser, and is the person's convenience, not state). Opening a vault shows its folders and files one level down in the same listing, with the same toggle; the buttons that make or change something (*New folder*, *New document*, *Encrypt this vault…*, rename, move and delete of a folder, and *Create a new vault* at the top, a primary button) are the listing's actions at its top left, level with each other and with the toggle, and each that needs anything asks for it in a dialog (`browse/screens/ActionDialog.tsx`, or `ConfirmDialog` for a deletion): no form is drawn among the files. The path above a vault or folder is outside the card, between the repository's name and it. Pointing at a row changes its background only. Which vault a repository opens on is not shown on the vaults (no *opens first* label or button): it is *Default vault* in the repository's settings. The icons are chosen by a file's name alone (`browse/file-icons.ts`: one table, so a kind of file is one line): `folder-closed` for a folder and `folder-open` when it is pointed at and in the path above it, `file-text` for Markdown, `file-image`, `square-text` for a PDF, `file-code-corner` for HTML, `file` for the rest. Two icons at the end of the repository's name: `settings-2` opens *Repository settings* (whether it is the default, its kind, the way to the list of repositories) and `archive-x` goes to what was deleted. **A new folder is made with its first document**, as git has no empty folders (`files/new-folder.ts`, `newFolder` on the create routes): one level below a folder that is there, in a vault whose file names are plain, refused where something of that name is (case aside). A file's created and modified dates are not shown: the host's tree has none, and each would be a request to its history for each file listed; its size is.
+- **A repository's addresses begin with its kind** (`/drive/<repo>`, `/journal/<repo>`, `/ssg/<repo>`; `ConnectionInfo.address`), by what the manifest says it is now: an address of another kind, and the older `/repo/<repo>`, are sent to the right one. **A document's page** is headed by what the document says (its header's title, else its first `# heading`, else its file's name) with its size; the actions on it are icons at the end of that line (share, in a dialog; move; move to another vault; delete), and rename is the _File name_ of its properties, which also say when it last changed (the repository's history for that file, asked once, `Provider.lastModified`).
+- **A repository's page is its vaults as folders, and its settings are a dialog** (the owner's request after workstream 0003). The vaults are drawn as the directories they are, a folder for a plaintext vault and `folder-lock` for an encrypted one, as rows or as tiles with a toggle at the top right (`browse/screens/Listing.tsx`; the choice is kept in this browser, and is the person's convenience, not state). Opening a vault shows its folders and files one level down in the same listing, with the same toggle; the buttons that make or change something (_New folder_, _New document_, _Encrypt this vault…_, rename, move and delete of a folder, and _Create a new vault_ at the top, a primary button) are the listing's actions at its top left, level with each other and with the toggle, and each that needs anything asks for it in a dialog (`browse/screens/ActionDialog.tsx`, or `ConfirmDialog` for a deletion): no form is drawn among the files. The path above a vault or folder is outside the card, between the repository's name and it. Pointing at a row changes its background only. Which vault a repository opens on is not shown on the vaults (no _opens first_ label or button): it is _Default vault_ in the repository's settings. The icons are chosen by a file's name alone (`browse/file-icons.ts`: one table, so a kind of file is one line): `folder-closed` for a folder and `folder-open` when it is pointed at and in the path above it, `file-text` for Markdown, `file-image`, `square-text` for a PDF, `file-code-corner` for HTML, `file` for the rest. Two icons at the end of the repository's name: `settings-2` opens _Repository settings_ (whether it is the default, its kind, the way to the list of repositories) and `archive-x` goes to what was deleted. **A new folder is made with its first document**, as git has no empty folders (`files/new-folder.ts`, `newFolder` on the create routes): one level below a folder that is there, in a vault whose file names are plain, refused where something of that name is (case aside). A file's created and modified dates are not shown: the host's tree has none, and each would be a request to its history for each file listed; its size is.
 - **The repository page** is `/repo/<repo>` for any of the account's own (`/` is the home page: a tile for each, drawn from what is stored, with the kind each was last read as in `connection.repo_kind`, a hint for the icons, never a decision)
   (the path inside it, `/repo/<connection>/<path>`, comes with the file browser, 1a.11). It names the
-  repository and its branch, marks the default, and offers *Make this my default* on the others. With
+  repository and its branch, marks the default, and offers _Make this my default_ on the others. With
   two or more it has the switcher: a list of the account's repositories, each a link. Someone else's
   `/repo/<id>`, or one that is not there, is a 404; choosing a default is an API call
   (`POST /api/connections/<id>/default`) with the same rules as the rest of §12: signed in, this site's
@@ -477,14 +478,14 @@ Until it is connected it is kept in the database, within a limit for each accoun
 - **What can be opened** is decided from the name alone, so nothing is downloaded to
   draw the browser:
 
-  | File | Shown as | Opens in |
-  | --- | --- | --- |
-  | `*.fj.md` | Document | Document editor, `/d/<id>` |
-  | `*.md` (any other) | Note | Note editor, `/n/<id>` |
-  | anything else, in a plaintext vault | link to its page: a raster picture is shown, anything can be saved (served by `/raw/<repo>/<handle>/file`, never run) | — |
-  | anything in an encrypted vault | greyed out, with a lock | — (phase 2) |
+  | File                                | Shown as                                                                                                              | Opens in                   |
+  | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+  | `*.fj.md`                           | Document                                                                                                              | Document editor, `/d/<id>` |
+  | `*.md` (any other)                  | Note                                                                                                                  | Note editor, `/n/<id>`     |
+  | anything else, in a plaintext vault | link to its page: a raster picture is shown, anything can be saved (served by `/raw/<repo>/<handle>/file`, never run) | —                          |
+  | anything in an encrypted vault      | greyed out, with a lock                                                                                               | — (phase 2)                |
 
-  *Planned ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.1, 3e.2):* the first two rows become one, **`*.md`: a Doc,
+  _Planned ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.1, 3e.2):_ the first two rows become one, **`*.md`: a Doc,
   opened at `/d/<id>`** (or `/f/<handle>` while it has no `id`) in the editor its
   repository's kind chooses; folders and other files link by handle.
 
@@ -504,22 +505,22 @@ alternatives are [RFC 0001](../../docs/rfcs/0001-repository-kinds.md), and the `
 
 - **Each kind is a module** (`src/kinds/`), behind one interface (`KindModule`, `types.ts`):
 
-  | Part | What it is | Drive | Journal | Site (`ssg`) |
-  | --- | --- | --- | --- | --- |
-  | **Entry view** | What `/repo/<connection>` (and `/` for the default repository) opens on | The vaults as folders (a folder for a plaintext vault, a locked one for an encrypted vault), as rows or tiles; opening one shows what is in it, one level down | A timeline (3b.2) | Posts and pages (3c.2) |
-  | **Scaffold** | What a new repository of the kind contains: `fjord-core`'s plan, through the module (`planKind`), never ours | `Public` and `Private` | One vault, `journal/`, plaintext or encrypted | One plaintext vault, `content/`, and the engine's files |
-  | **Content model** | Where a new item goes and which fields it has | Anywhere | From its `date` (spec §8.1) | By the engine's rules |
-  | **Actions** | What the kind adds beyond editing | None | New entry | Build status; preview |
+  | Part              | What it is                                                                                                   | Drive                                                                                                                                                          | Journal                                       | Site (`ssg`)                                            |
+  | ----------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | ------------------------------------------------------- |
+  | **Entry view**    | What `/repo/<connection>` (and `/` for the default repository) opens on                                      | The vaults as folders (a folder for a plaintext vault, a locked one for an encrypted vault), as rows or tiles; opening one shows what is in it, one level down | A timeline (3b.2)                             | Posts and pages (3c.2)                                  |
+  | **Scaffold**      | What a new repository of the kind contains: `fjord-core`'s plan, through the module (`planKind`), never ours | `Public` and `Private`                                                                                                                                         | One vault, `journal/`, plaintext or encrypted | One plaintext vault, `content/`, and the engine's files |
+  | **Content model** | Where a new item goes and which fields it has                                                                | Anywhere                                                                                                                                                       | From its `date` (spec §8.1)                   | By the engine's rules                                   |
+  | **Actions**       | What the kind adds beyond editing                                                                            | None                                                                                                                                                           | New entry                                     | Build status; preview                                   |
 
 - **Which module** is the registry's (`registry.ts`), from the kind the format module answers (`describeRepositoryManifest`'s
   `kind`, never `fjord.json` read here). A kind the client has no module for, or one of a newer revision, is a drive; so is an
   `ssg` repository whose engine this build does not know (spec §3.1). Each kind's module registers itself; a test registers a
   stand-in and sees its entry view with nothing else changed.
-- **Every kind can be shown as files.** A repository of another kind offers *Show files*, which is the drive's view
+- **Every kind can be shown as files.** A repository of another kind offers _Show files_, which is the drive's view
   (`/repo/<connection>?view=files`), and back. The folder and file pages under `/repo/<connection>/<vault>/…` are the same for
   every kind.
 - **Setting up offers a kind** (3a.3, extending §7's offer): a drive with one plaintext vault (as before), a journal, plaintext or
-  encrypted to this browser's public key (as *Add a vault* does), or a site for Astro or Jekyll. Each is previewed, and made, by
+  encrypted to this browser's public key (as _Add a vault_ does), or a site for Astro or Jekyll. Each is previewed, and made, by
   `fjord-core` (`planSetup`, `planSetupKind`) in one commit that writes over nothing of the repository's own: a site whose engine
   would need a file that is there is refused with its name. A site is never offered encryption.
 - **A site's page shows the host's build, and Fjord configures nothing** (3c.3, Research 0001). The `Provider` reads what the host
@@ -528,7 +529,7 @@ alternatives are [RFC 0001](../../docs/rfcs/0001-repository-kinds.md), and the `
   `none`, not an error; GitHub's combined status says `pending` of a commit nothing posted to (found in its real answers), so
   the statuses are read and not that. Any failure is a failure, anything not done is pending, and every address is shown only if
   it is `http(s)`. The build is the **head commit's** and is read at each view. A token that may not read these says so and does not
-  mean "nothing built": a fine-grained token needs *Checks*, *Commit statuses* and *Deployments*, each *Read*.
+  mean "nothing built": a fine-grained token needs _Checks_, _Commit statuses_ and _Deployments_, each _Read_.
 - **A site's unsaved changes are previewed through its host** (3d.1, Research 0001). Fjord builds nothing and holds no credential of the
   host's. "Preview" commits the person's drafts of the site's vault to a **branch of their own** (`src/site/preview.ts`): cut from the default
   branch's head, one commit, never forced, and the default branch only ever read. The host (Cloudflare Pages, Netlify, Vercel…) builds that
@@ -630,7 +631,7 @@ repository's default vault.
   set with `PUT /api/connections/<id>/vault` and `{"vault": "<directory>"}`, or `{"vault": null}` to forget it, under
   §12's rules: signed in, this site's `Origin`, the caller's own connection (another's is a 404, before the git host
   is asked anything). A named vault must be one the repository has, checked against the repository as it is now (422
-  if not, 502 if the host cannot be reached). Each vault on the list but the first offers *Open this one first*.
+  if not, 502 if the host cannot be reached). Each vault on the list but the first offers _Open this one first_.
 - **Tested** against the in-memory host and the real module on all three databases, holding the result to the
   CLI's walk over every conformance fixture (`tests/fixtures/discovery.json`); and in a browser against the
   git-backed fake GitHub, including that a second look reads no tree and no blob, that `fjord.json`'s order beats the
@@ -638,7 +639,7 @@ repository's default vault.
 
 ### Encrypting and decrypting a whole vault (RFC 0003)
 
-A vault's top has *Encrypt this vault…* (a plaintext vault) or *Make this vault plaintext…* (an encrypted one). These are the web's
+A vault's top has _Encrypt this vault…_ (a plaintext vault) or _Make this vault plaintext…_ (an encrypted one). These are the web's
 `fjord encrypt <vault> --permanent` and `fjord decrypt <vault> --permanent`. There is no checkout (spec §6.6) in a browser: an encrypted file is
 opened, edited and sealed again one at a time, so the only thing to do with a whole vault is change what it is.
 
@@ -670,21 +671,21 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
   of spec §5, including the reserved names and two names in one folder that differ
   only by case. A name that is already taken is refused, never overwritten.
 - **Where a file can move:** to any folder of a plaintext vault in the same
-  repository, by *Move*. Into an encrypted vault, or out of one, is *Move to another vault* (ROADMAP 2b.6, below), never *Move*: the
+  repository, by _Move_. Into an encrypted vault, or out of one, is _Move to another vault_ (ROADMAP 2b.6, below), never _Move_: the
   server has no key, so a file cannot change form there.
   Between repositories is not a move (ids are unique only within one, spec E401).
 - **In an encrypted vault** (ROADMAP 2b.5) a file is renamed, moved, deleted and put back as the bytes it is, within its own vault,
   with no key on the server, for a vault this version writes (age, `.age`, binary, the container its naming needs). A rename
   keeps what the file is: `Plan.md.age` stays `.md.age`, and a document stays `.fj.md.age`. Moving to or from another vault
-  is 2b.6, which decrypts or encrypts in the browser on the way; *Move* refuses both. In an `id`-named
+  is 2b.6, which decrypts or encrypts in the browser on the way; _Move_ refuses both. In an `id`-named
   vault the on-disk name is the identifier and never changes (spec §7.2), so the server refuses a rename by path (`id_named`)
   and a file there is **renamed by the name inside the container**: the browser has the file open, repacks it under the new
   name, encrypts it again, and has the server keep that as a draft and commit a version in place, with the message `Rename an
-  encrypted file` (so the commit says nothing of either name). That is offered with no unsaved changes only, as the version
+encrypted file` (so the commit says nothing of either name). That is offered with no unsaved changes only, as the version
   would otherwise carry them. A folder's name is plaintext in both namings and is renamed or moved like any. Deleting an
   encrypted file reads nothing of it (no `id` to record), and Undo and Recently deleted put the same ciphertext blob back; in an
   `id`-named vault only under the same identifier.
-- **Between vaults, when one is encrypted** (ROADMAP 2b.6) a file moves with *Move to another vault* on its page: into an encrypted
+- **Between vaults, when one is encrypted** (ROADMAP 2b.6) a file moves with _Move to another vault_ on its page: into an encrypted
   vault, out of one, or between two. The page has the file's text (a plaintext note it was given, or an encrypted file it has
   decrypted with the identity) and makes the bytes the destination holds: the text for a plaintext vault, and for an encrypted one
   the ciphertext to that vault's recipients (asked for from `GET /api/connections/<id>/recipients?vault=` when the vault is
@@ -706,18 +707,18 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
 - **On top of the head the browser showed.** If any path involved has changed
   upstream since, the action stops and shows what changed, as for edits (§11).
 - **As built (ROADMAP 1b.11), rename and move.** `POST /api/connections/<id>/files/move` takes `{ vault, type, path, blob | files,
-  destination }`: what the page showed (the file's blob, the folder's file count) and the full new path. One commit puts the
+destination }`: what the page showed (the file's blob, the folder's file count) and the full new path. One commit puts the
   **same blobs** at the new paths and deletes the old ones, so every byte, a Doc's `id` and its header are untouched; the
   message is `Rename <old> to <new>` when the folder is the same and `Move <name> to <folder>` when it is not. The new name
   passes `fjord-core`'s path rules; **nothing is put over anything**: a path that is taken, a file where a folder must go and
   a name that differs only by letter case from one in the folder are refused and named, while a name that differs from the
-  file's *own* only by case is allowed. A folder is never moved onto a folder that is there (that would be a merge), nor into
+  file's _own_ only by case is allowed. A folder is never moved onto a folder that is there (that would be a merge), nor into
   itself; the extension must stay; a vault, its manifest, `fjord.json` and anything git stores as a link are not touched.
   Moving to another vault is allowed when both are plaintext with plain names; **into an encrypted vault is refused** (says
   why), as is a vault the page cannot read. An encrypted vault is the exception below (ROADMAP 2b.5). As for deleting, the move is on top of the head that was read, never forced, and
   stops if the file or folder is not what was shown. A file with unsaved changes has them saved as a version first; a folder
-  with any, or a place that has a draft of its own, is refused. The page offers *Rename* (the name before the extension) and
-  *Move* (a folder from the plaintext vaults the repository lists, up to 300) beside Delete. The id index is moved with the
+  with any, or a place that has a draft of its own, is refused. The page offers _Rename_ (the name before the extension) and
+  _Move_ (a folder from the plaintext vaults the repository lists, up to 300) beside Delete. The id index is moved with the
   files, so `/d/<id>` and `/n/<id>` work at once; shares and comments, which follow an `id`, need nothing from a move
   and do not exist yet. Not here: converting a note to a document, and undoing a move (it is one commit, and moving back is
   another).
@@ -766,11 +767,11 @@ the owner's connection: `Rename <old> to <new>`, `Move <name> to <folder>`, `Del
 > `…/<folder>/d/<doc-id>`; only the folder a thing is in appears, and **only the last id decides what is shown**, so a stale vault or folder in an address is corrected
 > by redirect, and a moved file is still found. Pure parsing and building is `src/browse/addresses.ts`; a page draws its links from `AddressBook`
 > (`address-book.ts`, handles for a whole listing in two statements). The old `/repo/<repo>/<path…>`, `/f/<handle>` and `?pick=1`'s path still arrive. A journal's note is `/repo/<repo>/n/<id>` and a site's post `/repo/<repo>/post/<id>` (shared at `/n/<id>` and `/d/<id>`); a static HTML page `…/html/<handle>`, run in a sandbox (§15). `/open` (where signing in lands) is
-> the default vault's address. **`/d/<id>` is the *shared* address** (leg 4): the owner's `/d/<id>` is sent on to the Doc's address in its repository, and a share by account, a share link, a password and the comments and draft routes keep it. What follows describes the earlier design.
+> the default vault's address. **`/d/<id>` is the _shared_ address** (leg 4): the owner's `/d/<id>` is sent on to the Doc's address in its repository, and a share by account, a share link, a password and the comments and draft routes keep it. What follows describes the earlier design.
 
 > **Changed by [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md).** The distinction below is withdrawn: spec §8.4 says every Doc is one
 > kind, and the repository's kind chooses its editor (§8). **Built (3e.1, 2026-11-03):** a Doc is always **`/d/<id>`**, owned or shared, in the
-> editor its kind's module names (`KindModule.editor`); `/n/<id>`, `/note/<id>` and `/doc/<id>` answer a 308 to it; *New document* is the one way
+> editor its kind's module names (`KindModule.editor`); `/n/<id>`, `/note/<id>` and `/doc/<id>` answer a 308 to it; _New document_ is the one way
 > to make a file, always `.md` and with an `id`; any plaintext Doc can be shared; renames keep a file's extension. **Built (3e.2, 3e.3):** anything else is
 > **`/f/<handle>`**, and a file is edited as it is and given an `id` only when sharing needs one, after the person agrees (`files/identify.ts`). The design:
 >
@@ -812,7 +813,7 @@ editors receive the body only, and the header is shown in a **Document propertie
 panel: `title`, `id` and `created` are editable or shown; keys Fjord does not know
 are shown read-only, so the user can see they are kept.
 
-*As built (ROADMAP 1b.5).* The page asks the module for a note's or a document's header (`src/browse/document.ts`,
+_As built (ROADMAP 1b.5)._ The page asks the module for a note's or a document's header (`src/browse/document.ts`,
 `headerOf`): where the body starts, and the properties. `NoteView` gives the editor the body and keeps the header in front of
 it, so a body edit leaves the header **byte for byte**, comments in it included. The panel (`DocumentProperties`) shows the
 identifier and the day it was made, lets the **title** be set, and lists every other key as written. A title is sent with the
@@ -826,7 +827,7 @@ The blank line the module puts between the header and the body is the body's, so
 carriage return or a byte order mark is not promoted (its endings would mix, or the mark would leave the first byte); a
 header that cannot be read is not split, rewritten or shown in the panel, and the file is shown whole.
 
-*As built (ROADMAP 1b.6).* **`/d/<id>` and `/n/<id>`** show the file with that `id` among the signed-in account's own
+_As built (ROADMAP 1b.6)._ **`/d/<id>` and `/n/<id>`** show the file with that `id` among the signed-in account's own
 repositories, in place and at that address (the page is the one `/repo/<connection>/<path>` shows, which is the same
 screen); a note asked for as a document, or the other way round, is sent to the address that is its own. The id must be a
 lowercase ULID, else it is a 404 before anything is looked up. **One match** opens; **several** (an id is unique within a
@@ -888,27 +889,28 @@ Markdown in, Markdown out, compared.
   editor cannot hold without changing what it means is opened as Markdown instead**
   (below), rather than with opaque raw blocks inside the visual editor.
 
-*As built (ROADMAP 1b.4): the house style.* It is written down in one place, `packages/fjord-editor/src/rich/style.ts` (`HOUSE_STYLE`), and is what the visual editor writes:
+_As built (ROADMAP 1b.4): the house style._ It is written down in one place, `packages/fjord-editor/src/rich/style.ts` (`HOUSE_STYLE`), and is what the visual editor writes:
 
-| | |
-| --- | --- |
-| Bullets | `-` |
-| Emphasis and strong | `*italic*`, `**bold**` |
-| Rules | `---` |
-| Numbered lists | `1.` on every item, so that adding an item renumbers nothing and a diff shows one line |
-| Headings | `#`, never underlined |
-| Code | fenced with backticks, never indented |
-| Tables | `\| a \| b \|`, a space inside each pipe, columns **not** padded to line up (so changing a cell changes one line), and a delimiter row of at least three dashes (`\| --- \| --- \|`, with `:` for alignment) |
-| Line breaks | as written: a paragraph is never re-wrapped |
-| Blocks | one blank line between them |
+|                     |                                                                                                                                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Bullets             | `-`                                                                                                                                                                                                          |
+| Emphasis and strong | `*italic*`, `**bold**`                                                                                                                                                                                       |
+| Rules               | `---`                                                                                                                                                                                                        |
+| Numbered lists      | `1.` on every item, so that adding an item renumbers nothing and a diff shows one line                                                                                                                       |
+| Headings            | `#`, never underlined                                                                                                                                                                                        |
+| Code                | fenced with backticks, never indented                                                                                                                                                                        |
+| Tables              | `\| a \| b \|`, a space inside each pipe, columns **not** padded to line up (so changing a cell changes one line), and a delimiter row of at least three dashes (`\| --- \| --- \|`, with `:` for alignment) |
+| Line breaks         | as written: a paragraph is never re-wrapped                                                                                                                                                                  |
+| Blocks              | one blank line between them                                                                                                                                                                                  |
 
 A document already written this way comes back **byte for byte** (`src/house-style.test.tsx` holds a corpus file written in it to that: an edit of a word changes that
 word and no other line). A document written another way (Obsidian's `*` bullets, `_italic_`, underlined headings, a table lined up with spaces, `1. 2. 3.`) is restyled
 **whole** when it is edited, which is the cost of the visual editor, so the editor does not do it unannounced: as soon as it has read the text it says which lines would
 change (`DocumentEditor` shows a notice with the count, and the lines that go and come, `- ` and `+ `, from `rich/restyle.ts`), and **waits**: nothing can be typed, and
-nothing is kept as a draft, until the person chooses *Reformat and edit here* or *Edit as Markdown, unchanged* (the byte-faithful editor, as for a document the visual one cannot
+nothing is kept as a draft, until the person chooses _Reformat and edit here_ or _Edit as Markdown, unchanged_ (the byte-faithful editor, as for a document the visual one cannot
 hold). A document already in the style is not asked about, nor is a person who may only read. The choice is for that text: a text the app sets afterwards that is not in the
 style asks again. Changing any of this later is a change to `HOUSE_STYLE` and to the corpus, which fails until both agree.
+
 - **Frontmatter is not given to MDXEditor** (its own YAML handling would rewrite
   it); see §9.
 - **Comments** use Lexical's mark nodes, which MDXEditor does not provide as a
@@ -950,7 +952,7 @@ interface of the sketch above, made exact, with a plain text area behind both ed
   must pass it unchanged. Checks of the package's promises about itself (MPL-2.0, React the only dependency, no
   `@sovereignfs`, styled only through its tokens, one entry point), every story rendering, and a build checked as a
   client takes it, run in CI (`.github/workflows/editor-ci.yml`) for a change to the package and nothing else.
-- **Used by this app through the interface only** (1b.2): see *The note editor, as built* below.
+- **Used by this app through the interface only** (1b.2): see _The note editor, as built_ below.
 
 ### The note editor, as built (ROADMAP 1b.2)
 
@@ -1063,7 +1065,7 @@ title and no more: the name and, for a document, the header are `fjord-core`'s, 
 ## 11. Working copies and versions
 
 - **Editing writes to a working copy** on the server, debounced, as the user types.
-  A working copy records the file, the blob it started from (its *base*), the
+  A working copy records the file, the blob it started from (its _base_), the
   current content, and who has edited it since the last version.
 - **A version is made** when someone chooses **Save version** (with an optional
   message), or **after a quiet period** (default five minutes without edits;
@@ -1128,7 +1130,7 @@ What is built is the first bullet above, the draft; versions are 1b.9 and the up
 
 **Save version** is built: one commit from the draft. The quiet-period commits by the worker are 1b.13, below.
 
-*Where it is on the page.* Save is the `save` icon among the document's other icons at the end of its title, disabled with nothing to save, and the arrow attached to it opens a menu whose one item, *Save with a message…*, asks for the message in a dialog (`SaveControl`); the icon alone makes the version with the default message. A page that has no title row (an encrypted file, whose editor is its own) keeps the form at the foot.
+_Where it is on the page._ Save is the `save` icon among the document's other icons at the end of its title, disabled with nothing to save, and the arrow attached to it opens a menu whose one item, _Save with a message…_, asks for the message in a dialog (`SaveControl`); the icon alone makes the version with the default message. A page that has no title row (an encrypted file, whose editor is its own) keeps the form at the foot.
 
 - **API.** `POST /api/connections/<id>/working-copy/version` with `{ path, message? }` under §12's rules (signed in, this
   site's `Origin`, own repositories only; another's is a 404). It answers `201 { commit }`, or refuses with a code and words
@@ -1181,10 +1183,10 @@ When the file at the branch's head is not the blob a draft started from, the not
 
 ## 12. Sharing and permissions
 
-Documents (`*.fj.md`) can be shared in phase 1. Notes cannot. *Planned ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.3):*
+Documents (`*.fj.md`) can be shared in phase 1. Notes cannot. _Planned ([RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), 3e.3):_
 any Doc in a drive can be shared, and sharing a `.md` without an `id` asks before adding one.
 
-**Publishing** (*planned, RFC 0002, 3h*). A drive's Doc can be published as a sanitised, read-only page: **public** at
+**Publishing** (_planned, RFC 0002, 3h_). A drive's Doc can be published as a sanitised, read-only page: **public** at
 `/p/<token>` (no account; the token hashed and redacted, as a link's is, and also kept sealed under the instance key (`credential` table, `publication.token_credential`) so that its owner is shown the address again, never anyone else; unpublishing ends it at once and takes the sealed copy with it), or **private** through the
 shares and links below, which gain the same rendering. It is rendered from the Doc's current version, never a draft. From an
 encrypted vault, the server has no key: privately the sealed link (2c.1) is the answer; publicly, only after a warning that the
@@ -1193,7 +1195,7 @@ database, not the format (spec §12).
 
 **As revised (the owner's request, after the first sharing screens): sharing is within an instance, and publishing is how a page is opened to everyone.**
 
-- **Sharing is with accounts on this instance** (and, later, between federated Fjord instances), at a role: view, comment or edit. It has **no passwords and no new links**: a link made before is still honoured and is shown, in a *Links* tab that exists
+- **Sharing is with accounts on this instance** (and, later, between federated Fjord instances), at a role: view, comment or edit. It has **no passwords and no new links**: a link made before is still honoured and is shown, in a _Links_ tab that exists
   while the document has one, to be changed or revoked (the way to end it), and the routes and tables behind it are unchanged. What an account is shared is in **Shared with you** (`/shared`, a place of its own in the rail once there is anything, listing each
   document with who shared it and at what role): the files stay with their owners. An account at the **edit** role types into the document's **working copy** (`PUT /api/shared/<id>/draft`, `src/sharing/member.ts`, the same draft a link's guest and
   the owner use, the account as the editor): **nothing of theirs reaches the repository**. The owner is told, by name, that changes are waiting; sees them in the editor; and saving a version accepts them, crediting each by name with an address that is nobody's
@@ -1205,11 +1207,11 @@ database, not the format (spec §12).
 
 **Roles**, each including the ones before it:
 
-| Role | May |
-| --- | --- |
-| **View** | read |
-| **Comment** | read, comment, reply, resolve |
-| **Edit** | read, comment, edit (into the working copy) |
+| Role        | May                                         |
+| ----------- | ------------------------------------------- |
+| **View**    | read                                        |
+| **Comment** | read, comment, reply, resolve               |
+| **Edit**    | read, comment, edit (into the working copy) |
 
 **Ways to share**, any number of each per document:
 
@@ -1241,7 +1243,7 @@ edit mode; it is kept in the browser and shown on their comments and edits.
 **Who can share:** the owner, in phase 1. Lifetime: until revoked; an expiry is
 optional per link. Revoking a link, or a named share, ends sessions that used it.
 
-*As built (ROADMAP 1c.1).* `src/access/policy.ts` is the one place that says what a role is: `decide(grants, action, target, now)`
+_As built (ROADMAP 1c.1)._ `src/access/policy.ts` is the one place that says what a role is: `decide(grants, action, target, now)`
 answers `allow`, `forbidden` (let in, but not to this: a 403) or `hidden` (not let in at all, or nothing there to be let into: a
 404, which does not say whether it exists). Grants are `owner`, a named `user` share or a `link` share with an optional expiry
 that may be revoked; an expired or revoked link allows nothing, and when someone holds several the highest role wins. Roles
@@ -1255,7 +1257,7 @@ a method that does not match, so a new endpoint cannot be added without saying w
 stay the owner's, since a share never holds a connection; shares reach a document by routes keyed by its id, which arrive
 with 1c.2 to 1c.6 and 1d and ask the policy for their action.
 
-*As built (ROADMAP 1c.2), sharing with named accounts.* `POST /api/connections/<id>/shares` with `{ doc, email, role }` shares a
+_As built (ROADMAP 1c.2), sharing with named accounts._ `POST /api/connections/<id>/shares` with `{ doc, email, role }` shares a
 document with the account that has exactly that address; `GET …/shares?doc=<id>` lists who it is shared with (name, address,
 role) and `DELETE` with `{ doc, accountId }` stops. The owner only (policy `manage_shares`; another's connection is a 404),
 writes from this site, and only a document: a note, or an id the repository does not have, is refused. **The answer to sharing
@@ -1271,7 +1273,7 @@ and the repository are not shown, nothing else of the owner's is reachable, and 
 request. Comments (1d) and editing (1c.6) arrive for the roles that allow them. Not here: link shares (1c.3), the screen for managing
 shares (1c.7), a list of what has been shared with you, and a limit on how fast an owner can try addresses.
 
-*As built (ROADMAP 1c.3), share links.* `POST /api/connections/<id>/links` with `{ doc, role, expiresAt? }` makes a link and answers
+_As built (ROADMAP 1c.3), share links._ `POST /api/connections/<id>/links` with `{ doc, role, expiresAt? }` makes a link and answers
 `{ id, token, url }`, **the one time the token is seen**: it is 32 random bytes (43 URL-safe characters) of which only the SHA-256 is
 stored, so a copy of the database opens no link. `GET …/links?doc=<id>` lists a document's links with their role, expiry and what has
 become of each (`active`, `expired`, `revoked`) and never a token; `DELETE` with `{ doc, linkId }` revokes one and no other. Several
@@ -1285,7 +1287,7 @@ The reader gets the title and the body at the link's role, read-only for now (co
 the header, the path, the repository or who made it. Revoking ends a link on the next request. Not here: password links (1c.5), a
 name before commenting or editing (1c.6), the screen for managing links (1c.7).
 
-*As built (ROADMAP 1c.4), token handling.* A link's address carries its token, and a token left in the address bar stays in the
+_As built (ROADMAP 1c.4), token handling._ A link's address carries its token, and a token left in the address bar stays in the
 history, a bookmark, a screenshot and any log of the address, so **the first request is not a page**. `proxy.ts` hands
 `/d/<id>?token=…` to `/api/links/enter` (the rewrite names no token, since Next sends a rewritten address back in a response header),
 which answers **a 303 to the clean `/d/<id>` and a cookie**: `fjord_share=<token>`, `Path=/d/<id>` (that document only),
@@ -1301,7 +1303,7 @@ where it sits and does not guess at strings of its length, since a hash or an id
 app logs the address it is asked for, which is the operator's to set not to (`deploy/README.md`). The cookie holds the token itself,
 which is acceptable because it is `HttpOnly`, scoped and re-checked on every use, and never put in a URL.
 
-*As built (ROADMAP 1c.5), password links.* `POST …/links` takes an optional `password` (eight to two hundred characters). It is **hashed
+_As built (ROADMAP 1c.5), password links._ `POST …/links` takes an optional `password` (eight to two hundred characters). It is **hashed
 with Argon2id** (Node's own `crypto.argon2`: no dependency to choose or keep up; 19 MiB, two passes, one lane, a random salt) and **only
 the PHC string is stored**, with its parameters in it so they can be raised; the password is in no answer, no log and no list, which says
 only `passwordProtected`. **A password link is not opened by its token**, which anyone with the link has: entering it leaves the token for
@@ -1310,7 +1312,7 @@ password in a form that posts to a server action (so the password is in a reques
 cookie that opens it, `fjord_share=<token>.<proof>`, where the proof is a keyed hash (the server's secret, `FJORD_AUTH_SECRET`) of the
 link and its password hash, so **setting the cookie by hand with only the token opens nothing**, a proof is no use for another link even
 with the same password, and changing a link's password would end every cookie given for the old one. **Tries are rate-limited and one
-at a time**: a try is first *claimed* in a single statement that only one of several at once can win, and each claim makes the next wait,
+at a time**: a try is first _claimed_ in a single statement that only one of several at once can win, and each claim makes the next wait,
 a second at first and after three wrong passwords five seconds doubling to a quarter of an hour; the right password starts again. A try
 that comes too soon is not checked, so even the right password is refused then and a guess costs the same either way, and a password that
 could not be one (too short, too long) is wrong without being hashed. The wait is the link's, not a visitor's, so someone who knows
@@ -1318,43 +1320,43 @@ the link can make its password wait for others for up to a quarter of an hour; t
 password cannot be guessed at speed. Revoking or expiring the link still ends the cookie on the next request. Not here: changing a
 link's password or expiry after it is made, and the screen for managing links (1c.7).
 
-*As built (ROADMAP 1c.6), editing through a link.* A link whose role is **edit** opens the document in the document editor, **with a name asked for
+_As built (ROADMAP 1c.6), editing through a link._ A link whose role is **edit** opens the document in the document editor, **with a name asked for
 first**: until the person has given one (one line, up to 40 characters, no control characters or angle brackets, kept in their
 browser) the editor can only be read, and the name is shown beside it. What they type is kept as the document's **working copy**,
 the same draft the owner sees (a second after they stop, as for the owner), by `PUT /d/<id>/draft`. That route is under `/d/<id>` because
 the link's cookie (1c.4) is sent there and nowhere else; there is no session, and the cookie is the credential: it must hold a token of a link of
-*this* document that is live, whose role may `edit`, and for a link with a password the proof that it was given. A cookie that is absent,
+_this_ document that is live, whose role may `edit`, and for a link with a password the proof that it was given. A cookie that is absent,
 wrong, for another document, expired or revoked is a 404 (not told apart from there being no document); a good one on a view or comment
 link is a 403, which it may be told. Writes come from this site only. **Only the body is theirs**: the client sends the body, and the header
 (the `id`, the title and whatever else) is the working copy's or the file's own, put back in front, so a guest cannot change what the
 document is; a document whose header cannot be read is not edited through a link. The draft keeps the base it was started from whoever saves
 it, and two people typing at once is last-write-wins until real-time editing (phase 4). `editors` gains the tag the design left room for,
 `{ type: "guest", link, name }`, one entry per link and name (at most 50 per draft, then a new name is refused until a version is saved).
-When the owner opens the document its page says the draft was made by them *and by* the names, and **Save version** credits each guest
+When the owner opens the document its page says the draft was made by them _and by_ the names, and **Save version** credits each guest
 by name: the author is the owner, and each guest is a `Co-authored-by:` trailer with an address that is nobody's
 (`link-<link>-<hash of the name>@users.noreply.fjord.invalid`, so two names on one link are two credits and the address says it was a link, not
 an account). A name is whatever the guest gives; it is not checked against anyone, which is what "the display name they gave" means. Not here:
 a name before **commenting** (comments are 1d, which will use the same name), edit mode for a named account's `edit` share (the policy
 allows it; the page does not yet), and seeing other guests type as they do (phase 4).
 
-*As built (ROADMAP 1c.7), managing shares.* A document's page, for its owner, has a **Sharing** panel (closed until opened, which reads the two
-lists). **People**: everyone it is shared with, by name and address, each with a role to change and *Stop sharing*, and *Share with* an
+_As built (ROADMAP 1c.7), managing shares._ A document's page, for its owner, has a **Sharing** panel (closed until opened, which reads the two
+lists). **People**: everyone it is shared with, by name and address, each with a role to change and _Stop sharing_, and _Share with_ an
 address at a role, answered in the same words whatever the address (sharing again with an address changes the role). **Links**: every link,
 revoked ones included, with its role, whether it is active, expired or revoked, whether it has a password, and when it expires or whether it
-does not; *Change* (role, expiry, a new password or none) and *Revoke* (asks first; a revoked link stays revoked and cannot be changed);
-and *Make a link* with a role, an optional expiry and an optional password. A link's address is **shown once**, when it is made, with *Copy
-link*: only a hash of its token is kept, so an existing link's address cannot be shown or copied again, and to share a link again one makes
+does not; _Change_ (role, expiry, a new password or none) and _Revoke_ (asks first; a revoked link stays revoked and cannot be changed);
+and _Make a link_ with a role, an optional expiry and an optional password. A link's address is **shown once**, when it is made, with _Copy
+link_: only a hash of its token is kept, so an existing link's address cannot be shown or copied again, and to share a link again one makes
 another and revokes the old one. Changing a link is `PATCH /api/connections/<id>/links` with `{ doc, linkId, role?, expiresAt?, password? }`
 (owner only, from this site; `expiresAt` a time in the future or `null`, `password` text or `null` to take it away; what is left out
 stays): a later expiry revives a link that had expired, a new password forgets the wrong tries at the old one and ends every cookie given for
 it (the proof in a cookie is bound to the password's hash), and a role change is in force on the next request. Notes, and anything in an
-encrypted vault, have no panel. Not here: a list of what has been shared *with* you, and changing the address a person was shared with.
+encrypted vault, have no panel. Not here: a list of what has been shared _with_ you, and changing the address a person was shared with.
 
 **Encrypted documents** are shared in phase 2, as sealed copies: the copy encrypted in the
 browser with a key carried in the link's `#fragment` (or derived from a password), so the
 server never sees the content. Comments on a sealed copy are not built (see below).
 
-*As built (ROADMAP 2c.1).* On the page of an encrypted file that is open, *Make a sealed link* has this browser make a **snapshot** of the
+_As built (ROADMAP 2c.1)._ On the page of an encrypted file that is open, _Make a sealed link_ has this browser make a **snapshot** of the
 file: a small JSON document, `{ v, name, text }`, sealed either to a **one-use age key** made for the share, whose secret is returned to
 the page and put in the link's fragment (`/s/<token>#key=AGE-SECRET-KEY-1…`) and **kept nowhere else**, or to a **password** (age's scrypt,
 at the identity's work factor, 2^17, so guessing is slow; at least ten characters; the link has no fragment and the password is told
@@ -1456,8 +1458,8 @@ no more than what they can do to the thread by resolving or deleting it, and is 
 A page showing a document's comments is told when they change, and reads them again; two people looking at one document see each other's comments, replies,
 resolving, editing, deleting and closing without reloading.
 
-- **The stream** is `GET /d/<id>/comments/events`, server-sent events (under `/d/<id>` for a link's cookie, like the comments). It says *that*
-  something changed and never *what*: `version` first (where the comments are up to), `changed` with the new number whenever it moves, `gone` once when the
+- **The stream** is `GET /d/<id>/comments/events`, server-sent events (under `/d/<id>` for a link's cookie, like the comments). It says _that_
+  something changed and never _what_: `version` first (where the comments are up to), `changed` with the new number whenever it moves, `gone` once when the
   watcher may no longer read them, and a comment line every 20 seconds so nothing in between closes an idle connection. A page that holds the number it was given
   with its comments reads them again, through the ordinary route (which checks who is asking each time), only when the number is not that one. The stream
   therefore carries nothing a person who lost access could learn but a number going up.
@@ -1475,7 +1477,6 @@ resolving, editing, deleting and closing without reloading.
 - **Behind a proxy** the stream is sent with `Cache-Control: no-store, no-transform` and `X-Accel-Buffering: no`, so that nothing compresses or holds it back; a
   proxy that buffers responses anyway turns it into a slow poll (the browser reads again every five minutes at worst, and on every visit).
 
-
 ### Limits and abuse, as built (ROADMAP 1d.4)
 
 Size limits were 1d.1's (a comment 1 to 4000 characters, an anchor's quote 2000, 500 threads in a document, 200 replies in a thread, 50 links to a document,
@@ -1486,15 +1487,16 @@ Size limits were 1d.1's (a comment 1 to 4000 characters, an anchor's quote 2000,
   to twice the limit across the edge of two): a thread, a reply, an edit or a resolving is counted against the person **and the link** it came through; reading,
   deleting and closing are not (clearing up after oneself is not the abuse, and a flood of reads is the reverse proxy's to meet).
 
-  | holder | a minute | an hour |
-  | --- | --- | --- |
-  | an account | 30 | 600 |
-  | a guest (the link and the browser's id) | 20 | 200 |
-  | a link, all of its guests together | 60 | 600 |
+  | holder                                  | a minute | an hour |
+  | --------------------------------------- | -------- | ------- |
+  | an account                              | 30       | 600     |
+  | a guest (the link and the browser's id) | 20       | 200     |
+  | a link, all of its guests together      | 60       | 600     |
 
   The link's count is the one that cannot be got round: a guest's browser id and name are anything the browser says, and a new one is free. It is counted before the
   request is looked at, so a flood of bad requests is a flood, and a request refused is still counted, so asking again at once is no nearer. Moving threads onto
   edited words (1d.2) has 120 a minute for an account or a link.
+
 - **No one takes the whole document:** one author may start 100 threads in a document and write 50 replies in a thread, and the guests of one link together 200 threads
   (so a hostile guest cannot fill the document's 500 with new browser ids and shut everyone else out). Deleting makes room again.
 - **Editing through a link** (`GUEST_EDIT_RATES`): 240 saves a minute and 3000 an hour for a link and all of its editors together (a person typing keeps a draft a second or
@@ -1506,28 +1508,27 @@ Size limits were 1d.1's (a comment 1 to 4000 characters, an anchor's quote 2000,
   limits do not. The numbers are constants, not yet settings (§17 lists limits among the configuration, which is still to come). Rows of `rate_bucket` older than a day
   are swept up as limits are counted.
 
-
 ## 14. Data model and database
 
 ### Tables
 
 Roughly, beyond better-auth's own:
 
-| Table | Holds |
-| --- | --- |
-| `account_default` | account, the connection `/` lands on |
-| `connection` | account, provider, how it is reached (`kind`), repository, branch, the id of its credential in `credential` (§7), when; where `/` lands is `account_default`, one row per account (§7); the vault chosen to open first is its nullable `default_vault` (§8) |
+| Table                                                            | Holds                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `account_default`                                                | account, the connection `/` lands on                                                                                                                                                                                                                                                                                      |
+| `connection`                                                     | account, provider, how it is reached (`kind`), repository, branch, the id of its credential in `credential` (§7), when; where `/` lands is `account_default`, one row per account (§7); the vault chosen to open first is its nullable `default_vault` (§8)                                                               |
 | `local_repository`, `local_branch`, `local_commit`, `local_blob` | a repository kept on this server until it is moved to git (§7): its owner account, name, counters (files, bytes), its branches, its commits with each one's tree as JSON, and its blobs by git id with the size and, once no branch has one, when it stopped being live. Deleted with the connection and with the account |
-| `tree_cache` | connection, commit id, listing |
-| `doc_index` | connection, path, `id` (null for a file read that has none), kind (document/note), blob id, when (§9). Only plaintext vaults; the blob it was read at decides whether a row is believed |
-| `working_copy` | connection, path, base blob id, content, editors since last version (JSON), when started, last edit (§11). Whether the file changed upstream is not stored: it is the base compared with the file's blob when the page loads (a `push` webhook flag comes with 1b.10) |
-| `deletion` | connection, path, `id`, kind, last blob id, deleting commit, deleted by, timestamp, restored (§8) |
-| `share_user` | connection, Doc `id`, account, role, who shared it, when (§12); unique per document and account |
-| `share_link` | connection, Doc `id`, token hash (never the token), role, expiry, revoked at, who made it, when (§12). a password hash for a link with one, and the failures and wait that rate-limit tries at it (1c.5) |
-| `comment_thread`, `comment_reply` | connection, Doc `id`, anchor (tagged JSON), body, author (kind `account` + id, or `guest` + link and browser id; and name), timestamps, resolved at and by, edited at (§13) |
-| `comment_activity`, `comment_closed` | the log of what happened to a document's comments (who, what, when); a row for each document whose comments are closed (§13) |
-| `rate_bucket` | how much each holder (an account, a link, a browser) has done in the current window, per limit: a key, when the window began, a count (§13, §15) |
-| `event` | cross-process notices (worker → web): kind, subject, timestamp |
+| `tree_cache`                                                     | connection, commit id, listing                                                                                                                                                                                                                                                                                            |
+| `doc_index`                                                      | connection, path, `id` (null for a file read that has none), kind (document/note), blob id, when (§9). Only plaintext vaults; the blob it was read at decides whether a row is believed                                                                                                                                   |
+| `working_copy`                                                   | connection, path, base blob id, content, editors since last version (JSON), when started, last edit (§11). Whether the file changed upstream is not stored: it is the base compared with the file's blob when the page loads (a `push` webhook flag comes with 1b.10)                                                     |
+| `deletion`                                                       | connection, path, `id`, kind, last blob id, deleting commit, deleted by, timestamp, restored (§8)                                                                                                                                                                                                                         |
+| `share_user`                                                     | connection, Doc `id`, account, role, who shared it, when (§12); unique per document and account                                                                                                                                                                                                                           |
+| `share_link`                                                     | connection, Doc `id`, token hash (never the token), role, expiry, revoked at, who made it, when (§12). a password hash for a link with one, and the failures and wait that rate-limit tries at it (1c.5)                                                                                                                  |
+| `comment_thread`, `comment_reply`                                | connection, Doc `id`, anchor (tagged JSON), body, author (kind `account` + id, or `guest` + link and browser id; and name), timestamps, resolved at and by, edited at (§13)                                                                                                                                               |
+| `comment_activity`, `comment_closed`                             | the log of what happened to a document's comments (who, what, when); a row for each document whose comments are closed (§13)                                                                                                                                                                                              |
+| `rate_bucket`                                                    | how much each holder (an account, a link, a browser) has done in the current window, per limit: a key, when the window began, a count (§13, §15)                                                                                                                                                                          |
+| `event`                                                          | cross-process notices (worker → web): kind, subject, timestamp                                                                                                                                                                                                                                                            |
 
 A document is identified by connection and `id` (or path, for a note without one).
 
@@ -1552,21 +1553,21 @@ for both of SQLite's forms; those names still work, `src/env-renames.ts`.)
 
 **SQLite, in two forms through one libSQL client:**
 
-| Dialect | Address | Form | For |
-| --- | --- | --- | --- |
+| Dialect              | Address                                      | Form                                                   | For                                                                                                                                                                                                |
+| -------------------- | -------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `sqld` (**default**) | `FJORD_SQLD_URL`, default `http://sqld:8080` | an **sqld** service (libSQL server), as Sovereign runs | most installs: the web process and the worker can be separate containers, replicas reach it over the network, app containers hold no state, and operating Fjord is the same as operating Sovereign |
-| `sqlite` | `FJORD_SQLITE_URL`, `file:/data/fjord.db` | a plain file | the smallest self-host: one container, no database service |
+| `sqlite`             | `FJORD_SQLITE_URL`, `file:/data/fjord.db`    | a plain file                                           | the smallest self-host: one container, no database service                                                                                                                                         |
 
 - With sqld, the app and auth databases are the namespaces `fjord` and `fjord_auth`,
   created through `FJORD_SQLD_ADMIN_URL`; every request names its namespace in the
   `x-namespace` header. With a file, auth is `fjord_auth.db` beside it.
 - **sqld must be 0.24.33 or later.** Earlier releases ignore `x-namespace`, so every
   "namespace" is the one default database and the app's tables and better-auth's would
-  share it, with no error to say so. The newest GitHub *release* is 0.24.32, but the
+  share it, with no error to say so. The newest GitHub _release_ is 0.24.32, but the
   image `…/libsql-server:v0.24.33` (the same as `latest`) exists, and is what CI and
   the dev script pin. A test checks that the two stores really are separate.
 - **The file form has limits, stated plainly:** every process that writes must run on
-  the same host (one container, or containers sharing a *local* volume); there are no
+  the same host (one container, or containers sharing a _local_ volume); there are no
   replicas on other hosts; and the file must never sit on a network filesystem, which
   is a known way to corrupt SQLite.
 - **The cost of sqld** is a network round trip for each statement, against
@@ -1691,7 +1692,6 @@ it is what the tests use when nothing else is set.
 - **Deletion:** deleting an account removes its connections, shares, comments and
   working copies; it never touches the repositories.
 
-
 ### Phase 2 security review
 
 The review of phase 2 (ROADMAP 2c.2) is recorded in [`docs/security-review-phase-2.md`](../../docs/security-review-phase-2.md): what the encryption promise is and is not (it holds against a passive
@@ -1704,12 +1704,12 @@ and the other headers, what was found and fixed, the promises of this section th
 
 ## 16. Phase 1 slices
 
-| Slice | Delivers | Usable as |
-| --- | --- | --- |
-| **1a** | The database layer on both dialects, landing page, auth (both methods), connections (GitHub App and PAT), defaults, file browser | Sign in, connect a repository, browse it |
+| Slice  | Delivers                                                                                                                            | Usable as                                       |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **1a** | The database layer on both dialects, landing page, auth (both methods), connections (GitHub App and PAT), defaults, file browser    | Sign in, connect a repository, browse it        |
 | **1b** | Note editor and document editor, create, rename, move and delete (with restore), working copies, versions, upstream-change handling | Write, organise and version documents and notes |
-| **1c** | Sharing: named users, links, passwords, roles, revocation | Share documents |
-| **1d** | Comments: threads, anchors, live updates, anonymous names | Review documents together |
+| **1c** | Sharing: named users, links, passwords, roles, revocation                                                                           | Share documents                                 |
+| **1d** | Comments: threads, anchors, live updates, anonymous names                                                                           | Review documents together                       |
 
 Each slice ends usable, tested and released. The tasks are in
 [`ROADMAP.md`](ROADMAP.md).
@@ -1736,7 +1736,7 @@ Each slice ends usable, tested and released. The tasks are in
   App's id, private key and webhook secret; the idle-commit interval; limits.
 - **Each instance registers its own GitHub App.**
 - **Releases** follow the monorepo's flow: a `web` component in `scripts/release/`,
-  tagged `web-vX.Y.Z`, never marked *Latest* on GitHub (the CLI's install URLs depend
+  tagged `web-vX.Y.Z`, never marked _Latest_ on GitHub (the CLI's install URLs depend
   on that slot), with its own CI workflow that runs only for changes that can affect
   it. A tag publishes the image to `ghcr.io/<owner>/fjord-web` (`linux/amd64` and `linux/arm64`; `X.Y.Z`, `X.Y`, `latest`;
   build provenance attested), brings the published image up as an operator would, and only then publishes the release page.
@@ -1750,8 +1750,8 @@ The offer of §7, as it works (`src/browse/setup.ts`, `src/browse/screens/SetupO
 - **When it is offered:** the repository has no `fjord.json` **and** no vault at its root. A `fjord.json` that cannot be read,
   or a repository with vaults and no `fjord.json`, is not offered it: the page says what is wrong, as before, and
   repairing a manifest is not this. The offer shows the repository, the branch, the vault's name (`Public`, else the next
-  free one; the person may type another) and the exact list of files, each marked *New* or, for the one existing file that
-  grows, *One line added*. Nothing is written until the button.
+  free one; the person may type another) and the exact list of files, each marked _New_ or, for the one existing file that
+  grows, _One line added_. Nothing is written until the button.
 - **Looking is not writing.** To make the preview it reads the root of the repository (one request) and, as the connection
   did, tries a write that changes nothing (`canWrite`): a token that can no longer write is told why, instead of being
   offered what would fail.
@@ -1874,63 +1874,63 @@ standalone output would otherwise prune it.
 
 ## 19. Open questions
 
-| # | Question | Default until decided |
-| --- | --- | --- |
-| 1 | Moving an existing instance between dialects (SQLite ↔ PostgreSQL) | Not in phase 1; a documented export and import later |
-| 2 | ~~When both auth methods are enabled, how are a local account and a Sovereign login linked?~~ **Decided (1a.4):** by `sub`, only from a signed-in session, and only when both use the same email address | — |
-| 3 | ~~Offer to initialise a repository that is not a Fjord repository? With which vaults?~~ **Decided (2026-10-26):** offer, after a preview and a click, one plaintext vault, additive only, one commit; not for an empty repository yet (§7) | — |
-| 4 | ~~Licence of `packages/fjord-editor`: AGPL with the design system, or MPL-2.0 without it?~~ **Decided (2026-10-26):** MPL-2.0, with no dependency on `@sovereignfs/ui` (§18) | — |
-| 5 | Idle-commit interval | Five minutes |
-| 6 | Branch: always the default branch, or choosable per connection? | Default branch; choosable later |
-| 7 | House style for documents: exact list and emphasis markers, table layout | **Decided and built (2026-11-01):** `-`, `*`, `---`, `1.` on every item, compact tables, fences; the first edit of a document written another way is previewed and waits for a choice (`web-1b.md` 1b.4). Changeable: it is one constant and one corpus |
-| 8 | Can an editor (not only the owner) share further? | Owner only in phase 1 |
-| 9 | Notes in phase 1: sharing and comments? | Neither |
-| 10 | Path route for notes without an id: `/repo/<connection>/<path>` | As written |
-| 11 | Restore window for deleted files | 30 days, per instance |
-| 12 | Converting a document to a note or back (changing the extension) | Not in phase 1; rename keeps the extension |
-| 13 | Sealed shares of encrypted documents: link key in the `#fragment` only, or also a password-derived one? Do comments on a sealed copy stay sealed? | **Both built (2026-11-01):** key in the fragment, or a password (`web-2.md` 2c.1). Comments on a sealed copy are not built: they would need sealed comments under the same key — later |
-| 14 | ~~Where the age identity lives in the browser~~ **Decided and built (2026-11-01):** IndexedDB, as a passphrase-sealed age file (scrypt 2^17), unlocked into memory per page, locked after fifteen quiet minutes (`web-2.md` 2a.1) | — |
-| 15 | Licence of `clients/web`: AGPL-3.0-or-later was required by `@sovereignfs/ui` when it was AGPL. It is now MPL-2.0: keep AGPL (a hosted service shares its changes), or move to MPL-2.0 like the rest of the repository? | — |
+| #   | Question                                                                                                                                                                                                                                   | Default until decided                                                                                                                                                                                                                                   |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Moving an existing instance between dialects (SQLite ↔ PostgreSQL)                                                                                                                                                                         | Not in phase 1; a documented export and import later                                                                                                                                                                                                    |
+| 2   | ~~When both auth methods are enabled, how are a local account and a Sovereign login linked?~~ **Decided (1a.4):** by `sub`, only from a signed-in session, and only when both use the same email address                                   | —                                                                                                                                                                                                                                                       |
+| 3   | ~~Offer to initialise a repository that is not a Fjord repository? With which vaults?~~ **Decided (2026-10-26):** offer, after a preview and a click, one plaintext vault, additive only, one commit; not for an empty repository yet (§7) | —                                                                                                                                                                                                                                                       |
+| 4   | ~~Licence of `packages/fjord-editor`: AGPL with the design system, or MPL-2.0 without it?~~ **Decided (2026-10-26):** MPL-2.0, with no dependency on `@sovereignfs/ui` (§18)                                                               | —                                                                                                                                                                                                                                                       |
+| 5   | Idle-commit interval                                                                                                                                                                                                                       | Five minutes                                                                                                                                                                                                                                            |
+| 6   | Branch: always the default branch, or choosable per connection?                                                                                                                                                                            | Default branch; choosable later                                                                                                                                                                                                                         |
+| 7   | House style for documents: exact list and emphasis markers, table layout                                                                                                                                                                   | **Decided and built (2026-11-01):** `-`, `*`, `---`, `1.` on every item, compact tables, fences; the first edit of a document written another way is previewed and waits for a choice (`web-1b.md` 1b.4). Changeable: it is one constant and one corpus |
+| 8   | Can an editor (not only the owner) share further?                                                                                                                                                                                          | Owner only in phase 1                                                                                                                                                                                                                                   |
+| 9   | Notes in phase 1: sharing and comments?                                                                                                                                                                                                    | Neither                                                                                                                                                                                                                                                 |
+| 10  | Path route for notes without an id: `/repo/<connection>/<path>`                                                                                                                                                                            | As written                                                                                                                                                                                                                                              |
+| 11  | Restore window for deleted files                                                                                                                                                                                                           | 30 days, per instance                                                                                                                                                                                                                                   |
+| 12  | Converting a document to a note or back (changing the extension)                                                                                                                                                                           | Not in phase 1; rename keeps the extension                                                                                                                                                                                                              |
+| 13  | Sealed shares of encrypted documents: link key in the `#fragment` only, or also a password-derived one? Do comments on a sealed copy stay sealed?                                                                                          | **Both built (2026-11-01):** key in the fragment, or a password (`web-2.md` 2c.1). Comments on a sealed copy are not built: they would need sealed comments under the same key — later                                                                  |
+| 14  | ~~Where the age identity lives in the browser~~ **Decided and built (2026-11-01):** IndexedDB, as a passphrase-sealed age file (scrypt 2^17), unlocked into memory per page, locked after fifteen quiet minutes (`web-2.md` 2a.1)          | —                                                                                                                                                                                                                                                       |
+| 15  | Licence of `clients/web`: AGPL-3.0-or-later was required by `@sovereignfs/ui` when it was AGPL. It is now MPL-2.0: keep AGPL (a hosted service shares its changes), or move to MPL-2.0 like the rest of the repository?                    | —                                                                                                                                                                                                                                                       |
 
 ## 20. Decision log
 
-| Date | Decision | Instead of |
-| --- | --- | --- |
-| 2026-10-22 | An account-based app at `fjord.sovereign.fs`, landing page for visitors, the default repository for users | The anonymous "scratchpad" playground (abandoned) |
-| 2026-10-22 | Auth: better-auth, local (password + passkeys + TOTP) and/or Sovereign OIDC, by environment | — |
-| 2026-10-22 | GitHub App, with a fine-grained PAT fallback; provider interface for other hosts | OAuth App (scope reaches every private repo); PAT only |
-| 2026-10-31 | An App installation is connected only for the repositories the signed-in person can reach themselves, shown by their own one-use token from the App's user authorisation, behind a `state` cookie; the connection keeps which installation, never a token | Trusting the installation id in the address (any account could connect any installation); a picker inside Fjord (GitHub already has one) |
-| 2026-11-04 | A repository can live on this server until it is connected to git: a `Provider` of its own over the database, per-account limits (3 repositories, 50 MiB, 2000 files), and a move that adds to a repository in one commit, never over a file, verifies it, then deletes the server's copy | A scratch space with its own editors and a separate import path; no limit; a move that overwrites or replaces the repository |
-| 2026-10-22 | Documents are `*.fj.md`, notes any other `.md` | A new `.fjmd` extension (not rendered by GitHub, hidden by Obsidian); a frontmatter field (needs every file read to tell) |
-| 2026-10-22 | Routes `/doc/<id>` and `/note/<id>`; path route until a note has an id | — |
-| 2026-10-26 | The routes are spelled out: `/doc/<id>`, `/note/<id>` and `/repo/<connection>/<path>` | Single letters (`/d/`, `/n/`, `/p/`): shorter, but not readable in a link someone shares |
-| 2026-10-22 | Document editor on MDXEditor; note editor minimal and byte-faithful; both in `packages/fjord-editor` | — |
-| 2026-10-22 | Server-side working copies; versions on save or after a quiet period | A commit per save; copy-and-approve |
-| 2026-10-22 | Shares: named users and links (public or password); view, comment, edit; until revoked, expiry optional | Expiring anonymous shares |
-| 2026-10-22 | Link URL `/d/<id>?token=…`, swapped for a cookie on first use | A separate share route |
-| 2026-10-22 | `fjord-core` as WebAssembly, in Node and (phase 2) the browser | A TypeScript reimplementation of the format |
-| 2026-10-22 | `clients/web` is AGPL-3.0-or-later and open | Dual-licensing the design system; tokens only |
-| 2026-10-22 | Phase 1 is plaintext only; encryption phase 2; collaborative editing phase 3 | — |
-| 2026-10-22 | Phase 1 ships in slices | One release |
-| 2026-10-22 | Rename, move and delete in phase 1 (owner only, plaintext vaults, one commit each), with undo and a restore window recorded by the instance | Leaving them for later; a trash folder in the repository (spec §12 leaves trash out) |
-| 2026-10-22 | SQLite by default, in production too; PostgreSQL by the operator's choice; `DB_DIALECT` defaults to `sqlite` | PostgreSQL only; requiring the dialect to be set, as Sovereign does |
-| 2026-10-22 | SQLite as an sqld service by default, or a `file:` URL for a single-container install, through one libSQL client | sqld only, as Sovereign; a plain file only |
-| 2026-10-22 | Every data-layer test runs on sqld, a file and PostgreSQL in CI, with a schema parity test | Dialect suites that run only when their database URL is set |
-| 2026-10-22 | Local sign-in on better-auth 1.7 through its Drizzle adapter, in the auth store with migrations of its own | The 1.6 line Sovereign runs (an account-identity migration before 1a.3); better-auth's own Kysely adapter (the design chose Drizzle) |
-| 2026-10-23 | Sovereign sign-in through better-auth's `genericOAuth` and discovery, identity by `sub`, no implicit linking by email, the same sign-up policy as local, local sign-out only, with a fake Sovereign checked against a recording of a real one | Linking by verified email (the takeover case 1a.4 has to decide); signing out of Sovereign too; tests against the live service |
-| 2026-10-23 | A local account and a Sovereign login are linked from a signed-in session by `sub`, only when both use the same email address; Sovereign is trusted to have verified it; unlinking never removes the last way in; an account that came in through Sovereign sees no password settings | Linking by email at sign-in (the takeover case); allowing a different address (it attaches a stranger's identity); letting Sovereign-created accounts add a password now |
-| 2026-10-22 | Sign-up is `closed` by default (the first account, then refused) and `open` by choice | Open by default; invites (they need email) |
-| 2026-10-22 | Email is optional: with SMTP, verified addresses and reset by email; without it, neither | SMTP required; no email at all |
-| 2026-10-22 | The browser tests run the built app in Chromium with Playwright, and a virtual authenticator stands in for a passkey device | Server-level tests only, leaving passkeys to a manual check |
-| 2026-10-22 | One `Provider` interface, tested by one contract against GitHub over a git-backed fake, an in-memory provider, and GitHub's recorded real answers | A recording of the real API alone (cannot show a write); a hand-written fake of git's rules |
-| 2026-10-22 | A commit is blobs, a tree, a commit and a fast-forward, never forced, and never retried | The Contents API (one file at a time, no atomic multi-file commit); forcing the branch; retrying a lost write |
-| 2026-10-22 | The landing page is static, server-rendered HTML in `@sovereignfs/ui`'s tokens, with the design system reached through one `"use client"` module, a theme script that follows the system, and a native `<details>` FAQ | A client-rendered page; a bespoke palette; importing the package from Server Components (it fails: the bundle calls `createContext` at module scope) |
-| 2026-10-26 | A repository that is not a Fjord repository is offered the setup of one plaintext vault: a preview, a click, one additive commit of what `fjord init` writes | Never offering (a web-only person is stranded without the CLI); offering encrypted vaults (keys do not belong in the browser) |
-| 2026-10-26 | `packages/fjord-editor` is MPL-2.0 and does not depend on `@sovereignfs/ui` | AGPL with the design system (every client that embeds it, the MPL-2.0 mobile client included, would have to be AGPL) |
-| 2026-10-27 | The visual document editor is used only for a document it can hold without changing what it means, tested on opening; any other (raw HTML, footnotes, maths, CRLF, a loose list…) is shown as Markdown in the byte-faithful editor | Opaque raw blocks inside the visual editor (they need custom Lexical nodes, and the editor normalises silently what it does not refuse) |
-| 2026-11-02 | Phase 3 is repository kinds (`drive`, `journal`, `ssg`, on the repository, proposed in RFC 0001); collaborative editing moves to phase 4 | Collaborative editing first (it was an outline with no tasks; kinds were wanted sooner); a kind per vault (one repository is one thing to the person, and a site is deployed per repository) |
-| 2026-11-02 | Every variable `FJORD_`, named as Sovereign's `contracts/env.md` names it (`FJORD_DB_DIALECT` = `sqld`, `sqlite` or `postgres`; `FJORD_POSTGRES_URL[_FILE]`; `FJORD_SMTP_*`; `FJORD_CORE_URL`, `_CLIENT_ID`, `_CLIENT_SECRET`), the old names still read, with a warning, and an error beside their new ones; so an instance can host Fjord Web with the variables it gives every app | Keeping the unprefixed names (an instance's `suite.yml` cannot set them); prefixing only, with `sqlite` still covering sqld and a file; dropping the old names at once (0.1 deployments would stop) |
-| 2026-11-02 | A kind is a module of the client (`src/kinds/`): entry view, scaffold, content model, actions, chosen by a registry from the kind the format module answers, falling back to the drive; every kind can be shown as files (`?view=files`) (3a.1) | Branching on the kind in the pages (every new kind would touch them all); parsing `kind` in TypeScript (the format is `fjord-core`'s); a separate route per kind (the folder and file pages are the same for every kind) |
-| 2026-11-03 | One kind of Doc: `*.fj.md` is withdrawn (spec §8.4), and the repository's kind chooses the editor; a Doc is always `/d/<id>`, anything else `/f/<handle>` from the instance's database; no promotion on edit, an `id` added only when sharing, publishing or commenting asks for it; journals encrypted by default; a drive's Doc publishable; vaults at any depth (RFC 0002, planned) | `.fj.md` as a journal's marker (two signals for one choice); an index committed to the repository (§2.1, §2.2, conflicts, leaks names); the path encoded in the address (longer, changes on rename, decodable) |
-| 2026-11-03 | Addresses inside a repository are made of ids: `/repo/<repo>/v/<vault>/<folder>/<file>` by handle, `…/d/<doc>` for a Doc; the last id decides, stale ones are redirected, and `/open` lands in the default vault (workstream 0003) | A path in the address (it breaks when anything is moved) |
-| 2026-11-03 | The routes are shortened to `/d/<id>` and `/n/<id>`, the owner's decision reversing the choice of 2026-10-26. `/repo/<connection>/<path>` is unchanged. The old `/doc/<id>` and `/note/<id>` are sent on for good (a 308, dropping any `token`), and a `/doc/<id>?token=` link still enters and ends on the short address | Keeping the spelled-out routes, which read better in a link someone shares (the 2026-10-26 reason); no redirect (every link already given would stop working) |
+| Date       | Decision                                                                                                                                                                                                                                                                                                                                                                               | Instead of                                                                                                                                                                                                               |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 2026-10-22 | An account-based app at `fjord.sovereign.fs`, landing page for visitors, the default repository for users                                                                                                                                                                                                                                                                              | The anonymous "scratchpad" playground (abandoned)                                                                                                                                                                        |
+| 2026-10-22 | Auth: better-auth, local (password + passkeys + TOTP) and/or Sovereign OIDC, by environment                                                                                                                                                                                                                                                                                            | —                                                                                                                                                                                                                        |
+| 2026-10-22 | GitHub App, with a fine-grained PAT fallback; provider interface for other hosts                                                                                                                                                                                                                                                                                                       | OAuth App (scope reaches every private repo); PAT only                                                                                                                                                                   |
+| 2026-10-31 | An App installation is connected only for the repositories the signed-in person can reach themselves, shown by their own one-use token from the App's user authorisation, behind a `state` cookie; the connection keeps which installation, never a token                                                                                                                              | Trusting the installation id in the address (any account could connect any installation); a picker inside Fjord (GitHub already has one)                                                                                 |
+| 2026-11-04 | A repository can live on this server until it is connected to git: a `Provider` of its own over the database, per-account limits (3 repositories, 50 MiB, 2000 files), and a move that adds to a repository in one commit, never over a file, verifies it, then deletes the server's copy                                                                                              | A scratch space with its own editors and a separate import path; no limit; a move that overwrites or replaces the repository                                                                                             |
+| 2026-10-22 | Documents are `*.fj.md`, notes any other `.md`                                                                                                                                                                                                                                                                                                                                         | A new `.fjmd` extension (not rendered by GitHub, hidden by Obsidian); a frontmatter field (needs every file read to tell)                                                                                                |
+| 2026-10-22 | Routes `/doc/<id>` and `/note/<id>`; path route until a note has an id                                                                                                                                                                                                                                                                                                                 | —                                                                                                                                                                                                                        |
+| 2026-10-26 | The routes are spelled out: `/doc/<id>`, `/note/<id>` and `/repo/<connection>/<path>`                                                                                                                                                                                                                                                                                                  | Single letters (`/d/`, `/n/`, `/p/`): shorter, but not readable in a link someone shares                                                                                                                                 |
+| 2026-10-22 | Document editor on MDXEditor; note editor minimal and byte-faithful; both in `packages/fjord-editor`                                                                                                                                                                                                                                                                                   | —                                                                                                                                                                                                                        |
+| 2026-10-22 | Server-side working copies; versions on save or after a quiet period                                                                                                                                                                                                                                                                                                                   | A commit per save; copy-and-approve                                                                                                                                                                                      |
+| 2026-10-22 | Shares: named users and links (public or password); view, comment, edit; until revoked, expiry optional                                                                                                                                                                                                                                                                                | Expiring anonymous shares                                                                                                                                                                                                |
+| 2026-10-22 | Link URL `/d/<id>?token=…`, swapped for a cookie on first use                                                                                                                                                                                                                                                                                                                          | A separate share route                                                                                                                                                                                                   |
+| 2026-10-22 | `fjord-core` as WebAssembly, in Node and (phase 2) the browser                                                                                                                                                                                                                                                                                                                         | A TypeScript reimplementation of the format                                                                                                                                                                              |
+| 2026-10-22 | `clients/web` is AGPL-3.0-or-later and open                                                                                                                                                                                                                                                                                                                                            | Dual-licensing the design system; tokens only                                                                                                                                                                            |
+| 2026-10-22 | Phase 1 is plaintext only; encryption phase 2; collaborative editing phase 3                                                                                                                                                                                                                                                                                                           | —                                                                                                                                                                                                                        |
+| 2026-10-22 | Phase 1 ships in slices                                                                                                                                                                                                                                                                                                                                                                | One release                                                                                                                                                                                                              |
+| 2026-10-22 | Rename, move and delete in phase 1 (owner only, plaintext vaults, one commit each), with undo and a restore window recorded by the instance                                                                                                                                                                                                                                            | Leaving them for later; a trash folder in the repository (spec §12 leaves trash out)                                                                                                                                     |
+| 2026-10-22 | SQLite by default, in production too; PostgreSQL by the operator's choice; `DB_DIALECT` defaults to `sqlite`                                                                                                                                                                                                                                                                           | PostgreSQL only; requiring the dialect to be set, as Sovereign does                                                                                                                                                      |
+| 2026-10-22 | SQLite as an sqld service by default, or a `file:` URL for a single-container install, through one libSQL client                                                                                                                                                                                                                                                                       | sqld only, as Sovereign; a plain file only                                                                                                                                                                               |
+| 2026-10-22 | Every data-layer test runs on sqld, a file and PostgreSQL in CI, with a schema parity test                                                                                                                                                                                                                                                                                             | Dialect suites that run only when their database URL is set                                                                                                                                                              |
+| 2026-10-22 | Local sign-in on better-auth 1.7 through its Drizzle adapter, in the auth store with migrations of its own                                                                                                                                                                                                                                                                             | The 1.6 line Sovereign runs (an account-identity migration before 1a.3); better-auth's own Kysely adapter (the design chose Drizzle)                                                                                     |
+| 2026-10-23 | Sovereign sign-in through better-auth's `genericOAuth` and discovery, identity by `sub`, no implicit linking by email, the same sign-up policy as local, local sign-out only, with a fake Sovereign checked against a recording of a real one                                                                                                                                          | Linking by verified email (the takeover case 1a.4 has to decide); signing out of Sovereign too; tests against the live service                                                                                           |
+| 2026-10-23 | A local account and a Sovereign login are linked from a signed-in session by `sub`, only when both use the same email address; Sovereign is trusted to have verified it; unlinking never removes the last way in; an account that came in through Sovereign sees no password settings                                                                                                  | Linking by email at sign-in (the takeover case); allowing a different address (it attaches a stranger's identity); letting Sovereign-created accounts add a password now                                                 |
+| 2026-10-22 | Sign-up is `closed` by default (the first account, then refused) and `open` by choice                                                                                                                                                                                                                                                                                                  | Open by default; invites (they need email)                                                                                                                                                                               |
+| 2026-10-22 | Email is optional: with SMTP, verified addresses and reset by email; without it, neither                                                                                                                                                                                                                                                                                               | SMTP required; no email at all                                                                                                                                                                                           |
+| 2026-10-22 | The browser tests run the built app in Chromium with Playwright, and a virtual authenticator stands in for a passkey device                                                                                                                                                                                                                                                            | Server-level tests only, leaving passkeys to a manual check                                                                                                                                                              |
+| 2026-10-22 | One `Provider` interface, tested by one contract against GitHub over a git-backed fake, an in-memory provider, and GitHub's recorded real answers                                                                                                                                                                                                                                      | A recording of the real API alone (cannot show a write); a hand-written fake of git's rules                                                                                                                              |
+| 2026-10-22 | A commit is blobs, a tree, a commit and a fast-forward, never forced, and never retried                                                                                                                                                                                                                                                                                                | The Contents API (one file at a time, no atomic multi-file commit); forcing the branch; retrying a lost write                                                                                                            |
+| 2026-10-22 | The landing page is static, server-rendered HTML in `@sovereignfs/ui`'s tokens, with the design system reached through one `"use client"` module, a theme script that follows the system, and a native `<details>` FAQ                                                                                                                                                                 | A client-rendered page; a bespoke palette; importing the package from Server Components (it fails: the bundle calls `createContext` at module scope)                                                                     |
+| 2026-10-26 | A repository that is not a Fjord repository is offered the setup of one plaintext vault: a preview, a click, one additive commit of what `fjord init` writes                                                                                                                                                                                                                           | Never offering (a web-only person is stranded without the CLI); offering encrypted vaults (keys do not belong in the browser)                                                                                            |
+| 2026-10-26 | `packages/fjord-editor` is MPL-2.0 and does not depend on `@sovereignfs/ui`                                                                                                                                                                                                                                                                                                            | AGPL with the design system (every client that embeds it, the MPL-2.0 mobile client included, would have to be AGPL)                                                                                                     |
+| 2026-10-27 | The visual document editor is used only for a document it can hold without changing what it means, tested on opening; any other (raw HTML, footnotes, maths, CRLF, a loose list…) is shown as Markdown in the byte-faithful editor                                                                                                                                                     | Opaque raw blocks inside the visual editor (they need custom Lexical nodes, and the editor normalises silently what it does not refuse)                                                                                  |
+| 2026-11-02 | Phase 3 is repository kinds (`drive`, `journal`, `ssg`, on the repository, proposed in RFC 0001); collaborative editing moves to phase 4                                                                                                                                                                                                                                               | Collaborative editing first (it was an outline with no tasks; kinds were wanted sooner); a kind per vault (one repository is one thing to the person, and a site is deployed per repository)                             |
+| 2026-11-02 | Every variable `FJORD_`, named as Sovereign's `contracts/env.md` names it (`FJORD_DB_DIALECT` = `sqld`, `sqlite` or `postgres`; `FJORD_POSTGRES_URL[_FILE]`; `FJORD_SMTP_*`; `FJORD_CORE_URL`, `_CLIENT_ID`, `_CLIENT_SECRET`), the old names still read, with a warning, and an error beside their new ones; so an instance can host Fjord Web with the variables it gives every app  | Keeping the unprefixed names (an instance's `suite.yml` cannot set them); prefixing only, with `sqlite` still covering sqld and a file; dropping the old names at once (0.1 deployments would stop)                      |
+| 2026-11-02 | A kind is a module of the client (`src/kinds/`): entry view, scaffold, content model, actions, chosen by a registry from the kind the format module answers, falling back to the drive; every kind can be shown as files (`?view=files`) (3a.1)                                                                                                                                        | Branching on the kind in the pages (every new kind would touch them all); parsing `kind` in TypeScript (the format is `fjord-core`'s); a separate route per kind (the folder and file pages are the same for every kind) |
+| 2026-11-03 | One kind of Doc: `*.fj.md` is withdrawn (spec §8.4), and the repository's kind chooses the editor; a Doc is always `/d/<id>`, anything else `/f/<handle>` from the instance's database; no promotion on edit, an `id` added only when sharing, publishing or commenting asks for it; journals encrypted by default; a drive's Doc publishable; vaults at any depth (RFC 0002, planned) | `.fj.md` as a journal's marker (two signals for one choice); an index committed to the repository (§2.1, §2.2, conflicts, leaks names); the path encoded in the address (longer, changes on rename, decodable)           |
+| 2026-11-03 | Addresses inside a repository are made of ids: `/repo/<repo>/v/<vault>/<folder>/<file>` by handle, `…/d/<doc>` for a Doc; the last id decides, stale ones are redirected, and `/open` lands in the default vault (workstream 0003)                                                                                                                                                     | A path in the address (it breaks when anything is moved)                                                                                                                                                                 |
+| 2026-11-03 | The routes are shortened to `/d/<id>` and `/n/<id>`, the owner's decision reversing the choice of 2026-10-26. `/repo/<connection>/<path>` is unchanged. The old `/doc/<id>` and `/note/<id>` are sent on for good (a 308, dropping any `token`), and a `/doc/<id>?token=` link still enters and ends on the short address                                                              | Keeping the spelled-out routes, which read better in a link someone shares (the 2026-10-26 reason); no redirect (every link already given would stop working)                                                            |

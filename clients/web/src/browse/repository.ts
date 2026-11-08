@@ -1,11 +1,11 @@
-import { type HeadCache } from "./head-cache";
-import type { Discovery, ListedFile, RepositoryManifest } from "../format/types";
-import type { Fjord } from "../format/wasm";
-import { mapLimit } from "../providers/concurrency";
-import { isProviderError } from "../providers/errors";
-import type { Provider, RepositoryRef, Tree, TreeEntry } from "../providers/types";
-import { blobText } from "./blob-text";
-import type { TreeCache } from "./tree-cache";
+import { type HeadCache } from './head-cache';
+import type { Discovery, ListedFile, RepositoryManifest } from '../format/types';
+import type { Fjord } from '../format/wasm';
+import { mapLimit } from '../providers/concurrency';
+import { isProviderError } from '../providers/errors';
+import type { Provider, RepositoryRef, Tree, TreeEntry } from '../providers/types';
+import { blobText } from './blob-text';
+import type { TreeCache } from './tree-cache';
 
 /**
  * A repository as the browser sees it at its head (DESIGN.md §8): which vaults it has, and what is in them.
@@ -47,25 +47,40 @@ export interface RepositoryDeps {
 /** A manifest is small; a larger one is not read (a hostile repository should not make the server fetch a gigabyte). */
 const MAX_MANIFEST_BYTES = 256 * 1024;
 const DIRECTORIES_AT_ONCE = 6;
-const ROOT_MANIFEST = "fjord.json";
-const VAULT_MANIFEST = "fjord.vault.json";
+const ROOT_MANIFEST = 'fjord.json';
+const VAULT_MANIFEST = 'fjord.vault.json';
 
 /**
  * The commit a branch is at now. The host is asked at every view; if this process has seen the branch before it sends the `ETag` it was
  * given, and a `304` (not moved, and free of the host's rate limit) is answered with the commit seen then.
  */
-export async function headCommit(provider: Provider, heads: HeadCache | undefined, connection: { id: number; ref: RepositoryRef; branch: string }): Promise<string> {
+export async function headCommit(
+  provider: Provider,
+  heads: HeadCache | undefined,
+  connection: { id: number; ref: RepositoryRef; branch: string },
+): Promise<string> {
   const known = heads?.get(connection.id, connection.ref, connection.branch);
-  const head = await provider.getHead(connection.ref, connection.branch, known ? { etag: known.etag } : {});
+  const head = await provider.getHead(
+    connection.ref,
+    connection.branch,
+    known ? { etag: known.etag } : {},
+  );
   if (head.changed) {
-    if (heads && head.head.etag) heads.put(connection.id, connection.ref, connection.branch, { etag: head.head.etag, commit: head.head.commit });
+    if (heads && head.head.etag)
+      heads.put(connection.id, connection.ref, connection.branch, {
+        etag: head.head.etag,
+        commit: head.head.commit,
+      });
     return head.head.commit;
   }
-  if (!known) throw new Error("the host answered a head request with no etag as unchanged");
+  if (!known) throw new Error('the host answered a head request with no etag as unchanged');
   return known.commit;
 }
 
-export async function readRepository(deps: RepositoryDeps, connection: { id: number; ref: RepositoryRef; branch: string }): Promise<RepositoryRead> {
+export async function readRepository(
+  deps: RepositoryDeps,
+  connection: { id: number; ref: RepositoryRef; branch: string },
+): Promise<RepositoryRead> {
   const { provider, cache, format } = deps;
   const commit = await headCommit(provider, deps.heads, connection);
 
@@ -78,14 +93,23 @@ export async function readRepository(deps: RepositoryDeps, connection: { id: num
   const blobs = new Map<string, string>();
   for (const entry of tree.entries) if (isFile(entry)) blobs.set(entry.path, entry.id);
 
-  const found = tree.complete ? await fromListing(deps, connection.ref, tree, blobs) : await fromDirectories(deps, connection.ref, commit, blobs);
+  const found = tree.complete
+    ? await fromListing(deps, connection.ref, tree, blobs)
+    : await fromDirectories(deps, connection.ref, commit, blobs);
   return { commit, branch: connection.branch, ...found, blobs };
 }
 
-const isFile = (entry: TreeEntry) => entry.kind === "file" || entry.kind === "symlink";
+const isFile = (entry: TreeEntry) => entry.kind === 'file' || entry.kind === 'symlink';
 
-async function fromListing(deps: RepositoryDeps, ref: RepositoryRef, tree: Tree, blobs: Map<string, string>) {
-  const files: ListedFile[] = tree.entries.filter(isFile).map((entry) => ({ path: entry.path, size: entry.size ?? 0 }));
+async function fromListing(
+  deps: RepositoryDeps,
+  ref: RepositoryRef,
+  tree: Tree,
+  blobs: Map<string, string>,
+) {
+  const files: ListedFile[] = tree.entries
+    .filter(isFile)
+    .map((entry) => ({ path: entry.path, size: entry.size ?? 0 }));
   const manifests = await readManifests(deps, ref, blobs, deps.format.manifestPaths(files));
   const manifest = await readRepositoryManifest(deps, ref, blobs);
   return { manifest, discovery: deps.format.discover(files, manifests), partial: false, manifests };
@@ -96,17 +120,27 @@ async function fromListing(deps: RepositoryDeps, ref: RepositoryRef, tree: Tree,
  * request each, looking for the vault manifests. That finds the vaults; what is inside them is for browsing,
  * a directory at a time.
  */
-async function fromDirectories(deps: RepositoryDeps, ref: RepositoryRef, commit: string, blobs: Map<string, string>) {
-  const root = await deps.provider.listDirectory(ref, commit, "");
+async function fromDirectories(
+  deps: RepositoryDeps,
+  ref: RepositoryRef,
+  commit: string,
+  blobs: Map<string, string>,
+) {
+  const root = await deps.provider.listDirectory(ref, commit, '');
   for (const entry of root) if (isFile(entry)) blobs.set(entry.path, entry.id);
 
-  const directories = root.filter((entry) => entry.kind === "directory" && entry.path !== ".git" && entry.path !== ".fjord");
-  const inside = await mapLimit(directories, DIRECTORIES_AT_ONCE, (directory) => deps.provider.listDirectory(ref, commit, directory.path));
+  const directories = root.filter(
+    (entry) => entry.kind === 'directory' && entry.path !== '.git' && entry.path !== '.fjord',
+  );
+  const inside = await mapLimit(directories, DIRECTORIES_AT_ONCE, (directory) =>
+    deps.provider.listDirectory(ref, commit, directory.path),
+  );
   const files: ListedFile[] = [];
   for (const entries of inside) {
     for (const entry of entries) {
       if (isFile(entry)) blobs.set(entry.path, entry.id);
-      if (isFile(entry) && entry.path.endsWith(`/${VAULT_MANIFEST}`)) files.push({ path: entry.path, size: entry.size ?? 0 });
+      if (isFile(entry) && entry.path.endsWith(`/${VAULT_MANIFEST}`))
+        files.push({ path: entry.path, size: entry.size ?? 0 });
     }
   }
 
@@ -116,25 +150,43 @@ async function fromDirectories(deps: RepositoryDeps, ref: RepositoryRef, commit:
   return { manifest, discovery: deps.format.discover(files, manifests), partial: true, manifests };
 }
 
-async function readManifests(deps: RepositoryDeps, ref: RepositoryRef, blobs: Map<string, string>, paths: string[]): Promise<Record<string, string>> {
+async function readManifests(
+  deps: RepositoryDeps,
+  ref: RepositoryRef,
+  blobs: Map<string, string>,
+  paths: string[],
+): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
-  const read = await mapLimit(paths, DIRECTORIES_AT_ONCE, async (path) => [path, await textOf(deps, ref, blobs.get(path))] as const);
+  const read = await mapLimit(
+    paths,
+    DIRECTORIES_AT_ONCE,
+    async (path) => [path, await textOf(deps, ref, blobs.get(path))] as const,
+  );
   for (const [path, text] of read) if (text !== undefined) out[path] = text;
   return out;
 }
 
-async function readRepositoryManifest(deps: RepositoryDeps, ref: RepositoryRef, blobs: Map<string, string>): Promise<RepositoryManifest | null> {
+async function readRepositoryManifest(
+  deps: RepositoryDeps,
+  ref: RepositoryRef,
+  blobs: Map<string, string>,
+): Promise<RepositoryManifest | null> {
   const text = await textOf(deps, ref, blobs.get(ROOT_MANIFEST));
   return text === undefined ? null : deps.format.describeRepositoryManifest(text);
 }
 
 /** A small file's text by blob id, or undefined if there is none or it is too large to be a manifest. */
-async function textOf(deps: RepositoryDeps, ref: RepositoryRef, blob: string | undefined): Promise<string | undefined> {
+async function textOf(
+  deps: RepositoryDeps,
+  ref: RepositoryRef,
+  blob: string | undefined,
+): Promise<string | undefined> {
   if (blob === undefined) return undefined;
   try {
     return await blobText(deps.provider, ref, blob, MAX_MANIFEST_BYTES);
   } catch (error) {
-    if (isProviderError(error, "too_large") || isProviderError(error, "not_found")) return undefined;
+    if (isProviderError(error, 'too_large') || isProviderError(error, 'not_found'))
+      return undefined;
     throw error;
   }
 }

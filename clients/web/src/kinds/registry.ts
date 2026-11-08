@@ -1,8 +1,8 @@
-import type { RepositoryManifest } from "../format/types";
-import { driveKind } from "./drive";
-import { journalKind } from "./journal";
-import { ssgKind } from "./ssg";
-import type { KindModule } from "./types";
+import type { RepositoryManifest } from '../format/types';
+import { driveKind } from './drive';
+import { journalKind } from './journal';
+import { ssgKind } from './ssg';
+import type { KindModule } from './types';
 
 /**
  * Which module presents a repository (RFC 0001, DESIGN.md §8 "Repository kinds"): the one registered for its kind, and the drive's
@@ -32,7 +32,7 @@ export function unregisterKind(id: string): void {
  */
 export function kindFor(manifest: RepositoryManifest | null): KindModule {
   if (!manifest?.ok) return driveKind;
-  if (manifest.kind !== "drive") return modules.get(manifest.kind) ?? driveKind;
+  if (manifest.kind !== 'drive') return modules.get(manifest.kind) ?? driveKind;
   // A kind the format module does not define (it says "drive") may still be one a module of this client presents: a kind of a
   // newer revision, or a test's stand-in. A defined kind it presents as a drive (an `ssg` with an engine it does not know) is a drive.
   const declared = manifest.declaredKind;
@@ -40,7 +40,7 @@ export function kindFor(manifest: RepositoryManifest | null): KindModule {
   return driveKind;
 }
 
-const DEFINED = new Set(["drive", "journal", "ssg"]);
+const DEFINED = new Set(['drive', 'journal', 'ssg']);
 
 /** Every registered kind, the drive first: what setting a repository up offers. */
 export function registeredKinds(): KindModule[] {

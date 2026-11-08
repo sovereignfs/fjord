@@ -1,6 +1,6 @@
-import type { CryptoModule } from "./module";
-import { KeyError } from "./store";
-import { fromBase64, toBase64 } from "./files";
+import type { CryptoModule } from './module';
+import { KeyError } from './store';
+import { fromBase64, toBase64 } from './files';
 
 /**
  * Converting every file of a vault, in the browser (RFC 0003). The server has no key, so this is where the files change form: each is read as the bytes it is, and, to encrypt, sealed to the
@@ -22,11 +22,16 @@ export interface ToSend {
   content: string;
 }
 
-const same = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((value, at) => value === b[at]);
-const folderOf = (path: string) => path.slice(0, path.lastIndexOf("/") + 1);
+const same = (a: Uint8Array, b: Uint8Array) =>
+  a.length === b.length && a.every((value, at) => value === b[at]);
+const folderOf = (path: string) => path.slice(0, path.lastIndexOf('/') + 1);
 
 /** Every file sealed to `recipients` (the text of a recipients file) as `<name>.age`, and each opened again to prove it. */
-export function encryptFiles(module: CryptoModule, keys: { with<T>(use: (secret: Uint8Array) => T): T }, input: { files: SnapshotFile[]; recipients: string }): ToSend[] {
+export function encryptFiles(
+  module: CryptoModule,
+  keys: { with<T>(use: (secret: Uint8Array) => T): T },
+  input: { files: SnapshotFile[]; recipients: string },
+): ToSend[] {
   return input.files.map((file) => {
     const plain = fromBase64(file.content);
     try {
@@ -36,12 +41,24 @@ export function encryptFiles(module: CryptoModule, keys: { with<T>(use: (secret:
         opened = keys.with((secret) => module.decrypt(sealed, secret));
       } catch (error) {
         if (error instanceof KeyError) throw error;
-        throw new KeyError("unreadable", "This identity cannot open what was just encrypted, so it is not one of the recipients. Nothing was changed.");
+        throw new KeyError(
+          'unreadable',
+          'This identity cannot open what was just encrypted, so it is not one of the recipients. Nothing was changed.',
+        );
       }
       const matches = same(opened, plain);
       opened.fill(0);
-      if (!matches) throw new KeyError("unreadable", "A file did not decrypt to what it was made from, so nothing was changed.");
-      return { path: file.path, blob: file.blob, to: `${file.path}.age`, content: toBase64(sealed) };
+      if (!matches)
+        throw new KeyError(
+          'unreadable',
+          'A file did not decrypt to what it was made from, so nothing was changed.',
+        );
+      return {
+        path: file.path,
+        blob: file.blob,
+        to: `${file.path}.age`,
+        content: toBase64(sealed),
+      };
     } finally {
       plain.fill(0);
     }
@@ -49,7 +66,11 @@ export function encryptFiles(module: CryptoModule, keys: { with<T>(use: (secret:
 }
 
 /** Every payload opened with the identity: `<name>.age` becomes `<name>`, and in an `id`-named vault the name inside the container is the name. */
-export function decryptFiles(module: CryptoModule, keys: { with<T>(use: (secret: Uint8Array) => T): T }, input: { files: SnapshotFile[]; naming: "plain" | "id" }): ToSend[] {
+export function decryptFiles(
+  module: CryptoModule,
+  keys: { with<T>(use: (secret: Uint8Array) => T): T },
+  input: { files: SnapshotFile[]; naming: 'plain' | 'id' },
+): ToSend[] {
   return input.files.map((file) => {
     const sealed = fromBase64(file.content);
     let plain: Uint8Array;
@@ -57,19 +78,36 @@ export function decryptFiles(module: CryptoModule, keys: { with<T>(use: (secret:
       plain = keys.with((secret) => module.decrypt(sealed, secret));
     } catch (error) {
       if (error instanceof KeyError) throw error;
-      throw new KeyError("unreadable", "This identity cannot open a file of the vault: it is not one of the keys it was encrypted to, or the file is damaged. Nothing was changed.");
+      throw new KeyError(
+        'unreadable',
+        'This identity cannot open a file of the vault: it is not one of the keys it was encrypted to, or the file is damaged. Nothing was changed.',
+      );
     }
     try {
-      if (input.naming === "id") {
+      if (input.naming === 'id') {
         const unwrapped = module.unwrapContainer(plain);
         try {
-          return { path: file.path, blob: file.blob, to: `${folderOf(file.path)}${unwrapped.name}`, content: toBase64(unwrapped.contents) };
+          return {
+            path: file.path,
+            blob: file.blob,
+            to: `${folderOf(file.path)}${unwrapped.name}`,
+            content: toBase64(unwrapped.contents),
+          };
         } finally {
           unwrapped.contents.fill(0);
         }
       }
-      if (!file.path.endsWith(".age")) throw new KeyError("unreadable", "A file of the vault is not an encrypted payload. Nothing was changed.");
-      return { path: file.path, blob: file.blob, to: file.path.slice(0, -4), content: toBase64(plain) };
+      if (!file.path.endsWith('.age'))
+        throw new KeyError(
+          'unreadable',
+          'A file of the vault is not an encrypted payload. Nothing was changed.',
+        );
+      return {
+        path: file.path,
+        blob: file.blob,
+        to: file.path.slice(0, -4),
+        content: toBase64(plain),
+      };
     } finally {
       plain.fill(0);
     }

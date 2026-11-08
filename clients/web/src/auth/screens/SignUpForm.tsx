@@ -1,15 +1,21 @@
-"use client";
+'use client';
 
-import { type FormEvent, useState } from "react";
-import { authClient } from "../client";
-import { messageFor } from "../messages";
-import { AuthButton, AuthError, AuthField, AuthForm, AuthNotice, Input } from "../../ui";
+import { type FormEvent, useState } from 'react';
+import { authClient } from '../client';
+import { messageFor } from '../messages';
+import { AuthButton, AuthError, AuthField, AuthForm, AuthNotice, Input } from '../../ui';
 
 /** Name, email and password. With email verification on, the next thing is a link in the inbox. */
-export function SignUpForm({ minLength, verifyEmail }: { minLength: number; verifyEmail: boolean }) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export function SignUpForm({
+  minLength,
+  verifyEmail,
+}: {
+  minLength: number;
+  verifyEmail: boolean;
+}) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -18,7 +24,12 @@ export function SignUpForm({ minLength, verifyEmail }: { minLength: number; veri
     event.preventDefault();
     setBusy(true);
     setError(null);
-    const { error: failure } = await authClient.signUp.email({ name, email, password, callbackURL: "/open" });
+    const { error: failure } = await authClient.signUp.email({
+      name,
+      email,
+      password,
+      callbackURL: '/open',
+    });
     if (failure) {
       setBusy(false);
       setError(messageFor(failure));
@@ -29,22 +40,51 @@ export function SignUpForm({ minLength, verifyEmail }: { minLength: number; veri
       setSentTo(email);
       return;
     }
-    window.location.assign("/open");
+    window.location.assign('/open');
   }
 
   if (sentTo) {
     return (
-      <AuthNotice>We sent a link to {sentTo}. Open it to confirm your address and finish creating your account. It works for one hour.</AuthNotice>
+      <AuthNotice>
+        We sent a link to {sentTo}. Open it to confirm your address and finish creating your
+        account. It works for one hour.
+      </AuthNotice>
     );
   }
 
   return (
     <AuthForm onSubmit={onSubmit}>
-      <AuthField label="Name">{(field) => <Input {...field} name="name" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />}</AuthField>
-      <AuthField label="Email">
-        {(field) => <Input {...field} type="email" name="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={busy} />}
+      <AuthField label="Name">
+        {(field) => (
+          <Input
+            {...field}
+            name="name"
+            autoComplete="name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={busy}
+          />
+        )}
       </AuthField>
-      <AuthField label="Password" hint={`At least ${minLength} characters. A few random words is a good one.`}>
+      <AuthField label="Email">
+        {(field) => (
+          <Input
+            {...field}
+            type="email"
+            name="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={busy}
+          />
+        )}
+      </AuthField>
+      <AuthField
+        label="Password"
+        hint={`At least ${minLength} characters. A few random words is a good one.`}
+      >
         {(field) => (
           <Input
             {...field}

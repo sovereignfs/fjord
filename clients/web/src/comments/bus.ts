@@ -43,7 +43,7 @@ export class CommentBus {
   }
 }
 
-const SLOT = Symbol.for("fjord.commentBus");
+const SLOT = Symbol.for('fjord.commentBus');
 export function commentBus(): CommentBus {
   const holder = globalThis as unknown as Record<symbol, CommentBus | undefined>;
   return (holder[SLOT] ??= new CommentBus());

@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { type ReactNode, useCallback, useRef, useState } from "react";
-import { ConfirmDialog } from "./index";
+import { type ReactNode, useCallback, useRef, useState } from 'react';
+import { ConfirmDialog } from './index';
 
 interface Asked {
   /** The question, said in full: what will happen, and what cannot be undone. */
@@ -32,5 +32,17 @@ export function useConfirm(): [(asked: Asked) => Promise<boolean>, ReactNode] {
     setAsked(null);
   };
 
-  return [ask, <ConfirmDialog key="confirm" open={asked !== null} onClose={() => settle(false)} title="Please confirm" message={asked?.message ?? ""} confirmLabel={asked?.confirm ?? "Yes"} destructive onConfirm={() => settle(true)} />];
+  return [
+    ask,
+    <ConfirmDialog
+      key="confirm"
+      open={asked !== null}
+      onClose={() => settle(false)}
+      title="Please confirm"
+      message={asked?.message ?? ''}
+      confirmLabel={asked?.confirm ?? 'Yes'}
+      destructive
+      onConfirm={() => settle(true)}
+    />,
+  ];
 }

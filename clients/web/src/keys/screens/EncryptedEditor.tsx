@@ -1,25 +1,25 @@
-"use client";
+'use client';
 
-import { DocumentEditor, NoteEditor } from "fjord-editor";
-import "fjord-editor/styles.css";
-import { useRouter } from "next/navigation";
-import { createPortal } from "react-dom";
-import { type MutableRefObject, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Button, FormField, Input } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import { discardDraft, sendDraft, sendVersion } from "../../working/client";
-import { MAX_MESSAGE_CHARS } from "../../working/limits";
-import { DraftSaver, type SaverStatus } from "../../working/saver";
-import { keyStore } from "../client";
-import { TransferControl } from "../../browse/screens/TransferControl";
-import { PublishCopyPanel } from "../../publishing/PublishCopyPanel";
-import { SealedSharePanel } from "../../sealed/SealedSharePanel";
-import { type Naming, type TransferTarget, openCiphertext, sealText, toBase64 } from "../files";
-import { History } from "../../browse/screens/History";
-import { type HeaderChange, changeHeader, splitDocument } from "../header";
-import { type CryptoModule, loadModule } from "../module";
-import { DocumentProperties } from "../../browse/screens/DocumentProperties";
-import type { Properties } from "../../browse/document";
+import { DocumentEditor, NoteEditor } from 'fjord-editor';
+import 'fjord-editor/styles.css';
+import { useRouter } from 'next/navigation';
+import { createPortal } from 'react-dom';
+import { type MutableRefObject, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Button, FormField, Input } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import { discardDraft, sendDraft, sendVersion } from '../../working/client';
+import { MAX_MESSAGE_CHARS } from '../../working/limits';
+import { DraftSaver, type SaverStatus } from '../../working/saver';
+import { keyStore } from '../client';
+import { TransferControl } from '../../browse/screens/TransferControl';
+import { PublishCopyPanel } from '../../publishing/PublishCopyPanel';
+import { SealedSharePanel } from '../../sealed/SealedSharePanel';
+import { type Naming, type TransferTarget, openCiphertext, sealText, toBase64 } from '../files';
+import { History } from '../../browse/screens/History';
+import { type HeaderChange, changeHeader, splitDocument } from '../header';
+import { type CryptoModule, loadModule } from '../module';
+import { DocumentProperties } from '../../browse/screens/DocumentProperties';
+import type { Properties } from '../../browse/document';
 
 /**
  * An encrypted file being edited in the browser (ROADMAP 2b.3, DESIGN.md §11). What is typed is **encrypted here, to the vault's recipients, before each send**:
@@ -46,7 +46,7 @@ export function EncryptedEditor({
   /** The file's path with the encryption's suffix off, which its name is read from. */
   logical: string;
   /** Which editor the repository's kind opens a Doc in, as a plaintext one would be (`KindModule.editor`). */
-  editor: "document" | "note";
+  editor: 'document' | 'note';
   connectionId: number;
   /** Where the repository's addresses begin (`ConnectionInfo.address`). */
   repo: string;
@@ -75,10 +75,19 @@ export function EncryptedEditor({
         initial: text,
         send: async (content) => {
           try {
-            const sealed = sealText(await loadModule(), { text: content, name, naming, recipients });
+            const sealed = sealText(await loadModule(), {
+              text: content,
+              name,
+              naming,
+              recipients,
+            });
             return await sendDraft(connectionId, path, base, toBase64(sealed), true);
           } catch {
-            return { kind: "refused", stop: false, message: "This text could not be encrypted, so it was not kept. Nothing was sent." };
+            return {
+              kind: 'refused',
+              stop: false,
+              message: 'This text could not be encrypted, so it was not kept. Nothing was sent.',
+            };
           }
         },
       }),
@@ -88,18 +97,18 @@ export function EncryptedEditor({
   const [start, setStart] = useState(text);
   const [revision, setRevision] = useState(0);
   const [slot, setSlot] = useState<HTMLElement | null>(null);
-  useEffect(() => setSlot(document.getElementById("file-actions-slot")), []);
+  useEffect(() => setSlot(document.getElementById('file-actions-slot')), []);
   const [split, setSplit] = useState<{ bodyStart: number; properties: Properties } | null>(null);
   const [ready, setReady] = useState(false);
   const moduleNow = useRef<CryptoModule | null>(null);
-  const headerNow = useRef("");
+  const headerNow = useRef('');
   useEffect(() => {
     let live = true;
     void loadModule().then((module) => {
       if (!live) return;
       moduleNow.current = module;
       const found = /\.md$/i.test(name) ? splitDocument(module, start) : null;
-      headerNow.current = found ? start.slice(0, found.bodyStart) : "";
+      headerNow.current = found ? start.slice(0, found.bodyStart) : '';
       setSplit(found);
       setReady(true);
     });
@@ -114,7 +123,7 @@ export function EncryptedEditor({
   };
   async function change(what: HeaderChange): Promise<string | null> {
     const module = moduleNow.current;
-    if (!module) return "The file could not be changed here. Try again.";
+    if (!module) return 'The file could not be changed here. Try again.';
     const changed = changeHeader(module, headerNow.current, what);
     if (!changed.ok) return changed.message;
     const rest = saver.text.slice(headerNow.current.length);
@@ -127,40 +136,43 @@ export function EncryptedEditor({
 
   const [status, setStatus] = useState<SaverStatus>(saver.status);
   const [hasDraft, setHasDraft] = useState(hadDraft);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [versionError, setVersionError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [discarding, setDiscarding] = useState(false);
   const [discardFailed, setDiscardFailed] = useState(false);
   const [renaming, setRenaming] = useState(false);
-  const [newStem, setNewStem] = useState("");
+  const [newStem, setNewStem] = useState('');
   const [renameError, setRenameError] = useState<string | null>(null);
   // What stays of the name when it is renamed: its extension, as for any file.
-  const extension = name.lastIndexOf(".") > 0 ? name.slice(name.lastIndexOf(".")) : "";
+  const extension = name.lastIndexOf('.') > 0 ? name.slice(name.lastIndexOf('.')) : '';
   const stem = name.slice(0, name.length - extension.length);
 
   useEffect(() => {
     const stop = saver.subscribe((next) => {
       setStatus(next);
-      if (next.state === "kept") setHasDraft(true);
+      if (next.state === 'kept') setHasDraft(true);
     });
     const leaving = () => void saver.flush();
     const hidden = () => {
-      if (document.visibilityState === "hidden") leaving();
+      if (document.visibilityState === 'hidden') leaving();
     };
     const warn = (event: BeforeUnloadEvent) => {
-      const trouble = saver.status.state === "retrying" || saver.status.state === "stopped" || saver.status.state === "refused";
+      const trouble =
+        saver.status.state === 'retrying' ||
+        saver.status.state === 'stopped' ||
+        saver.status.state === 'refused';
       if (trouble && saver.unsaved) event.preventDefault();
     };
     flushRef.current = () => saver.flush();
-    document.addEventListener("visibilitychange", hidden);
-    window.addEventListener("pagehide", leaving);
-    window.addEventListener("beforeunload", warn);
+    document.addEventListener('visibilitychange', hidden);
+    window.addEventListener('pagehide', leaving);
+    window.addEventListener('beforeunload', warn);
     return () => {
-      document.removeEventListener("visibilitychange", hidden);
-      window.removeEventListener("pagehide", leaving);
-      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener('visibilitychange', hidden);
+      window.removeEventListener('pagehide', leaving);
+      window.removeEventListener('beforeunload', warn);
       stop();
       flushRef.current = null;
       void saver.flush(); // hidden, locked or left: what is waiting is sealed and sent first
@@ -184,12 +196,14 @@ export function EncryptedEditor({
     setVersionError(null);
     await saver.flush();
     if (saver.unsaved) {
-      setVersionError("Your latest changes could not be kept on the server yet, so no version was made. Wait for them to be kept, then try again.");
+      setVersionError(
+        'Your latest changes could not be kept on the server yet, so no version was made. Wait for them to be kept, then try again.',
+      );
       setSaving(false);
       return;
     }
     const made = await sendVersion(connectionId, path, message);
-    if (!made.ok && (made.code === "upstream_changed" || made.code === "gone")) {
+    if (!made.ok && (made.code === 'upstream_changed' || made.code === 'gone')) {
       saver.dispose();
       window.location.reload();
       return;
@@ -220,23 +234,31 @@ export function EncryptedEditor({
     setSaving(true);
     try {
       const module = await loadModule();
-      if (newStem.trim() === "" || JSON.parse(module.checkName(next)).length > 0) {
-        setRenameError("That is not a name a file can have here. Names cannot hold characters such as : ? * or /, end in a space or a dot, or be one Windows reserves.");
+      if (newStem.trim() === '' || JSON.parse(module.checkName(next)).length > 0) {
+        setRenameError(
+          'That is not a name a file can have here. Names cannot hold characters such as : ? * or /, end in a space or a dot, or be one Windows reserves.',
+        );
         return;
       }
       if (next === name) {
-        setRenameError("That is its name already.");
+        setRenameError('That is its name already.');
         return;
       }
       const sealed = sealText(module, { text: saver.text, name: next, naming, recipients });
       const kept = await sendDraft(connectionId, path, base, toBase64(sealed), true);
-      if (kept.kind !== "kept") {
-        setRenameError(kept.kind === "refused" ? kept.message : "Could not keep the new name just now. Nothing was changed. Try again in a moment.");
+      if (kept.kind !== 'kept') {
+        setRenameError(
+          kept.kind === 'refused'
+            ? kept.message
+            : 'Could not keep the new name just now. Nothing was changed. Try again in a moment.',
+        );
         return;
       }
-      const made = await sendVersion(connectionId, path, "Rename an encrypted file");
+      const made = await sendVersion(connectionId, path, 'Rename an encrypted file');
       if (!made.ok) {
-        setRenameError(`${made.message} The new name is kept as a draft; save a version to finish the rename, or discard the changes.`);
+        setRenameError(
+          `${made.message} The new name is kept as a draft; save a version to finish the rename, or discard the changes.`,
+        );
         setHasDraft(true);
         return;
       }
@@ -248,7 +270,7 @@ export function EncryptedEditor({
       }
       router.refresh();
     } catch {
-      setRenameError("The file could not be renamed here, so nothing was changed.");
+      setRenameError('The file could not be renamed here, so nothing was changed.');
     } finally {
       setSaving(false);
     }
@@ -259,17 +281,25 @@ export function EncryptedEditor({
     <History
       connectionId={connectionId}
       path={path}
-      blocked={hasDraft ? "Save a version of your changes, or discard them, before putting another version back." : undefined}
+      blocked={
+        hasDraft
+          ? 'Save a version of your changes, or discard them, before putting another version back.'
+          : undefined
+      }
       open={async (bytes) => {
         const opened = await openCiphertext(await loadModule(), keyStore(), bytes, naming, logical);
-        if (opened.kind !== "text") throw new Error("That version is too large to open here. Open it with the command line.");
+        if (opened.kind !== 'text')
+          throw new Error('That version is too large to open here. Open it with the command line.');
         return opened.text;
       }}
       restore={async (restored) => {
         keyStore().touch();
         saver.change(restored);
         await saver.flush();
-        if (saver.unsaved) throw new Error("That version could not be kept as a draft just now. Nothing was changed. Try again.");
+        if (saver.unsaved)
+          throw new Error(
+            'That version could not be kept as a draft just now. Nothing was changed. Try again.',
+          );
         setHasDraft(true);
         setStart(restored);
         setRevision((count) => count + 1);
@@ -279,16 +309,40 @@ export function EncryptedEditor({
   return (
     <div data-testid="encrypted-editor">
       {slot ? createPortal(history, slot) : history}
-      {split ? <DocumentProperties key={`properties-${revision}`} properties={split.properties} pending={false} disabled={readOnly || saving} onTitle={(title) => change({ title })} {...(editor === "note" ? { onDate: (date: string | null) => change({ date }) } : {})} onTags={(tags) => change({ tags })} onField={(key, value) => change({ field: { key, value } })} /> : null}
-      {editor === "document" && /\.md$/i.test(name) ? (
-        <DocumentEditor key={revision} choiceKey={`${connectionId}:${path}`} aria-label={name} role={readOnly || saving ? "view" : "edit"} value={body} onChange={changeBody} />
+      {split ? (
+        <DocumentProperties
+          key={`properties-${revision}`}
+          properties={split.properties}
+          pending={false}
+          disabled={readOnly || saving}
+          onTitle={(title) => change({ title })}
+          {...(editor === 'note' ? { onDate: (date: string | null) => change({ date }) } : {})}
+          onTags={(tags) => change({ tags })}
+          onField={(key, value) => change({ field: { key, value } })}
+        />
+      ) : null}
+      {editor === 'document' && /\.md$/i.test(name) ? (
+        <DocumentEditor
+          key={revision}
+          choiceKey={`${connectionId}:${path}`}
+          aria-label={name}
+          role={readOnly || saving ? 'view' : 'edit'}
+          value={body}
+          onChange={changeBody}
+        />
       ) : (
-        <NoteEditor key={revision} aria-label={name} value={body} readOnly={readOnly || saving} onChange={changeBody} />
+        <NoteEditor
+          key={revision}
+          aria-label={name}
+          value={body}
+          readOnly={readOnly || saving}
+          onChange={changeBody}
+        />
       )}
       <p className={styles.itemMeta} role="status" aria-live="polite" data-testid="draft-status">
         {describe(status, hasDraft)}
       </p>
-      {status.state === "refused" || status.state === "stopped" ? (
+      {status.state === 'refused' || status.state === 'stopped' ? (
         <div className={styles.notice}>
           <Alert variant="error" heading="Your changes are not being kept">
             {status.message}
@@ -303,8 +357,21 @@ export function EncryptedEditor({
             void saveVersion();
           }}
         >
-          <FormField label="Message" hint="What changed, for the repository's history; it is not encrypted. Leave it empty for “Edit <name>”.">
-            {(field) => <Input {...field} name="message" autoComplete="off" maxLength={MAX_MESSAGE_CHARS} value={message} onChange={(e) => setMessage(e.target.value)} disabled={saving} />}
+          <FormField
+            label="Message"
+            hint="What changed, for the repository's history; it is not encrypted. Leave it empty for “Edit <name>”."
+          >
+            {(field) => (
+              <Input
+                {...field}
+                name="message"
+                autoComplete="off"
+                maxLength={MAX_MESSAGE_CHARS}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                disabled={saving}
+              />
+            )}
           </FormField>
           {versionError ? (
             <div className={styles.notice}>
@@ -320,7 +387,7 @@ export function EncryptedEditor({
           </div>
         </form>
       ) : null}
-      {naming === "id" && !readOnly ? (
+      {naming === 'id' && !readOnly ? (
         <div>
           {renaming ? (
             <form
@@ -331,8 +398,21 @@ export function EncryptedEditor({
                 void rename();
               }}
             >
-              <FormField label="New name" hint={`The name is kept inside the encrypted file; the file in the repository keeps its identifier.${extension === "" ? "" : ` It stays ${extension}.`}`}>
-                {(field) => <Input {...field} name="name" autoComplete="off" maxLength={200} value={newStem} onChange={(e) => setNewStem(e.target.value)} disabled={saving} />}
+              <FormField
+                label="New name"
+                hint={`The name is kept inside the encrypted file; the file in the repository keeps its identifier.${extension === '' ? '' : ` It stays ${extension}.`}`}
+              >
+                {(field) => (
+                  <Input
+                    {...field}
+                    name="name"
+                    autoComplete="off"
+                    maxLength={200}
+                    value={newStem}
+                    onChange={(e) => setNewStem(e.target.value)}
+                    disabled={saving}
+                  />
+                )}
               </FormField>
               {renameError ? (
                 <div className={styles.notice}>
@@ -342,16 +422,29 @@ export function EncryptedEditor({
                 </div>
               ) : null}
               <div className={styles.actions}>
-                <Button type="submit" size="sm" loading={saving} disabled={newStem.trim() === "" || newStem.trim() === stem}>
+                <Button
+                  type="submit"
+                  size="sm"
+                  loading={saving}
+                  disabled={newStem.trim() === '' || newStem.trim() === stem}
+                >
                   Rename
-                </Button>{" "}
-                <Button type="button" variant="secondary" size="sm" onClick={() => setRenaming(false)} disabled={saving}>
+                </Button>{' '}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setRenaming(false)}
+                  disabled={saving}
+                >
                   Cancel
                 </Button>
               </div>
             </form>
           ) : hasDraft ? (
-            <p className={styles.itemMeta}>To rename this file, save a version of your changes or discard them first.</p>
+            <p className={styles.itemMeta}>
+              To rename this file, save a version of your changes or discard them first.
+            </p>
           ) : (
             <Button
               variant="secondary"
@@ -367,8 +460,22 @@ export function EncryptedEditor({
           )}
         </div>
       ) : null}
-      {!readOnly ? <SealedSharePanel connectionId={connectionId} path={path} name={name} getText={() => saver.text} /> : null}
-      {!readOnly && /\.md$/i.test(name) ? <PublishCopyPanel connectionId={connectionId} path={path} name={name} getText={() => saver.text} /> : null}
+      {!readOnly ? (
+        <SealedSharePanel
+          connectionId={connectionId}
+          path={path}
+          name={name}
+          getText={() => saver.text}
+        />
+      ) : null}
+      {!readOnly && /\.md$/i.test(name) ? (
+        <PublishCopyPanel
+          connectionId={connectionId}
+          path={path}
+          name={name}
+          getText={() => saver.text}
+        />
+      ) : null}
       {!readOnly ? (
         <TransferControl
           connectionId={connectionId}
@@ -379,7 +486,11 @@ export function EncryptedEditor({
           text={saver.text}
           sourceEncrypted
           targets={transferTargets}
-          blocked={hasDraft ? "To move this file to another vault, save a version of your changes or discard them first." : undefined}
+          blocked={
+            hasDraft
+              ? 'To move this file to another vault, save a version of your changes or discard them first.'
+              : undefined
+          }
         />
       ) : null}
       {hasDraft ? (
@@ -391,11 +502,16 @@ export function EncryptedEditor({
           ) : null}
           {confirming ? (
             <p>
-              Discard everything you changed in this file?{" "}
+              Discard everything you changed in this file?{' '}
               <Button variant="destructive" size="sm" onClick={discard} loading={discarding}>
                 Yes, discard
-              </Button>{" "}
-              <Button variant="secondary" size="sm" onClick={() => setConfirming(false)} disabled={discarding}>
+              </Button>{' '}
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setConfirming(false)}
+                disabled={discarding}
+              >
                 Keep editing
               </Button>
             </p>
@@ -410,22 +526,23 @@ export function EncryptedEditor({
   );
 }
 
-export const savedKey = (connectionId: number, path: string) => `fjord:version-saved:${connectionId}:${path}`;
+export const savedKey = (connectionId: number, path: string) =>
+  `fjord:version-saved:${connectionId}:${path}`;
 
 function describe(status: SaverStatus, hasDraft: boolean): string {
   switch (status.state) {
-    case "idle":
-      return hasDraft ? "" : "No changes yet. What you type is encrypted here and kept as a draft.";
-    case "pending":
-      return "Unsaved changes…";
-    case "saving":
-      return "Encrypting and saving…";
-    case "kept":
-      return "Changes kept as an encrypted draft.";
-    case "retrying":
-      return "Could not keep your changes. Trying again…";
-    case "refused":
-    case "stopped":
-      return "Changes are not being kept.";
+    case 'idle':
+      return hasDraft ? '' : 'No changes yet. What you type is encrypted here and kept as a draft.';
+    case 'pending':
+      return 'Unsaved changes…';
+    case 'saving':
+      return 'Encrypting and saving…';
+    case 'kept':
+      return 'Changes kept as an encrypted draft.';
+    case 'retrying':
+      return 'Could not keep your changes. Trying again…';
+    case 'refused':
+    case 'stopped':
+      return 'Changes are not being kept.';
   }
 }

@@ -35,17 +35,25 @@ export interface PolicyOptions {
  * a fixed string in the library, so a hash allows exactly that and not other styles. A new version of either that changes the text is blocked until its hash
  * is put here; `e2e` opens the menus and fails on any block, so it is noticed when the library is upgraded (it is pinned, and upgraded on purpose).
  */
-export const LIBRARY_STYLE_HASHES = ["sha256-441zG27rExd4/il+NvIqyL8zFx5XmyNQtE381kSkUJk=", "sha256-nzTgYzXYDNe6BAHiiI7NNlfK8n/auuOAhh2t92YvuXo="];
+export const LIBRARY_STYLE_HASHES = [
+  'sha256-441zG27rExd4/il+NvIqyL8zFx5XmyNQtE381kSkUJk=',
+  'sha256-nzTgYzXYDNe6BAHiiI7NNlfK8n/auuOAhh2t92YvuXo=',
+];
 
-export function contentSecurityPolicy({ nonce, secure, development, frames = false }: PolicyOptions): string {
-  const hashes = LIBRARY_STYLE_HASHES.map((hash) => `'${hash}'`).join(" ");
+export function contentSecurityPolicy({
+  nonce,
+  secure,
+  development,
+  frames = false,
+}: PolicyOptions): string {
+  const hashes = LIBRARY_STYLE_HASHES.map((hash) => `'${hash}'`).join(' ');
   // `next dev`'s own overlay (the indicator at the bottom left, its menus and error dialog) draws itself with a dozen inline `<style>` elements inside a shadow
   // root, none of which can be given a nonce, so under the production policy it is left unstyled (a bare grey box). Development only, and a nonce or a hash in
   // the list would make browsers ignore `'unsafe-inline'`, so it stands alone: the production policy below is the one that is tested and shipped.
   const styles = development ? "'self' 'unsafe-inline'" : `'self' 'nonce-${nonce}' ${hashes}`;
   const directives = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${development ? " 'unsafe-eval'" : ""}`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'${development ? " 'unsafe-eval'" : ''}`,
     `style-src ${styles}`,
     `style-src-elem ${styles}`,
     "style-src-attr 'unsafe-inline'",
@@ -57,9 +65,9 @@ export function contentSecurityPolicy({ nonce, secure, development, frames = fal
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
-    ...(secure ? ["upgrade-insecure-requests"] : []),
+    ...(secure ? ['upgrade-insecure-requests'] : []),
   ];
-  return directives.join("; ");
+  return directives.join('; ');
 }
 
 /** An unguessable value for one request: 128 bits from the platform's random source. */
@@ -75,20 +83,25 @@ export function newNonce(): string {
  */
 export const SECURITY_HEADERS: { key: string; value: string }[] = [
   // A response is what its `Content-Type` says it is: an upload or a comment cannot be sniffed into a script.
-  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
   // Old browsers do not know `frame-ancestors`.
-  { key: "X-Frame-Options", value: "DENY" },
+  { key: 'X-Frame-Options', value: 'DENY' },
   // Nothing here needs the device; a page cannot be made to ask for it.
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
+  },
   // Another site's window cannot hold a reference to this one's after a link is followed.
-  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
 ];
 
 /**
  * The same for `/raw/…`, a document this app shows in its own frame: it may be framed by this origin (its own policy says so, `frame-ancestors 'self'`), so the one header that
  * forbids all framing is left off it; the rest are the same.
  */
-export const EMBEDDABLE_SECURITY_HEADERS = SECURITY_HEADERS.filter((header) => header.key !== "X-Frame-Options");
+export const EMBEDDABLE_SECURITY_HEADERS = SECURITY_HEADERS.filter(
+  (header) => header.key !== 'X-Frame-Options',
+);
 
 /** A year, and the subdomains: the instance is served over https or not at all. */
-export const HSTS = "max-age=31536000; includeSubDomains";
+export const HSTS = 'max-age=31536000; includeSubDomains';

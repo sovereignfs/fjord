@@ -1,4 +1,4 @@
-export type AccountSection = "profile" | "security" | "preferences";
+export type AccountSection = 'profile' | 'security' | 'preferences';
 
 /**
  * What the address says: which section of the account to open (`section`), which part of Security (`tab=keys` for the encryption identity; the rest is General), and about the
@@ -14,8 +14,17 @@ export interface AccountQuery {
 
 /** The section the address asks for: Security for the way back from linking Sovereign and for the older addresses of the key, Profile when it says nothing. */
 export function sectionOf(query: AccountQuery): AccountSection {
-  if (query.section === "profile" || query.section === "security" || query.section === "preferences") return query.section;
-  const security = query.tab === "security" || query.tab === "keys" || query.error !== undefined || query.linked !== undefined || query.unlinked !== undefined;
-  return security ? "security" : "profile";
+  if (
+    query.section === 'profile' ||
+    query.section === 'security' ||
+    query.section === 'preferences'
+  )
+    return query.section;
+  const security =
+    query.tab === 'security' ||
+    query.tab === 'keys' ||
+    query.error !== undefined ||
+    query.linked !== undefined ||
+    query.unlinked !== undefined;
+  return security ? 'security' : 'profile';
 }
-

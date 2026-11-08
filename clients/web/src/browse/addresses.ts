@@ -1,5 +1,5 @@
-import { isHandle } from "./handles";
-import { isDocId } from "./ids";
+import { isHandle } from './handles';
+import { isDocId } from './ids';
 
 /**
  * The addresses of a repository's places (workstream 0003, DESIGN.md §9), made of ids and never of a path:
@@ -23,59 +23,88 @@ import { isDocId } from "./ids";
  * This module is pure: it knows the shapes, and nothing about what is in a repository.
  */
 export type Address =
-  | { kind: "repository" }
-  | { kind: "vault"; vault: string }
-  | { kind: "place"; vault: string; /** The handle of the folder it is in, when it is in one. */ parent?: string | undefined; target: { handle: string } | { doc: string } | { html: string } }
-  | { kind: "note"; /** `n` for a journal's note, `post` for a site's post. */ as: "n" | "post"; target: { doc: string } | { handle: string } }
-  | { kind: "deleted" }
-  | { kind: "legacy"; segments: string[] }
-  | { kind: "invalid" };
+  | { kind: 'repository' }
+  | { kind: 'vault'; vault: string }
+  | {
+      kind: 'place';
+      vault: string;
+      /** The handle of the folder it is in, when it is in one. */ parent?: string | undefined;
+      target: { handle: string } | { doc: string } | { html: string };
+    }
+  | {
+      kind: 'note';
+      /** `n` for a journal's note, `post` for a site's post. */ as: 'n' | 'post';
+      target: { doc: string } | { handle: string };
+    }
+  | { kind: 'deleted' }
+  | { kind: 'legacy'; segments: string[] }
+  | { kind: 'invalid' };
 
 /** The segments of a `/repo/<repo>/…` address after the repository, decoded. */
 export function parseAddress(segments: string[]): Address {
-  if (segments.length === 0) return { kind: "repository" };
+  if (segments.length === 0) return { kind: 'repository' };
   const [first, second, ...tail] = segments;
   // What was deleted: `deleted` alone. A vault or a folder of that name is still reached by its own address of ids.
-  if (first === "deleted" && segments.length === 1) return { kind: "deleted" };
+  if (first === 'deleted' && segments.length === 1) return { kind: 'deleted' };
   // A journal's note: `n` and one id. A vault named `n` with some other name after it is the old address by path.
-  if ((first === "n" || first === "post") && segments.length === 2 && second !== undefined) {
-    if (isDocId(second)) return { kind: "note", as: first, target: { doc: second } };
-    if (isHandle(second)) return { kind: "note", as: first, target: { handle: second } };
+  if ((first === 'n' || first === 'post') && segments.length === 2 && second !== undefined) {
+    if (isDocId(second)) return { kind: 'note', as: first, target: { doc: second } };
+    if (isHandle(second)) return { kind: 'note', as: first, target: { handle: second } };
   }
-  if (first !== "v" || second === undefined || !isDocId(second)) return { kind: "legacy", segments };
+  if (first !== 'v' || second === undefined || !isDocId(second))
+    return { kind: 'legacy', segments };
   const vault = second;
-  if (tail.length === 0) return { kind: "vault", vault };
+  if (tail.length === 0) return { kind: 'vault', vault };
   const last = tail[tail.length - 1] as string;
   const marker = tail.length >= 2 ? tail[tail.length - 2] : undefined;
-  if (marker === "html") {
-    if (!isHandle(last) || tail.length > 3) return { kind: "invalid" };
+  if (marker === 'html') {
+    if (!isHandle(last) || tail.length > 3) return { kind: 'invalid' };
     return placed(vault, tail.length === 3 ? tail[0] : undefined, { html: last });
   }
-  if (marker === "d") {
-    if (!isDocId(last) || tail.length > 3) return { kind: "invalid" };
+  if (marker === 'd') {
+    if (!isDocId(last) || tail.length > 3) return { kind: 'invalid' };
     return placed(vault, tail.length === 3 ? tail[0] : undefined, { doc: last });
   }
-  if (tail.length > 2 || !isHandle(last)) return { kind: "invalid" };
+  if (tail.length > 2 || !isHandle(last)) return { kind: 'invalid' };
   return placed(vault, tail.length === 2 ? tail[0] : undefined, { handle: last });
 }
 
-function placed(vault: string, parent: string | undefined, target: { handle: string } | { doc: string } | { html: string }): Address {
-  if (parent !== undefined && !isHandle(parent)) return { kind: "invalid" };
-  return { kind: "place", vault, parent, target };
+function placed(
+  vault: string,
+  parent: string | undefined,
+  target: { handle: string } | { doc: string } | { html: string },
+): Address {
+  if (parent !== undefined && !isHandle(parent)) return { kind: 'invalid' };
+  return { kind: 'place', vault, parent, target };
 }
 
 /** `connection` is a repository's address (`ConnectionInfo.address`: `<kind>/<public id>`, as `drive/k3x9m2qa`). */
 export const repositoryAddress = (connection: string): string => `/${connection}`;
 
-export { deletedAddress } from "./links";
+export { deletedAddress } from './links';
 
-export const vaultAddress = (connection: string, vault: string): string => `${repositoryAddress(connection)}/v/${vault}`;
+export const vaultAddress = (connection: string, vault: string): string =>
+  `${repositoryAddress(connection)}/v/${vault}`;
 
 /** A folder or file by its handle, a Doc by its `id`, or an HTML page by its handle, with the handle of the folder it is in. */
-export function placeAddress(connection: string, vault: string, target: { handle: string } | { doc: string } | { html: string }, parent?: string): string {
-  const front = `${vaultAddress(connection, vault)}${parent === undefined ? "" : `/${parent}`}`;
-  return "doc" in target ? `${front}/d/${target.doc}` : "html" in target ? `${front}/html/${target.html}` : `${front}/${target.handle}`;
+export function placeAddress(
+  connection: string,
+  vault: string,
+  target: { handle: string } | { doc: string } | { html: string },
+  parent?: string,
+): string {
+  const front = `${vaultAddress(connection, vault)}${parent === undefined ? '' : `/${parent}`}`;
+  return 'doc' in target
+    ? `${front}/d/${target.doc}`
+    : 'html' in target
+      ? `${front}/html/${target.html}`
+      : `${front}/${target.handle}`;
 }
 
 /** A journal's note (`n`) or a site's post (`post`), by its `id` or, with none, its handle. */
-export const noteAddress = (connection: string, target: { doc: string } | { handle: string }, as: "n" | "post" = "n"): string => `${repositoryAddress(connection)}/${as}/${"doc" in target ? target.doc : target.handle}`;
+export const noteAddress = (
+  connection: string,
+  target: { doc: string } | { handle: string },
+  as: 'n' | 'post' = 'n',
+): string =>
+  `${repositoryAddress(connection)}/${as}/${'doc' in target ? target.doc : target.handle}`;

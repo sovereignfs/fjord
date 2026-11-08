@@ -1,4 +1,4 @@
-import type { Fjord } from "../format/wasm";
+import type { Fjord } from '../format/wasm';
 
 /**
  * Where a document's body starts in its text (DESIGN.md §9, ROADMAP 1b.3). A document is a header (`---` … `---`, written and
@@ -9,15 +9,18 @@ import type { Fjord } from "../format/wasm";
  * A file with no header is all body. A header that cannot be read (it is not closed, or is not a mapping, or is not YAML) is
  * not ours to split or to rewrite, so there is no answer: the file is then shown as Markdown whole, byte for byte.
  */
-export function bodyStartOf(format: Pick<Fjord, "parseDocument">, text: string): number | undefined {
+export function bodyStartOf(
+  format: Pick<Fjord, 'parseDocument'>,
+  text: string,
+): number | undefined {
   const parsed = format.parseDocument(text);
   // A `---` further down is a rule in the body, not a header.
-  if (parsed.status === "absent" || parsed.status === "notAtStart") return 0;
-  if (parsed.status !== "present" || typeof parsed.bodyOffset !== "number") return undefined;
+  if (parsed.status === 'absent' || parsed.status === 'notAtStart') return 0;
+  if (parsed.status !== 'present' || typeof parsed.bodyOffset !== 'number') return undefined;
   const bytes = new TextEncoder().encode(text);
   if (parsed.bodyOffset > bytes.length) return undefined;
   // The header ends at a line break, so these bytes are whole characters.
-  return new TextDecoder("utf-8").decode(bytes.subarray(0, parsed.bodyOffset)).length;
+  return new TextDecoder('utf-8').decode(bytes.subarray(0, parsed.bodyOffset)).length;
 }
 
 /** A header's keys as the Document properties panel shows them (ROADMAP 1b.5). */
@@ -34,7 +37,7 @@ export interface Properties {
   /** `description`, when it is text. Another shape is among `others`. */
   description: string | null;
   /** Every other key, in the order written, with its value as text: Fjord shows what it does not know and keeps it. `editable` says whether a form can set it: text or a yes or no. */
-  others: { key: string; value: string; editable?: "text" | "flag" }[];
+  others: { key: string; value: string; editable?: 'text' | 'flag' }[];
 }
 
 /**
@@ -55,40 +58,50 @@ export interface HeaderInfo {
   promotion?: { header: string; properties: Properties };
 }
 
-const KNOWN = new Set(["id", "title", "created"]);
+const KNOWN = new Set(['id', 'title', 'created']);
 
-type Reader = Pick<Fjord, "parseDocument">;
+type Reader = Pick<Fjord, 'parseDocument'>;
 
-export function propertiesOf(parsed: ReturnType<Reader["parseDocument"]>): Properties {
+export function propertiesOf(parsed: ReturnType<Reader['parseDocument']>): Properties {
   const raw = parsed.frontmatter ?? {};
   return {
     id: parsed.docId ?? null,
-    title: typeof raw.title === "string" ? raw.title : null,
-    created: typeof raw.created === "string" ? raw.created : null,
-    date: typeof raw.date === "string" ? raw.date : null,
+    title: typeof raw.title === 'string' ? raw.title : null,
+    created: typeof raw.created === 'string' ? raw.created : null,
+    date: typeof raw.date === 'string' ? raw.date : null,
     tags: tagList(raw.tags),
-    draft: typeof raw.draft === "boolean" ? raw.draft : null,
-    description: typeof raw.description === "string" ? raw.description : null,
+    draft: typeof raw.draft === 'boolean' ? raw.draft : null,
+    description: typeof raw.description === 'string' ? raw.description : null,
     others: Object.entries(raw)
       .filter(
         ([key, value]) =>
           !KNOWN.has(key) &&
-          !(key === "date" && typeof value === "string") &&
-          !(key === "tags" && tagList(value) !== null) &&
-          !(key === "draft" && typeof value === "boolean") &&
-          !(key === "description" && typeof value === "string"),
+          !(key === 'date' && typeof value === 'string') &&
+          !(key === 'tags' && tagList(value) !== null) &&
+          !(key === 'draft' && typeof value === 'boolean') &&
+          !(key === 'description' && typeof value === 'string'),
       )
-      .map(([key, value]) => ({ key, value: typeof value === "string" ? value : JSON.stringify(value), ...(typeof value === "string" ? { editable: "text" as const } : typeof value === "boolean" ? { editable: "flag" as const } : {}) })),
+      .map(([key, value]) => ({
+        key,
+        value: typeof value === 'string' ? value : JSON.stringify(value),
+        ...(typeof value === 'string'
+          ? { editable: 'text' as const }
+          : typeof value === 'boolean'
+            ? { editable: 'flag' as const }
+            : {}),
+      })),
   };
 }
 
 /** `tags` as a list of text, or null for anything else (a string, a list with something that is not text in it). */
 function tagList(value: unknown): string[] | null {
-  return Array.isArray(value) && value.every((tag) => typeof tag === "string") ? (value as string[]) : null;
+  return Array.isArray(value) && value.every((tag) => typeof tag === 'string')
+    ? (value as string[])
+    : null;
 }
 
 export function headerOf(
-  format: Reader & Pick<Fjord, "promoteDocument" | "impliedTitle" | "newUlid" | "rfc3339FromUnix">,
+  format: Reader & Pick<Fjord, 'promoteDocument' | 'impliedTitle' | 'newUlid' | 'rfc3339FromUnix'>,
   text: string,
   fileName: string,
   now: number = Date.now(),
@@ -97,22 +110,34 @@ export function headerOf(
   const bodyStart = bodyStartOf(format, text);
   if (bodyStart === undefined) return undefined;
   const parsed = format.parseDocument(text);
-  if (parsed.status === "present") return { bodyStart, properties: propertiesOf(parsed) };
-  if (text.includes("\r") || text.startsWith("\uFEFF")) return { bodyStart };
-  const header = format.promoteDocument("", format.newUlid(now, random), format.rfc3339FromUnix(Math.floor(now / 1000)), format.impliedTitle(text, fileName));
-  return header === undefined ? { bodyStart } : { bodyStart, promotion: { header, properties: propertiesOf(format.parseDocument(header)) } };
+  if (parsed.status === 'present') return { bodyStart, properties: propertiesOf(parsed) };
+  if (text.includes('\r') || text.startsWith('\uFEFF')) return { bodyStart };
+  const header = format.promoteDocument(
+    '',
+    format.newUlid(now, random),
+    format.rfc3339FromUnix(Math.floor(now / 1000)),
+    format.impliedTitle(text, fileName),
+  );
+  return header === undefined
+    ? { bodyStart }
+    : { bodyStart, promotion: { header, properties: propertiesOf(format.parseDocument(header)) } };
 }
 
 /** A file's name as a person calls it: without `.md`, or `.fj.md`, which are for Fjord and not for them. */
 export function stemOf(fileName: string): string {
-  return fileName.replace(/(\.fj)?\.md$/i, "");
+  return fileName.replace(/(\.fj)?\.md$/i, '');
 }
 
 /**
  * What a document is called, at the head of its page: the title its header gives it, else the first level-one heading of its body (`# Title`, outside a code block), else its
  * file's name without the extension. The text is the one shown (a draft, if there is one), and `bodyStart` where its body begins in it.
  */
-export function documentTitle(text: string, bodyStart: number | undefined, headerTitle: string | null | undefined, fileName: string): string {
+export function documentTitle(
+  text: string,
+  bodyStart: number | undefined,
+  headerTitle: string | null | undefined,
+  fileName: string,
+): string {
   const fromHeader = headerTitle?.trim();
   if (fromHeader) return fromHeader;
   let fenced: string | null = null;
@@ -126,7 +151,7 @@ export function documentTitle(text: string, bodyStart: number | undefined, heade
     }
     if (fenced !== null) continue;
     const heading = /^ {0,3}#[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(line);
-    if (heading?.[1] && heading[1].trim() !== "") return heading[1].trim();
+    if (heading?.[1] && heading[1].trim() !== '') return heading[1].trim();
   }
   return stemOf(fileName);
 }

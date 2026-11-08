@@ -1,204 +1,385 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { createFrom, deleteFrom, identifyFrom, moveFrom, restoreFrom, sendCreate, sendDelete, sendMove, sendRestore, sendTitle, titleFrom } from "./client";
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  createFrom,
+  deleteFrom,
+  identifyFrom,
+  moveFrom,
+  restoreFrom,
+  sendCreate,
+  sendDelete,
+  sendMove,
+  sendRestore,
+  sendTitle,
+  titleFrom,
+} from './client';
 
-describe("createFrom", () => {
-  it("is made, with where", () => {
-    expect(createFrom(201, { path: "Notes/Plan.md" })).toEqual({ ok: true, path: "Notes/Plan.md" });
+describe('createFrom', () => {
+  it('is made, with where', () => {
+    expect(createFrom(201, { path: 'Notes/Plan.md' })).toEqual({ ok: true, path: 'Notes/Plan.md' });
   });
 
-  it("is not made for a success that does not say where", () => {
+  it('is not made for a success that does not say where', () => {
     expect(createFrom(201, {})).toMatchObject({ ok: false });
-    expect(createFrom(200, { path: "Notes/Plan.md" })).toMatchObject({ ok: false });
+    expect(createFrom(200, { path: 'Notes/Plan.md' })).toMatchObject({ ok: false });
   });
 
-  it("says what the server said, which is in words a person can act on", () => {
-    expect(createFrom(409, { error: { message: "That folder is no longer in the repository." } })).toEqual({ ok: false, message: "That folder is no longer in the repository." });
+  it('says what the server said, which is in words a person can act on', () => {
+    expect(
+      createFrom(409, { error: { message: 'That folder is no longer in the repository.' } }),
+    ).toEqual({ ok: false, message: 'That folder is no longer in the repository.' });
   });
 
-  it("says nothing was made when signed out or when the server said nothing", () => {
-    for (const result of [createFrom(401, undefined), createFrom(502, undefined), createFrom(500, {})]) {
-      expect(result).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was made/i) });
+  it('says nothing was made when signed out or when the server said nothing', () => {
+    for (const result of [
+      createFrom(401, undefined),
+      createFrom(502, undefined),
+      createFrom(500, {}),
+    ]) {
+      expect(result).toMatchObject({
+        ok: false,
+        message: expect.stringMatching(/nothing was made/i),
+      });
     }
   });
 });
 
-describe("sendCreate", () => {
+describe('sendCreate', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("sends the place, the title and the writer's own date and time, and nothing that names or contains the file", async () => {
-    const fetched = vi.fn(async () => new Response(JSON.stringify({ path: "Notes/Plan.md" }), { status: 201 }));
-    vi.stubGlobal("fetch", fetched);
+    const fetched = vi.fn(
+      async () => new Response(JSON.stringify({ path: 'Notes/Plan.md' }), { status: 201 }),
+    );
+    vi.stubGlobal('fetch', fetched);
     const when = new Date(2026, 9, 22, 14, 30, 45); // local time: 22 October 2026, 14:30
-    expect(await sendCreate(7, { vault: "Notes", folder: "Projects", title: "Plan" }, when)).toEqual({ ok: true, path: "Notes/Plan.md" });
+    expect(
+      await sendCreate(7, { vault: 'Notes', folder: 'Projects', title: 'Plan' }, when),
+    ).toEqual({ ok: true, path: 'Notes/Plan.md' });
     const [url, init] = fetched.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("/api/connections/7/files");
-    expect(init.method).toBe("POST");
+    expect(url).toBe('/api/connections/7/files');
+    expect(init.method).toBe('POST');
     expect(JSON.parse(init.body as string)).toEqual({
-      vault: "Notes",
-      folder: "Projects",
-      title: "Plan",
+      vault: 'Notes',
+      folder: 'Projects',
+      title: 'Plan',
       localMinute: { year: 2026, month: 10, day: 22, hour: 14, minute: 30 },
     });
   });
 
-  it("says nothing was made when the server cannot be reached", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("offline"))));
-    expect(await sendCreate(7, { vault: "Notes", folder: "", title: "" })).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was made/i) });
+  it('says nothing was made when the server cannot be reached', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject(new TypeError('offline'))),
+    );
+    expect(await sendCreate(7, { vault: 'Notes', folder: '', title: '' })).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/nothing was made/i),
+    });
   });
 });
 
-describe("deleteFrom", () => {
-  it("is done, with the numbers to put it back by", () => {
-    expect(deleteFrom(200, { commit: "c", files: 3, deletions: [4, 5, 6] })).toEqual({ ok: true, deletions: [4, 5, 6], files: 3 });
+describe('deleteFrom', () => {
+  it('is done, with the numbers to put it back by', () => {
+    expect(deleteFrom(200, { commit: 'c', files: 3, deletions: [4, 5, 6] })).toEqual({
+      ok: true,
+      deletions: [4, 5, 6],
+      files: 3,
+    });
   });
 
-  it("is not done for a success that does not say what was recorded", () => {
+  it('is not done for a success that does not say what was recorded', () => {
     expect(deleteFrom(200, {})).toMatchObject({ ok: false });
     expect(deleteFrom(200, { deletions: [1] })).toMatchObject({ ok: false });
   });
 
-  it.each(["gone", "upstream_changed", "folder_changed"])("%s means the page is out of date: look again", (code) => {
-    expect(deleteFrom(409, { error: { code, message: "words" } })).toEqual({ ok: false, lookAgain: true, message: "words" });
+  it.each(['gone', 'upstream_changed', 'folder_changed'])(
+    '%s means the page is out of date: look again',
+    (code) => {
+      expect(deleteFrom(409, { error: { code, message: 'words' } })).toEqual({
+        ok: false,
+        lookAgain: true,
+        message: 'words',
+      });
+    },
+  );
+
+  it.each([
+    'has_drafts',
+    'draft_not_saved',
+    'too_many',
+    'protected',
+    'read_only',
+    'head_moved',
+    'unavailable',
+  ])('%s is not a reason to reload', (code) => {
+    expect(deleteFrom(409, { error: { code, message: 'words' } })).toEqual({
+      ok: false,
+      lookAgain: false,
+      message: 'words',
+    });
   });
 
-  it.each(["has_drafts", "draft_not_saved", "too_many", "protected", "read_only", "head_moved", "unavailable"])("%s is not a reason to reload", (code) => {
-    expect(deleteFrom(409, { error: { code, message: "words" } })).toEqual({ ok: false, lookAgain: false, message: "words" });
-  });
-
-  it("says nothing was deleted when signed out or when the server said nothing", () => {
-    for (const result of [deleteFrom(401, undefined), deleteFrom(502, undefined), deleteFrom(500, {})]) {
-      expect(result).toMatchObject({ ok: false, lookAgain: false, message: expect.stringMatching(/nothing was deleted/i) });
+  it('says nothing was deleted when signed out or when the server said nothing', () => {
+    for (const result of [
+      deleteFrom(401, undefined),
+      deleteFrom(502, undefined),
+      deleteFrom(500, {}),
+    ]) {
+      expect(result).toMatchObject({
+        ok: false,
+        lookAgain: false,
+        message: expect.stringMatching(/nothing was deleted/i),
+      });
     }
   });
 });
 
-describe("restoreFrom", () => {
-  it("is put back, with where", () => {
-    expect(restoreFrom(200, { commit: "c", paths: ["Notes/a.md"] })).toEqual({ ok: true, commit: "c", paths: ["Notes/a.md"] });
+describe('restoreFrom', () => {
+  it('is put back, with where', () => {
+    expect(restoreFrom(200, { commit: 'c', paths: ['Notes/a.md'] })).toEqual({
+      ok: true,
+      commit: 'c',
+      paths: ['Notes/a.md'],
+    });
   });
 
-  it("is not put back for a success that does not say where", () => {
+  it('is not put back for a success that does not say where', () => {
     expect(restoreFrom(200, {})).toMatchObject({ ok: false });
   });
 
-  it("says what the server said, and which paths are taken", () => {
-    expect(restoreFrom(409, { error: { message: "Something is already there.", taken: ["Notes/a.md"] } })).toEqual({ ok: false, message: "Something is already there.", taken: ["Notes/a.md"] });
+  it('says what the server said, and which paths are taken', () => {
+    expect(
+      restoreFrom(409, {
+        error: { message: 'Something is already there.', taken: ['Notes/a.md'] },
+      }),
+    ).toEqual({ ok: false, message: 'Something is already there.', taken: ['Notes/a.md'] });
   });
 
-  it("says nothing was put back when signed out or when the server said nothing", () => {
+  it('says nothing was put back when signed out or when the server said nothing', () => {
     for (const result of [restoreFrom(401, undefined), restoreFrom(502, undefined)]) {
-      expect(result).toMatchObject({ ok: false, taken: [], message: expect.stringMatching(/nothing (was )?(put back|changed)/i) });
+      expect(result).toMatchObject({
+        ok: false,
+        taken: [],
+        message: expect.stringMatching(/nothing (was )?(put back|changed)/i),
+      });
     }
   });
 });
 
-describe("sendDelete and sendRestore", () => {
+describe('sendDelete and sendRestore', () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("send a place and what the person was shown, and nothing that names a commit or a text", async () => {
-    const fetched = vi.fn(async () => new Response(JSON.stringify({ commit: "c", files: 1, deletions: [9] }), { status: 200 }));
-    vi.stubGlobal("fetch", fetched);
-    expect(await sendDelete(7, "Notes", { type: "file", path: "Notes/Plan.md", blob: "a".repeat(40) })).toEqual({ ok: true, deletions: [9], files: 1 });
-    expect(await sendDelete(7, "Notes", { type: "folder", path: "Notes/Projects", files: 3 })).toMatchObject({ ok: true });
+  it('send a place and what the person was shown, and nothing that names a commit or a text', async () => {
+    const fetched = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ commit: 'c', files: 1, deletions: [9] }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetched);
+    expect(
+      await sendDelete(7, 'Notes', { type: 'file', path: 'Notes/Plan.md', blob: 'a'.repeat(40) }),
+    ).toEqual({ ok: true, deletions: [9], files: 1 });
+    expect(
+      await sendDelete(7, 'Notes', { type: 'folder', path: 'Notes/Projects', files: 3 }),
+    ).toMatchObject({ ok: true });
     const calls = fetched.mock.calls as unknown as [string, RequestInit][];
-    expect(calls[0]![0]).toBe("/api/connections/7/files/delete");
-    expect(JSON.parse(calls[0]![1].body as string)).toEqual({ vault: "Notes", type: "file", path: "Notes/Plan.md", blob: "a".repeat(40) });
-    expect(JSON.parse(calls[1]![1].body as string)).toEqual({ vault: "Notes", type: "folder", path: "Notes/Projects", files: 3 });
+    expect(calls[0]![0]).toBe('/api/connections/7/files/delete');
+    expect(JSON.parse(calls[0]![1].body as string)).toEqual({
+      vault: 'Notes',
+      type: 'file',
+      path: 'Notes/Plan.md',
+      blob: 'a'.repeat(40),
+    });
+    expect(JSON.parse(calls[1]![1].body as string)).toEqual({
+      vault: 'Notes',
+      type: 'folder',
+      path: 'Notes/Projects',
+      files: 3,
+    });
 
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ commit: "c", paths: ["Notes/Plan.md"] }), { status: 200 })));
-    expect(await sendRestore(7, [9])).toEqual({ ok: true, commit: "c", paths: ["Notes/Plan.md"] });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(JSON.stringify({ commit: 'c', paths: ['Notes/Plan.md'] }), { status: 200 }),
+      ),
+    );
+    expect(await sendRestore(7, [9])).toEqual({ ok: true, commit: 'c', paths: ['Notes/Plan.md'] });
   });
 
-  it("send a chosen place only when there is one", async () => {
-    const fetched = vi.fn(async () => new Response(JSON.stringify({ commit: "c", paths: ["x"] }), { status: 200 }));
-    vi.stubGlobal("fetch", fetched);
+  it('send a chosen place only when there is one', async () => {
+    const fetched = vi.fn(
+      async () => new Response(JSON.stringify({ commit: 'c', paths: ['x'] }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetched);
     await sendRestore(7, [9]);
-    await sendRestore(7, [9], "Notes/Elsewhere.md");
+    await sendRestore(7, [9], 'Notes/Elsewhere.md');
     const calls = fetched.mock.calls as unknown as [string, RequestInit][];
     expect(JSON.parse(calls[0]![1].body as string)).toEqual({ ids: [9] });
-    expect(JSON.parse(calls[1]![1].body as string)).toEqual({ ids: [9], path: "Notes/Elsewhere.md" });
-    expect(calls[0]![0]).toBe("/api/connections/7/files/restore");
+    expect(JSON.parse(calls[1]![1].body as string)).toEqual({
+      ids: [9],
+      path: 'Notes/Elsewhere.md',
+    });
+    expect(calls[0]![0]).toBe('/api/connections/7/files/restore');
   });
 
-  it("say nothing was changed when the server cannot be reached", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new TypeError("offline"))));
-    expect(await sendDelete(7, "Notes", { type: "folder", path: "Notes/P", files: 1 })).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was deleted/i) });
-    expect(await sendRestore(7, [1])).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was put back/i) });
+  it('say nothing was changed when the server cannot be reached', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject(new TypeError('offline'))),
+    );
+    expect(
+      await sendDelete(7, 'Notes', { type: 'folder', path: 'Notes/P', files: 1 }),
+    ).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was deleted/i) });
+    expect(await sendRestore(7, [1])).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/nothing was put back/i),
+    });
   });
 });
 
-describe("titleFrom", () => {
-  it("is the header the server wrote", () => {
-    expect(titleFrom(200, { header: "---\ntitle: T\n---\n" })).toEqual({ ok: true, header: "---\ntitle: T\n---\n" });
+describe('titleFrom', () => {
+  it('is the header the server wrote', () => {
+    expect(titleFrom(200, { header: '---\ntitle: T\n---\n' })).toEqual({
+      ok: true,
+      header: '---\ntitle: T\n---\n',
+    });
   });
 
-  it("is not a change for an answer that has no header, and says what the server said or that the person is signed out", () => {
+  it('is not a change for an answer that has no header, and says what the server said or that the person is signed out', () => {
     expect(titleFrom(200, {})).toMatchObject({ ok: false });
-    expect(titleFrom(422, { error: { message: "This file's header cannot be read." } })).toEqual({ ok: false, message: "This file's header cannot be read." });
-    expect(titleFrom(401, undefined)).toMatchObject({ ok: false, message: expect.stringMatching(/signed out/i) });
-    expect(titleFrom(500, undefined)).toMatchObject({ ok: false, message: expect.stringMatching(/title/i) });
+    expect(titleFrom(422, { error: { message: "This file's header cannot be read." } })).toEqual({
+      ok: false,
+      message: "This file's header cannot be read.",
+    });
+    expect(titleFrom(401, undefined)).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/signed out/i),
+    });
+    expect(titleFrom(500, undefined)).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/title/i),
+    });
   });
 });
 
-describe("sendTitle", () => {
+describe('sendTitle', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("sends the header and the title only, to the connection's own address, and answers the header", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ header: "---\ntitle: T\n---\n" }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-    expect(await sendTitle(3, "---\n---\n", "T")).toEqual({ ok: true, header: "---\ntitle: T\n---\n" });
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ header: '---\ntitle: T\n---\n' }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    expect(await sendTitle(3, '---\n---\n', 'T')).toEqual({
+      ok: true,
+      header: '---\ntitle: T\n---\n',
+    });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("/api/connections/3/files/header");
-    expect(JSON.parse(String(init.body))).toEqual({ header: "---\n---\n", title: "T" });
+    expect(url).toBe('/api/connections/3/files/header');
+    expect(JSON.parse(String(init.body))).toEqual({ header: '---\n---\n', title: 'T' });
   });
 
-  it("says the title was not changed when the server cannot be reached", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("offline"))));
-    expect(await sendTitle(3, "---\n---\n", "T")).toMatchObject({ ok: false, message: expect.stringMatching(/not changed/i) });
+  it('says the title was not changed when the server cannot be reached', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject(new Error('offline'))),
+    );
+    expect(await sendTitle(3, '---\n---\n', 'T')).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/not changed/i),
+    });
   });
 });
 
-describe("moveFrom", () => {
-  it("is moved, with how many files", () => {
+describe('moveFrom', () => {
+  it('is moved, with how many files', () => {
     expect(moveFrom(200, { files: 3 })).toEqual({ ok: true, files: 3 });
     expect(moveFrom(200, {})).toMatchObject({ ok: false });
   });
 
-  it("says what the server said, which paths were in the way, and when to look again", () => {
-    expect(moveFrom(409, { error: { code: "path_taken", message: "Something is there.", taken: ["Notes/a.md"] } })).toEqual({ ok: false, lookAgain: false, taken: ["Notes/a.md"], message: "Something is there." });
-    for (const code of ["gone", "upstream_changed", "folder_changed"]) expect(moveFrom(409, { error: { code, message: "x" } })).toMatchObject({ lookAgain: true });
-    expect(moveFrom(422, { error: { code: "bad_path", message: "x" } })).toMatchObject({ lookAgain: false });
+  it('says what the server said, which paths were in the way, and when to look again', () => {
+    expect(
+      moveFrom(409, {
+        error: { code: 'path_taken', message: 'Something is there.', taken: ['Notes/a.md'] },
+      }),
+    ).toEqual({
+      ok: false,
+      lookAgain: false,
+      taken: ['Notes/a.md'],
+      message: 'Something is there.',
+    });
+    for (const code of ['gone', 'upstream_changed', 'folder_changed'])
+      expect(moveFrom(409, { error: { code, message: 'x' } })).toMatchObject({ lookAgain: true });
+    expect(moveFrom(422, { error: { code: 'bad_path', message: 'x' } })).toMatchObject({
+      lookAgain: false,
+    });
   });
 
-  it("says nothing was moved when signed out or when the server said nothing", () => {
-    for (const result of [moveFrom(401, undefined), moveFrom(502, undefined), moveFrom(500, {})]) expect(result).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was moved/i) });
+  it('says nothing was moved when signed out or when the server said nothing', () => {
+    for (const result of [moveFrom(401, undefined), moveFrom(502, undefined), moveFrom(500, {})])
+      expect(result).toMatchObject({
+        ok: false,
+        message: expect.stringMatching(/nothing was moved/i),
+      });
   });
 });
 
-describe("sendMove", () => {
+describe('sendMove', () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("sends the place, what was shown and where it goes, to the connection's own address", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ files: 1 }), { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-    expect(await sendMove(3, "Notes", { type: "file", path: "Notes/a.md", blob: "b".repeat(40) }, "Notes/b.md")).toEqual({ ok: true, files: 1 });
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ files: 1 }), { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    expect(
+      await sendMove(
+        3,
+        'Notes',
+        { type: 'file', path: 'Notes/a.md', blob: 'b'.repeat(40) },
+        'Notes/b.md',
+      ),
+    ).toEqual({ ok: true, files: 1 });
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe("/api/connections/3/files/move");
-    expect(JSON.parse(String(init.body))).toEqual({ vault: "Notes", type: "file", path: "Notes/a.md", blob: "b".repeat(40), destination: "Notes/b.md" });
+    expect(url).toBe('/api/connections/3/files/move');
+    expect(JSON.parse(String(init.body))).toEqual({
+      vault: 'Notes',
+      type: 'file',
+      path: 'Notes/a.md',
+      blob: 'b'.repeat(40),
+      destination: 'Notes/b.md',
+    });
   });
 
-  it("says nothing was moved when the server cannot be reached", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new Error("offline"))));
-    expect(await sendMove(3, "Notes", { type: "folder", path: "Notes/A", files: 2 }, "Notes/B")).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was moved/i) });
+  it('says nothing was moved when the server cannot be reached', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject(new Error('offline'))),
+    );
+    expect(
+      await sendMove(3, 'Notes', { type: 'folder', path: 'Notes/A', files: 2 }, 'Notes/B'),
+    ).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was moved/i) });
   });
 });
 
-describe("identifyFrom", () => {
+describe('identifyFrom', () => {
   it("is the id on 200, the server's words on a refusal, and words for being signed out", () => {
-    expect(identifyFrom(200, { docId: "01jagc4k7pt8y3wqnmzv5xrb8j" })).toEqual({ ok: true, docId: "01jagc4k7pt8y3wqnmzv5xrb8j" });
-    expect(identifyFrom(409, { error: { message: "That file changed." } })).toEqual({ ok: false, message: "That file changed." });
-    expect(identifyFrom(401, undefined)).toMatchObject({ ok: false, message: expect.stringMatching(/signed out/i) });
-    expect(identifyFrom(502, undefined)).toMatchObject({ ok: false, message: expect.stringMatching(/nothing was changed/i) });
+    expect(identifyFrom(200, { docId: '01jagc4k7pt8y3wqnmzv5xrb8j' })).toEqual({
+      ok: true,
+      docId: '01jagc4k7pt8y3wqnmzv5xrb8j',
+    });
+    expect(identifyFrom(409, { error: { message: 'That file changed.' } })).toEqual({
+      ok: false,
+      message: 'That file changed.',
+    });
+    expect(identifyFrom(401, undefined)).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/signed out/i),
+    });
+    expect(identifyFrom(502, undefined)).toMatchObject({
+      ok: false,
+      message: expect.stringMatching(/nothing was changed/i),
+    });
     // A 200 with no id is not a success.
     expect(identifyFrom(200, {})).toMatchObject({ ok: false });
   });

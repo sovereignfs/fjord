@@ -1,10 +1,10 @@
-import type { Fjord } from "../format/wasm";
-import type { JournalEntrySummary, VaultListing } from "../format/types";
-import { mapLimit } from "../providers/concurrency";
-import type { Provider, RepositoryRef } from "../providers/types";
-import { blobText } from "../browse/blob-text";
-import { isProviderError } from "../providers/errors";
-import type { JournalIndex } from "./index-store";
+import type { Fjord } from '../format/wasm';
+import type { JournalEntrySummary, VaultListing } from '../format/types';
+import { mapLimit } from '../providers/concurrency';
+import type { Provider, RepositoryRef } from '../providers/types';
+import { blobText } from '../browse/blob-text';
+import { isProviderError } from '../providers/errors';
+import type { JournalIndex } from './index-store';
 
 /**
  * A plaintext journal's timeline (ROADMAP 3b.2, RFC 0001): every entry, newest first, grouped by the writer's day, and paged. Where each
@@ -36,7 +36,7 @@ export interface Timeline {
 export interface TimelineDeps {
   provider: Provider;
   ref: RepositoryRef;
-  format: Pick<Fjord, "journalEntry" | "foldTag" | "tagIsUnder">;
+  format: Pick<Fjord, 'journalEntry' | 'foldTag' | 'tagIsUnder'>;
   index: JournalIndex;
 }
 
@@ -54,21 +54,39 @@ export interface TimelineFilter {
 }
 
 /** Every summary of the vault's Docs at the head, read only where the index does not have it. */
-export async function summaries(deps: TimelineDeps, connectionId: number, vault: VaultListing, blobs: Map<string, string>): Promise<TimelineEntry[]> {
-  const files = vault.files.filter((file) => file.kind === "doc").flatMap((file) => {
-    const blob = blobs.get(file.path);
-    return blob === undefined ? [] : [{ path: file.path, relative: file.relative, blob, size: file.size }];
-  });
+export async function summaries(
+  deps: TimelineDeps,
+  connectionId: number,
+  vault: VaultListing,
+  blobs: Map<string, string>,
+): Promise<TimelineEntry[]> {
+  const files = vault.files
+    .filter((file) => file.kind === 'doc')
+    .flatMap((file) => {
+      const blob = blobs.get(file.path);
+      return blob === undefined
+        ? []
+        : [{ path: file.path, relative: file.relative, blob, size: file.size }];
+    });
   const keys = files.map(({ path, blob }) => ({ path, blob }));
   const known = await deps.index.get(connectionId, keys);
   const missing = files.filter((file) => !known.has(`${file.blob} ${file.path}`));
   const read = await mapLimit(missing, READS_AT_ONCE, async (file) => {
     // Too large is a fact about the blob, kept as an entry with no header; any other failure is the host's, and is not kept.
-    const text = file.size > MAX_ENTRY_BYTES ? "" : await blobText(deps.provider, deps.ref, file.blob, MAX_ENTRY_BYTES).catch((error: unknown) => {
-      if (isProviderError(error, "too_large")) return "";
-      throw error;
-    });
-    return { path: file.path, blob: file.blob, summary: deps.format.journalEntry(text, file.relative) };
+    const text =
+      file.size > MAX_ENTRY_BYTES
+        ? ''
+        : await blobText(deps.provider, deps.ref, file.blob, MAX_ENTRY_BYTES).catch(
+            (error: unknown) => {
+              if (isProviderError(error, 'too_large')) return '';
+              throw error;
+            },
+          );
+    return {
+      path: file.path,
+      blob: file.blob,
+      summary: deps.format.journalEntry(text, file.relative),
+    };
   });
   if (read.length > 0) await deps.index.put(connectionId, read);
   for (const entry of read) known.set(`${entry.blob} ${entry.path}`, entry.summary);
@@ -80,14 +98,20 @@ export async function summaries(deps: TimelineDeps, connectionId: number, vault:
 }
 
 /** The page asked for of the timeline of these entries, newest first, by day. */
-export function arrange(format: Pick<Fjord, "foldTag" | "tagIsUnder">, entries: TimelineEntry[], options: { page?: number; filter?: TimelineFilter } = {}): Timeline {
+export function arrange(
+  format: Pick<Fjord, 'foldTag' | 'tagIsUnder'>,
+  entries: TimelineEntry[],
+  options: { page?: number; filter?: TimelineFilter } = {},
+): Timeline {
   const tags = tagCounts(format, entries);
   const filter = options.filter ?? {};
   const kept = entries.filter((entry) => {
     const day = entry.when?.day;
     if (filter.from && (day === undefined || day < filter.from)) return false;
     if (filter.to && (day === undefined || day > filter.to)) return false;
-    return (filter.tags ?? []).every((wanted) => entry.tags.some((tag) => format.tagIsUnder(tag, wanted)));
+    return (filter.tags ?? []).every((wanted) =>
+      entry.tags.some((tag) => format.tagIsUnder(tag, wanted)),
+    );
   });
   // Newest first; an undated entry last; the same moment by path, so the order is the same at every view.
   kept.sort((a, b) => {
@@ -113,7 +137,10 @@ export function arrange(format: Pick<Fjord, "foldTag" | "tagIsUnder">, entries: 
  * Every tag, counted once per entry and compared as spec §8.1 says (`foldTag`): `Work` and `work` are one tag, shown as it was first
  * written. Sorted by how many entries carry it, then by name.
  */
-export function tagCounts(format: Pick<Fjord, "foldTag">, entries: { tags: string[] }[]): { tag: string; count: number }[] {
+export function tagCounts(
+  format: Pick<Fjord, 'foldTag'>,
+  entries: { tags: string[] }[],
+): { tag: string; count: number }[] {
   const counted = new Map<string, { tag: string; count: number }>();
   for (const entry of entries) {
     const seen = new Set<string>();

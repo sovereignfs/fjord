@@ -14,7 +14,7 @@ services:
       dockerfile: clients/web/Dockerfile
       # The port is written in clients/web/sovereign.manifest.json, which Compose cannot read; a test holds this to it.
       args:
-        PORT: "3001"
+        PORT: '3001'
     image: ${FJORD_IMAGE:-fjord-web}
     restart: unless-stopped
     env_file:
@@ -26,7 +26,7 @@ services:
     volumes:
       - fjord-data:/data
     ports:
-      - "127.0.0.1:${FJORD_PORT:-3001}:3001"
+      - '127.0.0.1:${FJORD_PORT:-3001}:3001'
 
 volumes:
   fjord-data:

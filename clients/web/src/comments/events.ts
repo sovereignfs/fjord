@@ -1,8 +1,8 @@
-import { isDocId } from "../browse/ids";
-import { isCredentialError } from "../crypto/errors";
-import { isProviderError } from "../providers/errors";
-import { shareCookieOf } from "../sharing/guest-http";
-import type { Caller } from "./http";
+import { isDocId } from '../browse/ids';
+import { isCredentialError } from '../crypto/errors';
+import { isProviderError } from '../providers/errors';
+import { shareCookieOf } from '../sharing/guest-http';
+import type { Caller } from './http';
 
 /**
  * Live updates (`GET /d/<id>/comments/events`, DESIGN.md §13, ROADMAP 1d.3): a server-sent stream that says *that* a document's comments changed,
@@ -29,7 +29,11 @@ export interface Watch {
 }
 
 export interface EventDeps {
-  open: (input: { docId: string; account: { id: string; name: string } | undefined; cookie: string | undefined }) => Promise<{ ok: true; watch: Watch } | { ok: false; reason: "hidden" | "forbidden" }>;
+  open: (input: {
+    docId: string;
+    account: { id: string; name: string } | undefined;
+    cookie: string | undefined;
+  }) => Promise<{ ok: true; watch: Watch } | { ok: false; reason: 'hidden' | 'forbidden' }>;
   /** How often the database is asked, how often who is watching is checked again, how long a stream lasts, and how long it may be silent. */
   pollMs?: number;
   recheckMs?: number;
@@ -43,7 +47,8 @@ export const MAX_STREAMS_PER_ACCOUNT = 20;
 export const MAX_STREAMS_PER_LINK = 100;
 let open = 0;
 const held = new Map<string, number>();
-const limitOf = (holder: string) => (holder.startsWith("account:") ? MAX_STREAMS_PER_ACCOUNT : MAX_STREAMS_PER_LINK);
+const limitOf = (holder: string) =>
+  holder.startsWith('account:') ? MAX_STREAMS_PER_ACCOUNT : MAX_STREAMS_PER_LINK;
 /** How many streams are open in this process, for tests. */
 export const streamsOpen = () => open;
 
@@ -53,34 +58,84 @@ const LIFETIME_MS = 5 * 60_000;
 const QUIET_MS = 20_000;
 
 const HEADERS = {
-  "content-type": "text/event-stream; charset=utf-8",
+  'content-type': 'text/event-stream; charset=utf-8',
   // `no-transform` so that nothing between here and the browser compresses the stream and holds it back to do so.
-  "cache-control": "no-store, no-transform",
-  "x-accel-buffering": "no",
-  "referrer-policy": "no-referrer",
+  'cache-control': 'no-store, no-transform',
+  'x-accel-buffering': 'no',
+  'referrer-policy': 'no-referrer',
 };
 
-function plain(status: number, code: string, message: string, extra: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify({ error: { code, message } }), { status, headers: { "content-type": "application/json", "cache-control": "no-store", "referrer-policy": "no-referrer", ...extra } });
+function plain(
+  status: number,
+  code: string,
+  message: string,
+  extra: Record<string, string> = {},
+): Response {
+  return new Response(JSON.stringify({ error: { code, message } }), {
+    status,
+    headers: {
+      'content-type': 'application/json',
+      'cache-control': 'no-store',
+      'referrer-policy': 'no-referrer',
+      ...extra,
+    },
+  });
 }
 
-export async function handleEvents(request: Request, caller: Caller | null, deps: EventDeps, docId: string): Promise<Response> {
-  if (request.method !== "GET") return plain(405, "method_not_allowed", "That method is not allowed here.");
-  if (!isDocId(docId)) return plain(404, "not_found", "There is no such document.");
-  if (open >= MAX_STREAMS) return plain(503, "busy", "Too many pages are watching just now. Comments still load; try again in a moment.", { "retry-after": "30" });
+export async function handleEvents(
+  request: Request,
+  caller: Caller | null,
+  deps: EventDeps,
+  docId: string,
+): Promise<Response> {
+  if (request.method !== 'GET')
+    return plain(405, 'method_not_allowed', 'That method is not allowed here.');
+  if (!isDocId(docId)) return plain(404, 'not_found', 'There is no such document.');
+  if (open >= MAX_STREAMS)
+    return plain(
+      503,
+      'busy',
+      'Too many pages are watching just now. Comments still load; try again in a moment.',
+      { 'retry-after': '30' },
+    );
 
   let opened;
   try {
-    opened = await deps.open({ docId, account: caller ? { id: caller.accountId, name: caller.name } : undefined, cookie: shareCookieOf(request.headers.get("cookie")) });
+    opened = await deps.open({
+      docId,
+      account: caller ? { id: caller.accountId, name: caller.name } : undefined,
+      cookie: shareCookieOf(request.headers.get('cookie')),
+    });
   } catch (error) {
-    if (isCredentialError(error, "no_key")) return plain(503, "not_configured", "This instance cannot read repositories yet: its administrator needs to set FJORD_ENCRYPTION_KEY.");
-    if (isProviderError(error, "rate_limited")) return plain(429, "rate_limited", "The git host is limiting requests. Try again in a moment.");
-    console.error(`[fjord] comment events: unexpected ${error instanceof Error ? error.name : "failure"}`);
-    return plain(500, "internal_error", "Something went wrong on our side. Try again.");
+    if (isCredentialError(error, 'no_key'))
+      return plain(
+        503,
+        'not_configured',
+        'This instance cannot read repositories yet: its administrator needs to set FJORD_ENCRYPTION_KEY.',
+      );
+    if (isProviderError(error, 'rate_limited'))
+      return plain(
+        429,
+        'rate_limited',
+        'The git host is limiting requests. Try again in a moment.',
+      );
+    console.error(
+      `[fjord] comment events: unexpected ${error instanceof Error ? error.name : 'failure'}`,
+    );
+    return plain(500, 'internal_error', 'Something went wrong on our side. Try again.');
   }
-  if (!opened.ok) return opened.reason === "hidden" ? plain(404, "not_found", "There is no such document.") : plain(403, "forbidden", "You may not watch this document's comments.");
+  if (!opened.ok)
+    return opened.reason === 'hidden'
+      ? plain(404, 'not_found', 'There is no such document.')
+      : plain(403, 'forbidden', "You may not watch this document's comments.");
   const { watch } = opened;
-  if ((held.get(watch.holder) ?? 0) >= limitOf(watch.holder)) return plain(429, "too_many_streams", "This is open in too many places at once. Close some, or reload this page.", { "retry-after": "30" });
+  if ((held.get(watch.holder) ?? 0) >= limitOf(watch.holder))
+    return plain(
+      429,
+      'too_many_streams',
+      'This is open in too many places at once. Close some, or reload this page.',
+      { 'retry-after': '30' },
+    );
 
   const pollMs = deps.pollMs ?? POLL_MS;
   const recheckMs = deps.recheckMs ?? RECHECK_MS;
@@ -117,7 +172,7 @@ export async function handleEvents(request: Request, caller: Caller | null, deps
         closed = true;
         for (const timer of timers) clearInterval(timer);
         unsubscribe();
-        request.signal.removeEventListener("abort", finish);
+        request.signal.removeEventListener('abort', finish);
         open--;
         const rest = (held.get(watch.holder) ?? 1) - 1;
         if (rest <= 0) held.delete(watch.holder);
@@ -144,13 +199,15 @@ export async function handleEvents(request: Request, caller: Caller | null, deps
             if (force || Date.now() - lastChecked >= recheckMs) {
               lastChecked = Date.now();
               if (!(await watch.allowed())) {
-                send("event: gone\ndata: {}\n\n");
+                send('event: gone\ndata: {}\n\n');
                 return finish();
               }
             }
             const version = await watch.version();
-            if (last === undefined) send(`event: version\ndata: ${JSON.stringify({ version })}\n\n`);
-            else if (version !== last) send(`event: changed\ndata: ${JSON.stringify({ version })}\n\n`);
+            if (last === undefined)
+              send(`event: version\ndata: ${JSON.stringify({ version })}\n\n`);
+            else if (version !== last)
+              send(`event: changed\ndata: ${JSON.stringify({ version })}\n\n`);
             last = version;
           } while (again && !closed);
         } catch {
@@ -161,16 +218,16 @@ export async function handleEvents(request: Request, caller: Caller | null, deps
         }
       };
 
-      request.signal.addEventListener("abort", finish);
+      request.signal.addEventListener('abort', finish);
       if (request.signal.aborted) return finish();
-      send("retry: 5000\n\n");
+      send('retry: 5000\n\n');
       unsubscribe = watch.subscribe(() => void look());
       await look(false);
       timers.push(
         setInterval(() => {
           if (Date.now() - startedAt >= lifetimeMs) return finish();
           void look();
-          if (Date.now() - lastSent >= quietMs) send(": still here\n\n");
+          if (Date.now() - lastSent >= quietMs) send(': still here\n\n');
         }, pollMs),
       );
     },

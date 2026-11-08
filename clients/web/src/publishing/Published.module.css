@@ -28,12 +28,12 @@
   overflow-x: auto;
 }
 
-.body th[align="center"],
-.body td[align="center"] {
+.body th[align='center'],
+.body td[align='center'] {
   text-align: center;
 }
 
-.body th[align="right"],
-.body td[align="right"] {
+.body th[align='right'],
+.body td[align='right'] {
   text-align: right;
 }

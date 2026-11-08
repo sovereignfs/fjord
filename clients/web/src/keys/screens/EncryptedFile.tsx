@@ -1,17 +1,24 @@
-"use client";
+'use client';
 
-import { NoteEditor } from "fjord-editor";
-import "fjord-editor/styles.css";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { keyStore, onAutoLock } from "../client";
-import { type Naming, type Shown, type TransferTarget, fromBase64, openCiphertext, recipientCount } from "../files";
-import { loadModule } from "../module";
-import { KeyError, type Status } from "../store";
-import { Alert, Button, FormField, Input } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import { discardDraft, sendResolve } from "../../working/client";
-import { EncryptedEditor, savedKey } from "./EncryptedEditor";
+import { NoteEditor } from 'fjord-editor';
+import 'fjord-editor/styles.css';
+import { useRouter } from 'next/navigation';
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { keyStore, onAutoLock } from '../client';
+import {
+  type Naming,
+  type Shown,
+  type TransferTarget,
+  fromBase64,
+  openCiphertext,
+  recipientCount,
+} from '../files';
+import { loadModule } from '../module';
+import { KeyError, type Status } from '../store';
+import { Alert, Button, FormField, Input } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import { discardDraft, sendResolve } from '../../working/client';
+import { EncryptedEditor, savedKey } from './EncryptedEditor';
 
 /**
  * An encrypted file, opened in the browser (ROADMAP 2b.2, DESIGN.md §2) and edited there (2b.3). The server hands over the stored bytes (`/api/connections/<id>/ciphertext`)
@@ -27,15 +34,28 @@ export interface EncryptedDraft {
   baseBlob: string;
 }
 
-async function open(connectionId: number, path: string, naming: Naming, logical: string, draft: EncryptedDraft | null): Promise<Shown> {
+async function open(
+  connectionId: number,
+  path: string,
+  naming: Naming,
+  logical: string,
+  draft: EncryptedDraft | null,
+): Promise<Shown> {
   let ciphertext: Uint8Array;
   if (draft) {
     ciphertext = fromBase64(draft.content);
   } else {
-    const response = await fetch(`/api/connections/${connectionId}/ciphertext?path=${encodeURIComponent(path)}`, { credentials: "same-origin" });
+    const response = await fetch(
+      `/api/connections/${connectionId}/ciphertext?path=${encodeURIComponent(path)}`,
+      { credentials: 'same-origin' },
+    );
     if (!response.ok) {
-      const body = (await response.json().catch(() => undefined)) as { error?: { message?: string } } | undefined;
-      throw new KeyError("unreadable", body?.error?.message ?? "The file could not be fetched just now.");
+      const body = (await response.json().catch(() => undefined)) as
+        { error?: { message?: string } } | undefined;
+      throw new KeyError(
+        'unreadable',
+        body?.error?.message ?? 'The file could not be fetched just now.',
+      );
     }
     ciphertext = new Uint8Array(await response.arrayBuffer());
   }
@@ -43,7 +63,7 @@ async function open(connectionId: number, path: string, naming: Naming, logical:
 }
 
 export function EncryptedFile({
-  editor = "note",
+  editor = 'note',
   connectionId,
   repo,
   path,
@@ -55,7 +75,7 @@ export function EncryptedFile({
   transferTargets,
 }: {
   /** Which editor the repository's kind opens a Doc in. */
-  editor?: "document" | "note";
+  editor?: 'document' | 'note';
   connectionId: number;
   /** Where the repository's addresses begin (`ConnectionInfo.address`). */
   repo: string;
@@ -74,7 +94,7 @@ export function EncryptedFile({
   const [shown, setShown] = useState<Shown | null>(null);
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [passphrase, setPassphrase] = useState("");
+  const [passphrase, setPassphrase] = useState('');
   const [saved, setSaved] = useState<string | null>(null);
   const asked = useRef(false);
   const flushRef = useRef<(() => Promise<void>) | null>(null);
@@ -101,18 +121,18 @@ export function EncryptedFile({
     try {
       setStatus(await keyStore().status());
     } catch {
-      setError("This browser would not open its key storage, so nothing can be decrypted here.");
+      setError('This browser would not open its key storage, so nothing can be decrypted here.');
     }
   }, []);
 
   const show = useCallback(async () => {
     setError(null);
-    setWorking("Opening the file…");
+    setWorking('Opening the file…');
     await new Promise((resolve) => setTimeout(resolve, 20));
     try {
       setShown(await open(connectionId, path, naming, logical, draft));
     } catch (failure) {
-      setError(failure instanceof KeyError ? failure.message : "The file could not be opened.");
+      setError(failure instanceof KeyError ? failure.message : 'The file could not be opened.');
     } finally {
       setWorking(null);
     }
@@ -134,7 +154,7 @@ export function EncryptedFile({
 
   // Already unlocked in this page: open at once, once.
   useEffect(() => {
-    if (status?.state === "unlocked" && !shown && !asked.current) {
+    if (status?.state === 'unlocked' && !shown && !asked.current) {
       asked.current = true;
       void show();
     }
@@ -143,13 +163,15 @@ export function EncryptedFile({
   async function onUnlock(event: FormEvent) {
     event.preventDefault();
     setError(null);
-    setWorking("Unlocking…");
+    setWorking('Unlocking…');
     await new Promise((resolve) => setTimeout(resolve, 50));
     try {
       await keyStore().unlock(passphrase);
-      setPassphrase("");
+      setPassphrase('');
     } catch (failure) {
-      setError(failure instanceof KeyError ? failure.message : "The identity could not be unlocked.");
+      setError(
+        failure instanceof KeyError ? failure.message : 'The identity could not be unlocked.',
+      );
     } finally {
       setWorking(null);
       await refresh();
@@ -177,16 +199,30 @@ export function EncryptedFile({
       ) : null}
 
       {status === null ? <p>Looking…</p> : null}
-      {status?.state === "none" ? (
+      {status?.state === 'none' ? (
         <Alert variant="info" heading="No identity in this browser">
-          This file is encrypted. To read it, make or bring the age identity it was encrypted to, on the <a href="/account?section=security&tab=keys">Keys page</a>. It stays in this browser; the server never has it.
+          This file is encrypted. To read it, make or bring the age identity it was encrypted to, on
+          the <a href="/account?section=security&tab=keys">Keys page</a>. It stays in this browser;
+          the server never has it.
         </Alert>
       ) : null}
-      {status?.state === "locked" && !shown ? (
+      {status?.state === 'locked' && !shown ? (
         <form className={styles.form} onSubmit={onUnlock} style={{ marginTop: 0 }}>
-          <p className={styles.itemMeta}>This file is encrypted. Unlock your identity to read it; the passphrase is not sent anywhere.</p>
+          <p className={styles.itemMeta}>
+            This file is encrypted. Unlock your identity to read it; the passphrase is not sent
+            anywhere.
+          </p>
           <FormField label="Passphrase" required>
-            {(field) => <Input {...field} type="password" autoComplete="current-password" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} disabled={working !== null} />}
+            {(field) => (
+              <Input
+                {...field}
+                type="password"
+                autoComplete="current-password"
+                value={passphrase}
+                onChange={(e) => setPassphrase(e.target.value)}
+                disabled={working !== null}
+              />
+            )}
           </FormField>
           <div className={styles.actions}>
             <Button type="submit" loading={working !== null}>
@@ -195,7 +231,7 @@ export function EncryptedFile({
           </div>
         </form>
       ) : null}
-      {status?.state === "unlocked" && !shown && !working && asked.current ? (
+      {status?.state === 'unlocked' && !shown && !working && asked.current ? (
         <div className={styles.actions}>
           <Button type="button" onClick={() => void show()}>
             Open
@@ -211,22 +247,31 @@ export function EncryptedFile({
         </div>
       ) : null}
       {draft && !shown && !error ? (
-        <p className={styles.itemMeta}>Changes you made earlier are kept on this server as an encrypted draft. Unlock your identity to see and continue them.</p>
+        <p className={styles.itemMeta}>
+          Changes you made earlier are kept on this server as an encrypted draft. Unlock your
+          identity to see and continue them.
+        </p>
       ) : null}
 
-      {shown?.kind === "text" ? (
+      {shown?.kind === 'text' ? (
         <>
-          {upstreamChanged && blob ? <UpstreamChanged connectionId={connectionId} path={path} upstreamBlob={blob} /> : null}
+          {upstreamChanged && blob ? (
+            <UpstreamChanged connectionId={connectionId} path={path} upstreamBlob={blob} />
+          ) : null}
           <p className={styles.itemMeta}>
-            Decrypted in this browser: {shown.name}.{" "}
+            Decrypted in this browser: {shown.name}.{' '}
             {base !== undefined && recipients.ok && !upstreamChanged
-              ? `What you type is encrypted here, to this vault's ${recipientCount(recipients.text) === 1 ? "one recipient" : `${recipientCount(recipients.text)} recipients`} (listed in its recipients file, which anyone who can write to the repository can change), before it is sent; the server never has the text.`
-              : "It is read-only here, and nothing of it leaves this page."}
+              ? `What you type is encrypted here, to this vault's ${recipientCount(recipients.text) === 1 ? 'one recipient' : `${recipientCount(recipients.text)} recipients`} (listed in its recipients file, which anyone who can write to the repository can change), before it is sent; the server never has the text.`
+              : 'It is read-only here, and nothing of it leaves this page.'}
           </p>
-          {status?.state === "unlocked" && recipients.ok && !recipients.text.includes(status.recipient) ? (
+          {status?.state === 'unlocked' &&
+          recipients.ok &&
+          !recipients.text.includes(status.recipient) ? (
             <div className={styles.notice}>
               <Alert variant="warning" heading="Your key is not among this vault's recipients">
-                It opened this file, but a file saved now would be encrypted to the recipients in the vault&apos;s recipients file, which does not list your key: you could not open it afterwards.
+                It opened this file, but a file saved now would be encrypted to the recipients in
+                the vault&apos;s recipients file, which does not list your key: you could not open
+                it afterwards.
               </Alert>
             </div>
           ) : null}
@@ -238,7 +283,22 @@ export function EncryptedFile({
             </div>
           ) : null}
           {base !== undefined && recipients.ok ? (
-            <EncryptedEditor connectionId={connectionId} repo={repo} path={path} name={shown.name} naming={naming} recipients={recipients.text} text={shown.text} base={base} hasDraft={draft !== null} readOnly={upstreamChanged} flushRef={flushRef} transferTargets={transferTargets} editor={editor} logical={logical} />
+            <EncryptedEditor
+              connectionId={connectionId}
+              repo={repo}
+              path={path}
+              name={shown.name}
+              naming={naming}
+              recipients={recipients.text}
+              text={shown.text}
+              base={base}
+              hasDraft={draft !== null}
+              readOnly={upstreamChanged}
+              flushRef={flushRef}
+              transferTargets={transferTargets}
+              editor={editor}
+              logical={logical}
+            />
           ) : (
             <EncryptedReader name={shown.name} text={shown.text} />
           )}
@@ -249,10 +309,11 @@ export function EncryptedFile({
           </div>
         </>
       ) : null}
-      {shown?.kind === "large" ? (
+      {shown?.kind === 'large' ? (
         <>
           <Alert variant="info" heading="Too large to open here">
-            {shown.name} opened, and is {(shown.bytes / (1024 * 1024)).toFixed(1)} MB, more than the 1 MB of text this page puts in an editor. Open it with the command line.
+            {shown.name} opened, and is {(shown.bytes / (1024 * 1024)).toFixed(1)} MB, more than the
+            1 MB of text this page puts in an editor. Open it with the command line.
           </Alert>
           <div className={styles.actions}>
             <Button type="button" variant="ghost" onClick={() => void hide()}>
@@ -261,10 +322,11 @@ export function EncryptedFile({
           </div>
         </>
       ) : null}
-      {shown?.kind === "binary" ? (
+      {shown?.kind === 'binary' ? (
         <>
           <Alert variant="info" heading="Not text">
-            {shown.name} opened, and is {shown.bytes} bytes of something that is not text, which this page does not show.
+            {shown.name} opened, and is {shown.bytes} bytes of something that is not text, which
+            this page does not show.
           </Alert>
           <div className={styles.actions}>
             <Button type="button" variant="ghost" onClick={() => void hide()}>
@@ -286,14 +348,22 @@ function EncryptedReader({ name, text }: { name: string; text: string }) {
  * (the draft is moved onto the file as it is, still encrypted, and the next version is a commit on top of what is there, which stays in the history) or takes
  * the repository's (the draft is thrown away).
  */
-function UpstreamChanged({ connectionId, path, upstreamBlob }: { connectionId: number; path: string; upstreamBlob: string }) {
-  const [busy, setBusy] = useState<"mine" | "theirs" | null>(null);
+function UpstreamChanged({
+  connectionId,
+  path,
+  upstreamBlob,
+}: {
+  connectionId: number;
+  path: string;
+  upstreamBlob: string;
+}) {
+  const [busy, setBusy] = useState<'mine' | 'theirs' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function mine() {
-    setBusy("mine");
+    setBusy('mine');
     setError(null);
-    const done = await sendResolve(connectionId, path, "mine", upstreamBlob);
+    const done = await sendResolve(connectionId, path, 'mine', upstreamBlob);
     if (done.ok || done.lookAgain) {
       window.location.reload();
       return;
@@ -303,27 +373,40 @@ function UpstreamChanged({ connectionId, path, upstreamBlob }: { connectionId: n
   }
 
   async function theirs() {
-    setBusy("theirs");
+    setBusy('theirs');
     setError(null);
     if (await discardDraft(connectionId, path)) {
       window.location.reload();
       return;
     }
-    setError("Could not discard the changes. Try again.");
+    setError('Could not discard the changes. Try again.');
     setBusy(null);
   }
 
   return (
     <div className={styles.notice}>
       <Alert variant="warning" heading="This file changed in the repository after you started">
-        Someone saved a newer version from somewhere else. What you see below is your draft. The server cannot combine the two, as it has no key to read either: keep yours, which becomes the next version and leaves theirs in the history, or take theirs and drop your changes.
+        Someone saved a newer version from somewhere else. What you see below is your draft. The
+        server cannot combine the two, as it has no key to read either: keep yours, which becomes
+        the next version and leaves theirs in the history, or take theirs and drop your changes.
       </Alert>
       {error ? <Alert variant="error">{error}</Alert> : null}
       <div className={styles.actions}>
-        <Button type="button" onClick={() => void mine()} loading={busy === "mine"} disabled={busy !== null}>
+        <Button
+          type="button"
+          onClick={() => void mine()}
+          loading={busy === 'mine'}
+          disabled={busy !== null}
+        >
           Keep mine
-        </Button>{" "}
-        <Button type="button" variant="secondary" onClick={() => void theirs()} loading={busy === "theirs"} disabled={busy !== null}>
+        </Button>{' '}
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => void theirs()}
+          loading={busy === 'theirs'}
+          disabled={busy !== null}
+        >
           Take theirs
         </Button>
       </div>

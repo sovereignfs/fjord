@@ -1,17 +1,23 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { Alert, Button } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import { sendRestore } from "../../files/client";
-import { deletedAddress } from "../links";
-import { type UndoOffer, takeUndo } from "../../files/undo";
+import { useEffect, useState } from 'react';
+import { Alert, Button } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import { sendRestore } from '../../files/client';
+import { deletedAddress } from '../links';
+import { type UndoOffer, takeUndo } from '../../files/undo';
 
 /**
  * "Deleted X. Undo" (ROADMAP 1b.12), on the page after a deletion: it puts back what was just deleted, where it was, and
  * never over anything. Said once. Recently deleted has the rest.
  */
-export function UndoBanner({ connectionId, repo }: { connectionId: number; /** What the repository is called in an address. */ repo: string }) {
+export function UndoBanner({
+  connectionId,
+  repo,
+}: {
+  connectionId: number;
+  /** What the repository is called in an address. */ repo: string;
+}) {
   const [offer, setOffer] = useState<UndoOffer | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,10 +50,10 @@ export function UndoBanner({ connectionId, repo }: { connectionId: number; /** W
   return (
     <div className={styles.notice}>
       <Alert variant="success" heading={`Deleted “${offer.label}”`}>
-        It is still in the repository&apos;s history.{" "}
+        It is still in the repository&apos;s history.{' '}
         <Button size="sm" variant="secondary" onClick={undo} loading={busy}>
           Undo
-        </Button>{" "}
+        </Button>{' '}
         <a href={deletedAddress(repo)}>Recently deleted</a>
         {error ? <span role="alert"> {error}</span> : null}
       </Alert>

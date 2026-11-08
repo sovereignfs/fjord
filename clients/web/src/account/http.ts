@@ -1,4 +1,4 @@
-import type { Rule, Taken } from "../limits/rate";
+import type { Rule, Taken } from '../limits/rate';
 
 /**
  * A person's own account: deleting it (research 0002, G3). It is the one thing here that cannot be undone and that a stolen session should not be able to do alone, so it asks for
@@ -24,7 +24,11 @@ export interface AccountDeps {
    * Asks for the change. `changed`: the address is the new one now. `asked`: a link was sent, to the address it has, and it changes when that is followed. `taken`: another account has it, which
    * with no email is told plainly (sign-up says so too), and with email is not told apart from `asked`.
    */
-  changeEmail(accountId: string, next: string, request: Request): Promise<{ result: "changed" | "asked" | "taken"; cookies: string[] }>;
+  changeEmail(
+    accountId: string,
+    next: string,
+    request: Request,
+  ): Promise<{ result: 'changed' | 'asked' | 'taken'; cookies: string[] }>;
   /** The `set-cookie` headers that end the session in this browser. */
   endingCookies(request: Request): Promise<string[]>;
 }
@@ -34,45 +38,77 @@ export const PASSWORD_TRIES: Rule = { limit: 5, windowMs: 15 * 60 * 1000 };
 const MAX_BODY_CHARS = 4_000;
 
 const json = (status: number, body: unknown, cookies: string[] = []) => {
-  const headers = new Headers({ "content-type": "application/json", "cache-control": "no-store" });
-  for (const cookie of cookies) headers.append("set-cookie", cookie);
+  const headers = new Headers({ 'content-type': 'application/json', 'cache-control': 'no-store' });
+  for (const cookie of cookies) headers.append('set-cookie', cookie);
   return new Response(JSON.stringify(body), { status, headers });
 };
-const failure = (status: number, code: string, message: string) => json(status, { error: { code, message } });
+const failure = (status: number, code: string, message: string) =>
+  json(status, { error: { code, message } });
 
 /** What every route of the account asks before anything else: signed in, from this site, a JSON object of a sensible size. */
-export async function bodyOf(request: Request, caller: Caller | null, origin: string): Promise<Record<string, unknown> | Response> {
-  if (request.method !== "POST") return failure(405, "method_not_allowed", "That method is not allowed here.");
-  if (!caller) return failure(401, "unauthorized", "Sign in first.");
-  if (request.headers.get("origin") !== origin) return failure(403, "forbidden", "This request did not come from this site.");
-  if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return failure(415, "unsupported_media_type", "Send JSON.");
+export async function bodyOf(
+  request: Request,
+  caller: Caller | null,
+  origin: string,
+): Promise<Record<string, unknown> | Response> {
+  if (request.method !== 'POST')
+    return failure(405, 'method_not_allowed', 'That method is not allowed here.');
+  if (!caller) return failure(401, 'unauthorized', 'Sign in first.');
+  if (request.headers.get('origin') !== origin)
+    return failure(403, 'forbidden', 'This request did not come from this site.');
+  if (!(request.headers.get('content-type') ?? '').toLowerCase().startsWith('application/json'))
+    return failure(415, 'unsupported_media_type', 'Send JSON.');
   const text = await request.text();
-  if (text.length > MAX_BODY_CHARS) return failure(413, "too_large", "That request is too large.");
+  if (text.length > MAX_BODY_CHARS) return failure(413, 'too_large', 'That request is too large.');
   try {
     const body: unknown = JSON.parse(text);
-    return typeof body === "object" && body !== null && !Array.isArray(body) ? (body as Record<string, unknown>) : failure(400, "invalid_request", "Send a JSON object.");
+    return typeof body === 'object' && body !== null && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : failure(400, 'invalid_request', 'Send a JSON object.');
   } catch {
-    return failure(400, "invalid_request", "Send a JSON object.");
+    return failure(400, 'invalid_request', 'Send a JSON object.');
   }
 }
 
 /** Whether what was typed is the account's password, with what to answer if it is not. Counted before it is asked, so that the limit holds while the answer is awaited. */
-export async function checkPassword(password: unknown, caller: Caller, request: Request, deps: Pick<AccountDeps, "passwordIs" | "limiter">): Promise<Response | null> {
-  if (typeof password !== "string" || password === "") return failure(422, "wrong_password", "Type your password to go on.");
+export async function checkPassword(
+  password: unknown,
+  caller: Caller,
+  request: Request,
+  deps: Pick<AccountDeps, 'passwordIs' | 'limiter'>,
+): Promise<Response | null> {
+  if (typeof password !== 'string' || password === '')
+    return failure(422, 'wrong_password', 'Type your password to go on.');
   const taken = await deps.limiter.take(`account:${caller.accountId}:password`, PASSWORD_TRIES);
-  if (!taken.ok) return failure(429, "rate_limited", "That is too many tries. Wait a quarter of an hour and try again.");
-  if (!(await deps.passwordIs(password, request))) return failure(422, "wrong_password", "That is not your password. Nothing was changed.");
+  if (!taken.ok)
+    return failure(
+      429,
+      'rate_limited',
+      'That is too many tries. Wait a quarter of an hour and try again.',
+    );
+  if (!(await deps.passwordIs(password, request)))
+    return failure(422, 'wrong_password', 'That is not your password. Nothing was changed.');
   return null;
 }
 
 /** `POST /api/account/delete`, `{ confirm, password? }`. */
-export async function handleDeleteAccount(request: Request, caller: Caller | null, deps: AccountDeps): Promise<Response> {
+export async function handleDeleteAccount(
+  request: Request,
+  caller: Caller | null,
+  deps: AccountDeps,
+): Promise<Response> {
   try {
     const body = await bodyOf(request, caller, deps.origin);
     if (body instanceof Response) return body;
     const who = caller as Caller;
-    if (typeof body.confirm !== "string") return failure(400, "invalid_request", "Send the address, typed out, as text.");
-    if (body.confirm.trim().toLowerCase() !== who.email.toLowerCase()) return failure(422, "not_confirmed", "Type your address as it is shown, to say you mean it. Nothing was deleted.");
+    if (typeof body.confirm !== 'string')
+      return failure(400, 'invalid_request', 'Send the address, typed out, as text.');
+    if (body.confirm.trim().toLowerCase() !== who.email.toLowerCase())
+      return failure(
+        422,
+        'not_confirmed',
+        'Type your address as it is shown, to say you mean it. Nothing was deleted.',
+      );
     if (await deps.hasPassword(who.accountId)) {
       const refused = await checkPassword(body.password, who, request, deps);
       if (refused) return refused;
@@ -82,8 +118,12 @@ export async function handleDeleteAccount(request: Request, caller: Caller | nul
     await deps.deleteAccount(who.accountId);
     return json(200, { deleted: true }, cookies);
   } catch (error) {
-    console.error(`[fjord] account: unexpected ${error instanceof Error ? error.name : "failure"}`);
-    return failure(500, "internal_error", "Something went wrong on our side, and it may not all be deleted. Try again.");
+    console.error(`[fjord] account: unexpected ${error instanceof Error ? error.name : 'failure'}`);
+    return failure(
+      500,
+      'internal_error',
+      'Something went wrong on our side, and it may not all be deleted. Try again.',
+    );
   }
 }
 
@@ -91,24 +131,54 @@ const MAX_EMAIL_CHARS = 254;
 const EMAIL = /^[^\s@]+@[^\s@]+$/;
 
 /** `POST /api/account/email`, `{ email, password }` (research 0002, G4). The password is what stands between a session someone left open and the account being taken away from its address. */
-export async function handleChangeEmail(request: Request, caller: Caller | null, deps: AccountDeps): Promise<Response> {
+export async function handleChangeEmail(
+  request: Request,
+  caller: Caller | null,
+  deps: AccountDeps,
+): Promise<Response> {
   try {
     const body = await bodyOf(request, caller, deps.origin);
     if (body instanceof Response) return body;
     const who = caller as Caller;
-    if (typeof body.email !== "string") return failure(400, "invalid_request", "Send the new address as text.");
+    if (typeof body.email !== 'string')
+      return failure(400, 'invalid_request', 'Send the new address as text.');
     const next = body.email.trim().toLowerCase();
-    if (next.length > MAX_EMAIL_CHARS || !EMAIL.test(next)) return failure(422, "bad_address", "That does not look like an email address. Nothing was changed.");
-    if (next === who.email.toLowerCase()) return failure(422, "same_address", "That is the address you have now.");
-    if (await deps.sovereignLinked(who.accountId)) return failure(422, "sovereign_address", "Your address is the one Sovereign has, because the two are linked. Change it there, or unlink Sovereign first.");
-    if (!(await deps.hasPassword(who.accountId))) return failure(422, "sovereign_address", "You sign in with Sovereign, and your address is the one it has. Change it there.");
+    if (next.length > MAX_EMAIL_CHARS || !EMAIL.test(next))
+      return failure(
+        422,
+        'bad_address',
+        'That does not look like an email address. Nothing was changed.',
+      );
+    if (next === who.email.toLowerCase())
+      return failure(422, 'same_address', 'That is the address you have now.');
+    if (await deps.sovereignLinked(who.accountId))
+      return failure(
+        422,
+        'sovereign_address',
+        'Your address is the one Sovereign has, because the two are linked. Change it there, or unlink Sovereign first.',
+      );
+    if (!(await deps.hasPassword(who.accountId)))
+      return failure(
+        422,
+        'sovereign_address',
+        'You sign in with Sovereign, and your address is the one it has. Change it there.',
+      );
     const refused = await checkPassword(body.password, who, request, deps);
     if (refused) return refused;
     const { result, cookies } = await deps.changeEmail(who.accountId, next, request);
-    if (result === "taken") return failure(422, "address_taken", "That address cannot be used here. Nothing was changed.");
+    if (result === 'taken')
+      return failure(
+        422,
+        'address_taken',
+        'That address cannot be used here. Nothing was changed.',
+      );
     return json(200, { result }, cookies);
   } catch (error) {
-    console.error(`[fjord] account: unexpected ${error instanceof Error ? error.name : "failure"}`);
-    return failure(500, "internal_error", "Something went wrong on our side. Nothing was changed. Try again.");
+    console.error(`[fjord] account: unexpected ${error instanceof Error ? error.name : 'failure'}`);
+    return failure(
+      500,
+      'internal_error',
+      'Something went wrong on our side. Nothing was changed. Try again.',
+    );
   }
 }

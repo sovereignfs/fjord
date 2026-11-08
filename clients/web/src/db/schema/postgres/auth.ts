@@ -1,6 +1,14 @@
-import { boolean, index, integer, pgSchema, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
-import { AUTH_STORE } from "../../config";
-import { epochMs } from "./columns";
+import {
+  boolean,
+  index,
+  integer,
+  pgSchema,
+  text,
+  timestamp,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core';
+import { AUTH_STORE } from '../../config';
+import { epochMs } from './columns';
 
 /** The auth store's schema; the app's is `fjord`. */
 export const auth = pgSchema(AUTH_STORE);
@@ -11,109 +19,115 @@ export const auth = pgSchema(AUTH_STORE);
  */
 const date = (name: string) => timestamp(name, { withTimezone: true });
 
-export const user = auth.table("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull().default(false),
-  image: text("image"),
-  createdAt: date("created_at").notNull(),
-  updatedAt: date("updated_at").notNull(),
-  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+export const user = auth.table('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').notNull().default(false),
+  image: text('image'),
+  createdAt: date('created_at').notNull(),
+  updatedAt: date('updated_at').notNull(),
+  twoFactorEnabled: boolean('two_factor_enabled').default(false),
 });
 
 export const session = auth.table(
-  "session",
+  'session',
   {
-    id: text("id").primaryKey(),
-    expiresAt: date("expires_at").notNull(),
-    token: text("token").notNull().unique(),
-    createdAt: date("created_at").notNull(),
-    updatedAt: date("updated_at").notNull(),
-    ipAddress: text("ip_address"),
-    userAgent: text("user_agent"),
-    userId: text("user_id")
+    id: text('id').primaryKey(),
+    expiresAt: date('expires_at').notNull(),
+    token: text('token').notNull().unique(),
+    createdAt: date('created_at').notNull(),
+    updatedAt: date('updated_at').notNull(),
+    ipAddress: text('ip_address'),
+    userAgent: text('user_agent'),
+    userId: text('user_id')
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: 'cascade' }),
   },
-  (table) => [index("session_user_id_idx").on(table.userId)],
+  (table) => [index('session_user_id_idx').on(table.userId)],
 );
 
 export const account = auth.table(
-  "account",
+  'account',
   {
-    id: text("id").primaryKey(),
-    accountId: text("account_id").notNull(),
-    providerId: text("provider_id").notNull(),
-    userId: text("user_id")
+    id: text('id').primaryKey(),
+    accountId: text('account_id').notNull(),
+    providerId: text('provider_id').notNull(),
+    userId: text('user_id')
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    idToken: text("id_token"),
-    accessTokenExpiresAt: date("access_token_expires_at"),
-    refreshTokenExpiresAt: date("refresh_token_expires_at"),
-    scope: text("scope"),
-    password: text("password"),
-    createdAt: date("created_at").notNull(),
-    updatedAt: date("updated_at").notNull(),
+      .references(() => user.id, { onDelete: 'cascade' }),
+    accessToken: text('access_token'),
+    refreshToken: text('refresh_token'),
+    idToken: text('id_token'),
+    accessTokenExpiresAt: date('access_token_expires_at'),
+    refreshTokenExpiresAt: date('refresh_token_expires_at'),
+    scope: text('scope'),
+    password: text('password'),
+    createdAt: date('created_at').notNull(),
+    updatedAt: date('updated_at').notNull(),
   },
-  (table) => [index("account_user_id_idx").on(table.userId)],
+  (table) => [index('account_user_id_idx').on(table.userId)],
 );
 
 export const verification = auth.table(
-  "verification",
+  'verification',
   {
-    id: text("id").primaryKey(),
-    identifier: text("identifier").notNull(),
-    value: text("value").notNull(),
-    expiresAt: date("expires_at").notNull(),
-    createdAt: date("created_at").notNull(),
-    updatedAt: date("updated_at").notNull(),
+    id: text('id').primaryKey(),
+    identifier: text('identifier').notNull(),
+    value: text('value').notNull(),
+    expiresAt: date('expires_at').notNull(),
+    createdAt: date('created_at').notNull(),
+    updatedAt: date('updated_at').notNull(),
   },
-  (table) => [index("verification_identifier_idx").on(table.identifier)],
+  (table) => [index('verification_identifier_idx').on(table.identifier)],
 );
 
 export const twoFactor = auth.table(
-  "two_factor",
+  'two_factor',
   {
-    id: text("id").primaryKey(),
-    secret: text("secret").notNull(),
-    backupCodes: text("backup_codes").notNull(),
-    userId: text("user_id")
+    id: text('id').primaryKey(),
+    secret: text('secret').notNull(),
+    backupCodes: text('backup_codes').notNull(),
+    userId: text('user_id')
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    verified: boolean("verified").default(true),
-    failedVerificationCount: integer("failed_verification_count").default(0),
-    lockedUntil: date("locked_until"),
+      .references(() => user.id, { onDelete: 'cascade' }),
+    verified: boolean('verified').default(true),
+    failedVerificationCount: integer('failed_verification_count').default(0),
+    lockedUntil: date('locked_until'),
   },
-  (table) => [index("two_factor_secret_idx").on(table.secret), index("two_factor_user_id_idx").on(table.userId)],
+  (table) => [
+    index('two_factor_secret_idx').on(table.secret),
+    index('two_factor_user_id_idx').on(table.userId),
+  ],
 );
 
 export const passkey = auth.table(
-  "passkey",
+  'passkey',
   {
-    id: text("id").primaryKey(),
-    name: text("name"),
-    publicKey: text("public_key").notNull(),
-    userId: text("user_id")
+    id: text('id').primaryKey(),
+    name: text('name'),
+    publicKey: text('public_key').notNull(),
+    userId: text('user_id')
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    credentialID: text("credential_id").notNull(),
-    counter: integer("counter").notNull(),
-    deviceType: text("device_type").notNull(),
-    backedUp: boolean("backed_up").notNull(),
-    transports: text("transports"),
-    createdAt: date("created_at"),
-    aaguid: text("aaguid"),
+      .references(() => user.id, { onDelete: 'cascade' }),
+    credentialID: text('credential_id').notNull(),
+    counter: integer('counter').notNull(),
+    deviceType: text('device_type').notNull(),
+    backedUp: boolean('backed_up').notNull(),
+    transports: text('transports'),
+    createdAt: date('created_at'),
+    aaguid: text('aaguid'),
   },
-  (table) => [index("passkey_user_id_idx").on(table.userId), uniqueIndex("passkey_credential_id_idx").on(table.credentialID)],
+  (table) => [
+    index('passkey_user_id_idx').on(table.userId),
+    uniqueIndex('passkey_credential_id_idx').on(table.credentialID),
+  ],
 );
 
 /** Request counts per key, so a limit holds across every process (DESIGN.md §6, §15). */
-export const rateLimit = auth.table("rate_limit", {
-  id: text("id").primaryKey(),
-  key: text("key").notNull().unique(),
-  count: integer("count").notNull(),
-  lastRequest: epochMs("last_request").notNull(),
+export const rateLimit = auth.table('rate_limit', {
+  id: text('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  count: integer('count').notNull(),
+  lastRequest: epochMs('last_request').notNull(),
 });

@@ -1,9 +1,9 @@
-import { sql } from "drizzle-orm";
-import type { Database } from "../db/client";
-import { dbAll, dbGet, dbRun } from "../db/exec";
-import * as postgresSchema from "../db/schema/postgres";
-import * as sqliteSchema from "../db/schema/sqlite";
-import { ROLES, type Role } from "../access/policy";
+import { sql } from 'drizzle-orm';
+import type { Database } from '../db/client';
+import { dbAll, dbGet, dbRun } from '../db/exec';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
+import { ROLES, type Role } from '../access/policy';
 
 /**
  * Documents shared with named accounts (DESIGN.md §12, ROADMAP 1c.2): who has which role on which document. A document is its
@@ -26,9 +26,10 @@ export interface SharedWithAccount {
 /** The most accounts one document is shared with: a share list is something a person reads. */
 export const MAX_SHARES_PER_DOCUMENT = 100;
 
-const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser);
+const table = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.shareUser : sqliteSchema.shareUser;
 
-const asRole = (value: string): Role => (ROLES.includes(value as Role) ? (value as Role) : "view");
+const asRole = (value: string): Role => (ROLES.includes(value as Role) ? (value as Role) : 'view');
 
 export class ShareService {
   constructor(
@@ -40,22 +41,37 @@ export class ShareService {
    * Share a document with an account at a role, or change the role it already has. `too_many` once a document has the most:
    * changing the role of one already there is always allowed.
    */
-  async set(connectionId: number, docId: string, accountId: string, role: Role, createdBy: string): Promise<"ok" | "too_many"> {
-    const there = await dbGet<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND doc_id = ${docId}`);
-    const already = await dbGet<{ id: number }>(this.database, sql`SELECT id FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND doc_id = ${docId} AND account_id = ${accountId}`);
-    if (!already && Number(there?.n ?? 0) >= MAX_SHARES_PER_DOCUMENT) return "too_many";
+  async set(
+    connectionId: number,
+    docId: string,
+    accountId: string,
+    role: Role,
+    createdBy: string,
+  ): Promise<'ok' | 'too_many'> {
+    const there = await dbGet<{ n: number | string }>(
+      this.database,
+      sql`SELECT COUNT(*) AS n FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND doc_id = ${docId}`,
+    );
+    const already = await dbGet<{ id: number }>(
+      this.database,
+      sql`SELECT id FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND doc_id = ${docId} AND account_id = ${accountId}`,
+    );
+    if (!already && Number(there?.n ?? 0) >= MAX_SHARES_PER_DOCUMENT) return 'too_many';
     await dbRun(
       this.database,
       sql`INSERT INTO ${table(this.database)} (connection_id, doc_id, account_id, role, created_by, created_at)
           VALUES (${connectionId}, ${docId}, ${accountId}, ${role}, ${createdBy}, ${this.now()})
           ON CONFLICT (connection_id, doc_id, account_id) DO UPDATE SET role = ${role}`,
     );
-    return "ok";
+    return 'ok';
   }
 
   /** How many accounts a document is shared with. */
   async count(connectionId: number, docId: string): Promise<number> {
-    const row = await dbGet<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND doc_id = ${docId}`);
+    const row = await dbGet<{ n: number | string }>(
+      this.database,
+      sql`SELECT COUNT(*) AS n FROM ${table(this.database)} WHERE connection_id = ${connectionId} AND doc_id = ${docId}`,
+    );
     return Number(row?.n ?? 0);
   }
 
@@ -66,7 +82,11 @@ export class ShareService {
       sql`SELECT account_id AS "accountId", role, created_at AS "createdAt" FROM ${table(this.database)}
           WHERE connection_id = ${connectionId} AND doc_id = ${docId} ORDER BY created_at ASC, id ASC`,
     );
-    return rows.map((row) => ({ accountId: row.accountId, role: asRole(row.role), createdAt: Number(row.createdAt) }));
+    return rows.map((row) => ({
+      accountId: row.accountId,
+      role: asRole(row.role),
+      createdAt: Number(row.createdAt),
+    }));
   }
 
   /** Stop sharing a document with an account. False if it was not shared with it. */
@@ -79,12 +99,19 @@ export class ShareService {
   }
 
   /** The shares an account holds on a document, across connections (an id is unique within a repository, not across them). */
-  async find(accountId: string, docId: string): Promise<{ connectionId: number; role: Role; sharedBy: string }[]> {
+  async find(
+    accountId: string,
+    docId: string,
+  ): Promise<{ connectionId: number; role: Role; sharedBy: string }[]> {
     const rows = await dbAll<{ connectionId: number | string; role: string; sharedBy: string }>(
       this.database,
       sql`SELECT connection_id AS "connectionId", role, created_by AS "sharedBy" FROM ${table(this.database)} WHERE account_id = ${accountId} AND doc_id = ${docId} ORDER BY connection_id ASC`,
     );
-    return rows.map((row) => ({ connectionId: Number(row.connectionId), role: asRole(row.role), sharedBy: row.sharedBy }));
+    return rows.map((row) => ({
+      connectionId: Number(row.connectionId),
+      role: asRole(row.role),
+      sharedBy: row.sharedBy,
+    }));
   }
 
   /** Everything shared with an account, newest first. */
@@ -93,26 +120,53 @@ export class ShareService {
       this.database,
       sql`SELECT connection_id AS "connectionId", doc_id AS "docId", role FROM ${table(this.database)} WHERE account_id = ${accountId} ORDER BY created_at DESC, id DESC`,
     );
-    return rows.map((row) => ({ connectionId: Number(row.connectionId), docId: row.docId, role: asRole(row.role) }));
+    return rows.map((row) => ({
+      connectionId: Number(row.connectionId),
+      docId: row.docId,
+      role: asRole(row.role),
+    }));
   }
 
   /** What was shared with an account, newest first, with who shared it and when: what the account's *Shared with you* lists. At most `limit`. */
-  async listFor(accountId: string, limit = 200): Promise<{ connectionId: number; docId: string; role: Role; sharedBy: string; sharedAt: number }[]> {
-    const rows = await dbAll<{ connectionId: number | string; docId: string; role: string; sharedBy: string; sharedAt: number | string }>(
+  async listFor(
+    accountId: string,
+    limit = 200,
+  ): Promise<
+    { connectionId: number; docId: string; role: Role; sharedBy: string; sharedAt: number }[]
+  > {
+    const rows = await dbAll<{
+      connectionId: number | string;
+      docId: string;
+      role: string;
+      sharedBy: string;
+      sharedAt: number | string;
+    }>(
       this.database,
       sql`SELECT connection_id AS "connectionId", doc_id AS "docId", role, created_by AS "sharedBy", created_at AS "sharedAt" FROM ${table(this.database)} WHERE account_id = ${accountId} ORDER BY created_at DESC, id DESC LIMIT ${limit}`,
     );
-    return rows.map((row) => ({ connectionId: Number(row.connectionId), docId: row.docId, role: asRole(row.role), sharedBy: row.sharedBy, sharedAt: Number(row.sharedAt) }));
+    return rows.map((row) => ({
+      connectionId: Number(row.connectionId),
+      docId: row.docId,
+      role: asRole(row.role),
+      sharedBy: row.sharedBy,
+      sharedAt: Number(row.sharedAt),
+    }));
   }
 
   /** How many documents are shared with an account: whether its rail shows *Shared with you*. */
   async countFor(accountId: string): Promise<number> {
-    const row = await dbGet<{ n: number | string }>(this.database, sql`SELECT COUNT(*) AS n FROM ${table(this.database)} WHERE account_id = ${accountId}`);
+    const row = await dbGet<{ n: number | string }>(
+      this.database,
+      sql`SELECT COUNT(*) AS n FROM ${table(this.database)} WHERE account_id = ${accountId}`,
+    );
     return Number(row?.n ?? 0);
   }
 
   /** Every share of a connection goes with it (it is disconnected). */
   async forget(connectionId: number): Promise<void> {
-    await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${table(this.database)} WHERE connection_id = ${connectionId}`,
+    );
   }
 }

@@ -3,12 +3,12 @@
 **Status:** phase 1 is done (1a.6's check against real GitHub passed on 2026-11-01); phase 2 is built; phase 3, repository kinds, is built ([RFC 0001](../../docs/rfcs/0001-repository-kinds.md) implemented; 3d.2, a build in Fjord, is an outline); 3j, a media library for sites, is built ([RFC 0004](../../docs/rfcs/0004-site-media-library.md)); and phase 4 is an outline. The design is
 [`DESIGN.md`](DESIGN.md); this file is the order of work, and the detail of each task is in [`docs/epics/`](../../docs/epics/). Section numbers (§) refer to `DESIGN.md` unless they say "spec".
 
-| | |
-| --- | --- |
-| ✅ Done | Implemented, tested, released. |
-| ⏳ In progress | Started. |
-| 📋 Planned | Not started (*Next*: its prerequisites are done). |
-| 🚧 Open | Waits on a decision in `DESIGN.md` §N. |
+|                |                                                   |
+| -------------- | ------------------------------------------------- |
+| ✅ Done        | Implemented, tested, released.                    |
+| ⏳ In progress | Started.                                          |
+| 📋 Planned     | Not started (_Next_: its prerequisites are done). |
+| 🚧 Open        | Waits on a decision in `DESIGN.md` §N.            |
 
 Every task is one branch and one draft PR (root `CLAUDE.md`, Working conventions).
 Each row links to its task in [`docs/epics/`](../../docs/epics/), where it says what the task is, what "accepts when" review checks, and how it was done.
@@ -20,14 +20,14 @@ Each row links to its task in [`docs/epics/`](../../docs/epics/), where it says 
 These change the format and the CLI, so they land in `fjord` itself, and come
 before the web slices that need them.
 
-| # | Task | Status |
-| --- | --- | --- |
-| [P1](../../docs/epics/web-prerequisites.md#p1-spec-fjmd-names-a-document) | Spec: `*.fj.md` names a document | ✅ Done |
-| [P2](../../docs/epics/web-prerequisites.md#p2-cli-create-and-list-documents) | CLI: create and list documents | ✅ Done |
+| #                                                                                        | Task                                         | Status  |
+| ---------------------------------------------------------------------------------------- | -------------------------------------------- | ------- |
+| [P1](../../docs/epics/web-prerequisites.md#p1-spec-fjmd-names-a-document)                | Spec: `*.fj.md` names a document             | ✅ Done |
+| [P2](../../docs/epics/web-prerequisites.md#p2-cli-create-and-list-documents)             | CLI: create and list documents               | ✅ Done |
 | [P3](../../docs/epics/web-prerequisites.md#p3-fjord-core-vault-discovery-from-a-listing) | `fjord-core`: vault discovery from a listing | ✅ Done |
-| [P4](../../docs/epics/web-prerequisites.md#p4-fjord-core-to-webassembly-pure-subset) | `fjord-core` to WebAssembly, pure subset | ✅ Done |
-| [P5](../../docs/epics/web-prerequisites.md#p5-component-scaffolding) | Component scaffolding | ✅ Done |
-| [P6](../../docs/epics/web-prerequisites.md#p6-fjord-core-scaffold-a-repository-as-data) | `fjord-core`: scaffold a repository as data | ✅ Done |
+| [P4](../../docs/epics/web-prerequisites.md#p4-fjord-core-to-webassembly-pure-subset)     | `fjord-core` to WebAssembly, pure subset     | ✅ Done |
+| [P5](../../docs/epics/web-prerequisites.md#p5-component-scaffolding)                     | Component scaffolding                        | ✅ Done |
+| [P6](../../docs/epics/web-prerequisites.md#p6-fjord-core-scaffold-a-repository-as-data)  | `fjord-core`: scaffold a repository as data  | ✅ Done |
 
 P4 is the longest pole; 1a needs P3–P5, 1b needs P1, P2 and P4; 1a.10 needs P6.
 
@@ -35,104 +35,104 @@ P4 is the longest pole; 1a needs P3–P5, 1b needs P1, P2 and P4; 1a.10 needs P6
 
 ### 1a — Sign in, connect, browse
 
-| # | Task | Status |
-| --- | --- | --- |
-| [1a.0](../../docs/epics/web-1a.md#1a0-database-layer-both-dialects) | Database layer, both dialects | ✅ Done |
-| [1a.1](../../docs/epics/web-1a.md#1a1-landing-page) | Landing page | ✅ Done |
-| [1a.2](../../docs/epics/web-1a.md#1a2-local-auth) | Local auth | ✅ Done |
-| [1a.3](../../docs/epics/web-1a.md#1a3-sovereign-oidc) | Sovereign OIDC | ✅ Done |
+| #                                                                       | Task                             | Status  |
+| ----------------------------------------------------------------------- | -------------------------------- | ------- |
+| [1a.0](../../docs/epics/web-1a.md#1a0-database-layer-both-dialects)     | Database layer, both dialects    | ✅ Done |
+| [1a.1](../../docs/epics/web-1a.md#1a1-landing-page)                     | Landing page                     | ✅ Done |
+| [1a.2](../../docs/epics/web-1a.md#1a2-local-auth)                       | Local auth                       | ✅ Done |
+| [1a.3](../../docs/epics/web-1a.md#1a3-sovereign-oidc)                   | Sovereign OIDC                   | ✅ Done |
 | [1a.4](../../docs/epics/web-1a.md#1a4-account-linking-when-both-are-on) | Account linking when both are on | ✅ Done |
-| [1a.5](../../docs/epics/web-1a.md#1a5-provider-interface--github) | Provider interface + GitHub | ✅ Done |
-| [1a.6](../../docs/epics/web-1a.md#1a6-github-app-connection) | GitHub App connection | ✅ Done |
-| [1a.7](../../docs/epics/web-1a.md#1a7-pat-connection) | PAT connection | ✅ Done |
-| [1a.8](../../docs/epics/web-1a.md#1a8-credentials-at-rest) | Credentials at rest | ✅ Done |
-| [1a.9](../../docs/epics/web-1a.md#1a9-first-run-and-defaults) | First run and defaults | ✅ Done |
-| [1a.10](../../docs/epics/web-1a.md#1a10-not-a-fjord-repository) | Not a Fjord repository | ✅ Done |
-| [1a.11](../../docs/epics/web-1a.md#1a11-file-browser) | File browser | ✅ Done |
-| [1a.12](../../docs/epics/web-1a.md#1a12-deployment) | Deployment | ✅ Done |
+| [1a.5](../../docs/epics/web-1a.md#1a5-provider-interface--github)       | Provider interface + GitHub      | ✅ Done |
+| [1a.6](../../docs/epics/web-1a.md#1a6-github-app-connection)            | GitHub App connection            | ✅ Done |
+| [1a.7](../../docs/epics/web-1a.md#1a7-pat-connection)                   | PAT connection                   | ✅ Done |
+| [1a.8](../../docs/epics/web-1a.md#1a8-credentials-at-rest)              | Credentials at rest              | ✅ Done |
+| [1a.9](../../docs/epics/web-1a.md#1a9-first-run-and-defaults)           | First run and defaults           | ✅ Done |
+| [1a.10](../../docs/epics/web-1a.md#1a10-not-a-fjord-repository)         | Not a Fjord repository           | ✅ Done |
+| [1a.11](../../docs/epics/web-1a.md#1a11-file-browser)                   | File browser                     | ✅ Done |
+| [1a.12](../../docs/epics/web-1a.md#1a12-deployment)                     | Deployment                       | ✅ Done |
 
 ### 1b — Write and version
 
-| # | Task | Status |
-| --- | --- | --- |
+| #                                                               | Task                     | Status  |
+| --------------------------------------------------------------- | ------------------------ | ------- |
 | [1b.1](../../docs/epics/web-1b.md#1b1-editor-package-interface) | Editor package interface | ✅ Done |
-| [1b.2](../../docs/epics/web-1b.md#1b2-note-editor) | Note editor | ✅ Done |
-| [1b.3](../../docs/epics/web-1b.md#1b3-document-editor) | Document editor | ✅ Done |
-| [1b.4](../../docs/epics/web-1b.md#1b4-house-style) | House style | ✅ Done |
-| [1b.5](../../docs/epics/web-1b.md#1b5-frontmatter) | Frontmatter | ✅ Done |
-| [1b.6](../../docs/epics/web-1b.md#1b6-routes-and-the-id-index) | Routes and the id index | ✅ Done |
-| [1b.7](../../docs/epics/web-1b.md#1b7-create) | Create | ✅ Done |
-| [1b.8](../../docs/epics/web-1b.md#1b8-working-copies) | Working copies | ✅ Done |
-| [1b.9](../../docs/epics/web-1b.md#1b9-versions) | Versions | ✅ Done |
-| [1b.10](../../docs/epics/web-1b.md#1b10-upstream-changes) | Upstream changes | ✅ Done |
-| [1b.11](../../docs/epics/web-1b.md#1b11-rename-and-move) | Rename and move | ✅ Done |
-| [1b.12](../../docs/epics/web-1b.md#1b12-delete-and-restore) | Delete and restore | ✅ Done |
-| [1b.13](../../docs/epics/web-1b.md#1b13-idle-versions) | Idle versions | ✅ Done |
+| [1b.2](../../docs/epics/web-1b.md#1b2-note-editor)              | Note editor              | ✅ Done |
+| [1b.3](../../docs/epics/web-1b.md#1b3-document-editor)          | Document editor          | ✅ Done |
+| [1b.4](../../docs/epics/web-1b.md#1b4-house-style)              | House style              | ✅ Done |
+| [1b.5](../../docs/epics/web-1b.md#1b5-frontmatter)              | Frontmatter              | ✅ Done |
+| [1b.6](../../docs/epics/web-1b.md#1b6-routes-and-the-id-index)  | Routes and the id index  | ✅ Done |
+| [1b.7](../../docs/epics/web-1b.md#1b7-create)                   | Create                   | ✅ Done |
+| [1b.8](../../docs/epics/web-1b.md#1b8-working-copies)           | Working copies           | ✅ Done |
+| [1b.9](../../docs/epics/web-1b.md#1b9-versions)                 | Versions                 | ✅ Done |
+| [1b.10](../../docs/epics/web-1b.md#1b10-upstream-changes)       | Upstream changes         | ✅ Done |
+| [1b.11](../../docs/epics/web-1b.md#1b11-rename-and-move)        | Rename and move          | ✅ Done |
+| [1b.12](../../docs/epics/web-1b.md#1b12-delete-and-restore)     | Delete and restore       | ✅ Done |
+| [1b.13](../../docs/epics/web-1b.md#1b13-idle-versions)          | Idle versions            | ✅ Done |
 
 ### 1c — Share
 
-| # | Task | Status |
-| --- | --- | --- |
-| [1c.1](../../docs/epics/web-1c.md#1c1-roles-and-access-checks) | Roles and access checks | ✅ Done |
-| [1c.2](../../docs/epics/web-1c.md#1c2-named-user-shares) | Named-user shares | ✅ Done |
-| [1c.3](../../docs/epics/web-1c.md#1c3-link-shares) | Link shares | ✅ Done |
-| [1c.4](../../docs/epics/web-1c.md#1c4-token-handling) | Token handling | ✅ Done |
-| [1c.5](../../docs/epics/web-1c.md#1c5-password-links) | Password links | ✅ Done |
+| #                                                                    | Task                          | Status  |
+| -------------------------------------------------------------------- | ----------------------------- | ------- |
+| [1c.1](../../docs/epics/web-1c.md#1c1-roles-and-access-checks)       | Roles and access checks       | ✅ Done |
+| [1c.2](../../docs/epics/web-1c.md#1c2-named-user-shares)             | Named-user shares             | ✅ Done |
+| [1c.3](../../docs/epics/web-1c.md#1c3-link-shares)                   | Link shares                   | ✅ Done |
+| [1c.4](../../docs/epics/web-1c.md#1c4-token-handling)                | Token handling                | ✅ Done |
+| [1c.5](../../docs/epics/web-1c.md#1c5-password-links)                | Password links                | ✅ Done |
 | [1c.6](../../docs/epics/web-1c.md#1c6-anonymous-names-and-edit-mode) | Anonymous names and edit mode | ✅ Done |
-| [1c.7](../../docs/epics/web-1c.md#1c7-share-management-ui) | Share management UI | ✅ Done |
+| [1c.7](../../docs/epics/web-1c.md#1c7-share-management-ui)           | Share management UI           | ✅ Done |
 
 ### 1d — Comment
 
-| # | Task | Status |
-| --- | --- | --- |
-| [1d.1](../../docs/epics/web-1d.md#1d1-comment-plugin) | Comment plugin | ✅ Done |
-| [1d.2](../../docs/epics/web-1d.md#1d2-anchors) | Anchors | ✅ Done |
-| [1d.3](../../docs/epics/web-1d.md#1d3-live-updates) | Live updates | ✅ Done |
-| [1d.4](../../docs/epics/web-1d.md#1d4-limits-and-abuse) | Limits and abuse | ✅ Done |
+| #                                                                 | Task                       | Status  |
+| ----------------------------------------------------------------- | -------------------------- | ------- |
+| [1d.1](../../docs/epics/web-1d.md#1d1-comment-plugin)             | Comment plugin             | ✅ Done |
+| [1d.2](../../docs/epics/web-1d.md#1d2-anchors)                    | Anchors                    | ✅ Done |
+| [1d.3](../../docs/epics/web-1d.md#1d3-live-updates)               | Live updates               | ✅ Done |
+| [1d.4](../../docs/epics/web-1d.md#1d4-limits-and-abuse)           | Limits and abuse           | ✅ Done |
 | [1d.5](../../docs/epics/web-1d.md#1d5-security-review-of-phase-1) | Security review of phase 1 | ✅ Done |
 
 ## Phase 2 — encrypted files
 
 Planned on 2026-10-31; the prerequisites (P7, P8) and the keys in the browser (2a) and reading and writing encrypted files (2b), sealed shares and the security review (2c) are built. What it promises and what it does not is in [`web-2.md`](../../docs/epics/web-2.md). The prerequisites need a Rust toolchain.
 
-| # | Task | Status |
-| --- | --- | --- |
-| [P7](../../docs/epics/web-2.md#p7-fjord-core-age-and-the-tar-container-in-the-pure-subset) | `fjord-core`: age and the tar container in the pure subset | ✅ Done |
-| [P8](../../docs/epics/web-2.md#p8-fjord-wasm-encrypt-decrypt-pack-and-unpack) | `fjord-wasm`: encrypt, decrypt, pack and unpack | ✅ Done |
-| [2a.1](../../docs/epics/web-2.md#2a1-identities) | Identities | ✅ Done |
-| [2a.2](../../docs/epics/web-2.md#2a2-content-security-policy-for-webassembly) | Content-Security-Policy for WebAssembly | ✅ Done |
-| [2b.1](../../docs/epics/web-2.md#2b1-browse-encrypted-vaults) | Browse encrypted vaults | ✅ Done |
-| [2b.2](../../docs/epics/web-2.md#2b2-open) | Open | ✅ Done |
-| [2b.3](../../docs/epics/web-2.md#2b3-edit-and-drafts) | Edit and drafts | ✅ Done |
-| [2b.4](../../docs/epics/web-2.md#2b4-create-in-encrypted-vaults) | Create in encrypted vaults | ✅ Done |
-| [2b.5](../../docs/epics/web-2.md#2b5-rename-move-and-delete) | Rename, move and delete | ✅ Done |
-| [2b.6](../../docs/epics/web-2.md#2b6-moving-files-in-and-out-of-vaults) | Moving files in and out of vaults | ✅ Done |
-| [2c.1](../../docs/epics/web-2.md#2c1-sealed-link-shares) | Sealed link shares | ✅ Done |
-| [2c.2](../../docs/epics/web-2.md#2c2-security-review-of-phase-2) | Security review of phase 2 | ✅ Done |
-| [2d.1](../../docs/epics/web-2.md#2d1-add-a-vault) | Add a vault, plaintext or encrypted, in the web client and the CLI from one planner | ✅ Done |
-| [2e.1](../../docs/epics/web-2.md#2e1-commit-messages-that-say-what-changed) | Commit messages that say what changed and where, and nothing of an encrypted file's contents | ✅ Done |
+| #                                                                                          | Task                                                                                         | Status  |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ------- |
+| [P7](../../docs/epics/web-2.md#p7-fjord-core-age-and-the-tar-container-in-the-pure-subset) | `fjord-core`: age and the tar container in the pure subset                                   | ✅ Done |
+| [P8](../../docs/epics/web-2.md#p8-fjord-wasm-encrypt-decrypt-pack-and-unpack)              | `fjord-wasm`: encrypt, decrypt, pack and unpack                                              | ✅ Done |
+| [2a.1](../../docs/epics/web-2.md#2a1-identities)                                           | Identities                                                                                   | ✅ Done |
+| [2a.2](../../docs/epics/web-2.md#2a2-content-security-policy-for-webassembly)              | Content-Security-Policy for WebAssembly                                                      | ✅ Done |
+| [2b.1](../../docs/epics/web-2.md#2b1-browse-encrypted-vaults)                              | Browse encrypted vaults                                                                      | ✅ Done |
+| [2b.2](../../docs/epics/web-2.md#2b2-open)                                                 | Open                                                                                         | ✅ Done |
+| [2b.3](../../docs/epics/web-2.md#2b3-edit-and-drafts)                                      | Edit and drafts                                                                              | ✅ Done |
+| [2b.4](../../docs/epics/web-2.md#2b4-create-in-encrypted-vaults)                           | Create in encrypted vaults                                                                   | ✅ Done |
+| [2b.5](../../docs/epics/web-2.md#2b5-rename-move-and-delete)                               | Rename, move and delete                                                                      | ✅ Done |
+| [2b.6](../../docs/epics/web-2.md#2b6-moving-files-in-and-out-of-vaults)                    | Moving files in and out of vaults                                                            | ✅ Done |
+| [2c.1](../../docs/epics/web-2.md#2c1-sealed-link-shares)                                   | Sealed link shares                                                                           | ✅ Done |
+| [2c.2](../../docs/epics/web-2.md#2c2-security-review-of-phase-2)                           | Security review of phase 2                                                                   | ✅ Done |
+| [2d.1](../../docs/epics/web-2.md#2d1-add-a-vault)                                          | Add a vault, plaintext or encrypted, in the web client and the CLI from one planner          | ✅ Done |
+| [2e.1](../../docs/epics/web-2.md#2e1-commit-messages-that-say-what-changed)                | Commit messages that say what changed and where, and nothing of an encrypted file's contents | ✅ Done |
 
 ## Phase 3 — repository kinds
 
 Planned on 2026-11-02. `fjord.json`'s `kind` (`drive`, `journal`, `ssg`) chooses what a repository opens on: a file explorer, a timeline, a site's content editor. The design is [RFC 0001](../../docs/rfcs/0001-repository-kinds.md), the `ssg` detail [Research 0001](../../docs/research/0001-ssg-kind.md), what the phase promises is in [`web-3.md`](../../docs/epics/web-3.md), and the order of work, leg by leg, is [workstream 0001](../../docs/workstreams/0001-repository-kinds.md). The prerequisites change the format and need a Rust toolchain; they wait for the RFC to be accepted.
 
-| # | Task | Status |
-| --- | --- | --- |
-| [P9](../../docs/epics/web-3.md#p9-spec-repository-kinds-date-and-comparing-tags) | Spec: repository kinds, `date`, and comparing tags | ✅ Done |
-| [P10](../../docs/epics/web-3.md#p10-fjord-core-kinds-their-rules-and-their-scaffolds) | `fjord-core`: kinds, their rules and their scaffolds | ✅ Done |
-| [P11](../../docs/epics/web-3.md#p11-cli-init---kind-verify-and-journal-entries) | CLI: `init --kind`, `verify` and journal entries | ✅ Done |
-| [P12](../../docs/epics/web-3.md#p12-fjord-wasm-kinds-and-journal-paths) | `fjord-wasm`: kinds and journal paths | ✅ Done |
-| [3a.1](../../docs/epics/web-3.md#3a1-kind-modules) | Kind modules | ✅ Done |
-| [3a.2](../../docs/epics/web-3.md#3a2-drive-as-a-kind) | Drive as a kind | ✅ Done |
-| [3a.3](../../docs/epics/web-3.md#3a3-choosing-a-kind) | Choosing a kind | ✅ Done |
-| [3b.1](../../docs/epics/web-3.md#3b1-journal-entries) | Journal entries | ✅ Done |
-| [3b.2](../../docs/epics/web-3.md#3b2-timeline) | Timeline | ✅ Done |
-| [3b.3](../../docs/epics/web-3.md#3b3-tags) | Tags | ✅ Done |
-| [3c.1](../../docs/epics/web-3.md#3c1-site-scaffold) | Site scaffold | ✅ Done |
-| [3c.2](../../docs/epics/web-3.md#3c2-content-editor) | Content editor | ✅ Done |
-| [3c.3](../../docs/epics/web-3.md#3c3-build-status) | Build status | ✅ Done |
-| [3d.1](../../docs/epics/web-3.md#3d1-previews-through-the-host) | Previews through the host | ✅ Done |
-| [3d.2](../../docs/epics/web-3.md#3d2-a-build-in-fjord) | A build in Fjord (outline) | 🚧 Open: needs its own RFC and a security review |
+| #                                                                                     | Task                                                 | Status                                           |
+| ------------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------ |
+| [P9](../../docs/epics/web-3.md#p9-spec-repository-kinds-date-and-comparing-tags)      | Spec: repository kinds, `date`, and comparing tags   | ✅ Done                                          |
+| [P10](../../docs/epics/web-3.md#p10-fjord-core-kinds-their-rules-and-their-scaffolds) | `fjord-core`: kinds, their rules and their scaffolds | ✅ Done                                          |
+| [P11](../../docs/epics/web-3.md#p11-cli-init---kind-verify-and-journal-entries)       | CLI: `init --kind`, `verify` and journal entries     | ✅ Done                                          |
+| [P12](../../docs/epics/web-3.md#p12-fjord-wasm-kinds-and-journal-paths)               | `fjord-wasm`: kinds and journal paths                | ✅ Done                                          |
+| [3a.1](../../docs/epics/web-3.md#3a1-kind-modules)                                    | Kind modules                                         | ✅ Done                                          |
+| [3a.2](../../docs/epics/web-3.md#3a2-drive-as-a-kind)                                 | Drive as a kind                                      | ✅ Done                                          |
+| [3a.3](../../docs/epics/web-3.md#3a3-choosing-a-kind)                                 | Choosing a kind                                      | ✅ Done                                          |
+| [3b.1](../../docs/epics/web-3.md#3b1-journal-entries)                                 | Journal entries                                      | ✅ Done                                          |
+| [3b.2](../../docs/epics/web-3.md#3b2-timeline)                                        | Timeline                                             | ✅ Done                                          |
+| [3b.3](../../docs/epics/web-3.md#3b3-tags)                                            | Tags                                                 | ✅ Done                                          |
+| [3c.1](../../docs/epics/web-3.md#3c1-site-scaffold)                                   | Site scaffold                                        | ✅ Done                                          |
+| [3c.2](../../docs/epics/web-3.md#3c2-content-editor)                                  | Content editor                                       | ✅ Done                                          |
+| [3c.3](../../docs/epics/web-3.md#3c3-build-status)                                    | Build status                                         | ✅ Done                                          |
+| [3d.1](../../docs/epics/web-3.md#3d1-previews-through-the-host)                       | Previews through the host                            | ✅ Done                                          |
+| [3d.2](../../docs/epics/web-3.md#3d2-a-build-in-fjord)                                | A build in Fjord (outline)                           | 🚧 Open: needs its own RFC and a security review |
 
 Order: P9–P12, then 3a, then 3b, then 3c, then 3d.1. 3a needs P12; 3c.1 opens with the spike that settles Research 0001's open points.
 
@@ -140,22 +140,22 @@ Order: P9–P12, then 3a, then 3b, then 3c, then 3d.1. 3a needs P12; 3c.1 opens 
 
 Planned and built on 2026-11-03. One kind of Doc whose editor is the kind's choice, addresses with no path in them, journals encrypted by default, publishing a drive's Doc as a page, vaults at any depth, and adopting existing files. The design is [RFC 0002](../../docs/rfcs/0002-kinds-second-pass.md), the tasks are at the end of [`web-3.md`](../../docs/epics/web-3.md#kinds-second-pass-rfc-0002), and the order is [workstream 0002](../../docs/workstreams/0002-kinds-second-pass.md). The spec text is already written; the prerequisites bring the code to it.
 
-| # | Task | Status |
-| --- | --- | --- |
-| [P13](../../docs/epics/web-3.md#p13-spec-and-fixtures-one-kind-of-doc-vaults-at-any-depth-adopting-into-a-checkout) | Spec and fixtures: one kind of Doc, vaults at any depth, adopting into a checkout | ✅ Done |
-| [P14](../../docs/epics/web-3.md#p14-fjord-core-filekinddoc-vaults-at-depth-the-adoption-plan) | `fjord-core`: `FileKind::Doc`, vaults at depth, the adoption plan | ✅ Done |
-| [P15](../../docs/epics/web-3.md#p15-cli-no-documents-and-journals-encrypted-by-default) | CLI: no documents, and journals encrypted by default | ✅ Done |
-| [P16](../../docs/epics/web-3.md#p16-cli-init---adopt) | CLI: `init --adopt` | ✅ Done |
-| [P17](../../docs/epics/web-3.md#p17-fjord-wasm-one-kind-of-doc-vaults-at-depth-the-adoption-plan) | `fjord-wasm`: one kind of Doc, vaults at depth, the adoption plan | ✅ Done |
-| [3e.1](../../docs/epics/web-3.md#3e1-one-address-and-one-editor-per-kind-for-a-doc) | One address and one editor per kind for a Doc | ✅ Done |
-| [3e.2](../../docs/epics/web-3.md#3e2-handles-fhandle-in-place-of-paths) | Handles: `/f/<handle>` in place of paths | ✅ Done |
-| [3e.3](../../docs/epics/web-3.md#3e3-share-any-drive-doc) | Share any drive Doc | ✅ Done |
-| [3f.1](../../docs/epics/web-3.md#3f1-the-journals-writing-view) | The journal's writing view | ✅ Done |
-| [3f.2](../../docs/epics/web-3.md#3f2-new-journals-encrypted-by-default) | New journals encrypted by default | ✅ Done |
-| [3g.1](../../docs/epics/web-3.md#3g1-a-sites-vault-below-the-root) | A site's vault below the root | ✅ Done |
-| [3g.2](../../docs/epics/web-3.md#3g2-source-and-rich-modes-and-the-frontmatter-form) | Source and rich modes, and the frontmatter form | ✅ Done (rich mode uses the editor's meaning guard) |
-| [3h.1](../../docs/epics/web-3.md#3h1-publish-a-doc-as-a-page) | Publish a Doc as a page | ✅ Done (public pages) |
-| [3h.2](../../docs/epics/web-3.md#3h2-publish-from-an-encrypted-vault) | Publish from an encrypted vault | ✅ Done (a copy, after a warning) |
+| #                                                                                                                   | Task                                                                              | Status                                              |
+| ------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------- |
+| [P13](../../docs/epics/web-3.md#p13-spec-and-fixtures-one-kind-of-doc-vaults-at-any-depth-adopting-into-a-checkout) | Spec and fixtures: one kind of Doc, vaults at any depth, adopting into a checkout | ✅ Done                                             |
+| [P14](../../docs/epics/web-3.md#p14-fjord-core-filekinddoc-vaults-at-depth-the-adoption-plan)                       | `fjord-core`: `FileKind::Doc`, vaults at depth, the adoption plan                 | ✅ Done                                             |
+| [P15](../../docs/epics/web-3.md#p15-cli-no-documents-and-journals-encrypted-by-default)                             | CLI: no documents, and journals encrypted by default                              | ✅ Done                                             |
+| [P16](../../docs/epics/web-3.md#p16-cli-init---adopt)                                                               | CLI: `init --adopt`                                                               | ✅ Done                                             |
+| [P17](../../docs/epics/web-3.md#p17-fjord-wasm-one-kind-of-doc-vaults-at-depth-the-adoption-plan)                   | `fjord-wasm`: one kind of Doc, vaults at depth, the adoption plan                 | ✅ Done                                             |
+| [3e.1](../../docs/epics/web-3.md#3e1-one-address-and-one-editor-per-kind-for-a-doc)                                 | One address and one editor per kind for a Doc                                     | ✅ Done                                             |
+| [3e.2](../../docs/epics/web-3.md#3e2-handles-fhandle-in-place-of-paths)                                             | Handles: `/f/<handle>` in place of paths                                          | ✅ Done                                             |
+| [3e.3](../../docs/epics/web-3.md#3e3-share-any-drive-doc)                                                           | Share any drive Doc                                                               | ✅ Done                                             |
+| [3f.1](../../docs/epics/web-3.md#3f1-the-journals-writing-view)                                                     | The journal's writing view                                                        | ✅ Done                                             |
+| [3f.2](../../docs/epics/web-3.md#3f2-new-journals-encrypted-by-default)                                             | New journals encrypted by default                                                 | ✅ Done                                             |
+| [3g.1](../../docs/epics/web-3.md#3g1-a-sites-vault-below-the-root)                                                  | A site's vault below the root                                                     | ✅ Done                                             |
+| [3g.2](../../docs/epics/web-3.md#3g2-source-and-rich-modes-and-the-frontmatter-form)                                | Source and rich modes, and the frontmatter form                                   | ✅ Done (rich mode uses the editor's meaning guard) |
+| [3h.1](../../docs/epics/web-3.md#3h1-publish-a-doc-as-a-page)                                                       | Publish a Doc as a page                                                           | ✅ Done (public pages)                              |
+| [3h.2](../../docs/epics/web-3.md#3h2-publish-from-an-encrypted-vault)                                               | Publish from an encrypted vault                                                   | ✅ Done (a copy, after a warning)                   |
 
 Order: P13–P17 (the CLI first), then 3e, 3f, 3g, 3h. Every web task needs P17; 3g.1 needs P16's adoption.
 
@@ -163,24 +163,24 @@ Order: P13–P17 (the CLI first), then 3e, 3f, 3g, 3h. Every web task needs P17;
 
 A person makes a drive or a journal on this instance, works in it with the ordinary editors, and connects it to git later; until then it is kept in the database, within a limit for each account.
 
-| # | Task | Status |
-| --- | --- | --- |
+| #                                                                      | Task                                                                                       | Status                                                      |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
 | [3i.1](../../docs/epics/web-3.md#3i1-a-repository-kept-on-this-server) | A repository kept on this server: `LocalProvider`, per-account limits, create, move to git | ✅ Done (drive and journal; one import commit; GitHub only) |
 
 ### 3j — Media library
 
 A site's images as a library: browsed, uploaded (resized in the browser), deleted, and put into a post from either editor with alt text. Images only, an `ssg` repository only. Accepted and built ([RFC 0004](../../docs/rfcs/0004-site-media-library.md)).
 
-| # | Task | Status |
-| --- | --- | --- |
-| [P18](../../docs/epics/web-3.md#p18-spike-where-each-engine-serves-images-from-its-vault) | Spike: where each engine serves images from its vault | ✅ Done (one layout waits on the owner) |
-| [P19](../../docs/epics/web-3.md#p19-fjord-core-images-in-a-site) | `fjord-core`: images in a site | ✅ Done |
-| [P20](../../docs/epics/web-3.md#p20-fjord-wasm-images-in-a-site) | `fjord-wasm`: images in a site | ✅ Done |
-| [3j.1](../../docs/epics/web-3.md#3j1-the-library-screen) | The library screen | ✅ Done |
-| [3j.2](../../docs/epics/web-3.md#3j2-upload) | Upload, resized in the browser | ✅ Done |
-| [3j.3](../../docs/epics/web-3.md#3j3-insert-from-the-editors) | Insert from the editors, with alt text | ✅ Done |
-| [3j.4](../../docs/epics/web-3.md#3j4-paste-and-drop-into-a-post) | Paste and drop into a post | ✅ Done (tested in the editor package only) |
-| [3j.5](../../docs/epics/web-3.md#3j5-delete-an-image) | Delete an image | ✅ Done |
+| #                                                                                         | Task                                                  | Status                                      |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------- |
+| [P18](../../docs/epics/web-3.md#p18-spike-where-each-engine-serves-images-from-its-vault) | Spike: where each engine serves images from its vault | ✅ Done (one layout waits on the owner)     |
+| [P19](../../docs/epics/web-3.md#p19-fjord-core-images-in-a-site)                          | `fjord-core`: images in a site                        | ✅ Done                                     |
+| [P20](../../docs/epics/web-3.md#p20-fjord-wasm-images-in-a-site)                          | `fjord-wasm`: images in a site                        | ✅ Done                                     |
+| [3j.1](../../docs/epics/web-3.md#3j1-the-library-screen)                                  | The library screen                                    | ✅ Done                                     |
+| [3j.2](../../docs/epics/web-3.md#3j2-upload)                                              | Upload, resized in the browser                        | ✅ Done                                     |
+| [3j.3](../../docs/epics/web-3.md#3j3-insert-from-the-editors)                             | Insert from the editors, with alt text                | ✅ Done                                     |
+| [3j.4](../../docs/epics/web-3.md#3j4-paste-and-drop-into-a-post)                          | Paste and drop into a post                            | ✅ Done (tested in the editor package only) |
+| [3j.5](../../docs/epics/web-3.md#3j5-delete-an-image)                                     | Delete an image                                       | ✅ Done                                     |
 
 Order: P18 (a spike; if an engine cannot serve images from its vault, the owner decides before P19), P19, P20, then 3j.1 to 3j.5.
 
@@ -199,10 +199,10 @@ Fjord Web as an app a Sovereign instance can host with its operator toolkit (`sv
 only links to Sovereign are its shared packages, its sign-in (which Fjord chooses), and the manifest and environment conventions the
 toolkit reads. The plan, and what it asks of Sovereign, are in the epic.
 
-| # | Task | Status |
-| --- | --- | --- |
-| [H1](../../docs/epics/web-sovereign.md#h1-settings-under-sovereigns-names) | Settings under Sovereign's names | ✅ Done |
-| [H2](../../docs/epics/web-sovereign.md#h2-the-manifest-and-the-image) | The manifest and the image | ✅ Done |
+| #                                                                                     | Task                                       | Status                                                                   |
+| ------------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------ |
+| [H1](../../docs/epics/web-sovereign.md#h1-settings-under-sovereigns-names)            | Settings under Sovereign's names           | ✅ Done                                                                  |
+| [H2](../../docs/epics/web-sovereign.md#h2-the-manifest-and-the-image)                 | The manifest and the image                 | ✅ Done                                                                  |
 | [H3](../../docs/epics/web-sovereign.md#h3-signing-out-and-account-deletion-from-core) | Signing out and account deletion from core | ✅ Done (its lockfile waits on `@sovereignfs/sdk` 2.1.0 being published) |
 
 ## Later

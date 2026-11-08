@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import { Alert, Button, Input } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import { sendRestore } from "../../files/client";
-import { repositoryHref } from "../links";
+import { useState } from 'react';
+import { Alert, Button, Input } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import { sendRestore } from '../../files/client';
+import { repositoryHref } from '../links';
 
 /** One deletion (a file, or a folder's files that went in one commit) as the list shows it. */
 export interface DeletedGroup {
@@ -19,14 +19,30 @@ export interface DeletedGroup {
  * put back where it was or at a place the person chooses; a folder's files, all together where they were. Never over
  * anything: if a path is taken, nothing is put back and the taken ones are named.
  */
-export function RecentlyDeleted({ connectionId, repo, groups, days }: { connectionId: number; /** What the repository is called in an address. */ repo: string; groups: DeletedGroup[]; days: number }) {
+export function RecentlyDeleted({
+  connectionId,
+  repo,
+  groups,
+  days,
+}: {
+  connectionId: number;
+  /** What the repository is called in an address. */ repo: string;
+  groups: DeletedGroup[];
+  days: number;
+}) {
   if (groups.length === 0) {
-    return <p>Nothing was deleted in the last {days === 1 ? "day" : `${days} days`}. Files deleted earlier are still in the repository&apos;s history.</p>;
+    return (
+      <p>
+        Nothing was deleted in the last {days === 1 ? 'day' : `${days} days`}. Files deleted earlier
+        are still in the repository&apos;s history.
+      </p>
+    );
   }
   return (
     <>
       <p className={styles.itemMeta}>
-        Deleted in the last {days === 1 ? "day" : `${days} days`}. Files deleted earlier are still in the repository&apos;s history.
+        Deleted in the last {days === 1 ? 'day' : `${days} days`}. Files deleted earlier are still
+        in the repository&apos;s history.
       </p>
       <ul className={styles.list} aria-label="Recently deleted">
         {groups.map((group) => (
@@ -39,7 +55,15 @@ export function RecentlyDeleted({ connectionId, repo, groups, days }: { connecti
   );
 }
 
-function Row({ connectionId, repo, group }: { connectionId: number; repo: string; group: DeletedGroup }) {
+function Row({
+  connectionId,
+  repo,
+  group,
+}: {
+  connectionId: number;
+  repo: string;
+  group: DeletedGroup;
+}) {
   const single = group.paths.length === 1;
   const [where, setWhere] = useState(group.paths[0] as string);
   const [busy, setBusy] = useState(false);
@@ -49,7 +73,11 @@ function Row({ connectionId, repo, group }: { connectionId: number; repo: string
   async function restore() {
     setBusy(true);
     setError(null);
-    const done = await sendRestore(connectionId, group.ids, single && where !== group.paths[0] ? where : undefined);
+    const done = await sendRestore(
+      connectionId,
+      group.ids,
+      single && where !== group.paths[0] ? where : undefined,
+    );
     if (done.ok) setRestored(done.paths);
     else setError({ message: done.message, taken: done.taken });
     setBusy(false);
@@ -58,14 +86,19 @@ function Row({ connectionId, repo, group }: { connectionId: number; repo: string
   if (restored) {
     return (
       <Alert variant="success" heading="Put back">
-        {restored.length === 1 ? <a href={repositoryHref(repo, ...restored[0]!.split("/"))}>{restored[0]}</a> : `${restored.length} files, where they were.`}
+        {restored.length === 1 ? (
+          <a href={repositoryHref(repo, ...restored[0]!.split('/'))}>{restored[0]}</a>
+        ) : (
+          `${restored.length} files, where they were.`
+        )}
       </Alert>
     );
   }
   return (
-    <div style={{ width: "100%" }}>
+    <div style={{ width: '100%' }}>
       <p>
-        {single ? <code>{group.paths[0]}</code> : <strong>{group.paths.length} files</strong>} <span className={styles.itemMeta}>· deleted {group.when}</span>
+        {single ? <code>{group.paths[0]}</code> : <strong>{group.paths.length} files</strong>}{' '}
+        <span className={styles.itemMeta}>· deleted {group.when}</span>
       </p>
       {single ? null : (
         <details>
@@ -79,7 +112,14 @@ function Row({ connectionId, repo, group }: { connectionId: number; repo: string
           </ul>
         </details>
       )}
-      {single ? <Input aria-label={`Put ${group.paths[0]} back at`} value={where} onChange={(e) => setWhere(e.target.value)} disabled={busy} /> : null}
+      {single ? (
+        <Input
+          aria-label={`Put ${group.paths[0]} back at`}
+          value={where}
+          onChange={(e) => setWhere(e.target.value)}
+          disabled={busy}
+        />
+      ) : null}
       {error ? (
         <div className={styles.notice}>
           <Alert variant="error" heading="Nothing was put back">
@@ -97,7 +137,7 @@ function Row({ connectionId, repo, group }: { connectionId: number; repo: string
         </div>
       ) : null}
       <Button size="sm" variant="secondary" onClick={restore} loading={busy}>
-        {single ? "Put back" : "Put all back"}
+        {single ? 'Put back' : 'Put all back'}
       </Button>
     </div>
   );

@@ -1,12 +1,12 @@
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import type { NextConfig } from "next";
-import { EMBEDDABLE_SECURITY_HEADERS, SECURITY_HEADERS } from "./src/security/csp";
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { NextConfig } from 'next';
+import { EMBEDDABLE_SECURITY_HEADERS, SECURITY_HEADERS } from './src/security/csp';
 
 // The repository's root. The app imports `fjord-editor` from `packages/fjord-editor`, which is outside this project, and the
 // bundler follows a link there only if its root is a directory that holds both. (It also puts a standalone server under
 // `clients/web/` inside its output, which the Dockerfile follows.)
-const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const config: NextConfig = {
   reactStrictMode: true,
@@ -19,16 +19,22 @@ const config: NextConfig = {
   async headers() {
     // `/raw/…` is a sandboxed page that this app's own page frames: everything but the header that forbids framing.
     return [
-      { source: "/((?!raw/).*)", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, ...SECURITY_HEADERS] },
-      { source: "/raw/:path*", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, ...EMBEDDABLE_SECURITY_HEADERS] },
+      {
+        source: '/((?!raw/).*)',
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }, ...SECURITY_HEADERS],
+      },
+      {
+        source: '/raw/:path*',
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }, ...EMBEDDABLE_SECURITY_HEADERS],
+      },
     ];
   },
   // Loaded by Node at run time, not bundled: pg is CommonJS with optional native
   // parts, and libsql ships a native addon that only the `file:` database loads.
-  serverExternalPackages: ["pg", "@libsql/client", "libsql"],
+  serverExternalPackages: ['pg', '@libsql/client', 'libsql'],
   // The container image runs a self-contained server (Dockerfile). It is switched on by the image build and not
   // by default, because `next start`, which `pnpm e2e` and `pnpm boot-check` use, does not work with it.
-  ...(process.env.FJORD_STANDALONE === "1" ? { output: "standalone" as const } : {}),
+  ...(process.env.FJORD_STANDALONE === '1' ? { output: 'standalone' as const } : {}),
 };
 
 export default config;

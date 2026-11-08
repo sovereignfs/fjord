@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
-import { BrandBadge, Icon, type IconName } from "./index";
-import { markOf } from "./brand";
-import { RepositoryKindIcon, type RepositoryKindId } from "./icons";
-import styles from "./AppShell.module.css";
+import type { ReactNode } from 'react';
+import { BrandBadge, Icon, type IconName } from './index';
+import { markOf } from './brand';
+import { RepositoryKindIcon, type RepositoryKindId } from './icons';
+import styles from './AppShell.module.css';
 
 /** A connected repository, for its icon in the rail. */
 export interface ShellRepository {
@@ -17,13 +17,33 @@ export interface ShellRepository {
 }
 
 /** Where a signed-in person is, so its icon in the rail is marked as the current page. */
-export type ShellPlace = "index" | "repositories" | "account" | "shared" | { repository: string };
+export type ShellPlace = 'index' | 'repositories' | 'account' | 'shared' | { repository: string };
 
-const classes = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(" ");
+const classes = (...names: (string | false | undefined)[]) => names.filter(Boolean).join(' ');
 
-function RailLink({ href, label, tip, active, icon, children }: { href: string; label: string; tip?: string; active: boolean; icon?: IconName; children?: ReactNode }) {
+function RailLink({
+  href,
+  label,
+  tip,
+  active,
+  icon,
+  children,
+}: {
+  href: string;
+  label: string;
+  tip?: string;
+  active: boolean;
+  icon?: IconName;
+  children?: ReactNode;
+}) {
   return (
-    <a href={href} className={classes(styles.icon, active && styles.iconActive)} title={tip ?? label} aria-label={label} aria-current={active ? "page" : undefined}>
+    <a
+      href={href}
+      className={classes(styles.icon, active && styles.iconActive)}
+      title={tip ?? label}
+      aria-label={label}
+      aria-current={active ? 'page' : undefined}
+    >
       {icon ? <Icon name={icon} aria-hidden /> : children}
     </a>
   );
@@ -61,7 +81,7 @@ export function AppShell({
   shared?: boolean;
   children: ReactNode;
 }) {
-  const current = typeof place === "object" ? place.repository : undefined;
+  const current = typeof place === 'object' ? place.repository : undefined;
   return (
     <div className={styles.shell}>
       <aside className={styles.sidebar}>
@@ -70,24 +90,36 @@ export function AppShell({
         </a>
         <hr className={styles.divider} />
         <nav className={styles.top} aria-label="Repositories">
-          <RailLink href="/" label="Repositories" icon="layout-grid" active={place === "index"} />
+          <RailLink href="/" label="Repositories" icon="layout-grid" active={place === 'index'} />
         </nav>
         <ul className={styles.repositories} aria-label="Your repositories">
           {repositories.map((repository) => (
             <li key={repository.id}>
-              <RailLink href={`/${repository.kind ?? "drive"}/${repository.id}`} label={repository.label} tip={repository.isDefault ? `${repository.label} (default)` : repository.label} active={current === repository.id}>
+              <RailLink
+                href={`/${repository.kind ?? 'drive'}/${repository.id}`}
+                label={repository.label}
+                tip={repository.isDefault ? `${repository.label} (default)` : repository.label}
+                active={current === repository.id}
+              >
                 <RepositoryKindIcon kind={repository.kind ?? null} />
               </RailLink>
             </li>
           ))}
-          {shared || place === "shared" ? (
+          {shared || place === 'shared' ? (
             <li>
-              <RailLink href="/shared" label="Shared with you" icon="users" active={place === "shared"} />
+              <RailLink
+                href="/shared"
+                label="Shared with you"
+                icon="users"
+                active={place === 'shared'}
+              />
             </li>
           ) : null}
           <li>{connect}</li>
         </ul>
-        <nav className={styles.chrome} aria-label="Account">{account}</nav>
+        <nav className={styles.chrome} aria-label="Account">
+          {account}
+        </nav>
       </aside>
       <main className={styles.content}>{children}</main>
     </div>

@@ -1,4 +1,4 @@
-import type { Discovery, RepositoryManifest } from "../format/types";
+import type { Discovery, RepositoryManifest } from '../format/types';
 
 /**
  * Which vault opens first for a connected repository (DESIGN.md §7): the one the account has chosen, and until it
@@ -9,7 +9,11 @@ import type { Discovery, RepositoryManifest } from "../format/types";
  *
  * Which vaults exist, and `fjord.json`'s order, are the format module's answers; this only picks among them.
  */
-export function defaultVault(discovery: Discovery, manifest: RepositoryManifest | null, chosen: string | null): string | undefined {
+export function defaultVault(
+  discovery: Discovery,
+  manifest: RepositoryManifest | null,
+  chosen: string | null,
+): string | undefined {
   const existing = discovery.vaults.map((vault) => vault.directory);
   if (chosen !== null && existing.includes(chosen)) return chosen;
 

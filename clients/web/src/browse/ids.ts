@@ -1,10 +1,10 @@
-import type { ClassifiedFile } from "../format/types";
-import type { Fjord } from "../format/wasm";
-import { mapLimit } from "../providers/concurrency";
-import type { Provider, RepositoryRef } from "../providers/types";
-import type { DocIndex, IndexedFile } from "./doc-index";
-import { readTextBlob } from "./note";
-import type { RepositoryRead } from "./repository";
+import type { ClassifiedFile } from '../format/types';
+import type { Fjord } from '../format/wasm';
+import { mapLimit } from '../providers/concurrency';
+import type { Provider, RepositoryRef } from '../providers/types';
+import type { DocIndex, IndexedFile } from './doc-index';
+import { readTextBlob } from './note';
+import type { RepositoryRead } from './repository';
 
 /**
  * Finding a file by its Doc `id` (DESIGN.md §9, ROADMAP 1b.6): `/d/<id>` asks for a file without saying
@@ -55,31 +55,42 @@ export function plaintextDocs(read: RepositoryRead): Map<string, { blob: string 
     if (vault.manifestError !== null || vault.encrypted !== false) continue;
     for (const file of vault.files) {
       const blob = read.blobs.get(file.path);
-      if (blob !== undefined && file.kind === "doc") out.set(file.path, { blob });
+      if (blob !== undefined && file.kind === 'doc') out.set(file.path, { blob });
     }
   }
   return out;
 }
 
 /** The `id` a text's header gives it, or null: none, an invalid one, or a header that cannot be read. */
-export function docIdOf(format: Pick<Fjord, "parseDocument">, text: string): string | null {
+export function docIdOf(format: Pick<Fjord, 'parseDocument'>, text: string): string | null {
   const parsed = format.parseDocument(text);
-  return parsed.status === "present" && typeof parsed.docId === "string" ? parsed.docId : null;
+  return parsed.status === 'present' && typeof parsed.docId === 'string' ? parsed.docId : null;
 }
 
 /** Record a file that was just read for the page (reading it is the only way to know its `id`, and the page has it). */
-export async function recordRead(index: DocIndex, format: Pick<Fjord, "parseDocument">, connectionId: number, file: ClassifiedFile, blob: string, text: string): Promise<void> {
-  if (file.kind !== "doc") return;
+export async function recordRead(
+  index: DocIndex,
+  format: Pick<Fjord, 'parseDocument'>,
+  connectionId: number,
+  file: ClassifiedFile,
+  blob: string,
+  text: string,
+): Promise<void> {
+  if (file.kind !== 'doc') return;
   await index.put(connectionId, [{ path: file.path, docId: docIdOf(format, text), blob }]);
 }
 
 interface Deps {
   index: DocIndex;
-  format: Pick<Fjord, "parseDocument">;
+  format: Pick<Fjord, 'parseDocument'>;
 }
 
 /** Read these files and record what they say; a file that is not text, or too large, is recorded as having no `id`. */
-async function readAndRecord(deps: Deps, source: Source, wanted: [string, { blob: string }][]): Promise<void> {
+async function readAndRecord(
+  deps: Deps,
+  source: Source,
+  wanted: [string, { blob: string }][],
+): Promise<void> {
   const read = await mapLimit(wanted, AT_ONCE, async ([path, current]): Promise<IndexedFile> => {
     const text = await readTextBlob(source.provider, source.ref, current.blob);
     return { path, blob: current.blob, docId: text.ok ? docIdOf(deps.format, text.text) : null };
@@ -87,8 +98,15 @@ async function readAndRecord(deps: Deps, source: Source, wanted: [string, { blob
   await deps.index.put(source.connectionId, read);
 }
 
-export async function resolveDocId(deps: Deps, sources: Source[], docId: string, budget: number = SEARCH_BUDGET): Promise<Resolution> {
-  const current = new Map(sources.map((source) => [source.connectionId, plaintextDocs(source.read)]));
+export async function resolveDocId(
+  deps: Deps,
+  sources: Source[],
+  docId: string,
+  budget: number = SEARCH_BUDGET,
+): Promise<Resolution> {
+  const current = new Map(
+    sources.map((source) => [source.connectionId, plaintextDocs(source.read)]),
+  );
   const bySource = new Map(sources.map((source) => [source.connectionId, source]));
   const ids = sources.map((source) => source.connectionId);
 

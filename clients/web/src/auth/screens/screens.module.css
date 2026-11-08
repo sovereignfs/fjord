@@ -75,7 +75,7 @@
 
 .divider::before,
 .divider::after {
-  content: "";
+  content: '';
   flex: 1;
   border-top: var(--sv-border-width-hairline) solid var(--sv-color-border);
 }
@@ -179,7 +179,9 @@
 .qrBox {
   padding: var(--sv-space-3);
   border-radius: var(--sv-radius-lg);
-  background: var(--sv-white); /* a QR code must be dark on light to scan, in either theme: the one place a fixed colour is right */
+  background: var(
+    --sv-white
+  ); /* a QR code must be dark on light to scan, in either theme: the one place a fixed colour is right */
   line-height: 0;
 }
 

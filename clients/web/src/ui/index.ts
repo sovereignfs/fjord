@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /**
  * The design system, for pages to import. `@sovereignfs/ui` is one bundle with no
@@ -39,5 +39,5 @@ export {
   SegmentedControl,
   Select,
   UserMenu,
-} from "@sovereignfs/ui";
-export type { IconName } from "@sovereignfs/ui";
+} from '@sovereignfs/ui';
+export type { IconName } from '@sovereignfs/ui';

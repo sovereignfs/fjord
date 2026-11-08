@@ -1,78 +1,129 @@
-import { DocIndex } from "../browse/doc-index";
-import { FileHandles } from "../browse/handles";
-import { resolveDocId } from "../browse/ids";
-import { readConnection } from "../browse/server";
-import { connectionService } from "../connections/server";
-import { getDatabase } from "../db/boot";
-import { fjord } from "../format/wasm";
-import type { Identity } from "../providers/types";
-import { makeVersion } from "../working/server";
-import { WorkingCopyService } from "../working/service";
-import { type AccessDeps, filesAccess } from "./access";
-import { restoreWindowMs } from "./config";
-import { type CreateResult, checkVault, createFile } from "./create";
-import { type CreateEncryptedResult, type EncryptedTarget, checkEncryptedVault, createEncryptedFile } from "./create-encrypted";
-import { type DeleteResult, type DeleteTarget, deletePath } from "./delete";
-import { DeletionService } from "./deletions";
-import { type IdentifyResult, identifyFile } from "./identify";
-import { type MoveResult, movePath } from "./move";
-import { type TransferResult, type VaultForm, transferFile } from "./transfer";
-import { type ConvertResult, type ConvertedFile, type VaultSnapshot, convertVault, snapshotVault } from "./convert";
-import { type RestoreResult, restoreDeleted } from "./restore";
-import { type EntryResult, createEntry, journalVault } from "../journal/entries";
-import type { JournalRefusal } from "./http";
-import { type PostResult, type SiteRefusal, createPost, siteVault } from "../site/posts";
+import { DocIndex } from '../browse/doc-index';
+import { FileHandles } from '../browse/handles';
+import { resolveDocId } from '../browse/ids';
+import { readConnection } from '../browse/server';
+import { connectionService } from '../connections/server';
+import { getDatabase } from '../db/boot';
+import { fjord } from '../format/wasm';
+import type { Identity } from '../providers/types';
+import { makeVersion } from '../working/server';
+import { WorkingCopyService } from '../working/service';
+import { type AccessDeps, filesAccess } from './access';
+import { restoreWindowMs } from './config';
+import { type CreateResult, checkVault, createFile } from './create';
+import {
+  type CreateEncryptedResult,
+  type EncryptedTarget,
+  checkEncryptedVault,
+  createEncryptedFile,
+} from './create-encrypted';
+import { type DeleteResult, type DeleteTarget, deletePath } from './delete';
+import { DeletionService } from './deletions';
+import { type IdentifyResult, identifyFile } from './identify';
+import { type MoveResult, movePath } from './move';
+import { type TransferResult, type VaultForm, transferFile } from './transfer';
+import {
+  type ConvertResult,
+  type ConvertedFile,
+  type VaultSnapshot,
+  convertVault,
+  snapshotVault,
+} from './convert';
+import { type RestoreResult, restoreDeleted } from './restore';
+import { type EntryResult, createEntry, journalVault } from '../journal/entries';
+import type { JournalRefusal } from './http';
+import { type PostResult, type SiteRefusal, createPost, siteVault } from '../site/posts';
 
 /** Whether files may be made in a vault of one of the account's repositories, as the repository is now. */
-async function vaultFor(accountId: string, id: number, vault: string): Promise<"ok" | ReturnType<typeof checkVault> | "unavailable"> {
+async function vaultFor(
+  accountId: string,
+  id: number,
+  vault: string,
+): Promise<'ok' | ReturnType<typeof checkVault> | 'unavailable'> {
   const connection = await (await connectionService()).get(accountId, id);
-  if (!connection) return "unavailable";
+  if (!connection) return 'unavailable';
   const outcome = await readConnection(accountId, connection);
-  return outcome.ok ? checkVault(outcome.read.discovery.vaults, vault) : "unavailable";
+  return outcome.ok ? checkVault(outcome.read.discovery.vaults, vault) : 'unavailable';
 }
 
 /** Whether files may be made in an encrypted vault of one of the account's repositories, as the repository is now, and how it names them. */
 async function encryptedVaultFor(accountId: string, id: number, vault: string) {
   const connection = await (await connectionService()).get(accountId, id);
-  if (!connection) return { ok: false, reason: "unavailable" } as const;
+  if (!connection) return { ok: false, reason: 'unavailable' } as const;
   const outcome = await readConnection(accountId, connection);
-  return outcome.ok ? checkEncryptedVault(outcome.read.discovery.vaults, outcome.read.manifests, vault) : ({ ok: false, reason: "unavailable" } as const);
+  return outcome.ok
+    ? checkEncryptedVault(outcome.read.discovery.vaults, outcome.read.manifests, vault)
+    : ({ ok: false, reason: 'unavailable' } as const);
 }
 
 /** Make a file in an encrypted vault from ciphertext the browser made: through the connection's own token, on its branch. */
 async function createEncrypted(
   accountId: string,
   id: number,
-  input: { vault: string; folder: string; newFolder?: boolean | undefined; target: EncryptedTarget; title: string; localMinute: { year: number; month: number; day: number; hour: number; minute: number }; ciphertext: Uint8Array; author: Identity },
+  input: {
+    vault: string;
+    folder: string;
+    newFolder?: boolean | undefined;
+    target: EncryptedTarget;
+    title: string;
+    localMinute: { year: number; month: number; day: number; hour: number; minute: number };
+    ciphertext: Uint8Array;
+    author: Identity;
+  },
 ): Promise<CreateEncryptedResult> {
   const used = await (await connectionService()).provider(accountId, id);
-  if (!used) return { ok: false, reason: "unavailable" };
-  return createEncryptedFile({ provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord() }, input);
+  if (!used) return { ok: false, reason: 'unavailable' };
+  return createEncryptedFile(
+    {
+      provider: used.provider,
+      ref: { owner: used.connection.owner, name: used.connection.name },
+      branch: used.connection.branch,
+      format: fjord(),
+    },
+    input,
+  );
 }
 
 /** Make a file in one of the account's repositories: through the connection's own token, on the branch it was connected with. */
 async function create(
   accountId: string,
   id: number,
-  input: { vault: string; folder: string; newFolder?: boolean | undefined; title: string; localMinute: { year: number; month: number; day: number; hour: number; minute: number }; author: Identity },
+  input: {
+    vault: string;
+    folder: string;
+    newFolder?: boolean | undefined;
+    title: string;
+    localMinute: { year: number; month: number; day: number; hour: number; minute: number };
+    author: Identity;
+  },
 ): Promise<CreateResult> {
   const used = await (await connectionService()).provider(accountId, id);
-  if (!used) return { ok: false, reason: "unavailable" };
+  if (!used) return { ok: false, reason: 'unavailable' };
   return createFile(
-    { provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord() },
+    {
+      provider: used.provider,
+      ref: { owner: used.connection.owner, name: used.connection.name },
+      branch: used.connection.branch,
+      format: fjord(),
+    },
     input,
   );
 }
 
 /** Delete from one of the account's repositories: through its own token, on its branch, saving unsaved changes as a version first. */
-export async function remove(accountId: string, id: number, input: { vault: string; target: DeleteTarget; author: Identity }): Promise<DeleteResult> {
+export async function remove(
+  accountId: string,
+  id: number,
+  input: { vault: string; target: DeleteTarget; author: Identity },
+): Promise<DeleteResult> {
   const used = await (await connectionService()).provider(accountId, id);
-  if (!used) return { ok: false, reason: "unavailable" };
+  if (!used) return { ok: false, reason: 'unavailable' };
   const outcome = await readConnection(accountId, used.connection);
   // What a deleted file was called by its name, as the format module classified it; a repository too large to list says "other".
-  const kinds = new Map<string, "doc">();
+  const kinds = new Map<string, 'doc'>();
   if (outcome.ok) {
-    for (const vault of outcome.read.discovery.vaults) for (const file of vault.files) if (file.kind === "doc") kinds.set(file.path, "doc");
+    for (const vault of outcome.read.discovery.vaults)
+      for (const file of vault.files) if (file.kind === 'doc') kinds.set(file.path, 'doc');
   }
   const database = await getDatabase();
   return deletePath(
@@ -83,16 +134,28 @@ export async function remove(accountId: string, id: number, input: { vault: stri
       format: fjord(),
       deletions: new DeletionService(database),
       drafts: new WorkingCopyService(database),
-      saveDraft: (path) => makeVersion(accountId, id, { path, message: undefined, author: input.author }),
+      saveDraft: (path) =>
+        makeVersion(accountId, id, { path, message: undefined, author: input.author }),
     },
-    { connectionId: id, accountId, vault: input.vault, target: input.target, kindOf: (path) => kinds.get(path) ?? "other", author: input.author },
+    {
+      connectionId: id,
+      accountId,
+      vault: input.vault,
+      target: input.target,
+      kindOf: (path) => kinds.get(path) ?? 'other',
+      author: input.author,
+    },
   );
 }
 
 /** Rename or move in one of the account's repositories: through its own token, on its branch, saving unsaved changes first. */
-async function move(accountId: string, id: number, input: { vault: string; target: DeleteTarget; destination: string; author: Identity }): Promise<MoveResult> {
+async function move(
+  accountId: string,
+  id: number,
+  input: { vault: string; target: DeleteTarget; destination: string; author: Identity },
+): Promise<MoveResult> {
   const used = await (await connectionService()).provider(accountId, id);
-  if (!used) return { ok: false, reason: "unavailable" };
+  if (!used) return { ok: false, reason: 'unavailable' };
   const database = await getDatabase();
   const result = await movePath(
     {
@@ -101,14 +164,21 @@ async function move(accountId: string, id: number, input: { vault: string; targe
       branch: used.connection.branch,
       format: fjord(),
       drafts: new WorkingCopyService(database),
-      saveDraft: (path) => makeVersion(accountId, id, { path, message: undefined, author: input.author }),
+      saveDraft: (path) =>
+        makeVersion(accountId, id, { path, message: undefined, author: input.author }),
     },
     { connectionId: id, ...input },
   );
   // What is known of which Doc is where follows the files. The move stands whatever happens to this; the next search finds them.
-  if (result.ok) await new DocIndex(database).move(id, result.moved).catch(() => console.error("[fjord] files: the id index could not follow a move"));
+  if (result.ok)
+    await new DocIndex(database)
+      .move(id, result.moved)
+      .catch(() => console.error('[fjord] files: the id index could not follow a move'));
   // And so do the handles of the file or folder, and of what is inside it (ROADMAP 3e.2).
-  if (result.ok) await new FileHandles(database).move(id, input.target.path, input.destination).catch(() => console.error("[fjord] files: the handles could not follow a move"));
+  if (result.ok)
+    await new FileHandles(database)
+      .move(id, input.target.path, input.destination)
+      .catch(() => console.error('[fjord] files: the handles could not follow a move'));
   return result;
 }
 
@@ -116,56 +186,124 @@ async function move(accountId: string, id: number, input: { vault: string; targe
 async function transfer(
   accountId: string,
   id: number,
-  input: { path: string; blob: string; destination: string; content: Uint8Array; author: Identity; source: VaultForm; target: VaultForm },
+  input: {
+    path: string;
+    blob: string;
+    destination: string;
+    content: Uint8Array;
+    author: Identity;
+    source: VaultForm;
+    target: VaultForm;
+  },
 ): Promise<TransferResult> {
   const used = await (await connectionService()).provider(accountId, id);
-  if (!used) return { ok: false, reason: "unavailable" };
+  if (!used) return { ok: false, reason: 'unavailable' };
   return transferFile(
-    { provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord(), drafts: new WorkingCopyService(await getDatabase()) },
-    { connectionId: id, source: { path: input.path, blob: input.blob, form: input.source }, destination: { path: input.destination, form: input.target }, content: input.content, author: input.author },
+    {
+      provider: used.provider,
+      ref: { owner: used.connection.owner, name: used.connection.name },
+      branch: used.connection.branch,
+      format: fjord(),
+      drafts: new WorkingCopyService(await getDatabase()),
+    },
+    {
+      connectionId: id,
+      source: { path: input.path, blob: input.blob, form: input.source },
+      destination: { path: input.destination, form: input.target },
+      content: input.content,
+      author: input.author,
+    },
   );
 }
 
 /** The files of one vault of one of the account's repositories, for the page to convert (RFC 0003). */
 async function snapshot(accountId: string, id: number, vault: string): Promise<VaultSnapshot> {
   const used = await (await connectionService()).provider(accountId, id);
-  if (!used) return { ok: false, reason: "unavailable" };
-  return snapshotVault({ provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch }, vault);
+  if (!used) return { ok: false, reason: 'unavailable' };
+  return snapshotVault(
+    {
+      provider: used.provider,
+      ref: { owner: used.connection.owner, name: used.connection.name },
+      branch: used.connection.branch,
+    },
+    vault,
+  );
 }
 
 /** Make a whole vault of one of the account's repositories encrypted or plaintext, with the files the browser converted: one commit, through the connection's own token, on its branch (RFC 0003). */
-async function convert(accountId: string, id: number, input: { vault: string; direction: "encrypt" | "decrypt"; recipients: string[]; files: ConvertedFile[]; author: Identity }): Promise<ConvertResult> {
+async function convert(
+  accountId: string,
+  id: number,
+  input: {
+    vault: string;
+    direction: 'encrypt' | 'decrypt';
+    recipients: string[];
+    files: ConvertedFile[];
+    author: Identity;
+  },
+): Promise<ConvertResult> {
   const used = await (await connectionService()).provider(accountId, id);
-  if (!used) return { ok: false, reason: "unavailable" };
+  if (!used) return { ok: false, reason: 'unavailable' };
   const database = await getDatabase();
   const result = await convertVault(
-    { provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord(), drafts: new WorkingCopyService(database) },
+    {
+      provider: used.provider,
+      ref: { owner: used.connection.owner, name: used.connection.name },
+      branch: used.connection.branch,
+      format: fjord(),
+      drafts: new WorkingCopyService(database),
+    },
     { connectionId: id, ...input },
   );
   if (result.ok) {
     // An encrypted vault's files are not looked for by `id` (the server cannot read them), a decrypted vault's are learned on their next read; and the handles follow the names.
-    if (input.direction === "encrypt") await new DocIndex(database).remove(id, input.files.map((file) => file.path)).catch(() => console.error("[fjord] files: the id index could not follow an encryption"));
+    if (input.direction === 'encrypt')
+      await new DocIndex(database)
+        .remove(
+          id,
+          input.files.map((file) => file.path),
+        )
+        .catch(() => console.error('[fjord] files: the id index could not follow an encryption'));
     const handles = new FileHandles(database);
-    for (const file of input.files) await handles.move(id, file.path, file.to).catch(() => console.error("[fjord] files: a handle could not follow a conversion"));
+    for (const file of input.files)
+      await handles
+        .move(id, file.path, file.to)
+        .catch(() => console.error('[fjord] files: a handle could not follow a conversion'));
   }
   return result;
 }
 
 /** Give a Doc of one of the account's repositories an identifier: through the connection's own token, on its branch (ROADMAP 3e.3). */
-async function identify(accountId: string, id: number, input: { path: string; blob: string; author: Identity }): Promise<IdentifyResult> {
+async function identify(
+  accountId: string,
+  id: number,
+  input: { path: string; blob: string; author: Identity },
+): Promise<IdentifyResult> {
   const used = await (await connectionService()).provider(accountId, id);
-  if (!used) return { ok: false, reason: "unavailable" };
-  const result = await identifyFile({ provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord() }, input);
+  if (!used) return { ok: false, reason: 'unavailable' };
+  const result = await identifyFile(
+    {
+      provider: used.provider,
+      ref: { owner: used.connection.owner, name: used.connection.name },
+      branch: used.connection.branch,
+      format: fjord(),
+    },
+    input,
+  );
   // The index learns the file by its new blob on the next read; its id is the answer either way.
   return result;
 }
 
 /** Put back deletions of one of the account's repositories, into the vaults it can still write to. */
-async function restore(accountId: string, id: number, input: { ids: number[]; path: string | undefined; author: Identity }): Promise<RestoreResult> {
+async function restore(
+  accountId: string,
+  id: number,
+  input: { ids: number[]; path: string | undefined; author: Identity },
+): Promise<RestoreResult> {
   const used = await (await connectionService()).provider(accountId, id);
-  if (!used) return { ok: false, reason: "unavailable" };
+  if (!used) return { ok: false, reason: 'unavailable' };
   const outcome = await readConnection(accountId, used.connection);
-  if (!outcome.ok) return { ok: false, reason: "unavailable" };
+  if (!outcome.ok) return { ok: false, reason: 'unavailable' };
   const vaults = outcome.read.discovery.vaults;
   const encryptedAt = (vault: string) => checkEncryptedVault(vaults, outcome.read.manifests, vault);
   return restoreDeleted(
@@ -175,17 +313,26 @@ async function restore(accountId: string, id: number, input: { ids: number[]; pa
       branch: used.connection.branch,
       format: fjord(),
       deletions: new DeletionService(await getDatabase()),
-      vaultOk: (vault) => checkVault(vaults, vault) === "ok" || encryptedAt(vault).ok,
-      encryptedVault: (vault) => vaults.some((candidate) => candidate.directory === vault && candidate.encrypted === true),
+      vaultOk: (vault) => checkVault(vaults, vault) === 'ok' || encryptedAt(vault).ok,
+      encryptedVault: (vault) =>
+        vaults.some((candidate) => candidate.directory === vault && candidate.encrypted === true),
       idNamed: (vault) => {
         const found = encryptedAt(vault);
-        return found.ok && found.target.naming === "id";
+        return found.ok && found.target.naming === 'id';
       },
       idsInUse: async (docIds) => {
-        const source = { connectionId: id, ref: { owner: used.connection.owner, name: used.connection.name }, read: outcome.read, provider: used.provider };
+        const source = {
+          connectionId: id,
+          ref: { owner: used.connection.owner, name: used.connection.name },
+          read: outcome.read,
+          provider: used.provider,
+        };
         const index = new DocIndex(await getDatabase());
         const found: Record<string, string[]> = {};
-        for (const docId of docIds) found[docId] = (await resolveDocId({ index, format: fjord() }, [source], docId)).matches.map((match) => match.path);
+        for (const docId of docIds)
+          found[docId] = (
+            await resolveDocId({ index, format: fjord() }, [source], docId)
+          ).matches.map((match) => match.path);
         return found;
       },
       windowMs: restoreWindowMs(),
@@ -198,11 +345,21 @@ async function restore(accountId: string, id: number, input: { ids: number[]; pa
  * Why these tags cannot be a file's in the connection's repository (ROADMAP 3c.2): a site's engine may read a tag differently from the format
  * (Jekyll reads one with a space as two). Only a site has such a rule; for any other repository, or one that cannot be read just now, none.
  */
-async function tagProblem(accountId: string, id: number, tags: string[]): Promise<string | undefined> {
+async function tagProblem(
+  accountId: string,
+  id: number,
+  tags: string[],
+): Promise<string | undefined> {
   const connection = await (await connectionService()).get(accountId, id);
   if (!connection) return undefined;
   const outcome = await readConnection(accountId, connection);
-  if (!outcome.ok || !outcome.read.manifest?.ok || outcome.read.manifest.kind !== "ssg" || outcome.read.manifest.ssgEngine === null) return undefined;
+  if (
+    !outcome.ok ||
+    !outcome.read.manifest?.ok ||
+    outcome.read.manifest.kind !== 'ssg' ||
+    outcome.read.manifest.ssgEngine === null
+  )
+    return undefined;
   for (const tag of tags) {
     const problem = fjord().siteTagProblem(outcome.read.manifest.ssgEngine, tag);
     if (problem !== undefined) return `“${tag}”: ${problem}`;
@@ -211,37 +368,67 @@ async function tagProblem(accountId: string, id: number, tags: string[]): Promis
 }
 
 /** Make a post in one of the account's sites: its vault is plaintext, its engine decides where it goes (ROADMAP 3c.2). */
-async function post(accountId: string, id: number, input: { at: number; offsetMinutes: number; title: string; draft: boolean; author: Identity }): Promise<PostResult | { ok: false; reason: SiteRefusal }> {
+async function post(
+  accountId: string,
+  id: number,
+  input: { at: number; offsetMinutes: number; title: string; draft: boolean; author: Identity },
+): Promise<PostResult | { ok: false; reason: SiteRefusal }> {
   const used = await (await connectionService()).provider(accountId, id);
-  if (!used) return { ok: false, reason: "unavailable" };
+  if (!used) return { ok: false, reason: 'unavailable' };
   const outcome = await readConnection(accountId, used.connection);
-  if (!outcome.ok) return { ok: false, reason: "unavailable" };
-  if (!outcome.read.manifest?.ok || outcome.read.manifest.kind !== "ssg") return { ok: false, reason: "not_a_site" };
+  if (!outcome.ok) return { ok: false, reason: 'unavailable' };
+  if (!outcome.read.manifest?.ok || outcome.read.manifest.kind !== 'ssg')
+    return { ok: false, reason: 'not_a_site' };
   const site = siteVault(outcome.read.discovery.vaults, outcome.read.manifest.ssgEngine);
-  if (typeof site === "string") return { ok: false, reason: site };
-  return createPost({ provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord() }, { vault: site.vault.directory, engine: site.engine, ...input });
+  if (typeof site === 'string') return { ok: false, reason: site };
+  return createPost(
+    {
+      provider: used.provider,
+      ref: { owner: used.connection.owner, name: used.connection.name },
+      branch: used.connection.branch,
+      format: fjord(),
+    },
+    { vault: site.vault.directory, engine: site.engine, ...input },
+  );
 }
 
 /** Make an entry in one of the account's journals: a plaintext journal's, through the connection's own token (ROADMAP 3b.1). */
-async function entry(accountId: string, id: number, input: { at: number; offsetMinutes: number; title: string; author: Identity }): Promise<EntryResult | { ok: false; reason: JournalRefusal }> {
+async function entry(
+  accountId: string,
+  id: number,
+  input: { at: number; offsetMinutes: number; title: string; author: Identity },
+): Promise<EntryResult | { ok: false; reason: JournalRefusal }> {
   const used = await (await connectionService()).provider(accountId, id);
-  if (!used) return { ok: false, reason: "unavailable" };
+  if (!used) return { ok: false, reason: 'unavailable' };
   const outcome = await readConnection(accountId, used.connection);
-  if (!outcome.ok) return { ok: false, reason: "unavailable" };
-  if (!outcome.read.manifest?.ok || outcome.read.manifest.kind !== "journal") return { ok: false, reason: "not_a_journal" };
+  if (!outcome.ok) return { ok: false, reason: 'unavailable' };
+  if (!outcome.read.manifest?.ok || outcome.read.manifest.kind !== 'journal')
+    return { ok: false, reason: 'not_a_journal' };
   const vault = journalVault(outcome.read.discovery.vaults);
-  if (vault === "none") return { ok: false, reason: "not_a_journal" };
-  if (vault === "encrypted") return { ok: false, reason: "encrypted_journal" };
-  if (vault === "unsupported") return { ok: false, reason: "unsupported_journal" };
-  return createEntry({ provider: used.provider, ref: { owner: used.connection.owner, name: used.connection.name }, branch: used.connection.branch, format: fjord() }, { vault: vault.directory, ...input });
+  if (vault === 'none') return { ok: false, reason: 'not_a_journal' };
+  if (vault === 'encrypted') return { ok: false, reason: 'encrypted_journal' };
+  if (vault === 'unsupported') return { ok: false, reason: 'unsupported_journal' };
+  return createEntry(
+    {
+      provider: used.provider,
+      ref: { owner: used.connection.owner, name: used.connection.name },
+      branch: used.connection.branch,
+      format: fjord(),
+    },
+    { vault: vault.directory, ...input },
+  );
 }
 
 export async function filesAccessFor(): Promise<ReturnType<typeof filesAccess>> {
   const deps: AccessDeps = {
-    owns: async (accountId, id) => (await (await connectionService()).get(accountId, id)) !== undefined,
+    owns: async (accountId, id) =>
+      (await (await connectionService()).get(accountId, id)) !== undefined,
     vaultFor,
     setTitle: (header, title) => fjord().withTitle(header, title),
-    setDate: (header, date) => (date !== null && !fjord().isEntryDate(date) ? "bad_date" : fjord().withDate(header, date ?? undefined)),
+    setDate: (header, date) =>
+      date !== null && !fjord().isEntryDate(date)
+        ? 'bad_date'
+        : fjord().withDate(header, date ?? undefined),
     setTags: (header, tags) => fjord().withTags(header, tags),
     setField: (header, key, value) => fjord().withField(header, key, value),
     tagProblem,

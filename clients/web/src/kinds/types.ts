@@ -1,6 +1,6 @@
-import type { ReactNode } from "react";
-import type { ConnectionInfo } from "../connections/service";
-import type { RepositoryRead } from "../browse/repository";
+import type { ReactNode } from 'react';
+import type { ConnectionInfo } from '../connections/service';
+import type { RepositoryRead } from '../browse/repository';
 
 /**
  * A kind of repository, as Fjord Web presents it (RFC 0001, DESIGN.md §8 "Repository kinds"). A kind is a presentation of the same
@@ -17,7 +17,7 @@ export interface KindModule {
    * Which editor opens a Doc in this kind of repository (RFC 0002; spec §8.4 gives a name no say in it): a drive's in the document
    * editor, a journal's and a site's in the Markdown (note) editor, which keeps their text as it was written.
    */
-  editor: "document" | "note";
+  editor: 'document' | 'note';
   /**
    * Whether a file of this kind opens as a quiet writing view (RFC 0002, a journal's) rather than a file page: the editor, the properties and nothing
    * else on screen, with what a file page also offers (sharing, rename, move, delete) one step away under "More".
@@ -45,7 +45,7 @@ export interface ContentModel {
    * Where a new item goes: `anywhere` (a drive: the person chooses a folder), `dated` (a journal: from its `date`, spec §8.1), or
    * `engine` (a site: where its engine looks, by the engine's rules).
    */
-  placement: "anywhere" | "dated" | "engine";
+  placement: 'anywhere' | 'dated' | 'engine';
   /** The frontmatter keys the kind gives a new item a field for, beyond `id`, in the order they are shown. */
   fields: string[];
 }

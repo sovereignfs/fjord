@@ -1,6 +1,6 @@
-import { isCredentialError } from "../crypto/errors";
-import { isProviderError } from "../providers/errors";
-import { isRepositoryPath } from "../working/http";
+import { isCredentialError } from '../crypto/errors';
+import { isProviderError } from '../providers/errors';
+import { isRepositoryPath } from '../working/http';
 
 /**
  * `GET /api/connections/<id>/ciphertext?path=…` (ROADMAP 2b.2): the bytes of one **encrypted** file of one of the caller's repositories, exactly as they are
@@ -17,10 +17,17 @@ export interface Deps {
    * The ciphertext of the file at this repository path. `found: false` if the connection is not the caller's (or not there); otherwise the bytes, or
    * why there are none.
    */
-  read: (accountId: string, id: number, path: string) => Promise<{ found: false } | { found: true; result: { ok: true; bytes: Uint8Array } | { ok: false; reason: Refusal } }>;
+  read: (
+    accountId: string,
+    id: number,
+    path: string,
+  ) => Promise<
+    | { found: false }
+    | { found: true; result: { ok: true; bytes: Uint8Array } | { ok: false; reason: Refusal } }
+  >;
 }
 
-export type Refusal = "not_encrypted" | "too_large" | "bad_token" | "unavailable";
+export type Refusal = 'not_encrypted' | 'too_large' | 'bad_token' | 'unavailable';
 
 export interface Caller {
   accountId: string;
@@ -31,41 +38,83 @@ export const MAX_CIPHERTEXT_BYTES = 25 * 1024 * 1024;
 
 const CONNECTION_ID = /^[1-9][0-9]{0,15}$/;
 
-const json = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
-const failure = (status: number, code: string, message: string) => json(status, { error: { code, message } });
-const notFound = () => failure(404, "not_found", "There is no such file.");
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+  });
+const failure = (status: number, code: string, message: string) =>
+  json(status, { error: { code, message } });
+const notFound = () => failure(404, 'not_found', 'There is no such file.');
 
 const REFUSALS: Record<Refusal, { status: number; message: string }> = {
-  not_encrypted: { status: 404, message: "There is no such file." },
-  too_large: { status: 413, message: "That file is larger than an encrypted document is meant to be." },
-  bad_token: { status: 422, message: "The git host did not accept this repository's credentials. Connect the repository again." },
-  unavailable: { status: 502, message: "Could not reach the git host just now. Try again in a moment." },
+  not_encrypted: { status: 404, message: 'There is no such file.' },
+  too_large: {
+    status: 413,
+    message: 'That file is larger than an encrypted document is meant to be.',
+  },
+  bad_token: {
+    status: 422,
+    message:
+      "The git host did not accept this repository's credentials. Connect the repository again.",
+  },
+  unavailable: {
+    status: 502,
+    message: 'Could not reach the git host just now. Try again in a moment.',
+  },
 };
 
-export async function handleCiphertext(request: Request, caller: Caller | null, deps: Deps, id: string): Promise<Response> {
-  if (request.method !== "GET") return failure(405, "method_not_allowed", "That method is not allowed here.");
-  if (!caller) return failure(401, "unauthorized", "Sign in first.");
+export async function handleCiphertext(
+  request: Request,
+  caller: Caller | null,
+  deps: Deps,
+  id: string,
+): Promise<Response> {
+  if (request.method !== 'GET')
+    return failure(405, 'method_not_allowed', 'That method is not allowed here.');
+  if (!caller) return failure(401, 'unauthorized', 'Sign in first.');
   const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
   if (number === undefined) return notFound();
-  const path = new URL(request.url).searchParams.get("path");
-  if (!isRepositoryPath(path)) return failure(400, "invalid_request", "Say which file, by its path in the repository.");
+  const path = new URL(request.url).searchParams.get('path');
+  if (!isRepositoryPath(path))
+    return failure(400, 'invalid_request', 'Say which file, by its path in the repository.');
 
   try {
     const outcome = await deps.read(caller.accountId, number, path);
     if (!outcome.found) return notFound();
     if (!outcome.result.ok) {
       const refusal = REFUSALS[outcome.result.reason];
-      return failure(refusal.status, outcome.result.reason === "not_encrypted" ? "not_found" : outcome.result.reason, refusal.message);
+      return failure(
+        refusal.status,
+        outcome.result.reason === 'not_encrypted' ? 'not_found' : outcome.result.reason,
+        refusal.message,
+      );
     }
     return new Response(outcome.result.bytes as BodyInit, {
       status: 200,
-      headers: { "content-type": "application/octet-stream", "content-length": String(outcome.result.bytes.byteLength), "cache-control": "no-store" },
+      headers: {
+        'content-type': 'application/octet-stream',
+        'content-length': String(outcome.result.bytes.byteLength),
+        'cache-control': 'no-store',
+      },
     });
   } catch (error) {
-    if (isCredentialError(error, "no_key")) return failure(503, "not_configured", "This instance cannot read repositories yet: its administrator needs to set FJORD_ENCRYPTION_KEY.");
-    if (isProviderError(error, "rate_limited")) return failure(429, "rate_limited", "The git host is limiting requests. Try again in a moment.");
-    console.error(`[fjord] ciphertext: unexpected ${error instanceof Error ? error.name : "failure"}`);
-    return failure(500, "internal_error", "Something went wrong on our side. Try again.");
+    if (isCredentialError(error, 'no_key'))
+      return failure(
+        503,
+        'not_configured',
+        'This instance cannot read repositories yet: its administrator needs to set FJORD_ENCRYPTION_KEY.',
+      );
+    if (isProviderError(error, 'rate_limited'))
+      return failure(
+        429,
+        'rate_limited',
+        'The git host is limiting requests. Try again in a moment.',
+      );
+    console.error(
+      `[fjord] ciphertext: unexpected ${error instanceof Error ? error.name : 'failure'}`,
+    );
+    return failure(500, 'internal_error', 'Something went wrong on our side. Try again.');
   }
 }
 
@@ -75,22 +124,50 @@ export async function handleCiphertext(request: Request, caller: Caller | null, 
  * nothing for it. Only a vault this version writes to; another, a plaintext one and a vault that is not there are the same 404.
  */
 export interface RecipientsDeps {
-  read: (accountId: string, id: number, vault: string) => Promise<{ found: false } | { found: true; result: { ok: true; text: string } | { ok: false; reason: "not_a_vault" | "no_recipients" | "unavailable" } }>;
+  read: (
+    accountId: string,
+    id: number,
+    vault: string,
+  ) => Promise<
+    | { found: false }
+    | {
+        found: true;
+        result:
+          | { ok: true; text: string }
+          | { ok: false; reason: 'not_a_vault' | 'no_recipients' | 'unavailable' };
+      }
+  >;
 }
 
 const RECIPIENTS_REFUSALS = {
-  not_a_vault: { status: 404, code: "not_found", message: "There is no such vault." },
-  no_recipients: { status: 422, code: "no_recipients", message: "That vault's manifest does not name a recipients file that can be read, so there is no one to encrypt to." },
-  unavailable: { status: 502, code: "unavailable", message: "Could not reach the git host just now. Try again in a moment." },
+  not_a_vault: { status: 404, code: 'not_found', message: 'There is no such vault.' },
+  no_recipients: {
+    status: 422,
+    code: 'no_recipients',
+    message:
+      "That vault's manifest does not name a recipients file that can be read, so there is no one to encrypt to.",
+  },
+  unavailable: {
+    status: 502,
+    code: 'unavailable',
+    message: 'Could not reach the git host just now. Try again in a moment.',
+  },
 } as const;
 
-export async function handleRecipients(request: Request, caller: Caller | null, deps: RecipientsDeps, id: string): Promise<Response> {
-  if (request.method !== "GET") return failure(405, "method_not_allowed", "That method is not allowed here.");
-  if (!caller) return failure(401, "unauthorized", "Sign in first.");
+export async function handleRecipients(
+  request: Request,
+  caller: Caller | null,
+  deps: RecipientsDeps,
+  id: string,
+): Promise<Response> {
+  if (request.method !== 'GET')
+    return failure(405, 'method_not_allowed', 'That method is not allowed here.');
+  if (!caller) return failure(401, 'unauthorized', 'Sign in first.');
   const number = CONNECTION_ID.test(id) ? Number(id) : undefined;
   if (number === undefined) return notFound();
-  const vault = new URL(request.url).searchParams.get("vault");
-  if (typeof vault !== "string" || vault.includes("/") || !isRepositoryPath(vault)) return failure(400, "invalid_request", "Say which vault, by its directory.");
+  const vault = new URL(request.url).searchParams.get('vault');
+  if (typeof vault !== 'string' || vault.includes('/') || !isRepositoryPath(vault))
+    return failure(400, 'invalid_request', 'Say which vault, by its directory.');
 
   try {
     const outcome = await deps.read(caller.accountId, number, vault);
@@ -101,9 +178,21 @@ export async function handleRecipients(request: Request, caller: Caller | null, 
     }
     return json(200, { recipients: outcome.result.text });
   } catch (error) {
-    if (isCredentialError(error, "no_key")) return failure(503, "not_configured", "This instance cannot read repositories yet: its administrator needs to set FJORD_ENCRYPTION_KEY.");
-    if (isProviderError(error, "rate_limited")) return failure(429, "rate_limited", "The git host is limiting requests. Try again in a moment.");
-    console.error(`[fjord] recipients: unexpected ${error instanceof Error ? error.name : "failure"}`);
-    return failure(500, "internal_error", "Something went wrong on our side. Try again.");
+    if (isCredentialError(error, 'no_key'))
+      return failure(
+        503,
+        'not_configured',
+        'This instance cannot read repositories yet: its administrator needs to set FJORD_ENCRYPTION_KEY.',
+      );
+    if (isProviderError(error, 'rate_limited'))
+      return failure(
+        429,
+        'rate_limited',
+        'The git host is limiting requests. Try again in a moment.',
+      );
+    console.error(
+      `[fjord] recipients: unexpected ${error instanceof Error ? error.name : 'failure'}`,
+    );
+    return failure(500, 'internal_error', 'Something went wrong on our side. Try again.');
   }
 }

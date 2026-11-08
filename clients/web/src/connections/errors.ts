@@ -33,38 +33,38 @@
  *   kind_rule            the repository does not keep the rules of the kind it would be changed to (spec §3.1)
  */
 export type ConnectionErrorCode =
-  | "invalid_repository"
-  | "unsupported_host"
-  | "invalid_token"
-  | "bad_token"
-  | "not_found"
-  | "forbidden"
-  | "read_only"
-  | "empty_repository"
-  | "already_connected"
-  | "rate_limited"
-  | "unavailable"
-  | "not_configured"
-  | "unknown_vault"
-  | "already_fjord"
-  | "has_vaults"
-  | "head_moved"
-  | "gitattributes_unreadable"
-  | "invalid_vault_name"
-  | "vault_name_taken"
-  | "manifest_unusable"
-  | "newer_version"
-  | "invalid_vault_options"
-  | "file_taken"
-  | "kind_rule"
-  | "limit_reached"
-  | "invalid_name"
-  | "would_overwrite"
-  | "not_local"
-  | "not_verified";
+  | 'invalid_repository'
+  | 'unsupported_host'
+  | 'invalid_token'
+  | 'bad_token'
+  | 'not_found'
+  | 'forbidden'
+  | 'read_only'
+  | 'empty_repository'
+  | 'already_connected'
+  | 'rate_limited'
+  | 'unavailable'
+  | 'not_configured'
+  | 'unknown_vault'
+  | 'already_fjord'
+  | 'has_vaults'
+  | 'head_moved'
+  | 'gitattributes_unreadable'
+  | 'invalid_vault_name'
+  | 'vault_name_taken'
+  | 'manifest_unusable'
+  | 'newer_version'
+  | 'invalid_vault_options'
+  | 'file_taken'
+  | 'kind_rule'
+  | 'limit_reached'
+  | 'invalid_name'
+  | 'would_overwrite'
+  | 'not_local'
+  | 'not_verified';
 
 export class ConnectionError extends Error {
-  override name = "ConnectionError";
+  override name = 'ConnectionError';
   constructor(
     readonly code: ConnectionErrorCode,
     message: string,
@@ -73,5 +73,8 @@ export class ConnectionError extends Error {
   }
 }
 
-export const isConnectionError = (error: unknown, code?: ConnectionErrorCode): error is ConnectionError =>
+export const isConnectionError = (
+  error: unknown,
+  code?: ConnectionErrorCode,
+): error is ConnectionError =>
   error instanceof ConnectionError && (code === undefined || error.code === code);

@@ -1,15 +1,15 @@
-import { decide } from "../access/policy";
-import { bodyStartOf } from "../browse/document";
-import type { DocIndex } from "../browse/doc-index";
-import { type Source, resolveDocId } from "../browse/ids";
-import { readTextBlob } from "../browse/note";
-import type { Fjord } from "../format/wasm";
-import { type Limiter, type Rule, takeAll } from "../limits/rate";
-import type { Editor, WorkingCopyService } from "../working/service";
-import type { LinkService } from "./links";
-import { proofIsRight } from "./password";
-import { MAX_NAME_CHARS, cleanGuestName } from "./guest-name";
-import { parseShareCookie } from "./unlock";
+import { decide } from '../access/policy';
+import { bodyStartOf } from '../browse/document';
+import type { DocIndex } from '../browse/doc-index';
+import { type Source, resolveDocId } from '../browse/ids';
+import { readTextBlob } from '../browse/note';
+import type { Fjord } from '../format/wasm';
+import { type Limiter, type Rule, takeAll } from '../limits/rate';
+import type { Editor, WorkingCopyService } from '../working/service';
+import type { LinkService } from './links';
+import { proofIsRight } from './password';
+import { MAX_NAME_CHARS, cleanGuestName } from './guest-name';
+import { parseShareCookie } from './unlock';
 
 /**
  * Editing a document through a link (DESIGN.md §11, §12, ROADMAP 1c.6). Someone with an edit link, and no account, changes the
@@ -29,13 +29,13 @@ import { parseShareCookie } from "./unlock";
  *    people typing at once is last-write-wins until real-time editing (phase 3), and both stay in the list of who edited.
  */
 export interface GuestDeps {
-  links: Pick<LinkService, "byToken">;
+  links: Pick<LinkService, 'byToken'>;
   /** The server's secret: a link with a password opens only with the proof that it was given. */
   secret: string;
   sourceOf: (connectionId: number) => Promise<Source | undefined>;
   index: DocIndex;
-  format: Pick<Fjord, "parseDocument">;
-  drafts: Pick<WorkingCopyService, "get" | "save">;
+  format: Pick<Fjord, 'parseDocument'>;
+  drafts: Pick<WorkingCopyService, 'get' | 'save'>;
   /** Counts how fast a link is used to edit; without one there is no limit (ROADMAP 1d.4). */
   limiter?: Limiter;
   now?: () => number;
@@ -45,59 +45,87 @@ export interface GuestDeps {
  * How fast a link may be used to edit (ROADMAP 1d.4): all of its editors together, because a name is anything a guest says it is. A person typing keeps
  * a draft a second or so behind them, so several at once fit well inside this; what does not is something sending text as fast as it can.
  */
-export const GUEST_EDIT_RATES: Rule[] = [{ limit: 240, windowMs: 60_000 }, { limit: 3000, windowMs: 3_600_000 }];
+export const GUEST_EDIT_RATES: Rule[] = [
+  { limit: 240, windowMs: 60_000 },
+  { limit: 3000, windowMs: 3_600_000 },
+];
 
 export { MAX_NAME_CHARS, cleanGuestName };
 
 export type GuestSave =
   | { ok: true; savedAt: number }
   /** Not a link that lets this in, or not a document that is there: not told apart. */
-  | { ok: false; reason: "hidden" }
+  | { ok: false; reason: 'hidden' }
   /** A link that is good, but whose role may not edit. */
-  | { ok: false; reason: "forbidden" }
-  | { ok: false; reason: "bad_name" }
+  | { ok: false; reason: 'forbidden' }
+  | { ok: false; reason: 'bad_name' }
   /** Edits through this link are coming faster than anyone types; when to try again, in milliseconds. */
-  | { ok: false; reason: "rate_limited"; retryAfterMs: number }
-  | { ok: false; reason: "not_editable" | "too_many_drafts" | "too_many_editors" | "unavailable" }
-  | { ok: false; reason: "unstorable"; message: string };
+  | { ok: false; reason: 'rate_limited'; retryAfterMs: number }
+  | { ok: false; reason: 'not_editable' | 'too_many_drafts' | 'too_many_editors' | 'unavailable' }
+  | { ok: false; reason: 'unstorable'; message: string };
 
-export async function saveGuestDraft(deps: GuestDeps, input: { cookie: string | undefined; docId: string; name: unknown; body: string }): Promise<GuestSave> {
+export async function saveGuestDraft(
+  deps: GuestDeps,
+  input: { cookie: string | undefined; docId: string; name: unknown; body: string },
+): Promise<GuestSave> {
   const now = deps.now?.() ?? Date.now();
-  if (input.cookie === undefined) return { ok: false, reason: "hidden" };
+  if (input.cookie === undefined) return { ok: false, reason: 'hidden' };
   const { token, proof } = parseShareCookie(input.cookie);
   const link = await deps.links.byToken(token);
-  if (!link || link.docId !== input.docId) return { ok: false, reason: "hidden" };
-  const grant = { kind: "link", role: link.role, expiresAt: link.expiresAt, revoked: link.revokedAt !== null } as const;
-  const decision = decide([grant], "edit", { kind: "document" }, now);
-  if (decision === "hidden") return { ok: false, reason: "hidden" };
-  if (link.passwordHash !== null && !proofIsRight(deps.secret, link.id, link.passwordHash, proof)) return { ok: false, reason: "hidden" };
-  if (decision === "forbidden") return { ok: false, reason: "forbidden" };
+  if (!link || link.docId !== input.docId) return { ok: false, reason: 'hidden' };
+  const grant = {
+    kind: 'link',
+    role: link.role,
+    expiresAt: link.expiresAt,
+    revoked: link.revokedAt !== null,
+  } as const;
+  const decision = decide([grant], 'edit', { kind: 'document' }, now);
+  if (decision === 'hidden') return { ok: false, reason: 'hidden' };
+  if (link.passwordHash !== null && !proofIsRight(deps.secret, link.id, link.passwordHash, proof))
+    return { ok: false, reason: 'hidden' };
+  if (decision === 'forbidden') return { ok: false, reason: 'forbidden' };
 
   const name = cleanGuestName(input.name);
-  if (name === undefined) return { ok: false, reason: "bad_name" };
+  if (name === undefined) return { ok: false, reason: 'bad_name' };
 
-  const slow = await takeAll(deps.limiter, GUEST_EDIT_RATES.map((rule) => ({ key: `guest-edit:link:${link.id}:${rule.windowMs}`, rule })));
-  if (!slow.ok) return { ok: false, reason: "rate_limited", retryAfterMs: slow.retryAfterMs };
+  const slow = await takeAll(
+    deps.limiter,
+    GUEST_EDIT_RATES.map((rule) => ({ key: `guest-edit:link:${link.id}:${rule.windowMs}`, rule })),
+  );
+  if (!slow.ok) return { ok: false, reason: 'rate_limited', retryAfterMs: slow.retryAfterMs };
 
-  return writeDraftBody(deps, { connectionId: link.connectionId, docId: input.docId, body: input.body, editor: { type: "guest", link: link.id, name }, now });
+  return writeDraftBody(deps, {
+    connectionId: link.connectionId,
+    docId: input.docId,
+    body: input.body,
+    editor: { type: 'guest', link: link.id, name },
+    now,
+  });
 }
 
 /** What writing a body into a document's working copy needs. */
-export type DraftWriteDeps = Pick<GuestDeps, "sourceOf" | "index" | "format" | "drafts">;
+export type DraftWriteDeps = Pick<GuestDeps, 'sourceOf' | 'index' | 'format' | 'drafts'>;
 
 /**
  * Put a body into a document's working copy under the name of whoever wrote it: the part of editing that a link's holder and an account the document was shared with have
  * in common. The header is the draft's or the file's own, put back in front; the draft keeps the base it was started from; the editor is added to the list of who edited. Who
  * may write, and how fast, is decided before this.
  */
-export async function writeDraftBody(deps: DraftWriteDeps, input: { connectionId: number; docId: string; body: string; editor: Editor; now: number }): Promise<GuestSave> {
+export async function writeDraftBody(
+  deps: DraftWriteDeps,
+  input: { connectionId: number; docId: string; body: string; editor: Editor; now: number },
+): Promise<GuestSave> {
   const { connectionId, now } = input;
   const source = await deps.sourceOf(connectionId);
-  if (!source) return { ok: false, reason: "unavailable" };
-  const { matches } = await resolveDocId({ index: deps.index, format: deps.format }, [source], input.docId);
+  if (!source) return { ok: false, reason: 'unavailable' };
+  const { matches } = await resolveDocId(
+    { index: deps.index, format: deps.format },
+    [source],
+    input.docId,
+  );
   const match = matches[0];
   const blob = match ? source.read.blobs.get(match.path) : undefined;
-  if (!match || blob === undefined) return { ok: false, reason: "hidden" };
+  if (!match || blob === undefined) return { ok: false, reason: 'hidden' };
 
   // What the body is put after: the working copy as it is, else the file.
   const existing = await deps.drafts.get(connectionId, match.path);
@@ -105,32 +133,37 @@ export async function writeDraftBody(deps: DraftWriteDeps, input: { connectionId
   let baseBlob: string;
   if (existing) {
     // A draft of an encrypted file is ciphertext, which a guest's text cannot be put after (a shared document is never in an encrypted vault).
-    if (existing.encrypted) return { ok: false, reason: "not_editable" };
+    if (existing.encrypted) return { ok: false, reason: 'not_editable' };
     before = existing.content;
     baseBlob = existing.baseBlob;
   } else {
     const text = await readTextBlob(source.provider, source.ref, blob);
-    if (!text.ok) return { ok: false, reason: "not_editable" };
+    if (!text.ok) return { ok: false, reason: 'not_editable' };
     before = text.text;
     baseBlob = blob;
   }
   const start = bodyStartOf(deps.format, before);
-  if (start === undefined) return { ok: false, reason: "not_editable" };
+  if (start === undefined) return { ok: false, reason: 'not_editable' };
   const content = before.slice(0, start) + input.body;
   // Nothing changed, and there is no draft to keep: the guest has only put back what the file says.
   if (!existing && content === before) return { ok: true, savedAt: now };
 
-  const saved = await deps.drafts.save(connectionId, match.path, { baseBlob, content }, input.editor);
+  const saved = await deps.drafts.save(
+    connectionId,
+    match.path,
+    { baseBlob, content },
+    input.editor,
+  );
   if (saved.ok) return { ok: true, savedAt: saved.workingCopy.lastEdit };
   switch (saved.reason) {
-    case "unstorable":
-      return { ok: false, reason: "unstorable", message: saved.message };
-    case "too_many":
-      return { ok: false, reason: "too_many_drafts" };
-    case "too_many_editors":
-      return { ok: false, reason: "too_many_editors" };
-    case "base_mismatch":
-    case "encryption_mismatch":
-      return { ok: false, reason: "unavailable" };
+    case 'unstorable':
+      return { ok: false, reason: 'unstorable', message: saved.message };
+    case 'too_many':
+      return { ok: false, reason: 'too_many_drafts' };
+    case 'too_many_editors':
+      return { ok: false, reason: 'too_many_editors' };
+    case 'base_mismatch':
+    case 'encryption_mismatch':
+      return { ok: false, reason: 'unavailable' };
   }
 }

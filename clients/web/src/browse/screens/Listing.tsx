@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import { type ReactNode, useEffect, useState } from "react";
-import { Badge } from "../../ui";
-import { NodeIcon } from "../../ui/icons";
-import styles from "./Listing.module.css";
+import { type ReactNode, useEffect, useState } from 'react';
+import { Badge } from '../../ui';
+import { NodeIcon } from '../../ui/icons';
+import styles from './Listing.module.css';
 
 /** One row (or tile) of a listing: what it is, where it leads, and what to say of it. Plain data, so the server can make a listing of anything and this draws it. */
 export interface ListingItem {
@@ -23,20 +23,30 @@ export interface ListingItem {
   trailing?: ReactNode;
 }
 
-type View = "list" | "grid";
-const STORAGE_KEY = "fjord.listing.view";
+type View = 'list' | 'grid';
+const STORAGE_KEY = 'fjord.listing.view';
 
 /**
  * The listing of a repository's vaults, or of a vault's folders and files, as rows or as tiles, with a toggle for which at its top right and the actions that make or change
  * things (`actions`) at its top left. The choice is the person's and is kept in this browser (it is a convenience: without storage it is rows). The server draws rows first, and
  * the choice is applied once the page is in the browser.
  */
-export function Listing({ label, items, actions, empty }: { label: string; items: ListingItem[]; /** The buttons at the top left; what they open goes below them. */ actions?: ReactNode; /** What to say when there is nothing in it. */ empty?: ReactNode }) {
-  const [view, setView] = useState<View>("list");
+export function Listing({
+  label,
+  items,
+  actions,
+  empty,
+}: {
+  label: string;
+  items: ListingItem[];
+  /** The buttons at the top left; what they open goes below them. */ actions?: ReactNode;
+  /** What to say when there is nothing in it. */ empty?: ReactNode;
+}) {
+  const [view, setView] = useState<View>('list');
   useEffect(() => {
     try {
       const kept = window.localStorage.getItem(STORAGE_KEY);
-      if (kept === "grid" || kept === "list") setView(kept);
+      if (kept === 'grid' || kept === 'list') setView(kept);
     } catch {
       // No storage: rows.
     }
@@ -55,10 +65,22 @@ export function Listing({ label, items, actions, empty }: { label: string; items
       <div className={styles.toolbar}>
         <div className={styles.actions}>{actions}</div>
         <div className={styles.toggle} role="group" aria-label="View">
-          <button type="button" aria-pressed={view === "list"} aria-label="List view" title="List view" onClick={() => choose("list")}>
+          <button
+            type="button"
+            aria-pressed={view === 'list'}
+            aria-label="List view"
+            title="List view"
+            onClick={() => choose('list')}
+          >
             <NodeIcon name="list" size={18} aria-hidden />
           </button>
-          <button type="button" aria-pressed={view === "grid"} aria-label="Grid view" title="Grid view" onClick={() => choose("grid")}>
+          <button
+            type="button"
+            aria-pressed={view === 'grid'}
+            aria-label="Grid view"
+            title="Grid view"
+            onClick={() => choose('grid')}
+          >
             <NodeIcon name="layout-grid" size={18} aria-hidden />
           </button>
         </div>
@@ -66,9 +88,18 @@ export function Listing({ label, items, actions, empty }: { label: string; items
       {items.length === 0 ? (
         (empty ?? null)
       ) : (
-        <ul className={view === "grid" ? styles.grid : styles.list} data-view={view} aria-label={label}>
+        <ul
+          className={view === 'grid' ? styles.grid : styles.list}
+          data-view={view}
+          aria-label={label}
+        >
           {items.map((item) => (
-            <li key={item.key} className={`${styles.item} ${item.href === undefined ? styles.disabled : ""}`} title={item.href === undefined ? item.title : undefined} aria-disabled={item.href === undefined ? true : undefined}>
+            <li
+              key={item.key}
+              className={`${styles.item} ${item.href === undefined ? styles.disabled : ''}`}
+              title={item.href === undefined ? item.title : undefined}
+              aria-disabled={item.href === undefined ? true : undefined}
+            >
               <span className={styles.icon} aria-hidden="true" data-icon={item.icon}>
                 <NodeIcon name={item.icon} />
               </span>

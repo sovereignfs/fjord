@@ -1,4 +1,4 @@
-import { ConfigError, type Env } from "./db/config";
+import { ConfigError, type Env } from './db/config';
 
 /**
  * Settings that Fjord Web used to read without its prefix, or under names of its own, and now reads
@@ -14,30 +14,36 @@ import { ConfigError, type Env } from "./db/config";
 
 /** One-to-one renames: the old name, and the new one. A secret's `_FILE` form is renamed with it. */
 const SOVEREIGN: readonly (readonly [string, string])[] = [
-  ["FJORD_AUTH_SOVEREIGN_ISSUER", "FJORD_CORE_URL"],
-  ["FJORD_AUTH_SOVEREIGN_CLIENT_ID", "FJORD_CORE_CLIENT_ID"],
-  ["FJORD_AUTH_SOVEREIGN_CLIENT_SECRET", "FJORD_CORE_CLIENT_SECRET"],
+  ['FJORD_AUTH_SOVEREIGN_ISSUER', 'FJORD_CORE_URL'],
+  ['FJORD_AUTH_SOVEREIGN_CLIENT_ID', 'FJORD_CORE_CLIENT_ID'],
+  ['FJORD_AUTH_SOVEREIGN_CLIENT_SECRET', 'FJORD_CORE_CLIENT_SECRET'],
 ];
 
 const SMTP: readonly (readonly [string, string])[] = [
-  ["SMTP_HOST", "FJORD_SMTP_HOST"],
-  ["SMTP_PORT", "FJORD_SMTP_PORT"],
-  ["SMTP_SECURE", "FJORD_SMTP_SECURE"],
-  ["SMTP_USER", "FJORD_SMTP_USER"],
-  ["SMTP_PASSWORD", "FJORD_SMTP_PASSWORD"],
-  ["SMTP_FROM", "FJORD_SMTP_FROM"],
+  ['SMTP_HOST', 'FJORD_SMTP_HOST'],
+  ['SMTP_PORT', 'FJORD_SMTP_PORT'],
+  ['SMTP_SECURE', 'FJORD_SMTP_SECURE'],
+  ['SMTP_USER', 'FJORD_SMTP_USER'],
+  ['SMTP_PASSWORD', 'FJORD_SMTP_PASSWORD'],
+  ['SMTP_FROM', 'FJORD_SMTP_FROM'],
 ];
 
 /** The database's old names. They do not map one to one: `SQLITE_URL` named an sqld service or a file. */
-const OLD_DATABASE = ["DB_DIALECT", "SQLITE_URL", "SQLD_ADMIN_URL", "POSTGRES_DB_URL", "POSTGRES_POOL_MAX"] as const;
+const OLD_DATABASE = [
+  'DB_DIALECT',
+  'SQLITE_URL',
+  'SQLD_ADMIN_URL',
+  'POSTGRES_DB_URL',
+  'POSTGRES_POOL_MAX',
+] as const;
 const NEW_DATABASE = [
-  "FJORD_DB_DIALECT",
-  "FJORD_SQLD_URL",
-  "FJORD_SQLD_ADMIN_URL",
-  "FJORD_SQLITE_URL",
-  "FJORD_POSTGRES_URL",
-  "FJORD_POSTGRES_URL_FILE",
-  "FJORD_POSTGRES_POOL_MAX",
+  'FJORD_DB_DIALECT',
+  'FJORD_SQLD_URL',
+  'FJORD_SQLD_ADMIN_URL',
+  'FJORD_SQLITE_URL',
+  'FJORD_POSTGRES_URL',
+  'FJORD_POSTGRES_URL_FILE',
+  'FJORD_POSTGRES_POOL_MAX',
 ] as const;
 
 /** The Sovereign sign-in settings under their new names, from the old ones if those are what is set. */
@@ -60,27 +66,31 @@ export function databaseEnv(env: Env): Env {
   if (old.length === 0) return env;
   const current = NEW_DATABASE.filter((name) => isSet(env[name]));
   if (current.length > 0) {
-    throw new ConfigError(`Set the database with the FJORD_ names or the old ones, not both: ${current.join(", ")} and ${old.join(", ")}.`);
+    throw new ConfigError(
+      `Set the database with the FJORD_ names or the old ones, not both: ${current.join(', ')} and ${old.join(', ')}.`,
+    );
   }
 
-  const dialect = (env.DB_DIALECT ?? "").trim().toLowerCase() || "sqlite";
+  const dialect = (env.DB_DIALECT ?? '').trim().toLowerCase() || 'sqlite';
   const next: Env = { ...env };
-  if (dialect === "postgres") {
-    next.FJORD_DB_DIALECT = "postgres";
+  if (dialect === 'postgres') {
+    next.FJORD_DB_DIALECT = 'postgres';
     next.FJORD_POSTGRES_URL = env.POSTGRES_DB_URL;
     next.FJORD_POSTGRES_POOL_MAX = env.POSTGRES_POOL_MAX;
-  } else if (dialect === "sqlite") {
-    const url = (env.SQLITE_URL ?? "").trim();
-    if (url.startsWith("file:")) {
-      next.FJORD_DB_DIALECT = "sqlite";
+  } else if (dialect === 'sqlite') {
+    const url = (env.SQLITE_URL ?? '').trim();
+    if (url.startsWith('file:')) {
+      next.FJORD_DB_DIALECT = 'sqlite';
       next.FJORD_SQLITE_URL = url;
     } else {
-      next.FJORD_DB_DIALECT = "sqld";
+      next.FJORD_DB_DIALECT = 'sqld';
       next.FJORD_SQLD_URL = env.SQLITE_URL;
       next.FJORD_SQLD_ADMIN_URL = env.SQLD_ADMIN_URL;
     }
   } else {
-    throw new ConfigError(`DB_DIALECT must be "sqlite" or "postgres" (got "${env.DB_DIALECT?.trim()}"); its new name is FJORD_DB_DIALECT.`);
+    throw new ConfigError(
+      `DB_DIALECT must be "sqlite" or "postgres" (got "${env.DB_DIALECT?.trim()}"); its new name is FJORD_DB_DIALECT.`,
+    );
   }
   return next;
 }
@@ -92,29 +102,31 @@ export function oldNamesInUse(env: Env): string[] {
     ...(isSet(env[old]) ? [`${old} (now ${current})`] : []),
     ...(isSet(env[`${old}_FILE`]) ? [`${old}_FILE (now ${current}_FILE)`] : []),
   ]);
-  const database = OLD_DATABASE.filter((name) => isSet(env[name])).map((name) => `${name} (now ${databaseRename(name)})`);
+  const database = OLD_DATABASE.filter((name) => isSet(env[name])).map(
+    (name) => `${name} (now ${databaseRename(name)})`,
+  );
   return [...database, ...renames];
 }
 
 function databaseRename(name: (typeof OLD_DATABASE)[number]): string {
   switch (name) {
-    case "DB_DIALECT":
-      return "FJORD_DB_DIALECT: sqld, sqlite or postgres";
-    case "SQLITE_URL":
-      return "FJORD_SQLD_URL for an sqld service, FJORD_SQLITE_URL for a file";
-    case "SQLD_ADMIN_URL":
-      return "FJORD_SQLD_ADMIN_URL";
-    case "POSTGRES_DB_URL":
-      return "FJORD_POSTGRES_URL";
-    case "POSTGRES_POOL_MAX":
-      return "FJORD_POSTGRES_POOL_MAX";
+    case 'DB_DIALECT':
+      return 'FJORD_DB_DIALECT: sqld, sqlite or postgres';
+    case 'SQLITE_URL':
+      return 'FJORD_SQLD_URL for an sqld service, FJORD_SQLITE_URL for a file';
+    case 'SQLD_ADMIN_URL':
+      return 'FJORD_SQLD_ADMIN_URL';
+    case 'POSTGRES_DB_URL':
+      return 'FJORD_POSTGRES_URL';
+    case 'POSTGRES_POOL_MAX':
+      return 'FJORD_POSTGRES_POOL_MAX';
   }
 }
 
 function renamed(env: Env, pairs: readonly (readonly [string, string])[]): Env {
   let next: Env | undefined;
   for (const [old, current] of pairs) {
-    for (const suffix of ["", "_FILE"]) {
+    for (const suffix of ['', '_FILE']) {
       const from = `${old}${suffix}`;
       if (!isSet(env[from])) continue;
       const clash = [current, `${current}_FILE`].find((name) => isSet(env[name]));
@@ -128,5 +140,5 @@ function renamed(env: Env, pairs: readonly (readonly [string, string])[]): Env {
 
 /** Empty counts as unset, as it does for every setting (an `.env` line with no value). */
 function isSet(value: string | undefined): boolean {
-  return value !== undefined && value.trim() !== "";
+  return value !== undefined && value.trim() !== '';
 }

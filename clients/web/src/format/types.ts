@@ -16,7 +16,7 @@ export interface ListedFile {
  * its name says no more); or anything else. Machinery (the manifest, `.gitignore`, the recipients file) is not listed.
  * Whether a `doc` is a Fjord Doc at all (has an `id`) needs its contents.
  */
-export type FileKind = "payload" | "stray" | "misplacedPayload" | "doc" | "other";
+export type FileKind = 'payload' | 'stray' | 'misplacedPayload' | 'doc' | 'other';
 
 export interface ClassifiedFile {
   /** Repository-relative. */
@@ -78,13 +78,13 @@ export type AdoptOptions = {
   repositoryName: string;
   generator: string;
   vaults: { path: string; encrypted: boolean }[];
-} & ({ kind: "drive" | "journal" } | { kind: "ssg"; engine: SiteEngine });
+} & ({ kind: 'drive' | 'journal' } | { kind: 'ssg'; engine: SiteEngine });
 
 /** What `planAdopt` answers: the files to write, or why the directory cannot be adopted as asked. */
 export type AdoptResult =
   | {
       ok: true;
-      files: { path: string; contents: string; change: "create" | "append" }[];
+      files: { path: string; contents: string; change: 'create' | 'append' }[];
       repositoryId: string;
       createdAt: string;
       /** `holdsFiles` with `encrypted` is plaintext until a checkout ends (spec §6.6): a browser has nowhere to keep it, so it refuses. */
@@ -100,30 +100,45 @@ export type DetectedSite = { engine: SiteEngine; content: string } | null;
  * drive is `SetupOptions`.
  */
 export type KindSetupOptions =
-  | { repositoryName: string; generator: string; kind: "journal"; vault: string; encrypted: boolean; recipients: string[] }
-  | { repositoryName: string; generator: string; kind: "ssg"; engine: SiteEngine };
+  | {
+      repositoryName: string;
+      generator: string;
+      kind: 'journal';
+      vault: string;
+      encrypted: boolean;
+      recipients: string[];
+    }
+  | { repositoryName: string; generator: string; kind: 'ssg'; engine: SiteEngine };
 
 /** The engines a site can be made for (spec §3.1). */
-export type SiteEngine = "astro" | "jekyll";
+export type SiteEngine = 'astro' | 'jekyll';
 
 /** What `planSetupKind` answers: `SetupResult`'s shape, with the refusals of a vault and of a site's files besides. */
 export type KindSetupResult =
-  | Extract<SetupResult, { ok: true }>
-  | { ok: false; error: { code: string; message: string } };
+  Extract<SetupResult, { ok: true }> | { ok: false; error: { code: string; message: string } };
 
 /** `fjord.json` with its kind changed, every other field kept, or why not. */
-export type WithKindResult = { ok: true; text: string } | { ok: false; error: { code: string; message: string } };
+export type WithKindResult =
+  { ok: true; text: string } | { ok: false; error: { code: string; message: string } };
 
 /** Why a vault's encryption cannot be changed (`fjord-core`'s `scaffold::ConvertError`, and a key that is not one). */
-export type ConvertRefusalCode = "manifest_unusable" | "already_encrypted" | "not_encrypted" | "no_recipients" | "bad_recipient";
+export type ConvertRefusalCode =
+  'manifest_unusable' | 'already_encrypted' | 'not_encrypted' | 'no_recipients' | 'bad_recipient';
 
 /** What making a plaintext vault an encrypted one writes (RFC 0003): its manifest, the recipients file and the plaintext guard (paths inside the vault), and the repository's `.gitattributes` when it needs the merge guard (the whole new file). */
 export type VaultEncryptionPlan =
-  | { ok: true; manifest: string; files: { path: string; contents: string }[]; gitattributes: string | null }
+  | {
+      ok: true;
+      manifest: string;
+      files: { path: string; contents: string }[];
+      gitattributes: string | null;
+    }
   | { ok: false; error: { code: ConvertRefusalCode; message: string } };
 
 /** What making an encrypted vault a plaintext one writes (RFC 0003): its manifest, and the text of the guard `.gitignore` that is removed with it, if it is that one. */
-export type VaultDecryptionPlan = { ok: true; manifest: string; guard: string } | { ok: false; error: { code: ConvertRefusalCode; message: string } };
+export type VaultDecryptionPlan =
+  | { ok: true; manifest: string; guard: string }
+  | { ok: false; error: { code: ConvertRefusalCode; message: string } };
 
 /** A vault to add to a Fjord repository (`fjord-core`'s `scaffold::plan_vault`). */
 export interface VaultOptions {
@@ -137,21 +152,21 @@ export interface VaultOptions {
 }
 
 export type VaultRefusalCode =
-  | "manifest_unusable"
-  | "newer_version"
-  | "invalid_name"
-  | "name_taken"
-  | "recipients_need_encryption"
-  | "id_naming_needs_encryption"
-  | "bad_recipient"
-  | "recipients_unsupported"
-  | "gitattributes_not_read";
+  | 'manifest_unusable'
+  | 'newer_version'
+  | 'invalid_name'
+  | 'name_taken'
+  | 'recipients_need_encryption'
+  | 'id_naming_needs_encryption'
+  | 'bad_recipient'
+  | 'recipients_unsupported'
+  | 'gitattributes_not_read';
 
 export type VaultResult =
   | {
       ok: true;
       /** `create`, or `append` for a file that was there (`fjord.json`, `.gitattributes`): its `contents` are the whole new file. */
-      files: { path: string; contents: string; change: "create" | "append" }[];
+      files: { path: string; contents: string; change: 'create' | 'append' }[];
       vaultId: string;
       createdAt: string;
       /** The recipients registered, checked and without repeats. */
@@ -159,13 +174,14 @@ export type VaultResult =
     }
   | { ok: false; error: { code: VaultRefusalCode; message: string } };
 
-export type SetupRefusalCode = "already_fjord" | "invalid_vault_name" | "vault_name_taken" | "gitattributes_not_read";
+export type SetupRefusalCode =
+  'already_fjord' | 'invalid_vault_name' | 'vault_name_taken' | 'gitattributes_not_read';
 
 export type SetupResult =
   | {
       ok: true;
       /** `create`, or `append` for the `.gitattributes` that was there (its `contents` are the whole new file). */
-      files: { path: string; contents: string; change: "create" | "append" }[];
+      files: { path: string; contents: string; change: 'create' | 'append' }[];
       repositoryId: string;
       vaultId: string;
       createdAt: string;
@@ -192,7 +208,7 @@ export interface MergeResult {
 }
 
 /** The kinds of repository this build of the format defines (spec §3.1). */
-export type RepositoryKind = "drive" | "journal" | "ssg";
+export type RepositoryKind = 'drive' | 'journal' | 'ssg';
 
 /** `fjord.json`, read. `raw` is the whole manifest as written, which a rewrite must preserve. */
 export type RepositoryManifest =
@@ -208,7 +224,7 @@ export type RepositoryManifest =
       declaredKind: string | null;
       /** `ssg.engine` as written, or null. */
       ssgEngine: string | null;
-      vaultsState: "entries" | "absent" | "notAnArray";
+      vaultsState: 'entries' | 'absent' | 'notAnArray';
       vaults: { path: string | null; id: string | null }[] | null;
       raw: Record<string, unknown>;
     }
@@ -224,9 +240,13 @@ export interface JournalEntrySummary {
   dateInvalid: boolean;
   tags: string[];
   /** When it is about, in the writer's own time: from its `date`, else its path, else its `created`; null when none says. */
-  when: { day: string; time: string | null; source: "date" | "path" | "created"; sortKey: string } | null;
+  when: {
+    day: string;
+    time: string | null;
+    source: 'date' | 'path' | 'created';
+    sortKey: string;
+  } | null;
   excerpt: string;
   /** Not for the site yet: `draft: true` in its header (Astro), or a path in Jekyll's `_drafts` (spec §3.1). */
   draft: boolean;
 }
-

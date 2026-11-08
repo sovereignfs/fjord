@@ -1,9 +1,9 @@
-import { decide } from "../access/policy";
-import { isDocId } from "../browse/ids";
-import type { LinkService } from "./links";
-import { COOKIE_MAX_AGE_SECONDS } from "./enter";
-import { isAcceptablePassword, unlockProof, verifyPassword } from "./password";
-import { TOKEN_PATTERN } from "./tokens";
+import { decide } from '../access/policy';
+import { isDocId } from '../browse/ids';
+import type { LinkService } from './links';
+import { COOKIE_MAX_AGE_SECONDS } from './enter';
+import { isAcceptablePassword, unlockProof, verifyPassword } from './password';
+import { TOKEN_PATTERN } from './tokens';
 
 /**
  * Giving the password of a link (DESIGN.md §12, ROADMAP 1c.5). A link with a password lets nobody in with its token: entering it
@@ -19,7 +19,7 @@ import { TOKEN_PATTERN } from "./tokens";
  *    to the password's hash (`password.ts`), so the token alone, which anyone with the link has, never is enough.
  */
 export interface UnlockDeps {
-  links: Pick<LinkService, "byToken" | "claimTry" | "recordFailure" | "recordSuccess">;
+  links: Pick<LinkService, 'byToken' | 'claimTry' | 'recordFailure' | 'recordSuccess'>;
   /** The server's secret, which the proof is keyed with. */
   secret: string;
   /** For tests. */
@@ -31,37 +31,61 @@ export type UnlockResult =
   /** The right password: the cookie's value, and for how long. */
   | { ok: true; value: string; maxAgeSeconds: number }
   /** A wrong password. */
-  | { ok: false; reason: "wrong" }
+  | { ok: false; reason: 'wrong' }
   /** Too soon after the last try: when the next may be made, in epoch milliseconds. */
-  | { ok: false; reason: "wait"; retryAt: number }
+  | { ok: false; reason: 'wait'; retryAt: number }
   /** Nothing to unlock: no such link, for another document, not live, or one with no password. Not told apart. */
-  | { ok: false; reason: "gone" };
+  | { ok: false; reason: 'gone' };
 
-export async function tryUnlock(deps: UnlockDeps, input: { docId: string; password: unknown; pendingToken: string | undefined }): Promise<UnlockResult> {
+export async function tryUnlock(
+  deps: UnlockDeps,
+  input: { docId: string; password: unknown; pendingToken: string | undefined },
+): Promise<UnlockResult> {
   const now = deps.now?.() ?? Date.now();
-  if (!isDocId(input.docId) || input.pendingToken === undefined || !TOKEN_PATTERN.test(input.pendingToken)) return { ok: false, reason: "gone" };
+  if (
+    !isDocId(input.docId) ||
+    input.pendingToken === undefined ||
+    !TOKEN_PATTERN.test(input.pendingToken)
+  )
+    return { ok: false, reason: 'gone' };
   const link = await deps.links.byToken(input.pendingToken);
-  if (!link || link.docId !== input.docId || link.passwordHash === null) return { ok: false, reason: "gone" };
-  const grant = { kind: "link", role: link.role, expiresAt: link.expiresAt, revoked: link.revokedAt !== null } as const;
-  if (decide([grant], "read", { kind: "document" }, now) !== "allow") return { ok: false, reason: "gone" };
+  if (!link || link.docId !== input.docId || link.passwordHash === null)
+    return { ok: false, reason: 'gone' };
+  const grant = {
+    kind: 'link',
+    role: link.role,
+    expiresAt: link.expiresAt,
+    revoked: link.revokedAt !== null,
+  } as const;
+  if (decide([grant], 'read', { kind: 'document' }, now) !== 'allow')
+    return { ok: false, reason: 'gone' };
 
   const claim = await deps.links.claimTry(link.id);
-  if (!claim.claimed) return { ok: false, reason: "wait", retryAt: claim.retryAt };
+  if (!claim.claimed) return { ok: false, reason: 'wait', retryAt: claim.retryAt };
 
-  const right = isAcceptablePassword(input.password) && (await (deps.verify ?? verifyPassword)(input.password, link.passwordHash));
+  const right =
+    isAcceptablePassword(input.password) &&
+    (await (deps.verify ?? verifyPassword)(input.password, link.passwordHash));
   if (!right) {
     await deps.links.recordFailure(link.id);
-    return { ok: false, reason: "wrong" };
+    return { ok: false, reason: 'wrong' };
   }
   await deps.links.recordSuccess(link.id);
-  const remaining = link.expiresAt === null ? COOKIE_MAX_AGE_SECONDS : Math.floor((link.expiresAt - now) / 1000);
+  const remaining =
+    link.expiresAt === null ? COOKIE_MAX_AGE_SECONDS : Math.floor((link.expiresAt - now) / 1000);
   const maxAgeSeconds = Math.min(COOKIE_MAX_AGE_SECONDS, remaining);
-  if (maxAgeSeconds <= 0) return { ok: false, reason: "gone" };
-  return { ok: true, value: `${input.pendingToken}.${unlockProof(deps.secret, link.id, link.passwordHash)}`, maxAgeSeconds };
+  if (maxAgeSeconds <= 0) return { ok: false, reason: 'gone' };
+  return {
+    ok: true,
+    value: `${input.pendingToken}.${unlockProof(deps.secret, link.id, link.passwordHash)}`,
+    maxAgeSeconds,
+  };
 }
 
 /** The token and, for a link with a password, the proof, out of a share cookie's value. */
 export function parseShareCookie(value: string): { token: string; proof: string | undefined } {
-  const dot = value.indexOf(".");
-  return dot === -1 ? { token: value, proof: undefined } : { token: value.slice(0, dot), proof: value.slice(dot + 1) };
+  const dot = value.indexOf('.');
+  return dot === -1
+    ? { token: value, proof: undefined }
+    : { token: value.slice(0, dot), proof: value.slice(dot + 1) };
 }

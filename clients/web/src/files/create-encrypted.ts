@@ -1,9 +1,9 @@
-import type { Fjord } from "../format/wasm";
-import type { LocalMinute, VaultListing } from "../format/types";
-import { isProviderError } from "../providers/errors";
-import type { Identity, Provider, RepositoryRef } from "../providers/types";
-import { checkNewFolder } from "./new-folder";
-import { formatIdentity } from "../working/version";
+import type { Fjord } from '../format/wasm';
+import type { LocalMinute, VaultListing } from '../format/types';
+import { isProviderError } from '../providers/errors';
+import type { Identity, Provider, RepositoryRef } from '../providers/types';
+import { checkNewFolder } from './new-folder';
+import { formatIdentity } from '../working/version';
 
 /**
  * Making a new note or document in an **encrypted** vault (ROADMAP 2b.4, DESIGN.md §9, spec §6, §7). The browser writes the file and encrypts it to the vault's
@@ -20,7 +20,7 @@ export interface CreateEncryptedDeps {
   provider: Provider;
   ref: RepositoryRef;
   branch: string;
-  format: Pick<Fjord, "quickNoteName" | "titleFromText" | "freeName" | "newUlid" | "checkName">;
+  format: Pick<Fjord, 'quickNoteName' | 'titleFromText' | 'freeName' | 'newUlid' | 'checkName'>;
   /** For tests: milliseconds since the epoch. */
   now?: () => number;
   /** For tests: at least ten random bytes. */
@@ -29,71 +29,114 @@ export interface CreateEncryptedDeps {
 
 /** What the vault is, as far as writing to it goes: how its files are named, and the suffix every payload has. */
 export interface EncryptedTarget {
-  naming: "plain" | "id";
+  naming: 'plain' | 'id';
   suffix: string;
 }
 
-export type EncryptedVaultRefusal = "unknown_vault" | "not_encrypted" | "unsupported_vault";
+export type EncryptedVaultRefusal = 'unknown_vault' | 'not_encrypted' | 'unsupported_vault';
 
 /**
  * Whether files may be made in the encrypted vault `directory`, and how it names them. Only a vault this version can write to correctly: a readable
  * manifest, `age` with binary payloads, and the container its naming requires (spec §6.4, §7.2): none for `plain`, tar for `id`.
  */
-export function checkEncryptedVault(vaults: VaultListing[], manifests: Record<string, string>, directory: string): { ok: true; target: EncryptedTarget } | { ok: false; reason: EncryptedVaultRefusal } {
+export function checkEncryptedVault(
+  vaults: VaultListing[],
+  manifests: Record<string, string>,
+  directory: string,
+): { ok: true; target: EncryptedTarget } | { ok: false; reason: EncryptedVaultRefusal } {
   const vault = vaults.find((candidate) => candidate.directory === directory);
-  if (!vault) return { ok: false, reason: "unknown_vault" };
-  if (vault.manifestError !== null) return { ok: false, reason: "unsupported_vault" };
-  if (vault.encrypted !== true) return { ok: false, reason: "not_encrypted" };
+  if (!vault) return { ok: false, reason: 'unknown_vault' };
+  if (vault.manifestError !== null) return { ok: false, reason: 'unsupported_vault' };
+  if (vault.encrypted !== true) return { ok: false, reason: 'not_encrypted' };
   const naming = vault.fileNaming;
   // `.age` is what the rules for names after it (renaming keeps it, a rename never makes a payload of something else) are written for.
-  if ((naming !== "plain" && naming !== "id") || vault.suffix !== ".age") return { ok: false, reason: "unsupported_vault" };
+  if ((naming !== 'plain' && naming !== 'id') || vault.suffix !== '.age')
+    return { ok: false, reason: 'unsupported_vault' };
   let encryption: { tool?: unknown; container?: unknown; armor?: unknown } | undefined;
   try {
-    encryption = (JSON.parse(manifests[`${directory}/fjord.vault.json`] ?? "null") as { encryption?: typeof encryption } | null)?.encryption;
+    encryption = (
+      JSON.parse(manifests[`${directory}/fjord.vault.json`] ?? 'null') as {
+        encryption?: typeof encryption;
+      } | null
+    )?.encryption;
   } catch {
-    return { ok: false, reason: "unsupported_vault" };
+    return { ok: false, reason: 'unsupported_vault' };
   }
-  if (!encryption || encryption.tool !== "age" || encryption.armor !== false || encryption.container !== (naming === "id" ? "tar" : "none")) return { ok: false, reason: "unsupported_vault" };
-  return { ok: true, target: { naming, suffix: ".age" } };
+  if (
+    !encryption ||
+    encryption.tool !== 'age' ||
+    encryption.armor !== false ||
+    encryption.container !== (naming === 'id' ? 'tar' : 'none')
+  )
+    return { ok: false, reason: 'unsupported_vault' };
+  return { ok: true, target: { naming, suffix: '.age' } };
 }
 
-import { createEncryptedMessage, render } from "./messages";
+import { createEncryptedMessage, render } from './messages';
 
 export type CreateEncryptedResult =
   | { ok: true; path: string; commit: string }
-  | { ok: false; reason: "folder_gone" | "bad_folder_name" | "folder_exists" | "bad_title" | "head_moved" | "read_only" | "bad_token" | "unavailable" };
+  | {
+      ok: false;
+      reason:
+        | 'folder_gone'
+        | 'bad_folder_name'
+        | 'folder_exists'
+        | 'bad_title'
+        | 'head_moved'
+        | 'read_only'
+        | 'bad_token'
+        | 'unavailable';
+    };
 
 const ATTEMPTS = 2;
 /** `YYYY-MM-DD`: the folder a journal files a day's entries in (`fjord-core`'s `journal::entry_path`). */
 const DAY_FOLDER = /^\d{4}-\d{2}-\d{2}$/;
 export async function createEncryptedFile(
   deps: CreateEncryptedDeps,
-  input: { vault: string; folder: string; /** `folder` is one that is not there yet, made by this file; only in a vault whose file names are plain. */ newFolder?: boolean | undefined; target: EncryptedTarget; title: string; localMinute: LocalMinute; ciphertext: Uint8Array; author: Identity },
+  input: {
+    vault: string;
+    folder: string;
+    /** `folder` is one that is not there yet, made by this file; only in a vault whose file names are plain. */ newFolder?:
+      boolean | undefined;
+    target: EncryptedTarget;
+    title: string;
+    localMinute: LocalMinute;
+    ciphertext: Uint8Array;
+    author: Identity;
+  },
 ): Promise<CreateEncryptedResult> {
   const title = input.title.trim();
-  if (input.target.naming === "plain" && title !== "" && deps.format.titleFromText(title) == null) return { ok: false, reason: "bad_title" };
-  const directory = input.folder === "" ? input.vault : `${input.vault}/${input.folder}`;
+  if (input.target.naming === 'plain' && title !== '' && deps.format.titleFromText(title) == null)
+    return { ok: false, reason: 'bad_title' };
+  const directory = input.folder === '' ? input.vault : `${input.vault}/${input.folder}`;
   const author = formatIdentity(input.author);
   const { suffix } = input.target;
 
   try {
     for (let attempt = 1; ; attempt++) {
       const head = await deps.provider.getHead(deps.ref, deps.branch);
-      if (!head.changed) throw new Error("the host answered a head request with no etag as unchanged");
+      if (!head.changed)
+        throw new Error('the host answered a head request with no etag as unchanged');
       const expectedHead = head.head.commit;
 
-      const entries = await deps.provider.listDirectory(deps.ref, expectedHead, directory).catch((error: unknown) => {
-        if (isProviderError(error, "not_found")) return [];
-        throw error;
-      });
+      const entries = await deps.provider
+        .listDirectory(deps.ref, expectedHead, directory)
+        .catch((error: unknown) => {
+          if (isProviderError(error, 'not_found')) return [];
+          throw error;
+        });
       // A journal's day folder is made by its first entry: git has no empty folders, so there is nothing to find. Only that shape, in a vault whose names are ids; any other folder that is not there is gone.
-      if (input.newFolder && input.target.naming === "plain") {
+      if (input.newFolder && input.target.naming === 'plain') {
         const made = await checkNewFolder(deps, expectedHead, directory);
         if (!made.ok) return made;
-      } else if (entries.length === 0 && !(input.target.naming === "id" && DAY_FOLDER.test(input.folder))) {
-        return { ok: false, reason: "folder_gone" };
+      } else if (
+        entries.length === 0 &&
+        !(input.target.naming === 'id' && DAY_FOLDER.test(input.folder))
+      ) {
+        return { ok: false, reason: 'folder_gone' };
       } else if (input.newFolder && entries.length > 0) {
-        return { ok: false, reason: "folder_exists" };
+        return { ok: false, reason: 'folder_exists' };
       }
       const present = entries.map((entry) => entry.path.slice(directory.length + 1));
 
@@ -109,32 +152,54 @@ export async function createEncryptedFile(
         });
         return { ok: true, path, commit: made.commit };
       } catch (error) {
-        if (isProviderError(error, "head_moved")) {
+        if (isProviderError(error, 'head_moved')) {
           if (attempt < ATTEMPTS) continue;
-          return { ok: false, reason: "head_moved" };
+          return { ok: false, reason: 'head_moved' };
         }
         throw error;
       }
     }
   } catch (error) {
-    if (isProviderError(error, "forbidden")) return { ok: false, reason: "read_only" };
-    if (isProviderError(error, "unauthorized")) return { ok: false, reason: "bad_token" };
-    if (isProviderError(error, "not_found") || isProviderError(error, "unavailable") || isProviderError(error, "rate_limited")) return { ok: false, reason: "unavailable" };
+    if (isProviderError(error, 'forbidden')) return { ok: false, reason: 'read_only' };
+    if (isProviderError(error, 'unauthorized')) return { ok: false, reason: 'bad_token' };
+    if (
+      isProviderError(error, 'not_found') ||
+      isProviderError(error, 'unavailable') ||
+      isProviderError(error, 'rate_limited')
+    )
+      return { ok: false, reason: 'unavailable' };
     throw error;
   }
 }
 
 /** The file's name in the folder, and what to call it in the commit message (none in an `id`-named vault, where the name is a secret). */
-function nameFor(deps: CreateEncryptedDeps, input: { target: EncryptedTarget; localMinute: LocalMinute }, title: string, present: string[], suffix: string): { file: string; label: string | undefined } {
-  if (input.target.naming === "id") {
+function nameFor(
+  deps: CreateEncryptedDeps,
+  input: { target: EncryptedTarget; localMinute: LocalMinute },
+  title: string,
+  present: string[],
+  suffix: string,
+): { file: string; label: string | undefined } {
+  if (input.target.naming === 'id') {
     const taken = new Set(present.map((name) => name.toLowerCase()));
     for (let tries = 0; ; tries++) {
-      const id = deps.format.newUlid(deps.now?.() ?? Date.now(), deps.random?.() ?? globalThis.crypto.getRandomValues(new Uint8Array(16)));
-      if (!taken.has(`${id}${suffix}`.toLowerCase()) || tries > 8) return { file: `${id}${suffix}`, label: undefined };
+      const id = deps.format.newUlid(
+        deps.now?.() ?? Date.now(),
+        deps.random?.() ?? globalThis.crypto.getRandomValues(new Uint8Array(16)),
+      );
+      if (!taken.has(`${id}${suffix}`.toLowerCase()) || tries > 8)
+        return { file: `${id}${suffix}`, label: undefined };
     }
   }
   // Names that are taken are the payloads' real names (the suffix off), and anything else in the folder as it is.
-  const logical = present.map((name) => (name.toLowerCase().endsWith(suffix.toLowerCase()) ? name.slice(0, name.length - suffix.length) : name));
-  const name = title === "" ? deps.format.quickNoteName("", logical, input.localMinute) : deps.format.freeName(deps.format.titleFromText(title) as string, ".md", logical);
-  return { file: `${name}${suffix}`, label: name.replace(/\.md$/i, "") };
+  const logical = present.map((name) =>
+    name.toLowerCase().endsWith(suffix.toLowerCase())
+      ? name.slice(0, name.length - suffix.length)
+      : name,
+  );
+  const name =
+    title === ''
+      ? deps.format.quickNoteName('', logical, input.localMinute)
+      : deps.format.freeName(deps.format.titleFromText(title) as string, '.md', logical);
+  return { file: `${name}${suffix}`, label: name.replace(/\.md$/i, '') };
 }

@@ -1,12 +1,12 @@
-import { type Role, decide } from "../access/policy";
-import { bodyStartOf } from "../browse/document";
-import type { DocIndex } from "../browse/doc-index";
-import { resolveDocId, type Source } from "../browse/ids";
-import { readTextBlob } from "../browse/note";
-import type { Fjord } from "../format/wasm";
-import type { LinkService } from "./links";
-import { proofIsRight } from "./password";
-import type { ShareService } from "./shares";
+import { type Role, decide } from '../access/policy';
+import { bodyStartOf } from '../browse/document';
+import type { DocIndex } from '../browse/doc-index';
+import { resolveDocId, type Source } from '../browse/ids';
+import { readTextBlob } from '../browse/note';
+import type { Fjord } from '../format/wasm';
+import type { LinkService } from './links';
+import { proofIsRight } from './password';
+import type { ShareService } from './shares';
 
 /**
  * A document opened by someone it was shared with (DESIGN.md §12, ROADMAP 1c.2): `/d/<id>` for a signed-in account that has
@@ -17,15 +17,17 @@ import type { ShareService } from "./shares";
  * reads the headers of the repository's other Markdown files, as every lookup by id does (`browse/ids.ts`); none of that is shown.)
  */
 export interface OpenDeps {
-  shares: Pick<ShareService, "find">;
+  shares: Pick<ShareService, 'find'>;
   /** The repository of a connection as it is now, read with its owner's token; undefined if it cannot be read. */
   sourceOf: (connectionId: number) => Promise<Source | undefined>;
   index: DocIndex;
-  format: Pick<Fjord, "parseDocument" | "impliedTitle">;
+  format: Pick<Fjord, 'parseDocument' | 'impliedTitle'>;
   /** Who shared it, by account: their name, if the account is still there. */
   nameOf: (accountId: string) => Promise<string | undefined>;
   /** The working copies, for an account that may edit: it is shown the draft, so that what it types adds up. */
-  drafts?: { get: (connectionId: number, path: string) => Promise<{ content: string } | undefined> };
+  drafts?: {
+    get: (connectionId: number, path: string) => Promise<{ content: string } | undefined>;
+  };
   now?: () => number;
 }
 
@@ -47,16 +49,34 @@ export interface SharedDocument {
  * a link that may edit is given), the body is that of the working copy when there is one, and `editable` says the header can be kept apart.
  */
 export async function readDocument(
-  deps: Pick<OpenDeps, "sourceOf" | "index" | "format"> & { drafts?: { get: (connectionId: number, path: string) => Promise<{ content: string } | undefined> } },
+  deps: Pick<OpenDeps, 'sourceOf' | 'index' | 'format'> & {
+    drafts?: {
+      get: (connectionId: number, path: string) => Promise<{ content: string } | undefined>;
+    };
+  },
   connectionId: number,
   docId: string,
   draft = false,
   /** Also ask the host when the file last changed (one request to its history), for the page that shows it. */
   withModified = false,
-): Promise<{ title: string; body: string; editable: boolean; /** The header's `created`, as written. */ created: string | null; /** When the file last changed, as the host writes it, if asked for and known. */ modified: string | null } | undefined> {
+): Promise<
+  | {
+      title: string;
+      body: string;
+      editable: boolean;
+      /** The header's `created`, as written. */ created: string | null;
+      /** When the file last changed, as the host writes it, if asked for and known. */ modified:
+        string | null;
+    }
+  | undefined
+> {
   const source = await deps.sourceOf(connectionId);
   if (!source) return undefined;
-  const { matches } = await resolveDocId({ index: deps.index, format: deps.format }, [source], docId);
+  const { matches } = await resolveDocId(
+    { index: deps.index, format: deps.format },
+    [source],
+    docId,
+  );
   const match = matches[0];
   const blob = match ? source.read.blobs.get(match.path) : undefined;
   if (!match || blob === undefined) return undefined;
@@ -66,33 +86,60 @@ export async function readDocument(
   const text = kept ? kept.content : read.text;
   const start = bodyStartOf(deps.format, text);
   const parsed = deps.format.parseDocument(text);
-  const title = (parsed.title ?? "").trim() || deps.format.impliedTitle(text, match.path.slice(match.path.lastIndexOf("/") + 1));
-  const modified = withModified ? ((await source.provider.lastModified?.(source.ref, source.read.commit, match.path).catch(() => undefined)) ?? null) : null;
-  return { title, body: start === undefined ? text : text.slice(start), editable: draft && start !== undefined, created: parsed.created ?? null, modified };
+  const title =
+    (parsed.title ?? '').trim() ||
+    deps.format.impliedTitle(text, match.path.slice(match.path.lastIndexOf('/') + 1));
+  const modified = withModified
+    ? ((await source.provider
+        .lastModified?.(source.ref, source.read.commit, match.path)
+        .catch(() => undefined)) ?? null)
+    : null;
+  return {
+    title,
+    body: start === undefined ? text : text.slice(start),
+    editable: draft && start !== undefined,
+    created: parsed.created ?? null,
+    modified,
+  };
 }
 
-export async function openShared(deps: OpenDeps, accountId: string, docId: string): Promise<SharedDocument | undefined> {
+export async function openShared(
+  deps: OpenDeps,
+  accountId: string,
+  docId: string,
+): Promise<SharedDocument | undefined> {
   const now = deps.now?.() ?? Date.now();
   for (const share of await deps.shares.find(accountId, docId)) {
-    if (decide([{ kind: "user", role: share.role }], "read", { kind: "document" }, now) !== "allow") continue;
+    if (decide([{ kind: 'user', role: share.role }], 'read', { kind: 'document' }, now) !== 'allow')
+      continue;
     // An account that may edit is shown the working copy, which is where what it types goes and where the owner reviews it; the others see the document as it is in the repository.
-    const mayEdit = decide([{ kind: "user", role: share.role }], "edit", { kind: "document" }, now) === "allow";
+    const mayEdit =
+      decide([{ kind: 'user', role: share.role }], 'edit', { kind: 'document' }, now) === 'allow';
     const opened = await readDocument(deps, share.connectionId, docId, mayEdit);
-    if (opened) return { title: opened.title, body: opened.body, role: share.role, sharedBy: await deps.nameOf(share.sharedBy), editable: opened.editable };
+    if (opened)
+      return {
+        title: opened.title,
+        body: opened.body,
+        role: share.role,
+        sharedBy: await deps.nameOf(share.sharedBy),
+        editable: opened.editable,
+      };
   }
   return undefined;
 }
 
 /** What opening by a link needs: where links are kept, and how to read the repository they are of. */
 export interface LinkOpenDeps {
-  links: Pick<LinkService, "byToken">;
-  sourceOf: OpenDeps["sourceOf"];
+  links: Pick<LinkService, 'byToken'>;
+  sourceOf: OpenDeps['sourceOf'];
   index: DocIndex;
-  format: OpenDeps["format"];
+  format: OpenDeps['format'];
   /** The server's secret: a link with a password opens only with the proof that it was given (`password.ts`). */
   secret: string;
   /** The working copies, for a link that may edit (ROADMAP 1c.6): it is shown the draft, so that what is typed adds up. */
-  drafts?: { get: (connectionId: number, path: string) => Promise<{ content: string } | undefined> };
+  drafts?: {
+    get: (connectionId: number, path: string) => Promise<{ content: string } | undefined>;
+  };
   now?: () => number;
 }
 
@@ -102,24 +149,54 @@ export interface LinkOpenDeps {
  * and a link that has expired or been revoked is as if it had never been. Undefined for every one of those, so that nothing says
  * which it was.
  */
-export async function openByLink(deps: LinkOpenDeps, token: string, docId: string, proof?: string): Promise<SharedDocument | undefined> {
+export async function openByLink(
+  deps: LinkOpenDeps,
+  token: string,
+  docId: string,
+  proof?: string,
+): Promise<SharedDocument | undefined> {
   const link = await deps.links.byToken(token);
   if (!link || link.docId !== docId) return undefined;
-  const grant = { kind: "link", role: link.role, expiresAt: link.expiresAt, revoked: link.revokedAt !== null } as const;
-  if (decide([grant], "read", { kind: "document" }, deps.now?.() ?? Date.now()) !== "allow") return undefined;
+  const grant = {
+    kind: 'link',
+    role: link.role,
+    expiresAt: link.expiresAt,
+    revoked: link.revokedAt !== null,
+  } as const;
+  if (decide([grant], 'read', { kind: 'document' }, deps.now?.() ?? Date.now()) !== 'allow')
+    return undefined;
   // A link with a password is not opened by its token, which anyone with the link has, but by the proof that the password was given.
-  if (link.passwordHash !== null && !proofIsRight(deps.secret, link.id, link.passwordHash, proof)) return undefined;
-  const mayEdit = decide([grant], "edit", { kind: "document" }, deps.now?.() ?? Date.now()) === "allow";
+  if (link.passwordHash !== null && !proofIsRight(deps.secret, link.id, link.passwordHash, proof))
+    return undefined;
+  const mayEdit =
+    decide([grant], 'edit', { kind: 'document' }, deps.now?.() ?? Date.now()) === 'allow';
   const opened = await readDocument(deps, link.connectionId, docId, mayEdit);
-  return opened ? { title: opened.title, body: opened.body, editable: opened.editable, role: link.role, sharedBy: undefined } : undefined;
+  return opened
+    ? {
+        title: opened.title,
+        body: opened.body,
+        editable: opened.editable,
+        role: link.role,
+        sharedBy: undefined,
+      }
+    : undefined;
 }
 
 /** Whether this token is a link of this document that is live and asks for a password: what the page asks the password for. */
-export async function asksForPassword(deps: Pick<LinkOpenDeps, "links" | "now">, token: string, docId: string): Promise<boolean> {
+export async function asksForPassword(
+  deps: Pick<LinkOpenDeps, 'links' | 'now'>,
+  token: string,
+  docId: string,
+): Promise<boolean> {
   const link = await deps.links.byToken(token);
   if (!link || link.docId !== docId || link.passwordHash === null) return false;
-  const grant = { kind: "link", role: link.role, expiresAt: link.expiresAt, revoked: link.revokedAt !== null } as const;
-  return decide([grant], "read", { kind: "document" }, deps.now?.() ?? Date.now()) === "allow";
+  const grant = {
+    kind: 'link',
+    role: link.role,
+    expiresAt: link.expiresAt,
+    revoked: link.revokedAt !== null,
+  } as const;
+  return decide([grant], 'read', { kind: 'document' }, deps.now?.() ?? Date.now()) === 'allow';
 }
 
 /** A document in an account's *Shared with you*: what it is called, at what role it was shared, and by whom. */
@@ -136,21 +213,31 @@ export interface SharedListing {
  * token, for its title; one that cannot be read now (the host is down, the owner disconnected, the file was deleted) is **left out and counted**, never shown with a guess. The roles are the
  * shares', and the policy is asked, as everywhere, whether each may read.
  */
-export async function listShared(deps: OpenDeps & { shares: Pick<ShareService, "listFor"> }, accountId: string): Promise<{ documents: SharedListing[]; unreadable: number }> {
+export async function listShared(
+  deps: OpenDeps & { shares: Pick<ShareService, 'listFor'> },
+  accountId: string,
+): Promise<{ documents: SharedListing[]; unreadable: number }> {
   const now = deps.now?.() ?? Date.now();
   const documents: SharedListing[] = [];
   let unreadable = 0;
   const seen = new Set<string>();
   for (const share of await deps.shares.listFor(accountId)) {
     if (seen.has(share.docId)) continue;
-    if (decide([{ kind: "user", role: share.role }], "read", { kind: "document" }, now) !== "allow") continue;
+    if (decide([{ kind: 'user', role: share.role }], 'read', { kind: 'document' }, now) !== 'allow')
+      continue;
     const opened = await readDocument(deps, share.connectionId, share.docId);
     if (!opened) {
       unreadable += 1;
       continue;
     }
     seen.add(share.docId);
-    documents.push({ docId: share.docId, title: opened.title, role: share.role, sharedBy: await deps.nameOf(share.sharedBy), sharedAt: share.sharedAt });
+    documents.push({
+      docId: share.docId,
+      title: opened.title,
+      role: share.role,
+      sharedBy: await deps.nameOf(share.sharedBy),
+      sharedAt: share.sharedAt,
+    });
   }
   return { documents, unreadable };
 }

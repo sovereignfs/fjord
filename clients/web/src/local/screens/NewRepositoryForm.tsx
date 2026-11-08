@@ -1,26 +1,32 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
-import { Alert, Button, FormField, Input, SegmentedControl } from "../../ui";
-import styles from "../../auth/screens/screens.module.css";
-import own from "../../connections/screens/ConnectForm.module.css";
+import { useRouter } from 'next/navigation';
+import { type FormEvent, useState } from 'react';
+import { Alert, Button, FormField, Input, SegmentedControl } from '../../ui';
+import styles from '../../auth/screens/screens.module.css';
+import own from '../../connections/screens/ConnectForm.module.css';
 
-type Kind = "drive" | "journal";
+type Kind = 'drive' | 'journal';
 
 const BLURB: Record<Kind, string> = {
-  drive: "A place for notes and documents, in folders. It starts with one vault and a first note.",
-  journal: "One entry a day, newest first. It starts with one vault for the entries.",
+  drive: 'A place for notes and documents, in folders. It starts with one vault and a first note.',
+  journal: 'One entry a day, newest first. It starts with one vault for the entries.',
 };
 
 /**
  * Make a repository on this server (ROADMAP 3i): a name and a kind. It is kept here until it is connected to a git repository, which
  * moves its files there; until then it is within the account's limits, and what the server answers when one is reached is shown as it is.
  */
-export function NewRepositoryForm({ heading = "Create a repository", onCreated }: { heading?: string; onCreated?: () => void }) {
+export function NewRepositoryForm({
+  heading = 'Create a repository',
+  onCreated,
+}: {
+  heading?: string;
+  onCreated?: () => void;
+}) {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<Kind>("drive");
+  const [name, setName] = useState('');
+  const [kind, setKind] = useState<Kind>('drive');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,18 +35,25 @@ export function NewRepositoryForm({ heading = "Create a repository", onCreated }
     setBusy(true);
     setError(null);
     try {
-      const response = await fetch("/api/connections/local", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, kind }) });
-      const body = (await response.json().catch(() => null)) as { error?: { message?: string }; connection?: { address: string } } | null;
+      const response = await fetch('/api/connections/local', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name, kind }),
+      });
+      const body = (await response.json().catch(() => null)) as {
+        error?: { message?: string };
+        connection?: { address: string };
+      } | null;
       if (!response.ok || !body?.connection) {
-        setError(body?.error?.message ?? "The repository was not created. Try again.");
+        setError(body?.error?.message ?? 'The repository was not created. Try again.');
         return;
       }
-      setName("");
+      setName('');
       onCreated?.();
       router.push(`/${body.connection.address}`);
       router.refresh();
     } catch {
-      setError("Could not reach this server. Check your connection and try again.");
+      setError('Could not reach this server. Check your connection and try again.');
     } finally {
       setBusy(false);
     }
@@ -51,8 +64,9 @@ export function NewRepositoryForm({ heading = "Create a repository", onCreated }
       <h2 id="create-title">{heading}</h2>
       <div className={own.guide}>
         <Alert variant="info">
-          It is kept on this server, with a limit for each person, until you connect it to a git repository. Connecting moves everything there and removes it from the server. Until then, nothing of it
-          is backed up anywhere else.
+          It is kept on this server, with a limit for each person, until you connect it to a git
+          repository. Connecting moves everything there and removes it from the server. Until then,
+          nothing of it is backed up anywhere else.
         </Alert>
       </div>
       {error ? (
@@ -62,7 +76,18 @@ export function NewRepositoryForm({ heading = "Create a repository", onCreated }
       ) : null}
       <form className={own.form} onSubmit={onSubmit}>
         <FormField label="Name" required>
-          {(field) => <Input {...field} name="name" placeholder="Notes" autoComplete="off" maxLength={64} value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />}
+          {(field) => (
+            <Input
+              {...field}
+              name="name"
+              placeholder="Notes"
+              autoComplete="off"
+              maxLength={64}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={busy}
+            />
+          )}
         </FormField>
         <FormField label="Kind" hint={BLURB[kind]}>
           {() => (
@@ -71,8 +96,8 @@ export function NewRepositoryForm({ heading = "Create a repository", onCreated }
               value={kind}
               onChange={setKind}
               options={[
-                { label: "Drive", value: "drive" },
-                { label: "Journal", value: "journal" },
+                { label: 'Drive', value: 'drive' },
+                { label: 'Journal', value: 'journal' },
               ]}
             />
           )}

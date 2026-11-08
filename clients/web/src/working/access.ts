@@ -1,8 +1,8 @@
-import type { Identity } from "../providers/types";
-import type { Deps, SaveOutcome } from "./http";
-import type { Editor, WorkingCopyService } from "./service";
-import type { Choice, ResolveResult } from "./resolve";
-import type { VersionResult } from "./version";
+import type { Identity } from '../providers/types';
+import type { Deps, SaveOutcome } from './http';
+import type { Editor, WorkingCopyService } from './service';
+import type { Choice, ResolveResult } from './resolve';
+import type { VersionResult } from './version';
 
 /**
  * Who may keep a draft of what, and when the git host is asked (ROADMAP 1b.8). `http.ts` has the request's rules; this
@@ -17,21 +17,35 @@ import type { VersionResult } from "./version";
  *    moved onto a changed file only for one of the caller's, and only as the caller saw it (`resolve.ts`).
  */
 export interface AccessDeps {
-  service: Pick<WorkingCopyService, "get" | "save" | "discard">;
+  service: Pick<WorkingCopyService, 'get' | 'save' | 'discard'>;
   /** Whether the connection is this account's. */
   owns: (accountId: string, id: number) => Promise<boolean>;
   /**
    * What `path` is, of the connection's repository now: `yes`, an editable note or document of a plaintext vault; `encrypted`, an encrypted file of an
    * encrypted vault (ROADMAP 2b.3), edited as ciphertext; `no`; or `unavailable` if the host could not be asked.
    */
-  editableNote: (accountId: string, id: number, path: string) => Promise<"yes" | "encrypted" | "no" | "unavailable">;
+  editableNote: (
+    accountId: string,
+    id: number,
+    path: string,
+  ) => Promise<'yes' | 'encrypted' | 'no' | 'unavailable'>;
   /** Move the draft onto the file as it now is, through the connection's own token. Only called for a connection that is the caller's. */
-  resolve: (accountId: string, id: number, input: { path: string; choice: Choice; upstreamBlob: string }) => Promise<ResolveResult>;
+  resolve: (
+    accountId: string,
+    id: number,
+    input: { path: string; choice: Choice; upstreamBlob: string },
+  ) => Promise<ResolveResult>;
   /** Make the version, through the connection's own token. Only called for a connection that is the caller's. */
-  version: (accountId: string, id: number, input: { path: string; message: string | undefined; author: Identity }) => Promise<VersionResult>;
+  version: (
+    accountId: string,
+    id: number,
+    input: { path: string; message: string | undefined; author: Identity },
+  ) => Promise<VersionResult>;
 }
 
-export function workingCopyAccess(deps: AccessDeps): Pick<Deps, "save" | "discard" | "saveVersion" | "resolve"> {
+export function workingCopyAccess(
+  deps: AccessDeps,
+): Pick<Deps, 'save' | 'discard' | 'saveVersion' | 'resolve'> {
   return {
     async resolve(accountId, id, input) {
       if (!(await deps.owns(accountId, id))) return { found: false };
@@ -47,12 +61,22 @@ export function workingCopyAccess(deps: AccessDeps): Pick<Deps, "save" | "discar
       if (!(await deps.owns(accountId, id))) return { found: false };
       if ((await deps.service.get(id, input.path)) === undefined) {
         const editable = await deps.editableNote(accountId, id, input.path);
-        if (editable === "unavailable") return { found: true, result: { ok: false, reason: "unavailable" } };
+        if (editable === 'unavailable')
+          return { found: true, result: { ok: false, reason: 'unavailable' } };
         // A plain text is never the draft of an encrypted vault's file, nor ciphertext the draft of a plain one (invariant 1).
-        if (editable === "no" || (editable === "encrypted") !== input.encrypted) return { found: true, result: { ok: false, reason: "not_editable" } };
+        if (editable === 'no' || (editable === 'encrypted') !== input.encrypted)
+          return { found: true, result: { ok: false, reason: 'not_editable' } };
       }
-      const editor: Editor = { type: "account", id: accountId };
-      return { found: true, result: await deps.service.save(id, input.path, { baseBlob: input.baseBlob, content: input.content, encrypted: input.encrypted }, editor) };
+      const editor: Editor = { type: 'account', id: accountId };
+      return {
+        found: true,
+        result: await deps.service.save(
+          id,
+          input.path,
+          { baseBlob: input.baseBlob, content: input.content, encrypted: input.encrypted },
+          editor,
+        ),
+      };
     },
 
     async discard(accountId, id, path) {

@@ -6,27 +6,36 @@
  * its name alone); this is for what it does not control. Only what is *marked* as a token is found: a bare string of the same
  * length is not touched, since a hash or an id looks the same and is no secret.
  */
-export const SHARE_COOKIE = "fjord_share";
+export const SHARE_COOKIE = 'fjord_share';
 /** The cookie that holds a password link's token while its password is asked for (ROADMAP 1c.5). */
-export const PENDING_COOKIE = "fjord_share_pending";
+export const PENDING_COOKIE = 'fjord_share_pending';
 /**
  * The same two for a journal's note at `/n/<id>` (workstream 0003): a cookie is scoped to a path, and a browser keeps one cookie of a name for a path, but a server action can
  * set only one cookie of a name, so the second address has names of its own rather than the same names at another path.
  */
-export const SHARE_COOKIE_N = "fjord_share_n";
-export const PENDING_COOKIE_N = "fjord_share_pending_n";
+export const SHARE_COOKIE_N = 'fjord_share_n';
+export const PENDING_COOKIE_N = 'fjord_share_pending_n';
 
 /** The cookie names for a document's address: `/d/<id>`, or `/n/<id>`. */
-export const cookieNames = (scope: "d" | "n"): { share: string; pending: string } => (scope === "n" ? { share: SHARE_COOKIE_N, pending: PENDING_COOKIE_N } : { share: SHARE_COOKIE, pending: PENDING_COOKIE });
+export const cookieNames = (scope: 'd' | 'n'): { share: string; pending: string } =>
+  scope === 'n'
+    ? { share: SHARE_COOKIE_N, pending: PENDING_COOKIE_N }
+    : { share: SHARE_COOKIE, pending: PENDING_COOKIE };
 
 const PATTERNS: [RegExp, string][] = [
-  [/([?&]token=)[^&\s"'#<>]+/gi, "$1[redacted]"],
-  [new RegExp(`((?:${SHARE_COOKIE}|${PENDING_COOKIE}|${SHARE_COOKIE_N}|${PENDING_COOKIE_N})=)[^;\\s"'<>]+`, "g"), "$1[redacted]"],
-  [/("token"\s*:\s*")[^"]+/gi, "$1[redacted]"],
+  [/([?&]token=)[^&\s"'#<>]+/gi, '$1[redacted]'],
+  [
+    new RegExp(
+      `((?:${SHARE_COOKIE}|${PENDING_COOKIE}|${SHARE_COOKIE_N}|${PENDING_COOKIE_N})=)[^;\\s"'<>]+`,
+      'g',
+    ),
+    '$1[redacted]',
+  ],
+  [/("token"\s*:\s*")[^"]+/gi, '$1[redacted]'],
   // A sealed share's address carries its token in the path (ROADMAP 2c.1): `/s/<token>`, `/api/sealed/<token>`. Its key is in the fragment, which no request carries and so no log can.
-  [/(\/(?:s|api\/sealed)\/)[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/g, "$1[redacted]"],
+  [/(\/(?:s|api\/sealed)\/)[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/g, '$1[redacted]'],
   // A published page's address carries its token in the path (ROADMAP 3h.1): `/p/<token>`.
-  [/(\/p\/)[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/g, "$1[redacted]"],
+  [/(\/p\/)[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/g, '$1[redacted]'],
 ];
 
 export function redactTokens(text: string): string {
@@ -36,18 +45,29 @@ export function redactTokens(text: string): string {
 }
 
 type Writer = (...args: unknown[]) => void;
-const METHODS = ["log", "info", "warn", "error", "debug"] as const;
+const METHODS = ['log', 'info', 'warn', 'error', 'debug'] as const;
 
 /**
  * Make the console say `[redacted]` for a token wherever one is printed: strings are redacted, and an error is printed as its
  * redacted stack (or message). Other values (objects) are passed on as they are. Safe to call twice.
  */
-export function installLogRedaction(target: Pick<Console, (typeof METHODS)[number]> = console): void {
+export function installLogRedaction(
+  target: Pick<Console, (typeof METHODS)[number]> = console,
+): void {
   for (const method of METHODS) {
     const original = target[method] as Writer & { redacting?: true };
     if (original.redacting) continue;
     const wrapped: Writer & { redacting?: true } = (...args) =>
-      original.apply(target, args.map((arg) => (typeof arg === "string" ? redactTokens(arg) : arg instanceof Error ? redactTokens(arg.stack ?? `${arg.name}: ${arg.message}`) : arg)));
+      original.apply(
+        target,
+        args.map((arg) =>
+          typeof arg === 'string'
+            ? redactTokens(arg)
+            : arg instanceof Error
+              ? redactTokens(arg.stack ?? `${arg.name}: ${arg.message}`)
+              : arg,
+        ),
+      );
     wrapped.redacting = true;
     target[method] = wrapped as Console[typeof method];
   }

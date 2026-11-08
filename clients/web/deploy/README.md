@@ -16,11 +16,11 @@ listens on the manifest's port (3001) or the `PORT` it is given, writes only to 
 
 ## Pick a setup
 
-| | Files | The database | Use it when |
-| --- | --- | --- | --- |
-| **sqld** (default) | `compose.yaml` | [sqld](https://github.com/tursodatabase/libsql), a SQLite server, in its own container | You want the default. |
-| **File** | `compose.file.yaml` | A SQLite file on a volume, in the one container | One person or a small group, and the fewest moving parts. Cannot scale out: two instances cannot share a file. |
-| **PostgreSQL** | `compose.yaml` + `compose.postgres.yaml` | PostgreSQL in its own container | You already run PostgreSQL, or want to. |
+|                    | Files                                    | The database                                                                           | Use it when                                                                                                    |
+| ------------------ | ---------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **sqld** (default) | `compose.yaml`                           | [sqld](https://github.com/tursodatabase/libsql), a SQLite server, in its own container | You want the default.                                                                                          |
+| **File**           | `compose.file.yaml`                      | A SQLite file on a volume, in the one container                                        | One person or a small group, and the fewest moving parts. Cannot scale out: two instances cannot share a file. |
+| **PostgreSQL**     | `compose.yaml` + `compose.postgres.yaml` | PostgreSQL in its own container                                                        | You already run PostgreSQL, or want to.                                                                        |
 
 To use a PostgreSQL server you already have, skip the overlay and set `FJORD_DB_DIALECT=postgres` and `FJORD_POSTGRES_URL` in
 `.env`; with the sqld file, also remove the `sqld` service and the web service's `depends_on`.
@@ -65,7 +65,7 @@ Everything is an environment variable, put in `.env` next to the Compose files (
 - **Every variable starts `FJORD_`.** The database, email and Sovereign settings used to have other names (`DB_DIALECT`,
   `SQLITE_URL`, `POSTGRES_DB_URL`, `SMTP_HOST`, `FJORD_AUTH_SOVEREIGN_ISSUER`, ...). An `.env` written for 0.1.0 still works,
   and the log says which old names it read and what they are now (`[fjord] setting: SMTP_HOST (now FJORD_SMTP_HOST) is an
-  old name`); rename them when convenient. An old name beside its new one stops the server, naming both.
+old name`); rename them when convenient. An old name beside its new one stops the server, naming both.
 - **Each instance registers its own GitHub App** (ROADMAP 1a.6), which is how people connect repositories without handling a
   token. Without one, a repository is connected with a fine-grained personal access token, and that stays available beside it.
   See [Registering the GitHub App](#registering-the-github-app).
@@ -107,7 +107,7 @@ alone, where `$request` and `$request_uri` are not), or treat that log as holdin
 ## Backups
 
 What is in the database is accounts, connections, shares and working copies. The documents themselves are in the Git
-repositories, which are their own backup. Back up the database *and* keep the encryption key separately (above).
+repositories, which are their own backup. Back up the database _and_ keep the encryption key separately (above).
 
 Each of these was run, and the instance signed in again after restoring.
 
@@ -155,16 +155,16 @@ or whatever your usual PostgreSQL backup process is, if the server is yours.
 On GitHub: Settings, Developer settings, GitHub Apps, **New GitHub App** (for an organisation, the same under its settings). The
 App is private to your instance, so nothing of it is shared with anyone else's.
 
-| Setting | Value |
-| --- | --- |
-| Homepage URL | your `FJORD_URL` |
-| **Callback URL** | `<FJORD_URL>/api/github-app/callback` |
+| Setting                                                    | Value                                                                                                                                   |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Homepage URL                                               | your `FJORD_URL`                                                                                                                        |
+| **Callback URL**                                           | `<FJORD_URL>/api/github-app/callback`                                                                                                   |
 | **Request user authorization (OAuth) during installation** | **on**. This is how Fjord learns which of an installation's repositories the person can reach themselves; without it nobody can connect |
-| Setup URL | `<FJORD_URL>/api/github-app/callback`, and **Redirect on update** on, so that adding repositories later connects them |
-| Webhook | active, URL `<FJORD_URL>/api/webhooks/github`, with a secret of your own (16 characters or more) |
-| Repository permissions | **Contents: Read and write**, and Metadata: Read-only (always on). Nothing else |
-| Subscribe to events | **Push** |
-| Where can it be installed | Any account, if others than you are to use the instance; otherwise Only on this account |
+| Setup URL                                                  | `<FJORD_URL>/api/github-app/callback`, and **Redirect on update** on, so that adding repositories later connects them                   |
+| Webhook                                                    | active, URL `<FJORD_URL>/api/webhooks/github`, with a secret of your own (16 characters or more)                                        |
+| Repository permissions                                     | **Contents: Read and write**, and Metadata: Read-only (always on). Nothing else                                                         |
+| Subscribe to events                                        | **Push**                                                                                                                                |
+| Where can it be installed                                  | Any account, if others than you are to use the instance; otherwise Only on this account                                                 |
 
 Then, from the App's page: note the **App ID**, the **name** in its address (`github.com/apps/<name>`) and the **Client ID**, make a
 **client secret**, and **generate a private key** (a `.pem` file). Set, all of them or none (the server refuses to start on some):
@@ -173,12 +173,12 @@ Then, from the App's page: note the **App ID**, the **name** in its address (`gi
 - **`FJORD_GITHUB_APP_CLIENT_SECRET`**, **`FJORD_GITHUB_APP_WEBHOOK_SECRET`** and **`FJORD_GITHUB_APP_PRIVATE_KEY`** (the PEM, with its
   line breaks, or written with `\n`). Each can be a `_FILE` instead, which is how Docker or Kubernetes secrets are passed.
 
-The webhook must be reachable from the internet; GitHub's *Recent Deliveries* on the App's page shows whether it answers. An instance
+The webhook must be reachable from the internet; GitHub's _Recent Deliveries_ on the App's page shows whether it answers. An instance
 that is only on a private network works without it (every page asks GitHub for the head anyway); the webhook only saves work.
 
 With an Enterprise Server, set `FJORD_GITHUB_API_URL` to its API (`https://host/api/v3`); the sign-in and install pages are on the same host.
 
-**What people do:** on *Repositories*, **Install on GitHub**, choose the repositories on GitHub, and come back to find them connected.
+**What people do:** on _Repositories_, **Install on GitHub**, choose the repositories on GitHub, and come back to find them connected.
 Doing it again adds the ones chosen since. Fjord keeps no token: it keeps which installation a repository came through, and asks GitHub
 for a token that lasts an hour when it needs one. Removing the App on GitHub ends access at once.
 
@@ -199,8 +199,8 @@ a version that is not released).
 Before updating:
 
 1. **Read the changelog** between your version and the new one ([`CHANGELOG.md`](../CHANGELOG.md), or the release page).
-   Anything marked **breaking** is a setting or a behaviour you must act on; a migration is listed under *Changed* or
-   *Added*.
+   Anything marked **breaking** is a setting or a behaviour you must act on; a migration is listed under _Changed_ or
+   _Added_.
 2. **Back up the database** ([above](#backups)). Keep the encryption key where it is, apart from the backup.
 
 Then:
@@ -265,11 +265,11 @@ email`). Then, by itself:
 
 What the operator adds, in `suite.yml` under `apps.fjord.env` (settings) and with `sv secret set NAME --app fjord` (secrets):
 
-| | |
-| --- | --- |
-| `FJORD_AUTH_SIGNUP: open` | **Set it.** The default, `closed`, lets only the first person who signs in have an account, which on an instance is not what anyone wants: the instance already decides who may sign in. |
-| `FJORD_ENCRYPTION_KEY` | Made for you, once, as 32 random bytes: nothing to set. It is kept with the instance's other generated secrets, which `sv backup` takes encrypted to your key alone, so a restore brings the key back with the tokens. |
-| The GitHub App | Optional, as above: `FJORD_GITHUB_APP_ID`, `_SLUG` and `_CLIENT_ID` under `env`, and `FJORD_GITHUB_APP_PRIVATE_KEY`, `_CLIENT_SECRET` and `_WEBHOOK_SECRET` as secrets. Its callback is `https://fjord.<your domain>/api/github-app/callback` and its webhook `https://fjord.<your domain>/api/webhooks/github`. |
+|                           |                                                                                                                                                                                                                                                                                                                  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FJORD_AUTH_SIGNUP: open` | **Set it.** The default, `closed`, lets only the first person who signs in have an account, which on an instance is not what anyone wants: the instance already decides who may sign in.                                                                                                                         |
+| `FJORD_ENCRYPTION_KEY`    | Made for you, once, as 32 random bytes: nothing to set. It is kept with the instance's other generated secrets, which `sv backup` takes encrypted to your key alone, so a restore brings the key back with the tokens.                                                                                           |
+| The GitHub App            | Optional, as above: `FJORD_GITHUB_APP_ID`, `_SLUG` and `_CLIENT_ID` under `env`, and `FJORD_GITHUB_APP_PRIVATE_KEY`, `_CLIENT_SECRET` and `_WEBHOOK_SECRET` as secrets. Its callback is `https://fjord.<your domain>/api/github-app/callback` and its webhook `https://fjord.<your domain>/api/webhooks/github`. |
 
 Updating is a newer image: `./sv app update fjord --image ghcr.io/sovereignfs/fjord-web:0.2.1`, then `./sv push && ./sv deploy`. [Updating](#updating)
 says what a release may change, and `sv backup` is the backup to take first.

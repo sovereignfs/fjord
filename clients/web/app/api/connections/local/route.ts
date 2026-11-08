@@ -1,8 +1,8 @@
-import { localContext } from "../../../../src/local/context";
-import { handleLocalRepositories } from "../../../../src/local/http";
+import { localContext } from '../../../../src/local/context';
+import { handleLocalRepositories } from '../../../../src/local/http';
 
 // Who is asking is decided per request, from their cookies.
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
 const notFound = () => new Response(null, { status: 404 });
 

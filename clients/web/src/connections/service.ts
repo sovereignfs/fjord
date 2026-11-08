@@ -1,17 +1,17 @@
-import { sql } from "drizzle-orm";
-import type { CredentialStore } from "../crypto/store";
-import type { Database } from "../db/client";
-import { dbAll, dbGet, dbRun } from "../db/exec";
-import * as postgresSchema from "../db/schema/postgres";
-import * as sqliteSchema from "../db/schema/sqlite";
-import { isProviderError } from "../providers/errors";
-import { type LocalLimits, type LocalUsage, localLimits } from "../local/limits";
-import { LOCAL_BRANCH, LOCAL_OWNER, LocalProvider, validRepositoryName } from "../local/provider";
-import { restoreWindowMs } from "../files/config";
-import { type Provider, type RepositoryRef, repositoryKey } from "../providers/types";
-import { ConnectionError } from "./errors";
-import { newPublicId } from "./public-id";
-import { parseRepository } from "./repository-url";
+import { sql } from 'drizzle-orm';
+import type { CredentialStore } from '../crypto/store';
+import type { Database } from '../db/client';
+import { dbAll, dbGet, dbRun } from '../db/exec';
+import * as postgresSchema from '../db/schema/postgres';
+import * as sqliteSchema from '../db/schema/sqlite';
+import { isProviderError } from '../providers/errors';
+import { type LocalLimits, type LocalUsage, localLimits } from '../local/limits';
+import { LOCAL_BRANCH, LOCAL_OWNER, LocalProvider, validRepositoryName } from '../local/provider';
+import { restoreWindowMs } from '../files/config';
+import { type Provider, type RepositoryRef, repositoryKey } from '../providers/types';
+import { ConnectionError } from './errors';
+import { newPublicId } from './public-id';
+import { parseRepository } from './repository-url';
 
 /**
  * The repositories an account has connected (DESIGN.md §7). Adding one by a personal access token
@@ -31,9 +31,9 @@ export interface ConnectionInfo {
   /** Where its addresses begin, without the slash: `<kind>/<publicId>` (`drive/k3x9m2qa`), by the kind it was last read as (a drive until it has been). `/repo/<publicId>` is sent to it. */
   address: string;
   /** `local`: a repository that lives on this server until it is connected to git (ROADMAP 3i). */
-  provider: "github" | "local";
+  provider: 'github' | 'local';
   /** `pat`: a personal access token the person gave. `app`: an installation of the instance's GitHub App (ROADMAP 1a.6). `local`: kept on this server, so it has no credential. */
-  kind: "pat" | "app" | "local";
+  kind: 'pat' | 'app' | 'local';
   owner: string;
   name: string;
   branch: string;
@@ -47,7 +47,7 @@ export interface ConnectionInfo {
    */
   defaultVault: string | null;
   /** The kind the repository was when it was last read, for its icon in the rail and its tile; null until it has been. A hint: the manifest decides. */
-  repoKind: "drive" | "journal" | "ssg" | null;
+  repoKind: 'drive' | 'journal' | 'ssg' | null;
 }
 
 export interface Added {
@@ -62,7 +62,7 @@ export interface InstallationResult {
   /** Connected before by this account. */
   already: RepositoryRef[];
   /** Left out, and why: `empty` (nothing in it yet), `read_only` (the App was not given Contents: write), `unavailable`. */
-  skipped: { ref: RepositoryRef; reason: "empty" | "read_only" | "unavailable" }[];
+  skipped: { ref: RepositoryRef; reason: 'empty' | 'read_only' | 'unavailable' }[];
 }
 
 export interface ConnectionServiceOptions {
@@ -78,25 +78,52 @@ export interface ConnectionServiceOptions {
   now?: () => number;
 }
 
-const PURPOSE = "github-pat";
+const PURPOSE = 'github-pat';
 /** What the credential store holds for an App connection: not a secret, but the installation to ask GitHub for tokens for, kept apart from the repository and with the same lifetime. */
-const INSTALLATION_PURPOSE = "github-app-installation";
+const INSTALLATION_PURPOSE = 'github-app-installation';
 const MAX_TOKEN_LENGTH = 1000;
 
-const table = (database: Database) => (database.dialect === "postgres" ? postgresSchema.connection : sqliteSchema.connection);
-const trees = (database: Database) => (database.dialect === "postgres" ? postgresSchema.treeCache : sqliteSchema.treeCache);
-const drafts = (database: Database) => (database.dialect === "postgres" ? postgresSchema.workingCopy : sqliteSchema.workingCopy);
-const docIndex = (database: Database) => (database.dialect === "postgres" ? postgresSchema.docIndex : sqliteSchema.docIndex);
-const fileHandles = (database: Database) => (database.dialect === "postgres" ? postgresSchema.fileHandle : sqliteSchema.fileHandle);
-const publications = (database: Database) => (database.dialect === "postgres" ? postgresSchema.publication : sqliteSchema.publication);
-const journalEntries = (database: Database) => (database.dialect === "postgres" ? postgresSchema.journalEntry : sqliteSchema.journalEntry);
-const userShares = (database: Database) => (database.dialect === "postgres" ? postgresSchema.shareUser : sqliteSchema.shareUser);
-const sealedShares = (database: Database) => (database.dialect === "postgres" ? postgresSchema.sealedShare : sqliteSchema.sealedShare);
-const linkShares = (database: Database) => (database.dialect === "postgres" ? postgresSchema.shareLink : sqliteSchema.shareLink);
-const commentTables = (database: Database) => (database.dialect === "postgres" ? [postgresSchema.commentReply, postgresSchema.commentThread, postgresSchema.commentActivity, postgresSchema.commentClosed] : [sqliteSchema.commentReply, sqliteSchema.commentThread, sqliteSchema.commentActivity, sqliteSchema.commentClosed]);
-const deletions = (database: Database) => (database.dialect === "postgres" ? postgresSchema.deletion : sqliteSchema.deletion);
-const defaults = (database: Database) => (database.dialect === "postgres" ? postgresSchema.accountDefault : sqliteSchema.accountDefault);
-const COLUMNS = sql.raw('id, kind, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", provider, account_id AS "accountId", default_vault AS "defaultVault", repo_kind AS "repoKind", public_id AS "publicId"');
+const table = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.connection : sqliteSchema.connection;
+const trees = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.treeCache : sqliteSchema.treeCache;
+const drafts = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.workingCopy : sqliteSchema.workingCopy;
+const docIndex = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.docIndex : sqliteSchema.docIndex;
+const fileHandles = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.fileHandle : sqliteSchema.fileHandle;
+const publications = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.publication : sqliteSchema.publication;
+const journalEntries = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.journalEntry : sqliteSchema.journalEntry;
+const userShares = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.shareUser : sqliteSchema.shareUser;
+const sealedShares = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.sealedShare : sqliteSchema.sealedShare;
+const linkShares = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.shareLink : sqliteSchema.shareLink;
+const commentTables = (database: Database) =>
+  database.dialect === 'postgres'
+    ? [
+        postgresSchema.commentReply,
+        postgresSchema.commentThread,
+        postgresSchema.commentActivity,
+        postgresSchema.commentClosed,
+      ]
+    : [
+        sqliteSchema.commentReply,
+        sqliteSchema.commentThread,
+        sqliteSchema.commentActivity,
+        sqliteSchema.commentClosed,
+      ];
+const deletions = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.deletion : sqliteSchema.deletion;
+const defaults = (database: Database) =>
+  database.dialect === 'postgres' ? postgresSchema.accountDefault : sqliteSchema.accountDefault;
+const COLUMNS = sql.raw(
+  'id, kind, owner, name, branch, created_at AS "createdAt", credential_id AS "credentialId", provider, account_id AS "accountId", default_vault AS "defaultVault", repo_kind AS "repoKind", public_id AS "publicId"',
+);
 
 interface Row {
   id: number;
@@ -115,17 +142,20 @@ interface Row {
 
 const toInfo = (row: Row, isDefault: boolean): ConnectionInfo => ({
   id: Number(row.id),
-  publicId: row.publicId ?? "",
-  address: `${row.repoKind === "journal" || row.repoKind === "ssg" ? row.repoKind : "drive"}/${row.publicId ?? ""}`,
-  provider: row.provider === "local" ? "local" : "github",
-  kind: row.provider === "local" ? "local" : row.kind === "app" ? "app" : "pat",
+  publicId: row.publicId ?? '',
+  address: `${row.repoKind === 'journal' || row.repoKind === 'ssg' ? row.repoKind : 'drive'}/${row.publicId ?? ''}`,
+  provider: row.provider === 'local' ? 'local' : 'github',
+  kind: row.provider === 'local' ? 'local' : row.kind === 'app' ? 'app' : 'pat',
   owner: row.owner,
   name: row.name,
   branch: row.branch,
   createdAt: Number(row.createdAt),
   isDefault,
   defaultVault: row.defaultVault ?? null,
-  repoKind: row.repoKind === "drive" || row.repoKind === "journal" || row.repoKind === "ssg" ? row.repoKind : null,
+  repoKind:
+    row.repoKind === 'drive' || row.repoKind === 'journal' || row.repoKind === 'ssg'
+      ? row.repoKind
+      : null,
 });
 
 export class ConnectionService {
@@ -151,7 +181,16 @@ export class ConnectionService {
    * wrong (a token GitHub does not accept, a repository it cannot see, an empty one, one that is already connected, one the token
    * cannot write to). Nothing is kept. Connecting a repository and syncing a server-side one to it both begin here.
    */
-  async checkTarget(accountId: string, input: { repository: string; token: string }): Promise<{ provider: Provider; token: string; ref: RepositoryRef; branch: string; head: string }> {
+  async checkTarget(
+    accountId: string,
+    input: { repository: string; token: string },
+  ): Promise<{
+    provider: Provider;
+    token: string;
+    ref: RepositoryRef;
+    branch: string;
+    head: string;
+  }> {
     const wanted = parseRepository(input.repository);
     const token = cleanToken(input.token);
     const provider = this.github(token);
@@ -163,19 +202,22 @@ export class ConnectionService {
     const head = await this.headOf(provider, ref, branch);
 
     if (await this.find(accountId, ref)) {
-      throw new ConnectionError("already_connected", `${repositoryKey(ref)} is already connected.`);
+      throw new ConnectionError('already_connected', `${repositoryKey(ref)} is already connected.`);
     }
     if (!(await this.asked(() => provider.canWrite(ref, branch), ref))) {
       throw new ConnectionError(
-        "read_only",
-        "That token can read this repository but not write to it. Create the token with the repository permission “Contents: Read and write”, and try again.",
+        'read_only',
+        'That token can read this repository but not write to it. Create the token with the repository permission “Contents: Read and write”, and try again.',
       );
     }
     return { provider, token, ref, branch, head };
   }
 
   /** Check a token against a repository and, if it is good for Fjord, keep both. */
-  async addWithToken(accountId: string, input: { repository: string; token: string }): Promise<Added> {
+  async addWithToken(
+    accountId: string,
+    input: { repository: string; token: string },
+  ): Promise<Added> {
     const { provider, token, ref, branch } = await this.checkTarget(accountId, input);
 
     const warnings = await this.warnings(provider, ref);
@@ -200,7 +242,10 @@ export class ConnectionService {
   }
 
   async list(accountId: string): Promise<ConnectionInfo[]> {
-    const rows = await dbAll<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE account_id = ${accountId} ORDER BY id ASC`);
+    const rows = await dbAll<Row>(
+      this.database,
+      sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE account_id = ${accountId} ORDER BY id ASC`,
+    );
     // A connection made before addresses had names gets its own now, once.
     for (const row of rows) if (!row.publicId) row.publicId = await this.nameIt(Number(row.id));
     const chosen = this.effectiveDefault(rows, await this.storedDefault(accountId));
@@ -216,21 +261,30 @@ export class ConnectionService {
   private async freshPublicId(): Promise<string> {
     for (let attempt = 0; attempt < 8; attempt++) {
       const candidate = newPublicId();
-      const taken = await dbGet<{ id: number }>(this.database, sql`SELECT id FROM ${table(this.database)} WHERE public_id = ${candidate}`);
+      const taken = await dbGet<{ id: number }>(
+        this.database,
+        sql`SELECT id FROM ${table(this.database)} WHERE public_id = ${candidate}`,
+      );
       if (!taken) return candidate;
     }
-    throw new Error("a public id could not be made");
+    throw new Error('a public id could not be made');
   }
 
   private async nameIt(id: number): Promise<string> {
     for (let attempt = 0; attempt < 8; attempt++) {
       const candidate = await this.freshPublicId();
       // Only a row that has none is given one, so two requests listing at once agree on the first.
-      await dbRun(this.database, sql`UPDATE ${table(this.database)} SET public_id = ${candidate} WHERE id = ${id} AND public_id IS NULL`);
-      const row = await dbGet<{ publicId: string | null }>(this.database, sql`SELECT public_id AS "publicId" FROM ${table(this.database)} WHERE id = ${id}`);
+      await dbRun(
+        this.database,
+        sql`UPDATE ${table(this.database)} SET public_id = ${candidate} WHERE id = ${id} AND public_id IS NULL`,
+      );
+      const row = await dbGet<{ publicId: string | null }>(
+        this.database,
+        sql`SELECT public_id AS "publicId" FROM ${table(this.database)} WHERE id = ${id}`,
+      );
       if (row?.publicId) return row.publicId;
     }
-    throw new Error("a public id could not be kept");
+    throw new Error('a public id could not be kept');
   }
 
   async get(accountId: string, id: number): Promise<ConnectionInfo | undefined> {
@@ -256,13 +310,23 @@ export class ConnectionService {
    * the repository: the service has no view of it, and a choice that has gone is ignored on reading.
    */
   /** Remembers the kind a repository was read as, for the icon of one that is not open (a hint: the manifest decides, and is read again). */
-  async setRepoKind(accountId: string, id: number, kind: "drive" | "journal" | "ssg"): Promise<void> {
-    await dbRun(this.database, sql`UPDATE ${table(this.database)} SET repo_kind = ${kind} WHERE id = ${id} AND account_id = ${accountId}`);
+  async setRepoKind(
+    accountId: string,
+    id: number,
+    kind: 'drive' | 'journal' | 'ssg',
+  ): Promise<void> {
+    await dbRun(
+      this.database,
+      sql`UPDATE ${table(this.database)} SET repo_kind = ${kind} WHERE id = ${id} AND account_id = ${accountId}`,
+    );
   }
 
   async setDefaultVault(accountId: string, id: number, vault: string | null): Promise<boolean> {
     if (!(await this.get(accountId, id))) return false;
-    await dbRun(this.database, sql`UPDATE ${table(this.database)} SET default_vault = ${vault} WHERE id = ${id} AND account_id = ${accountId}`);
+    await dbRun(
+      this.database,
+      sql`UPDATE ${table(this.database)} SET default_vault = ${vault} WHERE id = ${id} AND account_id = ${accountId}`,
+    );
     return true;
   }
 
@@ -272,44 +336,94 @@ export class ConnectionService {
    * account's default. For an account that is being deleted (`src/sovereign/people.ts`). It can be run again: what is not there is skipped.
    */
   async removeAll(accountId: string): Promise<number> {
-    const rows = await dbAll<{ id: number }>(this.database, sql`SELECT id FROM ${table(this.database)} WHERE account_id = ${accountId}`);
+    const rows = await dbAll<{ id: number }>(
+      this.database,
+      sql`SELECT id FROM ${table(this.database)} WHERE account_id = ${accountId}`,
+    );
     for (const { id } of rows) await this.remove(accountId, Number(id));
-    await dbRun(this.database, sql`DELETE FROM ${defaults(this.database)} WHERE account_id = ${accountId}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${defaults(this.database)} WHERE account_id = ${accountId}`,
+    );
     // A server-side repository whose connection was never made (a request that stopped between the two) is the account's too.
     await this.localProvider(accountId).destroyAll();
     return rows.length;
   }
 
   async remove(accountId: string, id: number): Promise<boolean> {
-    const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
+    const row = await dbGet<Row>(
+      this.database,
+      sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`,
+    );
     if (!row) return false;
-    await dbRun(this.database, sql`DELETE FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
-    await dbRun(this.database, sql`DELETE FROM ${defaults(this.database)} WHERE account_id = ${accountId} AND connection_id = ${id}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`,
+    );
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${defaults(this.database)} WHERE account_id = ${accountId} AND connection_id = ${id}`,
+    );
     // Its trees are of nothing now.
-    await dbRun(this.database, sql`DELETE FROM ${trees(this.database)} WHERE connection_id = ${id}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${trees(this.database)} WHERE connection_id = ${id}`,
+    );
     // So are the drafts: they are of files of a repository this account no longer has a way into.
-    await dbRun(this.database, sql`DELETE FROM ${drafts(this.database)} WHERE connection_id = ${id}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${drafts(this.database)} WHERE connection_id = ${id}`,
+    );
     // And the record of what was deleted: it is of files of a repository that is no longer connected.
-    await dbRun(this.database, sql`DELETE FROM ${deletions(this.database)} WHERE connection_id = ${id}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${deletions(this.database)} WHERE connection_id = ${id}`,
+    );
     // And what was learnt of which Doc is where.
-    await dbRun(this.database, sql`DELETE FROM ${docIndex(this.database)} WHERE connection_id = ${id}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${docIndex(this.database)} WHERE connection_id = ${id}`,
+    );
     // And the handles that were made for its paths (ROADMAP 3e.2): a handle of a repository that is gone leads nowhere.
-    await dbRun(this.database, sql`DELETE FROM ${fileHandles(this.database)} WHERE connection_id = ${id}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${fileHandles(this.database)} WHERE connection_id = ${id}`,
+    );
     // And the pages published from it (ROADMAP 3h.1): their addresses end with the repository.
     // Their sealed addresses go with them.
-    for (const page of await dbAll<{ credential: string | null }>(this.database, sql`SELECT token_credential AS credential FROM ${publications(this.database)} WHERE connection_id = ${id}`)) {
+    for (const page of await dbAll<{ credential: string | null }>(
+      this.database,
+      sql`SELECT token_credential AS credential FROM ${publications(this.database)} WHERE connection_id = ${id}`,
+    )) {
       if (page.credential) await this.credentials.remove(page.credential);
     }
-    await dbRun(this.database, sql`DELETE FROM ${publications(this.database)} WHERE connection_id = ${id}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${publications(this.database)} WHERE connection_id = ${id}`,
+    );
     // And what a journal's timeline knew of its entries.
-    await dbRun(this.database, sql`DELETE FROM ${journalEntries(this.database)} WHERE connection_id = ${id}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${journalEntries(this.database)} WHERE connection_id = ${id}`,
+    );
     // And what was shared from it: the documents are not reachable any more.
-    await dbRun(this.database, sql`DELETE FROM ${userShares(this.database)} WHERE connection_id = ${id}`);
-    await dbRun(this.database, sql`DELETE FROM ${linkShares(this.database)} WHERE connection_id = ${id}`);
-    await dbRun(this.database, sql`DELETE FROM ${sealedShares(this.database)} WHERE connection_id = ${id}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${userShares(this.database)} WHERE connection_id = ${id}`,
+    );
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${linkShares(this.database)} WHERE connection_id = ${id}`,
+    );
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${sealedShares(this.database)} WHERE connection_id = ${id}`,
+    );
     // And what was said about its documents.
-    for (const comments of commentTables(this.database)) await dbRun(this.database, sql`DELETE FROM ${comments} WHERE connection_id = ${id}`);
-    if (row.provider === "local") await this.localProvider(accountId).destroy({ owner: row.owner, name: row.name });
+    for (const comments of commentTables(this.database))
+      await dbRun(this.database, sql`DELETE FROM ${comments} WHERE connection_id = ${id}`);
+    if (row.provider === 'local')
+      await this.localProvider(accountId).destroy({ owner: row.owner, name: row.name });
     else await this.credentials.remove(row.credentialId);
     return true;
   }
@@ -318,10 +432,16 @@ export class ConnectionService {
    * A provider for one of this account's connections, with its token decrypted, for the server to use
    * and for nothing else: the token goes into the provider and is not returned.
    */
-  async provider(accountId: string, id: number): Promise<{ provider: Provider; connection: ConnectionInfo } | undefined> {
+  async provider(
+    accountId: string,
+    id: number,
+  ): Promise<{ provider: Provider; connection: ConnectionInfo } | undefined> {
     const connection = await this.get(accountId, id);
     if (!connection) return undefined;
-    const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
+    const row = await dbGet<Row>(
+      this.database,
+      sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`,
+    );
     return { provider: await this.providerOf(row as Row), connection };
   }
 
@@ -330,19 +450,41 @@ export class ConnectionService {
    * shared, for a person who has no connection of their own. It does not check who is asking, so it is only called after a
    * share was found for them, and what it reads is that document and nothing the share does not name.
    */
-  async providerForShare(id: number): Promise<{ provider: Provider; id: number; ref: { owner: string; name: string }; branch: string; ownerId: string } | undefined> {
-    const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id}`);
+  async providerForShare(id: number): Promise<
+    | {
+        provider: Provider;
+        id: number;
+        ref: { owner: string; name: string };
+        branch: string;
+        ownerId: string;
+      }
+    | undefined
+  > {
+    const row = await dbGet<Row>(
+      this.database,
+      sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id}`,
+    );
     if (!row) return undefined;
-    return { provider: await this.providerOf(row), id, ref: { owner: row.owner, name: row.name }, branch: row.branch, ownerId: row.accountId };
+    return {
+      provider: await this.providerOf(row),
+      id,
+      ref: { owner: row.owner, name: row.name },
+      branch: row.branch,
+      ownerId: row.accountId,
+    };
   }
 
   /** The provider a connection is used through: its token, or its installation's tokens. */
   private async providerOf(row: Row): Promise<Provider> {
     // A repository on this server has no credential: it is the database, for the account that owns it.
-    if (row.provider === "local") return this.localProvider(row.accountId);
+    if (row.provider === 'local') return this.localProvider(row.accountId);
     const { secret } = await this.credentials.get(row.credentialId);
-    if (row.kind !== "app") return this.github(secret);
-    if (!this.githubApp) throw new ConnectionError("not_configured", "This repository is connected through a GitHub App, which this instance is no longer set up with.");
+    if (row.kind !== 'app') return this.github(secret);
+    if (!this.githubApp)
+      throw new ConnectionError(
+        'not_configured',
+        'This repository is connected through a GitHub App, which this instance is no longer set up with.',
+      );
     return this.githubApp(Number(secret));
   }
 
@@ -352,7 +494,12 @@ export class ConnectionService {
    * it must have something in it and the App must be able to write to it. One that fails is left out and said so; the rest go on.
    * No token is kept, only which installation: tokens are asked for when they are needed.
    */
-  async addFromInstallation(accountId: string, installationId: number, provider: Provider, repositories: RepositoryRef[]): Promise<InstallationResult> {
+  async addFromInstallation(
+    accountId: string,
+    installationId: number,
+    provider: Provider,
+    repositories: RepositoryRef[],
+  ): Promise<InstallationResult> {
     const result: InstallationResult = { added: [], already: [], skipped: [] };
     for (const wanted of repositories) {
       if (await this.find(accountId, wanted)) {
@@ -368,24 +515,29 @@ export class ConnectionService {
         try {
           await provider.getHead(ref, branch);
         } catch (error) {
-          if (isProviderError(error, "not_found")) {
-            result.skipped.push({ ref, reason: "empty" });
+          if (isProviderError(error, 'not_found')) {
+            result.skipped.push({ ref, reason: 'empty' });
             continue;
           }
           throw error;
         }
         if (!(await provider.canWrite(ref, branch))) {
-          result.skipped.push({ ref, reason: "read_only" });
+          result.skipped.push({ ref, reason: 'read_only' });
           continue;
         }
       } catch (error) {
         // The whole installation is refused, or limited: that is not one repository's trouble.
-        if (isProviderError(error, "unauthorized") || isProviderError(error, "rate_limited")) throw explainProviderError(error, wanted);
-        result.skipped.push({ ref, reason: "unavailable" });
+        if (isProviderError(error, 'unauthorized') || isProviderError(error, 'rate_limited'))
+          throw explainProviderError(error, wanted);
+        result.skipped.push({ ref, reason: 'unavailable' });
         continue;
       }
 
-      const credentialId = await this.credentials.put(INSTALLATION_PURPOSE, String(installationId), this.now());
+      const credentialId = await this.credentials.put(
+        INSTALLATION_PURPOSE,
+        String(installationId),
+        this.now(),
+      );
       try {
         const rows = await dbAll<Row>(
           this.database,
@@ -432,7 +584,11 @@ export class ConnectionService {
       this.database,
       sql`SELECT id FROM ${table(this.database)} WHERE provider = 'github' AND owner = ${ref.owner} AND name = ${ref.name} AND branch = ${branch}`,
     );
-    for (const row of rows) await dbRun(this.database, sql`DELETE FROM ${trees(this.database)} WHERE connection_id = ${Number(row.id)}`);
+    for (const row of rows)
+      await dbRun(
+        this.database,
+        sql`DELETE FROM ${trees(this.database)} WHERE connection_id = ${Number(row.id)}`,
+      );
     return rows.length;
   }
 
@@ -440,7 +596,13 @@ export class ConnectionService {
 
   /** The server-side provider for one account: its repositories only, with this instance's limits. */
   localProvider(accountId: string): LocalProvider {
-    return new LocalProvider({ database: this.database, accountId, limits: this.limits, restoreWindowMs: restoreWindowMs(), now: this.now });
+    return new LocalProvider({
+      database: this.database,
+      accountId,
+      limits: this.limits,
+      restoreWindowMs: restoreWindowMs(),
+      now: this.now,
+    });
   }
 
   /** What an account holds on this server and what it may (`src/local/limits.ts`), for the page that says how much is used. */
@@ -453,17 +615,29 @@ export class ConnectionService {
    * sync turns into a GitHub one. Refused with a `ConnectionError` saying which limit was reached, or why the name cannot be used. Nothing
    * is left of one that failed.
    */
-  async addLocal(accountId: string, input: { name: string; files: Record<string, Uint8Array> }): Promise<ConnectionInfo> {
+  async addLocal(
+    accountId: string,
+    input: { name: string; files: Record<string, Uint8Array> },
+  ): Promise<ConnectionInfo> {
     const local = this.localProvider(accountId);
     const name = input.name.trim();
-    if (name === "") throw new ConnectionError("invalid_name", "Give the repository a name.");
-    if (!validRepositoryName(name)) throw new ConnectionError("invalid_name", "That name cannot be used. Keep it to 64 characters, with no slashes, and not starting with a dot.");
+    if (name === '') throw new ConnectionError('invalid_name', 'Give the repository a name.');
+    if (!validRepositoryName(name))
+      throw new ConnectionError(
+        'invalid_name',
+        'That name cannot be used. Keep it to 64 characters, with no slashes, and not starting with a dot.',
+      );
     let ref: RepositoryRef;
     try {
       ref = await local.create(name, input.files);
     } catch (error) {
-      if (isProviderError(error, "limit_reached")) throw new ConnectionError("limit_reached", error.message);
-      if (isProviderError(error, "invalid_request")) throw new ConnectionError("invalid_name", `You already have a repository called “${name}”.`);
+      if (isProviderError(error, 'limit_reached'))
+        throw new ConnectionError('limit_reached', error.message);
+      if (isProviderError(error, 'invalid_request'))
+        throw new ConnectionError(
+          'invalid_name',
+          `You already have a repository called “${name}”.`,
+        );
       throw error;
     }
     try {
@@ -488,14 +662,25 @@ export class ConnectionService {
    * statement that checks the head, so an edit that lands meanwhile is refused (`head_moved`) and not lost, and a sync that cannot go
    * on puts the branch back. Safe to run again after any part of it: a connection that is already GitHub's is reported as done.
    */
-  async finishSync(accountId: string, id: number, target: { ref: RepositoryRef; branch: string; token: string }, expectedHead: string): Promise<ConnectionInfo> {
-    const row = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`);
-    if (!row) throw new ConnectionError("not_found", "That repository is not connected.");
+  async finishSync(
+    accountId: string,
+    id: number,
+    target: { ref: RepositoryRef; branch: string; token: string },
+    expectedHead: string,
+  ): Promise<ConnectionInfo> {
+    const row = await dbGet<Row>(
+      this.database,
+      sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id} AND account_id = ${accountId}`,
+    );
+    if (!row) throw new ConnectionError('not_found', 'That repository is not connected.');
     const was = { owner: row.owner, name: row.name, branch: row.branch };
-    if (row.provider !== "local") return toInfo(row, (await this.defaultFor(accountId))?.id === id);
+    if (row.provider !== 'local') return toInfo(row, (await this.defaultFor(accountId))?.id === id);
     const local = this.localProvider(accountId);
     if (!(await local.freeze({ owner: was.owner, name: was.name }, was.branch, expectedHead))) {
-      throw new ConnectionError("head_moved", "This repository was changed while its files were being moved. Nothing was lost: try again and the new changes go too.");
+      throw new ConnectionError(
+        'head_moved',
+        'This repository was changed while its files were being moved. Nothing was lost: try again and the new changes go too.',
+      );
     }
     const credentialId = await this.credentials.put(PURPOSE, target.token, this.now());
     try {
@@ -504,18 +689,27 @@ export class ConnectionService {
         sql`UPDATE ${table(this.database)} SET provider = 'github', kind = 'pat', owner = ${target.ref.owner}, name = ${target.ref.name}, branch = ${target.branch}, credential_id = ${credentialId}
             WHERE id = ${id} AND account_id = ${accountId} AND provider = 'local' RETURNING id`,
       );
-      if (updated.length === 0) throw new ConnectionError("not_found", "That repository is not connected.");
+      if (updated.length === 0)
+        throw new ConnectionError('not_found', 'That repository is not connected.');
     } catch (error) {
       // The files stay where they are, writable again, and nothing keeps a token that no connection has.
-      await local.thaw({ owner: was.owner, name: was.name }, was.branch, expectedHead).catch(() => undefined);
+      await local
+        .thaw({ owner: was.owner, name: was.name }, was.branch, expectedHead)
+        .catch(() => undefined);
       await this.credentials.remove(credentialId);
       throw error;
     }
     // The connection is GitHub's now; this is housekeeping, and a run that stops here is finished by the next sync of nothing: the
     // rows are of a repository no connection reaches, and `destroy` can be run again.
     await local.destroy({ owner: was.owner, name: was.name });
-    await dbRun(this.database, sql`DELETE FROM ${trees(this.database)} WHERE connection_id = ${id}`);
-    const done = await dbGet<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id}`);
+    await dbRun(
+      this.database,
+      sql`DELETE FROM ${trees(this.database)} WHERE connection_id = ${id}`,
+    );
+    const done = await dbGet<Row>(
+      this.database,
+      sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE id = ${id}`,
+    );
     return toInfo(done as Row, (await this.defaultFor(accountId))?.id === id);
   }
 
@@ -542,7 +736,10 @@ export class ConnectionService {
 
   /** Make a new connection the default if it is the account's first; says whether it is now. */
   private async defaultIfNone(accountId: string, id: number): Promise<boolean> {
-    const rows = await dbAll<Row>(this.database, sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE account_id = ${accountId} ORDER BY id ASC`);
+    const rows = await dbAll<Row>(
+      this.database,
+      sql`SELECT ${COLUMNS} FROM ${table(this.database)} WHERE account_id = ${accountId} ORDER BY id ASC`,
+    );
     // Only when it is the account's only connection: otherwise the account already has a default, chosen or not.
     if (rows.some((row) => Number(row.id) !== id)) return false;
     await this.writeDefault(accountId, id);
@@ -565,19 +762,21 @@ export class ConnectionService {
     try {
       const result = await provider.getHead(ref, branch);
       // Asked without an etag, so it is always the head itself.
-      return result.changed ? result.head.commit : "";
+      return result.changed ? result.head.commit : '';
     } catch (error) {
-      if (isProviderError(error, "not_found")) throw empty(ref);
+      if (isProviderError(error, 'not_found')) throw empty(ref);
       throw explainProviderError(error, ref);
     }
   }
 
   private async warnings(provider: Provider, ref: RepositoryRef): Promise<string[]> {
     try {
-      const others = (await provider.listRepositories()).filter((repo) => repositoryKey(repo.ref).toLowerCase() !== repositoryKey(ref).toLowerCase());
+      const others = (await provider.listRepositories()).filter(
+        (repo) => repositoryKey(repo.ref).toLowerCase() !== repositoryKey(ref).toLowerCase(),
+      );
       if (others.length === 0) return [];
       return [
-        `This token can also reach ${others.length} other ${others.length === 1 ? "repository" : "repositories"}. A token limited to just ${repositoryKey(ref)} is safer: if it ever leaks, it can reach only this.`,
+        `This token can also reach ${others.length} other ${others.length === 1 ? 'repository' : 'repositories'}. A token limited to just ${repositoryKey(ref)} is safer: if it ever leaks, it can reach only this.`,
       ];
     } catch {
       return [];
@@ -596,33 +795,51 @@ export class ConnectionService {
 
 function cleanToken(raw: string): string {
   const token = raw.trim();
-  if (token === "") throw new ConnectionError("invalid_token", "Enter the access token.");
+  if (token === '') throw new ConnectionError('invalid_token', 'Enter the access token.');
   if (token.length > MAX_TOKEN_LENGTH || /\s/.test(token)) {
-    throw new ConnectionError("invalid_token", "That does not look like an access token. Copy it again, all of it and nothing else.");
+    throw new ConnectionError(
+      'invalid_token',
+      'That does not look like an access token. Copy it again, all of it and nothing else.',
+    );
   }
   return token;
 }
 
 const empty = (ref: RepositoryRef) =>
-  new ConnectionError("empty_repository", `${repositoryKey(ref)} is empty. Add a first file to it (a README will do) and try again.`);
+  new ConnectionError(
+    'empty_repository',
+    `${repositoryKey(ref)} is empty. Add a first file to it (a README will do) and try again.`,
+  );
 
 /** What a host's failure is told as, in our words (a `ConnectionError`), or the error itself when it is not one a person can act on. */
 export function explainProviderError(error: unknown, ref: RepositoryRef): unknown {
   if (error instanceof ConnectionError) return error;
   if (!isProviderError(error)) return error;
   switch (error.code) {
-    case "unauthorized":
-      return new ConnectionError("bad_token", "GitHub did not accept that token. Check that it was copied whole, and that it has not expired or been revoked.");
-    case "not_found":
-      return new ConnectionError("not_found", `GitHub cannot find ${repositoryKey(ref)} with that token. Check the address, and that the token was given access to this repository.`);
-    case "forbidden":
-      return new ConnectionError("forbidden", `GitHub would not let that token read ${repositoryKey(ref)}. If the repository belongs to an organisation, the token may need the organisation's approval.`);
-    case "empty_repository":
+    case 'unauthorized':
+      return new ConnectionError(
+        'bad_token',
+        'GitHub did not accept that token. Check that it was copied whole, and that it has not expired or been revoked.',
+      );
+    case 'not_found':
+      return new ConnectionError(
+        'not_found',
+        `GitHub cannot find ${repositoryKey(ref)} with that token. Check the address, and that the token was given access to this repository.`,
+      );
+    case 'forbidden':
+      return new ConnectionError(
+        'forbidden',
+        `GitHub would not let that token read ${repositoryKey(ref)}. If the repository belongs to an organisation, the token may need the organisation's approval.`,
+      );
+    case 'empty_repository':
       return empty(ref);
-    case "rate_limited":
-      return new ConnectionError("rate_limited", "GitHub is limiting requests right now. Try again in a minute.");
-    case "unavailable":
-      return new ConnectionError("unavailable", "Could not reach GitHub. Try again in a moment.");
+    case 'rate_limited':
+      return new ConnectionError(
+        'rate_limited',
+        'GitHub is limiting requests right now. Try again in a minute.',
+      );
+    case 'unavailable':
+      return new ConnectionError('unavailable', 'Could not reach GitHub. Try again in a moment.');
     default:
       return error;
   }
