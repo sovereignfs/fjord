@@ -9,6 +9,10 @@ reads this file when a release is cut. Write the notes under `## [Unreleased]`
 as you go; `scripts/release.sh web prepare` turns them into the version's
 section.
 
+### Changed
+
+- **The port is now 3001** (`sovereign.manifest.json`), in the image, the Compose setups and `pnpm dev`, so Fjord Web, Tusk (3002) and a Sovereign core (3000) run side by side on one machine. A Sovereign instance reads the port from the image and needs nothing. Run on your own, map the new port (`-p 127.0.0.1:3001:3001`, or keep the outside port: `-p 127.0.0.1:3000:3001`) and point the reverse proxy at it.
+
 ## [Unreleased]
 
 ### Added

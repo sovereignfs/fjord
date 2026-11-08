@@ -23,7 +23,7 @@ own lockfile; it is not part of the Rust workspace.
 
 ```bash
 pnpm install        # dependencies, from pnpm-lock.yaml
-pnpm dev            # http://localhost:3000
+pnpm dev            # http://localhost:3001
 pnpm typecheck
 pnpm test
 pnpm build
@@ -102,7 +102,7 @@ or both can be on. The server refuses to start on a setting that is wrong, and s
 local sign-in:
 
 ```bash
-export FJORD_AUTH_LOCAL=1 FJORD_URL=http://localhost:3000
+export FJORD_AUTH_LOCAL=1 FJORD_URL=http://localhost:3001
 export FJORD_AUTH_SECRET="$(openssl rand -base64 48)"   # 32 characters or more
 FJORD_DB_DIALECT=sqlite FJORD_SQLITE_URL=file:./data/fjord.db pnpm dev
 ```
@@ -181,7 +181,7 @@ If a key is lost the credentials it protected are lost; connect the repositories
 
 **Signing in with Sovereign.** An admin of the Sovereign instance registers Fjord Web in its
 Console, under *External clients*: a display name, the redirect URI
-`<FJORD_URL>/api/auth/callback/sovereign` (matched exactly, so `http://localhost:3000/...` for
+`<FJORD_URL>/api/auth/callback/sovereign` (matched exactly, so `http://localhost:3001/...` for
 development and the `https://` address for production, each registered), and the scopes `openid
 profile email`. The Console shows the client id and secret once; they go in the three variables
 above, the secret preferably in a file (`_FILE`). Fjord Web asks for `sub`, `email` and `name`,

@@ -14,7 +14,7 @@ services:
       dockerfile: clients/web/Dockerfile
       # The port is written in clients/web/sovereign.manifest.json, which Compose cannot read; a test holds this to it.
       args:
-        PORT: "3000"
+        PORT: "3001"
     image: ${FJORD_IMAGE:-fjord-web}
     restart: unless-stopped
     env_file:
@@ -29,7 +29,7 @@ services:
         condition: service_healthy
     # Only the machine itself can reach this port: a reverse proxy with TLS in front of it is how people do.
     ports:
-      - "127.0.0.1:${FJORD_PORT:-3000}:3000"
+      - "127.0.0.1:${FJORD_PORT:-3001}:3001"
 
   sqld:
     # Pinned, not `latest`. 0.24.33 or later: earlier releases cannot create a namespace the way the app does.

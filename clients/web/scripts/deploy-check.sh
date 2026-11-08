@@ -196,7 +196,7 @@ done
 
 # Refuses to start on a setting that is wrong, and says which: the container must stop, not stay up and fail.
 echo "== a missing secret"
-id="$(docker run -d -e FJORD_AUTH_LOCAL=1 -e FJORD_URL=http://localhost:3000 -e FJORD_DB_DIALECT=sqlite -e FJORD_SQLITE_URL=file:/tmp/x.db "$image")"
+id="$(docker run -d -e FJORD_AUTH_LOCAL=1 -e FJORD_URL=http://localhost:3001 -e FJORD_DB_DIALECT=sqlite -e FJORD_SQLITE_URL=file:/tmp/x.db "$image")"
 trap 'docker rm -f "$id" >/dev/null 2>&1 || true; cleanup' EXIT
 waited=0
 while [ "$(docker inspect -f '{{.State.Running}}' "$id")" = true ]; do

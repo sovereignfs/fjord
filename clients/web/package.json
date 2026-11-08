@@ -10,9 +10,9 @@
     "node": ">=24.15 <25"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 3001",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --port ${PORT:-3001}",
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "db:generate": "node scripts/db-generate.mjs",

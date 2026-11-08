@@ -4,7 +4,7 @@
   "name": "Fjord",
   "description": "Your documents as plain files in a Git repository you control",
   "icon": "/icon.svg",
-  "port": 3000,
+  "port": 3001,
   "health": "/api/health",
   "launch": "/",
   "signIn": {

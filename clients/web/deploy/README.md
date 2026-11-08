@@ -11,7 +11,7 @@ eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest
 
 It builds the format module from `crates/` (Rust and WebAssembly), then the app (Node 24), and keeps neither toolchain:
 the image is a Node runtime, the app, the module and the licences, about 100 MB. It runs as an unprivileged user,
-listens on the manifest's port (3000) or the `PORT` it is given, writes only to `/data` (and only when the database is a file), and has a health check on
+listens on the manifest's port (3001) or the `PORT` it is given, writes only to `/data` (and only when the database is a file), and has a health check on
 `/api/health`.
 
 ## Pick a setup
@@ -34,7 +34,7 @@ docker compose -f compose.file.yaml up -d --build                     # a file
 docker compose -f compose.yaml -f compose.postgres.yaml up -d --build # PostgreSQL
 ```
 
-The overlay needs Docker Compose 2.24 or later. The app is on `127.0.0.1:3000` (`FJORD_PORT` changes the host's port);
+The overlay needs Docker Compose 2.24 or later. The app is on `127.0.0.1:3001` (`FJORD_PORT` changes the host's port);
 put a reverse proxy with TLS in front of it ([below](#a-reverse-proxy-with-tls)). The server makes its own namespaces,
 schemas and tables when it starts, and applies its migrations; there is no setup step.
 
@@ -86,13 +86,13 @@ The server **refuses to start on a setting that is wrong** and says which: the c
 
 ## A reverse proxy with TLS
 
-The container speaks plain HTTP on one port. Terminate TLS in front of it, forward to `127.0.0.1:3000`, and set
+The container speaks plain HTTP on one port. Terminate TLS in front of it, forward to `127.0.0.1:3001`, and set
 `FJORD_URL` to the public `https` address. The proxy must **set** `X-Forwarded-For` (not pass along what the client
 sent), because sign-in rate limits are per client address. For example, with [Caddy](https://caddyserver.com):
 
 ```
 fjord.example.com {
-    reverse_proxy 127.0.0.1:3000
+    reverse_proxy 127.0.0.1:3001
 }
 ```
 
@@ -209,7 +209,7 @@ Then:
 # in .env: FJORD_IMAGE=ghcr.io/sovereignfs/fjord-web:0.2.0
 docker compose pull                  # with the same -f arguments as before
 docker compose up -d                 # the web service is recreated; sqld or PostgreSQL is left running
-curl -fsS http://127.0.0.1:3000/api/health      # {"status":"ok", ...}
+curl -fsS http://127.0.0.1:3001/api/health      # {"status":"ok", ...}
 ```
 
 (If you build from a checkout instead: `git pull`, then `docker compose up -d --build`.)
@@ -257,7 +257,7 @@ email`). Then, by itself:
 
 - **Fjord Web is registered with core** as a trusted app, with its sign-in address (`/api/auth/callback/sovereign`), its name, its
   description and its icon (`/icon.svg`), so it appears in the launcher.
-- **It is given** `PORT` (the manifest's port, 3000), `FJORD_URL` (`https://fjord.<your domain>`), `FJORD_CORE_URL`,
+- **It is given** `PORT` (the manifest's port, 3001), `FJORD_URL` (`https://fjord.<your domain>`), `FJORD_CORE_URL`,
   `FJORD_CORE_CLIENT_ID` and `FJORD_CORE_CLIENT_SECRET_FILE`, `FJORD_AUTH_SECRET_FILE` and `FJORD_ENCRYPTION_KEY_FILE` (each made once, kept), and a PostgreSQL database of its own
   as `FJORD_DB_DIALECT=postgres` with `FJORD_POSTGRES_URL_FILE`. It makes its own tables when it starts, as everywhere else. Its
   manifest does not say it can work through a connection pooler, because its migrations hold a lock on one connection.

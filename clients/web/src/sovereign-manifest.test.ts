@@ -113,6 +113,15 @@ describe("the port", () => {
   });
 });
 
+describe("the port on a developer's machine", () => {
+  it("is the manifest's, so the suite's apps (core 3000, Fjord 3001, Tusk 3002) run side by side", () => {
+    const { scripts } = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
+    expect(scripts.dev).toContain(`--port ${manifest.port}`);
+    expect(scripts.start).toContain(`\${PORT:-${manifest.port}}`);
+    expect(read(join("deploy", ".env.example"))).toContain(`FJORD_URL=http://localhost:${manifest.port}`);
+  });
+});
+
 describe("scripts/manifest.mjs", () => {
   const run = (...args: string[]) => execFileSync("node", ["scripts/manifest.mjs", ...args], { cwd: root, encoding: "utf8", stdio: "pipe" });
 
