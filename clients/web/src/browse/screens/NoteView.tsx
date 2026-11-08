@@ -1,6 +1,6 @@
 "use client";
 
-import { DocumentEditor, NoteEditor } from "fjord-editor";
+import { DocumentEditor, type EditorHandle, NoteEditor } from "fjord-editor";
 import "fjord-editor/styles.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -16,6 +16,7 @@ import { hasConflictMarkers } from "../../working/markers";
 import type { HeaderInfo, Properties } from "../document";
 import { repositoryHref } from "../links";
 import { DocumentProperties } from "./DocumentProperties";
+import { useSiteImages } from "../../site/screens/SiteImages";
 import { SaveControl } from "./SaveControl";
 
 /** The draft the page found for this note: its text and the version of the note it was started from. */
@@ -95,6 +96,9 @@ export function NoteView({
   // can without changing what it means, and says so for the rest (`DocumentEditor`). Switching starts the other editor from the text as it is now.
   const [visual, setVisual] = useState(false);
   const [switched, setSwitched] = useState<string | null>(null);
+  // A site's posts have the site's media library (RFC 0004): the editors ask this source for a picture, and a picture pasted or dropped into them goes to it.
+  const { source: images, dialog: imageDialog } = useSiteImages(connectionId, path, site && bodyStart !== undefined);
+  const noteHandle = useRef<EditorHandle>(null);
   const bodyNow = switched ?? (bodyStart === undefined ? start : start.slice(bodyStart));
   function switchEditor() {
     setSwitched(saver.text.slice(headerNow.current.length));
@@ -338,13 +342,21 @@ export function NoteView({
           </Button>
         </p>
       ) : null}
+      {images && !(editor === "document" || visual) ? (
+        <p>
+          <Button type="button" variant="secondary" size="sm" onClick={() => void noteHandle.current?.insertImage?.()} disabled={saving} data-testid="insert-image">
+            Insert image
+          </Button>
+        </p>
+      ) : null}
       {bodyStart === undefined ? (
         <NoteEditor aria-label={label} value={start} onChange={(next) => saver.change(next)} readOnly={saving} />
       ) : editor === "document" || visual ? (
-        <DocumentEditor key="rich" choiceKey={`${connectionId}:${path}`} aria-label={label} role={saving ? "view" : "edit"} value={bodyNow} onChange={changeBody} comments={adapter} onNeedName={onNeedName} />
+        <DocumentEditor key="rich" choiceKey={`${connectionId}:${path}`} aria-label={label} role={saving ? "view" : "edit"} value={bodyNow} onChange={changeBody} comments={adapter} onNeedName={onNeedName} images={images} />
       ) : (
-        <NoteEditor key="source" aria-label={label} value={bodyNow} onChange={changeBody} readOnly={saving} />
+        <NoteEditor key="source" ref={noteHandle} aria-label={label} value={bodyNow} onChange={changeBody} readOnly={saving} images={images} />
       )}
+      {imageDialog}
       {panel}
       {slot ? null : <div style={{ margin: "var(--sv-space-3) 0", display: "flex", alignItems: "center", gap: "var(--sv-space-2)" }}>{saveControl}{history}</div>}
       {statusLine}

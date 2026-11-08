@@ -6,7 +6,7 @@ The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients
 
 **A second pass** ([RFC 0002](../rfcs/0002-kinds-second-pass.md), [workstream 0002](../workstreams/0002-kinds-second-pass.md)) is planned at the [end of this file](#kinds-second-pass-rfc-0002): P13–P17, then 3e–3h.
 
-**A media library for sites** ([RFC 0004](../rfcs/0004-site-media-library.md), proposed) is planned at the [end of this file](#3j--media-library): P18–P20, then 3j.1–3j.5.
+**A media library for sites** ([RFC 0004](../rfcs/0004-site-media-library.md), implemented) is at the [end of this file](#3j--media-library): P18–P20, then 3j.1–3j.5.
 
 ## What the phase promises, and what it does not
 
@@ -603,7 +603,7 @@ A person creates a repository (a name and a kind), creates files and folders in 
 
 ## 3j — Media library
 
-A site's images as a library: browsed, uploaded, deleted, and put into a post from either editor. Images only, in an `ssg` repository's vault only. The design is [RFC 0004](../rfcs/0004-site-media-library.md), **proposed**: nothing here starts until it is accepted. Order: P18, then P19 and P20, then 3j.1 to 3j.5 (3j.3 needs 3j.2's upload; 3j.4 needs 3j.3; 3j.5 needs P19's reference search).
+A site's images as a library: browsed, uploaded, deleted, and put into a post from either editor. Images only, in an `ssg` repository's vault only. The design is [RFC 0004](../rfcs/0004-site-media-library.md), accepted and built on 2026-11-08. Order: P18, then P19 and P20, then 3j.1 to 3j.5 (3j.3 needs 3j.2's upload; 3j.4 needs 3j.3; 3j.5 needs P19's reference search).
 
 ### P18 Spike: where each engine serves images from its vault
 
@@ -645,7 +645,7 @@ P19's functions exported through the module, with the module's tests.
 
 ### 3j.1 The library screen
 
-**Status:** 📋 Planned (waits on P20)
+**Status:** ✅ Done
 
 **Design:** RFC 0004, *The library*, *Security considerations*
 
@@ -653,9 +653,16 @@ A screen of the site's module beside its posts: every image in the vault as rows
 
 **Accepts when:** a site with images in and outside the images folder shows them all, and none outside the vault; a file named `.png` holding HTML is served as `application/octet-stream`; an SVG never renders as a document; someone without access to the repository gets the same 404 as for any of its files.
 
+- **Done as:**
+  - **The service** `src/site/images.ts` (`listImages`, `uploadImages`, `postsShowing`, `deleteImageOutsideVault`, `isLibraryPath`) over the `Provider`, and its HTTP rules `images-http.ts` (`GET`/`POST`/`DELETE /api/connections/<id>/images`, `GET …/images/file`, `GET …/images/reference`), wired in `images-server.ts` and registered in `access/routes.ts` (`read`, `create`, `delete`).
+  - **The screen** `site/screens/MediaLibrary.tsx` (tiles with name, size and pixel size, a filter by name), opened from the site's page by `MediaLibraryButton`, as an action of the `ssg` module.
+  - **A picture is served** as the type its first bytes say, `nosniff`, in a sandbox, `private, no-store`; bytes that are not a picture of a type the library takes (an SVG in the vault, a document named `.png`) are `application/octet-stream` and an attachment.
+  - **Tested:** the service against `MemoryProvider` (`images.test.ts`), the HTTP rules with a stand-in service (`images-http.test.ts`: signed out, wrong origin, another's connection, the shapes refused, the headers; the origin rule was seen to fail with it switched off), and in a browser (`e2e/kinds.open.spec.ts`, which found and fixed a crash on a picture's `onLoad`).
+- **Not here:** newest-first ordering (the list is by name: the host's tree has no dates, and each would be a request to its history); a tree of the vault's pictures that are not in the images folder is shown flat; for a listing the host cut short, only the images folder is read.
+
 ### 3j.2 Upload
 
-**Status:** 📋 Planned (waits on 3j.1)
+**Status:** ✅ Done
 
 **Design:** RFC 0004, *Upload, in the browser and on the server*
 
@@ -663,9 +670,13 @@ Upload by a button or by dropping on the library: the type by first bytes, resiz
 
 **Accepts when:** a 6000 px JPEG with a GPS position arrives at 2560 px with no EXIF; the original, when chosen, keeps it and the person was told; an animated GIF is untouched; SVG, a renamed executable and an 11 MB image are refused in the browser and, sent by hand, by the server, with nothing committed; two files of one name get `-2`; three files are one commit.
 
+- **Done as:** `uploadImages` checks the whole batch before writing (type from the first bytes, 10 MB, 20 files), names each by `siteImageName`, skips a picture whose git blob id is already in the folder (it says so) and commits the rest as one commit, as the person, on the connection's branch, retried once on `head_moved`. The browser (`site/prepare-image.ts`) scales a picture whose longer side is past 2560 px to it and re-encodes it as WebP (JPEG where the browser cannot), which drops EXIF; *Keep the original* skips that and the library says what was done. The multipart body is capped at 60 MB and each file at 10 MB before it is read.
+- **Different from the task as written:** every GIF is uploaded as it is, not only an animated one (telling a still from an animation means walking its blocks), as is an APNG and an animated WebP (`mayBeAnimated`).
+- **Tested:** `images.test.ts` (names, a taken name, the same bytes, SVG, a document named `.png`, empty, large, too many, a PNG named `.jpg`, a Jekyll `_posts` vault), `images-http.test.ts`, `prepare-image.test.ts` (the arithmetic and what must keep its frames), and the browser spec (a file named `Red Square.PNG` committed as `content/images/red-square.png`; a refusal commits nothing). **Not run:** the resize in a browser with a photo (the browser test uploads a picture within the bound).
+
 ### 3j.3 Insert from the editors
 
-**Status:** 📋 Planned (waits on 3j.2)
+**Status:** ✅ Done
 
 **Design:** RFC 0004, *Into a post*
 
@@ -673,9 +684,12 @@ Upload by a button or by dropping on the library: the type by first bytes, resiz
 
 **Accepts when:** an image chosen in either editor inserts `![alt](reference)` with the reference P18 recorded for that engine, and the post builds with it (`check-site-scaffolds.sh`); *Insert* is disabled without alt text; the document editor shows a relative image; the editor package's tests use a fake source and know nothing of sites.
 
+- **Done as:** `fjord-editor` gets `ImageSource` (`choose`, `add`, optional `resolve`) and `images` on both editors. The note editor's handle has `insertImage()` (the web's *Insert image* button above the editor calls it), and the visual editor's toolbar button asks the source, and shows a relative reference through `resolve`. `imageMarkdown` writes `![alt](reference)` with the alt text and the reference unable to end the link early. The web's `useSiteImages` (`site/screens/SiteImages.tsx`) answers with the library in a dialog; the reference comes from `/images/reference`, the format module's (`siteImageRef`), and what a reference in a post means from `siteImageTarget` (a new `fjord-core` function, `site::ref_target`, which `refers_to` now uses). Alt text is required: *Insert* stays off until there is some or the picture is marked as only for looks (`site/alt.ts`).
+- **Tested:** the editor package with a fake source (`images.test.tsx`: where the text goes, nothing written on cancel, a text that may only be read is never changed), `alt.test.ts`, and the browser spec through the note editor (disabled without words, enabled with them, the Markdown in the editor). **Not tested in a browser:** the visual editor's button and its preview of a relative picture, which are built and typechecked only.
+
 ### 3j.4 Paste and drop into a post
 
-**Status:** 📋 Planned (waits on 3j.3)
+**Status:** ✅ Done, tested in the editor package only
 
 **Design:** RFC 0004, *Into a post*
 
@@ -683,12 +697,19 @@ An image pasted or dropped into either editor goes through 3j.2's upload, then a
 
 **Accepts when:** a pasted screenshot ends in the images folder, resized if large, and in the post with its alt text; a pasted image over the cap is refused with nothing committed; pasting text is unchanged.
 
+- **Done as:** both editors take a pasted or dropped file that is a picture and give it to `ImageSource.add`, which in the web opens the library with the files already uploading, then asks for alt text and inserts the reference; closing it leaves the picture in the library and inserts nothing. The browser's own handling of the paste is stopped only when the app took the picture. A text that may only be read takes nothing.
+- **Tested:** `images.test.tsx` (a pasted picture is given to the app and what it answers is written; a drop the app gives up changes nothing; a read-only text takes none). **Not tested:** a real paste or drop in a browser (the fake DOM cannot run CodeMirror's own paste handling), and in the visual editor.
+
 ### 3j.5 Delete an image
 
-**Status:** 📋 Planned (waits on 3j.1 and P19)
+**Status:** ✅ Done
 
 **Design:** RFC 0004, *The library*
 
 Delete from the library asks first and lists every post that refers to the image (P19's `image_refs` over the vault's posts); one commit; restorable from *What was deleted*.
 
 **Accepts when:** deleting an image used by two posts names both before it is done; an unused one asks once; a deleted image is restored from *What was deleted* to the same path.
+
+- **Done as:** deleting asks first (`useConfirm`) and names the posts that show the picture (`GET …/images?uses=<path>`, `postsShowing`: the vault's posts, at most 300, each read up to 512 KB, through `siteRefersTo`; it says when it could not check them all). A picture inside the vault is deleted as any file is (`files/server.ts` `remove`, held to the blob shown, so it is in *What was deleted*); one outside it (a Jekyll `_posts` site's `assets/images`) by a plain commit, which git has but *What was deleted* does not.
+- **Tested:** `images.test.ts` (held to the blob, only a library path, gone twice) and the browser spec (asked first, then gone from the repository).
+- **Left out:** `refers_to` reads Markdown images only, so a post that shows a picture with an `<img>` tag or a component is not named; restoring a picture from outside the vault.

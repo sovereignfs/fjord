@@ -11,6 +11,12 @@ section.
 
 ## [Unreleased]
 
+### Added
+
+- **A media library for sites** (RFC 0004). A site's page has a *Media library*: its pictures as tiles, found by name, added by a button or by dropping files (PNG, JPEG, WebP, GIF or AVIF, up to 10 MB each, up to 20 at a time, one commit), and deleted after being told which posts show them. Pictures go to an `images/` folder in the site's vault (an Astro site's `content/images`, a Jekyll site's `content/images`), and for a Jekyll site whose vault is `_posts`, which Jekyll cannot serve a folder from, to `assets/images`. A photo wider than 2560 px is scaled down in the browser first, which also drops where it was taken (*Keep the original* uploads it as it is); an animated picture is never re-encoded. The server tells a picture's type from its first bytes: SVG, and a document named `.png`, are refused.
+- **Pictures in a post.** The Markdown editor of a site's post has *Insert image*, and the visual editor's image button opens the library instead of asking for a URL. Choosing a picture asks for its alt text, and *Insert* stays off until there is some (or the picture is marked as only for looks). A picture pasted or dropped into either editor goes to the library the same way. The reference written is the engine's own form (`../images/x.png` for Astro, `/content/images/x.png` for Jekyll), made by `fjord-core`.
+- Routes `/api/connections/<id>/images`, `/images/file` and `/images/reference`, each checked for who may call it.
+
 ## [0.3.0] - 2026-11-07
 
 ### Added

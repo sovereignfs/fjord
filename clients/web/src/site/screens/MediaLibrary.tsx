@@ -3,6 +3,7 @@
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Button, FormField, Icon, Input } from "../../ui";
 import { useConfirm } from "../../ui/useConfirm";
+import { canInsert } from "../alt";
 import type { ImageEntry } from "../images";
 import { fetchImageUses, fetchImages, imageUrl, removeImage, sendImages } from "../images-client";
 import { MAX_SIDE, prepareImage } from "../prepare-image";
@@ -124,7 +125,7 @@ export function MediaLibrary({ connectionId, mode, onChoose, initialFiles }: { c
     await load();
   }
 
-  const canInsert = chosen !== undefined && (decorative || alt.trim() !== "");
+  const mayInsert = canInsert(chosen !== undefined, alt, decorative);
 
   return (
     <div className={styles.body}>
@@ -183,7 +184,11 @@ export function MediaLibrary({ connectionId, mode, onChoose, initialFiles }: { c
                   src={imageUrl(connectionId, image.path)}
                   alt=""
                   loading="lazy"
-                  onLoad={(event) => setPixels((current) => ({ ...current, [image.path]: `${event.currentTarget.naturalWidth}×${event.currentTarget.naturalHeight}` }))}
+                  onLoad={(event) => {
+                    // Read now: the event is not there when React runs the update.
+                    const dimensions = `${event.currentTarget.naturalWidth}×${event.currentTarget.naturalHeight}`;
+                    setPixels((current) => ({ ...current, [image.path]: dimensions }));
+                  }}
                 />
                 <span className={styles.caption}>
                   {image.name}
@@ -227,7 +232,7 @@ export function MediaLibrary({ connectionId, mode, onChoose, initialFiles }: { c
           aria-label={`Use ${chosen.name}`}
           onSubmit={(event) => {
             event.preventDefault();
-            if (canInsert) onChoose?.({ path: chosen.path, name: chosen.name, alt: decorative ? "" : alt.trim() });
+            if (mayInsert) onChoose?.({ path: chosen.path, name: chosen.name, alt: decorative ? "" : alt.trim() });
           }}
         >
           <div className={styles.alt}>
@@ -238,7 +243,7 @@ export function MediaLibrary({ connectionId, mode, onChoose, initialFiles }: { c
           <label>
             <input type="checkbox" checked={decorative} onChange={(event) => setDecorative(event.target.checked)} /> Only for looks, no description
           </label>
-          <Button type="submit" disabled={!canInsert}>
+          <Button type="submit" disabled={!mayInsert}>
             Insert
           </Button>
         </form>

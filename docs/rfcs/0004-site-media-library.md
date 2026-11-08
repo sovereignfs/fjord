@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **Status** | Accepted, 2026-11-08; P18 (the spike) found that one layout, a Jekyll site whose vault is `_posts`, has no images folder that works (below), and waits on the owner for that layout only |
+| **Status** | Implemented, 2026-11-08 ([tasks](../epics/web-3.md#3j--media-library)). P18 found that a Jekyll site whose vault is `_posts` cannot hold images in its vault (Jekyll skips directories that begin with an underscore); the owner chose `assets/images/` for that layout |
 | **Date** | November 2026 |
 | **Author** | Claude Code, for review |
 | **Scope** | [`docs/specs/Fjord.spec.md`](../specs/Fjord.spec.md) §1.1 (one clarifying sentence, no format change); `fjord-core` (`site`), `fjord-wasm`; `packages/fjord-editor`; Fjord Web ([`clients/web/DESIGN.md`](../../clients/web/DESIGN.md), a new section) |
