@@ -4,6 +4,7 @@
 
 import { EditorView } from "@codemirror/view";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { imageMarkdown } from "./image-markdown.js";
 import { External, createState, labelExtension, lineSeparatorOf, minimalChange, readOnlyExtension, settings } from "./note-state.js";
 import type { EditorHandle, NoteEditorProps } from "./types.js";
 
@@ -18,15 +19,44 @@ import type { EditorHandle, NoteEditorProps } from "./types.js";
  * The editor holds the text while the person types and tells the app after each edit; the app's `value` is what the
  * editor starts with and what it is set to when it changes from outside (a change the editor then does not report).
  */
-export const NoteEditor = forwardRef<EditorHandle, NoteEditorProps>(function NoteEditor({ value, onChange, readOnly = false, className, "aria-label": label }, ref) {
+export const NoteEditor = forwardRef<EditorHandle, NoteEditorProps>(function NoteEditor({ value, onChange, readOnly = false, images, className, "aria-label": label }, ref) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
 
   // What the editor needs to know at the moment something happens, without making a new editor for each render.
-  const latest = useRef({ value, onChange, readOnly, label });
-  latest.current = { value, onChange, readOnly, label };
+  const latest = useRef({ value, onChange, readOnly, label, images });
+  latest.current = { value, onChange, readOnly, label, images };
 
-  useImperativeHandle(ref, () => ({ focus: () => view.current?.focus() }), []);
+  /** Put a picture the app chose where the caret is, as Markdown. The text is the person's: it changes by an insertion at the selection and nothing else. */
+  const put = (choice: { reference: string; alt: string } | null) => {
+    const editor = view.current;
+    if (!editor || !choice || latest.current.readOnly) return;
+    const text = imageMarkdown(choice.reference, choice.alt);
+    editor.dispatch({ ...editor.state.replaceSelection(text), scrollIntoView: true });
+    editor.focus();
+  };
+  const putRef = useRef(put);
+  putRef.current = put;
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus: () => view.current?.focus(),
+      insertImage: async () => {
+        const source = latest.current.images;
+        if (!source || latest.current.readOnly) return;
+        putRef.current(await source.choose());
+      },
+    }),
+    [],
+  );
+
+  const onPictures = (files: File[]): boolean => {
+    const source = latest.current.images;
+    if (!source) return false;
+    void source.add(files).then((choice) => putRef.current(choice));
+    return true;
+  };
 
   useEffect(() => {
     const parent = host.current;
@@ -38,6 +68,7 @@ export const NoteEditor = forwardRef<EditorHandle, NoteEditorProps>(function Not
         label: latest.current.label,
         isReadOnly: () => latest.current.readOnly,
         onEdit: (text) => latest.current.onChange?.(text),
+        onPictures,
       }),
     });
     view.current = editor;
@@ -58,7 +89,7 @@ export const NoteEditor = forwardRef<EditorHandle, NoteEditorProps>(function Not
     if (current === value) return;
     if (lineSeparatorOf(value) !== lineSeparatorOf(current)) {
       // A different kind of line break is a different kind of document: start again rather than rewrite every line.
-      editor.setState(createState(value, { readOnly, label, isReadOnly: () => latest.current.readOnly, onEdit: (text) => latest.current.onChange?.(text) }));
+      editor.setState(createState(value, { readOnly, label, isReadOnly: () => latest.current.readOnly, onEdit: (text) => latest.current.onChange?.(text), onPictures }));
       return;
     }
     const change = minimalChange(current, value);

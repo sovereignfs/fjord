@@ -5,6 +5,7 @@
 import {
   BlockTypeSelect,
   BoldItalicUnderlineToggles,
+  ButtonWithTooltip,
   CodeToggle,
   CreateLink,
   InsertImage,
@@ -29,7 +30,8 @@ import {
   toolbarPlugin,
 } from "@mdxeditor/editor";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import type { EditorHandle } from "../types.js";
+import { imageMarkdown, pictureFiles } from "../image-markdown.js";
+import type { EditorHandle, ImageChoice, ImageSource } from "../types.js";
 import { type Unsafe, differences, keepsLineEndings, sameMeaning, unreadable, withEdgesLike } from "./meaning.js";
 import { type RestylePreview, describeRestyle } from "./restyle.js";
 import { HOUSE_STYLE, inHouseStyle } from "./style.js";
@@ -64,6 +66,8 @@ export interface RichDocumentProps {
   onUnsafe: (why: Unsafe) => void;
   /** What editing this text here would restyle, once the editor has read it; `null` when it would restyle nothing. */
   onRestyle?: ((preview: RestylePreview | null) => void) | undefined;
+  /** Where pictures come from (RFC 0004): the toolbar's image button asks it, a picture pasted or dropped is given to it. Without it the button is MDXEditor's URL dialog. */
+  images?: ImageSource | undefined;
 }
 
 /** The languages a code block can be given in the toolbar-less editor; a block in another language is kept as it is. */
@@ -71,7 +75,17 @@ const CODE_LANGUAGES = { "": "Plain text", txt: "Plain text", sh: "Shell", bash:
 
 const TO_MARKDOWN = HOUSE_STYLE.toMarkdown;
 
-const toolbar = () => (
+/** The icon of a picture (Lucide's `image`), drawn here so that the package depends on no icon set. */
+const PictureIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+    <circle cx="9" cy="9" r="2" />
+    <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" />
+  </svg>
+);
+
+/** The toolbar. `onLibrary` makes the image button ask the app for a picture; without it the button is MDXEditor's, which takes a URL. */
+const toolbar = (onLibrary: (() => void) | undefined) => () => (
   <>
     <UndoRedo />
     <Separator />
@@ -82,14 +96,26 @@ const toolbar = () => (
     <ListsToggle options={["bullet", "number"]} />
     <Separator />
     <CreateLink />
-    <InsertImage />
+    {onLibrary ? (
+      <ButtonWithTooltip title="Insert image from the library" onClick={onLibrary}>
+        <PictureIcon />
+      </ButtonWithTooltip>
+    ) : (
+      <InsertImage />
+    )}
     <InsertTable />
     <InsertThematicBreak />
   </>
 );
 
-export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function RichDocument({ value, editable, "aria-label": label, className, onEdit, onUnsafe, onRestyle }, ref) {
+export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function RichDocument({ value, editable, "aria-label": label, className, onEdit, onUnsafe, onRestyle, images }, ref) {
   const editor = useRef<MDXEditorMethods>(null);
+  /** The app's picture source as of now, for what happens later (a button, a paste) without making a new editor for each render. */
+  const source = useRef(images);
+  source.current = images;
+  const hasImages = images !== undefined;
+  const canEdit = useRef(editable);
+  canEdit.current = editable;
   /** The text the app holds, which is what the editor is to show. */
   const held = useRef(value);
   /** The text the app gave, as it gave it: what an edit and its undo come back to, byte for byte, not in the editor's style. */
@@ -110,9 +136,34 @@ export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function
         editor.current?.focus();
         container?.querySelector<HTMLElement>('[role="textbox"]')?.focus();
       },
+      async insertImage() {
+        await fromLibrary();
+      },
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `fromLibrary` reads refs only
     [container],
   );
+
+  /** Put a picture the app gave where the caret is. The person's edit: MDXEditor reports it as one, and it is held to the same checks. */
+  function put(choice: ImageChoice | null) {
+    if (!choice || !canEdit.current) return;
+    editor.current?.focus();
+    editor.current?.insertMarkdown(imageMarkdown(choice.reference, choice.alt));
+  }
+  async function fromLibrary() {
+    const from = source.current;
+    if (from && canEdit.current) put(await from.choose());
+  }
+  /** A picture pasted or dropped goes to the app, which adds it and asks for its words; the editor does not also take it in as MDXEditor would. */
+  function pictures(event: { clipboardData?: DataTransfer | null; dataTransfer?: DataTransfer | null; preventDefault(): void; stopPropagation(): void }) {
+    const from = source.current;
+    if (!from || !canEdit.current) return;
+    const files = pictureFiles((event.clipboardData ?? event.dataTransfer)?.files);
+    if (files.length === 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    void from.add(files).then(put);
+  }
 
 
   // Opening a document: one whose line breaks the editor would rewrite is not for it, whatever else it holds.
@@ -138,17 +189,18 @@ export const RichDocument = forwardRef<EditorHandle, RichDocumentProps>(function
       tablePlugin(HOUSE_STYLE.table),
       linkPlugin(),
       linkDialogPlugin(),
-      imagePlugin(),
+      imagePlugin(hasImages ? { imagePreviewHandler: (reference: string) => source.current?.resolve?.(reference) ?? Promise.resolve(reference) } : undefined),
       codeBlockPlugin({ defaultCodeBlockLanguage: "" }),
       codeMirrorPlugin({ codeBlockLanguages: CODE_LANGUAGES }),
       markdownShortcutPlugin(),
-      toolbarPlugin({ toolbarContents: toolbar }),
+      toolbarPlugin({ toolbarContents: toolbar(hasImages ? () => void fromLibrary() : undefined) }),
     ],
-    [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the handlers read refs, so only whether there is a source makes new plugins
+    [hasImages],
   );
 
   return (
-    <div className={["fe-rich", className].filter(Boolean).join(" ")} ref={setContainer}>
+    <div className={["fe-rich", className].filter(Boolean).join(" ")} ref={setContainer} onPasteCapture={pictures} onDropCapture={pictures}>
       <MDXEditor
         key={revision}
         ref={editor}

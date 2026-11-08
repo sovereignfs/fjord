@@ -3,6 +3,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import { pageNonce } from "./csp.js";
+import { pictureFiles } from "./image-markdown.js";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { markdown } from "@codemirror/lang-markdown";
 import { syntaxHighlighting } from "@codemirror/language";
@@ -74,7 +75,14 @@ function nonceExtension() {
   return nonce === undefined ? [] : [EditorView.cspNonce.of(nonce)];
 }
 
-export function createState(text: string, options: { readOnly: boolean; label: string | undefined; isReadOnly: () => boolean; onEdit: (text: string) => void }): EditorState {
+/** Whether pasted or dropped files were pictures the app took, which stops the browser from doing as it would (CodeMirror would insert nothing, or the file's name). */
+function taken(files: FileList | null | undefined, options: { isReadOnly: () => boolean; onPictures?: ((files: File[]) => boolean) | undefined }): boolean {
+  if (!options.onPictures || options.isReadOnly()) return false;
+  const pictures = pictureFiles(files);
+  return pictures.length > 0 && options.onPictures(pictures);
+}
+
+export function createState(text: string, options: { readOnly: boolean; label: string | undefined; isReadOnly: () => boolean; onEdit: (text: string) => void; /** Pictures pasted or dropped: true if they were taken, and the browser is not to put them in as it would. */ onPictures?: ((files: File[]) => boolean) | undefined }): EditorState {
   return EditorState.create({
     doc: text,
     extensions: [
@@ -92,6 +100,10 @@ export function createState(text: string, options: { readOnly: boolean; label: s
       ...nonceExtension(),
       // A text that may only be read does not change, whoever asks: a command, a paste, a script.
       EditorState.changeFilter.of((transaction) => !options.isReadOnly() || !transaction.docChanged || transaction.annotation(External) === true),
+      EditorView.domEventHandlers({
+        paste: (event) => taken(event.clipboardData?.files, options),
+        drop: (event) => taken(event.dataTransfer?.files, options),
+      }),
       settings.readOnly.of(readOnlyExtension(options.readOnly)),
       settings.label.of(labelExtension(options.label)),
       EditorView.updateListener.of((update) => {
