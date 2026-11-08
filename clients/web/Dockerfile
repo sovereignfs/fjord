@@ -1,9 +1,9 @@
 # The Fjord Web image (clients/web/DESIGN.md §17). Build it from the root of the repository, because the
 # format module is built from `crates/`, with the arguments that clients/web/sovereign.manifest.json gives it: its port,
 # which is written there and nowhere else, and its label, which is how a Sovereign instance reads the manifest
-# without pulling the image (`scripts/manifest.mjs`):
+# without pulling the image (`sovereign-manifest`, from `@sovereignfs/manifest`):
 #
-#   eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest.mjs docker-args) -t fjord-web ."
+#   eval "docker build -f clients/web/Dockerfile $(pnpm --dir clients/web exec sovereign-manifest docker-args) -t fjord-web ."
 #
 # Four stages: the format module (Rust, to WebAssembly), the editors' package (TypeScript, built), the app (Node, a
 # self-contained Next.js server) and a small runtime with none of the toolchains in it.
@@ -66,7 +66,7 @@ FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 
 # The port the manifest names. A build without it would listen where nothing looks for it, so it stops here and says how to build.
 ARG PORT
-RUN test -n "${PORT}" || { echo 'Build with: eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest.mjs docker-args) ."' >&2; exit 1; }
+RUN test -n "${PORT}" || { echo 'Build with: eval "docker build -f clients/web/Dockerfile $(pnpm --dir clients/web exec sovereign-manifest docker-args) ."' >&2; exit 1; }
 
 LABEL org.opencontainers.image.title="Fjord Web" \
       org.opencontainers.image.description="The hosted web client for Fjord" \

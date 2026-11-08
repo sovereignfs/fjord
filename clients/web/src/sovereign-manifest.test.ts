@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import Ajv2020 from "ajv/dist/2020";
+import { validate } from "@sovereignfs/manifest";
 import { describe, expect, it } from "vitest";
 import { SOVEREIGN_PROVIDER_ID, SOVEREIGN_SCOPES } from "./auth/auth";
 
@@ -11,9 +11,8 @@ import { SOVEREIGN_PROVIDER_ID, SOVEREIGN_SCOPES } from "./auth/auth";
  * makes promises about, so that a change to a route, a scope or a port that the manifest has not followed fails here and not on an
  * operator's server.
  *
- * `src/auth/fixtures/app-manifest-v2.schema.json` is a copy of that repository's `contracts/schemas/app-manifest-v2.schema.json`,
- * taken when the manifest was first written (as the discovery document beside it is a recording). When `@sovereignfs/manifest` is
- * published it replaces both this copy and `scripts/manifest.mjs`: `sovereign-manifest check` is the same test.
+ * The schema and the rules a schema cannot say are `@sovereignfs/manifest`'s, the package the instance's own toolkit validates with, and
+ * its `sovereign-manifest` command makes the image's label and port (`pnpm manifest:check` runs the same check).
  */
 const root = join(import.meta.dirname, "..");
 const read = (path: string) => readFileSync(join(root, path), "utf8");
@@ -31,19 +30,15 @@ const manifest = JSON.parse(read("sovereign.manifest.json")) as {
 };
 
 describe("sovereign.manifest.json", () => {
-  it("meets the manifest's JSON Schema", () => {
-    const ajv = new Ajv2020({ allErrors: true, strict: false });
-    const validate = ajv.compile(JSON.parse(read("src/auth/fixtures/app-manifest-v2.schema.json")));
-    expect(validate(manifest), JSON.stringify(validate.errors)).toBe(true);
+  it("is a manifest the instance's toolkit accepts", () => {
+    expect(validate(manifest)).toMatchObject({ ok: true });
   });
 
-  it("is refused by that schema when it is wrong, so the check above is a check", () => {
-    const ajv = new Ajv2020({ allErrors: true, strict: false });
-    const validate = ajv.compile(JSON.parse(read("src/auth/fixtures/app-manifest-v2.schema.json")));
-    expect(validate({ ...manifest, prefix: "Fjord" })).toBe(false);
-    expect(validate({ ...manifest, port: 0 })).toBe(false);
-    expect(validate({ ...manifest, extra: true })).toBe(false);
-    expect(validate({ ...manifest, core: undefined })).toBe(false);
+  it("is refused when it is wrong, so the check above is a check", () => {
+    expect(validate({ ...manifest, prefix: "Fjord" }).ok).toBe(false);
+    expect(validate({ ...manifest, port: 0 }).ok).toBe(false);
+    expect(validate({ ...manifest, extra: true }).ok).toBe(false);
+    expect(validate({ ...manifest, core: undefined }).ok).toBe(false);
   });
 
   it("names the app Fjord, and its variables FJORD_", () => {
@@ -101,7 +96,7 @@ describe("the port", () => {
     expect(dockerfile).toContain("EXPOSE ${PORT}");
     // No other number: the health check reads PORT from the environment the image sets.
     expect(dockerfile.replace(/#[^\n]*/g, "")).not.toMatch(new RegExp(`\\b${manifest.port}\\b`));
-    expect(dockerfile).toContain("manifest.mjs docker-args");
+    expect(dockerfile).toContain("sovereign-manifest docker-args");
   });
 
   it("is the one the compose files build with and publish, which cannot read the manifest", () => {
@@ -122,8 +117,18 @@ describe("the port on a developer's machine", () => {
   });
 });
 
-describe("scripts/manifest.mjs", () => {
-  const run = (...args: string[]) => execFileSync("node", ["scripts/manifest.mjs", ...args], { cwd: root, encoding: "utf8", stdio: "pipe" });
+describe("sovereign-manifest, which builds the image from the file", () => {
+  const run = (...args: string[]) =>
+    execFileSync(join(root, "node_modules/.bin/sovereign-manifest"), args, { cwd: root, encoding: "utf8", stdio: "pipe" });
+
+  it("is the version CI and the release run, which install it on their own", () => {
+    const { devDependencies } = JSON.parse(read("package.json")) as { devDependencies: Record<string, string> };
+    const version = devDependencies["@sovereignfs/manifest"];
+    expect(version).toMatch(/^\d+\.\d+\.\d+$/);
+    for (const workflow of ["web-ci.yml", "web-release.yml"]) {
+      expect(read(join("..", "..", ".github", "workflows", workflow)), workflow).toContain(`@sovereignfs/manifest@${version} sovereign-manifest docker-args`);
+    }
+  });
 
   it("makes the label from the file, equal to the file, and the build argument from its port", () => {
     expect(JSON.parse(run("label"))).toEqual(manifest);
@@ -143,8 +148,7 @@ describe("scripts/manifest.mjs", () => {
   });
 
   it("checks the file, and is a usage error for what it does not know", () => {
-    expect(run("check")).toContain("is a manifest 2");
+    expect(run("check")).toContain("is a valid manifest 2");
     expect(() => run("build")).toThrow();
-    expect(() => run("docker-args", "--format", "yaml")).toThrow();
   });
 });

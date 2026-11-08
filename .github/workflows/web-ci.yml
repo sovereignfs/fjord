@@ -375,10 +375,12 @@ jobs:
       - uses: docker/setup-buildx-action@v4
 
       # The image's label and its port are made from clients/web/sovereign.manifest.json, which is where the port is written
-      # (scripts/manifest.mjs); deploy-check.sh then checks that the label is the file.
+      # (`sovereign-manifest`, from @sovereignfs/manifest); deploy-check.sh then checks that the label is the file.
       - name: The manifest, as the image's label and port
         id: manifest
-        run: node clients/web/scripts/manifest.mjs docker-args --format github >> "$GITHUB_OUTPUT"
+        working-directory: clients/web
+        # The version is package.json's (a test holds the two together); npx fetches the one package, not the app's dependencies.
+        run: npx --yes -p @sovereignfs/manifest@0.1.1 sovereign-manifest docker-args --format github >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v7
         with:

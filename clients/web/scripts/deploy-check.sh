@@ -2,7 +2,7 @@
 # Bring the image up in each of the three documented setups (deploy/) from nothing, as an operator would, and check
 # that each one is up and keeps what it is given (ROADMAP 1a.12), and that a Sovereign instance can host it (ROADMAP H2):
 #
-#   eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest.mjs docker-args) -t fjord-web:ci ."   # from the root
+#   eval "docker build -f clients/web/Dockerfile $(pnpm --dir clients/web exec sovereign-manifest docker-args) -t fjord-web:ci ."   # from the root
 #   FJORD_IMAGE=fjord-web:ci clients/web/scripts/deploy-check.sh   # all four, or name some: sqld file postgres sovereign
 #
 # For each setup it starts the compose files, waits for them to report healthy, asks /api/health which database it is
@@ -78,7 +78,7 @@ check_sovereign() {
 
   # The label is how the instance reads the manifest without pulling the image, and the port is written once.
   label="$(docker image inspect -f '{{ index .Config.Labels "io.github.sovereignfs.app-manifest" }}' "$image")"
-  [ -n "$label" ] || sv_fail "the image has no io.github.sovereignfs.app-manifest label (build it with scripts/manifest.mjs docker-args)"
+  [ -n "$label" ] || sv_fail "the image has no io.github.sovereignfs.app-manifest label (build it with sovereign-manifest docker-args)"
   node -e 'const { isDeepStrictEqual } = require("node:util"); const a = JSON.parse(process.argv[1]); const b = JSON.parse(require("node:fs").readFileSync(process.argv[2], "utf8")); process.exit(isDeepStrictEqual(a, b) ? 0 : 1)' "$label" "$manifest" \
     || sv_fail "the image's label is not sovereign.manifest.json"
   manifest_port="$(node -p 'require(process.argv[1]).port' "$manifest")"

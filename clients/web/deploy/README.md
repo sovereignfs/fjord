@@ -6,7 +6,7 @@ from the root of the repository (the Compose files do it for you), with the argu
 which is written there and nowhere else, and its label (below). A build without them stops and says so.
 
 ```bash
-eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest.mjs docker-args) -t fjord-web ."
+eval "docker build -f clients/web/Dockerfile $(pnpm --dir clients/web exec sovereign-manifest docker-args) -t fjord-web ."
 ```
 
 It builds the format module from `crates/` (Rust and WebAssembly), then the app (Node 24), and keeps neither toolchain:
@@ -303,11 +303,11 @@ that is not the default, core's address and client) it comes up on that `PORT`, 
 signal's own code). CI runs it on every change to Fjord Web
 (`web-ci.yml`, job `image`).
 
-The image is built with its label and its port, which the manifest is the one place to write (`scripts/manifest.mjs`, the same commands as
-`sovereign-manifest` of `@sovereignfs/manifest`, which replaces it once published):
+The image is built with its label and its port, which the manifest is the one place to write (`sovereign-manifest`, from `@sovereignfs/manifest`, a
+development dependency):
 
 ```bash
-eval "docker build -f clients/web/Dockerfile $(node clients/web/scripts/manifest.mjs docker-args) -t fjord-web:ci ."
+eval "docker build -f clients/web/Dockerfile $(pnpm --dir clients/web exec sovereign-manifest docker-args) -t fjord-web:ci ."
 FJORD_IMAGE=fjord-web:ci clients/web/scripts/deploy-check.sh          # all four, or name some: sqld file postgres sovereign
 ```
 

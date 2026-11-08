@@ -124,10 +124,12 @@ jobs:
             org.opencontainers.image.version=${{ needs.check.outputs.version }}
 
       # What a Sovereign instance reads to host the image without pulling it, and the port the image listens on: both from
-      # clients/web/sovereign.manifest.json, the one place either is written (scripts/manifest.mjs).
+      # clients/web/sovereign.manifest.json, the one place either is written (`sovereign-manifest`, from @sovereignfs/manifest).
       - name: The manifest, as the image's label and port
         id: manifest
-        run: node clients/web/scripts/manifest.mjs docker-args --format github >> "$GITHUB_OUTPUT"
+        working-directory: clients/web
+        # The version is package.json's (a test holds the two together); npx fetches the one package, not the app's dependencies.
+        run: npx --yes -p @sovereignfs/manifest@0.1.1 sovereign-manifest docker-args --format github >> "$GITHUB_OUTPUT"
 
       - name: Build
         id: build
