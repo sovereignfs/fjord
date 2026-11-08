@@ -123,9 +123,11 @@ export default defineConfig({
     }),
     instance('closed', 3202, on(3202)),
     instance('off', 3203, {}),
+    // Closed on purpose: with Sovereign the only way in, sign-up defaults to open, and these tests are of the closed rule.
     instance('sovereign', 3204, {
       FJORD_URL: 'http://localhost:3204',
       FJORD_AUTH_SECRET: SECRET,
+      FJORD_AUTH_SIGNUP: 'closed',
       ...sovereign,
     }),
     instance('both', 3205, { ...on(3205), FJORD_AUTH_SIGNUP: 'open', ...sovereign }),
