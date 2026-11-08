@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { databaseEnv } from '../env-renames';
-import { type ReadFile, resolveSecret } from '../secret-env';
+import { type ReadFile, readSettings } from '../secret-env';
 
 /**
  * Which database Fjord Web runs on, read from the environment in one place
@@ -69,15 +69,27 @@ export class ConfigError extends Error {
 /** What `process.env` is, and what a test can pass instead. */
 export type Env = Record<string, string | undefined>;
 
+/** The variables this file reads, through `@sovereignfs/config` (`src/secret-env.ts`). */
+const DATABASE_SETTINGS = {
+  text: [
+    'FJORD_DB_DIALECT',
+    'FJORD_SQLD_URL',
+    'FJORD_SQLD_ADMIN_URL',
+    'FJORD_SQLITE_URL',
+    'FJORD_POSTGRES_POOL_MAX',
+  ],
+  secrets: ['FJORD_POSTGRES_URL'],
+} as const;
+
 export function resolveDatabaseConfig(
   env: Env = process.env,
   readSecretFile: ReadFile = (path) => readFileSync(path, 'utf8'),
 ): DatabaseConfig {
-  const named = databaseEnv(env);
+  const named = readSettings(databaseEnv(env), DATABASE_SETTINGS, readSecretFile);
   const raw = named.FJORD_DB_DIALECT?.trim().toLowerCase();
   const dialect = raw === undefined || raw === '' ? 'sqld' : raw;
 
-  if (dialect === 'postgres') return resolvePostgres(named, readSecretFile);
+  if (dialect === 'postgres') return resolvePostgres(named, env);
   if (dialect === 'sqld') return resolveSqld(named);
   if (dialect === 'sqlite') return resolveFile(named);
   throw new ConfigError(`FJORD_DB_DIALECT must be "sqld", "sqlite" or "postgres" (got "${raw}").`);
@@ -139,8 +151,8 @@ function resolveFile(env: Env): FileConfig {
   return { dialect: 'sqlite', form: 'file', path, authPath: `${directory}${AUTH_STORE}.db` };
 }
 
-function resolvePostgres(env: Env, readSecretFile: ReadFile): PostgresConfig {
-  const url = (resolveSecret('FJORD_POSTGRES_URL', env, readSecretFile) ?? '').trim();
+function resolvePostgres(env: Env, given: Env): PostgresConfig {
+  const url = env.FJORD_POSTGRES_URL ?? '';
   if (url === '')
     throw new ConfigError(
       'FJORD_DB_DIALECT=postgres requires FJORD_POSTGRES_URL (or FJORD_POSTGRES_URL_FILE).',
@@ -157,7 +169,8 @@ function resolvePostgres(env: Env, readSecretFile: ReadFile): PostgresConfig {
       `FJORD_POSTGRES_URL must be a postgres:// URL (got "${parsed.protocol}//…").`,
     );
   }
-  const rootCert = (env.PGSSLROOTCERT ?? '').trim();
+  // Not Fjord's: the PostgreSQL client's own variable, read as it is (contracts/env.md §1).
+  const rootCert = (given.PGSSLROOTCERT ?? '').trim();
   return {
     dialect: 'postgres',
     url,

@@ -80,7 +80,9 @@ describe('resolveAuthConfig', () => {
     });
 
     it('is not given twice, and a file that cannot be read is named', () => {
-      expect(() => flat({ ...on, FJORD_AUTH_SECRET_FILE: '/x' }, () => SECRET)).toThrow(/not both/);
+      expect(() => flat({ ...on, FJORD_AUTH_SECRET_FILE: '/x' }, () => SECRET)).toThrow(
+        /FJORD_AUTH_SECRET is set together with FJORD_AUTH_SECRET_FILE/,
+      );
       expect(() =>
         flat({ ...on, FJORD_AUTH_SECRET: undefined, FJORD_AUTH_SECRET_FILE: '/missing' }, () => {
           throw new Error('ENOENT');

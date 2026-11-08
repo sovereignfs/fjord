@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { createPrivateKey } from 'node:crypto';
 import { ConfigError, type Env } from '../db/config';
-import { type ReadFile, resolveSecret } from '../secret-env';
+import { type ReadFile, readSettings } from '../secret-env';
 import { GITHUB_API_URL } from '../connections/config';
 
 /**
@@ -41,9 +41,22 @@ export function githubAppConfig(
   env: Env = process.env,
   readFile: ReadFile = (path) => readFileSync(path, 'utf8'),
 ): GitHubAppConfig | undefined {
-  const values = Object.fromEntries(
-    NAMES.map((name) => [name, resolveSecret(name, env, readFile)?.trim()]),
-  ) as Record<(typeof NAMES)[number], string | undefined>;
+  const read = readSettings(
+    env,
+    {
+      text: ['FJORD_GITHUB_APP_ID', 'FJORD_GITHUB_APP_SLUG', 'FJORD_GITHUB_APP_CLIENT_ID'],
+      secrets: [
+        'FJORD_GITHUB_APP_PRIVATE_KEY',
+        'FJORD_GITHUB_APP_CLIENT_SECRET',
+        'FJORD_GITHUB_APP_WEBHOOK_SECRET',
+      ],
+    },
+    readFile,
+  );
+  const values = Object.fromEntries(NAMES.map((name) => [name, read[name]?.trim()])) as Record<
+    (typeof NAMES)[number],
+    string | undefined
+  >;
   const missing = NAMES.filter((name) => !values[name]);
   if (missing.length === NAMES.length) return undefined;
   if (missing.length > 0)

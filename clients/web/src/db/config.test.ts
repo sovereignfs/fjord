@@ -125,7 +125,7 @@ describe('resolveDatabaseConfig', () => {
         },
         noFile,
       ),
-    ).toThrow(/not both/);
+    ).toThrow(/FJORD_POSTGRES_URL is set together with FJORD_POSTGRES_URL_FILE; set only one/);
   });
 
   it('requires FJORD_POSTGRES_URL for PostgreSQL, and it must be a postgres URL, without repeating it', () => {

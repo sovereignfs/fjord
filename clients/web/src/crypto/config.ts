@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { ConfigError, type Env } from '../db/config';
-import { type ReadFile, resolveSecret } from '../secret-env';
+import { type ReadFile, readSettings } from '../secret-env';
 import { Keyring, parseKey } from './keyring';
 
 /**
@@ -21,8 +21,13 @@ export function resolveEncryptionConfig(
   env: Env = process.env,
   readFile: ReadFile = (path) => readFileSync(path, 'utf8'),
 ): Keyring | undefined {
-  const current = resolveSecret('FJORD_ENCRYPTION_KEY', env, readFile);
-  const previous = resolveSecret('FJORD_ENCRYPTION_KEY_PREVIOUS', env, readFile);
+  const keys = readSettings(
+    env,
+    { text: [], secrets: ['FJORD_ENCRYPTION_KEY', 'FJORD_ENCRYPTION_KEY_PREVIOUS'] },
+    readFile,
+  );
+  const current = keys.FJORD_ENCRYPTION_KEY;
+  const previous = keys.FJORD_ENCRYPTION_KEY_PREVIOUS;
   if (current === undefined) {
     if (previous !== undefined)
       throw new ConfigError(

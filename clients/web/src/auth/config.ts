@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { ConfigError, type Env } from '../db/config';
 import { smtpEnv, sovereignEnv } from '../env-renames';
-import { type ReadFile, resolveSecret } from '../secret-env';
+import { type ReadFile, readSettings } from '../secret-env';
 
 /**
  * How people sign in, read from the environment in one place (DESIGN.md §6). Nothing else
@@ -109,17 +109,39 @@ export const SOVEREIGN_SCOPES = ['openid', 'profile', 'email'];
 const MIN_SECRET_LENGTH = 32;
 const DEFAULT_PASSWORD_MIN_LENGTH = 10;
 
+/** The variables this file reads, through `@sovereignfs/config` (`src/secret-env.ts`), once the old names are mapped. */
+const AUTH_SETTINGS = {
+  text: [
+    'FJORD_AUTH_LOCAL',
+    'FJORD_URL',
+    'FJORD_AUTH_SIGNUP',
+    'FJORD_NAME',
+    'FJORD_AUTH_PASSWORD_MIN_LENGTH',
+    'FJORD_PASSKEY_RP_ID',
+    'FJORD_AUTH_REQUIRE_EMAIL_VERIFICATION',
+    'FJORD_CORE_URL',
+    'FJORD_CORE_CLIENT_ID',
+    'FJORD_SMTP_HOST',
+    'FJORD_SMTP_PORT',
+    'FJORD_SMTP_SECURE',
+    'FJORD_SMTP_USER',
+    'FJORD_SMTP_FROM',
+  ],
+  secrets: ['FJORD_AUTH_SECRET', 'FJORD_CORE_CLIENT_SECRET', 'FJORD_SMTP_PASSWORD'],
+} as const;
+
 export function resolveAuthConfig(
-  env: Env = process.env,
+  given: Env = process.env,
   readSecretFile: ReadFile = (path) => readFileSync(path, 'utf8'),
 ): AuthConfig {
+  const env: Env = readSettings(smtpEnv(sovereignEnv(given)), AUTH_SETTINGS, readSecretFile);
   const local = isOn(env.FJORD_AUTH_LOCAL);
-  const sovereign = resolveSovereign(env, readSecretFile);
+  const sovereign = resolveSovereign(env);
   if (!local && !sovereign) return { enabled: false };
 
   const why = local ? 'FJORD_AUTH_LOCAL is on' : 'Sovereign sign-in is set';
   const url = resolveUrl(env.FJORD_URL, why);
-  const secret = resolveSecret('FJORD_AUTH_SECRET', env, readSecretFile);
+  const secret = env.FJORD_AUTH_SECRET;
   if (secret === undefined)
     throw new ConfigError(`${why}, so FJORD_AUTH_SECRET (or FJORD_AUTH_SECRET_FILE) is required.`);
   if (secret.length < MIN_SECRET_LENGTH) {
@@ -140,13 +162,13 @@ export function resolveAuthConfig(
     secret,
     signUp,
     name: (env.FJORD_NAME ?? '').trim() || 'Fjord',
-    ...(local ? { local: resolveLocal(env, url, readSecretFile) } : {}),
+    ...(local ? { local: resolveLocal(env, url) } : {}),
     ...(sovereign ? { sovereign } : {}),
   };
 }
 
-function resolveLocal(env: Env, url: string, readSecretFile: ReadFile): LocalSettings {
-  const smtp = resolveSmtp(env, readSecretFile);
+function resolveLocal(env: Env, url: string): LocalSettings {
+  const smtp = resolveSmtp(env);
   return {
     passwordMinLength:
       positiveInt(env.FJORD_AUTH_PASSWORD_MIN_LENGTH) ?? DEFAULT_PASSWORD_MIN_LENGTH,
@@ -160,11 +182,10 @@ function resolveLocal(env: Env, url: string, readSecretFile: ReadFile): LocalSet
 }
 
 /** Off when none of the three is set; an error when only some are, which is never what was meant. */
-function resolveSovereign(given: Env, readFile: ReadFile): SovereignSettings | undefined {
-  const env = sovereignEnv(given);
+function resolveSovereign(env: Env): SovereignSettings | undefined {
   const issuer = (env.FJORD_CORE_URL ?? '').trim();
   const clientId = (env.FJORD_CORE_CLIENT_ID ?? '').trim();
-  const clientSecret = resolveSecret('FJORD_CORE_CLIENT_SECRET', env, readFile);
+  const clientSecret = env.FJORD_CORE_CLIENT_SECRET;
   if (issuer === '' && clientId === '' && clientSecret === undefined) return undefined;
 
   const missing = [
@@ -230,8 +251,7 @@ function isLocalHost(hostname: string): boolean {
   );
 }
 
-function resolveSmtp(given: Env, readFile: ReadFile): SmtpConfig | undefined {
-  const env = smtpEnv(given);
+function resolveSmtp(env: Env): SmtpConfig | undefined {
   const host = (env.FJORD_SMTP_HOST ?? '').trim();
   if (host === '') return undefined;
   const from = (env.FJORD_SMTP_FROM ?? '').trim();
@@ -245,7 +265,7 @@ function resolveSmtp(given: Env, readFile: ReadFile): SmtpConfig | undefined {
       ? port === 465
       : isOn(env.FJORD_SMTP_SECURE);
   const user = (env.FJORD_SMTP_USER ?? '').trim();
-  const password = resolveSecret('FJORD_SMTP_PASSWORD', env, readFile);
+  const password = env.FJORD_SMTP_PASSWORD;
   return {
     host,
     port,

@@ -33,7 +33,7 @@ describe('resolveEncryptionConfig', () => {
         { FJORD_ENCRYPTION_KEY: k, FJORD_ENCRYPTION_KEY_FILE: '/x' },
         () => k,
       ),
-    ).toThrow(/not both/);
+    ).toThrow(/set together with FJORD_ENCRYPTION_KEY_FILE/);
   });
 
   it('refuses a key that is too short, too long or not a key, without printing it', () => {
