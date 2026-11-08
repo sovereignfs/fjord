@@ -9,7 +9,7 @@ import { ConnectionList } from '../../src/connections/screens/ConnectionList';
 import { GitHubAppPanel } from '../../src/connections/screens/GitHubAppPanel';
 import { encryptionKeyring } from '../../src/crypto/server';
 import { gitHubApp } from '../../src/github-app/server';
-import { Alert, Card } from '../../src/ui';
+import { Alert, Card } from '@sovereignfs/ui';
 import styles from '../../src/auth/screens/screens.module.css';
 
 export const dynamic = 'force-dynamic';

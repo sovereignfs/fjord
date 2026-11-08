@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
-import { Alert, Button, FormField, Input, SegmentedControl } from '../../ui';
+import { Alert, Button, FormField, Input, SegmentedControl } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import own from '../../connections/screens/ConnectForm.module.css';
 

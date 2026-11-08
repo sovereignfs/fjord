@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Button } from '../ui';
+import { Alert, Button } from '@sovereignfs/ui';
 import { sendIdentify } from '../files/client';
 import styles from './Sharing.module.css';
 

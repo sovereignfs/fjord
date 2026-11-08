@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Alert, Badge, Button, FormField, Input, Select } from '../ui';
+import { Alert, Badge, Button, FormField, Input, Select } from '@sovereignfs/ui';
 import styles from '../sharing/Sharing.module.css';
 import { type CommentSetting, getStatus, publish, unpublish, updatePublication } from './client';
 import { PageAddress } from './PageAddress';

@@ -4,7 +4,7 @@ import { MediaLibraryButton } from '../site/screens/MediaLibraryButton';
 import { NewPost } from '../site/screens/NewPost';
 import { PreviewPanel } from '../site/screens/PreviewPanel';
 import { Timeline } from '../journal/screens/Timeline';
-import { Alert } from '../ui';
+import { Alert } from '@sovereignfs/ui';
 import styles from '../auth/screens/screens.module.css';
 import type { EntryViewProps, KindModule } from './types';
 

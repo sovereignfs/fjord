@@ -1,14 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Button } from '../../ui';
+import { Alert, Button } from '@sovereignfs/ui';
 import { localMomentText } from '../../ui/dates';
 import { useConfirm } from '../../ui/useConfirm';
 import type { FileVersion } from '../../providers/types';
 import styles from '../../auth/screens/screens.module.css';
 import { ActionDialog } from './ActionDialog';
 import { IconButton } from './IconButton';
-import { NodeIcon } from '../../ui/icons';
+import { SetIcon } from '../../ui/icons';
 
 /**
  * A file's versions, from its page (research 0002, G7): who changed it and when, what any version said, and a way to put one back. Putting back makes the text a draft: nothing is committed until it is
@@ -130,7 +130,7 @@ export function History({
   return (
     <>
       <IconButton label="History" onClick={() => void load()}>
-        <NodeIcon name="history" aria-hidden />
+        <SetIcon name="history" />
       </IconButton>
       <ActionDialog
         open={shown}

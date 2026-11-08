@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Alert, Button } from '../../ui';
+import { Alert, Button } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { sendRestore } from '../../files/client';
 import { deletedAddress } from '../links';

@@ -3,7 +3,7 @@
 import { localMomentText } from '../ui/dates';
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
 import { ROLES, type Role } from '../access/policy';
-import { Alert, Avatar, Badge, Button, FormField, Input, Select, Tabs } from '../ui';
+import { Alert, Avatar, Badge, Button, FormField, Input, Select, Tabs } from '@sovereignfs/ui';
 import styles from './Sharing.module.css';
 import {
   type LinkEntry,

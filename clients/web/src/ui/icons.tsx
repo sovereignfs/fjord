@@ -1,10 +1,38 @@
-import type { SVGProps } from 'react';
-import { LUCIDE } from './lucide-nodes';
+import { Icon, type IconName } from '@sovereignfs/ui';
+import type { CSSProperties, SVGProps } from 'react';
+import styles from './icons.module.css';
 
 /**
- * Icons from Lucide (https://lucide.dev, ISC licence) that `@sovereignfs/ui`'s curated set does not have yet, drawn as it draws its own: 24px
- * grid, `currentColor` strokes. Paths are Lucide's, from `lucide@1.67.0`. Worth offering to the package (`packages/ui/src/components/Icon/icons`,
- * made by its `scripts/generate-icons.ts`) once a second app wants them; they are kept here until then.
+ * The design system's icons (`IconName` in `@sovereignfs/ui`), at the sizes the app draws them, and the one icon the set does not have.
+ *
+ * `Icon` comes in four sizes (12, 16, 20 and 24px) and the app draws icons at others too (14, 18, 28), so `SetIcon` boxes it at a size in
+ * pixels and the icon fills the box. Every icon here is decorative: what it means is said by the text or the label beside it.
+ */
+export function SetIcon({
+  name,
+  size = 20,
+  className,
+  style,
+}: {
+  name: IconName;
+  size?: number;
+  className?: string;
+  style?: CSSProperties;
+}) {
+  return (
+    <span
+      className={[styles.box, className].filter(Boolean).join(' ')}
+      style={{ width: size, height: size, ...style }}
+      aria-hidden="true"
+    >
+      <Icon name={name} aria-hidden />
+    </span>
+  );
+}
+
+/**
+ * Lucide's `globe-code` (https://lucide.dev, ISC licence), which `@sovereignfs/ui`'s set does not have (it is newer than the Lucide the set is
+ * made from), drawn as the set draws its own: a 24px grid, `currentColor` strokes. Worth offering to the package once it takes a newer Lucide.
  */
 function Svg({ size = 20, children, ...props }: SVGProps<SVGSVGElement> & { size?: number }) {
   return (
@@ -27,32 +55,6 @@ function Svg({ size = 20, children, ...props }: SVGProps<SVGSVGElement> & { size
 
 type IconProps = Omit<SVGProps<SVGSVGElement>, 'children'> & { size?: number };
 
-/** A drive: files and folders in vaults. */
-export function HardDriveIcon(props: IconProps) {
-  return (
-    <Svg {...props}>
-      <path d="M10 16h.01" />
-      <path d="M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527a2 2 0 0 0-.212-.896L18.55 5.11A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
-      <path d="M21.946 12.013H2.054" />
-      <path d="M6 16h.01" />
-    </Svg>
-  );
-}
-
-/** A journal: dated entries. */
-export function NotebookPenIcon(props: IconProps) {
-  return (
-    <Svg {...props}>
-      <path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4" />
-      <path d="M2 6h4" />
-      <path d="M2 10h4" />
-      <path d="M2 14h4" />
-      <path d="M2 18h4" />
-      <path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z" />
-    </Svg>
-  );
-}
-
 /** A site built by a static site generator. */
 export function GlobeCodeIcon(props: IconProps) {
   return (
@@ -65,33 +67,19 @@ export function GlobeCodeIcon(props: IconProps) {
   );
 }
 
-/** Who you are to this instance: your account, its security and the key kept in this browser. */
-export function FingerprintPatternIcon(props: IconProps) {
-  return (
-    <Svg {...props}>
-      <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" />
-      <path d="M14 13.12c0 2.38 0 6.38-1 8.88" />
-      <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02" />
-      <path d="M2 12a10 10 0 0 1 18-6" />
-      <path d="M2 16h.01" />
-      <path d="M21.8 16c.2-2 .131-5.354 0-6" />
-      <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2" />
-      <path d="M8.65 22c.21-.66.45-1.32.57-2" />
-      <path d="M9 6.8a6 6 0 0 1 9 5.2v2" />
-    </Svg>
-  );
-}
-
 /** What a repository is, as a picture: a drive's, a journal's or a site's. A repository whose kind is not known yet is a drive. */
 export type RepositoryKindId = 'drive' | 'journal' | 'ssg';
 
 export function RepositoryKindIcon({
   kind,
-  ...props
-}: IconProps & { kind: RepositoryKindId | null }) {
-  if (kind === 'journal') return <NotebookPenIcon aria-hidden="true" {...props} />;
-  if (kind === 'ssg') return <GlobeCodeIcon aria-hidden="true" {...props} />;
-  return <HardDriveIcon aria-hidden="true" {...props} />;
+  size = 20,
+}: {
+  kind: RepositoryKindId | null;
+  size?: number;
+}) {
+  if (kind === 'journal') return <SetIcon name="notebook-pen" size={size} />;
+  if (kind === 'ssg') return <GlobeCodeIcon aria-hidden="true" size={size} />;
+  return <SetIcon name="hard-drive" size={size} />;
 }
 
 export const KIND_LABEL: Record<RepositoryKindId, string> = {
@@ -99,32 +87,3 @@ export const KIND_LABEL: Record<RepositoryKindId, string> = {
   journal: 'Journal',
   ssg: 'Site',
 };
-
-/** Two sliders: the settings of a list, here the repositories that are connected. Lucide's `settings-2`. */
-export function Settings2Icon(props: IconProps) {
-  return (
-    <Svg {...props}>
-      <path d="M14 17H5" />
-      <path d="M19 7h-9" />
-      <circle cx="17" cy="17" r="3" />
-      <circle cx="7" cy="7" r="3" />
-    </Svg>
-  );
-}
-
-/**
- * Any icon in `lucide-nodes.ts`, by Lucide's name: for the icons that are picked from data (the icon of a kind of file, `browse/file-icons.ts`), where a component for each would be a
- * place to forget one. An unknown name draws nothing, and the list of names is typed where it is chosen.
- */
-export function NodeIcon({ name, ...props }: IconProps & { name: string }) {
-  const nodes = LUCIDE[name];
-  if (!nodes) return null;
-  return (
-    <Svg {...props}>
-      {nodes.map(([tag, attributes], index) => {
-        const Shape = tag;
-        return <Shape key={index} {...attributes} />;
-      })}
-    </Svg>
-  );
-}

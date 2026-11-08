@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { SegmentedControl } from '../../ui';
+import { SegmentedControl } from '@sovereignfs/ui';
 import {
   type TextSize,
   type ThemeChoice,

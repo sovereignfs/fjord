@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Dialog, Icon, SegmentedControl, useToast } from '../../ui';
+import { Alert, Dialog, Icon, SegmentedControl, useToast } from '@sovereignfs/ui';
 import { NewRepositoryForm } from '../../local/screens/NewRepositoryForm';
 import shell from '../../ui/AppShell.module.css';
 import { ConnectForm } from './ConnectForm';

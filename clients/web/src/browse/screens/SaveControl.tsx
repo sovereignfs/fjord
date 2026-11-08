@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, FormField, Icon, Input } from '../../ui';
-import { NodeIcon } from '../../ui/icons';
+import { Alert, Button, FormField, Icon, Input } from '@sovereignfs/ui';
+import { SetIcon } from '../../ui/icons';
 import { MAX_MESSAGE_CHARS } from '../../working/limits';
 import { ActionDialog } from './ActionDialog';
 import { IconButton } from './IconButton';
@@ -60,7 +60,7 @@ export function SaveControl({
           disabled={!hasDraft || saving}
           onClick={() => onSave('')}
         >
-          <NodeIcon name="save" aria-hidden />
+          <SetIcon name="save" />
         </IconButton>
         <button
           type="button"

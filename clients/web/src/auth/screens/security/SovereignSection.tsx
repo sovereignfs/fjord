@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { authClient } from '../../client';
 import { messageFor } from '../../messages';
-import { Alert, Button } from '../../../ui';
+import { Alert, Button } from '@sovereignfs/ui';
 import { useConfirm } from '../../../ui/useConfirm';
 import styles from '../screens.module.css';
 

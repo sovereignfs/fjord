@@ -5,8 +5,8 @@ import type { Assessment } from '../../browse/setup';
 import type { Outcome } from '../../browse/server';
 import { repositoryHref } from '../../browse/links';
 import { deletedAddress } from '../../browse/addresses';
-import { Alert, Badge, Card } from '../../ui';
-import { NodeIcon } from '../../ui/icons';
+import { Alert, Badge, Card } from '@sovereignfs/ui';
+import { SetIcon } from '../../ui/icons';
 import type { ConnectionInfo } from '../service';
 import { defaultVault } from '../../browse/default-vault';
 import { connectionLabel } from '../label';
@@ -128,7 +128,7 @@ export function RepositoryView({
                 title="Recently deleted"
                 aria-label="Recently deleted"
               >
-                <NodeIcon name="archive-x" size={20} aria-hidden />
+                <SetIcon name="archive-x" size={20} />
               </a>
             </div>
           </div>

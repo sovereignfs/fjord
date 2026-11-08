@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState } from 'react';
 import { keyStore } from '../../keys/client';
-import { Alert, Badge, Button, FormField, Icon, Input } from '../../ui';
+import { Alert, Badge, Button, FormField, Icon, Input } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { ActionDialog } from './ActionDialog';
 

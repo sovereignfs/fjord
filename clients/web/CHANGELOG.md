@@ -19,6 +19,7 @@ section.
 
 ### Changed
 
+- `@sovereignfs/ui` 0.92.0. Nothing looks different: the icons Fjord Web drew itself are now the design system's own (all but the site's, `globe-code`), and pages import it directly.
 - **Hosted on a Sovereign instance, sign-up is open without being set.** With Sovereign as the only way in, `FJORD_AUTH_SIGNUP` now defaults to `open`, since the instance already decides who may sign in; before, every operator had to set it, or only the first person got in. With local sign-in on, the default is still `closed`, and `FJORD_AUTH_SIGNUP=closed` keeps an instance closed.
 - **The port is now 3001** (`sovereign.manifest.json`), in the image, the Compose setups and `pnpm dev`, so Fjord Web, Tusk (3002) and a Sovereign core (3000) run side by side on one machine. A Sovereign instance reads the port from the image and needs nothing. Run on your own, map the new port (`-p 127.0.0.1:3001:3001`, or keep the outside port: `-p 127.0.0.1:3000:3001`) and point the reverse proxy at it.
 

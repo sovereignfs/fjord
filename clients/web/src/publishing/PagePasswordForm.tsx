@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, FormField, Input } from '../ui';
+import { Button, FormField, Input } from '@sovereignfs/ui';
 import styles from '../auth/screens/screens.module.css';
 
 /**

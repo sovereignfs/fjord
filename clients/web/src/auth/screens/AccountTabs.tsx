@@ -1,7 +1,7 @@
 'use client';
 
 import { type ReactNode, useState } from 'react';
-import { Tabs } from '../../ui';
+import { Tabs } from '@sovereignfs/ui';
 
 /**
  * Security's two parts under one set of tabs: the security of the sign-in (*General*, the first, and what opens), and the key kept in this browser (*Encryption identity*). Both are rendered by the server and handed in, so

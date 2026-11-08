@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Dialog, Icon } from '../../ui';
+import { Button, Dialog, Icon } from '@sovereignfs/ui';
 import { MediaLibrary } from './MediaLibrary';
 
 /** The site's *Media library* action (RFC 0004): the library in a dialog over the page, to browse, add and delete pictures. */

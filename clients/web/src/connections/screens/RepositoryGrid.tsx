@@ -1,8 +1,8 @@
 import { SignedInShell } from '../../auth/screens/SignedInShell';
 import { repositoryHref } from '../../browse/links';
 import { connectionLabel } from '../label';
-import { Badge } from '../../ui';
-import { KIND_LABEL, RepositoryKindIcon, Settings2Icon } from '../../ui/icons';
+import { Badge } from '@sovereignfs/ui';
+import { KIND_LABEL, RepositoryKindIcon, SetIcon } from '../../ui/icons';
 import type { ConnectionInfo } from '../service';
 import styles from './RepositoryGrid.module.css';
 
@@ -32,7 +32,7 @@ export function RepositoryGrid({
             title="Connect or disconnect repositories"
             aria-label="Connect or disconnect repositories"
           >
-            <Settings2Icon size={18} aria-hidden />
+            <SetIcon name="settings-2" size={18} />
           </a>
         </div>
         <ul className={styles.grid} aria-label="Repositories">

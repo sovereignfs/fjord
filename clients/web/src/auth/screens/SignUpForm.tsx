@@ -3,7 +3,7 @@
 import { type FormEvent, useState } from 'react';
 import { authClient } from '../client';
 import { messageFor } from '../messages';
-import { AuthButton, AuthError, AuthField, AuthForm, AuthNotice, Input } from '../../ui';
+import { AuthButton, AuthError, AuthField, AuthForm, AuthNotice, Input } from '@sovereignfs/ui';
 
 /** Name, email and password. With email verification on, the next thing is a link in the inbox. */
 export function SignUpForm({

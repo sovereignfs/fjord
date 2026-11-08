@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { AuthShell } from '../../src/auth/screens/AuthShell';
 import { SignUpForm } from '../../src/auth/screens/SignUpForm';
-import { AuthLink } from '../../src/ui';
+import { AuthLink } from '@sovereignfs/ui';
 import { getSession, localAuthConfig, signUpAvailable } from '../../src/auth/server';
 
 export const dynamic = 'force-dynamic';

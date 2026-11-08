@@ -1,7 +1,7 @@
 'use client';
 
 import { type ReactNode, useCallback, useRef, useState } from 'react';
-import { ConfirmDialog } from './index';
+import { ConfirmDialog } from '@sovereignfs/ui';
 
 interface Asked {
   /** The question, said in full: what will happen, and what cannot be undone. */

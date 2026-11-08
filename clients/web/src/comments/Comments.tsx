@@ -2,7 +2,7 @@
 
 import type { Anchor, AnchorReport, CommentsAdapter, ThreadMark } from 'fjord-editor';
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Badge, Button, FormField, Input } from '../ui';
+import { Alert, Badge, Button, FormField, Input } from '@sovereignfs/ui';
 import styles from '../auth/screens/screens.module.css';
 import { cleanGuestName, MAX_NAME_CHARS } from '../sharing/guest-name';
 import {

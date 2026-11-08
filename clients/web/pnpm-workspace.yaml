@@ -7,7 +7,8 @@ allowBuilds:
   # way, so the script is not needed. (drizzle-kit generate is exercised in CI.)
   esbuild: false
 minimumReleaseAgeExclude:
-  - '@sovereignfs/ui@0.91.0'
+  - '@sovereignfs/ui@0.92.0'
+  - '@sovereignfs/config@0.1.0'
   - '@sovereignfs/sdk@2.1.0'
 # eslint-plugin-jsx-a11y declares ESLint ^3..^9 but works on 10, as Sovereign and Tusk run it; allow exactly that one mismatch rather
 # than silencing peer warnings in general.

@@ -1,4 +1,4 @@
-import { Alert, Badge } from '../../ui';
+import { Alert, Badge } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import type { BuildStatus } from '../../providers/types';
 

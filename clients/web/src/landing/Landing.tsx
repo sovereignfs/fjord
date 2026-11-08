@@ -1,4 +1,4 @@
-import { Alert, Badge, Card, Icon } from '../ui';
+import { Alert, Badge, Card, Icon } from '@sovereignfs/ui';
 import { LinkButton } from '../ui/LinkButton';
 import { routes, site } from '../site';
 import { exampleDocument, features, principles, questions, steps } from './content';

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AuthCard, AuthFooter, BrandBadge } from '../../ui';
+import { AuthCard, AuthFooter, BrandBadge } from '@sovereignfs/ui';
 import { markOf } from '../../ui/brand';
 
 /**

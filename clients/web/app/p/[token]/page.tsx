@@ -2,7 +2,7 @@ import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import styles from '../../../src/auth/screens/screens.module.css';
 import body from '../../../src/publishing/Published.module.css';
-import { Alert, Card } from '../../../src/ui';
+import { Alert, Card } from '@sovereignfs/ui';
 import { PagePasswordForm } from '../../../src/publishing/PagePasswordForm';
 import { PublishedComments } from '../../../src/publishing/PublishedComments';
 import { openPublishedFor } from '../../../src/publishing/server';

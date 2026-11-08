@@ -5,7 +5,7 @@ import { type FormEvent, useState } from 'react';
 import { repositoryHref } from '../../browse/links';
 import { sendPost } from '../../files/client';
 import { MAX_TITLE_CHARS } from '../../files/limits';
-import { Alert, Button, FormField, Input } from '../../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 
 /**

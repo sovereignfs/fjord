@@ -3,7 +3,7 @@
 import { type FormEvent, useState } from 'react';
 import { authClient } from '../../client';
 import { messageFor } from '../../messages';
-import { Alert, Button, FormField, Input } from '../../../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import styles from '../screens.module.css';
 
 export function PasswordSection({ minLength }: { minLength: number }) {

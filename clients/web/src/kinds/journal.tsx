@@ -3,7 +3,7 @@ import { journalVault } from '../journal/entries';
 import { NewEntry } from '../journal/screens/NewEntry';
 import { EncryptedTimeline } from '../journal/screens/EncryptedTimeline';
 import { Timeline } from '../journal/screens/Timeline';
-import { Alert } from '../ui';
+import { Alert } from '@sovereignfs/ui';
 import styles from '../auth/screens/screens.module.css';
 import type { EntryViewProps, KindModule } from './types';
 

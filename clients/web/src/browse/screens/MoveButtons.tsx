@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Button, FormField, Input, Select } from '../../ui';
+import { Alert, Button, FormField, Input, Select } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { type DeleteTarget, sendMove } from '../../files/client';
 import { MAX_TITLE_CHARS } from '../../files/limits';
 import { renameProblem } from '../../files/names';
 import { repositoryHref } from '../links';
-import { NodeIcon } from '../../ui/icons';
+import { SetIcon } from '../../ui/icons';
 import { ActionDialog } from './ActionDialog';
 import { IconButton } from './IconButton';
 
@@ -91,7 +91,7 @@ export function MoveButtons({
       {canRename ? (
         appearance === 'icon' ? (
           <IconButton label="Rename" onClick={() => setMode('rename')}>
-            <NodeIcon name="pencil" aria-hidden />
+            <SetIcon name="pencil" />
           </IconButton>
         ) : (
           <Button variant="secondary" size="sm" onClick={() => setMode('rename')}>
@@ -102,7 +102,7 @@ export function MoveButtons({
       {places.length > 0 ? (
         appearance === 'icon' ? (
           <IconButton label="Move" onClick={() => setMode('move')}>
-            <NodeIcon name="folder-input" aria-hidden />
+            <SetIcon name="folder-input" />
           </IconButton>
         ) : (
           <Button variant="secondary" size="sm" onClick={() => setMode('move')}>

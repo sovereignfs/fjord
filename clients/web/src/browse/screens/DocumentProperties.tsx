@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Button, FormField, Input } from '../../ui';
-import { NodeIcon } from '../../ui/icons';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
+import { SetIcon } from '../../ui/icons';
 import styles from '../../auth/screens/screens.module.css';
 import own from './DocumentProperties.module.css';
 import { MAX_TITLE_CHARS } from '../../files/limits';
@@ -97,7 +97,7 @@ export function DocumentProperties({
   return (
     <details className={own.panel} data-testid="document-properties">
       <summary className={own.summary}>
-        <NodeIcon name="chevron-right" size={16} aria-hidden className={own.chevron} />
+        <SetIcon name="chevron-right" size={16} className={own.chevron} />
         <span>Properties</span>
         <span className={own.hint}>
           {rename ? 'File name, tags and details' : 'Title, tags and details'}

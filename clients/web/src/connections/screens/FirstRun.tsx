@@ -1,5 +1,5 @@
 import { SignedInShell } from '../../auth/screens/SignedInShell';
-import { Alert, Card } from '../../ui';
+import { Alert, Card } from '@sovereignfs/ui';
 import { localLimits } from '../../local/limits';
 import { NewRepositoryForm } from '../../local/screens/NewRepositoryForm';
 import { ConnectForm } from './ConnectForm';

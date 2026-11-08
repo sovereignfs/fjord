@@ -6,7 +6,7 @@ import type { ConnectionInfo } from '../../connections/service';
 import { getDatabase } from '../../db/boot';
 import { fjord } from '../../format/wasm';
 import type { VaultListing } from '../../format/types';
-import { Alert } from '../../ui';
+import { Alert } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { JournalIndex } from '../index-store';
 import { type TimelineFilter, arrange, summaries } from '../timeline';

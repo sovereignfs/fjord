@@ -3,7 +3,7 @@
 import { NoteEditor } from 'fjord-editor';
 import 'fjord-editor/styles.css';
 import { useState } from 'react';
-import { Alert, Button } from '../../ui';
+import { Alert, Button } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { discardDraft, sendResolve } from '../../working/client';
 import type { Preview } from '../../working/resolve';

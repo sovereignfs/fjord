@@ -9,7 +9,7 @@ import { encryptionKeyring } from '../../crypto/server';
 import { getDatabase } from '../../db/boot';
 import { restoreWindowMs } from '../../files/config';
 import { DeletionService } from '../../files/deletions';
-import { Card } from '../../ui';
+import { Card } from '@sovereignfs/ui';
 import { repositoryHref } from '../links';
 import { RecentlyDeleted } from './RecentlyDeleted';
 import { momentText } from '../../ui/dates';

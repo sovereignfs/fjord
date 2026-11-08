@@ -3,7 +3,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { authClient } from '../../client';
 import { messageFor } from '../../messages';
-import { Alert, Button, FormField, Input } from '../../../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import { useConfirm } from '../../../ui/useConfirm';
 import styles from '../screens.module.css';
 import { dayText } from '../../../ui/dates';

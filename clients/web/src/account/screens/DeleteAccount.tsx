@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from 'react';
 import { ActionDialog } from '../../browse/screens/ActionDialog';
-import { Alert, Button, FormField, Input } from '../../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import styles from '../../auth/screens/AccountShell.module.css';
 
 /**

@@ -14,7 +14,7 @@ import {
   AuthLink,
   AuthNotice,
   Input,
-} from '../../ui';
+} from '@sovereignfs/ui';
 
 /**
  * The ways this instance offers: email and password or a passkey (two-factor, if the account has

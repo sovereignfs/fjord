@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { startTransition, useEffect, useState } from 'react';
-import { Icon } from '../ui';
+import { Icon } from '@sovereignfs/ui';
 import { ActionDialog } from '../browse/screens/ActionDialog';
 import { IconButton } from '../browse/screens/IconButton';
 import { PublishPanel } from '../publishing/PublishPanel';

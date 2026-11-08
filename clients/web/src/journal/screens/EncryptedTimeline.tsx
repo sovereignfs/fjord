@@ -5,7 +5,7 @@ import type { JournalEntrySummary } from '../../format/types';
 import { keyStore } from '../../keys/client';
 import { type Shown, openCiphertext } from '../../keys/files';
 import { loadModule } from '../../keys/module';
-import { Alert, Button, FormField, Input } from '../../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { ciphertextFetcher, readEncryptedEntries } from '../encrypted-timeline';
 import { type Timeline, type TimelineEntry, arrange } from '../timeline';

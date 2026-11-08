@@ -1,8 +1,9 @@
 'use client';
 
 import { type ReactNode, useEffect, useState } from 'react';
-import { Badge } from '../../ui';
-import { NodeIcon } from '../../ui/icons';
+import { Badge } from '@sovereignfs/ui';
+import type { IconName } from '@sovereignfs/ui';
+import { SetIcon } from '../../ui/icons';
 import styles from './Listing.module.css';
 
 /** One row (or tile) of a listing: what it is, where it leads, and what to say of it. Plain data, so the server can make a listing of anything and this draws it. */
@@ -11,8 +12,8 @@ export interface ListingItem {
   name: string;
   /** Where it opens; none for a file nothing opens in this version, which is drawn greyed. */
   href?: string | undefined;
-  /** Lucide's name for its icon (`browse/file-icons.ts` chooses it). */
-  icon: string;
+  /** The design system's name for its icon (`browse/file-icons.ts` chooses it). */
+  icon: IconName;
   /** Short labels after the name: what kind of file it is, that it is encrypted, that it opens first. */
   badges?: string[] | undefined;
   /** What to say of it that is not a label: how many files are in it, how large it is. */
@@ -72,7 +73,7 @@ export function Listing({
             title="List view"
             onClick={() => choose('list')}
           >
-            <NodeIcon name="list" size={18} aria-hidden />
+            <SetIcon name="list" size={18} />
           </button>
           <button
             type="button"
@@ -81,7 +82,7 @@ export function Listing({
             title="Grid view"
             onClick={() => choose('grid')}
           >
-            <NodeIcon name="layout-grid" size={18} aria-hidden />
+            <SetIcon name="layout-grid" size={18} />
           </button>
         </div>
       </div>
@@ -101,7 +102,7 @@ export function Listing({
               aria-disabled={item.href === undefined ? true : undefined}
             >
               <span className={styles.icon} aria-hidden="true" data-icon={item.icon}>
-                <NodeIcon name={item.icon} />
+                <SetIcon name={item.icon} />
               </span>
               <span className={styles.body}>
                 {item.href === undefined ? (

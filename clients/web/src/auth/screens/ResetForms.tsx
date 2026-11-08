@@ -3,7 +3,7 @@
 import { type FormEvent, useState } from 'react';
 import { authClient } from '../client';
 import { messageFor } from '../messages';
-import { AuthButton, AuthError, AuthField, AuthForm, AuthNotice, Input } from '../../ui';
+import { AuthButton, AuthError, AuthField, AuthForm, AuthNotice, Input } from '@sovereignfs/ui';
 
 /** Ask for a reset link. The answer is the same whether or not the address has an account. */
 export function ForgotPasswordForm() {

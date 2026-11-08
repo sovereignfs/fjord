@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { Dialog } from '../../ui';
+import { Dialog } from '@sovereignfs/ui';
 import styles from './ActionDialog.module.css';
 
 /**

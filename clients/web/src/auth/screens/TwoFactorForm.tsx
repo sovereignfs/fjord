@@ -14,7 +14,7 @@ import {
   AuthLink,
   AuthLinkButton,
   Input,
-} from '../../ui';
+} from '@sovereignfs/ui';
 
 /** The second step of signing in: a code from the authenticator app, or a backup code. */
 export function TwoFactorForm() {

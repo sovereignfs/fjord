@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { AuthShell } from '../../src/auth/screens/AuthShell';
 import { ResetPasswordForm } from '../../src/auth/screens/ResetForms';
-import { AuthLink } from '../../src/ui';
+import { AuthLink } from '@sovereignfs/ui';
 import { localAuthConfig } from '../../src/auth/server';
 
 export const dynamic = 'force-dynamic';

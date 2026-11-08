@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Button, ConfirmDialog } from '../../ui';
+import { Alert, Button, ConfirmDialog } from '@sovereignfs/ui';
 import { type DeleteTarget, sendDelete } from '../../files/client';
 import { rememberUndo } from '../../files/undo';
-import { Icon } from '../../ui';
+import { Icon } from '@sovereignfs/ui';
 import { repositoryHref } from '../links';
 import { IconButton } from './IconButton';
 

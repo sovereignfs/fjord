@@ -1,7 +1,7 @@
 'use client';
 
 import { type FormEvent, useState } from 'react';
-import { Alert, Button, FormField, Input } from '../../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import { useConfirm } from '../../ui/useConfirm';
 import styles from '../../auth/screens/screens.module.css';
 import own from '../../connections/screens/ConnectForm.module.css';

@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { repositoryHref } from '../../browse/links';
 import { type CreateAttempt, sendCreateEncrypted, sendEntry } from '../../files/client';
 import { loadModule } from '../../keys/module';
-import { Alert, Button } from '../../ui';
+import { Alert, Button } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { newEncryptedEntry } from '../seal';
 

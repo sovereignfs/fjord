@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { BrandBadge, Icon, type IconName } from './index';
+import { BrandBadge, Icon, type IconName } from '@sovereignfs/ui';
 import { markOf } from './brand';
 import { RepositoryKindIcon, type RepositoryKindId } from './icons';
 import styles from './AppShell.module.css';

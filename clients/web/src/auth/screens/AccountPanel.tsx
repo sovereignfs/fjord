@@ -1,7 +1,7 @@
 import { connectionService } from '../../connections/server';
 import { encryptionKeyring } from '../../crypto/server';
 import { KeyManager } from '../../keys/screens/KeyManager';
-import { Alert, Card } from '../../ui';
+import { Alert, Card } from '@sovereignfs/ui';
 import { oauthErrorMessage } from '../messages';
 import { listAccounts, localAuthConfig, sovereignAuthConfig } from '../server';
 import { type AccountQuery, sectionOf } from './account-query';

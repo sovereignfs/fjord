@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Alert } from '../../ui';
+import { Alert } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import type { ClassifiedFile, VaultListing } from '../../format/types';
 import { repositoryHref } from '../links';

@@ -1,4 +1,4 @@
-import { Badge, Button } from '../../ui';
+import { Badge, Button } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import type { PreviewOutcome, PreviewView } from '../preview';
 import { momentText } from '../../ui/dates';

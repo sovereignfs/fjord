@@ -2,7 +2,7 @@
 
 import type { ImageChoice, ImageSource } from 'fjord-editor';
 import { type ReactNode, useCallback, useMemo, useRef, useState } from 'react';
-import { Alert, Dialog } from '../../ui';
+import { Alert, Dialog } from '@sovereignfs/ui';
 import { fetchDisplayUrl, fetchReference } from '../images-client';
 import { MediaLibrary } from './MediaLibrary';
 

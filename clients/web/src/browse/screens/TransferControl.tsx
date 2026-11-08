@@ -2,13 +2,13 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Alert, Button, FormField, Input, Select } from '../../ui';
+import { Alert, Button, FormField, Input, Select } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { fetchRecipients, sendTransfer } from '../../files/client';
 import { keyStore } from '../../keys/client';
 import { type Recipients, type TransferTarget, prepareTransfer } from '../../keys/files';
 import { loadModule } from '../../keys/module';
-import { NodeIcon } from '../../ui/icons';
+import { SetIcon } from '../../ui/icons';
 import { repositoryHref } from '../links';
 import { ActionDialog } from './ActionDialog';
 import { IconButton } from './IconButton';
@@ -94,7 +94,7 @@ export function TransferControl({
         title={blocked ?? 'Move to another vault'}
         onClick={() => setOpen(true)}
       >
-        <NodeIcon name="arrow-right-left" aria-hidden />
+        <SetIcon name="arrow-right-left" />
       </IconButton>
     ) : null;
   if (blocked && appearance !== 'icon') return <p className={styles.itemMeta}>{blocked}</p>;

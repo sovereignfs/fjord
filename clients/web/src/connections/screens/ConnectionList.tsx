@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Alert, Badge, Button } from '../../ui';
+import { Alert, Badge, Button } from '@sovereignfs/ui';
 import { useConfirm } from '../../ui/useConfirm';
 import { connectionLabel } from '../label';
 import { MakeDefaultButton } from './MakeDefaultButton';

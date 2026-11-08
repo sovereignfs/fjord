@@ -5,7 +5,7 @@ import 'fjord-editor/styles.css';
 import { useRouter } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { type MutableRefObject, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, FormField, Input } from '../../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { discardDraft, sendDraft, sendVersion } from '../../working/client';
 import { MAX_MESSAGE_CHARS } from '../../working/limits';

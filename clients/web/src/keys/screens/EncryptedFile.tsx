@@ -15,7 +15,7 @@ import {
 } from '../files';
 import { loadModule } from '../module';
 import { KeyError, type Status } from '../store';
-import { Alert, Button, FormField, Input } from '../../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { discardDraft, sendResolve } from '../../working/client';
 import { EncryptedEditor, savedKey } from './EncryptedEditor';

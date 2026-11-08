@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { authClient } from '../client';
-import { UserMenu } from '../../ui';
+import { UserMenu } from '@sovereignfs/ui';
 import styles from './AccountMenu.module.css';
 
 /**

@@ -1,8 +1,8 @@
 import { isPicture } from '../raw';
 import { entryHeading, isFiledName } from '../../journal/heading';
-import { Alert } from '../../ui';
+import { Alert } from '@sovereignfs/ui';
 import { LinkButton } from '../../ui/LinkButton';
-import { NodeIcon } from '../../ui/icons';
+import { SetIcon } from '../../ui/icons';
 import styles from '../../auth/screens/screens.module.css';
 import type { ClassifiedFile, FileKind } from '../../format/types';
 import { repositoryHref } from '../links';
@@ -135,10 +135,9 @@ export async function folderParts({
   const writable = plainWritable || encryptedNaming !== undefined;
   // The folder that is open is drawn open in the path above it, as it is drawn closed in the listing of the one that holds it.
   const opened = (
-    <NodeIcon
+    <SetIcon
       name={FILE_ICON.folderOpen}
       size={14}
-      aria-hidden
       style={{ verticalAlign: '-2px', marginRight: 4 }}
     />
   );

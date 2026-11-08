@@ -3,7 +3,7 @@
 import { NoteEditor } from 'fjord-editor';
 import 'fjord-editor/styles.css';
 import { type FormEvent, useEffect, useState } from 'react';
-import { Alert, Button, FormField, Input } from '../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import styles from '../auth/screens/screens.module.css';
 import { loadModule } from '../keys/module';
 import { fetchSealed } from './client';

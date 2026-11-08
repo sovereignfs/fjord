@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Alert, Button, Select } from '../../ui';
+import { Alert, Button, Select } from '@sovereignfs/ui';
 import styles from './RepositoryHeader.module.css';
 
 /**

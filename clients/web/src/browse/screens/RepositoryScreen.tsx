@@ -20,7 +20,7 @@ import { isPublicId } from '../../connections/public-id';
 import { RepositoryView } from '../../connections/screens/RepositoryView';
 import { connectionService } from '../../connections/server';
 import { encryptionKeyring } from '../../crypto/server';
-import { Alert } from '../../ui';
+import { Alert } from '@sovereignfs/ui';
 import { previewCombineFor, workingCopyService } from '../../working/server';
 import { headerOf } from '../document';
 import { FileHandles } from '../handles';

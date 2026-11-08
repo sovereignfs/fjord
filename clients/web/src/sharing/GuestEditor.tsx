@@ -3,7 +3,7 @@
 import { DocumentEditor } from 'fjord-editor';
 import 'fjord-editor/styles.css';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, FormField, Input } from '../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import styles from '../auth/screens/screens.module.css';
 import { useComments } from '../comments/Comments';
 import { DraftSaver, type SaverStatus } from '../working/saver';

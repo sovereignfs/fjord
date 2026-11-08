@@ -4,7 +4,7 @@ import { DocumentEditor, type EditorHandle, NoteEditor } from 'fjord-editor';
 import 'fjord-editor/styles.css';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Alert, Button } from '../../ui';
+import { Alert, Button } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { useComments } from '../../comments/Comments';
 import { sendDate, sendField, sendMove, sendTags, sendTitle } from '../../files/client';

@@ -3,7 +3,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
 import { keyStore, onAutoLock } from '../client';
 import { KeyError, MIN_PASSPHRASE_LENGTH, type Status } from '../store';
-import { Alert, Button, FormField, Input } from '../../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import { useConfirm } from '../../ui/useConfirm';
 import styles from '../../auth/screens/screens.module.css';
 

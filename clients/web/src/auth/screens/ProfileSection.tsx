@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
-import { Alert, Avatar, Button, FormField, Input } from '../../ui';
+import { Alert, Avatar, Button, FormField, Input } from '@sovereignfs/ui';
 import { authClient } from '../client';
 import { ChangeEmail } from '../../account/screens/ChangeEmail';
 import { DeleteAccount } from '../../account/screens/DeleteAccount';

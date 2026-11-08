@@ -7,7 +7,7 @@ import styles from '../../auth/screens/screens.module.css';
 import { requireSession } from '../../auth/server';
 import { connectionService } from '../../connections/server';
 import { encryptionKeyring } from '../../crypto/server';
-import { Alert, Badge, Card } from '../../ui';
+import { Alert, Badge, Card } from '@sovereignfs/ui';
 import { PasswordForm } from '../../sharing/PasswordForm';
 import { unlockAction } from '../../../app/d/[id]/actions';
 import { parseShareCookie } from '../../sharing/unlock';

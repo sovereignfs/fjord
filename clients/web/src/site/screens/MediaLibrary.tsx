@@ -1,7 +1,7 @@
 'use client';
 
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Button, FormField, Icon, Input } from '../../ui';
+import { Alert, Button, FormField, Icon, Input } from '@sovereignfs/ui';
 import { useConfirm } from '../../ui/useConfirm';
 import { canInsert } from '../alt';
 import type { ImageEntry } from '../images';

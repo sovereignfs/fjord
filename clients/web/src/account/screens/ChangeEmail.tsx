@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
-import { Alert, Button, FormField, Input } from '../../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 
 /** A new address for the account (research 0002, G4): the address and the password, and then either it has changed or a link is on its way to the address it has now (`src/account/http.ts`). */
 export function ChangeEmail({ email }: { email: string }) {

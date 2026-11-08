@@ -1,8 +1,8 @@
 'use client';
 
 import { type ReactNode, useState } from 'react';
-import { Dialog } from '../../ui';
-import { Settings2Icon } from '../../ui/icons';
+import { Dialog } from '@sovereignfs/ui';
+import { SetIcon } from '../../ui/icons';
 import styles from './RepositoryHeader.module.css';
 
 /**
@@ -21,7 +21,7 @@ export function RepositorySettings({ children }: { children: ReactNode }) {
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
       >
-        <Settings2Icon size={20} aria-hidden />
+        <SetIcon name="settings-2" size={20} />
       </button>
       <Dialog
         open={open}

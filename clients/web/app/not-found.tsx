@@ -1,5 +1,5 @@
 import { AuthShell } from '../src/auth/screens/AuthShell';
-import { AuthLink } from '../src/ui';
+import { AuthLink } from '@sovereignfs/ui';
 
 export default function NotFound() {
   return (

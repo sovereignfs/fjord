@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Alert, Button, Input } from '../../ui';
+import { Alert, Button, Input } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import { sendRestore } from '../../files/client';
 import { repositoryHref } from '../links';

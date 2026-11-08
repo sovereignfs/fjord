@@ -1,7 +1,7 @@
 import { SignedInShell } from '../../auth/screens/SignedInShell';
 import styles from '../../auth/screens/screens.module.css';
-import { Badge, Card } from '../../ui';
-import { NodeIcon } from '../../ui/icons';
+import { Badge, Card } from '@sovereignfs/ui';
+import { SetIcon } from '../../ui/icons';
 import type { SharedListing } from '../open';
 import listing from './SharedWithYou.module.css';
 import { dayText } from '../../ui/dates';
@@ -47,7 +47,7 @@ export function SharedWithYou({
               <li key={document.docId}>
                 <a href={`/d/${document.docId}`} className={listing.row}>
                   <span className={listing.icon} aria-hidden>
-                    <NodeIcon name="file-text" aria-hidden />
+                    <SetIcon name="file-text" />
                   </span>
                   <span className={listing.main}>
                     <span className={listing.name}>{document.title}</span>

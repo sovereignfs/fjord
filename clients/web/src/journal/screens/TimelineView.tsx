@@ -1,6 +1,6 @@
 import { isFiledName } from '../heading';
 import { repositoryHref } from '../../browse/links';
-import { Badge } from '../../ui';
+import { Badge } from '@sovereignfs/ui';
 import styles from '../../auth/screens/screens.module.css';
 import type { Timeline } from '../timeline';
 

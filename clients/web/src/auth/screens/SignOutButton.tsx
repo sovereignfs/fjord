@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { authClient } from '../client';
-import { Button, Icon } from '../../ui';
+import { Button, Icon } from '@sovereignfs/ui';
 import shell from '../../ui/AppShell.module.css';
 
 async function signOut() {

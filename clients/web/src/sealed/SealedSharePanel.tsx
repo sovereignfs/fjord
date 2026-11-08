@@ -1,7 +1,7 @@
 'use client';
 
 import { type FormEvent, useCallback, useEffect, useState } from 'react';
-import { Alert, Button, FormField, Input } from '../ui';
+import { Alert, Button, FormField, Input } from '@sovereignfs/ui';
 import styles from '../auth/screens/screens.module.css';
 import { loadModule } from '../keys/module';
 import { MIN_PASSPHRASE_LENGTH } from '../keys/store';
