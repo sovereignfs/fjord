@@ -5,7 +5,7 @@
   "description": "The hosted web client for Fjord: your documents as plain files in a Git repository you control.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
-  "packageManager": "pnpm@11.14.0",
+  "packageManager": "pnpm@11.28.9",
   "engines": {
     "node": ">=24.15 <25"
   },
