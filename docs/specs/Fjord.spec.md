@@ -31,6 +31,9 @@ poor fit for large binary files, and a format that invited them would fail
 its users. Implementations SHOULD warn when a single file exceeds 25 MB, but
 MUST NOT refuse it.
 
+A client MAY present the images in a repository as a library and let a person
+add them to Docs; they remain ordinary files under the rules of this document.
+
 ### 1.2 Transport
 
 Git is the only transport defined by this version. History, ancestry and

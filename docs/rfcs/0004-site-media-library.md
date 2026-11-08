@@ -137,7 +137,7 @@ being redesigned.
 
 ## Open
 
-- **A Jekyll site whose vault is `_posts`** (found by P18). Options: (1) not offered a library for this layout, its images stay the engine's files; (2) the library for it uses the site's `assets/images/` outside the vault, a place Jekyll serves and a convention many Jekyll sites already follow, the one exception to "inside the vault", and `fjord.json` records nothing; (3) the same at `images/`, the root. Decided by the owner before P19.
+- **Decided 2026-11-08: option (2).** **A Jekyll site whose vault is `_posts`** (found by P18). Options: (1) not offered a library for this layout, its images stay the engine's files; (2) the library for it uses the site's `assets/images/` outside the vault, a place Jekyll serves and a convention many Jekyll sites already follow, the one exception to "inside the vault", and `fjord.json` records nothing; (3) the same at `images/`, the root. Decided by the owner before P19.
 - Jekyll with a `baseurl`: a reference written site-absolute does not carry it. The scaffold sets none; a site that does is the site owner's to adjust, as Jekyll's own documentation says.
 
 ## Not here

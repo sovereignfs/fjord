@@ -12,6 +12,10 @@ tagging it.
 
 ## [Unreleased]
 
+### Added
+
+- **`fjord-core`'s `site` module knows a site's images** (RFC 0004): `image_type` (PNG, JPEG, WebP, GIF and AVIF by their first bytes; never SVG), `image_dir` (an `images/` folder in the site's vault, or `assets/images/` for a Jekyll vault under an underscore directory, which Jekyll does not serve), `image_name`, `image_ref` (the form each engine reads) and `refers_to`. Nothing of the format changes; spec §1.1 says a client may present images as a library.
+
 ### Fixed
 
 - **A new encrypted vault's `recipients.txt` no longer says it is for "the Private vault"** and names that directory in its instructions, whatever the vault is called.
