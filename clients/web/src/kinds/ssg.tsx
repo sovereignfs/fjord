@@ -1,5 +1,6 @@
 import { siteVault } from "../site/posts";
 import { BuildStatus } from "../site/screens/BuildStatus";
+import { MediaLibraryButton } from "../site/screens/MediaLibraryButton";
 import { NewPost } from "../site/screens/NewPost";
 import { PreviewPanel } from "../site/screens/PreviewPanel";
 import { Timeline } from "../journal/screens/Timeline";
@@ -20,7 +21,7 @@ export const ssgKind: KindModule = {
   writingView: false,
   EntryView: SiteEntry,
   contentModel: { placement: "engine", fields: ["title", "date", "tags", "draft", "description"] },
-  actions: [{ id: "new-post", label: "New post" }, { id: "build-status", label: "Build status" }, { id: "preview", label: "Preview" }],
+  actions: [{ id: "new-post", label: "New post" }, { id: "build-status", label: "Build status" }, { id: "preview", label: "Preview" }, { id: "media-library", label: "Media library" }],
 };
 
 async function SiteEntry({ accountId, connection, read, query }: EntryViewProps) {
@@ -47,6 +48,9 @@ async function SiteEntry({ accountId, connection, read, query }: EntryViewProps)
       </p>
       <BuildStatus accountId={accountId} connection={connection} commit={read.commit} />
       <NewPost connectionId={connection.id} repo={connection.address} engine={site.engine} />
+      <p>
+        <MediaLibraryButton connectionId={connection.id} />
+      </p>
       <PreviewPanel connectionId={connection.id} />
       {read.partial ? (
         <Alert variant="info">This site is too large to list at once, so its posts cannot be shown here. Show its files to browse them.</Alert>

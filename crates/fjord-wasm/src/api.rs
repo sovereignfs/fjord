@@ -542,6 +542,11 @@ pub fn site_image_ref(engine: &str, post_path: &str, image_path: &str) -> Option
     site::image_ref(&Engine::parse(engine), post_path, image_path)
 }
 
+/// The path of the repository a Markdown image `destination`, written in the post at `post_path`, refers to (`fjord_core::site::ref_target`), or `None`.
+pub fn site_image_target(post_path: &str, destination: &str) -> Option<String> {
+    site::ref_target(post_path, destination)
+}
+
 /// Whether the post at `post_path` shows the image at `image_path` in its Markdown `body` (`fjord_core::site::refers_to`).
 pub fn site_refers_to(post_path: &str, body: &str, image_path: &str) -> bool {
     site::refers_to(post_path, body, image_path)

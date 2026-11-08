@@ -291,23 +291,29 @@ pub fn image_refs(body: &str) -> Vec<String> {
     found
 }
 
+/// The path, from the repository's root, that a Markdown image `destination` written in the post at `post_path` refers to: from the post for a
+/// relative destination and from the site's root for one that begins with `/`. `None` for a destination with a scheme (`https://…`, `data:`) or
+/// that leaves the repository. A query or fragment is not part of the path.
+pub fn ref_target(post_path: &str, destination: &str) -> Option<String> {
+    if destination.contains("://")
+        || destination.starts_with("//")
+        || destination.starts_with("data:")
+    {
+        return None;
+    }
+    let bare = destination.split(['?', '#']).next().unwrap_or("");
+    let full = match bare.strip_prefix('/') {
+        Some(root) => root.to_string(),
+        None => join(dir_of(post_path), bare),
+    };
+    resolve(&full)
+}
+
 /// Whether the post at `post_path`, whose text after its header is `body`, shows the image at `image_path`: some Markdown image of it
-/// resolves to that path, from the post for a relative destination and from the site's root for one that begins with `/`. A
-/// destination with a scheme, a query or a fragment is its path alone; one that leaves the repository refers to nothing.
+/// resolves to that path (`ref_target`).
 pub fn refers_to(post_path: &str, body: &str, image_path: &str) -> bool {
     image_refs(body).iter().any(|destination| {
-        if destination.contains("://")
-            || destination.starts_with("//")
-            || destination.starts_with("data:")
-        {
-            return false;
-        }
-        let bare = destination.split(['?', '#']).next().unwrap_or("");
-        let full = match bare.strip_prefix('/') {
-            Some(root) => root.to_string(),
-            None => join(dir_of(post_path), bare),
-        };
-        resolve(&full).is_some_and(|resolved| resolved == image_path)
+        ref_target(post_path, destination).is_some_and(|target| target == image_path)
     })
 }
 
@@ -578,5 +584,26 @@ mod tests {
         ));
         assert!(!refers_to(post, "![a](../../../../images/x.png)", image));
         assert!(!refers_to(post, "[a](../images/x.png)", image));
+    }
+
+    #[test]
+    fn a_destination_is_a_path_of_the_repository_or_nothing() {
+        let post = "content/posts/p.md";
+        assert_eq!(
+            ref_target(post, "../images/x.png").as_deref(),
+            Some("content/images/x.png")
+        );
+        assert_eq!(
+            ref_target(post, "/assets/images/x.png?v=2#a").as_deref(),
+            Some("assets/images/x.png")
+        );
+        assert_eq!(
+            ref_target(post, "./x.png").as_deref(),
+            Some("content/posts/x.png")
+        );
+        assert_eq!(ref_target(post, "https://example.com/x.png"), None);
+        assert_eq!(ref_target(post, "//cdn.example.com/x.png"), None);
+        assert_eq!(ref_target(post, "data:image/png;base64,AAAA"), None);
+        assert_eq!(ref_target(post, "../../../x.png"), None);
     }
 }

@@ -63,6 +63,16 @@ export function imagesDeps(origin: string): ImagesDeps {
       if ("refusal" in site) return { found: true, result: { ok: false, reason: site.refusal } };
       return { found: true, result: await postsShowing(site.deps, { vault: site.vault, imagePath: path }) };
     },
+    async reference(accountId, id, input) {
+      const site = await siteOf(accountId, id);
+      if (!site.found) return { found: false };
+      if ("refusal" in site) return { found: true, result: { ok: false, reason: site.refusal } };
+      if ("image" in input) {
+        const reference = fjord().siteImageRef(site.engine, input.post, input.image);
+        return { found: true, result: reference === undefined ? { ok: false, reason: "unknown_engine" } : { ok: true, reference } };
+      }
+      return { found: true, result: { ok: true, path: fjord().siteImageTarget(input.post, input.reference) ?? null } };
+    },
     async read(accountId, id, path) {
       const site = await siteOf(accountId, id);
       if (!site.found) return { found: false };

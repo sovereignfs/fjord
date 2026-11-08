@@ -324,6 +324,11 @@ pub fn site_image_ref(engine: &str, post_path: &str, image_path: &str) -> Option
     api::site_image_ref(engine, post_path, image_path)
 }
 
+#[wasm_bindgen(js_name = siteImageTarget)]
+pub fn site_image_target(post_path: &str, destination: &str) -> Option<String> {
+    api::site_image_target(post_path, destination)
+}
+
 #[wasm_bindgen(js_name = siteRefersTo)]
 pub fn site_refers_to(post_path: &str, body: &str, image_path: &str) -> bool {
     api::site_refers_to(post_path, body, image_path)

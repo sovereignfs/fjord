@@ -47,6 +47,7 @@ interface Module {
   siteImageName(fileName: string, extension: string, existingJson: string): string | undefined;
   siteImageRef(engine: string, postPath: string, imagePath: string): string | undefined;
   siteRefersTo(postPath: string, body: string, imagePath: string): boolean;
+  siteImageTarget(postPath: string, destination: string): string | undefined;
   foldTag(tag: string): string;
   sameTag(a: string, b: string): boolean;
   tagIsUnder(tag: string, parent: string): boolean;
@@ -300,6 +301,11 @@ export class Fjord {
   /** How the post at `postPath` refers to the image at `imagePath`, in the form its engine reads. */
   siteImageRef(engine: string, postPath: string, imagePath: string): string | undefined {
     return this.module.siteImageRef(engine, postPath, imagePath);
+  }
+
+  /** The path of the repository that a Markdown image destination written in the post at `postPath` refers to, or undefined (a URL, or out of the repository). */
+  siteImageTarget(postPath: string, destination: string): string | undefined {
+    return this.module.siteImageTarget(postPath, destination);
   }
 
   /** Whether the post at `postPath`, with this Markdown `body`, shows the image at `imagePath`. */

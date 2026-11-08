@@ -27,6 +27,11 @@ export interface ImagesDeps {
   uses: (accountId: string, id: number, path: string) => Promise<{ found: false } | { found: true; result: { ok: true; posts: string[]; complete: boolean } | { ok: false; reason: SiteRefusal | ImageFailure } }>;
   /** A picture's bytes, if the path is the library's. */
   read: (accountId: string, id: number, path: string) => Promise<{ found: false } | { found: true; result: { ok: true; bytes: Uint8Array; mime: string | undefined } | { ok: false; reason: "missing" | "too_large" | SiteRefusal | ImageFailure } }>;
+  /**
+   * How the post at `post` refers to the picture at `image` in its engine's form, or the path of the repository that `reference`, written in that post,
+   * refers to (`null` for a URL or a path out of the repository). Nothing is read from the repository.
+   */
+  reference: (accountId: string, id: number, input: { post: string; image: string } | { post: string; reference: string }) => Promise<{ found: false } | { found: true; result: { ok: true; reference: string } | { ok: true; path: string | null } | { ok: false; reason: SiteRefusal | ImageFailure } }>;
   /** The instance's origin, `FJORD_URL`. */
   origin: string;
 }
@@ -178,6 +183,35 @@ export async function handleImageFile(request: Request, caller: Caller | null, d
         "cache-control": "private, no-store",
       },
     });
+  } catch (error) {
+    return fromError(error);
+  }
+}
+
+/**
+ * `GET ?post=<path>&image=<path>` is the reference a post makes to a picture, in its engine's form (`{ reference }`); `GET ?post=<path>&reference=<text>`
+ * is the path of the repository a reference in that post means (`{ path }`, null for a URL), which is how an editor shows a relative picture. Both are the
+ * format module's (`siteImageRef`, `siteImageTarget`): the editors know no engine.
+ */
+export async function handleImageReference(request: Request, caller: Caller | null, deps: ImagesDeps, id: string): Promise<Response> {
+  if (request.method !== "GET") return failure(405, "method_not_allowed", "That method is not allowed here.");
+  const gate = who(request, caller, deps, id, false);
+  if (gate instanceof Response) return gate;
+  const query = new URL(request.url).searchParams;
+  const post = query.get("post");
+  const image = query.get("image");
+  const reference = query.get("reference");
+  if (!isRepositoryPath(post)) return failure(400, "invalid_request", "Say which post, by its path in the repository.");
+  let input: { post: string; image: string } | { post: string; reference: string };
+  if (image !== null && reference === null && isRepositoryPath(image)) input = { post, image };
+  else if (reference !== null && image === null && reference.length > 0 && reference.length <= 1_000 && reference.isWellFormed()) input = { post, reference };
+  else return failure(400, "invalid_request", "Give either the image's path or the reference to resolve.");
+  try {
+    const outcome = await deps.reference(gate.caller.accountId, gate.number, input);
+    if (!outcome.found) return notFound();
+    const { result } = outcome;
+    if (!result.ok) return refused(result.reason);
+    return json(200, "reference" in result ? { reference: result.reference } : { path: result.path });
   } catch (error) {
     return fromError(error);
   }
