@@ -160,6 +160,27 @@ test("a site's post goes where its engine reads it, with what it reads", () => {
   assert.equal(JSON.parse(wasm.journalEntry("---\ndraft: true\n---\nx\n", "posts/a.md")).draft, true);
 });
 
+test("a site's images: type by bytes, folder, name and reference (RFC 0004)", () => {
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+  assert.equal(wasm.siteImageType(png), "png");
+  assert.equal(wasm.siteImageType(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"/>')), undefined);
+  assert.equal(wasm.siteImageMime("jpg"), "image/jpeg");
+  assert.equal(wasm.siteImageMime("svg"), undefined);
+  assert.equal(wasm.siteImageDir("astro", "src/content"), "src/content/images");
+  assert.equal(wasm.siteImageDir("jekyll", "content"), "content/images");
+  assert.equal(wasm.siteImageDir("jekyll", "_posts"), "assets/images");
+  assert.equal(wasm.siteImageDir("hugo", "content"), undefined);
+  assert.equal(wasm.siteImageName("My Photo.JPG", "jpg", "[]"), "my-photo.jpg");
+  assert.equal(wasm.siteImageName("photo.png", "png", '["Photo.png"]'), "photo-2.png");
+  assert.equal(wasm.siteImageName("x.png", "svg", "[]"), undefined);
+  assert.equal(wasm.siteImageName("x.png", "png", "not json"), undefined);
+  assert.equal(wasm.siteImageRef("astro", "content/posts/p.md", "content/images/x.png"), "../images/x.png");
+  assert.equal(wasm.siteImageRef("jekyll", "content/_posts/2026-11-08-p.md", "content/images/x.png"), "/content/images/x.png");
+  assert.equal(wasm.siteImageRef("hugo", "p.md", "x.png"), undefined);
+  assert.equal(wasm.siteRefersTo("content/posts/p.md", "![a](../images/x.png)", "content/images/x.png"), true);
+  assert.equal(wasm.siteRefersTo("content/posts/p.md", "![a](../images/y.png)", "content/images/x.png"), false);
+});
+
 test("an entry's title is its header's before its heading or its file name (spec §8.2), as a site's posts, which have no heading, need", () => {
   const summary = (text, path) => JSON.parse(wasm.journalEntry(text, path));
   assert.equal(summary("---\ntitle: Hello, World!\ndate: 2026-11-02\n---\n\nNo heading.\n", "posts/hello-world.md").title, "Hello, World!");

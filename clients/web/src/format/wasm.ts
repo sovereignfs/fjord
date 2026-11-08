@@ -41,6 +41,12 @@ interface Module {
   sitePostPath(engine: string, date: string, title: string, draft: boolean): string | undefined;
   siteNewPost(engine: string, id: string, title: string, created: string, date: string, draft: boolean): string;
   siteTagProblem(engine: string, tag: string): string | undefined;
+  siteImageType(bytes: Uint8Array): string | undefined;
+  siteImageMime(extension: string): string | undefined;
+  siteImageDir(engine: string, vaultDir: string): string | undefined;
+  siteImageName(fileName: string, extension: string, existingJson: string): string | undefined;
+  siteImageRef(engine: string, postPath: string, imagePath: string): string | undefined;
+  siteRefersTo(postPath: string, body: string, imagePath: string): boolean;
   foldTag(tag: string): string;
   sameTag(a: string, b: string): boolean;
   tagIsUnder(tag: string, parent: string): boolean;
@@ -267,6 +273,38 @@ export class Fjord {
   /** Why `tag` cannot be a tag of a post of this engine (Jekyll reads a tag with a space as two), or undefined. */
   siteTagProblem(engine: string, tag: string): string | undefined {
     return this.module.siteTagProblem(engine, tag);
+  }
+
+  /** What bytes are as an image, by their first bytes: `png`, `jpg`, `webp`, `gif` or `avif`; undefined for anything else, SVG included (RFC 0004). */
+  siteImageType(bytes: Uint8Array): string | undefined {
+    return this.module.siteImageType(bytes);
+  }
+
+  /** The media type an image of this extension is served as, or undefined. */
+  siteImageMime(extension: string): string | undefined {
+    return this.module.siteImageMime(extension);
+  }
+
+  /** Where a site keeps its images, relative to the repository's root, given its vault's directory (`""` for the root). */
+  siteImageDir(engine: string, vaultDir: string): string | undefined {
+    return this.module.siteImageDir(engine, vaultDir);
+  }
+
+  /** The name an uploaded image is given, unique among `existing` (the names already in its folder). */
+  siteImageName(fileName: string, extension: string, existing: string[]): string {
+    const name = this.module.siteImageName(fileName, extension, JSON.stringify(existing));
+    if (name === undefined) throw new Error(`not an image type: ${extension}`);
+    return name;
+  }
+
+  /** How the post at `postPath` refers to the image at `imagePath`, in the form its engine reads. */
+  siteImageRef(engine: string, postPath: string, imagePath: string): string | undefined {
+    return this.module.siteImageRef(engine, postPath, imagePath);
+  }
+
+  /** Whether the post at `postPath`, with this Markdown `body`, shows the image at `imagePath`. */
+  siteRefersTo(postPath: string, body: string, imagePath: string): boolean {
+    return this.module.siteRefersTo(postPath, body, imagePath);
   }
 
   /** The form a tag is compared in (spec §8.1). */

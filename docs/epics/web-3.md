@@ -633,13 +633,15 @@ In `site`, beside `post_path`: the images folder for an engine and a vault (`ima
 
 ### P20 `fjord-wasm`: images in a site
 
-**Status:** 📋 Planned (waits on P19)
+**Status:** ✅ Done
 
 **Design:** RFC 0004
 
 P19's functions exported through the module, with the module's tests.
 
 **Accepts when:** `kinds.test.mjs` and `wasm.test.ts` call each function and agree with the Rust tests.
+
+- **Done as:** `siteImageType`, `siteImageMime`, `siteImageDir`, `siteImageName`, `siteImageRef` and `siteRefersTo` in `crates/fjord-wasm/src/{api,lib}.rs`, and the web client's `FjordModule` (`src/format/wasm.ts`, where `siteImageName` takes the existing names as an array and throws on a type that is not an image's). Tested by a case in `kinds.test.mjs` (Node, 197 pass) and one in the web's `posts.test.ts` through the real module; the file the task names, `wasm.test.ts`, is the web's check of the module's loading and was not the place for them.
 
 ### 3j.1 The library screen
 

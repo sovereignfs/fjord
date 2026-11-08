@@ -11,6 +11,7 @@ changes is recorded under Unreleased and in the web client's notes when it ships
 
 ### Added
 
+- **A site's images** (RFC 0004): `siteImageType`, `siteImageMime`, `siteImageDir`, `siteImageName`, `siteImageRef` and `siteRefersTo`, from `fjord_core::site`.
 - **`discover` says each vault's `id`** (the manifest's, or `null`), which the web client's addresses are made of (`/repo/<repo>/v/<vault-id>`).
 - **`planVaultEncryption` and `planVaultDecryption`** (RFC 0003): what `fjord encrypt <vault> --permanent` and `fjord decrypt <vault> --permanent` write, from `fjord-core`'s `scaffold::plan_encrypt_vault` and `plan_decrypt_vault`, so the web client and the CLI write the same manifest, recipients file and guard. A finding (no recipients, a key that is not one, a vault already in that form) is `ok: false` with a code; the repository's `.gitattributes` comes back whole when it needs the merge guard.
 

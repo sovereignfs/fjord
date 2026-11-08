@@ -299,6 +299,36 @@ pub fn site_tag_problem(engine: &str, tag: &str) -> Option<String> {
     api::site_tag_problem(engine, tag)
 }
 
+#[wasm_bindgen(js_name = siteImageType)]
+pub fn site_image_type(bytes: &[u8]) -> Option<String> {
+    api::site_image_type(bytes)
+}
+
+#[wasm_bindgen(js_name = siteImageMime)]
+pub fn site_image_mime(extension: &str) -> Option<String> {
+    api::site_image_mime(extension)
+}
+
+#[wasm_bindgen(js_name = siteImageDir)]
+pub fn site_image_dir(engine: &str, vault_dir: &str) -> Option<String> {
+    api::site_image_dir(engine, vault_dir)
+}
+
+#[wasm_bindgen(js_name = siteImageName)]
+pub fn site_image_name(file_name: &str, extension: &str, existing_json: &str) -> Option<String> {
+    api::site_image_name(file_name, extension, existing_json)
+}
+
+#[wasm_bindgen(js_name = siteImageRef)]
+pub fn site_image_ref(engine: &str, post_path: &str, image_path: &str) -> Option<String> {
+    api::site_image_ref(engine, post_path, image_path)
+}
+
+#[wasm_bindgen(js_name = siteRefersTo)]
+pub fn site_refers_to(post_path: &str, body: &str, image_path: &str) -> bool {
+    api::site_refers_to(post_path, body, image_path)
+}
+
 #[wasm_bindgen(js_name = foldTag)]
 pub fn fold_tag(tag: &str) -> String {
     api::fold_tag(tag)
