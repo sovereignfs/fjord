@@ -879,8 +879,7 @@ Markdown in, Markdown out, compared.
   strikethrough, inline code, links, bullet, numbered and task lists, quotes, code
   blocks, horizontal rules, tables. Nothing that would silently vanish on save:
   no fonts, sizes, colours, alignment or underline.
-- **Images by URL** (or a path to a file already in the repository); no uploads in
-  phase 1.
+- **Images by URL** (or a path to a file already in the repository) for a document in a drive. **A site's posts have a media library** (RFC 0004, ROADMAP 3j): the image button asks the app for a picture from the site's library, and a picture pasted or dropped is added to it, through the editors' `ImageSource` (`packages/fjord-editor`), which knows nothing of sites. A drive's documents do not have one yet.
 - **House style.** MDXEditor re-serialises the whole document on save. For
   documents, which Fjord creates and owns, that is acceptable: the output follows
   one documented house style (list markers, emphasis markers, table layout), and the

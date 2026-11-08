@@ -311,3 +311,54 @@ test("nobody can preview, list or stop a preview of a repository that is not the
   expect((await page.request.delete("/api/connections/9999/previews?branch=main", { headers: { origin: "http://localhost:3201" } })).status()).toBe(404);
 });
 
+
+// A 1x1 PNG.
+const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+
+test("a site's media library takes a picture, shows it, puts it into a post with its alt text, and deletes it", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await signUp(page);
+  const id = await connect(page, "acme/more");
+  await page.goto(`/repo/${id}`);
+
+  // Add: a file with a name no engine would like, committed to the engine's images folder under a name that is safe.
+  await page.getByRole("button", { name: "Media library" }).click();
+  const library = page.getByRole("dialog", { name: "Media library" });
+  await expect(library.getByText("No images yet")).toBeVisible({ timeout: 30_000 });
+  await library.getByTestId("media-upload").setInputFiles({ name: "Red Square.PNG", mimeType: "image/png", buffer: PIXEL });
+  await expect(library.getByRole("link", { name: "Open red-square.png" })).toBeVisible({ timeout: 30_000 });
+  const added = await hubs.more.filesAt((await hubs.more.branchHead())!);
+  expect(Object.keys(added)).toContain("content/images/red-square.png");
+
+  // Something that is not a picture is refused in the server's words, and nothing is committed.
+  const before = (await hubs.more.branchHead())!;
+  await library.getByTestId("media-upload").setInputFiles({ name: "x.png", mimeType: "image/png", buffer: Buffer.from("<svg onload=alert(1)/>") });
+  await expect(library.getByText(/not a PNG, JPEG, WebP, GIF or AVIF picture/)).toBeVisible({ timeout: 30_000 });
+  expect((await hubs.more.branchHead())!).toBe(before);
+  await page.keyboard.press("Escape");
+
+  // Into a post: the library again, a picture chosen, and no way to insert it without its words.
+  await page.getByRole("button", { name: "New post" }).click();
+  await page.getByLabel("Title").fill("With a picture");
+  await page.getByRole("button", { name: "Write it" }).click();
+  await expect(page).toHaveURL(POST_PLACE, { timeout: 30_000 });
+  await page.getByTestId("insert-image").click();
+  const choose = page.getByRole("dialog", { name: "Choose an image" });
+  await choose.getByRole("button", { name: "Choose red-square.png" }).click();
+  const insert = choose.getByRole("button", { name: "Insert", exact: true });
+  await expect(insert).toBeDisabled();
+  await choose.getByLabel("Describe the image").fill("A red square");
+  await expect(insert).toBeEnabled();
+  await insert.click();
+  await expect(page.locator(".cm-content")).toContainText("![A red square](../images/red-square.png)", { timeout: 30_000 });
+
+  // Delete: asked first, and the picture is gone from the repository.
+  await page.goto(`/repo/${id}`);
+  await page.getByRole("button", { name: "Media library" }).click();
+  await page.getByRole("dialog", { name: "Media library" }).getByRole("button", { name: "Delete red-square.png" }).click();
+  await page.getByRole("button", { name: "Delete it" }).click();
+  await expect(page.getByRole("dialog", { name: "Media library" }).getByText("No images yet")).toBeVisible({ timeout: 30_000 });
+  expect(Object.keys(await hubs.more.filesAt((await hubs.more.branchHead())!))).not.toContain("content/images/red-square.png");
+  expect(errors).toEqual([]);
+});

@@ -1,6 +1,6 @@
 # Fjord Web — roadmap
 
-**Status:** phase 1 is done (1a.6's check against real GitHub passed on 2026-11-01); phase 2 is built; phase 3, repository kinds, is built ([RFC 0001](../../docs/rfcs/0001-repository-kinds.md) implemented; 3d.2, a build in Fjord, is an outline); 3j, a media library for sites, is proposed in [RFC 0004](../../docs/rfcs/0004-site-media-library.md); and phase 4 is an outline. The design is
+**Status:** phase 1 is done (1a.6's check against real GitHub passed on 2026-11-01); phase 2 is built; phase 3, repository kinds, is built ([RFC 0001](../../docs/rfcs/0001-repository-kinds.md) implemented; 3d.2, a build in Fjord, is an outline); 3j, a media library for sites, is built ([RFC 0004](../../docs/rfcs/0004-site-media-library.md)); and phase 4 is an outline. The design is
 [`DESIGN.md`](DESIGN.md); this file is the order of work, and the detail of each task is in [`docs/epics/`](../../docs/epics/). Section numbers (§) refer to `DESIGN.md` unless they say "spec".
 
 | | |
@@ -169,18 +169,18 @@ A person makes a drive or a journal on this instance, works in it with the ordin
 
 ### 3j — Media library
 
-A site's images as a library: browsed, uploaded (resized in the browser), deleted, and put into a post from either editor with alt text. Images only, an `ssg` repository only. Proposed in [RFC 0004](../../docs/rfcs/0004-site-media-library.md); nothing starts until it is accepted.
+A site's images as a library: browsed, uploaded (resized in the browser), deleted, and put into a post from either editor with alt text. Images only, an `ssg` repository only. Accepted and built ([RFC 0004](../../docs/rfcs/0004-site-media-library.md)).
 
 | # | Task | Status |
 | --- | --- | --- |
 | [P18](../../docs/epics/web-3.md#p18-spike-where-each-engine-serves-images-from-its-vault) | Spike: where each engine serves images from its vault | ✅ Done (one layout waits on the owner) |
 | [P19](../../docs/epics/web-3.md#p19-fjord-core-images-in-a-site) | `fjord-core`: images in a site | ✅ Done |
 | [P20](../../docs/epics/web-3.md#p20-fjord-wasm-images-in-a-site) | `fjord-wasm`: images in a site | ✅ Done |
-| [3j.1](../../docs/epics/web-3.md#3j1-the-library-screen) | The library screen | 📋 Planned |
-| [3j.2](../../docs/epics/web-3.md#3j2-upload) | Upload, resized in the browser | 📋 Planned |
-| [3j.3](../../docs/epics/web-3.md#3j3-insert-from-the-editors) | Insert from the editors, with alt text | 📋 Planned |
-| [3j.4](../../docs/epics/web-3.md#3j4-paste-and-drop-into-a-post) | Paste and drop into a post | 📋 Planned |
-| [3j.5](../../docs/epics/web-3.md#3j5-delete-an-image) | Delete an image | 📋 Planned |
+| [3j.1](../../docs/epics/web-3.md#3j1-the-library-screen) | The library screen | ✅ Done |
+| [3j.2](../../docs/epics/web-3.md#3j2-upload) | Upload, resized in the browser | ✅ Done |
+| [3j.3](../../docs/epics/web-3.md#3j3-insert-from-the-editors) | Insert from the editors, with alt text | ✅ Done |
+| [3j.4](../../docs/epics/web-3.md#3j4-paste-and-drop-into-a-post) | Paste and drop into a post | ✅ Done (tested in the editor package only) |
+| [3j.5](../../docs/epics/web-3.md#3j5-delete-an-image) | Delete an image | ✅ Done |
 
 Order: P18 (a spike; if an engine cannot serve images from its vault, the owner decides before P19), P19, P20, then 3j.1 to 3j.5.
 

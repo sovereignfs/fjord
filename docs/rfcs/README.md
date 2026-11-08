@@ -15,4 +15,4 @@ kept in step with the table below.
 | [0001](0001-repository-kinds.md) | Repository kinds: Drive, Journal and SSG | Implemented |
 | [0002](0002-kinds-second-pass.md) | Kinds, second pass: one kind of Doc, addresses, adoption | Implemented |
 | [0003](0003-vault-encryption-lifecycle.md) | Encrypting and decrypting a vault | Implemented |
-| [0004](0004-site-media-library.md) | A media library for sites | Accepted |
+| [0004](0004-site-media-library.md) | A media library for sites | Implemented |
