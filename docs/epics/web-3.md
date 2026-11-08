@@ -620,13 +620,16 @@ Build each scaffold and each adopted layout (Astro `content/` and `src/content/`
 
 ### P19 `fjord-core`: images in a site
 
-**Status:** 📋 Planned (waits on P18)
+**Status:** ✅ Done (the Rust side; `fjord-wasm` is P20)
 
 **Design:** RFC 0004, *Where images go*, *File names*
 
 In `site`, beside `post_path`: the images folder for an engine and a vault (`image_dir`); a safe name for an upload, given its name, its type and the names already there (`image_name`); the reference a post at one path makes to an image at another (`image_ref`); and the images a Doc's body refers to (`image_refs`), for deletion's warning. The image types and their first bytes (`image_type`), in the pure subset. Spec §1.1 gets RFC 0004's sentence.
 
 **Accepts when:** each function is tested for both engines and every layout P18 recorded, `image_ref` ∘ resolution is the image's path for posts at several depths, `image_name` is a fixed point and refuses `..`, separators and names that differ only by case from one there, `image_type` refuses SVG and a PNG named `.jpg` is a PNG; the pure subset still builds for `wasm32`.
+
+- **Done as:** `crates/fjord-core/src/site.rs`: `ImageType`, `image_type`, `image_dir`, `image_name`, `image_ref`, `image_refs` and `refers_to` (the last takes no engine: a destination resolves from the post, or from the site's root when it begins with `/`). The owner chose `assets/images/` for a Jekyll vault under an underscore directory (P18's stop), so `image_dir` returns it for one: the one place a library writes outside the vault. Spec §1.1 has RFC 0004's sentence. Tested in the module, including the round trip from `image_ref` to `refers_to` at several depths, SVG and HTML refused, a PNG named `.jpg`, and a name that is its own fixed point; clippy clean and the pure subset builds for `wasm32`.
+- **Left out:** `refers_to` reads Markdown images only, not `<img>` tags or MDX components, so deletion's warning can miss a post that uses one.
 
 ### P20 `fjord-wasm`: images in a site
 

@@ -79,6 +79,238 @@ pub fn tag_problem(engine: &Engine, tag: &str) -> Option<&'static str> {
     }
 }
 
+// --- Images (RFC 0004) ---------------------------------------------------------------------------------------------------------
+
+/// The image types a site's library takes, told apart by their first bytes and never by a name (RFC 0004). SVG is not one: it is a
+/// document that can carry script.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ImageType {
+    Png,
+    Jpeg,
+    Webp,
+    Gif,
+    Avif,
+}
+
+impl ImageType {
+    /// The extension a file of this type is given, without the dot.
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Png => "png",
+            Self::Jpeg => "jpg",
+            Self::Webp => "webp",
+            Self::Gif => "gif",
+            Self::Avif => "avif",
+        }
+    }
+
+    /// The media type a file of this type is served as.
+    pub fn mime(self) -> &'static str {
+        match self {
+            Self::Png => "image/png",
+            Self::Jpeg => "image/jpeg",
+            Self::Webp => "image/webp",
+            Self::Gif => "image/gif",
+            Self::Avif => "image/avif",
+        }
+    }
+}
+
+/// The type `bytes` are, by their first bytes, or `None` when they are not an image this library takes (SVG and anything else).
+pub fn image_type(bytes: &[u8]) -> Option<ImageType> {
+    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        Some(ImageType::Png)
+    } else if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
+        Some(ImageType::Jpeg)
+    } else if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        Some(ImageType::Gif)
+    } else if bytes.len() >= 12 && &bytes[0..4] == b"RIFF" && &bytes[8..12] == b"WEBP" {
+        Some(ImageType::Webp)
+    } else if bytes.len() >= 12
+        && &bytes[4..8] == b"ftyp"
+        && (&bytes[8..12] == b"avif" || &bytes[8..12] == b"avis")
+    {
+        Some(ImageType::Avif)
+    } else {
+        None
+    }
+}
+
+fn join(dir: &str, name: &str) -> String {
+    if dir.is_empty() {
+        name.to_string()
+    } else {
+        format!("{dir}/{name}")
+    }
+}
+
+/// Where a site's library keeps its images, relative to the repository's root, given the directory of the site's vault (`""` for a
+/// vault at the root), or `None` for an engine this build does not know.
+///
+/// Inside the vault, as `images/`, for Astro and for a Jekyll vault Jekyll serves from. **A Jekyll vault under a directory that
+/// begins with `_`** (an adopted site whose vault is `_posts`) cannot hold images: Jekyll skips such directories (RFC 0004, P18), so
+/// they go to `assets/images/`, which Jekyll serves, at the root. That is the one exception to "inside the vault".
+pub fn image_dir(engine: &Engine, vault_dir: &str) -> Option<String> {
+    match engine {
+        Engine::Astro => Some(join(vault_dir, "images")),
+        Engine::Jekyll if vault_dir.split('/').any(|part| part.starts_with('_')) => {
+            Some("assets/images".to_string())
+        }
+        Engine::Jekyll => Some(join(vault_dir, "images")),
+        Engine::Unknown(_) => None,
+    }
+}
+
+/// The longest stem of an uploaded image's name.
+const IMAGE_STEM_MAX: usize = 64;
+
+/// The name an uploaded image is given: its own, lowercased and in NFC, spaces and anything outside `a-z 0-9 . _ -` turned into `-`,
+/// the extension from its type, and `-2`, `-3` and on when `existing` (the names already in the folder) has one that differs only by
+/// case. The same name given again is the same name, and it never holds a separator, `..` or a Windows device name (spec §5).
+pub fn image_name(file_name: &str, kind: ImageType, existing: &[String]) -> String {
+    let base = file_name.rsplit(['/', '\\']).next().unwrap_or("");
+    let stem = match base.rsplit_once('.') {
+        Some((stem, _)) if !stem.is_empty() => stem,
+        _ => base,
+    };
+    let mut clean = String::new();
+    let mut gap = false;
+    for character in crate::path::to_nfc(stem).to_lowercase().chars() {
+        if matches!(character, 'a'..='z' | '0'..='9' | '.' | '_') {
+            if gap && !clean.is_empty() {
+                clean.push('-');
+            }
+            gap = false;
+            clean.push(character);
+        } else {
+            gap = true;
+        }
+    }
+    let mut clean = clean.trim_matches(['.', '_']).to_string();
+    clean.truncate(IMAGE_STEM_MAX);
+    while clean.ends_with(['.', '-']) {
+        clean.pop();
+    }
+    if clean.is_empty() || crate::path::is_reserved_device_name(&clean) {
+        clean = format!("image-{clean}").trim_end_matches('-').to_string();
+    }
+    let taken = |name: &str| existing.iter().any(|e| e.eq_ignore_ascii_case(name));
+    let extension = kind.extension();
+    let mut name = format!("{clean}.{extension}");
+    let mut n = 2;
+    while taken(&name) {
+        name = format!("{clean}-{n}.{extension}");
+        n += 1;
+    }
+    name
+}
+
+/// The directory part of a repository path, `""` for a file at the root.
+fn dir_of(path: &str) -> &str {
+    path.rsplit_once('/').map_or("", |(dir, _)| dir)
+}
+
+/// `path` with its `.` and `..` resolved, or `None` when it goes above the root.
+fn resolve(path: &str) -> Option<String> {
+    let mut out: Vec<&str> = Vec::new();
+    for part in path.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                out.pop()?;
+            }
+            other => out.push(other),
+        }
+    }
+    Some(out.join("/"))
+}
+
+/// How the post at `post_path` refers to the image at `image_path` (both relative to the repository's root), in the form its engine
+/// reads: Astro a path relative to the post (`../images/x.webp`, which its image pipeline resolves and optimises), Jekyll a path from
+/// the site's root (`/content/images/x.png`, as it copies a static file). `None` for an engine this build does not know.
+pub fn image_ref(engine: &Engine, post_path: &str, image_path: &str) -> Option<String> {
+    match engine {
+        Engine::Astro => {
+            let from: Vec<&str> = dir_of(post_path)
+                .split('/')
+                .filter(|p| !p.is_empty())
+                .collect();
+            let to: Vec<&str> = image_path.split('/').filter(|p| !p.is_empty()).collect();
+            let common = from.iter().zip(&to).take_while(|(a, b)| a == b).count();
+            let ups = from.len() - common;
+            let rest = to[common..].join("/");
+            Some(if ups == 0 {
+                format!("./{rest}")
+            } else {
+                format!("{}{rest}", "../".repeat(ups))
+            })
+        }
+        Engine::Jekyll => Some(format!("/{}", image_path.trim_start_matches('/'))),
+        Engine::Unknown(_) => None,
+    }
+}
+
+/// The destination of every Markdown image (`![alt](destination "title")`) in `body`, in order, as written.
+pub fn image_refs(body: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut rest = body;
+    while let Some(at) = rest.find("![") {
+        rest = &rest[at + 2..];
+        let mut depth = 1;
+        let mut close = None;
+        for (i, c) in rest.char_indices() {
+            match c {
+                '[' => depth += 1,
+                ']' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close = Some(i);
+                        break;
+                    }
+                }
+                '\n' if rest[..i].ends_with('\n') => break,
+                _ => {}
+            }
+        }
+        let Some(close) = close else { break };
+        let after = &rest[close + 1..];
+        rest = after;
+        let Some(inner) = after.strip_prefix('(') else {
+            continue;
+        };
+        let inner = inner.trim_start();
+        let destination = if let Some(angled) = inner.strip_prefix('<') {
+            angled.split('>').next().unwrap_or("")
+        } else {
+            inner.split([' ', '\t', '\n', ')']).next().unwrap_or("")
+        };
+        if !destination.is_empty() {
+            found.push(destination.to_string());
+        }
+    }
+    found
+}
+
+/// Whether the post at `post_path`, whose text after its header is `body`, shows the image at `image_path`: some Markdown image of it
+/// resolves to that path, from the post for a relative destination and from the site's root for one that begins with `/`. A
+/// destination with a scheme, a query or a fragment is its path alone; one that leaves the repository refers to nothing.
+pub fn refers_to(post_path: &str, body: &str, image_path: &str) -> bool {
+    image_refs(body).iter().any(|destination| {
+        if destination.contains("://")
+            || destination.starts_with("//")
+            || destination.starts_with("data:")
+        {
+            return false;
+        }
+        let bare = destination.split(['?', '#']).next().unwrap_or("");
+        let full = match bare.strip_prefix('/') {
+            Some(root) => root.to_string(),
+            None => join(dir_of(post_path), bare),
+        };
+        resolve(&full).is_some_and(|resolved| resolved == image_path)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -178,5 +410,173 @@ mod tests {
         assert!(tag_problem(&Engine::Jekyll, "tab\there").is_some());
         assert_eq!(tag_problem(&Engine::Jekyll, "project/fjord"), None);
         assert_eq!(tag_problem(&Engine::Astro, "two words"), None);
+    }
+
+    // --- Images (RFC 0004) ---
+
+    #[test]
+    fn an_image_is_what_its_first_bytes_say() {
+        assert_eq!(image_type(b"\x89PNG\r\n\x1a\nrest"), Some(ImageType::Png));
+        assert_eq!(
+            image_type(&[0xFF, 0xD8, 0xFF, 0xE0, 0]),
+            Some(ImageType::Jpeg)
+        );
+        assert_eq!(image_type(b"GIF89a.."), Some(ImageType::Gif));
+        assert_eq!(
+            image_type(b"RIFF\x00\x00\x00\x00WEBPVP8 "),
+            Some(ImageType::Webp)
+        );
+        assert_eq!(
+            image_type(b"\x00\x00\x00\x1cftypavif\x00"),
+            Some(ImageType::Avif)
+        );
+        // A PNG named .jpg is a PNG, and a document is not an image, SVG included.
+        assert_eq!(
+            image_type(b"<svg xmlns=\"http://www.w3.org/2000/svg\"/>"),
+            None
+        );
+        assert_eq!(image_type(b"<html><script>alert(1)</script>"), None);
+        assert_eq!(image_type(b""), None);
+        assert_eq!(image_type(b"RIFF\x00\x00\x00\x00WAVEfmt "), None);
+        assert_eq!(image_type(b"\x00\x00\x00\x1cftypmp42\x00"), None);
+    }
+
+    #[test]
+    fn an_images_folder_is_inside_the_vault_unless_jekyll_cannot_serve_it() {
+        assert_eq!(
+            image_dir(&Engine::Astro, "content").as_deref(),
+            Some("content/images")
+        );
+        assert_eq!(
+            image_dir(&Engine::Astro, "src/content").as_deref(),
+            Some("src/content/images")
+        );
+        assert_eq!(
+            image_dir(&Engine::Jekyll, "content").as_deref(),
+            Some("content/images")
+        );
+        // P18: Jekyll skips a directory that begins with an underscore, so a vault that is `_posts` keeps its images beside it.
+        assert_eq!(
+            image_dir(&Engine::Jekyll, "_posts").as_deref(),
+            Some("assets/images")
+        );
+        assert_eq!(
+            image_dir(&Engine::Jekyll, "docs/_posts").as_deref(),
+            Some("assets/images")
+        );
+        assert_eq!(image_dir(&Engine::Unknown("hugo".into()), "content"), None);
+    }
+
+    #[test]
+    fn an_image_is_named_safely_and_never_over_another() {
+        let none: Vec<String> = Vec::new();
+        assert_eq!(
+            image_name("My Holiday Photo.JPG", ImageType::Jpeg, &none),
+            "my-holiday-photo.jpg"
+        );
+        // The extension follows the bytes, not the name.
+        assert_eq!(image_name("shot.jpg", ImageType::Png, &none), "shot.png");
+        assert_eq!(
+            image_name("../../etc/passwd", ImageType::Png, &none),
+            "passwd.png"
+        );
+        assert_eq!(
+            image_name("a\\b\\c d.png", ImageType::Png, &none),
+            "c-d.png"
+        );
+        assert_eq!(image_name("..", ImageType::Png, &none), "image.png");
+        assert_eq!(image_name("日本語.png", ImageType::Png, &none), "image.png");
+        assert_eq!(
+            image_name("con.png", ImageType::Png, &none),
+            "image-con.png"
+        );
+        assert_eq!(image_name("--x--.png", ImageType::Png, &none), "x.png");
+        let taken = vec!["Photo.png".to_string(), "photo-2.png".to_string()];
+        assert_eq!(
+            image_name("photo.png", ImageType::Png, &taken),
+            "photo-3.png"
+        );
+        // Fixed point: a name this function made is the name it makes again.
+        let once = image_name("My  Pic (1).PNG", ImageType::Png, &none);
+        assert_eq!(image_name(&once, ImageType::Png, &none), once);
+        assert!(!once.contains('/') && !once.contains(".."), "{once}");
+        let long = "x".repeat(300);
+        assert!(image_name(&long, ImageType::Png, &none).len() <= IMAGE_STEM_MAX + 4);
+    }
+
+    #[test]
+    fn a_post_refers_to_an_image_in_its_engine_s_form_and_the_reference_resolves_back() {
+        let a = Engine::Astro;
+        assert_eq!(
+            image_ref(&a, "content/posts/p.md", "content/images/x.png").as_deref(),
+            Some("../images/x.png")
+        );
+        assert_eq!(
+            image_ref(&a, "src/content/posts/a/b/p.md", "src/content/images/x.png").as_deref(),
+            Some("../../../images/x.png")
+        );
+        assert_eq!(
+            image_ref(&a, "content/p.md", "content/images/x.png").as_deref(),
+            Some("./images/x.png")
+        );
+        let j = Engine::Jekyll;
+        assert_eq!(
+            image_ref(&j, "content/_posts/2026-11-08-p.md", "content/images/x.png").as_deref(),
+            Some("/content/images/x.png")
+        );
+        assert_eq!(
+            image_ref(&j, "_posts/2026-11-08-p.md", "assets/images/x.png").as_deref(),
+            Some("/assets/images/x.png")
+        );
+        assert_eq!(
+            image_ref(&Engine::Unknown("hugo".into()), "p.md", "x.png"),
+            None
+        );
+        // The round trip, at several depths.
+        for (engine, post, image) in [
+            (&a, "content/posts/p.md", "content/images/x.png"),
+            (
+                &a,
+                "src/content/posts/2026/p.md",
+                "src/content/images/x.png",
+            ),
+            (&a, "content/p.md", "content/images/x.png"),
+            (&j, "content/_posts/2026-11-08-p.md", "content/images/x.png"),
+            (&j, "_posts/2026-11-08-p.md", "assets/images/x.png"),
+        ] {
+            let reference = image_ref(engine, post, image).unwrap_or_default();
+            assert!(
+                refers_to(post, &format!("text ![alt]({reference})"), image),
+                "{post} {reference}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_images_a_body_shows_are_found_as_written() {
+        let body = "![one](a.png) text ![two](<b c.png> \"title\") ![three](../d.png \'t\')\n![nested [x]](e.png)\n![none]\n![](f.png)";
+        assert_eq!(
+            image_refs(body),
+            ["a.png", "b c.png", "../d.png", "e.png", "f.png"]
+        );
+        assert!(image_refs("no images [link](x.png)").is_empty());
+    }
+
+    #[test]
+    fn a_reference_is_to_the_image_only_if_it_resolves_to_it() {
+        let post = "content/posts/p.md";
+        let image = "content/images/x.png";
+        assert!(refers_to(post, "![a](../images/x.png)", image));
+        assert!(refers_to(post, "![a](../images/x.png?v=2#top)", image));
+        assert!(refers_to(post, "![a](/content/images/x.png)", image));
+        assert!(!refers_to(post, "![a](../images/y.png)", image));
+        assert!(!refers_to(post, "![a](images/x.png)", image));
+        assert!(!refers_to(
+            post,
+            "![a](https://example.com/content/images/x.png)",
+            image
+        ));
+        assert!(!refers_to(post, "![a](../../../../images/x.png)", image));
+        assert!(!refers_to(post, "[a](../images/x.png)", image));
     }
 }
