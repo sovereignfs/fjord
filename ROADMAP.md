@@ -7,8 +7,7 @@ disagrees with this file, this file is stale and should be corrected. The detail
 
 _Status key: ✅ Done · ⏳ In progress · 📋 Planned · 🚧 Open (waits on a decision) · ❌ Out of scope_
 
-State as of 2026-11-02: the CLI's milestones are all done and `fjord-cli` 0.4.x is released (all 40 diagnostics are implemented; repository kinds add `E111`, `E112` and `W606`, unreleased); **Fjord Web's phases 1 and 2 are built** (phase 1 bar a check of the GitHub App against real GitHub; phase 2, encrypted files in the browser); **repository kinds are next** (Fjord Web's phase 3, accepted in [RFC 0001](docs/rfcs/0001-repository-kinds.md), and a format change first); mobile and the MCP server are designs.
-(sign in, connect a repository, browse, write and version, share, comment; idle versions included); mobile and the MCP server are designs; encrypted files in the browser are next for web (planned in `docs/epics/web-2.md`; they need a Rust toolchain first).
+State as of 2026-11-08: the CLI's milestones are all done and `fjord-cli` 0.5.0 is released (all 43 diagnostics are implemented, repository kinds' `E111`, `E112` and `W606` among them); **Fjord Web's phases 1, 2 and 3 are built** and `fjord-web` 0.3.0 is released (sign in, connect, browse, write and version, share, comment; encrypted files in the browser; repository kinds, bar 3d.2, an outline); **collaborative editing is next** (Fjord Web's phase 4, an outline still to be planned into tasks); mobile and the MCP server are designs.
 
 ## Priorities
 
@@ -30,7 +29,7 @@ several tables into legs.
 | Component | What | State | Plan |
 | --- | --- | --- | --- |
 | The format | The repository format, CC0 | ✅ Draft 1 | [`docs/specs/Fjord.spec.md`](docs/specs/Fjord.spec.md) |
-| `fjord-core`, `fjord-cli` | The format as a library, and the CLI | ✅ M0 to M7 done, 0.4.x released | [Milestones](#fjord-core-and-fjord-cli) |
+| `fjord-core`, `fjord-cli` | The format as a library, and the CLI | ✅ M0 to M7 done, 0.5.0 released | [Milestones](#fjord-core-and-fjord-cli) |
 | `fjord-wasm` | `fjord-core`'s pure subset for WebAssembly | ✅ Built into the web client | [Web prerequisites](docs/epics/web-prerequisites.md) |
 | Fjord Web | The hosted web client | ✅ Phases 1 and 2 built · ✅ phase 3, repository kinds, built (3d.2 an outline) · phase 4 an outline | [`clients/web/ROADMAP.md`](clients/web/ROADMAP.md) |
 | `fjord-editor` | The document and note editors the clients share | ✅ Note editor, document editor, comment marks | [Web 1b](docs/epics/web-1b.md) |
