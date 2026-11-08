@@ -11,6 +11,8 @@ section.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-08
+
 ### Added
 
 - **A media library for sites** (RFC 0004). A site's page has a _Media library_: its pictures as tiles, found by name, added by a button or by dropping files (PNG, JPEG, WebP, GIF or AVIF, up to 10 MB each, up to 20 at a time, one commit), and deleted after being told which posts show them. Pictures go to an `images/` folder in the site's vault (an Astro site's `content/images`, a Jekyll site's `content/images`), and for a Jekyll site whose vault is `_posts`, which Jekyll cannot serve a folder from, to `assets/images`. A photo wider than 2560 px is scaled down in the browser first, which also drops where it was taken (_Keep the original_ uploads it as it is); an animated picture is never re-encoded. The server tells a picture's type from its first bytes: SVG, and a document named `.png`, are refused.
@@ -484,7 +486,8 @@ section.
   tests and builds in CI. Nothing in it is usable yet; the work is planned in
   [`ROADMAP.md`](ROADMAP.md).
 
-[Unreleased]: https://github.com/sovereignfs/fjord/compare/web-v0.3.0...HEAD
+[Unreleased]: https://github.com/sovereignfs/fjord/compare/web-v0.4.0...HEAD
+[0.4.0]: https://github.com/sovereignfs/fjord/compare/web-v0.3.0...web-v0.4.0
 [0.3.0]: https://github.com/sovereignfs/fjord/compare/web-v0.2.0...web-v0.3.0
 [0.2.0]: https://github.com/sovereignfs/fjord/compare/web-v0.1.0...web-v0.2.0
 [0.1.0]: https://github.com/sovereignfs/fjord/releases/tag/web-v0.1.0
