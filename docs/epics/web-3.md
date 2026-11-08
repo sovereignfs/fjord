@@ -6,6 +6,8 @@ The detail of the tasks in this part of [`clients/web/ROADMAP.md`](../../clients
 
 **A second pass** ([RFC 0002](../rfcs/0002-kinds-second-pass.md), [workstream 0002](../workstreams/0002-kinds-second-pass.md)) is planned at the [end of this file](#kinds-second-pass-rfc-0002): P13–P17, then 3e–3h.
 
+**A media library for sites** ([RFC 0004](../rfcs/0004-site-media-library.md), proposed) is planned at the [end of this file](#3j--media-library): P18–P20, then 3j.1–3j.5.
+
 ## What the phase promises, and what it does not
 
 - **A repository opens as what it is for.** `fjord.json`'s `kind` (`drive`, `journal` or `ssg`) chooses the landing page: a file explorer, a timeline, a site's content editor. Every repository can still be opened as a drive, and one of a kind a client does not know *is* opened as a drive.
@@ -598,3 +600,87 @@ A person creates a repository (a name and a kind), creates files and folders in 
   - **Moving it** (`src/local/sync.ts`, `POST /api/connections/<id>/sync`): the target is checked as connecting is (`ConnectionService.checkTarget`, shared with `addWithToken`); files are added alongside, in one import commit on the head that was read, never forced; a clash (other content, a name differing only by case, a folder where a file goes) refuses the whole move naming the paths; `.gitattributes` is merged; the repository is read back and each file's blob id checked; then `finishSync` freezes the local branch if it is still at the head the files were read at, switches the same connection row to GitHub (the token sealed in the credential store) and deletes the local rows and the connection's trees. Drafts, shares, comments, publications and addresses stay, because the connection and the blob ids do.
   - **Tested:** the provider on the contract and on its own (`provider.test.ts`: each limit, that none refuses a commit that shrinks, the allowance of one account never being another's, history kept and let go, the head's one-statement move, freezing), seen to fail with each rule switched off; the move against a GitHub whose storage is real git (`sync.test.ts`: success, a clash, an identical file, `.gitattributes`, a retry after the commit, the repository moving, an edit during the move, a read-back that does not find a file, a refused commit, the target's own checks, two accounts); creating through the real format module (`create.test.ts`); the HTTP rules (`http.test.ts`); the account's deletion (`people.test.ts`); in a browser (`e2e/local.open.spec.ts`).
 - **Not here:** a site (it needs a git host to build and preview it); an encrypted journal made in one step (make a journal, then *Encrypt this vault*); syncing from git back to the server, or both ways; a choice per clash (overwrite or keep); a target other than GitHub; counting an account's drafts in its allowance; an account's limits summed across two repositories at the same instant (the repository is the unit of serialisation, so two commits at once can exceed a limit by one); the history of a repository (the import is one commit; the server keeps only the branches' heads and a few commits before them).
+
+## 3j — Media library
+
+A site's images as a library: browsed, uploaded, deleted, and put into a post from either editor. Images only, in an `ssg` repository's vault only. The design is [RFC 0004](../rfcs/0004-site-media-library.md), **proposed**: nothing here starts until it is accepted. Order: P18, then P19 and P20, then 3j.1 to 3j.5 (3j.3 needs 3j.2's upload; 3j.4 needs 3j.3; 3j.5 needs P19's reference search).
+
+### P18 Spike: where each engine serves images from its vault
+
+**Status:** 📋 Planned (waits on RFC 0004)
+
+**Design:** RFC 0004, *Where images go* and *Open, to settle in P18*
+
+Build each scaffold and each adopted layout (Astro `content/` and `src/content/`, Jekyll `content/` as `collections_dir` and `_posts/`) with an image in the proposed folder and a post that refers to it, with the engines' current releases, and record in RFC 0004 the folder, the reference form, the address the image has in the built site, and whether `baseurl` changes it. Extend `scripts/check-site-scaffolds.sh` to build a post with an image and check the image is in the output.
+
+**Accepts when:** for each of the four layouts a folder inside the vault and a reference form are recorded, and the scaffold check builds a post with an image and finds it; or, for a layout where none works, the spike stops and the owner has chosen the fallback before P19 starts.
+
+### P19 `fjord-core`: images in a site
+
+**Status:** 📋 Planned (waits on P18)
+
+**Design:** RFC 0004, *Where images go*, *File names*
+
+In `site`, beside `post_path`: the images folder for an engine and a vault (`image_dir`); a safe name for an upload, given its name, its type and the names already there (`image_name`); the reference a post at one path makes to an image at another (`image_ref`); and the images a Doc's body refers to (`image_refs`), for deletion's warning. The image types and their first bytes (`image_type`), in the pure subset. Spec §1.1 gets RFC 0004's sentence.
+
+**Accepts when:** each function is tested for both engines and every layout P18 recorded, `image_ref` ∘ resolution is the image's path for posts at several depths, `image_name` is a fixed point and refuses `..`, separators and names that differ only by case from one there, `image_type` refuses SVG and a PNG named `.jpg` is a PNG; the pure subset still builds for `wasm32`.
+
+### P20 `fjord-wasm`: images in a site
+
+**Status:** 📋 Planned (waits on P19)
+
+**Design:** RFC 0004
+
+P19's functions exported through the module, with the module's tests.
+
+**Accepts when:** `kinds.test.mjs` and `wasm.test.ts` call each function and agree with the Rust tests.
+
+### 3j.1 The library screen
+
+**Status:** 📋 Planned (waits on P20)
+
+**Design:** RFC 0004, *The library*, *Security considerations*
+
+A screen of the site's module beside its posts: every image in the vault as rows or tiles (name, size, pixel size, a filter by name), the images folder read a directory at a time when the tree is incomplete. A route that serves an image's bytes with the type its first bytes say, `nosniff`, and for an SVG already in the vault `Content-Disposition: attachment` and a sandboxing CSP.
+
+**Accepts when:** a site with images in and outside the images folder shows them all, and none outside the vault; a file named `.png` holding HTML is served as `application/octet-stream`; an SVG never renders as a document; someone without access to the repository gets the same 404 as for any of its files.
+
+### 3j.2 Upload
+
+**Status:** 📋 Planned (waits on 3j.1)
+
+**Design:** RFC 0004, *Upload, in the browser and on the server*
+
+Upload by a button or by dropping on the library: the type by first bytes, resize to 2560 px on the longer side and re-encode (WebP, else JPEG, 0.85) unless animated or within the bound, with the choice to upload the original, the 10 MB cap; a batch is one commit, as the person, on their branch, named by `image_name`; a file whose bytes are already in the folder is offered instead of uploaded. The server checks the type and size again and commits.
+
+**Accepts when:** a 6000 px JPEG with a GPS position arrives at 2560 px with no EXIF; the original, when chosen, keeps it and the person was told; an animated GIF is untouched; SVG, a renamed executable and an 11 MB image are refused in the browser and, sent by hand, by the server, with nothing committed; two files of one name get `-2`; three files are one commit.
+
+### 3j.3 Insert from the editors
+
+**Status:** 📋 Planned (waits on 3j.2)
+
+**Design:** RFC 0004, *Into a post*
+
+`packages/fjord-editor` gets the image source interface (*choose*, *upload*, *resolve*), an *Insert image* command in the note editor, and the library in place of the URL dialog in the document editor, which displays references through *resolve*. Alt text is required (or "decorative", an empty alt on purpose). The web client supplies the interface for a site's posts.
+
+**Accepts when:** an image chosen in either editor inserts `![alt](reference)` with the reference P18 recorded for that engine, and the post builds with it (`check-site-scaffolds.sh`); *Insert* is disabled without alt text; the document editor shows a relative image; the editor package's tests use a fake source and know nothing of sites.
+
+### 3j.4 Paste and drop into a post
+
+**Status:** 📋 Planned (waits on 3j.3)
+
+**Design:** RFC 0004, *Into a post*
+
+An image pasted or dropped into either editor goes through 3j.2's upload, then asks for alt text and inserts the reference; cancelled, the image stays in the library and nothing is inserted.
+
+**Accepts when:** a pasted screenshot ends in the images folder, resized if large, and in the post with its alt text; a pasted image over the cap is refused with nothing committed; pasting text is unchanged.
+
+### 3j.5 Delete an image
+
+**Status:** 📋 Planned (waits on 3j.1 and P19)
+
+**Design:** RFC 0004, *The library*
+
+Delete from the library asks first and lists every post that refers to the image (P19's `image_refs` over the vault's posts); one commit; restorable from *What was deleted*.
+
+**Accepts when:** deleting an image used by two posts names both before it is done; an unused one asks once; a deleted image is restored from *What was deleted* to the same path.
