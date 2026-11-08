@@ -96,6 +96,21 @@ describe('resolveAuthConfig', () => {
       expect(flat({ ...on, FJORD_AUTH_SIGNUP: ' Closed ' })).toMatchObject({ signUp: 'closed' });
     });
 
+    it('is open by default only when Sovereign is the only way in, and what the operator says either way', () => {
+      const sovereignOnly = {
+        FJORD_URL: 'https://fjord.example.com',
+        FJORD_AUTH_SECRET: SECRET,
+        FJORD_CORE_URL: 'https://sovereign.example.com',
+        FJORD_CORE_CLIENT_ID: 'client-1',
+        FJORD_CORE_CLIENT_SECRET: 'shh',
+      };
+      expect(flat(sovereignOnly)).toMatchObject({ signUp: 'open' });
+      expect(flat({ ...sovereignOnly, FJORD_AUTH_SIGNUP: 'closed' })).toMatchObject({
+        signUp: 'closed',
+      });
+      expect(flat({ ...sovereignOnly, FJORD_AUTH_LOCAL: '1' })).toMatchObject({ signUp: 'closed' });
+    });
+
     it('refuses anything else, rather than guessing', () => {
       expect(() => flat({ ...on, FJORD_AUTH_SIGNUP: 'invite' })).toThrow(/"open" or "closed"/);
     });
@@ -186,7 +201,8 @@ describe('resolveAuthConfig', () => {
         enabled: true,
         url: 'https://fjord.example.com',
         secret: SECRET,
-        signUp: 'closed',
+        // Sovereign alone decides who may sign in, so sign-up is open unless the operator closes it.
+        signUp: 'open',
         name: 'Fjord',
         sovereign: {
           issuer: 'https://sovereign.example.com',

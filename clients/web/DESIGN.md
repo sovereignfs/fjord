@@ -162,9 +162,10 @@ instance can run either or both:
   start on a setting that is wrong (a short secret, a non-https `FJORD_URL`, an SMTP host with
   no sender). Needs `FJORD_URL` (the address people use, from which the passkey origin and the
   links in email are made) and `FJORD_AUTH_SECRET` (32 characters or more; `_FILE` supported).
-- **Who may sign up** is `FJORD_AUTH_SIGNUP`: `closed` (the default), where the first account is
-  made and then sign-up is refused, by the server and not only hidden by the page; or `open`.
-  Secure by default: a self-hoster who forgets is not an open registration.
+- **Who may sign up** is `FJORD_AUTH_SIGNUP`: `closed`, where the first account is made and then
+  sign-up is refused, by the server and not only hidden by the page; or `open`. Unset, it is
+  `closed`, so a self-hoster who forgets is not an open registration; with Sovereign as the only
+  way in it is `open`, since the instance then decides who may sign in (app-manifest §4).
 - **Email is optional.** With `FJORD_SMTP_*` set, an address must be verified before first sign-in
   (following the link signs the person in), and a forgotten password is reset by a mailed,
   single-use link that also ends every session. Without it, sign-up is immediate and there is no
@@ -1822,7 +1823,7 @@ Sovereign's `contracts/` (`app-manifest.md` and `env.md`), neither of which core
   and stops on SIGTERM in seconds (Next's server finishes what is in flight and exits 143, the signal's own code, as a Sovereign
   instance's contract wants: it is never killed after the grace period). It does not sign in: that is the fake Sovereign's, in the browser tests, against the same
   code; and no real instance has hosted it yet.
-- **What an operator sets** is in `deploy/README.md`: `FJORD_AUTH_SIGNUP=open` (on an instance the instance decides who may sign in),
+- **What an operator sets** is in `deploy/README.md`: nothing for sign-up (with Sovereign the only way in it is open by default),
   the encryption key, and the GitHub App.
 
 ### Signing out and account deletion from Sovereign, as built (ROADMAP H3)

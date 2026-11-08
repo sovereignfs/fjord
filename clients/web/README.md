@@ -115,7 +115,7 @@ FJORD_DB_DIALECT=sqlite FJORD_SQLITE_URL=file:./data/fjord.db pnpm dev
 | `FJORD_CORE_CLIENT_SECRET` or `_FILE`                                                    | its secret. All three are needed together; some without the others is an error                                                                     | with the core           |
 | `FJORD_URL`                                                                              | the address people use; https except on localhost. Passkeys, email links and the Sovereign redirect URI are made from it                           | required with either    |
 | `FJORD_AUTH_SECRET` or `_FILE`                                                           | signs sessions and tokens, 32 characters or more                                                                                                   | required with either    |
-| `FJORD_AUTH_SIGNUP`                                                                      | `closed`: the first account only. `open`: anyone. For either way in                                                                                | `closed`                |
+| `FJORD_AUTH_SIGNUP`                                                                      | `closed`: the first account only. `open`: anyone. For either way in. Unset: `closed`, or `open` when Sovereign is the only way in                  | `closed`                |
 | `FJORD_AUTH_PASSWORD_MIN_LENGTH`                                                         |                                                                                                                                                    | 10                      |
 | `FJORD_NAME`                                                                             | what an authenticator app and a passkey call the instance                                                                                          | Fjord                   |
 | `FJORD_PASSKEY_RP_ID`                                                                    | the passkey relying party, to share passkeys across subdomains                                                                                     | the host of `FJORD_URL` |
@@ -187,7 +187,7 @@ profile email`. The Console shows the client id and secret once; they go in the 
 above, the secret preferably in a file (`_FILE`). Fjord Web asks for `sub`, `email` and `name`,
 uses `sub` to know who someone is, and never signs them out of Sovereign. A Sovereign account is
 who someone is, not what they may do here: with `FJORD_AUTH_SIGNUP=closed` only the first account
-is made, whichever way it signs in. Put the settings of a development instance in
+is made, whichever way it signs in. Unset, it is `closed`, or `open` when Sovereign is the only way in. Put the settings of a development instance in
 `clients/web/.env.local`, which is not committed.
 
 Run it **behind a reverse proxy that sets `X-Forwarded-For`**: the sign-in rate limit is per

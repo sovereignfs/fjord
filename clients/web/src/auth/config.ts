@@ -30,9 +30,10 @@ import { type ReadFile, resolveSecret } from '../secret-env';
  *                                    Links in email, the passkey origin and the OIDC redirect
  *                                    URI are built from it.
  *   FJORD_AUTH_SECRET[_FILE]         at least 32 characters, to sign sessions and tokens.
- *   FJORD_AUTH_SIGNUP                closed (default): only the first account can be made, and
- *                                    later sign-ups are refused, by either method. open: anyone
- *                                    can sign up (with Sovereign: anyone it signs in).
+ *   FJORD_AUTH_SIGNUP                closed: only the first account can be made, and later
+ *                                    sign-ups are refused, by either method. open: anyone can sign
+ *                                    up (with Sovereign: anyone it signs in). The default is closed,
+ *                                    or open when Sovereign is the only way in.
  *
  * With local sign-in on:
  *
@@ -127,7 +128,9 @@ export function resolveAuthConfig(
     );
   }
 
-  const signUp = (env.FJORD_AUTH_SIGNUP ?? '').trim().toLowerCase() || 'closed';
+  // Unset, it is closed, unless Sovereign is the only way in: then the instance already decides who may sign in, and closed would admit only
+  // the first of its people (contracts/app-manifest.md §4 in sovereignfs/sovereign).
+  const signUp = (env.FJORD_AUTH_SIGNUP ?? '').trim().toLowerCase() || (local ? 'closed' : 'open');
   if (signUp !== 'open' && signUp !== 'closed')
     throw new ConfigError(`FJORD_AUTH_SIGNUP must be "open" or "closed" (got "${signUp}").`);
 
