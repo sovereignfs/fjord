@@ -72,9 +72,31 @@ export interface AnchorReport {
   reanchored: readonly { id: string; from: Anchor; to: Anchor }[];
 }
 
+/** A picture put into a text: where the text says it is, and the words for it. An empty `alt` is a picture that is there for looks, said on purpose. */
+export interface ImageChoice {
+  /** What the Markdown names it by (`../images/x.png`, `/assets/x.png`): the host knows its site, the editor does not. */
+  reference: string;
+  alt: string;
+}
+
+/**
+ * Where an editor gets pictures from, given by the app (ROADMAP 3j, RFC 0004). The editor knows nothing of sites, engines or where a picture is kept: it
+ * asks, and writes `![alt](reference)`. Without one, the document editor offers the URL dialog it always had and the note editor no way to add a picture.
+ */
+export interface ImageSource {
+  /** The person asked for a picture from the library. Resolve their choice, or `null` if they closed it. */
+  choose(): Promise<ImageChoice | null>;
+  /** The person pasted or dropped these pictures into the text: the host adds them and asks for their words. `null` if it was given up (the host says why). */
+  add(files: File[]): Promise<ImageChoice | null>;
+  /** Where to show a reference the text makes, when it is not a URL the browser can load as it is. Optional. */
+  resolve?(reference: string): Promise<string>;
+}
+
 /** What a client may do to an editor from outside. */
 export interface EditorHandle {
   focus(): void;
+  /** Ask the app's `images` for a picture and put it where the caret is. Does nothing without `images`, or for text that may only be read. */
+  insertImage?(): Promise<void>;
 }
 
 interface CommonProps {
@@ -104,6 +126,8 @@ export interface DocumentEditorProps extends CommonProps {
    * this key (a short, stable text: the app's own name for the file), and applied the next time the document is opened. Without it nothing is remembered, as for a document someone else shared.
    */
   choiceKey?: string | undefined;
+  /** Where pictures come from: the toolbar's image button asks it, and a picture pasted or dropped into the text is given to it. */
+  images?: ImageSource | undefined;
 }
 
 export interface NoteEditorProps extends CommonProps {
@@ -111,4 +135,6 @@ export interface NoteEditorProps extends CommonProps {
   value: string;
   onChange?: ((text: string) => void) | undefined;
   readOnly?: boolean | undefined;
+  /** Where pictures come from: `insertImage` on the handle asks it, and a picture pasted or dropped into the text is given to it. */
+  images?: ImageSource | undefined;
 }

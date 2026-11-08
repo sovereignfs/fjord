@@ -27,7 +27,7 @@ const RichDocument = lazy(() => import("./rich/RichDocument.js").then((module) =
  * rewritten into something it was not. The package never touches the header; the app keeps it (DESIGN.md §9).
  */
 export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(function DocumentEditor(
-  { value, onChange, role, comments, onNeedName, className, choiceKey, "aria-label": label },
+  { value, onChange, role, comments, onNeedName, className, choiceKey, images, "aria-label": label },
   ref,
 ) {
   const ensureNamed = useNameGate(onNeedName);
@@ -50,7 +50,7 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
   const [rendered, setRendered] = useState<TextQuoteAnchor | null>(null);
   const [threads, setThreads] = useState<readonly ThreadMark[]>(() => comments?.threads() ?? []);
 
-  useImperativeHandle(ref, () => ({ focus: () => handle.current?.focus() }), []);
+  useImperativeHandle(ref, () => ({ focus: () => handle.current?.focus(), insertImage: async () => handle.current?.insertImage?.() }), []);
 
   /** What the person chose for this document the last time, if anything (`choiceKey`): applied once the page is in the browser, since the server has no way to know it. */
   const [remembered, setRemembered] = useState<Choice | null>(null);
@@ -268,6 +268,7 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
             {...(label !== undefined ? { "aria-label": label } : {})}
             value={value}
             readOnly={!editable}
+            images={images}
             onChange={(text) => {
               void edit(text).then((taken) => {
                 // A person who declined to give a name has not changed the document: start again from what it is.
@@ -278,7 +279,7 @@ export const DocumentEditor = forwardRef<EditorHandle, DocumentEditorProps>(func
         </>
       ) : (
         <Suspense fallback={<p className="fe-status">Loading the editor…</p>}>
-          <RichDocument ref={handle} value={value} editable={editable && pendingRestyle === null} aria-label={label} onEdit={edit} onUnsafe={(reason) => (setWhy((first) => first ?? reason), setAsMarkdown(true))} onRestyle={setRestyle} />
+          <RichDocument ref={handle} images={images} value={value} editable={editable && pendingRestyle === null} aria-label={label} onEdit={edit} onUnsafe={(reason) => (setWhy((first) => first ?? reason), setAsMarkdown(true))} onRestyle={setRestyle} />
         </Suspense>
       )}
       {comments ? (

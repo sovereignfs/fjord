@@ -5,6 +5,10 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
 
 ## [Unreleased]
 
+### Added
+
+- **An `images` source for both editors** (RFC 0004): `ImageSource` (`choose`, `add`, optional `resolve`) is how an app gives an editor pictures. The note editor gets `insertImage()` on its handle and takes a picture pasted or dropped into it; the visual editor's image button asks the source instead of for a URL, shows a relative reference through `resolve`, and takes a pasted or dropped picture the same way. The editors write `![alt](reference)` and know nothing of sites. `imageMarkdown` is exported.
+
 ### Fixed
 
 - **A document typed in the visual editor is not told, when opened again, that it is not written the way Fjord writes.** Enter at the end of a block leaves an empty paragraph, which Markdown does not have: it was written as a run of blank lines that the next reading dropped, and that was offered as a reformat. What the editor writes has one blank line between blocks, except in a fenced code block (`withOneBlankLine`).
