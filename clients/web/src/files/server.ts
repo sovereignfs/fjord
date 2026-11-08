@@ -65,7 +65,7 @@ async function create(
 }
 
 /** Delete from one of the account's repositories: through its own token, on its branch, saving unsaved changes as a version first. */
-async function remove(accountId: string, id: number, input: { vault: string; target: DeleteTarget; author: Identity }): Promise<DeleteResult> {
+export async function remove(accountId: string, id: number, input: { vault: string; target: DeleteTarget; author: Identity }): Promise<DeleteResult> {
   const used = await (await connectionService()).provider(accountId, id);
   if (!used) return { ok: false, reason: "unavailable" };
   const outcome = await readConnection(accountId, used.connection);
