@@ -2,7 +2,7 @@
 
 | | |
 | --- | --- |
-| **Status** | Proposed, 2026-11-08 |
+| **Status** | Accepted, 2026-11-08; P18 (the spike) found that one layout, a Jekyll site whose vault is `_posts`, has no images folder that works (below), and waits on the owner for that layout only |
 | **Date** | November 2026 |
 | **Author** | Claude Code, for review |
 | **Scope** | [`docs/specs/Fjord.spec.md`](../specs/Fjord.spec.md) §1.1 (one clarifying sentence, no format change); `fjord-core` (`site`), `fjord-wasm`; `packages/fjord-editor`; Fjord Web ([`clients/web/DESIGN.md`](../../clients/web/DESIGN.md), a new section) |
@@ -46,12 +46,14 @@ not Markdown", stays reserved), Git LFS, and any limit the format would enforce.
 writes only inside its vault (3g.1), and because the vault is what the engine already reads. The folders below are the proposal and
 are confirmed by building in P18; if an engine cannot serve images from inside its vault, P18 stops and the owner decides (see *Open*).
 
-| Engine | Vault | Images folder | A post refers to an image as |
-| --- | --- | --- | --- |
-| Astro, scaffold | `content/` | `content/images/` | a path relative to the post (`../images/x.webp`), which Astro's image pipeline resolves and optimises |
-| Astro, adopted | `src/content/` | `src/content/images/` | the same |
-| Jekyll, scaffold | `content/` (`collections_dir`) | to confirm in P18 | a site-absolute path (`/…/x.webp`), as Jekyll copies static files |
-| Jekyll, adopted | `_posts/` | to confirm in P18 | the same |
+| Engine | Vault | Images folder | A post refers to an image as | Built, P18 |
+| --- | --- | --- | --- | --- |
+| Astro, scaffold | `content/` | `content/images/` | a path relative to the post (`../images/x.webp`) | ✅ Astro 5.18.2: optimised to `/_astro/x.<hash>.webp`, no warning |
+| Astro, adopted | `src/content/` | `src/content/images/` | the same | ✅ the same output, no warning (the site's `glob()` base is `posts/`, so the folder is no collection) |
+| Jekyll, scaffold | `content/` (`collections_dir`) | `content/images/` | a site-absolute path (`/content/images/x.png`) | ✅ Jekyll copies it to `_site/content/images/x.png`. With a `baseurl` the reference would need it; the scaffold sets none |
+| Jekyll, adopted | `_posts/` | **none works** | | ❌ Jekyll skips every directory that starts with an underscore, so `_posts/images/x.png` is not copied to the site |
+
+The spike's one stop: a Jekyll site whose vault *is* `_posts` cannot hold its images in its vault, and the RFC's rule (the site's view writes only inside its vault) leaves that layout without a library until the owner picks between the options in *Open*.
 
 Images that a site already has, anywhere in its vault, are shown in the library and can be inserted; they are never moved. Images
 outside the vault (an Astro site's `public/` or `src/assets/`, a Jekyll site's `assets/`) are the engine's files and are not shown.
@@ -133,14 +135,10 @@ being redesigned.
   routes (`access.test.ts`).
 - Only a plaintext vault is offered, so no image is ever written into an encrypted one (invariant 1 cannot be reached from here).
 
-## Open, to settle in P18
+## Open
 
-- Jekyll's images folder, for a scaffold whose vault is `collections_dir` and for an adopted site whose vault is `_posts/`: whether
-  Jekyll copies a static file from there, to what address, and whether `baseurl` needs the reference to be written with Liquid (which
-  would put the post out of the visual editor's reach, 3g.2). If no folder inside the vault works, the fallback above comes back to
-  the owner before P19.
-- Astro: that a folder in the content directory that is not a collection does not warn or fail the build (Astro 5's legacy
-  auto-collections), and that relative references from a `glob()` collection's Markdown are optimised.
+- **A Jekyll site whose vault is `_posts`** (found by P18). Options: (1) not offered a library for this layout, its images stay the engine's files; (2) the library for it uses the site's `assets/images/` outside the vault, a place Jekyll serves and a convention many Jekyll sites already follow, the one exception to "inside the vault", and `fjord.json` records nothing; (3) the same at `images/`, the root. Decided by the owner before P19.
+- Jekyll with a `baseurl`: a reference written site-absolute does not carry it. The scaffold sets none; a site that does is the site owner's to adjust, as Jekyll's own documentation says.
 
 ## Not here
 

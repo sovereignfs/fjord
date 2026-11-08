@@ -607,13 +607,16 @@ A site's images as a library: browsed, uploaded, deleted, and put into a post fr
 
 ### P18 Spike: where each engine serves images from its vault
 
-**Status:** 📋 Planned (waits on RFC 0004)
+**Status:** ✅ Done, three layouts of four; the fourth waits on the owner
 
 **Design:** RFC 0004, *Where images go* and *Open, to settle in P18*
 
 Build each scaffold and each adopted layout (Astro `content/` and `src/content/`, Jekyll `content/` as `collections_dir` and `_posts/`) with an image in the proposed folder and a post that refers to it, with the engines' current releases, and record in RFC 0004 the folder, the reference form, the address the image has in the built site, and whether `baseurl` changes it. Extend `scripts/check-site-scaffolds.sh` to build a post with an image and check the image is in the output.
 
 **Accepts when:** for each of the four layouts a folder inside the vault and a reference form are recorded, and the scaffold check builds a post with an image and finds it; or, for a layout where none works, the spike stops and the owner has chosen the fallback before P19 starts.
+
+- **Done as:** built on 2026-11-08 with Astro 5.18.2 and Jekyll 4.4.1 (Homebrew's Ruby 4; the machine's Ruby 2.6 is too old). Results are in RFC 0004's table. `content/images/` and `src/content/images/` (Astro) and `content/images/` (Jekyll scaffold) work, and `scripts/check-site-scaffolds.sh` now builds a post with an image in each scaffold and finds it in the output (Astro: `/_astro/pixel.<hash>.webp`; Jekyll: `/content/images/pixel.png`).
+- **Stopped for the owner:** a Jekyll site whose vault is `_posts` has no working folder inside it, because Jekyll skips directories that begin with an underscore. RFC 0004's *Open* lists the options. P19 can start for the other three layouts.
 
 ### P19 `fjord-core`: images in a site
 

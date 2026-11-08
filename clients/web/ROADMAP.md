@@ -173,7 +173,7 @@ A site's images as a library: browsed, uploaded (resized in the browser), delete
 
 | # | Task | Status |
 | --- | --- | --- |
-| [P18](../../docs/epics/web-3.md#p18-spike-where-each-engine-serves-images-from-its-vault) | Spike: where each engine serves images from its vault | 📋 Planned |
+| [P18](../../docs/epics/web-3.md#p18-spike-where-each-engine-serves-images-from-its-vault) | Spike: where each engine serves images from its vault | ✅ Done (one layout waits on the owner) |
 | [P19](../../docs/epics/web-3.md#p19-fjord-core-images-in-a-site) | `fjord-core`: images in a site | 📋 Planned |
 | [P20](../../docs/epics/web-3.md#p20-fjord-wasm-images-in-a-site) | `fjord-wasm`: images in a site | 📋 Planned |
 | [3j.1](../../docs/epics/web-3.md#3j1-the-library-screen) | The library screen | 📋 Planned |
