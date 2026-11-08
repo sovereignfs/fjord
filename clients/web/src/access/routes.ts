@@ -128,6 +128,7 @@ export const ROUTES: RouteRule[] = [
   // A site's media library (3j, RFC 0004): its pictures and the posts that show one are a read; adding is a file made, taking one away is a deletion. The picture's own bytes are a read.
   { route: "/api/connections/[id]/images", methods: { GET: owner("read"), POST: owner("create"), DELETE: owner("delete") } },
   { route: "/api/connections/[id]/images/file", methods: { GET: owner("read") } },
+  { route: "/api/connections/[id]/images/reference", methods: { GET: owner("read") } },
   // Previewing a site's unsaved changes through its host (3d.1): listing is a read; starting makes a branch of its own with one commit of the caller's drafts, and stopping deletes only such a branch.
   { route: "/api/connections/[id]/previews", methods: { GET: owner("read"), POST: owner("save_version"), DELETE: owner("save_version") } },
   { route: "/api/connections/[id]/files/delete", methods: { POST: owner("delete") } },

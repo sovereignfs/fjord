@@ -1,0 +1,122 @@
+.body {
+  padding: var(--sv-space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sv-space-4);
+  min-height: 24rem;
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--sv-font-size-lg);
+  font-weight: var(--sv-font-weight-semibold);
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sv-space-3);
+}
+
+.filter {
+  flex: 1 1 12rem;
+}
+
+.drop {
+  border: 1px dashed var(--sv-color-border-strong);
+  border-radius: var(--sv-radius-md);
+  padding: var(--sv-space-5);
+  text-align: center;
+  color: var(--sv-color-text-muted);
+}
+
+.dropping {
+  background: var(--sv-color-surface-sunken);
+  border-style: solid;
+}
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: var(--sv-space-3);
+}
+
+.tile {
+  position: relative;
+  border: 1px solid var(--sv-color-border);
+  border-radius: var(--sv-radius-md);
+  background: var(--sv-color-surface-raised);
+  overflow: hidden;
+}
+
+.pick {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pick:focus-visible {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: -2px;
+}
+
+.selected {
+  outline: 2px solid var(--sv-color-focus-ring);
+  outline-offset: -2px;
+}
+
+.thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--sv-color-surface-sunken);
+}
+
+.caption {
+  padding: var(--sv-space-2) var(--sv-space-3);
+  font-size: var(--sv-font-size-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  display: block;
+  color: var(--sv-color-text-muted);
+  font-size: var(--sv-font-size-xs, 0.75rem);
+}
+
+.remove {
+  position: absolute;
+  top: var(--sv-space-2);
+  right: var(--sv-space-2);
+}
+
+.status {
+  color: var(--sv-color-text-muted);
+  margin: 0;
+}
+
+.choose {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--sv-space-3);
+  border-top: 1px solid var(--sv-color-border);
+  padding-top: var(--sv-space-4);
+}
+
+.alt {
+  flex: 1 1 14rem;
+}

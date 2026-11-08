@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { type ImagesDeps, handleImageFile, handleImages } from "./images-http";
+import { type ImagesDeps, handleImageFile, handleImageReference, handleImages } from "./images-http";
 
 /** The media library's HTTP rules (RFC 0004): who may call, from where, what is accepted, and how a picture is served. */
 const ORIGIN = "https://fjord.example";
@@ -14,6 +14,7 @@ function deps(over: Partial<ImagesDeps> = {}): ImagesDeps {
     remove: vi.fn(async () => ({ found: true as const, result: { ok: true as const, commit: "c2" } })),
     uses: vi.fn(async () => ({ found: true as const, result: { ok: true as const, posts: ["content/posts/one.md"], complete: true } })),
     read: vi.fn(async () => ({ found: true as const, result: { ok: true as const, bytes: new Uint8Array([1, 2, 3]), mime: "image/png" as string | undefined } })),
+    reference: vi.fn(async (_a: string, _i: number, input: { post: string; image: string } | { post: string; reference: string }) => ({ found: true as const, result: "image" in input ? { ok: true as const, reference: "../images/a.png" } : { ok: true as const, path: "content/images/a.png" as string | null } })),
     ...over,
   };
 }
@@ -129,5 +130,18 @@ describe("the library's HTTP rules", () => {
     expect(response.headers.get("content-disposition")).toMatch(/^attachment/);
     expect((await handleImageFile(new Request(`${url}/file`), CALLER, deps(), "1")).status).toBe(400);
     expect((await handleImageFile(new Request(`${url}/file?path=a.png`, { method: "POST" }), CALLER, deps(), "1")).status).toBe(405);
+  });
+
+  it("says how a post refers to a picture, and what a reference means, for a person who may read the site", async () => {
+    const d = deps();
+    const ref = `${url}/reference?post=content/posts/p.md`;
+    expect(await (await handleImageReference(new Request(`${ref}&image=content/images/a.png`), CALLER, d, "1")).json()).toEqual({ reference: "../images/a.png" });
+    expect(await (await handleImageReference(new Request(`${ref}&reference=../images/a.png`), CALLER, d, "1")).json()).toEqual({ path: "content/images/a.png" });
+    expect((await handleImageReference(new Request(`${ref}&image=a.png&reference=b`), CALLER, d, "1")).status).toBe(400);
+    expect((await handleImageReference(new Request(`${url}/reference?image=a.png`), CALLER, d, "1")).status).toBe(400);
+    expect((await handleImageReference(new Request(`${ref}&image=../a.png`), CALLER, d, "1")).status).toBe(400);
+    expect((await handleImageReference(new Request(`${ref}&image=a.png`), null, d, "1")).status).toBe(401);
+    const gone = deps({ reference: async () => ({ found: false }) });
+    expect((await handleImageReference(new Request(`${ref}&image=a.png`), CALLER, gone, "1")).status).toBe(404);
   });
 });

@@ -177,6 +177,8 @@ test("a site's images: type by bytes, folder, name and reference (RFC 0004)", ()
   assert.equal(wasm.siteImageRef("astro", "content/posts/p.md", "content/images/x.png"), "../images/x.png");
   assert.equal(wasm.siteImageRef("jekyll", "content/_posts/2026-11-08-p.md", "content/images/x.png"), "/content/images/x.png");
   assert.equal(wasm.siteImageRef("hugo", "p.md", "x.png"), undefined);
+  assert.equal(wasm.siteImageTarget("content/posts/p.md", "../images/x.png"), "content/images/x.png");
+  assert.equal(wasm.siteImageTarget("content/posts/p.md", "https://example.com/x.png"), undefined);
   assert.equal(wasm.siteRefersTo("content/posts/p.md", "![a](../images/x.png)", "content/images/x.png"), true);
   assert.equal(wasm.siteRefersTo("content/posts/p.md", "![a](../images/y.png)", "content/images/x.png"), false);
 });
