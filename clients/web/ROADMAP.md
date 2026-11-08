@@ -1,6 +1,6 @@
 # Fjord Web — roadmap
 
-**Status:** phase 1 is done except a real-GitHub check of the App (1a.6); phase 2 is built; phase 3, repository kinds, is built ([RFC 0001](../../docs/rfcs/0001-repository-kinds.md) implemented; 3d.2, a build in Fjord, is an outline), and phase 4 is an outline. The design is
+**Status:** phase 1 is done (1a.6's check against real GitHub passed on 2026-11-01); phase 2 is built; phase 3, repository kinds, is built ([RFC 0001](../../docs/rfcs/0001-repository-kinds.md) implemented; 3d.2, a build in Fjord, is an outline), and phase 4 is an outline. The design is
 [`DESIGN.md`](DESIGN.md); this file is the order of work, and the detail of each task is in [`docs/epics/`](../../docs/epics/). Section numbers (§) refer to `DESIGN.md` unless they say "spec".
 
 | | |
