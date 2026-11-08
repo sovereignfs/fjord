@@ -84,6 +84,16 @@ describe.skipIf(!available)("a post of a site", () => {
     expect(fjord().siteTagProblem("astro", "two words")).toBeUndefined();
   });
 
+  it("knows a site's images through the module (RFC 0004)", () => {
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]);
+    expect(fjord().siteImageType(png)).toBe("png");
+    expect(fjord().siteImageType(new TextEncoder().encode("<svg/>"))).toBeUndefined();
+    expect(fjord().siteImageDir("jekyll", "_posts")).toBe("assets/images");
+    expect(fjord().siteImageName("My Photo.JPG", "jpg", ["my-photo.jpg"])).toBe("my-photo-2.jpg");
+    expect(fjord().siteImageRef("astro", "content/posts/p.md", "content/images/x.png")).toBe("../images/x.png");
+    expect(fjord().siteRefersTo("content/posts/p.md", "![a](../images/x.png)", "content/images/x.png")).toBe(true);
+  });
+
   describe("in a site adopted where its engine already reads its content (RFC 0002)", () => {
     const plain = (files: Record<string, string>) => {
       const host = new MemoryProvider();

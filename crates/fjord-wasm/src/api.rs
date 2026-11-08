@@ -496,6 +496,57 @@ pub fn site_tag_problem(engine: &str, tag: &str) -> Option<String> {
     site::tag_problem(&Engine::parse(engine), tag).map(str::to_string)
 }
 
+/// What `bytes` are as an image, by their first bytes (`fjord_core::site::image_type`): `"png"`, `"jpg"`, `"webp"`, `"gif"` or `"avif"`, and
+/// `None` for anything else, SVG included.
+pub fn site_image_type(bytes: &[u8]) -> Option<String> {
+    site::image_type(bytes).map(|kind| kind.extension().to_string())
+}
+
+/// The media type an image of this extension (`site_image_type`'s answer) is served as, or `None`.
+pub fn site_image_mime(extension: &str) -> Option<String> {
+    [
+        site::ImageType::Png,
+        site::ImageType::Jpeg,
+        site::ImageType::Webp,
+        site::ImageType::Gif,
+        site::ImageType::Avif,
+    ]
+    .into_iter()
+    .find(|kind| kind.extension() == extension)
+    .map(|kind| kind.mime().to_string())
+}
+
+/// Where a site keeps its images, from the engine and the directory of its vault (`fjord_core::site::image_dir`), or `None`.
+pub fn site_image_dir(engine: &str, vault_dir: &str) -> Option<String> {
+    site::image_dir(&Engine::parse(engine), vault_dir)
+}
+
+/// The name an uploaded image is given (`fjord_core::site::image_name`): `extension` is `site_image_type`'s answer, and `existing_json` a
+/// JSON array of the names already in the folder. `None` for an extension that is not an image type's or names that are not a JSON array of strings.
+pub fn site_image_name(file_name: &str, extension: &str, existing_json: &str) -> Option<String> {
+    let kind = [
+        site::ImageType::Png,
+        site::ImageType::Jpeg,
+        site::ImageType::Webp,
+        site::ImageType::Gif,
+        site::ImageType::Avif,
+    ]
+    .into_iter()
+    .find(|kind| kind.extension() == extension)?;
+    let existing: Vec<String> = serde_json::from_str(existing_json).ok()?;
+    Some(site::image_name(file_name, kind, &existing))
+}
+
+/// How the post at `post_path` refers to the image at `image_path` (`fjord_core::site::image_ref`), or `None` for an engine not known.
+pub fn site_image_ref(engine: &str, post_path: &str, image_path: &str) -> Option<String> {
+    site::image_ref(&Engine::parse(engine), post_path, image_path)
+}
+
+/// Whether the post at `post_path` shows the image at `image_path` in its Markdown `body` (`fjord_core::site::refers_to`).
+pub fn site_refers_to(post_path: &str, body: &str, image_path: &str) -> bool {
+    site::refers_to(post_path, body, image_path)
+}
+
 /// The form a tag is compared in (spec §8.1): NFC and lowercase. Never written back.
 pub fn fold_tag(tag: &str) -> String {
     tags::fold(tag)
