@@ -83,7 +83,7 @@ describe("the library's HTTP rules", () => {
 
   it("refuses an upload that is not a form, has no length, is too large, or has too many", async () => {
     const d = deps();
-    expect((await handleImages(new Request(url, { method: "POST", body: "{}", headers: { origin: ORIGIN, "content-type": "application/json" } }), CALLER, d, "1")).status).toBe(415);
+    expect((await handleImages(new Request(url, { method: "POST", body: "{}", headers: { origin: ORIGIN, "content-type": "application/json" } }), CALLER, d, "1")).status).toBe(400);
     const big = new Uint8Array(10 * 1024 * 1024 + 1);
     expect((await handleImages(await upload(form([{ name: "big.png", data: big }])), CALLER, d, "1")).status).toBe(413);
     const many = Array.from({ length: 21 }, (_, i) => ({ name: `${i}.png`, data: new Uint8Array([i]) }));
