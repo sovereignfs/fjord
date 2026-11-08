@@ -73,6 +73,7 @@ The reference implementation is licensed under the
 [Mozilla Public License 2.0](LICENSE). The specification is dedicated to the
 public domain under [CC0](docs/specs/Fjord.spec.md#licence), so that anyone can implement it. Fjord Web
 ([`clients/web`](clients/web)) is licensed under the
-[AGPL-3.0-or-later](clients/web/LICENSE), because it bundles `@sovereignfs/ui`. The editor
-that Fjord Web and the other clients share (`packages/fjord-editor`, not yet created) is
+[AGPL-3.0-or-later](clients/web/LICENSE) (chosen when `@sovereignfs/ui` was AGPL; it is now
+MPL-2.0, so the design system no longer requires it: [DESIGN.md §18](clients/web/DESIGN.md#18-licence)).
+The editor that Fjord Web and the other clients share ([`packages/fjord-editor`](packages/fjord-editor)) is
 MPL-2.0, and does not depend on `@sovereignfs/ui`, so that every client can embed it.

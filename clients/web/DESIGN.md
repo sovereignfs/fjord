@@ -1860,8 +1860,9 @@ in a form, `POST`ed to the addresses the manifest names, and the token is the on
 
 ## 18. Licence
 
-`clients/web` is **AGPL-3.0-or-later**, because it bundles `@sovereignfs/ui`, which
-is AGPL-3.0-or-later. The rest of the repository stays MPL-2.0 and the spec CC0.
+`clients/web` is **AGPL-3.0-or-later**. It was chosen because `@sovereignfs/ui` was AGPL-3.0-or-later
+when this app was scaffolded; the design system has since been relicensed MPL-2.0, which asks nothing of
+this app's licence, so AGPL is now this project's choice, not a requirement. Changing it is open (§19). The rest of the repository stays MPL-2.0 and the spec CC0.
 `packages/fjord-editor` is meant to be reused by the desktop app, editor plugins and the
 mobile client, so it is **MPL-2.0** and does not depend on `@sovereignfs/ui` (decided, §19 #4):
 it takes its look from CSS custom properties, which this app maps its `--sv-*` tokens onto,
@@ -1889,6 +1890,7 @@ standalone output would otherwise prune it.
 | 12 | Converting a document to a note or back (changing the extension) | Not in phase 1; rename keeps the extension |
 | 13 | Sealed shares of encrypted documents: link key in the `#fragment` only, or also a password-derived one? Do comments on a sealed copy stay sealed? | **Both built (2026-11-01):** key in the fragment, or a password (`web-2.md` 2c.1). Comments on a sealed copy are not built: they would need sealed comments under the same key — later |
 | 14 | ~~Where the age identity lives in the browser~~ **Decided and built (2026-11-01):** IndexedDB, as a passphrase-sealed age file (scrypt 2^17), unlocked into memory per page, locked after fifteen quiet minutes (`web-2.md` 2a.1) | — |
+| 15 | Licence of `clients/web`: AGPL-3.0-or-later was required by `@sovereignfs/ui` when it was AGPL. It is now MPL-2.0: keep AGPL (a hosted service shares its changes), or move to MPL-2.0 like the rest of the repository? | — |
 
 ## 20. Decision log
 

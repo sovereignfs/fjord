@@ -212,5 +212,5 @@ pnpm boot-check                     # after pnpm build: boots an instance on the
 
 ## Licence
 
-[AGPL-3.0-or-later](LICENSE), because the app bundles `@sovereignfs/ui`
-(`DESIGN.md` §18). The rest of the repository is MPL-2.0, and the specification is CC0.
+[AGPL-3.0-or-later](LICENSE), chosen when `@sovereignfs/ui` was AGPL (`DESIGN.md` §18; it is
+now MPL-2.0, so the licence is the project's choice rather than the design system's requirement). The rest of the repository is MPL-2.0, and the specification is CC0.
