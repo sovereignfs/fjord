@@ -112,7 +112,7 @@ export async function handleImages(request: Request, caller: Caller | null, deps
     }
 
     if (method === "POST") {
-      if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("multipart/form-data")) return failure(415, "unsupported_media_type", "Send the images as a form.");
+      if (!(request.headers.get("content-type") ?? "").toLowerCase().startsWith("multipart/form-data")) return failure(400, "invalid_request", "Send the images as a form.");
       const length = Number(request.headers.get("content-length"));
       if (!Number.isFinite(length) || length <= 0) return failure(411, "length_required", "Say how large the upload is.");
       if (length > MAX_UPLOAD_BYTES) return refused("too_large");
