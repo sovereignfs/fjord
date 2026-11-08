@@ -7,7 +7,7 @@ disagrees with this file, this file is stale and should be corrected. The detail
 
 _Status key: ✅ Done · ⏳ In progress · 📋 Planned · 🚧 Open (waits on a decision) · ❌ Out of scope_
 
-State as of 2026-11-08: the CLI's milestones are all done and `fjord-cli` 0.5.0 is released (all 43 diagnostics are implemented, repository kinds' `E111`, `E112` and `W606` among them); **Fjord Web's phases 1, 2 and 3 are built** and `fjord-web` 0.3.0 is released (sign in, connect, browse, write and version, share, comment; encrypted files in the browser; repository kinds, bar 3d.2, an outline); **collaborative editing is next** (Fjord Web's phase 4, an outline still to be planned into tasks); mobile and the MCP server are designs.
+State as of 2026-11-08: the CLI's milestones are all done and `fjord-cli` 0.5.0 is released (all 43 diagnostics are implemented, repository kinds' `E111`, `E112` and `W606` among them); **Fjord Web's phases 1, 2 and 3 are built** and `fjord-web` 0.3.0 is released (sign in, connect, browse, write and version, share, comment; encrypted files in the browser; repository kinds, bar 3d.2, an outline); **a media library for sites is next** (proposed in [RFC 0004](docs/rfcs/0004-site-media-library.md)), then collaborative editing (Fjord Web's phase 4, an outline); mobile and the MCP server are designs.
 
 ## Priorities
 
@@ -18,8 +18,9 @@ components (task IDs are only unique within one), and this list says which comes
 | --- | --- | --- | --- | --- |
 | 1 | Review and accept RFC 0001, repository kinds | The format, Fjord Web | [RFC 0001](docs/rfcs/0001-repository-kinds.md) · [Research 0001](docs/research/0001-ssg-kind.md) | ✅ Accepted and implemented, 2026-11-03 |
 | 2 | Repository kinds: the format change (P9–P12), then kinds, Journal, SSG and previews in the web client | The format, `fjord-core`, the CLI, `fjord-wasm`, Fjord Web | [Workstream 0001](docs/workstreams/0001-repository-kinds.md) · [Web phase 3](clients/web/ROADMAP.md#phase-3--repository-kinds) | ✅ Done |
-| 3 | Collaborative editing | Fjord Web | [Web phase 4](clients/web/ROADMAP.md#phase-4--collaborative-editing) | 📋 Outline |
-| 4 | Fjord Mobile, `fjord-mcp` | Their own | [Mobile](clients/mobile/ROADMAP.md) · [MCP](clients/mcp/ROADMAP.md) | 📋 Design only |
+| 3 | Review and accept RFC 0004, then a media library for sites | The format (§1.1, a sentence), `fjord-core`, `fjord-wasm`, `fjord-editor`, Fjord Web | [RFC 0004](docs/rfcs/0004-site-media-library.md) · [Web 3j](clients/web/ROADMAP.md#3j--media-library) | 📋 Proposed |
+| 4 | Collaborative editing | Fjord Web | [Web phase 4](clients/web/ROADMAP.md#phase-4--collaborative-editing) | 📋 Outline |
+| 5 | Fjord Mobile, `fjord-mcp` | Their own | [Mobile](clients/mobile/ROADMAP.md) · [MCP](clients/mcp/ROADMAP.md) | 📋 Design only |
 
 A cross-component change is planned as a workstream ([`docs/workstreams/`](docs/workstreams/)), which orders tasks from
 several tables into legs.
