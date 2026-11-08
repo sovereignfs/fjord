@@ -4,7 +4,6 @@
 
 export { ANCHOR_CONTEXT, textQuoteAnchor } from "./anchor.js";
 export { DocumentEditor } from "./DocumentEditor.js";
-export { imageMarkdown } from "./image-markdown.js";
 export { NoteEditor } from "./NoteEditor.js";
 export { type ThemeToken, themeTokens } from "./theme.js";
 export type { Anchor, AnchorReport, CommentsAdapter, DocumentEditorProps, EditorHandle, ImageChoice, ImageSource, NoteEditorProps, Role, TextQuoteAnchor, ThreadMark } from "./types.js";

@@ -7,7 +7,7 @@ what changes is recorded under Unreleased and in the clients' notes when they sh
 
 ### Added
 
-- **An `images` source for both editors** (RFC 0004): `ImageSource` (`choose`, `add`, optional `resolve`) is how an app gives an editor pictures. The note editor gets `insertImage()` on its handle and takes a picture pasted or dropped into it; the visual editor's image button asks the source instead of for a URL, shows a relative reference through `resolve`, and takes a pasted or dropped picture the same way. The editors write `![alt](reference)` and know nothing of sites. `imageMarkdown` is exported.
+- **An `images` source for both editors** (RFC 0004): `ImageSource` (`choose`, `add`, optional `resolve`) is how an app gives an editor pictures. The note editor gets `insertImage()` on its handle and takes a picture pasted or dropped into it; the visual editor's image button asks the source instead of for a URL, shows a relative reference through `resolve`, and takes a pasted or dropped picture the same way. The editors write `![alt](reference)` and know nothing of sites.
 
 ### Fixed
 
