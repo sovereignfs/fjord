@@ -50,6 +50,7 @@ export function TwoFactorForm() {
                 name="code"
                 autoComplete="off"
                 required
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- the one field the person just opened this form to fill
                 autoFocus
                 value={code}
                 onChange={(e) => setCode(e.target.value)}

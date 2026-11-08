@@ -28,7 +28,7 @@ export function getStores(env: Env = process.env): Promise<Stores> {
   const holder = globalThis as Holder;
   holder[KEY] ??= boot(env).catch((error: unknown) => {
     // Forget a failure, so the next call tries again rather than failing forever.
-    delete holder[KEY];
+    Reflect.deleteProperty(holder, KEY);
     throw error;
   });
   return holder[KEY];

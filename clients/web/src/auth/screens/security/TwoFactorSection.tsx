@@ -125,6 +125,7 @@ export function TwoFactorSection({ enabled: initiallyEnabled }: { enabled: boole
                 {...field}
                 type="password"
                 autoComplete="current-password"
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- the one field the person just opened this form to fill
                 autoFocus
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

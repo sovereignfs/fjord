@@ -220,6 +220,7 @@ const MAX_BODY_CHARS = 8_000;
 const MAX_PATH_CHARS = 1_000;
 const MAX_VAULT_CHARS = 255;
 const CONNECTION_ID = /^[1-9][0-9]{0,15}$/;
+// eslint-disable-next-line no-control-regex -- a control character is exactly what this refuses or replaces
 const CONTROL = /[\u0000-\u001f\u007f]/;
 
 function json(status: number, body: unknown): Response {

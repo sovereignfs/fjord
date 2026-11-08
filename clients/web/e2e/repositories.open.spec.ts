@@ -30,20 +30,6 @@ const GOOD = 'github_pat_e2egoodtoken0123456789abcdefghijklmnopqrstuvwx';
 const READ_ONLY = 'github_pat_e2ereadonlytoken0123456789abcdefghijklmnopqrs';
 const BASE = 'http://localhost:3201';
 
-/**
- * A note's text after its first edit here: the first edit of a note with no header gives it one (spec §8.1, ROADMAP 1b.5),
- * with a new identifier, the title it implies and the time, then a blank line (which is part of the body, so a person can
- * select it away) and the text as typed.
- */
-const promoted = (title: string, text: string) => {
-  const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return expect.stringMatching(
-    new RegExp(
-      `^---\\nid: [0-9a-hjkmnp-tv-z]{26}\\ntitle: \"?${escape(title)}\"?\\ncreated: \"\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ\"\\n---\\n(?:\\n)?${escape(text)}$`,
-    ),
-  );
-};
-
 /** The connect form's own alert, never the route announcer that Next puts outside `<main>`. */
 const connectAlert = (page: Page) =>
   page.getByRole('region', { name: 'Connect a repository' }).getByRole('alert');
@@ -3393,7 +3379,6 @@ test('a document without a title is named after the date and time, which is its 
       'Notes/fjord.vault.json': VAULT_MANIFEST,
       'Notes/Plan.md': 'p',
     });
-    const before = await hubs.more.branchHead();
     await page.goto(`/repo/${id}/Notes`);
     await page.getByRole('button', { name: 'New document' }).click();
     await page.getByRole('button', { name: 'Create document' }).click();

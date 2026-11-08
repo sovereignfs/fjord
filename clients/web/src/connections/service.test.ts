@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { sql } from 'drizzle-orm';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Keyring } from '../crypto/keyring';
 import { CredentialStore } from '../crypto/store';
 import type { Database } from '../db/client';

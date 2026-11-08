@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  deletedAddress,
-  noteAddress,
-  parseAddress,
-  placeAddress,
-  repositoryAddress,
-  vaultAddress,
-} from './addresses';
+import { deletedAddress, noteAddress, parseAddress, placeAddress, vaultAddress } from './addresses';
 
 /** The addresses of a repository's places (workstream 0003): each shape, written out from the design and not from the code. */
 const REPO = 'drive/k3x9m2qa';

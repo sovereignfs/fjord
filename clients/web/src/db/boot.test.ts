@@ -11,7 +11,7 @@ const holder = globalThis as { [KEY]?: Promise<{ close(): Promise<void> }> };
 
 afterEach(async () => {
   const booted = holder[KEY];
-  delete holder[KEY];
+  Reflect.deleteProperty(holder, KEY);
   await (await booted?.catch(() => undefined))?.close();
 });
 
@@ -95,7 +95,7 @@ describe(`booting an instance (${leg})`, () => {
     await resetStores(config);
     const first = await getStores(envFor(config));
     await first.close();
-    delete holder[KEY];
+    Reflect.deleteProperty(holder, KEY);
     const again = await getStores(envFor(config));
     expect(await dbGet(again.app, sql`SELECT 1 AS ok`)).toMatchObject({ ok: 1 });
     expect(await tablesOf(again.auth)).toContain('user');

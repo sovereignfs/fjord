@@ -141,6 +141,9 @@ jobs:
       # The app imports the editors' package, which is linked and has to be built before it is type-checked or built
       # (ROADMAP 1b.2).
       - uses: ./.github/actions/build-editor
+      # The suite's formatting and lint rules (Prettier and ESLint, as Sovereign and Tusk run them).
+      - run: pnpm format:check
+      - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm build
 

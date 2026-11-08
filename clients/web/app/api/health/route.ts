@@ -37,7 +37,8 @@ export async function GET(): Promise<Response> {
 
 function formatState(): 'ok' | 'unavailable' {
   try {
-    fjord().version;
+    // Reading the version loads the format module, which throws when it cannot.
+    const _version = fjord().version;
     return 'ok';
   } catch {
     return 'unavailable';

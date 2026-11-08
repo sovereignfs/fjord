@@ -73,8 +73,7 @@ export function EncryptedTimeline({
         else void read();
       })
       .catch(() => setState('failed'));
-    // Read once, when the page opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Read once, when the page opens, so the dependencies are empty on purpose.
   }, []);
 
   useEffect(() => {

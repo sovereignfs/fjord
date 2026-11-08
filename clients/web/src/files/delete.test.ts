@@ -31,7 +31,7 @@ let deletions: DeletionService;
 let drafts: WorkingCopyService;
 let h: Awaited<ReturnType<typeof githubHarness>>;
 let fake: FakeGitHub;
-let clock = 1_800_000_000_000;
+const clock = 1_800_000_000_000;
 
 const ADA: Identity = { name: 'Ada Lovelace', email: 'ada@example.com' };
 const VAULT = JSON.stringify({

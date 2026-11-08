@@ -16,7 +16,6 @@ import {
 import { type Address, vaultAddress } from '../addresses';
 import type { Location } from '../location';
 import { addressBookFor } from '../address-book';
-import { repositoryHref } from '../links';
 import { isPublicId } from '../../connections/public-id';
 import { RepositoryView } from '../../connections/screens/RepositoryView';
 import { connectionService } from '../../connections/server';
@@ -24,7 +23,6 @@ import { encryptionKeyring } from '../../crypto/server';
 import { Alert } from '../../ui';
 import { previewCombineFor, workingCopyService } from '../../working/server';
 import { headerOf } from '../document';
-import { DocIndex } from '../doc-index';
 import { FileHandles } from '../handles';
 import { docIdOf } from '../ids';
 import { getAuthDatabase, getDatabase } from '../../db/boot';

@@ -51,6 +51,7 @@ const MAX_BODY_CHARS = 2_000;
 const MAX_EMAIL_CHARS = 254;
 const CONNECTION_ID = /^[1-9][0-9]{0,15}$/;
 const ACCOUNT_ID = /^[A-Za-z0-9_-]{1,128}$/;
+// eslint-disable-next-line no-control-regex -- a control character is exactly what this refuses or replaces
 const CONTROL = /[\u0000-\u001f\u007f\s]/;
 
 function json(status: number, body: unknown): Response {

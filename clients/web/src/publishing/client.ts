@@ -192,6 +192,7 @@ export function copyOf(text: string, name: string): { title: string; body: strin
   const title = raw
     .trim()
     .replace(/^["']|["']$/g, '')
+    // eslint-disable-next-line no-control-regex -- a control character is exactly what this refuses or replaces
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
     .slice(0, 200)
     .trim();

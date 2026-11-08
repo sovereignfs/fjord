@@ -146,7 +146,7 @@ export function useComments(
         keepMoving(report.reanchored);
       },
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `keepMoving` reads refs only
+    // `keepMoving` is left out of the dependencies: it reads refs only.
   }, [docId, notify]);
 
   /**
@@ -446,6 +446,7 @@ function ThreadItem(
       data-resolved={thread.resolved}
       data-active={props.active === thread.id}
     >
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- a known gap: a mouse can choose a thread here and a keyboard cannot yet; it holds a form, so it cannot simply be a button */}
       <div onClick={() => props.choose(thread.id)}>
         <blockquote className={styles.itemMeta}>
           “

@@ -62,7 +62,6 @@ const deps = (provider: Provider = h.provider) => ({
   branch: 'main',
   identityOf: async (editor: Editor) => (editor.type === 'account' ? PEOPLE[editor.id] : undefined),
 });
-const encode = (text: string) => new TextEncoder().encode(text);
 const blobOf = async (path: string) => {
   const head = await h.provider.getHead(h.repo, 'main');
   if (!head.changed) throw new Error('no head');

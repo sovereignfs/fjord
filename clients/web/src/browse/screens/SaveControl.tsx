@@ -112,6 +112,7 @@ export function SaveControl({
                 {...field}
                 name="message"
                 autoComplete="off"
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- the one field the person just opened this form to fill
                 autoFocus
                 maxLength={MAX_MESSAGE_CHARS}
                 value={message}

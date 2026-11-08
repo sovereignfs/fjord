@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { connectionLabel } from '../../connections/label';
 import { cookies } from 'next/headers';
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import { SignedInShell } from '../../auth/screens/SignedInShell';
 import styles from '../../auth/screens/screens.module.css';
 import { requireSession } from '../../auth/server';

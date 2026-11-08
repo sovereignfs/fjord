@@ -134,6 +134,7 @@ export function AddVault({
                 name="name"
                 autoComplete="off"
                 maxLength={255}
+                // eslint-disable-next-line jsx-a11y/no-autofocus -- the one field the person just opened this form to fill
                 autoFocus
                 value={name}
                 onChange={(e) => setName(e.target.value)}

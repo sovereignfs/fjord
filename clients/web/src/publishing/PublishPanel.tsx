@@ -29,7 +29,7 @@ export function PublishPanel({ connectionId, docId }: { connectionId: number; do
 
   useEffect(() => {
     if (!loaded) void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- it is read once, as the tab opens.
+    // The dependencies are empty on purpose: it is read once, as the tab opens.
   }, []);
 
   async function load() {

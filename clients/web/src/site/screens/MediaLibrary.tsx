@@ -232,7 +232,6 @@ export function MediaLibrary({
             const picture = (
               <>
                 {/* The server's own route, which serves it as the type its bytes are. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   className={styles.thumb}
                   src={imageUrl(connectionId, image.path)}
@@ -325,6 +324,7 @@ export function MediaLibrary({
                   {...field}
                   name="alt"
                   autoComplete="off"
+                  // eslint-disable-next-line jsx-a11y/no-autofocus -- the one field the person just opened this form to fill
                   autoFocus
                   value={alt}
                   onChange={(event) => setAlt(event.target.value)}

@@ -46,7 +46,7 @@ export type OpenedPublication = { state: 'open'; page: PublishedPage } | { state
 
 /** Whether Markdown begins (after blank lines) with a heading, in either style. */
 export function beginsWithHeading(markdown: string): boolean {
-  const text = markdown.replace(/^﻿/, '').replace(/^(?:[ \t]*\r?\n)+/, '');
+  const text = markdown.replace(/^\uFEFF/, '').replace(/^(?:[ \t]*\r?\n)+/, '');
   return (
     /^ {0,3}#{1,6}(?:[ \t]|$)/.test(text) ||
     /^[^\n]+\r?\n {0,3}(?:=+|-+)[ \t]*(?:\r?\n|$)/.test(text)

@@ -127,6 +127,7 @@ export function validRepositoryName(name: string): boolean {
     name === name.trim() &&
     name.length >= 1 &&
     name.length <= 64 &&
+    // eslint-disable-next-line no-control-regex -- a control character is exactly what this refuses or replaces
     !/[\u0000-\u001f\u007f/\\]/.test(name) &&
     !name.startsWith('.')
   );

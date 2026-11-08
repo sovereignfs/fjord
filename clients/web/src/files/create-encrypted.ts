@@ -140,7 +140,7 @@ export async function createEncryptedFile(
       }
       const present = entries.map((entry) => entry.path.slice(directory.length + 1));
 
-      const { file, label } = nameFor(deps, input, title, present, suffix);
+      const { file } = nameFor(deps, input, title, present, suffix);
       const path = `${directory}/${file}`;
       try {
         const made = await deps.provider.commit(deps.ref, {

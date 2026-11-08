@@ -17,7 +17,7 @@ const memory = (initial: Record<string, string> = {}) => {
     data,
     getItem: (key: string) => data[key] ?? null,
     setItem: (key: string, value: string) => void (data[key] = value),
-    removeItem: (key: string) => void delete data[key],
+    removeItem: (key: string) => void Reflect.deleteProperty(data, key),
   };
 };
 const root = () => {
@@ -25,7 +25,7 @@ const root = () => {
   return {
     attributes,
     setAttribute: (name: string, value: string) => void (attributes[name] = value),
-    removeAttribute: (name: string) => void delete attributes[name],
+    removeAttribute: (name: string) => void Reflect.deleteProperty(attributes, name),
   };
 };
 

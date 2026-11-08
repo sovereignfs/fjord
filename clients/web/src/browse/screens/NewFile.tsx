@@ -182,6 +182,7 @@ export function NewFile({
                   name="folder"
                   autoComplete="off"
                   maxLength={200}
+                  // eslint-disable-next-line jsx-a11y/no-autofocus -- the one field the person just opened this form to fill
                   autoFocus
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -200,6 +201,7 @@ export function NewFile({
                   name="title"
                   autoComplete="off"
                   maxLength={200}
+                  // eslint-disable-next-line jsx-a11y/no-autofocus -- the one field the person just opened this form to fill
                   autoFocus
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}

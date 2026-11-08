@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { addressOf, expect, signUp, test, NOTE_PLACE, PLACE, POST_PLACE } from './helpers';
+import { addressOf, expect, signUp, test, NOTE_PLACE, POST_PLACE } from './helpers';
 import { type TwoGitHubs, startTwoGitHubs } from './two-github';
 
 /**

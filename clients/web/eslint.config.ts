@@ -32,6 +32,10 @@ export default defineConfig(
     },
     rules: {
       // Intentionally unused identifiers are prefixed with `_`, the only sanctioned way to keep one.
+      // tsconfig sets noUncheckedIndexedAccess, so every indexed read is `T | undefined`; `!` is how this code marks one it has already
+      // made safe (a regex group that matched, a row just inserted, a GitHub answer whose status was checked). Rewriting ~600 of them in
+      // the crypto and provider code would add risk, not safety. Tusk has no such reads; a new one here still says why in review.
+      '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },

@@ -30,6 +30,7 @@ export async function provisionStores(config: DatabaseConfig, timeoutMs = 30_000
     } catch (error) {
       throw new Error(
         `could not reach the sqld admin API at ${config.adminUrl} (set FJORD_SQLD_ADMIN_URL): ${message(error)}`,
+        { cause: error },
       );
     }
     return;

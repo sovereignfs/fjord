@@ -8,6 +8,7 @@ export const MAX_NAME_CHARS = 40;
 export function cleanGuestName(value: unknown): string | undefined {
   if (typeof value !== 'string' || !value.isWellFormed()) return undefined;
   const name = value.replace(/\s+/g, ' ').trim();
+  // eslint-disable-next-line no-control-regex -- a control character is exactly what this refuses or replaces
   if (name === '' || [...name].length > MAX_NAME_CHARS || /[\u0000-\u001f\u007f<>]/.test(name))
     return undefined;
   return name;

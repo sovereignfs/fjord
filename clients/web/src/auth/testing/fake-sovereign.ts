@@ -158,7 +158,8 @@ export async function startFakeSovereign(
             subject_types_supported: ['public'],
             id_token_signing_alg_values_supported: ['EdDSA'],
           };
-          for (const field of options.omitFromDiscovery ?? []) delete document[field];
+          for (const field of options.omitFromDiscovery ?? [])
+            Reflect.deleteProperty(document, field);
           return json(200, document);
         }
         if (url.pathname === `${PATH}/jwks`) return json(200, { keys: [jwk] });

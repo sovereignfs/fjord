@@ -78,6 +78,7 @@ export function memberIdentity(accountId: string, name: string): Identity {
 /** A name or an address as git writes it: no angle brackets, no line breaks, no stray whitespace. */
 const clean = (value: string) =>
   value
+    // eslint-disable-next-line no-control-regex -- a control character is exactly what this refuses or replaces
     .replace(/[\u0000-\u001f\u007f<>]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

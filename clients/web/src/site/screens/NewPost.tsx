@@ -69,6 +69,7 @@ export function NewPost({
             {...field}
             name="title"
             autoComplete="off"
+            // eslint-disable-next-line jsx-a11y/no-autofocus -- the one field the person just opened this form to fill
             autoFocus
             maxLength={MAX_TITLE_CHARS}
             value={title}

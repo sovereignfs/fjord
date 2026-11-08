@@ -9,7 +9,7 @@ import type { Timeline } from '../timeline';
  * the start of each. The same for a plaintext journal, arranged on the server, and an encrypted one, arranged in the browser.
  */
 export function TimelineView({
-  connectionId,
+  connectionId: _connectionId,
   repo,
   timeline,
   tagHref,

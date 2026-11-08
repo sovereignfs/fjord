@@ -81,7 +81,7 @@ export async function readRepository(
   deps: RepositoryDeps,
   connection: { id: number; ref: RepositoryRef; branch: string },
 ): Promise<RepositoryRead> {
-  const { provider, cache, format } = deps;
+  const { provider, cache } = deps;
   const commit = await headCommit(provider, deps.heads, connection);
 
   let tree = await cache.get(connection.id, commit);

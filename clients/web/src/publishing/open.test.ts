@@ -14,12 +14,7 @@ import { fjord, wasmAvailable, wasmDirectory } from '../format/wasm';
 import { MemoryProvider } from '../providers/memory';
 import type { RepositoryRef } from '../providers/types';
 import { unlockProof, hashPassword } from '../sharing/password';
-import {
-  type OpenPublishedDeps,
-  type OpenedPublication,
-  beginsWithHeading,
-  openPublished,
-} from './open';
+import { type OpenPublishedDeps, beginsWithHeading, openPublished } from './open';
 
 /** The page of an opened publication, or nothing for the rest. */
 const opened = async (deps: OpenPublishedDeps, token: string, proof?: string) => {

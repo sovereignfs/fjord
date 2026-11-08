@@ -21,6 +21,8 @@ agents read it by that name; Claude Code reads it through this line.
 
 ```bash
 pnpm install --frozen-lockfile   # never `pnpm install` in CI or a PR check
+pnpm format / format:check       # Prettier, with the suite's settings (prettier.config.ts)
+pnpm lint / lint:fix             # ESLint: typescript-eslint strict and jsx-a11y, as Tusk runs it (eslint.config.ts)
 pnpm typecheck                   # next typegen && tsc --noEmit
 pnpm test                        # vitest
 pnpm build                       # next build

@@ -17,7 +17,7 @@ import { type SetupDeps, type SetupTarget, strictText } from './setup';
  * the plan is made on the repository as it is then. An encrypted vault is added only with at least one key, so that it is writable at
  * once: a vault nobody can write to is a trap, and the CLI's own message for it says so.
  */
-export interface AddVaultDeps extends SetupDeps {}
+export type AddVaultDeps = SetupDeps;
 
 /** `fjord.json` is small; a larger one is not something to rewrite. */
 const MAX_MANIFEST_BYTES = 256 * 1024;

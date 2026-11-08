@@ -681,7 +681,6 @@ function OtherFile({ name, src }: { name: string; src: string | undefined }) {
     <>
       {isPicture(name) ? (
         // A file of the repository, served by this app: nothing for an image optimiser, and it must not pass through one.
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
           alt={name}
