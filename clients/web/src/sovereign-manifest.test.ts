@@ -128,7 +128,14 @@ describe('the port', () => {
 describe("the port on a developer's machine", () => {
   it("is the manifest's, so the suite's apps (core 3000, Fjord 3001, Tusk 3002) run side by side", () => {
     const { scripts } = JSON.parse(read('package.json')) as { scripts: Record<string, string> };
-    expect(scripts.dev).toContain(`--port ${manifest.port}`);
+    // `pnpm dev` is `scripts/dev.mjs`, which gives Next the port, and takes it from the manifest instead of writing it a second time.
+    expect(scripts.dev).toBe('node scripts/dev.mjs');
+    const dev = read(join('scripts', 'dev.mjs'));
+    expect(dev).toContain("join(root, 'sovereign.manifest.json')");
+    expect(dev).toMatch(/\.port\)/);
+    expect(dev).toContain("'--port', port");
+    // No second copy of the port in the code (the comments may say it).
+    expect(dev.replace(/^\s*\/\/.*$/gm, '')).not.toContain(String(manifest.port));
     expect(scripts.start).toContain(`\${PORT:-${manifest.port}}`);
     expect(read(join('deploy', '.env.example'))).toContain(
       `FJORD_URL=http://localhost:${manifest.port}`,
