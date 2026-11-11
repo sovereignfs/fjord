@@ -20,7 +20,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const port = '3001';
+// The manifest is the one place the port is written (src/sovereign-manifest.test.ts holds this script to that).
+const port = String(JSON.parse(readFileSync(join(root, 'sovereign.manifest.json'), 'utf8')).port);
 
 /** The settings the files Next reads in development name, by their names. */
 const filesText = ['.env.local', '.env.development.local', '.env.development', '.env']
