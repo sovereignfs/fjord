@@ -23,7 +23,7 @@ own lockfile; it is not part of the Rust workspace.
 
 ```bash
 pnpm install        # dependencies, from pnpm-lock.yaml
-pnpm dev            # http://localhost:3001
+pnpm dev            # http://localhost:3001, with a SQLite file and local sign-in made for you (see below)
 pnpm typecheck
 pnpm test
 pnpm build
@@ -71,7 +71,10 @@ schemas and tables when it starts, from the variables below.
 | `FJORD_POSTGRES_POOL_MAX`, `PGSSLROOTCERT` | pool size (5), and a CA file for `sslmode=verify-*`                              |                    |
 | `FJORD_DB_CONNECT_TIMEOUT_MS`              | how long to wait for the database to come up                                     | 30000              |
 
-You need no database service to develop: a file works with no Docker.
+You need no database service to develop: a file works with no Docker, and **`pnpm dev` uses one when you name no database** (`scripts/dev.mjs`). Run bare, `next dev` would look for
+the sqld service of the Compose setup and stop at start-up with "could not reach the sqld admin API". `pnpm dev` also turns on email-and-password sign-in with open sign-up at
+`http://localhost:3001`, and makes a signing secret and an instance key once, in `data/` (not committed), so that you can create an account and connect a repository at once. It says
+what it chose, and **anything you set, in the environment or in `.env.local`, is left alone**. Opening a repository also needs the format module (`pnpm build:wasm`, which needs Rust).
 
 ```bash
 FJORD_DB_DIALECT=sqlite FJORD_SQLITE_URL=file:./data/fjord.db pnpm dev   # a file, no Docker

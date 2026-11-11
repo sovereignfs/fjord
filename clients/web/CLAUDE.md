@@ -26,7 +26,7 @@ pnpm lint / lint:fix             # ESLint: typescript-eslint strict and jsx-a11y
 pnpm typecheck                   # next typegen && tsc --noEmit
 pnpm test                        # vitest
 pnpm build                       # next build
-pnpm dev
+pnpm dev                         # a SQLite file and local sign-in when none is set (scripts/dev.mjs); your own settings win
 pnpm db:generate <name>          # migrations for both dialects, from the schemas
 pnpm db:dev sqld | postgres      # a local database in Docker (not needed: a file: URL works)
 pnpm build:wasm                  # the format module (Rust + wasm-bindgen); the tests that need it skip without it, CI requires it
