@@ -6921,9 +6921,12 @@ test('what other people wrote, in a document, a comment or a name, is shown as t
  * (1a.6) are there only on an instance that has an App, which this one does not: they are a 404 to everyone (below), and the webhook is
  * GitHub's, let in by its signature and not by an `Origin`, so "refused from another site" is not its rule (`src/github-app/flow.test.ts`). Sovereign's
  * two notices (H3) are likewise the instance's, let in by their signed token and not by an `Origin`, and a 404 to everyone on an instance that has no
- * Sovereign sign-in, as this one does not (`src/sovereign/http.test.ts`, and the Sovereign instance's tests in `signin.sovereign.spec.ts`).
+ * Sovereign sign-in, as this one does not (`src/sovereign/http.test.ts`, and the Sovereign instance's tests in `signin.sovereign.spec.ts`). The offline page and the
+ * service worker are public GETs that are the same for everyone and hold nothing of anyone's, so a stranger is meant to get them (`src/pwa/`, `pwa.off.spec.ts`).
  */
 const NOT_IN_THE_MATRIX = new Set([
+  '/offline',
+  '/sw.js',
   '/api/auth/[...all]',
   '/api/health',
   '/api/links/enter',
