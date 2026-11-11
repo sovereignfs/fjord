@@ -81,11 +81,12 @@ export function proxy(request: NextRequest) {
   return marked(NextResponse.next({ request: { headers: requestHeaders } }));
 }
 
-/** Everything but the build's own static files, which are not pages and are the same for everyone (and cannot carry a nonce). */
+/** Everything but the build's own static files, which are not pages and are the same for everyone (and cannot carry a nonce): the icons, the web app manifest and the service worker (`src/pwa/`) are among them. */
 export const config = {
   matcher: [
     {
-      source: '/((?!_next/static|_next/image|favicon.ico|icon.svg).*)',
+      source:
+        '/((?!_next/static|_next/image|favicon.ico|icon.svg|icons/|manifest.webmanifest|sw.js).*)',
       missing: [
         { type: 'header', key: 'next-router-prefetch' },
         { type: 'header', key: 'purpose', value: 'prefetch' },

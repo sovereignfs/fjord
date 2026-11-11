@@ -99,6 +99,15 @@ describe('what loads from where', () => {
   });
 });
 
+describe('the service worker and the manifest (src/pwa/)', () => {
+  it("are this origin's own, named apart from script-src, whose 'strict-dynamic' makes browsers ignore 'self' and would refuse the worker", () => {
+    const text = policy();
+    expect(directive(text, 'worker-src')).toBe("worker-src 'self'");
+    expect(directive(text, 'manifest-src')).toBe("manifest-src 'self'");
+    expect(directive(policy({ development: true }), 'worker-src')).toBe("worker-src 'self'");
+  });
+});
+
 describe('upgrading requests', () => {
   it("is asked for over https, and not over http, where it would send the page's own requests to a port that does not speak https", () => {
     expect(policy({ secure: true })).toContain('upgrade-insecure-requests');

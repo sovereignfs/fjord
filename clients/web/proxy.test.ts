@@ -61,11 +61,20 @@ describe("a share link's first request", () => {
       `/d/${DOC}/comments`,
       `/doc/${DOC}`,
       '/api/health',
+      '/offline',
       '/sign-in',
       `/repo/1/Notes/a.md`,
     ])
       expect(matches(path), path).toBe(true);
-    for (const path of ['/_next/static/chunks/a.js', '/_next/image', '/favicon.ico', '/icon.svg'])
+    for (const path of [
+      '/_next/static/chunks/a.js',
+      '/_next/image',
+      '/favicon.ico',
+      '/icon.svg',
+      '/icons/icon-192.png',
+      '/manifest.webmanifest',
+      '/sw.js',
+    ])
       expect(matches(path), path).toBe(false);
     expect(matcher!.missing).toEqual([
       { type: 'header', key: 'next-router-prefetch' },

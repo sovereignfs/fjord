@@ -210,6 +210,20 @@ pnpm db:generate add_connection     # writes migrations/{sqlite,postgres}/NNNN_a
 pnpm boot-check                     # after pnpm build: boots an instance on the database in the environment
 ```
 
+### Installing it as an app
+
+Fjord Web is a progressive web app: browsers offer to install it ("Install app", or "Add to Home Screen" on iOS), and it then opens in a window of its own, with the
+icon and title bar colours of the app. It needs the instance to be served over **https** (or from `localhost`), which a reverse proxy does anyway.
+
+- **The manifest** is `/manifest.webmanifest` (`src/pwa/manifest.ts`, served by `app/manifest.ts`). The icons are in `public/icons/`, drawn from `app/icon.svg`; the maskable one is
+  `icon-maskable.svg` with the letters inside the safe zone. If the mark changes, redraw the four PNGs (192 and 512 pixels, the maskable 512, and the 180 for iOS): `manifest.test.ts` checks that each is the size it says.
+- **The service worker** is `/sw.js` (`src/pwa/worker.ts`), registered by a production build only. **It caches no page, no API answer and no document**: a copy kept by the browser would
+  outlive signing out. It shows the offline page (`/offline`) when a page cannot be reached, and keeps the build's own files (`/_next/static/…`, hashed by content) and the icons. Its cache is named by the
+  release, so a new release replaces the worker and removes the old cache, once every window of the app is closed.
+- **The policy** names `worker-src` and `manifest-src` (`src/security/csp.ts`): `script-src` has `'strict-dynamic'`, which makes browsers ignore `'self'`, so without them the worker would be refused.
+
+Working offline (reading or writing without the server) is not part of this: the server is the only thing that talks to the git host (`DESIGN.md` §5).
+
 ## Licence
 
 [AGPL-3.0-or-later](LICENSE), chosen when `@sovereignfs/ui` was AGPL (`DESIGN.md` §18; it is

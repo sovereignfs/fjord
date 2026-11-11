@@ -5,6 +5,8 @@ import type { ReactNode } from 'react';
 import '@sovereignfs/ui/tokens.css';
 import './globals.css';
 import { site } from '../src/site';
+import { SURFACE_DARK, SURFACE_LIGHT } from '../src/pwa/manifest';
+import { RegisterServiceWorker } from '../src/pwa/Register';
 import { themeScript } from '../src/theme/script';
 import { ToastProvider } from '@sovereignfs/ui';
 
@@ -28,10 +30,20 @@ export const metadata: Metadata = {
     siteName: site.name,
     type: 'website',
   },
+  // Installed from the browser: the manifest is `app/manifest.ts`. These are for iOS, which reads the manifest for little and uses its own icon and title.
+  applicationName: site.name,
+  appleWebApp: { capable: true, title: site.name, statusBarStyle: 'default' },
+  formatDetection: { telephone: false },
+  icons: { apple: '/icons/apple-touch-icon.png' },
 };
 
 export const viewport: Viewport = {
   colorScheme: 'light dark',
+  // The browser's own bar (and an installed app's title bar) takes the page's surface colour, in either scheme (`src/pwa/manifest.ts`).
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: SURFACE_LIGHT },
+    { media: '(prefers-color-scheme: dark)', color: SURFACE_DARK },
+  ],
 };
 
 export default async function RootLayout({
@@ -55,6 +67,7 @@ export default async function RootLayout({
           {children}
           {modal}
         </ToastProvider>
+        <RegisterServiceWorker />
       </body>
     </html>
   );

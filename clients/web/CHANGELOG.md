@@ -11,6 +11,16 @@ section.
 
 ## [Unreleased]
 
+### Added
+
+- **Fjord Web can be installed as an app.** There is a web app manifest (`/manifest.webmanifest`) with the app's name, colours, a start address, a shortcut to the repositories and icons (192 and 512 pixels, a maskable one, and one for iOS's home screen), the pages carry `theme-color` for the light and the dark theme, and a service worker (`/sw.js`, registered by a production build) shows an offline page (`/offline`) when a page cannot be reached. The worker **keeps no page, API answer or document**: it stores the offline page and the build's own static files and icons, which are the same for everyone, and nothing else. It never skips waiting, so a new release takes over only when every window is closed.
+
+### Changed
+
+- The Content-Security-Policy names `worker-src 'self'` and `manifest-src 'self'`. Without them a service worker is refused, because `script-src` has `'strict-dynamic'`, which makes browsers ignore `'self'`.
+- The container image now copies `public/` (the icons) into the runtime stage; the standalone output leaves it behind.
+- The proxy no longer runs for `/icons/…`, `/manifest.webmanifest` and `/sw.js`.
+
 ## [0.4.0] - 2026-11-08
 
 ### Added

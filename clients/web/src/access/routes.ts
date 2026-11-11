@@ -29,6 +29,10 @@ const owner = (action: Action): RouteAccess => ({ kind: 'resource', action });
 export const ROUTES: RouteRule[] = [
   // Pages
   { route: '/', page: { kind: 'public' } },
+  // The page a service worker shows when the network is down: the same for everyone, and nothing of anyone's (`src/pwa/`).
+  { route: '/offline', methods: { GET: { kind: 'public' } } },
+  // The service worker itself: a script that caches no page and no API (`src/pwa/worker.ts`).
+  { route: '/sw.js', methods: { GET: { kind: 'public' } } },
   { route: '/sign-in', page: { kind: 'public' } },
   { route: '/sign-in/two-factor', page: { kind: 'public' } },
   { route: '/sign-up', page: { kind: 'public' } },
