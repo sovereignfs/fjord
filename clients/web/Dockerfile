@@ -85,6 +85,8 @@ COPY --from=app /build/clients/web/.next/standalone ./
 COPY --from=app /build/clients/web/.next/static ./clients/web/.next/static
 # Read at start-up from the working directory (src/db/migrate.ts), so they are files, not part of the bundle.
 COPY --from=app /build/clients/web/migrations ./clients/web/migrations
+# The standalone output leaves `public/` behind: the app's icons (the web app manifest names them, src/pwa/manifest.ts) are served from it.
+COPY --from=app /build/clients/web/public ./clients/web/public
 COPY --from=wasm /build/crates/fjord-wasm/pkg/node ./wasm
 # The browser build of the same module, served at /fjord-wasm/ (the page decrypts with it; src/keys/module.ts).
 COPY --from=wasm /build/crates/fjord-wasm/pkg/web/fjord_wasm.js /build/crates/fjord-wasm/pkg/web/fjord_wasm_bg.wasm ./clients/web/public/fjord-wasm/

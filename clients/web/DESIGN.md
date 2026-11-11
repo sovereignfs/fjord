@@ -1659,6 +1659,11 @@ it is what the tests use when nothing else is set.
   a form, open a frame or be framed by any origin but this one. It may run its own script and style. The page that shows it, `/repo/<repo>/v/<vault>/…/html/<handle>`, is the only
   page whose policy has `frame-src 'self'` (`csp.ts`, held by its test), and its iframe is `sandbox="allow-scripts"` as well. Only the repository's owner is served it, only a `.html` or `.htm`
   file of a vault that is not encrypted, to 2 MB. Consequences: a page has no `localStorage` or cookies, so what it remembers lasts until it is closed; and it cannot fetch anything.
+- **The app is installable, and its service worker keeps nothing of anyone's** (`src/pwa/`). A copy of a page or a document in the browser's cache outlives signing out and sits on the disk, and an encrypted
+  vault's plaintext is meant to exist only in memory, so the worker (`/sw.js`) caches **no page, API answer, share link or `/raw/…` document**: it keeps the offline page and the build's static files
+  (hashed by content) and the icons, which are the same for everyone, and answers a page that could not be reached with the offline page and nothing else. It never skips waiting, so code is not swapped
+  under someone who is writing. The policy names `worker-src 'self'` and `manifest-src 'self'` (`csp.ts`, held by its test), because `'strict-dynamic'` in `script-src` makes browsers ignore `'self'` and would
+  refuse the worker. Reading or writing offline is not offered: the server is the only thing that talks to the git host (§5).
 - **What the server can read:** every plaintext file in a connected repository. That
   is inherent to editing on a server, and stated in the product. **What it cannot:**
   encrypted files' contents (phase 2), because age identities stay in the browser. That

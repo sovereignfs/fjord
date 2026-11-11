@@ -13,7 +13,7 @@
  *    carets with them) and React's server-rendered `style` props need them, and an attribute can change how something looks but cannot run anything.
  *  - **Everything else comes from this origin**: images (and `data:` and `blob:` for the editor's own, so a document's image from another site does not
  *    load, which would tell that site who read the document), fonts (self-hosted by `next/font`), and `connect-src`, which is the API and the live
- *    stream. No frames, no plugins, nobody may frame a page (`frame-ancestors`), forms go only here, `<base>` cannot be changed.
+ *    stream. **The service worker and the web app manifest** are files of this origin too (`worker-src`, `manifest-src`). No frames, no plugins, nobody may frame a page (`frame-ancestors`), forms go only here, `<base>` cannot be changed.
  *  - **`upgrade-insecure-requests`** only where the instance is served over https: on `http://localhost` it would send the page's own requests to a port
  *    that does not speak https.
  *
@@ -60,6 +60,10 @@ export function contentSecurityPolicy({
     "img-src 'self' data: blob:",
     "font-src 'self'",
     "connect-src 'self'",
+    // A service worker and the manifest are files of this origin. `worker-src` is named because it falls back to `script-src`, where `'strict-dynamic'`
+    // makes browsers ignore `'self'` and the worker would be refused; `manifest-src` is named so that the manifest is never at the mercy of a default.
+    "worker-src 'self'",
+    "manifest-src 'self'",
     frames ? "frame-src 'self'" : "frame-src 'none'",
     "object-src 'none'",
     "base-uri 'self'",
