@@ -11,6 +11,8 @@ section.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-11
+
 ### Added
 
 - **Fjord Web can be installed as an app.** There is a web app manifest (`/manifest.webmanifest`) with the app's name, colours, a start address, a shortcut to the repositories and icons (192 and 512 pixels, a maskable one, and one for iOS's home screen), the pages carry `theme-color` for the light and the dark theme, and a service worker (`/sw.js`, registered by a production build) shows an offline page (`/offline`) when a page cannot be reached. The worker **keeps no page, API answer or document**: it stores the offline page and the build's own static files and icons, which are the same for everyone, and nothing else. It never skips waiting, so a new release takes over only when every window is closed.
@@ -500,7 +502,8 @@ section.
   tests and builds in CI. Nothing in it is usable yet; the work is planned in
   [`ROADMAP.md`](ROADMAP.md).
 
-[Unreleased]: https://github.com/sovereignfs/fjord/compare/web-v0.4.0...HEAD
+[Unreleased]: https://github.com/sovereignfs/fjord/compare/web-v0.5.0...HEAD
+[0.5.0]: https://github.com/sovereignfs/fjord/compare/web-v0.4.0...web-v0.5.0
 [0.4.0]: https://github.com/sovereignfs/fjord/compare/web-v0.3.0...web-v0.4.0
 [0.3.0]: https://github.com/sovereignfs/fjord/compare/web-v0.2.0...web-v0.3.0
 [0.2.0]: https://github.com/sovereignfs/fjord/compare/web-v0.1.0...web-v0.2.0
