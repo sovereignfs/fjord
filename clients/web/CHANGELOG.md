@@ -21,6 +21,10 @@ section.
 - The container image now copies `public/` (the icons) into the runtime stage; the standalone output leaves it behind.
 - The proxy no longer runs for `/icons/…`, `/manifest.webmanifest` and `/sw.js`.
 
+### Fixed
+
+- **`pnpm dev` runs on a fresh checkout.** With no database named it looked for the sqld service of the Compose setup (`http://sqld:8080`), which does not exist outside Docker, and stopped at start-up. `pnpm dev` now runs `scripts/dev.mjs`, which, for anything not set, uses a SQLite file (`data/fjord.db`), turns on local sign-in with open sign-up at `http://localhost:3001`, and makes a signing secret and an instance key kept in `data/`, saying what it chose. Settings in the environment or `.env.local` win. It also builds `packages/fjord-editor` if it has not been built. Nothing changes in a built or deployed instance.
+
 ## [0.4.0] - 2026-11-08
 
 ### Added
