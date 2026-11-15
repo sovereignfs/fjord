@@ -24,8 +24,8 @@ Delete if not applicable. -->
 - [ ] `cargo clippy --workspace --all-targets -- -D warnings` passes
 - [ ] `cargo test --workspace` passes
 - [ ] A regression test was seen to fail against the old code (for a `fix`)
-- [ ] `## [Unreleased]` in the component's CHANGELOG is updated (for a change in behaviour)
+- [ ] A version set here has its section in the component's CHANGELOG (RELEASING.md)
 - [ ] The spec, the fixtures and the code agree (for a change to the format)
-- [ ] Relevant docs updated (README, ROADMAP, `CLAUDE.md`)
+- [ ] Relevant docs updated (README, ROADMAP, `AGENTS.md`)
 
 <!-- Merge with "Rebase and merge" only. Fix commit messages before merging. -->

@@ -7,13 +7,10 @@
 name: Audit
 
 on:
-  push:
-    # Branches only. Without this, a push of any *tag* also ran the audit, and
-    # with several components each tagging their own releases that is one
-    # needless run per release.
-    branches: [main]
-    paths: ["**/Cargo.toml", "**/Cargo.lock", "deny.toml", ".github/workflows/audit.yml"]
+  # A promotion into `main` that changes a dependency, and the weekly run, which catches an advisory
+  # published since: the audit is the one check that also runs on a schedule (CONTRIBUTING.md).
   pull_request:
+    branches: [main]
     paths: ["**/Cargo.toml", "**/Cargo.lock", "deny.toml", ".github/workflows/audit.yml"]
   schedule:
     - cron: "0 7 * * 1"

@@ -1,6 +1,6 @@
 # Continuous integration for the Rust crates: fjord-core and the CLI.
 #
-# This repository holds more than that (see CLAUDE.md § Repository layout), and
+# This repository holds more than that (see AGENTS.md § Repository layout), and
 # each component has its own workflow. The workflow always starts, but a cheap
 # `changes` job first works out what the change touches
 # (scripts/ci-changes.sh), and every other job runs only if it can be affected:
@@ -20,24 +20,20 @@
 #    the lowest supported toolchain, and a statically linked Linux binary.
 name: CI
 
+# CI runs only where a change is about to reach what is released (CONTRIBUTING.md, "Continuous
+# integration"): on a promotion pull request into `main` that is not a draft, and by hand
+# (Actions -> Run workflow) for any branch. Never for `develop` or a feature branch.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
     # `ready_for_review` is how a draft starts running CI, and `labeled` and
     # `unlabeled` are how `skip-ci` takes effect straight away.
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
-  # So that a dependency's new release cannot quietly break the build
-  # unnoticed between commits.
-  schedule:
-    - cron: "0 6 * * 1"
+  workflow_dispatch:
 
 # A pull request that is a draft, or carries the `skip-ci` label, runs nothing:
-# the `changes` job has the guard, and every other job needs it. A push to main
-# and the weekly schedule always run, and the schedule runs every job, because
-# it exists to catch what a dependency broke. `[skip ci]` in the head commit
-# message also works, natively, for pushes.
+# the `changes` job has the guard, and every other job needs it. A manual run
+# runs every job.
 
 permissions:
   contents: read
@@ -228,12 +224,10 @@ jobs:
 
       - if: needs.changes.outputs.rust == 'true'
         run: cargo fmt --all --check
-      # The release scripts are code that is only ever run on release day, so
-      # nothing would notice a syntax error or a bashism until then. shellcheck
-      # ships on the Ubuntu runner images. The classifier that decides what CI
-      # runs has tests of its own, which are quick and need nothing installed.
+      # shellcheck ships on the Ubuntu runner images. The classifier that decides
+      # what CI runs has tests of its own, which are quick and need nothing installed.
       - if: needs.changes.outputs.scripts == 'true'
-        run: shellcheck -x scripts/*.sh scripts/lib/*.sh scripts/release/*.sh
+        run: shellcheck -x scripts/*.sh
       - if: needs.changes.outputs.scripts == 'true'
         run: scripts/test-ci-changes.sh
       # On stable rather than on the MSRV: lints change between releases,

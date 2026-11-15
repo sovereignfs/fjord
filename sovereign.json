@@ -1,0 +1,22 @@
+{
+  "name": "fjord",
+  "create": "0.14.0",
+  "requiredChecks": [],
+  "unmanaged": [],
+  "components": [
+    {
+      "name": "cli",
+      "version": "Cargo.toml",
+      "tagPrefix": "fjord-cli-",
+      "changelog": "crates/fjord-cli/CHANGELOG.md",
+      "publish": "fjord-cli-release.yml"
+    },
+    {
+      "name": "web",
+      "version": "clients/web/package.json",
+      "tagPrefix": "web-",
+      "changelog": "clients/web/CHANGELOG.md",
+      "publish": "web-release.yml"
+    }
+  ]
+}
