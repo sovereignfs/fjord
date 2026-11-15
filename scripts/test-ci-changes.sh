@@ -103,18 +103,15 @@ expect "a web change leaves the editors' jobs alone" "$WEB" clients/web/app/layo
 expect "a Rust change leaves the editors' jobs alone" "$RUST" crates/fjord-cli/src/cmd/sync.rs
 
 printf '\nchanges that need only the script checks\n'
-expect "a release script" "$SCRIPTS" scripts/release.sh
-expect "the release library" "$SCRIPTS" scripts/lib/release.sh
-expect "a component's release file" "$SCRIPTS" scripts/release/cli.sh scripts/release/web.sh
-expect "the release tests" "$SCRIPTS" scripts/test-release.sh
+expect "a script" "$SCRIPTS" scripts/check-site-scaffolds.sh
 
 printf '\nthe classifier itself\n'
 expect "changing the classifier runs everything" "$ALL" scripts/ci-changes.sh
 expect "changing its tests runs everything" "$ALL" scripts/test-ci-changes.sh
 
 printf '\nboth kinds at once\n'
-expect "a source file and a script" "$BOTH" crates/fjord-cli/src/main.rs scripts/release.sh
-expect "a page and a source file" "$ALL" clients/web/app/page.tsx crates/fjord-core/src/lib.rs scripts/release.sh packages/fjord-editor/src/types.ts
+expect "a source file and a script" "$BOTH" crates/fjord-cli/src/main.rs scripts/check-site-scaffolds.sh
+expect "a page and a source file" "$ALL" clients/web/app/page.tsx crates/fjord-core/src/lib.rs scripts/check-site-scaffolds.sh packages/fjord-editor/src/types.ts
 expect "an editor file and a web file" "rust=false scripts=false web=true editor=true" packages/fjord-editor/src/types.ts clients/web/app/page.tsx
 
 printf '\n%s passed, %s failed\n' "$PASSED" "$FAILED"

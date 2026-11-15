@@ -1,42 +1,44 @@
-# Releasing
+# Releasing Fjord
 
-This repository releases more than one thing, each on its own schedule. A
-release is cut with `scripts/release.sh`, one component at a time:
+The sections above and below the shared one are this repository's own (what is particular to how each component publishes); the shared
+one is written by `npm create @sovereignfs app sync` and is the same in every repository of the suite.
 
-```bash
-scripts/release.sh cli check   0.3.1                 # read-only preflight
-scripts/release.sh cli prepare 0.3.1                 # branch, bump, gate, commit locally
-scripts/release.sh cli propose 0.3.1 [--dry-run]     # push the branch, open a draft PR
-scripts/release.sh cli tag     0.3.1 [--dry-run]     # after the PR merges: tag, watch, verify
-scripts/release.sh cli verify  0.3.1                 # check a published release
-```
+<!-- sovereign:shared:begin -->
 
-`main` takes changes only through pull requests ([`CLAUDE.md`](CLAUDE.md)
-§ Working conventions), and a release is a change like any other:
+This repository releases several components, each with its own version, tag and changelog, listed in `sovereign.json`. A release is a
+promotion of `develop` into `main` that says which of them it publishes. There is no release script.
 
-1. **`prepare`** cuts `chore/release-cli-0.3.1` from an up-to-date `main`,
-   promotes `[Unreleased]` to the new version, bumps the version everywhere, runs
-   the gates, and makes one commit, `Release fjord-cli 0.3.1`. Read it with
-   `git show --stat HEAD`. It never pushes, and puts everything back, the branch
-   included, if anything fails.
-2. **`propose`** pushes that branch and opens a **draft** PR into `main` with the
-   notes as its body, then stops.
-3. A person marks the PR ready (which runs CI) and merges it with **rebase and
-   merge**. That is the review.
-4. **`tag`**, on `main` after `git pull`, checks that the latest commit is the
-   release commit, waits for CI on that exact commit, tags it, watches the
-   release workflow, titles the release and verifies it.
+1. **Set each component's version and its changelog section on `develop`,** in the change that makes them: the version in the file
+   `sovereign.json` names for it (semver: a fix is a patch, a feature a minor, a break a major), and a section `## [X.Y.Z] - YYYY-MM-DD`
+   in its changelog, saying in plain words what changed for someone upgrading. The section is the release's notes.
+2. **Open the promotion pull request** from `develop` into `main`, titled with the versions it carries, by their tags (each component's tag
+   prefix, then `vX.Y.Z`, such as `web-v1.2.0`), and starting with **`Release`** when merging it is to publish them:
+   `Release web-v1.2.0, cli-v0.6.0`. The **Promotion** check holds the title to the code: each version must be its component's current
+   one, and under `Release` not tagged yet, with its changelog section. Editing the title runs it again.
+3. **Merge it with a merge commit** (the only method `main` allows). For a `Release` title, the **Release** workflow checks the title
+   against the merged code, tags the merge commit with each version, and calls each component's publish workflow with its tag.
 
-`tag` is separate from the merge because a rebase-and-merge gives the commit a
-new SHA, and it is the merged commit that CI has to vouch for and that is
-tagged. For the same reason CI also runs on pushes to `main`.
+A version promoted without `Release` can be published later by pushing its tag on the merge commit that brought it.
 
-`publish`, which used to push `main` and tag in one go, no longer exists; it
-prints this list and exits.
+The promotion check and the release are workflows every repository of the suite shares, kept in
+[sovereignfs/sovereign](https://github.com/sovereignfs/sovereign/tree/main/.github/workflows) and run with the version of
+`@sovereignfs/create` that `sovereign.json` pins.
 
-Why each check exists is in [`ROADMAP.md`](ROADMAP.md) under "Releasing". Every
-one is there because a release once went wrong without it. The script has its
-own tests, `scripts/test-release.sh`, run against throwaway repositories.
+<!-- sovereign:shared:end -->
+
+## What the old release script checked, and nothing checks now
+
+Until the move to the shared release (sovereignfs/sovereign, research 0007), `scripts/release.sh` also did these. The promotion check holds
+the title, the versions and the changelog sections; the rest is a person's, until a check of its own replaces it:
+
+- **A Fjord Web patch with a migration.** It refused a patch release when anything under `clients/web/migrations/` changed since the
+  previous release of that minor. Before titling one `Release …, web-vX.Y.Z+1`, run `git diff web-vX.Y.Z -- clients/web/migrations/`.
+- **The Homebrew secret, before tagging.** Check `HOMEBREW_TAP_TOKEN` is set before a `Release` that names the CLI (Homebrew, below).
+- **Reading the release back.** It checked the registry had both platforms of a Fjord Web image, read `Formula/fjord.rb` back from the
+  tap (its version, a `sha256` for each archive), and checked that only the CLI's release is marked *Latest*. Look at each after a release.
+- **The CLI's release title.** It retitled dist's `0.3.0 - 2026-10-21` to `fjord-cli 0.3.0`; titles now keep dist's form.
+- **`fjord-core`'s pinned version.** It bumped `fjord-core = { version = … }` in `crates/fjord-cli/Cargo.toml` with the workspace version;
+  a CLI version change now changes both by hand (crates.io, below).
 
 ## Components
 
@@ -75,8 +77,7 @@ nothing to compare with.
 Run by hand from the Actions tab (*Web release*, on a branch) it does steps 1 and 2 and throws the
 images away: that is how a change to the workflow or the Dockerfile is tried before a tag exists.
 
-`scripts/release.sh web verify X.Y.Z` also looks at the registry (both platforms) and warns if it
-cannot. **The first time**, GitHub creates the package private: open it (the organisation's
+After a release, `docker buildx imagetools inspect ghcr.io/<owner>/fjord-web:X.Y.Z` shows both platforms. **The first time**, GitHub creates the package private: open it (the organisation's
 *Packages*, `fjord-web`, *Package settings*) and make it public, or nobody but the organisation
 can pull it. That is the one step no workflow can do.
 
@@ -87,7 +88,7 @@ what that means for an application that has a database and settings:
 
 | Release | May contain | Never contains |
 | --- | --- | --- |
-| **Patch** `X.Y.Z+1` | Fixes. | A migration, or a setting added, renamed or removed. `release.sh` refuses a patch release if anything under `clients/web/migrations/` changed since the previous release of that minor. |
+| **Patch** `X.Y.Z+1` | Fixes. | A migration, or a setting added, renamed or removed. Nothing refuses such a patch now; check `clients/web/migrations/` first (above). |
 | **Minor** `X.Y+1.0` | Features; migrations (forward-only, applied at start-up); new settings. While the major is `0` also changes that break (a setting renamed, behaviour changed), each marked **breaking** in the changelog. | A migration or a setting change that is not in the changelog. |
 | **Major** `X+1.0.0` (from 1.0) | Breaking changes. | — |
 
@@ -111,29 +112,25 @@ harm. Anything else that needs one has to be argued in the PR, because the limit
 a freshly published, hijacked package from being installed.
 
 Releases up to 0.2.0 were tagged `vX.Y.Z`, before there was more than one
-component. They are finished and stay as they are; the script finds them when
-it needs the previous release's tag for a compare link.
+component. They are finished and stay as they are.
 
-Write the notes under `## [Unreleased]` in the component's changelog as you go.
-`prepare` turns them into the version's section, because the release tooling
-reads that section at the tagged commit and falls back to generic notes
-*silently* without one.
+A version's notes are its section in the component's changelog, written with the version (the shared section
+above). The promotion check refuses a `Release` without one, because the release workflows read that section at
+the tagged commit. The CLI's changelog still has an `[Unreleased]` section from before the move: it becomes the
+next CLI version's section when that version is set.
 
 ## Release titles
 
-A release is titled `<component> <version>`, for example `fjord-cli 0.3.0`, with
-no date; the date is in the changelog, where it belongs. dist builds the title
-from the changelog heading (`0.3.0 - 2026-10-21`) and has no setting for it, so
-`tag` retitles the release once the workflow has created it, and `verify`
-warns if a title still has the date. That call is the one part of `tag` the
-tests cannot exercise without publishing; the function it calls is tested.
+A promotion is titled with the tags it releases (the shared section above). A GitHub release's own title is
+the CLI's as dist builds it from the changelog heading (`0.3.0 - 2026-10-21`), and Fjord Web's as
+`web-release.yml` writes it.
 
 ## "Latest" is one slot, and it belongs to the CLI
 
 GitHub marks one release in a repository as *Latest*. The README and the
 installers use `releases/latest/download/...`, and they mean the CLI. So **only
 the CLI's releases are marked Latest**, and every other component's must be
-published with `--latest=false`. `verify` checks this both ways.
+published with `--latest=false` (`web-release.yml` does). Nothing checks it afterwards now (above).
 
 ## Tags start the right workflow, and only that
 
@@ -145,18 +142,16 @@ would, and the run would fail.
 ## Adding a component
 
 1. Put it in its own directory, with its own `README.md` and `CHANGELOG.md`.
-2. Write `scripts/release/<component>.sh`, setting the `C_*` variables and
-   defining the `c_*` functions that `scripts/lib/release.sh` documents:
-   the tag prefix, the changelog path, the files a version lives in, how to
-   bump them, what must pass first, and how to check the published result.
-3. Give it a tag prefix of its own, `<component>-vX.Y.Z`, and set `C_LATEST=no`.
+2. Add it to `sovereign.json`: its `name`, its `version` file (a `package.json` or a `Cargo.toml`), a `tagPrefix` of its own
+   (`<component>-`), its `changelog`, and its `publish` workflow, which must be callable with the tag (`workflow_call` with a `tag`
+   input, checking out that tag). Then `npm create @sovereignfs app sync` writes the release workflow that calls it.
+3. Publish its releases with `--latest=false`: the *Latest* slot is the CLI's.
 4. Give it its own CI workflow that runs only for changes that can affect it.
    Prefer the `changes` job that `ci.yml` uses (it always reports, and skipped
    jobs count as passed, so the checks can be required). A workflow that is
    skipped altogether by `paths` filters never reports, so do not make that kind
    a *required* check in branch protection.
-5. Add tests for what is particular to it to `scripts/test-release.sh`.
-6. Add its ecosystem to `.github/dependabot.yml`.
+5. Add its ecosystem to `.github/dependabot.yml`, targeting `develop`.
 
 ## Homebrew
 
@@ -180,10 +175,10 @@ gh secret set HOMEBREW_TAP_TOKEN --repo sovereignfs/fjord
 
 **What goes wrong without it is quiet.** The release is created first and the
 formula pushed after, so a missing or wrong token leaves a published release and
-a stale tap. So `tag` looks for the secret and the tap *before* it tags, and
-`verify` reads `Formula/fjord.rb` back from the tap afterwards, checks its version
-and that it has a `sha256` for each of the four archives (a formula without them
-installs unverified). If the publish job fails after the release exists, fix the
+a stale tap. So check the secret before a `Release` that names the CLI, and read
+`Formula/fjord.rb` back from the tap afterwards: its version, and a `sha256` for each
+of the four archives (a formula without them installs unverified). The old release
+script did both; nothing does now (above). If the publish job fails after the release exists, fix the
 token and re-run that job from the Actions page; do not re-tag.
 
 Homebrew keeps one version per formula, so each release replaces the last, and
@@ -202,6 +197,12 @@ starts.
 is told to leave it alone (`exclude-paths` in `.github/dependabot.yml`): a bump
 of `actions/checkout` there once turned a PR red, and would have failed a real
 release the same way.
+
+**One change in it is made by hand**: it can be called with the tag (`workflow_call` and a `tag` input, which
+the plan, the checkouts and the release step read), because the release on merge makes the tag with a token that
+starts no workflow and so has to call this one (RELEASING's shared section). `allow-dirty = ["ci"]` in
+`dist-workspace.toml` lets dist accept the file with it. After a `dist generate` or a `dist` upgrade, put that
+change back; `git diff` shows it.
 
 The actions in it are bumped by upgrading `dist`. As of `dist` 0.33 and its
 `main` branch, it generates `actions/checkout@v6`, so v6 stays until `dist`
@@ -222,13 +223,9 @@ special is needed beyond the rules above.
 
 ## What is not proved until it runs
 
-The renamed release workflow, `fjord-cli-release.yml`, is generated by the same
-tool as the one it replaced and differs from it in one line (the tag pattern),
-but it has not yet run on a real tag. The first `fjord-cli-vX.Y.Z` release is
-its test, and `scripts/release.sh cli verify` is how to read the result. The same
-goes for the PR-based flow: `prepare`, `propose` and the preflights of `tag` are
-tested against a local origin and a stand-in for `gh`, but the first real
-`propose` → merge → `tag` is what proves the whole of it.
+The release on merge has published for Sovereign's own toolkit and image, but not yet here: the first promotion
+titled `Release` that names `fjord-cli-v…` or `web-v…` is its test, and calling `fjord-cli-release.yml` from it
+(the change made by hand, above) is the part most worth watching.
 
 ## Publishing to crates.io
 
@@ -237,13 +234,13 @@ tested against a local origin and a stand-in for `gh`, but the first real
 
 - **The names are free** (`fjord-core`, `fjord-cli`, checked 2026-11-01). A different crate called `fjord` exists (a stranger's, v0.4.12): the command is `fjord`, the package is `fjord-cli`,
   and the README says `cargo install fjord-cli`, so a bare `cargo install fjord` would install the wrong thing.
-- **`fjord-cli` names `fjord-core` by version** as well as by path, as `cargo publish` requires; `release.sh` bumps both together.
+- **`fjord-cli` names `fjord-core` by version** as well as by path, as `cargo publish` requires; a CLI version change bumps both, by hand (above).
 - **The package is the crate and nothing else.** The conformance fixtures are the repository's, at its root, so the tests that read them are left out of the package (`exclude`) or skip when
   the fixtures are not there; the packaged `fjord-core`'s own tests pass on their own (246, run from the unpacked `.crate`).
 - **docs.rs** builds `fjord-core` with its default features, and `cargo doc` is clean under `-D warnings`.
 - **`fjord-wasm` is `publish = false`** and is not part of this.
 
-Publishing is a person's step, after `tag` has verified the release, because it needs the owner's crates.io API token (never put in the repository or a workflow) and cannot be undone: a
+Publishing is a person's step, after the release on merge has published and you have read it back, because it needs the owner's crates.io API token (never put in the repository or a workflow) and cannot be undone: a
 version can be yanked but never replaced or deleted.
 
 ```bash
