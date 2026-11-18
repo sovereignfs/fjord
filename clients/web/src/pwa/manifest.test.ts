@@ -32,6 +32,13 @@ describe('the web app manifest', () => {
     expect(sizes).toContain('512x512');
   });
 
+  it('lets a link into Fjord open the installed app, on the page it names', () => {
+    expect(manifest()).toMatchObject({
+      launch_handler: { client_mode: ['navigate-existing', 'auto'] },
+      handle_links: 'preferred',
+    });
+  });
+
   it('has a maskable icon apart from the ones for `any`, so that none is cut to a shape it was not drawn for', () => {
     const purposes = (m.icons ?? []).map((icon) => icon.purpose);
     expect(purposes).toContain('maskable');

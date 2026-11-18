@@ -8,6 +8,14 @@ Each version's section is also its GitHub release notes. It is written in the ch
 that sets the version, dated that day, and a promotion titled `Release` with the
 version's tag is refused without it (RELEASING.md).
 
+## [0.6.0] - 2026-11-18
+
+### Added
+
+- Opened from Sovereign's launcher, or from any link to it, an installed Fjord now opens as itself on desktop Chrome and Edge and on
+  Android Chrome, on the page the link names, rather than in a browser view. On an iPhone, an iPad and in Safari the link opens a browser
+  view, as before.
+
 ## [0.5.0] - 2026-11-11
 
 ### Added
