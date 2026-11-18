@@ -4,12 +4,17 @@ All notable changes to `fjord-web` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-Each release's section is also its GitHub release notes: the release workflow
-reads this file when a release is cut. Write the notes under `## [Unreleased]`
-as you go; `scripts/release.sh web prepare` turns them into the version's
-section.
+Each version's section is also its GitHub release notes. It is written in the change
+that sets the version, dated that day, and a promotion titled `Release` with the
+version's tag is refused without it (RELEASING.md).
 
-## [Unreleased]
+## [0.6.0] - 2026-11-18
+
+### Added
+
+- Opened from Sovereign's launcher, or from any link to it, an installed Fjord now opens as itself on desktop Chrome and Edge and on
+  Android Chrome, on the page the link names, rather than in a browser view. On an iPhone, an iPad and in Safari the link opens a browser
+  view, as before.
 
 ## [0.5.0] - 2026-11-11
 
@@ -502,7 +507,6 @@ section.
   tests and builds in CI. Nothing in it is usable yet; the work is planned in
   [`ROADMAP.md`](ROADMAP.md).
 
-[Unreleased]: https://github.com/sovereignfs/fjord/compare/web-v0.5.0...HEAD
 [0.5.0]: https://github.com/sovereignfs/fjord/compare/web-v0.4.0...web-v0.5.0
 [0.4.0]: https://github.com/sovereignfs/fjord/compare/web-v0.3.0...web-v0.4.0
 [0.3.0]: https://github.com/sovereignfs/fjord/compare/web-v0.2.0...web-v0.3.0

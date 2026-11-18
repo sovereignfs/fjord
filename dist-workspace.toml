@@ -11,6 +11,9 @@ members = ["cargo:."]
 [dist]
 cargo-dist-version = "0.33.0"
 ci = "github"
+# The generated release workflow carries one change by hand: it can be called with the tag, by the release on
+# merge (RELEASING.md, "The release workflow is generated"). dist would otherwise refuse the file.
+allow-dirty = ["ci"]
 
 # Both installers are generated into the release itself, so the command a
 # user runs points at a GitHub Release asset and nothing else.

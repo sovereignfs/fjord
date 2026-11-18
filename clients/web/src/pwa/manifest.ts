@@ -9,6 +9,9 @@ import { site } from '../site';
  * The icons are the app's mark (`app/icon.svg`) as PNG, for the installers that do not take SVG: `any` has the rounded square, `maskable` is full-bleed
  * with the letters inside the safe zone, so a launcher may cut it to any shape.
  */
+/** `handle_links` is newer than Next's manifest type, so it is added as a spread, which the type does not check member by member. */
+const LINK_CAPTURE = { handle_links: 'preferred' } as const;
+
 export const SURFACE_LIGHT = '#ffffff';
 export const SURFACE_DARK = '#09090b';
 
@@ -23,6 +26,10 @@ export function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     scope: '/',
     display: 'standalone',
+    // A link into Fjord, from Sovereign's launcher or anywhere else, opens the installed app where the device allows it (desktop Chrome and
+    // Edge, Android Chrome), on the page it names, in a window already open if there is one (Sovereign research 0010).
+    launch_handler: { client_mode: ['navigate-existing', 'auto'] },
+    ...LINK_CAPTURE,
     background_color: SURFACE_LIGHT,
     theme_color: SURFACE_LIGHT,
     categories: ['productivity', 'utilities'],

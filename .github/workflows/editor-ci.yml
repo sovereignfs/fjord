@@ -1,6 +1,6 @@
 # Continuous integration for the editors' package (packages/fjord-editor).
 #
-# Each component has a workflow of its own (CLAUDE.md § Adding a component): this one runs only for a change that can
+# Each component has a workflow of its own (AGENTS.md § Adding a component): this one runs only for a change that can
 # affect the editors, and ci.yml and web-ci.yml do not run for it. Like theirs it always starts, and a cheap `changes`
 # job first works out what the change touches (scripts/ci-changes.sh); the check needs it, so a change to the
 # package's documents alone runs nothing more. The workflow always reports, so a skipped job counts as passed and a
@@ -10,17 +10,16 @@
 # Rust or the web code. So it is built and tested alone, and nothing else is built for it.
 name: Editor CI
 
+# CI runs only where a change is about to reach what is released (CONTRIBUTING.md, "Continuous
+# integration"): on a promotion pull request into `main` that is not a draft, and by hand
+# (Actions -> Run workflow) for any branch. Never for `develop` or a feature branch.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
     # `ready_for_review` is how a draft starts running CI, and `labeled` and `unlabeled` are how `skip-ci` takes
     # effect straight away.
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
-  # So that a dependency's new release cannot quietly break the build unnoticed between commits.
-  schedule:
-    - cron: "0 6 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -2,19 +2,15 @@
 #
 # `fjord init --kind ssg` writes an Astro or a Jekyll project around a Fjord vault. That a scaffold really builds with its
 # engine's own tools, and that its built site holds the posts and neither of Fjord's manifests, can only be known by building it,
-# which needs Node and Ruby and not the Rust matrix. So this has a workflow of its own (CLAUDE.md § Adding a component), and
+# which needs Node and Ruby and not the Rust matrix. So this has a workflow of its own (AGENTS.md § Adding a component), and
 # runs only when a scaffold, the code that writes it, or this check changes. The engines move: it also runs weekly, so a new
 # release of either cannot break the scaffold unnoticed.
 name: Sites CI
 
+# CI runs only where a change is about to reach what is released (CONTRIBUTING.md, "Continuous
+# integration"): on a promotion pull request into `main` that is not a draft, and by hand
+# (Actions -> Run workflow) for any branch. Never for `develop` or a feature branch.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "crates/fjord-core/templates/**"
-      - "crates/fjord-core/src/scaffold.rs"
-      - "scripts/check-site-scaffolds.sh"
-      - ".github/workflows/sites-ci.yml"
   pull_request:
     branches: [main]
     # `ready_for_review` is how a draft starts running CI, and `labeled` and `unlabeled` are how `skip-ci` takes effect.
@@ -24,8 +20,7 @@ on:
       - "crates/fjord-core/src/scaffold.rs"
       - "scripts/check-site-scaffolds.sh"
       - ".github/workflows/sites-ci.yml"
-  schedule:
-    - cron: "0 6 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
