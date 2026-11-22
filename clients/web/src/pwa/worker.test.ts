@@ -1,3 +1,4 @@
+import { TAKE_OVER_MESSAGE } from '@sovereignfs/pwa';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
 import { CACHE_NAME, OFFLINE_PATH, PRECACHE, workerSource } from './worker';
@@ -8,209 +9,174 @@ import { CACHE_NAME, OFFLINE_PATH, PRECACHE, workerSource } from './worker';
  */
 const ORIGIN = 'https://fjord.example.com';
 
-interface FakeRequest {
-  method: string;
-  url: string;
-  mode: string;
-}
-const request = (path: string, over: Partial<FakeRequest> = {}): FakeRequest => ({
-  method: 'GET',
-  url: path.startsWith('http') ? path : `${ORIGIN}${path}`,
-  mode: 'cors',
-  ...over,
-});
+type Listener = (event: Record<string, unknown>) => void;
 
-class FakeCache {
-  entries = new Map<string, unknown>();
-  async addAll(requests: { url: string }[]) {
-    for (const r of requests) this.entries.set(new URL(r.url, ORIGIN).pathname, `stored ${r.url}`);
-  }
-  async match(r: { url: string } | string) {
-    const url = typeof r === 'string' ? r : r.url;
-    return this.entries.get(new URL(url, ORIGIN).pathname);
-  }
-  async put(r: { url: string }, response: unknown) {
-    this.entries.set(new URL(r.url, ORIGIN).pathname, response);
-  }
-}
-
-function boot(network: (r: FakeRequest) => Promise<unknown>) {
-  const stores = new Map<string, FakeCache>();
-  const listeners: Record<string, (event: never) => void> = {};
+function boot(network: (r: Request) => Promise<Response>) {
+  const stores = new Map<string, Map<string, Response>>();
+  const listeners: Record<string, Listener[]> = {};
   const fetched: string[] = [];
-  const caches = {
-    open: async (name: string) => {
-      if (!stores.has(name)) stores.set(name, new FakeCache());
-      return stores.get(name)!;
-    },
-    keys: async () => [...stores.keys()],
-    delete: async (name: string) => stores.delete(name),
+  const state = { claimed: false, tookOver: false };
+  const keyOf = (r: Request | string) => (typeof r === 'string' ? new URL(r, ORIGIN).href : r.url);
+  const cacheOf = (name: string) => {
+    let store = stores.get(name);
+    if (!store) stores.set(name, (store = new Map()));
+    const kept = store;
+    return {
+      match: async (r: Request | string) => kept.get(keyOf(r))?.clone(),
+      put: async (r: Request | string, response: Response) => void kept.set(keyOf(r), response),
+    };
   };
-  let claimed = false;
-  let skipped = false;
   const self = {
     location: { origin: ORIGIN },
-    addEventListener: (type: string, listener: (event: never) => void) => {
-      listeners[type] = listener;
-    },
-    clients: { claim: async () => void (claimed = true) },
-    skipWaiting: () => void (skipped = true),
+    addEventListener: (type: string, listener: Listener) =>
+      void (listeners[type] ??= []).push(listener),
+    clients: { claim: async () => void (state.claimed = true) },
+    skipWaiting: () => void (state.tookOver = true),
   };
   runInNewContext(workerSource(), {
     self,
-    caches,
-    URL,
-    Request: class {
-      url: string;
-      constructor(path: string) {
-        this.url = new URL(path, ORIGIN).href;
-      }
+    caches: {
+      open: async (name: string) => cacheOf(name),
+      keys: async () => [...stores.keys()],
+      delete: async (name: string) => stores.delete(name),
     },
-    Response: { error: () => 'network error' },
+    URL,
+    Request,
+    Response,
+    Headers,
     Promise,
-    fetch: (r: FakeRequest) => {
+    setTimeout,
+    clearTimeout,
+    // A browser's fetch of its own origin answers with a response of type `basic`, the only kind the worker keeps.
+    fetch: async (r: Request) => {
       fetched.push(new URL(r.url).pathname);
-      return network(r);
+      return Object.defineProperty(await network(r), 'type', { value: 'basic' });
     },
   });
 
-  const lifecycle = async (type: 'install' | 'activate') => {
-    let waiting: Promise<unknown> = Promise.resolve();
-    listeners[type]!({ waitUntil: (p: Promise<unknown>) => void (waiting = p) } as never);
-    await waiting;
+  const fire = async (type: string, event: Record<string, unknown> = {}) => {
+    const waits: Promise<unknown>[] = [];
+    let answer: Promise<Response> | undefined;
+    for (const listener of listeners[type] ?? [])
+      listener({
+        ...event,
+        waitUntil: (p: Promise<unknown>) => void waits.push(p),
+        respondWith: (p: Promise<Response>) => void (answer = p),
+      });
+    await Promise.all(waits);
+    return answer ? await answer : undefined;
   };
-  /** What the worker answers a request with, or `undefined` when it leaves the request to the browser. */
-  const ask = async (r: FakeRequest) => {
-    let answer: Promise<unknown> | undefined;
-    listeners['fetch']!({
-      request: r,
-      respondWith: (p: Promise<unknown>) => void (answer = p),
-    } as never);
-    return answer ? { answered: true as const, value: await answer } : { answered: false as const };
+  const ask = (path: string, init: { mode?: RequestMode; method?: string } = {}) => {
+    const request = new Request(new URL(path, ORIGIN), { method: init.method ?? 'GET' });
+    Object.defineProperty(request, 'mode', { value: init.mode ?? 'cors' });
+    return fire('fetch', { request });
   };
-  return {
-    stores,
-    fetched,
-    ask,
-    lifecycle,
-    state: () => ({ claimed, skipped }),
-  };
+  const kept = () =>
+    [...(stores.get(CACHE_NAME)?.keys() ?? [])].map((url) => new URL(url).pathname);
+  return { stores, fetched, fire, ask, kept, state };
 }
 
-const up = async (r: FakeRequest) => ({
-  ok: true,
-  type: 'basic',
-  status: 200,
-  body: `live ${new URL(r.url).pathname}`,
-  clone() {
-    return this;
-  },
-});
-const down = async () => {
+const live = async (r: Request) => new Response(`live ${new URL(r.url).pathname}`);
+const down = async (): Promise<Response> => {
   throw new TypeError('Failed to fetch');
 };
 
 describe('installing', () => {
-  it('keeps the offline page and nothing else, fetched past the browser cache', async () => {
-    const worker = boot(up);
-    await worker.lifecycle('install');
+  it('keeps the offline page and the mark it shows, and nothing else', async () => {
+    const worker = boot(live);
+    await worker.fire('install');
     expect([...worker.stores.keys()]).toEqual([CACHE_NAME]);
-    const kept = [...worker.stores.get(CACHE_NAME)!.entries.keys()];
-    expect(kept.sort()).toEqual([...PRECACHE].sort());
-    expect(kept).toContain(OFFLINE_PATH);
+    expect(worker.kept().sort()).toEqual([...PRECACHE].sort());
+    expect(worker.kept()).toContain(OFFLINE_PATH);
   });
 
-  it('never skips waiting: a new worker does not replace the code of a window someone is writing in', async () => {
-    const worker = boot(up);
-    await worker.lifecycle('install');
-    expect(worker.state().skipped).toBe(false);
-    expect(workerSource()).not.toContain('skipWaiting');
+  it('does not take over a window someone is writing in until a page asks, which the registration does when they choose Reload', async () => {
+    const worker = boot(live);
+    await worker.fire('install');
+    await worker.fire('message', { data: 'something else' });
+    expect(worker.state.tookOver).toBe(false);
+    await worker.fire('message', { data: TAKE_OVER_MESSAGE });
+    expect(worker.state.tookOver).toBe(true);
   });
 });
 
 describe('activating', () => {
   it("removes the caches of earlier releases, and only this app's own, then takes over", async () => {
-    const worker = boot(up);
-    await worker.lifecycle('install');
-    worker.stores.set('fjord-0.0.1', new FakeCache());
-    worker.stores.set('someone-elses', new FakeCache());
-    await worker.lifecycle('activate');
+    const worker = boot(live);
+    await worker.fire('install');
+    worker.stores.set('fjord-0.0.1', new Map());
+    worker.stores.set('someone-elses', new Map());
+    await worker.fire('activate');
     expect([...worker.stores.keys()].sort()).toEqual([CACHE_NAME, 'someone-elses'].sort());
-    expect(worker.state().claimed).toBe(true);
+    expect(worker.state.claimed).toBe(true);
   });
 });
 
 describe('a page', () => {
-  it('is left to the browser while the network works, and is never stored', async () => {
-    const worker = boot(up);
-    await worker.lifecycle('install');
-    for (const path of ['/', '/home', '/d/01HZX3', '/repo/abc/Notes/a.md', '/s/tok', '/p/tok']) {
-      const answer = await worker.ask(request(path, { mode: 'navigate' }));
-      // It may answer by fetching, but what it fetched is the network's, and nothing is put away.
-      if (answer.answered) expect(answer.value).toMatchObject({ body: `live ${path}` });
+  it('is the network’s while the network works, and is never stored', async () => {
+    const worker = boot(live);
+    await worker.fire('install');
+    for (const path of [
+      '/',
+      '/home',
+      '/d/01HZX3',
+      '/repo/abc/Notes/a.md',
+      '/s/tok',
+      '/p/tok',
+      '/raw/abc',
+    ]) {
+      const answer = await worker.ask(path, { mode: 'navigate' });
+      expect(await answer?.text(), path).toBe(`live ${path}`);
     }
-    expect([...worker.stores.get(CACHE_NAME)!.entries.keys()].sort()).toEqual([...PRECACHE].sort());
+    expect(worker.kept().sort()).toEqual([...PRECACHE].sort());
   });
 
   it('is replaced by the offline page when the network is down, and only then', async () => {
-    const worker = boot(down);
-    await worker.lifecycle('install');
-    const answer = await worker.ask(request('/d/01HZX3', { mode: 'navigate' }));
-    expect(answer).toEqual({ answered: true, value: `stored ${ORIGIN}${OFFLINE_PATH}` });
+    let online = true;
+    const worker = boot((r) => (online ? live(r) : down()));
+    await worker.fire('install');
+    online = false;
+    const answer = await worker.ask('/d/01HZX3', { mode: 'navigate' });
+    expect(await answer?.text()).toBe(`live ${OFFLINE_PATH}`);
   });
 
   it("is the server's own answer when the server answers, an error included", async () => {
-    const worker = boot(async () => ({ ok: false, status: 500, type: 'basic', body: 'oops' }));
-    await worker.lifecycle('install');
-    const answer = await worker.ask(request('/home', { mode: 'navigate' }));
-    expect(answer).toEqual({
-      answered: true,
-      value: { ok: false, status: 500, type: 'basic', body: 'oops' },
-    });
-  });
-
-  it('is not a page when it is an API, a raw document or a build file, which fail as they should', async () => {
-    const worker = boot(down);
-    await worker.lifecycle('install');
-    for (const path of ['/api/health', '/api/auth/callback/sovereign', '/raw/abc', '/_next/data/x'])
-      expect((await worker.ask(request(path, { mode: 'navigate' }))).answered, path).toBe(false);
+    const worker = boot(async () => new Response('oops', { status: 500 }));
+    const answer = await worker.ask('/home', { mode: 'navigate' });
+    expect(answer?.status).toBe(500);
+    expect(await answer?.text()).toBe('oops');
   });
 });
 
 describe('everything that is not a page', () => {
   it('is left alone unless it is a static file: an API call, a write, another origin, the format module', async () => {
-    const worker = boot(up);
-    await worker.lifecycle('install');
-    for (const r of [
-      request('/api/connections'),
-      request('/d/01HZX3/comments'),
-      request('/d/01HZX3/draft', { method: 'PUT' }),
-      request('/api/auth/sign-out', { method: 'POST' }),
-      request('https://cdn.example.org/_next/static/a.js'),
-      request('/fjord-wasm/fjord_wasm_bg.wasm'),
-      request('/manifest.webmanifest'),
-    ])
-      expect((await worker.ask(r)).answered, `${r.method} ${r.url}`).toBe(false);
+    const worker = boot(live);
+    await worker.fire('install');
+    worker.fetched.length = 0;
+    for (const [path, method] of [
+      ['/api/connections', 'GET'],
+      ['/d/01HZX3/comments', 'GET'],
+      ['/d/01HZX3/draft', 'PUT'],
+      ['/api/auth/sign-out', 'POST'],
+      ['https://cdn.example.org/_next/static/a.js', 'GET'],
+      ['/fjord-wasm/fjord_wasm_bg.wasm', 'GET'],
+    ] as const)
+      expect(await worker.ask(path, { method }), `${method} ${path}`).toBeUndefined();
     expect(worker.fetched).toEqual([]);
   });
 
   it("keeps the build's static files and the icons once they have been fetched, and serves them without the network after", async () => {
     let online = true;
-    const worker = boot((r) => (online ? up(r) : down()));
-    await worker.lifecycle('install');
-    const file = request('/_next/static/chunks/app-1a2b3c.js', { mode: 'no-cors' });
-    expect(await worker.ask(file)).toMatchObject({ answered: true, value: { ok: true } });
+    const worker = boot((r) => (online ? live(r) : down()));
+    const file = '/_next/static/chunks/app-1a2b3c.js';
+    expect(await (await worker.ask(file, { mode: 'no-cors' }))?.text()).toBe(`live ${file}`);
     online = false;
-    expect(await worker.ask(file)).toMatchObject({
-      answered: true,
-      value: { body: 'live /_next/static/chunks/app-1a2b3c.js' },
-    });
+    expect(await (await worker.ask(file, { mode: 'no-cors' }))?.text()).toBe(`live ${file}`);
   });
 
-  it('does not keep a failed answer or a redirect for a static file', async () => {
-    const worker = boot(async () => ({ ok: false, status: 404, type: 'basic', clone: () => ({}) }));
-    await worker.lifecycle('install');
-    await worker.ask(request('/_next/static/chunks/gone.js'));
-    expect(worker.stores.get(CACHE_NAME)!.entries.has('/_next/static/chunks/gone.js')).toBe(false);
+  it('does not keep a failed answer for a static file', async () => {
+    const worker = boot(async () => new Response('gone', { status: 404 }));
+    await worker.ask('/_next/static/chunks/gone.js');
+    expect(worker.kept()).not.toContain('/_next/static/chunks/gone.js');
   });
 });

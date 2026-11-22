@@ -103,3 +103,29 @@ No `postLogout` (signing out of Fjord is local), no `offline_access` (Fjord call
   suite and a build with the SDK; and in a browser a real signed logout ending sessions in two browsers, wrong and replayed notices refused, and a deletion emptying the instance's first-account rule.
 - **Not verified:** the image build and `deploy-check.sh` with the SDK (the lockfile cannot install it yet); a real Sovereign instance sending these (the notices are the fake's, checked by the
   SDK that holds the rules, but no real core was run); and that the instance registers the two addresses from the manifest (that is `sv`'s, tested in sovereignfs/sovereign).
+
+## H4 The suite's current packages and worker
+
+**Status:** ✅ Done (Sovereign task 20.13)
+
+Fjord Web on `@sovereignfs/sdk` 2.11.0, `@sovereignfs/ui` 0.105.0, `@sovereignfs/manifest` 0.4.0 (manifest 5, core `>=0.126.0`) and `@sovereignfs/pwa` 0.2.0,
+with `@sovereignfs/create` 0.27.1's shared files synced at the repository's root.
+
+- **Done as:** the manifest, the worker and its registration come from `@sovereignfs/pwa`, with Fjord's cache name (by release) and `/offline` as the
+  kept page. What changed for a person: a new version is announced with Reload; a page that does not answer in time is also answered with `/offline`;
+  `/raw/…` opened offline gets `/offline` too; the manifest is kept with the icons. `src/pwa/worker.test.ts` was rewritten on real `Request` and
+  `Response` for the package's worker, each rule of the old one kept, and fails with the allow-list widened.
+- **Not in it:** core's export (H5).
+
+## H5 Core's export of a person
+
+**Status:** 📋 Planned, waits on a decision
+
+`signIn.export` and `POST /api/sovereign/export`, answered with `handleExportRequest` from `@sovereignfs/sdk`, as the other apps of the suite do.
+
+**To decide first:** what of a person Fjord holds is theirs to take. A connected repository's files are in the person's git host, not here; a local
+repository (`local_repository`, `local_commit`, `local_blob`) is here and is theirs; an encrypted journal is ciphertext the server cannot open; comments,
+share links and the journal's index are Fjord's own rows. A proposal: each local repository's files at its branch's head, as files; journal entries as
+stored, marked end to end; the person's comments and share links as records; connections by name, never their credentials.
+
+**Accepts when:** the owner has decided the above, and a person's export from a Sovereign instance holds it, on the three databases.

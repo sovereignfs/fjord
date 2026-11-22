@@ -195,7 +195,7 @@ describe('sovereign-manifest, which builds the image from the file', () => {
   });
 
   it('checks the file, and is a usage error for what it does not know', () => {
-    expect(run('check')).toContain('is a valid manifest 2');
+    expect(run('check')).toContain('is a valid manifest 5');
     expect(() => run('build')).toThrow();
   });
 });

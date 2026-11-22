@@ -4,12 +4,30 @@ All notable changes to `fjord-web` are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/).
 
-Each release's section is also its GitHub release notes: the release workflow
-reads this file when a release is cut. Write the notes under `## [Unreleased]`
-as you go; `scripts/release.sh web prepare` turns them into the version's
-section.
+Each version's section is also its GitHub release notes. It is written in the change
+that sets the version, dated that day, and a promotion titled `Release` with the
+version's tag is refused without it (RELEASING.md).
 
-## [Unreleased]
+## [0.7.0] - 2026-11-22
+
+### Changed
+
+- The service worker, the web manifest and the worker's registration are the suite's, from `@sovereignfs/pwa`. A new version of Fjord Web is announced with a Reload button instead of waiting for every window to close, and a page that does not load in time is answered with the offline page as one that fails is. As before, no page, document or answer of the API is ever kept on the device.
+- On the suite's current packages: `@sovereignfs/sdk` 2.11.0, `@sovereignfs/ui` 0.105.0 and `@sovereignfs/manifest` 0.4.0 (manifest 5, which asks for core 0.126.0 or later), with `@sovereignfs/create` 0.27.1's shared rules in `AGENTS.md` and `CONTRIBUTING.md`.
+
+## [0.6.1] - 2026-11-22
+
+### Security
+
+- Next.js 16.4.6, which the build now requires: 16.4.3 has a known vulnerability, and `next build` refuses to build it.
+
+- 2026-11-18
+
+### Added
+
+- Opened from Sovereign's launcher, or from any link to it, an installed Fjord now opens as itself on desktop Chrome and Edge and on
+  Android Chrome, on the page the link names, rather than in a browser view. On an iPhone, an iPad and in Safari the link opens a browser
+  view, as before.
 
 ## [0.5.0] - 2026-11-11
 
@@ -502,7 +520,9 @@ section.
   tests and builds in CI. Nothing in it is usable yet; the work is planned in
   [`ROADMAP.md`](ROADMAP.md).
 
-[Unreleased]: https://github.com/sovereignfs/fjord/compare/web-v0.5.0...HEAD
+[0.7.0]: https://github.com/sovereignfs/fjord/compare/web-v0.6.1...web-v0.7.0
+[0.6.1]: https://github.com/sovereignfs/fjord/compare/web-v0.6.0...web-v0.6.1
+[0.6.0]: https://github.com/sovereignfs/fjord/compare/web-v0.5.0...web-v0.6.0
 [0.5.0]: https://github.com/sovereignfs/fjord/compare/web-v0.4.0...web-v0.5.0
 [0.4.0]: https://github.com/sovereignfs/fjord/compare/web-v0.3.0...web-v0.4.0
 [0.3.0]: https://github.com/sovereignfs/fjord/compare/web-v0.2.0...web-v0.3.0

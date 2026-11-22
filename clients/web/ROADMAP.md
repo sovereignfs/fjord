@@ -204,6 +204,8 @@ toolkit reads. The plan, and what it asks of Sovereign, are in the epic.
 | [H1](../../docs/epics/web-sovereign.md#h1-settings-under-sovereigns-names)            | Settings under Sovereign's names           | ✅ Done                                                                  |
 | [H2](../../docs/epics/web-sovereign.md#h2-the-manifest-and-the-image)                 | The manifest and the image                 | ✅ Done                                                                  |
 | [H3](../../docs/epics/web-sovereign.md#h3-signing-out-and-account-deletion-from-core) | Signing out and account deletion from core | ✅ Done (its lockfile waits on `@sovereignfs/sdk` 2.1.0 being published) |
+| [H4](../../docs/epics/web-sovereign.md#h4-the-suites-current-packages-and-worker)     | The suite's current packages and worker    | ✅ Done                                                                  |
+| [H5](../../docs/epics/web-sovereign.md#h5-cores-export-of-a-person)                   | Core's export of a person                  | 📋 Planned, waits on a decision                                          |
 
 ## Later
 

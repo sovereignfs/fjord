@@ -1,7 +1,7 @@
 # Continuous integration for Fjord Web (clients/web).
 #
 # The Rust crates have their own workflow (ci.yml), and each component has one of
-# its own (CLAUDE.md § Adding a component): this one runs only for a change that
+# its own (AGENTS.md § Adding a component): this one runs only for a change that
 # can affect Fjord Web, and ci.yml does not run for it. Like ci.yml it always
 # starts, and a cheap `changes` job first works out what the change touches
 # (scripts/ci-changes.sh); every other job needs it, so a change to Fjord Web's
@@ -31,23 +31,20 @@
 # variables a developer might have exported (src/db/test-support.ts).
 name: Web CI
 
+# CI runs only where a change is about to reach what is released (CONTRIBUTING.md, "Continuous
+# integration"): on a promotion pull request into `main` that is not a draft, and by hand
+# (Actions -> Run workflow) for any branch. Never for `develop` or a feature branch.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
     # `ready_for_review` is how a draft starts running CI, and `labeled` and
     # `unlabeled` are how `skip-ci` takes effect straight away.
     types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
-  # So that a dependency's new release cannot quietly break the build unnoticed
-  # between commits.
-  schedule:
-    - cron: "0 6 * * 1"
+  workflow_dispatch:
 
 # A pull request that is a draft, or carries the `skip-ci` label, runs nothing:
-# the `changes` job has the guard, and every other job needs it. A push to main
-# and the weekly schedule always run, and the schedule runs every job, because it
-# exists to catch what a dependency broke.
+# the `changes` job has the guard, and every other job needs it. A manual run
+# runs every job.
 
 permissions:
   contents: read
@@ -383,7 +380,7 @@ jobs:
         id: manifest
         working-directory: clients/web
         # The version is package.json's (a test holds the two together); npx fetches the one package, not the app's dependencies.
-        run: npx --yes -p @sovereignfs/manifest@0.1.1 sovereign-manifest docker-args --format github >> "$GITHUB_OUTPUT"
+        run: npx --yes -p @sovereignfs/manifest@0.4.0 sovereign-manifest docker-args --format github >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v7
         with:
