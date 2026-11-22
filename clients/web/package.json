@@ -1,6 +1,6 @@
 {
   "name": "fjord-web",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "private": true,
   "description": "The hosted web client for Fjord: your documents as plain files in a Git repository you control.",
   "license": "AGPL-3.0-or-later",
@@ -44,7 +44,7 @@
     "mdast-util-gfm-table": "^2.0.0",
     "micromark-extension-gfm-strikethrough": "^2.1.0",
     "micromark-extension-gfm-table": "^2.1.2",
-    "next": "^16.4.3",
+    "next": "^16.4.6",
     "nodemailer": "10.2.1",
     "pg": "^8.23.1",
     "qrcode.react": "^4.2.0",

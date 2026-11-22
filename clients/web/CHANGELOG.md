@@ -8,7 +8,13 @@ Each version's section is also its GitHub release notes. It is written in the ch
 that sets the version, dated that day, and a promotion titled `Release` with the
 version's tag is refused without it (RELEASING.md).
 
-## [0.6.0] - 2026-11-18
+## [0.6.1] - 2026-11-22
+
+### Security
+
+- Next.js 16.4.6, which the build now requires: 16.4.3 has a known vulnerability, and `next build` refuses to build it.
+
+- 2026-11-18
 
 ### Added
 
@@ -507,6 +513,8 @@ version's tag is refused without it (RELEASING.md).
   tests and builds in CI. Nothing in it is usable yet; the work is planned in
   [`ROADMAP.md`](ROADMAP.md).
 
+[0.6.1]: https://github.com/sovereignfs/fjord/compare/web-v0.6.0...web-v0.6.1
+[0.6.0]: https://github.com/sovereignfs/fjord/compare/web-v0.5.0...web-v0.6.0
 [0.5.0]: https://github.com/sovereignfs/fjord/compare/web-v0.4.0...web-v0.5.0
 [0.4.0]: https://github.com/sovereignfs/fjord/compare/web-v0.3.0...web-v0.4.0
 [0.3.0]: https://github.com/sovereignfs/fjord/compare/web-v0.2.0...web-v0.3.0
