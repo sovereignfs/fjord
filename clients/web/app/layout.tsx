@@ -6,7 +6,7 @@ import '@sovereignfs/ui/tokens.css';
 import './globals.css';
 import { site } from '../src/site';
 import { SURFACE_DARK, SURFACE_LIGHT } from '../src/pwa/manifest';
-import { RegisterServiceWorker } from '../src/pwa/Register';
+import { ServiceWorkerRegistration } from '@sovereignfs/pwa/client';
 import { themeScript } from '../src/theme/script';
 import { ToastProvider } from '@sovereignfs/ui';
 
@@ -67,7 +67,8 @@ export default async function RootLayout({
           {children}
           {modal}
         </ToastProvider>
-        <RegisterServiceWorker />
+        {/* Registers the service worker in production, and says when a new version is ready (`@sovereignfs/pwa`). */}
+        <ServiceWorkerRegistration appName={site.name} />
       </body>
     </html>
   );

@@ -8,6 +8,13 @@ Each version's section is also its GitHub release notes. It is written in the ch
 that sets the version, dated that day, and a promotion titled `Release` with the
 version's tag is refused without it (RELEASING.md).
 
+## [0.7.0] - 2026-11-22
+
+### Changed
+
+- The service worker, the web manifest and the worker's registration are the suite's, from `@sovereignfs/pwa`. A new version of Fjord Web is announced with a Reload button instead of waiting for every window to close, and a page that does not load in time is answered with the offline page as one that fails is. As before, no page, document or answer of the API is ever kept on the device.
+- On the suite's current packages: `@sovereignfs/sdk` 2.11.0, `@sovereignfs/ui` 0.105.0 and `@sovereignfs/manifest` 0.4.0 (manifest 5, which asks for core 0.126.0 or later), with `@sovereignfs/create` 0.27.1's shared rules in `AGENTS.md` and `CONTRIBUTING.md`.
+
 ## [0.6.1] - 2026-11-22
 
 ### Security
@@ -513,6 +520,7 @@ version's tag is refused without it (RELEASING.md).
   tests and builds in CI. Nothing in it is usable yet; the work is planned in
   [`ROADMAP.md`](ROADMAP.md).
 
+[0.7.0]: https://github.com/sovereignfs/fjord/compare/web-v0.6.1...web-v0.7.0
 [0.6.1]: https://github.com/sovereignfs/fjord/compare/web-v0.6.0...web-v0.6.1
 [0.6.0]: https://github.com/sovereignfs/fjord/compare/web-v0.5.0...web-v0.6.0
 [0.5.0]: https://github.com/sovereignfs/fjord/compare/web-v0.4.0...web-v0.5.0

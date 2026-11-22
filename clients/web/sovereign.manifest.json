@@ -1,5 +1,5 @@
 {
-  "manifest": 2,
+  "manifest": 5,
   "prefix": "fjord",
   "name": "Fjord",
   "description": "Your documents as plain files in a Git repository you control",
@@ -15,5 +15,5 @@
   },
   "database": true,
   "generate": ["FJORD_AUTH_SECRET", { "name": "FJORD_ENCRYPTION_KEY", "bytes": 32 }],
-  "core": ">=0.57.0 <1.0.0"
+  "core": ">=0.126.0 <1.0.0"
 }

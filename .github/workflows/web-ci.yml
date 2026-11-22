@@ -380,7 +380,7 @@ jobs:
         id: manifest
         working-directory: clients/web
         # The version is package.json's (a test holds the two together); npx fetches the one package, not the app's dependencies.
-        run: npx --yes -p @sovereignfs/manifest@0.1.1 sovereign-manifest docker-args --format github >> "$GITHUB_OUTPUT"
+        run: npx --yes -p @sovereignfs/manifest@0.4.0 sovereign-manifest docker-args --format github >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v7
         with:
